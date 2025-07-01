@@ -1,0 +1,32 @@
+# Docker Compose file format version. Using the latest stable version is recommended.
+version: '3.8'
+
+# Services to be run. In this case, a single database service.
+services:
+  db: # Name of our database service
+    # Using the official PostgreSQL image from Docker Hub.
+    # '15-alpine' is a lightweight version of PostgreSQL 15.
+    image: postgres:15-alpine
+    # Ensures the container restarts automatically if it stops.
+    restart: always
+    # Environment variables for PostgreSQL configuration inside the container.
+    environment:
+      # The name of the database to be created.
+      POSTGRES_DB: experiments
+      # Username for database access.
+      POSTGRES_USER: experiments_user
+      # Password for the database user. Change this to something secure!
+      POSTGRES_PASSWORD: experiments_user_password
+    # Port mapping: 'external_port:internal_port'.
+    # 5432 is the standard PostgreSQL port.
+    # This will allow your application to connect to the database on localhost:5432.
+    ports:
+      - "5432:5432"
+    # Data persistence: Mount a named Docker volume to the PostgreSQL data directory.
+    # This ensures your data is preserved even after the container restarts.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+# Definition of volumes used by the services.
+volumes:
+  postgres_data: # Defining a named volume for PostgreSQL data
