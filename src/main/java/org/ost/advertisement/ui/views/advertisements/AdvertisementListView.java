@@ -86,34 +86,77 @@ public class AdvertisementListView extends VerticalLayout {
 
 		ZoneId clientZoneId = ZoneId.of(TimeZoneUtil.getClientTimeZoneId());
 
-		advertisementGrid.addColumn(Advertisement::getId).setHeader("ID").setSortable(true).setSortProperty("id")
+		advertisementGrid.addColumn(Advertisement::getId)
+			.setHeader("ID")
+			.setSortable(true)
+			.setSortProperty("id")
+			.setAutoWidth(true)
 			.setTextAlign(ColumnTextAlign.END);
-		advertisementGrid.addColumn(Advertisement::getTitle).setHeader("Title").setSortable(true)
-			.setSortProperty("title").setFlexGrow(1);
-		advertisementGrid.addColumn(Advertisement::getCategory).setHeader("Category").setSortable(true)
-			.setSortProperty("category");
-		advertisementGrid.addColumn(Advertisement::getLocation).setHeader("Location").setSortable(true)
-			.setSortProperty("location");
-		advertisementGrid.addColumn(Advertisement::getStatus).setHeader("Status").setSortable(true)
-			.setSortProperty("status");
-		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getCreatedAt(), clientZoneId))
-			.setHeader("Created At").setSortable(true).setSortProperty("createdAt");
-		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getUpdatedAt(), clientZoneId))
-			.setHeader("Updated At").setSortable(true).setSortProperty("updatedAt");
-		advertisementGrid.addColumn(Advertisement::getUserId).setHeader("User ID").setSortable(true)
-			.setSortProperty("userId").setTextAlign(ColumnTextAlign.END);
 
-		advertisementGrid.addColumn(new ComponentRenderer<>(advertisement -> {
-			Button editButton = new Button(VaadinIcon.EDIT.create());
-			editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-			editButton.addClickListener(e -> openAdvertisementFormDialog(advertisement));
+		advertisementGrid.addColumn(Advertisement::getTitle)
+			.setHeader("Title")
+			.setSortable(true)
+			.setSortProperty("title")
+			.setFlexGrow(1)
+			.setAutoWidth(false)
+			.setClassNameGenerator(ad -> "wrap-text"); 
 
-			Button deleteButton = new Button(VaadinIcon.TRASH.create());
-			deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY);
-			deleteButton.addClickListener(e -> confirmAndDelete(advertisement));
+		advertisementGrid.addColumn(Advertisement::getCategory)
+			.setHeader("Category")
+			.setSortable(true)
+			.setSortProperty("category")
+			.setAutoWidth(true);
 
-			return new HorizontalLayout(editButton, deleteButton);
-		})).setHeader("Actions").setAutoWidth(true).setFlexGrow(0);
+		advertisementGrid.addColumn(Advertisement::getLocation)
+			.setHeader("Location")
+			.setSortable(true)
+			.setSortProperty("location")
+			.setAutoWidth(true);
+
+		advertisementGrid.addColumn(Advertisement::getStatus)
+			.setHeader("Status")
+			.setSortable(true)
+			.setSortProperty("status")
+			.setAutoWidth(true);
+
+		advertisementGrid.addColumn(ad -> formatInstant(ad.getCreatedAt(), clientZoneId))
+			.setHeader("Created At")
+			.setSortable(true)
+			.setSortProperty("createdAt")
+			.setAutoWidth(true);
+
+		advertisementGrid.addColumn(ad -> formatInstant(ad.getUpdatedAt(), clientZoneId))
+			.setHeader("Updated At")
+			.setSortable(true)
+			.setSortProperty("updatedAt")
+			.setAutoWidth(true);
+
+		advertisementGrid.addColumn(Advertisement::getUserId)
+			.setHeader("User ID")
+			.setSortable(true)
+			.setSortProperty("userId")
+			.setAutoWidth(true)
+			.setTextAlign(ColumnTextAlign.END);
+
+		advertisementGrid.addColumn(new ComponentRenderer<>(ad -> {
+				Button editButton = new Button(VaadinIcon.EDIT.create());
+				editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+
+				Button deleteButton = new Button(VaadinIcon.TRASH.create());
+				deleteButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+
+				editButton.addClickListener(e -> openAdvertisementFormDialog(ad));
+				deleteButton.addClickListener(e -> confirmAndDelete(ad));
+
+				HorizontalLayout layout = new HorizontalLayout(editButton, deleteButton);
+				layout.setSpacing(false);
+				layout.setJustifyContentMode(JustifyContentMode.CENTER);
+				layout.setWidthFull();
+				return layout;
+			})).setHeader("Actions")
+			.setAutoWidth(true)
+			.setTextAlign(ColumnTextAlign.CENTER)
+			.setFlexGrow(0);
 	}
 
 	private String formatInstant(Instant instant, ZoneId zoneId) {

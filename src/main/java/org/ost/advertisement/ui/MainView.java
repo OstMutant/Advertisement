@@ -2,6 +2,7 @@ package org.ost.advertisement.ui;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
@@ -20,6 +21,7 @@ import java.util.Map;
 @SpringComponent
 @UIScope
 @Route("")
+@CssImport("./themes/lumo/styles.css")
 public class MainView extends VerticalLayout {
 
 	private final Tabs tabs;
