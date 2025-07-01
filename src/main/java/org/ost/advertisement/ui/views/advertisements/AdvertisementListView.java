@@ -1,43 +1,38 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.provider.DataProvider;
+import com.vaadin.flow.data.provider.SortDirection;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.dto.AdvertisementFilter;
-import org.ost.advertisement.entyties.Advertisement;
-import org.ost.advertisement.repository.AdvertisementRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import com.vaadin.flow.data.provider.DataProvider;
-import com.vaadin.flow.data.provider.CallbackDataProvider;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.server.VaadinSession;
-import org.ost.advertisement.ui.util.TimeZoneUtil;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
-
-
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.dto.AdvertisementFilter;
+import org.ost.advertisement.entyties.Advertisement;
+import org.ost.advertisement.repository.AdvertisementRepository;
+import org.ost.advertisement.ui.util.TimeZoneUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope
@@ -62,7 +57,17 @@ public class AdvertisementListView extends VerticalLayout {
 	private void init() {
 		CallbackDataProvider<Advertisement, Void> callbackDataProvider = DataProvider.fromCallbacks(
 			query -> {
-				Sort sort = Sort.by("id").ascending();
+				Sort sort = Sort.by(
+					query.getSortOrders().stream()
+						.map(sortOrder -> sortOrder.getDirection() == SortDirection.ASCENDING
+							? Sort.Order.asc(sortOrder.getSorted())
+							: Sort.Order.desc(sortOrder.getSorted()))
+						.collect(Collectors.toList()));
+
+				if (sort.isEmpty()) {
+					sort = Sort.by("id").ascending();
+				}
+
 				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
 				return advertisementRepository.findByFilter(new AdvertisementFilter(), pageable).stream();
 			},
@@ -81,14 +86,22 @@ public class AdvertisementListView extends VerticalLayout {
 
 		ZoneId clientZoneId = ZoneId.of(TimeZoneUtil.getClientTimeZoneId());
 
-		advertisementGrid.addColumn(Advertisement::getId).setHeader("ID").setTextAlign(ColumnTextAlign.END);
-		advertisementGrid.addColumn(Advertisement::getTitle).setHeader("Title").setFlexGrow(1);
-		advertisementGrid.addColumn(Advertisement::getCategory).setHeader("Category");
-		advertisementGrid.addColumn(Advertisement::getLocation).setHeader("Location");
-		advertisementGrid.addColumn(Advertisement::getStatus).setHeader("Status");
-		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getCreatedAt(), clientZoneId)).setHeader("Created At");
-		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getUpdatedAt(), clientZoneId)).setHeader("Updated At");
-		advertisementGrid.addColumn(Advertisement::getUserId).setHeader("User ID").setTextAlign(ColumnTextAlign.END);
+		advertisementGrid.addColumn(Advertisement::getId).setHeader("ID").setSortable(true).setSortProperty("id")
+			.setTextAlign(ColumnTextAlign.END);
+		advertisementGrid.addColumn(Advertisement::getTitle).setHeader("Title").setSortable(true)
+			.setSortProperty("title").setFlexGrow(1);
+		advertisementGrid.addColumn(Advertisement::getCategory).setHeader("Category").setSortable(true)
+			.setSortProperty("category");
+		advertisementGrid.addColumn(Advertisement::getLocation).setHeader("Location").setSortable(true)
+			.setSortProperty("location");
+		advertisementGrid.addColumn(Advertisement::getStatus).setHeader("Status").setSortable(true)
+			.setSortProperty("status");
+		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getCreatedAt(), clientZoneId))
+			.setHeader("Created At").setSortable(true).setSortProperty("createdAt");
+		advertisementGrid.addColumn(advertisement -> formatInstant(advertisement.getUpdatedAt(), clientZoneId))
+			.setHeader("Updated At").setSortable(true).setSortProperty("updatedAt");
+		advertisementGrid.addColumn(Advertisement::getUserId).setHeader("User ID").setSortable(true)
+			.setSortProperty("userId").setTextAlign(ColumnTextAlign.END);
 
 		advertisementGrid.addColumn(new ComponentRenderer<>(advertisement -> {
 			Button editButton = new Button(VaadinIcon.EDIT.create());
@@ -123,7 +136,9 @@ public class AdvertisementListView extends VerticalLayout {
 
 	private void confirmAndDelete(Advertisement advertisement) {
 		Dialog confirmDialog = new Dialog();
-		confirmDialog.add(new Span("Are you sure you want to delete advertisement: " + advertisement.getTitle() + " (ID: " + advertisement.getId() + ")?"));
+		confirmDialog.add(new Span(
+			"Are you sure you want to delete advertisement: " + advertisement.getTitle() + " (ID: "
+				+ advertisement.getId() + ")?"));
 
 		Button confirmButton = new Button("Delete", e -> {
 			try {
@@ -134,7 +149,8 @@ public class AdvertisementListView extends VerticalLayout {
 				confirmDialog.close();
 			} catch (Exception ex) {
 				log.error("Failed to delete advertisement: {}", advertisement.getId(), ex);
-				Notification.show("Error deleting advertisement: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
+				Notification.show("Error deleting advertisement: " + ex.getMessage(), 5000,
+						Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_ERROR);
 				confirmDialog.close();
 			}
