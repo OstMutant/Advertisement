@@ -1,26 +1,68 @@
 package org.ost.advertisement.ui;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.server.VaadinSession;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
+import org.ost.advertisement.ui.util.TimeZoneUtil;
+import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
+import org.ost.advertisement.ui.views.users.UsersView;
 
+import java.util.HashMap;
+import java.util.Map;
+
+@SpringComponent
+@UIScope
 @Route("")
 public class MainView extends VerticalLayout {
 
-	public MainView() {
-		setAlignItems(Alignment.CENTER);
-		setJustifyContentMode(JustifyContentMode.CENTER);
+	private final Tabs tabs;
+	private final Div pages;
 
-		H1 greeting = new H1("Hello, Vaadin world with Spring Boot!");
-		Button button = new Button("Click me!");
+	private final AdvertisementsView advertisementsView;
+	private final UsersView usersView;
 
-		button.addClickListener(e -> {
-			Notification.show("Greetings! You clicked the Vaadin button!");
+	public MainView(AdvertisementsView advertisementsView, UsersView usersView) {
+		this.advertisementsView = advertisementsView;
+		this.usersView = usersView;
+
+		TimeZoneUtil.detectTimeZone();
+
+		setSizeFull();
+		setPadding(false);
+		setSpacing(false);
+		setAlignItems(Alignment.STRETCH);
+
+		Tab advertisementTab = new Tab("Advertisements");
+		Tab usersTab = new Tab("Users");
+
+		tabs = new Tabs(advertisementTab, usersTab);
+		add(tabs);
+
+		advertisementsView.setSizeFull();
+		usersView.setSizeFull();
+		usersView.setVisible(false);
+
+		pages = new Div(advertisementsView, usersView);
+		pages.setSizeFull();
+		add(pages);
+
+		Map<Tab, Component> tabsToPages = new HashMap<>();
+		tabsToPages.put(advertisementTab, advertisementsView);
+		tabsToPages.put(usersTab, usersView);
+
+		tabs.addSelectedChangeListener(event -> {
+			tabsToPages.values().forEach(page -> page.setVisible(false));
+			tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
 		});
 
-		add(greeting, button);
-		getStyle().set("padding", "20px");
+		tabs.setSelectedTab(advertisementTab);
+		advertisementsView.setVisible(true);
 	}
 }
