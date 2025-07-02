@@ -2,9 +2,12 @@ package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.Grid.Column;
+import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
@@ -12,11 +15,14 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -26,6 +32,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.UserFilter;
@@ -43,110 +50,175 @@ import org.springframework.data.domain.Sort;
 public class UserListView extends VerticalLayout {
 
 	private final UserRepository userRepository;
+	private final UserFilter userFilter = new UserFilter();
 	private Grid<User> userGrid;
-	private final UserFilterView userFilterView;
 	private ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider;
 
+	private NumberField idFilter;
+	private TextField nameFilter;
+	private DatePicker createdStart;
+	private DatePicker updatedStart;
+	private Button applyFilterButton;
+	private Button clearFilterButton;
+
+	private final UserFilter defaultFilter = new UserFilter();
+
+
 	@Autowired
-	public UserListView(UserRepository userRepository, UserFilterView userFilterView) {
+	public UserListView(UserRepository userRepository) {
 		this.userRepository = userRepository;
-		this.userFilterView = userFilterView;
 		addClassName("user-list-view");
 		setSizeFull();
 		configureGrid();
-		add(userFilterView, userGrid);
+		add(userGrid);
 	}
 
 	@PostConstruct
 	private void init() {
 		CallbackDataProvider<User, UserFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
-				Sort sort = Sort.by(
-					query.getSortOrders().stream()
-						.map(sortOrder -> sortOrder.getDirection() == SortDirection.ASCENDING
-							? Sort.Order.asc(sortOrder.getSorted())
-							: Sort.Order.desc(sortOrder.getSorted()))
-						.collect(Collectors.toList()));
-
-				if (sort.isEmpty()) {
-					sort = Sort.by("id").ascending();
-				}
-
+				Sort sort = Sort.by(query.getSortOrders().stream()
+					.map(order -> order.getDirection() == SortDirection.ASCENDING
+						? Sort.Order.asc(order.getSorted())
+						: Sort.Order.desc(order.getSorted()))
+					.collect(Collectors.toList()));
 				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
-				UserFilter filter = query.getFilter().orElseGet(UserFilter::new);
-				return userRepository.findByFilter(filter, pageable).stream();
+				return userRepository.findByFilter(query.getFilter().orElse(userFilter), pageable).stream();
 			},
-			query -> {
-				UserFilter filter = query.getFilter().orElseGet(UserFilter::new);
-				return userRepository.countByFilter(filter).intValue();
-			}
+			query -> userRepository.countByFilter(query.getFilter().orElse(userFilter)).intValue()
 		);
-
 		dataProvider = callbackDataProvider.withConfigurableFilter();
 		userGrid.setDataProvider(dataProvider);
-		userFilterView.setOnFilterChange(() -> dataProvider.setFilter(userFilterView.getUserFilter()));
-		dataProvider.setFilter(userFilterView.getUserFilter());
+		dataProvider.setFilter(userFilter);
+		configureFilterStyling();
 	}
 
 	private void configureGrid() {
 		userGrid = new Grid<>(User.class, false);
 		userGrid.setSizeFull();
 
-		userGrid.addColumn(User::getId)
-			.setHeader("ID")
-			.setSortable(true)
-			.setSortProperty("id")
-			.setAutoWidth(true) // Auto-size to fit content
-			.setFlexGrow(0) // Don't grow
-			.setTextAlign(ColumnTextAlign.END);
+		Column<User> idColumn = userGrid.addColumn(User::getId)
+			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
+			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
-		userGrid.addColumn(new ComponentRenderer<>(user -> {
-				Span nameSpan = new Span(user.getName());
-				nameSpan.getElement().setProperty("title", user.getName()); // Tooltip
-				nameSpan.getStyle()
-					.set("white-space", "normal")
-					.set("overflow-wrap", "anywhere")
-					.set("line-height", "1.4");
-				return nameSpan;
+		Column<User> nameColumn = userGrid.addColumn(new ComponentRenderer<>(user -> {
+				Span span = new Span(user.getName());
+				span.getElement().setProperty("title", user.getName());
+				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
+				return span;
 			}))
-			.setHeader("Name")
-			.setSortable(true)
-			.setSortProperty("name")
-			.setAutoWidth(false) // Disable auto-width to allow flex-grow
-			.setFlexGrow(1); // Take up all remaining space
+			.setHeader("Name").setKey("name").setSortable(true).setSortProperty("name")
+			.setAutoWidth(false).setFlexGrow(1);
 
-		userGrid.addColumn(user -> formatInstant(user.getCreatedAt()))
-			.setHeader("Created At")
-			.setSortable(true)
-			.setSortProperty("createdAt")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<User> createdColumn = userGrid.addColumn(user -> formatInstant(user.getCreatedAt()))
+			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		userGrid.addColumn(user -> formatInstant(user.getUpdatedAt()))
-			.setHeader("Updated At")
-			.setSortable(true)
-			.setSortProperty("updatedAt")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<User> updatedColumn = userGrid.addColumn(user -> formatInstant(user.getUpdatedAt()))
+			.setHeader("Updated At").setKey("updatedAt").setSortable(true).setSortProperty("updatedAt")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		userGrid.addColumn(new ComponentRenderer<>(user -> {
-				Button editButton = new Button(VaadinIcon.EDIT.create());
-				editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+		Column<User> actionsColumn = userGrid.addColumn(new ComponentRenderer<>(user -> {
+				Button edit = new Button(VaadinIcon.EDIT.create());
+				edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+				edit.addClickListener(e -> openUserFormDialog(user));
 
-				Button deleteButton = new Button(VaadinIcon.TRASH.create());
-				deleteButton.addThemeVariants(ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_TERTIARY_INLINE);
+				Button delete = new Button(VaadinIcon.TRASH.create());
+				delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+				delete.addClickListener(e -> confirmAndDelete(user));
 
-				editButton.addClickListener(e -> openUserFormDialog(user));
-				deleteButton.addClickListener(e -> confirmAndDelete(user));
+				HorizontalLayout layout = new HorizontalLayout(edit, delete);
+				layout.setSpacing(false);
+				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+				return layout;
+			}))
+			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
-				HorizontalLayout actionsLayout = new HorizontalLayout(editButton, deleteButton);
-				actionsLayout.setSpacing(false); // Reduce spacing between buttons
-				actionsLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.END); // Align buttons to the right
-				return actionsLayout;
-			})).setHeader("Actions")
-			.setAutoWidth(true) // Auto-size to fit content
-			.setFlexGrow(0) // Don't grow
-			.setTextAlign(ColumnTextAlign.END); // Align content of the column to the right
+		HeaderRow filterRow = userGrid.appendHeaderRow();
+
+		idFilter = new NumberField();
+		idFilter.setWidth("100px");
+		idFilter.setClearButtonVisible(true);
+		idFilter.setPlaceholder("Min ID");
+		idFilter.addValueChangeListener(e -> {
+			userFilter.setStartId(e.getValue() != null ? e.getValue().longValue() : null);
+			updateFilterButtonState();
+		});
+		filterRow.getCell(idColumn).setComponent(idFilter);
+
+		nameFilter = new TextField();
+		nameFilter.setWidthFull();
+		nameFilter.setPlaceholder("Name...");
+		nameFilter.setClearButtonVisible(true);
+		nameFilter.addValueChangeListener(e -> {
+			userFilter.setNameFilter(e.getValue());
+			updateFilterButtonState();
+		});
+		filterRow.getCell(nameColumn).setComponent(nameFilter);
+
+		createdStart = new DatePicker();
+		createdStart.setWidth("140px");
+		createdStart.setPlaceholder("From");
+		createdStart.addValueChangeListener(e -> {
+			userFilter.setCreatedAtStart(e.getValue() != null ?
+				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
+			updateFilterButtonState();
+		});
+		filterRow.getCell(createdColumn).setComponent(createdStart);
+
+		updatedStart = new DatePicker();
+		updatedStart.setWidth("140px");
+		updatedStart.setPlaceholder("From");
+		updatedStart.addValueChangeListener(e -> {
+			userFilter.setUpdatedAtStart(e.getValue() != null ?
+				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
+			updateFilterButtonState();
+		});
+		filterRow.getCell(updatedColumn).setComponent(updatedStart);
+
+		applyFilterButton = new Button(VaadinIcon.FILTER.create());
+		applyFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_PRIMARY);
+		applyFilterButton.getElement().setProperty("title", "Apply filters");
+		applyFilterButton.addClickListener(e -> dataProvider.setFilter(userFilter));
+
+		clearFilterButton = new Button(VaadinIcon.ERASER.create());
+		clearFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
+		clearFilterButton.getElement().setProperty("title", "Clear filters");
+		clearFilterButton.addClickListener(e -> {
+			idFilter.clear();
+			nameFilter.clear();
+			createdStart.clear();
+			updatedStart.clear();
+			userFilter.clear();
+			dataProvider.setFilter(userFilter);
+			updateFilterButtonState();
+		});
+
+		HorizontalLayout actionsHeader = new HorizontalLayout(applyFilterButton, clearFilterButton);
+		actionsHeader.setSpacing(false);
+		actionsHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+		filterRow.getCell(actionsColumn).setComponent(actionsHeader);
+	}
+
+	private void updateFilterButtonState() {
+		if (isFilterActive()) {
+			applyFilterButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+		} else {
+			applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_CONTRAST);
+		}
+	}
+
+	private boolean isFilterActive() {
+		return userFilter.getNameFilter() != null && !userFilter.getNameFilter().isBlank()
+			|| userFilter.getStartId() != null
+			|| userFilter.getCreatedAtStart() != null
+			|| userFilter.getUpdatedAtStart() != null;
+	}
+
+	public void refreshAll() {
+		if (dataProvider != null) {
+			dataProvider.refreshAll();
+		}
 	}
 
 	private String formatInstant(Instant instant) {
@@ -159,42 +231,100 @@ public class UserListView extends VerticalLayout {
 
 	private void openUserFormDialog(User user) {
 		UserFormDialog dialog = new UserFormDialog(user, userRepository);
-		dialog.addOpenedChangeListener(event -> {
-			if (!event.isOpened()) {
-				dataProvider.refreshAll();
+		dialog.addOpenedChangeListener(e -> {
+			if (!e.isOpened()) {
+				refreshAll();
 			}
 		});
 		dialog.open();
 	}
 
 	private void confirmAndDelete(User user) {
-		Dialog confirmDialog = new Dialog();
-		confirmDialog.add(new Span("Are you sure you want to delete user: " + user.getName() + " (ID: " + user.getId() + ")?"));
+		Dialog dialog = new Dialog();
+		dialog.add(new Span("Delete user " + user.getName() + " (ID " + user.getId() + ")?"));
 
-		Button confirmButton = new Button("Delete", e -> {
+		Button confirm = new Button("Delete", e -> {
 			try {
 				userRepository.delete(user);
-				Notification.show("User deleted successfully!", 3000, Notification.Position.BOTTOM_START)
+				Notification.show("User deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				dataProvider.refreshAll();
-				confirmDialog.close();
 			} catch (Exception ex) {
-				log.error("Failed to delete user: {}", user.getId(), ex);
-				Notification.show("Error deleting user: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
+				log.error("Error deleting user", ex);
+				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_ERROR);
-				confirmDialog.close();
 			}
+			dialog.close();
 		});
-		confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
-		cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+		Button cancel = new Button("Cancel", e -> dialog.close());
+		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-		confirmDialog.getFooter().add(cancelButton, confirmButton);
-		confirmDialog.open();
+		dialog.getFooter().add(cancel, confirm);
+		dialog.open();
 	}
 
-	public DataProvider<User, ?> getDataProvider() {
-		return userGrid.getDataProvider();
+	private void configureFilterStyling() {
+		nameFilter.setValueChangeMode(ValueChangeMode.EAGER);
+		nameFilter.addValueChangeListener(e -> {
+			userFilter.setNameFilter(e.getValue());
+			highlightChangedFilters(true);
+		});
+
+		idFilter.setValueChangeMode(ValueChangeMode.EAGER);
+		idFilter.addValueChangeListener(e -> {
+			userFilter.setStartId(e.getValue() != null ? e.getValue().longValue() : null);
+			highlightChangedFilters(true);
+		});
+
+		createdStart.addValueChangeListener(e -> {
+			userFilter.setCreatedAtStart(e.getValue() != null ?
+				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
+			highlightChangedFilters(true);
+		});
+
+		updatedStart.addValueChangeListener(e -> {
+			userFilter.setUpdatedAtStart(e.getValue() != null ?
+				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
+			highlightChangedFilters(true);
+		});
+
+		applyFilterButton.addClickListener(e -> {
+			dataProvider.setFilter(userFilter);
+			defaultFilter.copyFrom(userFilter);
+			highlightChangedFilters(true);
+		});
+
+		clearFilterButton.addClickListener(e -> {
+			idFilter.clear();
+			nameFilter.clear();
+			createdStart.clear();
+			updatedStart.clear();
+			userFilter.clear();
+			defaultFilter.clear();
+			dataProvider.setFilter(userFilter);
+			highlightChangedFilters(false);
+		});
+	}
+
+	private void highlightChangedFilters(boolean enable) {
+		if (!enable) {
+			nameFilter.getStyle().remove("background-color");
+			idFilter.getStyle().remove("background-color");
+			createdStart.getStyle().remove("background-color");
+			updatedStart.getStyle().remove("background-color");
+			return;
+		}
+
+		boolean nameChanged = !Objects.equals(userFilter.getNameFilter(), defaultFilter.getNameFilter());
+		boolean idChanged = !Objects.equals(userFilter.getStartId(), defaultFilter.getStartId());
+		boolean createdChanged = !Objects.equals(userFilter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
+		boolean updatedChanged = !Objects.equals(userFilter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
+
+		nameFilter.getStyle().set("background-color", nameChanged ? "#fff9c4" : "");
+		idFilter.getStyle().set("background-color", idChanged ? "#fff9c4" : "");
+		createdStart.getStyle().set("background-color", createdChanged ? "#fff9c4" : "");
+		updatedStart.getStyle().set("background-color", updatedChanged ? "#fff9c4" : "");
 	}
 }

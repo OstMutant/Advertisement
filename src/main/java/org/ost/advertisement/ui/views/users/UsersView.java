@@ -38,7 +38,7 @@ public class UsersView extends VerticalLayout {
 		UserFormDialog dialog = new UserFormDialog(user, userRepository);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
-				userListView.getDataProvider().refreshAll();
+				userListView.refreshAll();
 			}
 		});
 		dialog.open();
