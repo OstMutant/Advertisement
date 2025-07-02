@@ -91,51 +91,65 @@ public class AdvertisementListView extends VerticalLayout {
 			.setSortable(true)
 			.setSortProperty("id")
 			.setAutoWidth(true)
+			.setFlexGrow(0)
 			.setTextAlign(ColumnTextAlign.END);
 
-		advertisementGrid.addColumn(Advertisement::getTitle)
+		advertisementGrid.addColumn(new ComponentRenderer<>(ad -> {
+				Span titleSpan = new Span(ad.getTitle());
+				titleSpan.getElement().setProperty("title", ad.getTitle()); // Tooltip
+				titleSpan.getStyle()
+					.set("white-space", "normal")
+					.set("overflow-wrap", "anywhere")
+					.set("line-height", "1.4");
+				return titleSpan;
+			}))
 			.setHeader("Title")
 			.setSortable(true)
 			.setSortProperty("title")
-			.setFlexGrow(1)
 			.setAutoWidth(false)
-			.setClassNameGenerator(ad -> "wrap-text"); 
+			.setFlexGrow(1); // Захоплює весь вільний простір
 
 		advertisementGrid.addColumn(Advertisement::getCategory)
 			.setHeader("Category")
 			.setSortable(true)
 			.setSortProperty("category")
-			.setAutoWidth(true);
+			.setAutoWidth(true)
+			.setFlexGrow(0);
 
 		advertisementGrid.addColumn(Advertisement::getLocation)
 			.setHeader("Location")
 			.setSortable(true)
 			.setSortProperty("location")
-			.setAutoWidth(true);
+			.setAutoWidth(true)
+			.setFlexGrow(0);
 
 		advertisementGrid.addColumn(Advertisement::getStatus)
 			.setHeader("Status")
 			.setSortable(true)
 			.setSortProperty("status")
-			.setAutoWidth(true);
+			.setAutoWidth(true)
+			.setFlexGrow(0);
 
 		advertisementGrid.addColumn(ad -> formatInstant(ad.getCreatedAt(), clientZoneId))
 			.setHeader("Created At")
 			.setSortable(true)
 			.setSortProperty("createdAt")
-			.setAutoWidth(true);
+			.setAutoWidth(true)
+			.setFlexGrow(0);
 
 		advertisementGrid.addColumn(ad -> formatInstant(ad.getUpdatedAt(), clientZoneId))
 			.setHeader("Updated At")
 			.setSortable(true)
 			.setSortProperty("updatedAt")
-			.setAutoWidth(true);
+			.setAutoWidth(true)
+			.setFlexGrow(0);
 
 		advertisementGrid.addColumn(Advertisement::getUserId)
 			.setHeader("User ID")
 			.setSortable(true)
 			.setSortProperty("userId")
 			.setAutoWidth(true)
+			.setFlexGrow(0)
 			.setTextAlign(ColumnTextAlign.END);
 
 		advertisementGrid.addColumn(new ComponentRenderer<>(ad -> {
@@ -148,15 +162,16 @@ public class AdvertisementListView extends VerticalLayout {
 				editButton.addClickListener(e -> openAdvertisementFormDialog(ad));
 				deleteButton.addClickListener(e -> confirmAndDelete(ad));
 
-				HorizontalLayout layout = new HorizontalLayout(editButton, deleteButton);
-				layout.setSpacing(false);
-				layout.setJustifyContentMode(JustifyContentMode.CENTER);
-				layout.setWidthFull();
-				return layout;
-			})).setHeader("Actions")
+				HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
+				actions.setSpacing(false);
+				actions.setJustifyContentMode(JustifyContentMode.CENTER);
+				actions.setWidthFull();
+				return actions;
+			}))
+			.setHeader("Actions")
 			.setAutoWidth(true)
-			.setTextAlign(ColumnTextAlign.CENTER)
-			.setFlexGrow(0);
+			.setFlexGrow(0)
+			.setTextAlign(ColumnTextAlign.CENTER);
 	}
 
 	private String formatInstant(Instant instant, ZoneId zoneId) {

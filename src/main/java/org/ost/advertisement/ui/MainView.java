@@ -21,7 +21,6 @@ import java.util.Map;
 @SpringComponent
 @UIScope
 @Route("")
-@CssImport("./themes/lumo/styles.css")
 public class MainView extends VerticalLayout {
 
 	private final Tabs tabs;
