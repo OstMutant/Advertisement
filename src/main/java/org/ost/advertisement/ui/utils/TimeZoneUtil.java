@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.util;
+package org.ost.advertisement.ui.utils;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;

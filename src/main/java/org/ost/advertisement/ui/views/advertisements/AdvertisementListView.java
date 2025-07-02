@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
-import org.ost.advertisement.ui.util.TimeZoneUtil;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;

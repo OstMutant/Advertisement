@@ -1,17 +1,14 @@
 package org.ost.advertisement.ui;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import org.ost.advertisement.ui.util.TimeZoneUtil;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.users.UsersView;
 

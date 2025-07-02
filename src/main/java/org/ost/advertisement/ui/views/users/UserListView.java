@@ -32,12 +32,12 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Objects;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -310,21 +310,14 @@ public class UserListView extends VerticalLayout {
 
 	private void highlightChangedFilters(boolean enable) {
 		if (!enable) {
-			nameFilter.getStyle().remove("background-color");
-			idFilter.getStyle().remove("background-color");
-			createdStart.getStyle().remove("background-color");
-			updatedStart.getStyle().remove("background-color");
+			FilterHighlighterUtil.clearHighlight(nameFilter, idFilter, createdStart, updatedStart);
 			return;
 		}
-
-		boolean nameChanged = !Objects.equals(userFilter.getNameFilter(), defaultFilter.getNameFilter());
-		boolean idChanged = !Objects.equals(userFilter.getStartId(), defaultFilter.getStartId());
-		boolean createdChanged = !Objects.equals(userFilter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
-		boolean updatedChanged = !Objects.equals(userFilter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
-
-		nameFilter.getStyle().set("background-color", nameChanged ? "#fff9c4" : "");
-		idFilter.getStyle().set("background-color", idChanged ? "#fff9c4" : "");
-		createdStart.getStyle().set("background-color", createdChanged ? "#fff9c4" : "");
-		updatedStart.getStyle().set("background-color", updatedChanged ? "#fff9c4" : "");
+		FilterHighlighterUtil.highlight(nameFilter, userFilter.getNameFilter(), defaultFilter.getNameFilter());
+		FilterHighlighterUtil.highlight(idFilter, userFilter.getStartId(), defaultFilter.getStartId());
+		FilterHighlighterUtil.highlight(createdStart, userFilter.getCreatedAtStart(),
+			defaultFilter.getCreatedAtStart());
+		FilterHighlighterUtil.highlight(updatedStart, userFilter.getUpdatedAtStart(),
+			defaultFilter.getUpdatedAtStart());
 	}
 }
