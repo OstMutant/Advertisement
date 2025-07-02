@@ -1,15 +1,32 @@
 package org.ost.advertisement.ui.views.users;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import com.vaadin.flow.data.provider.DataProvider;
+import com.vaadin.flow.data.provider.SortDirection;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
@@ -17,27 +34,6 @@ import org.ost.advertisement.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.data.provider.SortDirection;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-
-
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.TimeZone;
-import java.util.stream.Collectors;
 
 @SpringComponent
 @UIScope
@@ -48,19 +44,22 @@ public class UserListView extends VerticalLayout {
 
 	private final UserRepository userRepository;
 	private Grid<User> userGrid;
+	private final UserFilterView userFilterView;
+	private ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider;
 
 	@Autowired
-	public UserListView(UserRepository userRepository) {
+	public UserListView(UserRepository userRepository, UserFilterView userFilterView) {
 		this.userRepository = userRepository;
+		this.userFilterView = userFilterView;
 		addClassName("user-list-view");
 		setSizeFull();
 		configureGrid();
-		add(userGrid);
+		add(userFilterView, userGrid);
 	}
 
 	@PostConstruct
 	private void init() {
-		CallbackDataProvider<User, Void> callbackDataProvider = DataProvider.fromCallbacks(
+		CallbackDataProvider<User, UserFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
 				Sort sort = Sort.by(
 					query.getSortOrders().stream()
@@ -74,15 +73,19 @@ public class UserListView extends VerticalLayout {
 				}
 
 				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
-				return userRepository.findByFilter(new UserFilter(), pageable).stream();
+				UserFilter filter = query.getFilter().orElseGet(UserFilter::new);
+				return userRepository.findByFilter(filter, pageable).stream();
 			},
 			query -> {
-				return userRepository.countByFilter(new UserFilter()).intValue();
+				UserFilter filter = query.getFilter().orElseGet(UserFilter::new);
+				return userRepository.countByFilter(filter).intValue();
 			}
 		);
 
-		userGrid.setDataProvider(callbackDataProvider);
-		userGrid.getDataProvider().refreshAll();
+		dataProvider = callbackDataProvider.withConfigurableFilter();
+		userGrid.setDataProvider(dataProvider);
+		userFilterView.setOnFilterChange(() -> dataProvider.setFilter(userFilterView.getUserFilter()));
+		dataProvider.setFilter(userFilterView.getUserFilter());
 	}
 
 	private void configureGrid() {
@@ -158,7 +161,7 @@ public class UserListView extends VerticalLayout {
 		UserFormDialog dialog = new UserFormDialog(user, userRepository);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
-				userGrid.getDataProvider().refreshAll();
+				dataProvider.refreshAll();
 			}
 		});
 		dialog.open();
@@ -173,7 +176,7 @@ public class UserListView extends VerticalLayout {
 				userRepository.delete(user);
 				Notification.show("User deleted successfully!", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-				userGrid.getDataProvider().refreshAll();
+				dataProvider.refreshAll();
 				confirmDialog.close();
 			} catch (Exception ex) {
 				log.error("Failed to delete user: {}", user.getId(), ex);
