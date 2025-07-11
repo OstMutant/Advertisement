@@ -6,7 +6,7 @@ import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createButton;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createDatePicker;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createFilterBlock;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createNumberField;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createTextField;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createFullTextField;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
@@ -36,7 +36,7 @@ public class UserFilterFields {
 
 	private final NumberField idFilterMin = createNumberField("Min ID");
 	private final NumberField idFilterMax = createNumberField("Max ID");
-	private final TextField nameFilter = createTextField("Name...");
+	private final TextField nameFilter = createFullTextField("Name...");
 	private final DatePicker createdStart = createDatePicker("Created from");
 	private final DatePicker createdEnd = createDatePicker("Created to");
 	private final DatePicker updatedStart = createDatePicker("Updated from");

@@ -28,9 +28,20 @@ public class FilterFieldsUtil {
 		return field;
 	}
 
+	public static TextField createFullTextField(String placeholder) {
+		TextField field = createTextField(placeholder);
+		field.setWidthFull();
+		return field;
+	}
+
+	public static TextField createShortTextField(String placeholder) {
+		TextField field = createTextField(placeholder);
+		field.setWidth("140px");;
+		return field;
+	}
+
 	public static TextField createTextField(String placeholder) {
 		TextField field = new TextField();
-		field.setWidthFull();
 		field.setPlaceholder(placeholder);
 		field.setClearButtonVisible(true);
 		field.setValueChangeMode(ValueChangeMode.EAGER);
@@ -71,7 +82,7 @@ public class FilterFieldsUtil {
 		Select<T> select = new Select<>();
 		select.setItems(items);
 		select.setPlaceholder(placeholder);
-		select.setWidth("160px");
+		select.setWidth("140px");
 		select.setEmptySelectionAllowed(true);
 		select.setEmptySelectionCaption("Any");
 		return select;

@@ -44,23 +44,23 @@ import org.springframework.data.domain.Sort;
 @Slf4j
 public class UserListView extends VerticalLayout {
 
-	private final UserRepository userRepository;
-	private Grid<User> userGrid;
+	private final UserRepository repository;
+	private Grid<User> grid;
 	private ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider;
-	private final UserFilterFields userFilterFields = new UserFilterFields();
+	private final UserFilterFields filterFields = new UserFilterFields();
 
 	@Autowired
-	public UserListView(UserRepository userRepository) {
-		this.userRepository = userRepository;
+	public UserListView(UserRepository repository) {
+		this.repository = repository;
 		addClassName("user-list-view");
 		setSizeFull();
 		configureGrid();
-		add(userGrid);
+		add(grid);
 	}
 
 	@PostConstruct
 	private void init() {
-		UserFilter userFilter = userFilterFields.getUserFilter();
+		UserFilter userFilter = filterFields.getUserFilter();
 		CallbackDataProvider<User, UserFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
 				Sort sort = Sort.by(query.getSortOrders().stream()
@@ -69,25 +69,25 @@ public class UserListView extends VerticalLayout {
 						: Sort.Order.desc(order.getSorted()))
 					.collect(Collectors.toList()));
 				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
-				return userRepository.findByFilter(query.getFilter().orElse(userFilter), pageable).stream();
+				return repository.findByFilter(query.getFilter().orElse(userFilter), pageable).stream();
 			},
-			query -> userRepository.countByFilter(query.getFilter().orElse(userFilter)).intValue()
+			query -> repository.countByFilter(query.getFilter().orElse(userFilter)).intValue()
 		);
 		dataProvider = callbackDataProvider.withConfigurableFilter();
 		dataProvider.setFilter(userFilter);
-		userGrid.setDataProvider(dataProvider);
-		userFilterFields.configureFields(dataProvider);
+		grid.setDataProvider(dataProvider);
+		filterFields.configureFields(dataProvider);
 	}
 
 	private void configureGrid() {
-		userGrid = new Grid<>(User.class, false);
-		userGrid.setSizeFull();
+		grid = new Grid<>(User.class, false);
+		grid.setSizeFull();
 
-		Column<User> idColumn = userGrid.addColumn(User::getId)
+		Column<User> idColumn = grid.addColumn(User::getId)
 			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
 			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
-		Column<User> nameColumn = userGrid.addColumn(new ComponentRenderer<>(user -> {
+		Column<User> nameColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Span span = new Span(user.getName());
 				span.getElement().setProperty("title", user.getName());
 				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
@@ -96,15 +96,15 @@ public class UserListView extends VerticalLayout {
 			.setHeader("Name").setKey("name").setSortable(true).setSortProperty("name")
 			.setAutoWidth(false).setFlexGrow(1);
 
-		Column<User> createdColumn = userGrid.addColumn(user -> formatInstant(user.getCreatedAt()))
+		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
 			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
 			.setAutoWidth(true).setFlexGrow(0);
 
-		Column<User> updatedColumn = userGrid.addColumn(user -> formatInstant(user.getUpdatedAt()))
+		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.getUpdatedAt()))
 			.setHeader("Updated At").setKey("updatedAt").setSortable(true).setSortProperty("updatedAt")
 			.setAutoWidth(true).setFlexGrow(0);
 
-		Column<User> actionsColumn = userGrid.addColumn(new ComponentRenderer<>(user -> {
+		Column<User> actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
 				edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
 				edit.addClickListener(e -> openUserFormDialog(user));
@@ -120,12 +120,12 @@ public class UserListView extends VerticalLayout {
 			}))
 			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
-		HeaderRow filterRow = userGrid.appendHeaderRow();
-		filterRow.getCell(idColumn).setComponent(userFilterFields.getIdFilterBlock());
-		filterRow.getCell(nameColumn).setComponent(userFilterFields.getNameBlock());
-		filterRow.getCell(createdColumn).setComponent(userFilterFields.getCreatedBlock());
-		filterRow.getCell(updatedColumn).setComponent(userFilterFields.getUpdatedBlock());
-		filterRow.getCell(actionsColumn).setComponent(userFilterFields.getActionBlock());
+		HeaderRow filterRow = grid.appendHeaderRow();
+		filterRow.getCell(idColumn).setComponent(filterFields.getIdFilterBlock());
+		filterRow.getCell(nameColumn).setComponent(filterFields.getNameBlock());
+		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
+		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
+		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
 	}
 
 	public void refreshAll() {
@@ -143,7 +143,7 @@ public class UserListView extends VerticalLayout {
 	}
 
 	private void openUserFormDialog(User user) {
-		UserFormDialog dialog = new UserFormDialog(user, userRepository);
+		UserFormDialog dialog = new UserFormDialog(user, repository);
 		dialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
 				refreshAll();
@@ -158,7 +158,7 @@ public class UserListView extends VerticalLayout {
 
 		Button confirm = new Button("Delete", e -> {
 			try {
-				userRepository.delete(user);
+				repository.delete(user);
 				Notification.show("User deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				dataProvider.refreshAll();

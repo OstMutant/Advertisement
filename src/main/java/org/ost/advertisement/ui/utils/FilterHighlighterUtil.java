@@ -2,9 +2,9 @@ package org.ost.advertisement.ui.utils;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-
 import java.time.Instant;
 import java.util.Objects;
 
@@ -25,6 +25,14 @@ public class FilterHighlighterUtil {
 	public static void highlight(DatePicker field, Instant current, Instant base) {
 		boolean changed = !Objects.equals(current, base);
 		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
+	}
+
+	public static <T> void highlight(Select<T> field, T currentValue, T originalValue) {
+		if (!Objects.equals(currentValue, originalValue)) {
+			field.getStyle().set("background-color", "#ffeeba"); // Світло-жовтий
+		} else {
+			field.getStyle().remove("background-color");
+		}
 	}
 
 	public static void clearHighlight(Component... components) {

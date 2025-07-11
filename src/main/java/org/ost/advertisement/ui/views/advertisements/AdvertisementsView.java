@@ -1,8 +1,8 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.components.FloatingActionButton;
@@ -14,7 +14,8 @@ public class AdvertisementsView extends VerticalLayout {
 	private final AdvertisementListView advertisementListView;
 	private final AdvertisementRepository advertisementRepository;
 
-	public AdvertisementsView(AdvertisementListView advertisementListView, AdvertisementRepository advertisementRepository) {
+	public AdvertisementsView(AdvertisementListView advertisementListView,
+							  AdvertisementRepository advertisementRepository) {
 		this.advertisementListView = advertisementListView;
 		this.advertisementRepository = advertisementRepository;
 
@@ -32,7 +33,7 @@ public class AdvertisementsView extends VerticalLayout {
 		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementRepository);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
-				advertisementListView.getDataProvider().refreshAll();
+				advertisementListView.refreshAll();
 			}
 		});
 		dialog.open();

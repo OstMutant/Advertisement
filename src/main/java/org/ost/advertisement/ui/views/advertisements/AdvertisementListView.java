@@ -5,13 +5,17 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.Grid.Column;
+import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -29,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -41,188 +44,154 @@ import org.springframework.data.domain.Sort;
 @Slf4j
 public class AdvertisementListView extends VerticalLayout {
 
-	private final AdvertisementRepository advertisementRepository;
-	private Grid<Advertisement> advertisementGrid;
+	private final AdvertisementRepository repository;
+	private Grid<Advertisement> grid;
+	private ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider;
+	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
 
 	@Autowired
-	public AdvertisementListView(AdvertisementRepository advertisementRepository) {
-		this.advertisementRepository = advertisementRepository;
+	public AdvertisementListView(AdvertisementRepository repository) {
+		this.repository = repository;
 		addClassName("advertisement-list-view");
 		setSizeFull();
 		configureGrid();
-		add(advertisementGrid);
+		add(grid);
 	}
 
 	@PostConstruct
 	private void init() {
-		CallbackDataProvider<Advertisement, Void> callbackDataProvider = DataProvider.fromCallbacks(
+		AdvertisementFilter filter = filterFields.getFilter();
+		CallbackDataProvider<Advertisement, AdvertisementFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
-				Sort sort = Sort.by(
-					query.getSortOrders().stream()
-						.map(sortOrder -> sortOrder.getDirection() == SortDirection.ASCENDING
-							? Sort.Order.asc(sortOrder.getSorted())
-							: Sort.Order.desc(sortOrder.getSorted()))
-						.collect(Collectors.toList()));
-
-				if (sort.isEmpty()) {
-					sort = Sort.by("id").ascending();
-				}
-
+				Sort sort = Sort.by(query.getSortOrders().stream()
+					.map(order -> order.getDirection() == SortDirection.ASCENDING
+						? Sort.Order.asc(order.getSorted())
+						: Sort.Order.desc(order.getSorted()))
+					.collect(Collectors.toList()));
 				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
-				return advertisementRepository.findByFilter(new AdvertisementFilter(), pageable).stream();
+				return repository.findByFilter(query.getFilter().orElse(filter), pageable).stream();
 			},
-			query -> {
-				return advertisementRepository.countByFilter(new AdvertisementFilter()).intValue();
-			}
+			query -> repository.countByFilter(query.getFilter().orElse(filter)).intValue()
 		);
-
-		advertisementGrid.setDataProvider(callbackDataProvider);
-		advertisementGrid.getDataProvider().refreshAll();
+		dataProvider = callbackDataProvider.withConfigurableFilter();
+		dataProvider.setFilter(filter);
+		grid.setDataProvider(dataProvider);
+		filterFields.configure(dataProvider);
 	}
 
 	private void configureGrid() {
-		advertisementGrid = new Grid<>(Advertisement.class, false);
-		advertisementGrid.setSizeFull();
+		grid = new Grid<>(Advertisement.class, false);
+		grid.setSizeFull();
 
-		ZoneId clientZoneId = ZoneId.of(TimeZoneUtil.getClientTimeZoneId());
+		Column<Advertisement> idColumn = grid.addColumn(Advertisement::getId)
+			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
+			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
-		advertisementGrid.addColumn(Advertisement::getId)
-			.setHeader("ID")
-			.setSortable(true)
-			.setSortProperty("id")
-			.setAutoWidth(true)
-			.setFlexGrow(0)
-			.setTextAlign(ColumnTextAlign.END);
+		Column<Advertisement> titleColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
+				Span span = new Span(ad.getTitle());
+				span.getElement().setProperty("title", ad.getTitle());
+				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
+				return span;
+			})).setHeader("Title").setKey("title").setSortable(true).setSortProperty("title")
+			.setAutoWidth(false).setFlexGrow(1);
 
-		advertisementGrid.addColumn(new ComponentRenderer<>(ad -> {
-				Span titleSpan = new Span(ad.getTitle());
-				titleSpan.getElement().setProperty("title", ad.getTitle()); // Tooltip
-				titleSpan.getStyle()
-					.set("white-space", "normal")
-					.set("overflow-wrap", "anywhere")
-					.set("line-height", "1.4");
-				return titleSpan;
-			}))
-			.setHeader("Title")
-			.setSortable(true)
-			.setSortProperty("title")
-			.setAutoWidth(false)
-			.setFlexGrow(1); // Захоплює весь вільний простір
+		Column<Advertisement> categoryColumn = grid.addColumn(Advertisement::getCategory)
+			.setHeader("Category").setKey("category").setSortable(true).setSortProperty("category")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		advertisementGrid.addColumn(Advertisement::getCategory)
-			.setHeader("Category")
-			.setSortable(true)
-			.setSortProperty("category")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<Advertisement> locationColumn = grid.addColumn(Advertisement::getLocation)
+			.setHeader("Location").setKey("location").setSortable(true).setSortProperty("location")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		advertisementGrid.addColumn(Advertisement::getLocation)
-			.setHeader("Location")
-			.setSortable(true)
-			.setSortProperty("location")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<Advertisement> statusColumn = grid.addColumn(Advertisement::getStatus)
+			.setHeader("Status").setKey("status").setSortable(true).setSortProperty("status")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		advertisementGrid.addColumn(Advertisement::getStatus)
-			.setHeader("Status")
-			.setSortable(true)
-			.setSortProperty("status")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<Advertisement> createdColumn = grid.addColumn(ad -> formatInstant(ad.getCreatedAt()))
+			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		advertisementGrid.addColumn(ad -> formatInstant(ad.getCreatedAt(), clientZoneId))
-			.setHeader("Created At")
-			.setSortable(true)
-			.setSortProperty("createdAt")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<Advertisement> updatedColumn = grid.addColumn(ad -> formatInstant(ad.getUpdatedAt()))
+			.setHeader("Updated At").setKey("updatedAt").setSortable(true).setSortProperty("updatedAt")
+			.setAutoWidth(true).setFlexGrow(0);
 
-		advertisementGrid.addColumn(ad -> formatInstant(ad.getUpdatedAt(), clientZoneId))
-			.setHeader("Updated At")
-			.setSortable(true)
-			.setSortProperty("updatedAt")
-			.setAutoWidth(true)
-			.setFlexGrow(0);
+		Column<Advertisement> userIdColumn = grid.addColumn(Advertisement::getUserId)
+			.setHeader("User ID").setKey("userId").setSortable(true).setSortProperty("userId")
+			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
-		advertisementGrid.addColumn(Advertisement::getUserId)
-			.setHeader("User ID")
-			.setSortable(true)
-			.setSortProperty("userId")
-			.setAutoWidth(true)
-			.setFlexGrow(0)
-			.setTextAlign(ColumnTextAlign.END);
+		Column<Advertisement> actionsColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
+				Button edit = new Button(VaadinIcon.EDIT.create());
+				edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+				edit.addClickListener(e -> openAdvertisementFormDialog(ad));
 
-		advertisementGrid.addColumn(new ComponentRenderer<>(ad -> {
-				Button editButton = new Button(VaadinIcon.EDIT.create());
-				editButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+				Button delete = new Button(VaadinIcon.TRASH.create());
+				delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+				delete.addClickListener(e -> confirmAndDelete(ad));
 
-				Button deleteButton = new Button(VaadinIcon.TRASH.create());
-				deleteButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+				HorizontalLayout layout = new HorizontalLayout(edit, delete);
+				layout.setSpacing(false);
+				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+				return layout;
+			})).setHeader("Actions").setKey("actions")
+			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
-				editButton.addClickListener(e -> openAdvertisementFormDialog(ad));
-				deleteButton.addClickListener(e -> confirmAndDelete(ad));
-
-				HorizontalLayout actions = new HorizontalLayout(editButton, deleteButton);
-				actions.setSpacing(false);
-				actions.setJustifyContentMode(JustifyContentMode.CENTER);
-				actions.setWidthFull();
-				return actions;
-			}))
-			.setHeader("Actions")
-			.setAutoWidth(true)
-			.setFlexGrow(0)
-			.setTextAlign(ColumnTextAlign.CENTER);
+		HeaderRow filterRow = grid.appendHeaderRow();
+		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
+		filterRow.getCell(titleColumn).setComponent(filterFields.getTitleBlock());
+		filterRow.getCell(categoryColumn).setComponent(filterFields.getCategoryBlock());
+		filterRow.getCell(locationColumn).setComponent(filterFields.getLocationBlock());
+		filterRow.getCell(statusColumn).setComponent(filterFields.getStatusBlock());
+		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
+		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
+		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
 	}
 
-	private String formatInstant(Instant instant, ZoneId zoneId) {
+	private String formatInstant(Instant instant) {
 		if (instant == null) {
 			return "N/A";
 		}
-		return LocalDateTime.ofInstant(instant, zoneId)
+		return LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
 			.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
 
-	private void openAdvertisementFormDialog(Advertisement advertisement) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementRepository);
-		dialog.addOpenedChangeListener(event -> {
-			if (!event.isOpened()) {
-				advertisementGrid.getDataProvider().refreshAll();
+	private void openAdvertisementFormDialog(Advertisement ad) {
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(ad, repository);
+		dialog.addOpenedChangeListener(e -> {
+			if (!e.isOpened()) {
+				refreshAll();
 			}
 		});
 		dialog.open();
 	}
 
-	private void confirmAndDelete(Advertisement advertisement) {
-		Dialog confirmDialog = new Dialog();
-		confirmDialog.add(new Span(
-			"Are you sure you want to delete advertisement: " + advertisement.getTitle() + " (ID: "
-				+ advertisement.getId() + ")?"));
+	private void confirmAndDelete(Advertisement ad) {
+		Dialog dialog = new Dialog();
+		dialog.add(new Span("Delete advertisement \"" + ad.getTitle() + "\" (ID " + ad.getId() + ")?"));
 
-		Button confirmButton = new Button("Delete", e -> {
+		Button confirm = new Button("Delete", e -> {
 			try {
-				advertisementRepository.delete(advertisement);
-				Notification.show("Advertisement deleted successfully!", 3000, Notification.Position.BOTTOM_START)
+				repository.delete(ad);
+				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-				advertisementGrid.getDataProvider().refreshAll();
-				confirmDialog.close();
+				refreshAll();
 			} catch (Exception ex) {
-				log.error("Failed to delete advertisement: {}", advertisement.getId(), ex);
-				Notification.show("Error deleting advertisement: " + ex.getMessage(), 5000,
-						Notification.Position.BOTTOM_START)
+				log.error("Error deleting advertisement", ex);
+				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_ERROR);
-				confirmDialog.close();
 			}
+			dialog.close();
 		});
-		confirmButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancelButton = new Button("Cancel", e -> confirmDialog.close());
-		cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
-		confirmDialog.getFooter().add(cancelButton, confirmButton);
-		confirmDialog.open();
+		Button cancel = new Button("Cancel", e -> dialog.close());
+		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+		dialog.getFooter().add(cancel, confirm);
+		dialog.open();
 	}
 
-	public DataProvider<Advertisement, ?> getDataProvider() {
-		return advertisementGrid.getDataProvider();
+	public void refreshAll() {
+		if (dataProvider != null) {
+			dataProvider.refreshAll();
+		}
 	}
 }
