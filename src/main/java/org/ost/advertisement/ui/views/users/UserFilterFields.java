@@ -1,5 +1,10 @@
 package org.ost.advertisement.ui.views.users;
 
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.clearAll;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createDatePicker;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createNumberField;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createTextField;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -13,7 +18,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -28,24 +32,17 @@ public class UserFilterFields {
 	@Getter
 	private final UserFilter userFilter = new UserFilter();
 
-	private NumberField idFilterMin;
-	private NumberField idFilterMax;
-	private TextField nameFilter;
-	private DatePicker createdStart;
-	private DatePicker createdEnd;
-	private DatePicker updatedStart;
-	private DatePicker updatedEnd;
+	private NumberField idFilterMin = createNumberField("Min ID");
+	private NumberField idFilterMax = createNumberField("Max ID");
+	private TextField nameFilter = createTextField("Name...");
+	private DatePicker createdStart = createDatePicker("Created from");
+	private DatePicker createdEnd = createDatePicker("Created to");
+	private DatePicker updatedStart = createDatePicker("Updated from");
+	private DatePicker updatedEnd = createDatePicker("Updated to");
 	private Button applyFilterButton;
 	private Button clearFilterButton;
 
 	public UserFilterFields() {
-		idFilterMin = createNumberField("Min ID");
-		idFilterMax = createNumberField("Max ID");
-		nameFilter = createTextField("Name...");
-		createdStart = createDatePicker("Created from");
-		createdEnd = createDatePicker("Created to");
-		updatedStart = createDatePicker("Updated from");
-		updatedEnd = createDatePicker("Updated to");
 
 		applyFilterButton = new Button(VaadinIcon.FILTER.create());
 		applyFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_PRIMARY);
@@ -56,59 +53,34 @@ public class UserFilterFields {
 		clearFilterButton.getElement().setProperty("title", "Clear filters");
 	}
 
-	private NumberField createNumberField(String placeholder) {
-		NumberField field = new NumberField();
-		field.setWidth("100px");
-		field.setClearButtonVisible(true);
-		field.setPlaceholder(placeholder);
-		field.setValueChangeMode(ValueChangeMode.EAGER);
-		return field;
-	}
-
-	private TextField createTextField(String placeholder) {
-		TextField field = new TextField();
-		field.setWidthFull();
-		field.setPlaceholder(placeholder);
-		field.setClearButtonVisible(true);
-		field.setValueChangeMode(ValueChangeMode.EAGER);
-		return field;
-	}
-
-	private DatePicker createDatePicker(String placeholder) {
-		DatePicker field = new DatePicker();
-		field.setWidth("140px");
-		field.setPlaceholder(placeholder);
-		return field;
-	}
-
 	public void configureFields(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
 		idFilterMin.addValueChangeListener(e -> {
 			userFilter.setStartId(toLong(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 		idFilterMax.addValueChangeListener(e -> {
 			userFilter.setEndId(toLong(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 		nameFilter.addValueChangeListener(e -> {
 			userFilter.setNameFilter(e.getValue());
-			updateState(dataProvider);
+			updateState();
 		});
 		createdStart.addValueChangeListener(e -> {
 			userFilter.setCreatedAtStart(toInstant(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 		createdEnd.addValueChangeListener(e -> {
 			userFilter.setCreatedAtEnd(toInstant(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 		updatedStart.addValueChangeListener(e -> {
 			userFilter.setUpdatedAtStart(toInstant(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 		updatedEnd.addValueChangeListener(e -> {
 			userFilter.setUpdatedAtEnd(toInstant(e.getValue()));
-			updateState(dataProvider);
+			updateState();
 		});
 
 		applyFilterButton.addClickListener(e -> {
@@ -125,9 +97,6 @@ public class UserFilterFields {
 			applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
 			dataProvider.setFilter(userFilter);
 			defaultFilter.copyFrom(userFilter);
-			defaultFilter.setEndId(userFilter.getEndId());
-			defaultFilter.setCreatedAtEnd(userFilter.getCreatedAtEnd());
-			defaultFilter.setUpdatedAtEnd(userFilter.getUpdatedAtEnd());
 			highlightChangedFilters(true);
 		});
 
@@ -140,7 +109,7 @@ public class UserFilterFields {
 		});
 	}
 
-	private void updateState(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
+	private void updateState() {
 		updateFilterButtonState();
 		highlightChangedFilters(true);
 	}
@@ -163,13 +132,7 @@ public class UserFilterFields {
 	}
 
 	private void clearFilterFields() {
-		idFilterMin.clear();
-		idFilterMax.clear();
-		nameFilter.clear();
-		createdStart.clear();
-		createdEnd.clear();
-		updatedStart.clear();
-		updatedEnd.clear();
+		clearAll(idFilterMin, idFilterMax, nameFilter, createdStart, createdEnd, updatedStart, updatedEnd);
 		userFilter.clear();
 		applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
 	}
@@ -183,9 +146,11 @@ public class UserFilterFields {
 		FilterHighlighterUtil.highlight(nameFilter, userFilter.getNameFilter(), defaultFilter.getNameFilter());
 		FilterHighlighterUtil.highlight(idFilterMin, userFilter.getStartId(), defaultFilter.getStartId());
 		FilterHighlighterUtil.highlight(idFilterMax, userFilter.getEndId(), defaultFilter.getEndId());
-		FilterHighlighterUtil.highlight(createdStart, userFilter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
+		FilterHighlighterUtil.highlight(createdStart, userFilter.getCreatedAtStart(),
+			defaultFilter.getCreatedAtStart());
 		FilterHighlighterUtil.highlight(createdEnd, userFilter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
-		FilterHighlighterUtil.highlight(updatedStart, userFilter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
+		FilterHighlighterUtil.highlight(updatedStart, userFilter.getUpdatedAtStart(),
+			defaultFilter.getUpdatedAtStart());
 		FilterHighlighterUtil.highlight(updatedEnd, userFilter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
 	}
 

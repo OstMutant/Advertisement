@@ -40,14 +40,4 @@ public class UserFilter {
 		this.updatedAtEnd = other.updatedAtEnd;
 	}
 
-	public boolean isEqualTo(UserFilter other) {
-		return Objects.equals(nameFilter, other.nameFilter)
-			&& Objects.equals(startId, other.startId)
-			&& Objects.equals(endId, other.endId)
-			&& Objects.equals(createdAtStart, other.createdAtStart)
-			&& Objects.equals(createdAtEnd, other.createdAtEnd)
-			&& Objects.equals(updatedAtStart, other.updatedAtStart)
-			&& Objects.equals(updatedAtEnd, other.updatedAtEnd);
-	}
-
 }
