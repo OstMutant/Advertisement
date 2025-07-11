@@ -21,17 +21,33 @@ public class UsersView extends VerticalLayout {
 	public UsersView(UserListView userListView, UserRepository userRepository) {
 		this.userListView = userListView;
 		this.userRepository = userRepository;
-		setSizeFull();
 
-		addUserButton = new Button("Add User", VaadinIcon.PLUS.create());
-		addUserButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+		setSizeFull();
+		setPadding(false);
+		setSpacing(false);
+
+		addUserButton = new Button(VaadinIcon.PLUS.create());
+		addUserButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ICON);
+		addUserButton.setText("");
+		addUserButton.getElement().setProperty("title", "Add User");
+
+		addUserButton.getStyle()
+			.set("position", "fixed")
+			.set("bottom", "32px")
+			.set("right", "32px")
+			.set("z-index", "1000")
+			.set("border-radius", "50%")
+			.set("width", "48px")
+			.set("height", "48px")
+			.set("box-shadow", "0 2px 6px rgba(0,0,0,0.3)");
+
 		addUserButton.addClickListener(event -> openUserFormDialog(null));
 
-		HorizontalLayout toolbar = new HorizontalLayout(addUserButton);
+		HorizontalLayout toolbar = new HorizontalLayout();
 		toolbar.setWidthFull();
-		toolbar.setJustifyContentMode(JustifyContentMode.END);
 
 		add(toolbar, userListView);
+		add(addUserButton);
 	}
 
 	private void openUserFormDialog(User user) {

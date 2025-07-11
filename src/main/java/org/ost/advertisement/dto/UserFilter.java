@@ -1,6 +1,7 @@
 package org.ost.advertisement.dto;
 
 import java.time.Instant;
+import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -30,10 +31,23 @@ public class UserFilter {
 	}
 
 	public void copyFrom(UserFilter other) {
-		this.setNameFilter(other.getNameFilter());
-		this.setStartId(other.getStartId());
-		this.setCreatedAtStart(other.getCreatedAtStart());
-		this.setUpdatedAtStart(other.getUpdatedAtStart());
+		this.nameFilter = other.nameFilter;
+		this.startId = other.startId;
+		this.endId = other.endId;
+		this.createdAtStart = other.createdAtStart;
+		this.createdAtEnd = other.createdAtEnd;
+		this.updatedAtStart = other.updatedAtStart;
+		this.updatedAtEnd = other.updatedAtEnd;
+	}
+
+	public boolean isEqualTo(UserFilter other) {
+		return Objects.equals(nameFilter, other.nameFilter)
+			&& Objects.equals(startId, other.startId)
+			&& Objects.equals(endId, other.endId)
+			&& Objects.equals(createdAtStart, other.createdAtStart)
+			&& Objects.equals(createdAtEnd, other.createdAtEnd)
+			&& Objects.equals(updatedAtStart, other.updatedAtStart)
+			&& Objects.equals(updatedAtEnd, other.updatedAtEnd);
 	}
 
 }
