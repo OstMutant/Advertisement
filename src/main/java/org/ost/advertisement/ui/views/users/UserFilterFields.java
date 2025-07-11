@@ -1,11 +1,13 @@
 package org.ost.advertisement.ui.views.users;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
@@ -16,10 +18,10 @@ import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
 
-@Getter
 public class UserFilterFields {
 
 	private final UserFilter defaultFilter = new UserFilter();
+	@Getter
 	private final UserFilter userFilter = new UserFilter();
 
 	private NumberField idFilter;
@@ -28,6 +30,32 @@ public class UserFilterFields {
 	private DatePicker updatedStart;
 	private Button applyFilterButton;
 	private Button clearFilterButton;
+
+	public Component getIdFilterBlock() {
+		VerticalLayout layout = new VerticalLayout(idFilter);
+		layout.setPadding(false);
+		layout.setSpacing(false);
+		return layout;
+	}
+
+	public Component getNameBlock() {
+		return nameFilter;
+	}
+
+	public Component getCreatedBlock() {
+		return createdStart;
+	}
+
+	public Component getUpdatedBlock() {
+		return updatedStart;
+	}
+
+	public Component getActionBlock() {
+		HorizontalLayout actions = new HorizontalLayout(applyFilterButton, clearFilterButton);
+		actions.setSpacing(false);
+		actions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+		return actions;
+	}
 
 	public UserFilterFields() {
 		idFilter = new NumberField();

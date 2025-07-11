@@ -121,15 +121,11 @@ public class UserListView extends VerticalLayout {
 			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = userGrid.appendHeaderRow();
-		filterRow.getCell(idColumn).setComponent(userFilterFields.getIdFilter());
-		filterRow.getCell(nameColumn).setComponent(userFilterFields.getNameFilter());
-		filterRow.getCell(createdColumn).setComponent(userFilterFields.getCreatedStart());
-		filterRow.getCell(updatedColumn).setComponent(userFilterFields.getUpdatedStart());
-		HorizontalLayout actionsHeader = new HorizontalLayout(userFilterFields.getApplyFilterButton(),
-			userFilterFields.getClearFilterButton());
-		actionsHeader.setSpacing(false);
-		actionsHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
-		filterRow.getCell(actionsColumn).setComponent(actionsHeader);
+		filterRow.getCell(idColumn).setComponent(userFilterFields.getIdFilterBlock());
+		filterRow.getCell(nameColumn).setComponent(userFilterFields.getNameBlock());
+		filterRow.getCell(createdColumn).setComponent(userFilterFields.getCreatedBlock());
+		filterRow.getCell(updatedColumn).setComponent(userFilterFields.getUpdatedBlock());
+		filterRow.getCell(actionsColumn).setComponent(userFilterFields.getActionBlock());
 	}
 
 	public void refreshAll() {
