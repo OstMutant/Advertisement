@@ -1,9 +1,15 @@
 package org.ost.advertisement.ui.views.users;
 
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.clearAll;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createButton;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createDatePicker;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createFilterBlock;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createNumberField;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createTextField;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -14,13 +20,9 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import lombok.Getter;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
@@ -32,26 +34,17 @@ public class UserFilterFields {
 	@Getter
 	private final UserFilter userFilter = new UserFilter();
 
-	private NumberField idFilterMin = createNumberField("Min ID");
-	private NumberField idFilterMax = createNumberField("Max ID");
-	private TextField nameFilter = createTextField("Name...");
-	private DatePicker createdStart = createDatePicker("Created from");
-	private DatePicker createdEnd = createDatePicker("Created to");
-	private DatePicker updatedStart = createDatePicker("Updated from");
-	private DatePicker updatedEnd = createDatePicker("Updated to");
-	private Button applyFilterButton;
-	private Button clearFilterButton;
-
-	public UserFilterFields() {
-
-		applyFilterButton = new Button(VaadinIcon.FILTER.create());
-		applyFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_PRIMARY);
-		applyFilterButton.getElement().setProperty("title", "Apply filters");
-
-		clearFilterButton = new Button(VaadinIcon.ERASER.create());
-		clearFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
-		clearFilterButton.getElement().setProperty("title", "Clear filters");
-	}
+	private final NumberField idFilterMin = createNumberField("Min ID");
+	private final NumberField idFilterMax = createNumberField("Max ID");
+	private final TextField nameFilter = createTextField("Name...");
+	private final DatePicker createdStart = createDatePicker("Created from");
+	private final DatePicker createdEnd = createDatePicker("Created to");
+	private final DatePicker updatedStart = createDatePicker("Updated from");
+	private final DatePicker updatedEnd = createDatePicker("Updated to");
+	private final Button applyFilterButton = createButton(VaadinIcon.FILTER, "Apply filters",
+		ButtonVariant.LUMO_PRIMARY);
+	private final Button clearFilterButton = createButton(VaadinIcon.ERASER, "Clear filters",
+		ButtonVariant.LUMO_TERTIARY);
 
 	public void configureFields(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
 		idFilterMin.addValueChangeListener(e -> {
@@ -84,9 +77,9 @@ public class UserFilterFields {
 		});
 
 		applyFilterButton.addClickListener(e -> {
-			if (!isValidRange(userFilter.getStartId(), userFilter.getEndId())
-				|| !isValidRange(userFilter.getCreatedAtStart(), userFilter.getCreatedAtEnd())
-				|| !isValidRange(userFilter.getUpdatedAtStart(), userFilter.getUpdatedAtEnd())) {
+			if (!isValidNumberRange(userFilter.getStartId(), userFilter.getEndId()) ||
+				!isValidDateRange(userFilter.getCreatedAtStart(), userFilter.getCreatedAtEnd()) ||
+				!isValidDateRange(userFilter.getUpdatedAtStart(), userFilter.getUpdatedAtEnd())) {
 
 				Notification.show("Неправильний діапазон фільтрів", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_ERROR);
@@ -101,7 +94,8 @@ public class UserFilterFields {
 		});
 
 		clearFilterButton.addClickListener(e -> {
-			clearFilterFields();
+			clearAll(idFilterMin, idFilterMax, nameFilter, createdStart, createdEnd, updatedStart, updatedEnd);
+			userFilter.clear();
 			defaultFilter.clear();
 			dataProvider.setFilter(userFilter);
 			updateFilterButtonState();
@@ -131,12 +125,6 @@ public class UserFilterFields {
 			|| userFilter.getUpdatedAtEnd() != null;
 	}
 
-	private void clearFilterFields() {
-		clearAll(idFilterMin, idFilterMax, nameFilter, createdStart, createdEnd, updatedStart, updatedEnd);
-		userFilter.clear();
-		applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
-	}
-
 	private void highlightChangedFilters(boolean enable) {
 		if (!enable) {
 			FilterHighlighterUtil.clearHighlight(nameFilter, idFilterMin, idFilterMax,
@@ -154,27 +142,8 @@ public class UserFilterFields {
 		FilterHighlighterUtil.highlight(updatedEnd, userFilter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
 	}
 
-	private Instant toInstant(LocalDate date) {
-		return date != null ? date.atStartOfDay(ZoneId.systemDefault()).toInstant() : null;
-	}
-
-	private Long toLong(Double value) {
-		return value != null ? value.longValue() : null;
-	}
-
-	private boolean isValidRange(Long min, Long max) {
-		return min == null || max == null || min <= max;
-	}
-
-	private boolean isValidRange(Instant start, Instant end) {
-		return start == null || end == null || !start.isAfter(end);
-	}
-
 	public Component getIdFilterBlock() {
-		VerticalLayout layout = new VerticalLayout(idFilterMin, idFilterMax);
-		layout.setPadding(false);
-		layout.setSpacing(false);
-		return layout;
+		return createFilterBlock(idFilterMin, idFilterMax);
 	}
 
 	public Component getNameBlock() {
@@ -182,17 +151,11 @@ public class UserFilterFields {
 	}
 
 	public Component getCreatedBlock() {
-		VerticalLayout layout = new VerticalLayout(createdStart, createdEnd);
-		layout.setPadding(false);
-		layout.setSpacing(false);
-		return layout;
+		return createFilterBlock(createdStart, createdEnd);
 	}
 
 	public Component getUpdatedBlock() {
-		VerticalLayout layout = new VerticalLayout(updatedStart, updatedEnd);
-		layout.setPadding(false);
-		layout.setSpacing(false);
-		return layout;
+		return createFilterBlock(updatedStart, updatedEnd);
 	}
 
 	public Component getActionBlock() {
@@ -202,5 +165,3 @@ public class UserFilterFields {
 		return actions;
 	}
 }
-
-
