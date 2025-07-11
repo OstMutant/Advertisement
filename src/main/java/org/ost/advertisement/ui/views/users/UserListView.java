@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
@@ -15,14 +14,11 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.CallbackDataProvider;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -37,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
-import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -50,19 +45,9 @@ import org.springframework.data.domain.Sort;
 public class UserListView extends VerticalLayout {
 
 	private final UserRepository userRepository;
-	private final UserFilter userFilter = new UserFilter();
 	private Grid<User> userGrid;
 	private ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider;
-
-	private NumberField idFilter;
-	private TextField nameFilter;
-	private DatePicker createdStart;
-	private DatePicker updatedStart;
-	private Button applyFilterButton;
-	private Button clearFilterButton;
-
-	private final UserFilter defaultFilter = new UserFilter();
-
+	private final UserFilterFields userFilterFields = new UserFilterFields();
 
 	@Autowired
 	public UserListView(UserRepository userRepository) {
@@ -75,6 +60,7 @@ public class UserListView extends VerticalLayout {
 
 	@PostConstruct
 	private void init() {
+		UserFilter userFilter = userFilterFields.getUserFilter();
 		CallbackDataProvider<User, UserFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
 				Sort sort = Sort.by(query.getSortOrders().stream()
@@ -88,9 +74,9 @@ public class UserListView extends VerticalLayout {
 			query -> userRepository.countByFilter(query.getFilter().orElse(userFilter)).intValue()
 		);
 		dataProvider = callbackDataProvider.withConfigurableFilter();
-		userGrid.setDataProvider(dataProvider);
 		dataProvider.setFilter(userFilter);
-		configureFilterStyling();
+		userGrid.setDataProvider(dataProvider);
+		userFilterFields.configureFields(dataProvider);
 	}
 
 	private void configureGrid() {
@@ -135,84 +121,15 @@ public class UserListView extends VerticalLayout {
 			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = userGrid.appendHeaderRow();
-
-		idFilter = new NumberField();
-		idFilter.setWidth("100px");
-		idFilter.setClearButtonVisible(true);
-		idFilter.setPlaceholder("Min ID");
-		idFilter.addValueChangeListener(e -> {
-			userFilter.setStartId(e.getValue() != null ? e.getValue().longValue() : null);
-			updateFilterButtonState();
-		});
-		filterRow.getCell(idColumn).setComponent(idFilter);
-
-		nameFilter = new TextField();
-		nameFilter.setWidthFull();
-		nameFilter.setPlaceholder("Name...");
-		nameFilter.setClearButtonVisible(true);
-		nameFilter.addValueChangeListener(e -> {
-			userFilter.setNameFilter(e.getValue());
-			updateFilterButtonState();
-		});
-		filterRow.getCell(nameColumn).setComponent(nameFilter);
-
-		createdStart = new DatePicker();
-		createdStart.setWidth("140px");
-		createdStart.setPlaceholder("From");
-		createdStart.addValueChangeListener(e -> {
-			userFilter.setCreatedAtStart(e.getValue() != null ?
-				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
-			updateFilterButtonState();
-		});
-		filterRow.getCell(createdColumn).setComponent(createdStart);
-
-		updatedStart = new DatePicker();
-		updatedStart.setWidth("140px");
-		updatedStart.setPlaceholder("From");
-		updatedStart.addValueChangeListener(e -> {
-			userFilter.setUpdatedAtStart(e.getValue() != null ?
-				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
-			updateFilterButtonState();
-		});
-		filterRow.getCell(updatedColumn).setComponent(updatedStart);
-
-		applyFilterButton = new Button(VaadinIcon.FILTER.create());
-		applyFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_PRIMARY);
-		applyFilterButton.getElement().setProperty("title", "Apply filters");
-		applyFilterButton.addClickListener(e -> dataProvider.setFilter(userFilter));
-
-		clearFilterButton = new Button(VaadinIcon.ERASER.create());
-		clearFilterButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY);
-		clearFilterButton.getElement().setProperty("title", "Clear filters");
-		clearFilterButton.addClickListener(e -> {
-			idFilter.clear();
-			nameFilter.clear();
-			createdStart.clear();
-			updatedStart.clear();
-			userFilter.clear();
-			dataProvider.setFilter(userFilter);
-			updateFilterButtonState();
-		});
-
-		HorizontalLayout actionsHeader = new HorizontalLayout(applyFilterButton, clearFilterButton);
+		filterRow.getCell(idColumn).setComponent(userFilterFields.getIdFilter());
+		filterRow.getCell(nameColumn).setComponent(userFilterFields.getNameFilter());
+		filterRow.getCell(createdColumn).setComponent(userFilterFields.getCreatedStart());
+		filterRow.getCell(updatedColumn).setComponent(userFilterFields.getUpdatedStart());
+		HorizontalLayout actionsHeader = new HorizontalLayout(userFilterFields.getApplyFilterButton(),
+			userFilterFields.getClearFilterButton());
 		actionsHeader.setSpacing(false);
 		actionsHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 		filterRow.getCell(actionsColumn).setComponent(actionsHeader);
-	}
-
-	private void updateFilterButtonState() {
-		if (isFilterActive()) {
-			applyFilterButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		} else {
-			applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		}
-	}
-
-	private boolean isFilterActive() {
-		return userFilter.getNameFilter() != null && !userFilter.getNameFilter().isBlank()
-			|| userFilter.getStartId() != null
-			|| userFilter.getCreatedAtStart() != null
-			|| userFilter.getUpdatedAtStart() != null;
 	}
 
 	public void refreshAll() {
@@ -263,61 +180,5 @@ public class UserListView extends VerticalLayout {
 
 		dialog.getFooter().add(cancel, confirm);
 		dialog.open();
-	}
-
-	private void configureFilterStyling() {
-		nameFilter.setValueChangeMode(ValueChangeMode.EAGER);
-		nameFilter.addValueChangeListener(e -> {
-			userFilter.setNameFilter(e.getValue());
-			highlightChangedFilters(true);
-		});
-
-		idFilter.setValueChangeMode(ValueChangeMode.EAGER);
-		idFilter.addValueChangeListener(e -> {
-			userFilter.setStartId(e.getValue() != null ? e.getValue().longValue() : null);
-			highlightChangedFilters(true);
-		});
-
-		createdStart.addValueChangeListener(e -> {
-			userFilter.setCreatedAtStart(e.getValue() != null ?
-				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
-			highlightChangedFilters(true);
-		});
-
-		updatedStart.addValueChangeListener(e -> {
-			userFilter.setUpdatedAtStart(e.getValue() != null ?
-				e.getValue().atStartOfDay(ZoneId.systemDefault()).toInstant() : null);
-			highlightChangedFilters(true);
-		});
-
-		applyFilterButton.addClickListener(e -> {
-			dataProvider.setFilter(userFilter);
-			defaultFilter.copyFrom(userFilter);
-			highlightChangedFilters(true);
-		});
-
-		clearFilterButton.addClickListener(e -> {
-			idFilter.clear();
-			nameFilter.clear();
-			createdStart.clear();
-			updatedStart.clear();
-			userFilter.clear();
-			defaultFilter.clear();
-			dataProvider.setFilter(userFilter);
-			highlightChangedFilters(false);
-		});
-	}
-
-	private void highlightChangedFilters(boolean enable) {
-		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(nameFilter, idFilter, createdStart, updatedStart);
-			return;
-		}
-		FilterHighlighterUtil.highlight(nameFilter, userFilter.getNameFilter(), defaultFilter.getNameFilter());
-		FilterHighlighterUtil.highlight(idFilter, userFilter.getStartId(), defaultFilter.getStartId());
-		FilterHighlighterUtil.highlight(createdStart, userFilter.getCreatedAtStart(),
-			defaultFilter.getCreatedAtStart());
-		FilterHighlighterUtil.highlight(updatedStart, userFilter.getUpdatedAtStart(),
-			defaultFilter.getUpdatedAtStart());
 	}
 }
