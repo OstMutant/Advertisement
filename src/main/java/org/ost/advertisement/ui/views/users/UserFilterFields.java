@@ -31,13 +31,11 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
 	public UserFilterFields() {
 		super(new UserFilter());
-
 		applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 	}
 
-	@Override
-	public void configure(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
+	public void configure(Runnable onApply) {
 		idMin.addValueChangeListener(e -> {
 			filter.setStartId(toLong(e.getValue()));
 			updateState();
@@ -67,7 +65,21 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 			updateState();
 		});
 
-		setupButtons(dataProvider);
+		applyButton.addClickListener(e -> {
+			highlightChangedFields(false);
+			onApply.run();
+		});
+		clearButton.addClickListener(e -> {
+			clearAllFields();
+			filter.clear();
+			highlightChangedFields(false);
+			onApply.run();
+		});
+	}
+
+	@Override
+	public void configure(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
+
 	}
 
 	@Override
@@ -79,7 +91,6 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
 	@Override
 	protected void applyToDataProvider(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
-		dataProvider.setFilter(filter);
 	}
 
 	@Override
