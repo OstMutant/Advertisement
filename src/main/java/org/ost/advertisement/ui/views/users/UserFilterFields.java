@@ -1,153 +1,139 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.clearAll;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createButton;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createDatePicker;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createFilterBlock;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createNumberField;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.createFullTextField;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
-import lombok.Getter;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
+import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
-public class UserFilterFields {
+public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
-	private final UserFilter defaultFilter = new UserFilter();
-	@Getter
-	private final UserFilter userFilter = new UserFilter();
-
-	private final NumberField idFilterMin = createNumberField("Min ID");
-	private final NumberField idFilterMax = createNumberField("Max ID");
-	private final TextField nameFilter = createFullTextField("Name...");
+	private final NumberField idMin = createNumberField("Min ID");
+	private final NumberField idMax = createNumberField("Max ID");
+	private final TextField nameField = createFullTextField("Name...");
 	private final DatePicker createdStart = createDatePicker("Created from");
 	private final DatePicker createdEnd = createDatePicker("Created to");
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
-	private final Button applyFilterButton = createButton(VaadinIcon.FILTER, "Apply filters",
-		ButtonVariant.LUMO_PRIMARY);
-	private final Button clearFilterButton = createButton(VaadinIcon.ERASER, "Clear filters",
-		ButtonVariant.LUMO_TERTIARY);
 
-	public void configureFields(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
-		idFilterMin.addValueChangeListener(e -> {
-			userFilter.setStartId(toLong(e.getValue()));
+	public UserFilterFields() {
+		super(new UserFilter());
+
+		applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
+		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	}
+
+	@Override
+	public void configure(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
+		idMin.addValueChangeListener(e -> {
+			filter.setStartId(toLong(e.getValue()));
 			updateState();
 		});
-		idFilterMax.addValueChangeListener(e -> {
-			userFilter.setEndId(toLong(e.getValue()));
+		idMax.addValueChangeListener(e -> {
+			filter.setEndId(toLong(e.getValue()));
 			updateState();
 		});
-		nameFilter.addValueChangeListener(e -> {
-			userFilter.setNameFilter(e.getValue());
+		nameField.addValueChangeListener(e -> {
+			filter.setNameFilter(e.getValue());
 			updateState();
 		});
 		createdStart.addValueChangeListener(e -> {
-			userFilter.setCreatedAtStart(toInstant(e.getValue()));
+			filter.setCreatedAtStart(toInstant(e.getValue()));
 			updateState();
 		});
 		createdEnd.addValueChangeListener(e -> {
-			userFilter.setCreatedAtEnd(toInstant(e.getValue()));
+			filter.setCreatedAtEnd(toInstant(e.getValue()));
 			updateState();
 		});
 		updatedStart.addValueChangeListener(e -> {
-			userFilter.setUpdatedAtStart(toInstant(e.getValue()));
+			filter.setUpdatedAtStart(toInstant(e.getValue()));
 			updateState();
 		});
 		updatedEnd.addValueChangeListener(e -> {
-			userFilter.setUpdatedAtEnd(toInstant(e.getValue()));
+			filter.setUpdatedAtEnd(toInstant(e.getValue()));
 			updateState();
 		});
 
-		applyFilterButton.addClickListener(e -> {
-			if (!isValidNumberRange(userFilter.getStartId(), userFilter.getEndId()) ||
-				!isValidDateRange(userFilter.getCreatedAtStart(), userFilter.getCreatedAtEnd()) ||
-				!isValidDateRange(userFilter.getUpdatedAtStart(), userFilter.getUpdatedAtEnd())) {
-
-				Notification.show("Неправильний діапазон фільтрів", 3000, Notification.Position.BOTTOM_START)
-					.addThemeVariants(NotificationVariant.LUMO_ERROR);
-				applyFilterButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-				return;
-			}
-
-			applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
-			dataProvider.setFilter(userFilter);
-			defaultFilter.copyFrom(userFilter);
-			highlightChangedFilters(true);
-		});
-
-		clearFilterButton.addClickListener(e -> {
-			clearAll(idFilterMin, idFilterMax, nameFilter, createdStart, createdEnd, updatedStart, updatedEnd);
-			userFilter.clear();
-			defaultFilter.clear();
-			dataProvider.setFilter(userFilter);
-			updateFilterButtonState();
-			highlightChangedFilters(false);
-		});
+		setupButtons(dataProvider);
 	}
 
-	private void updateState() {
-		updateFilterButtonState();
-		highlightChangedFilters(true);
+	@Override
+	protected UserFilter cloneFilter(UserFilter original) {
+		UserFilter clone = new UserFilter();
+		clone.copyFrom(original);
+		return clone;
 	}
 
-	private void updateFilterButtonState() {
-		applyFilterButton.removeThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		if (isFilterActive()) {
-			applyFilterButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		}
+	@Override
+	protected void applyToDataProvider(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
+		dataProvider.setFilter(filter);
 	}
 
-	private boolean isFilterActive() {
-		return userFilter.getNameFilter() != null && !userFilter.getNameFilter().isBlank()
-			|| userFilter.getStartId() != null
-			|| userFilter.getEndId() != null
-			|| userFilter.getCreatedAtStart() != null
-			|| userFilter.getCreatedAtEnd() != null
-			|| userFilter.getUpdatedAtStart() != null
-			|| userFilter.getUpdatedAtEnd() != null;
+	@Override
+	protected void clearAllFields() {
+		clearAll(idMin, idMax, nameField, createdStart, createdEnd, updatedStart, updatedEnd);
 	}
 
-	private void highlightChangedFilters(boolean enable) {
+	@Override
+	protected void highlightChangedFields(boolean enable) {
 		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(nameFilter, idFilterMin, idFilterMax,
-				createdStart, createdEnd, updatedStart, updatedEnd);
+			FilterHighlighterUtil.clearHighlight(nameField, idMin, idMax, createdStart, createdEnd, updatedStart,
+				updatedEnd);
 			return;
 		}
-		FilterHighlighterUtil.highlight(nameFilter, userFilter.getNameFilter(), defaultFilter.getNameFilter());
-		FilterHighlighterUtil.highlight(idFilterMin, userFilter.getStartId(), defaultFilter.getStartId());
-		FilterHighlighterUtil.highlight(idFilterMax, userFilter.getEndId(), defaultFilter.getEndId());
-		FilterHighlighterUtil.highlight(createdStart, userFilter.getCreatedAtStart(),
-			defaultFilter.getCreatedAtStart());
-		FilterHighlighterUtil.highlight(createdEnd, userFilter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
-		FilterHighlighterUtil.highlight(updatedStart, userFilter.getUpdatedAtStart(),
-			defaultFilter.getUpdatedAtStart());
-		FilterHighlighterUtil.highlight(updatedEnd, userFilter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
+		FilterHighlighterUtil.highlight(nameField, filter.getNameFilter(), defaultFilter.getNameFilter());
+		FilterHighlighterUtil.highlight(idMin, filter.getStartId(), defaultFilter.getStartId());
+		FilterHighlighterUtil.highlight(idMax, filter.getEndId(), defaultFilter.getEndId());
+		FilterHighlighterUtil.highlight(createdStart, filter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
+		FilterHighlighterUtil.highlight(createdEnd, filter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
+		FilterHighlighterUtil.highlight(updatedStart, filter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
+		FilterHighlighterUtil.highlight(updatedEnd, filter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
 	}
 
-	public Component getIdFilterBlock() {
-		return createFilterBlock(idFilterMin, idFilterMax);
+	@Override
+	protected boolean isFilterActive() {
+		return filter.getNameFilter() != null && !filter.getNameFilter().isBlank()
+			|| filter.getStartId() != null || filter.getEndId() != null
+			|| filter.getCreatedAtStart() != null || filter.getCreatedAtEnd() != null
+			|| filter.getUpdatedAtStart() != null || filter.getUpdatedAtEnd() != null;
+	}
+
+	@Override
+	protected boolean validate() {
+		return isValidNumberRange(filter.getStartId(), filter.getEndId())
+			&& isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd())
+			&& isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd());
+	}
+
+	@Override
+	protected void copyFilter(UserFilter source, UserFilter target) {
+		target.copyFrom(source);
+	}
+
+	@Override
+	protected void clearFilter(UserFilter target) {
+		target.clear();
+	}
+
+	public Component getIdBlock() {
+		return createFilterBlock(idMin, idMax);
 	}
 
 	public Component getNameBlock() {
-		return nameFilter;
+		return nameField;
 	}
 
 	public Component getCreatedBlock() {
@@ -159,7 +145,7 @@ public class UserFilterFields {
 	}
 
 	public Component getActionBlock() {
-		HorizontalLayout actions = new HorizontalLayout(applyFilterButton, clearFilterButton);
+		HorizontalLayout actions = new HorizontalLayout(applyButton, clearButton);
 		actions.setSpacing(false);
 		actions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 		return actions;

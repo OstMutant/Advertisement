@@ -60,7 +60,7 @@ public class UserListView extends VerticalLayout {
 
 	@PostConstruct
 	private void init() {
-		UserFilter userFilter = filterFields.getUserFilter();
+		UserFilter userFilter = filterFields.getFilter();
 		CallbackDataProvider<User, UserFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
 			query -> {
 				Sort sort = Sort.by(query.getSortOrders().stream()
@@ -76,7 +76,7 @@ public class UserListView extends VerticalLayout {
 		dataProvider = callbackDataProvider.withConfigurableFilter();
 		dataProvider.setFilter(userFilter);
 		grid.setDataProvider(dataProvider);
-		filterFields.configureFields(dataProvider);
+		filterFields.configure(dataProvider);
 	}
 
 	private void configureGrid() {
@@ -121,7 +121,7 @@ public class UserListView extends VerticalLayout {
 			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = grid.appendHeaderRow();
-		filterRow.getCell(idColumn).setComponent(filterFields.getIdFilterBlock());
+		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
 		filterRow.getCell(nameColumn).setComponent(filterFields.getNameBlock());
 		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());

@@ -1,37 +1,32 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.*;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
-import lombok.Getter;
-import org.ost.advertisement.dto.AdvertisementFilter;
-import org.ost.advertisement.entyties.Advertisement;
-import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
-
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-
+import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import java.util.List;
+import org.ost.advertisement.dto.AdvertisementFilter;
+import org.ost.advertisement.entyties.Advertisement;
+import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
+import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
-public class AdvertisementFilterFields {
-
-	private final AdvertisementFilter defaultFilter = new AdvertisementFilter();
-	@Getter
-	private final AdvertisementFilter filter = new AdvertisementFilter();
+public class AdvertisementFilterFields extends AbstractFilterFields<Advertisement, AdvertisementFilter> {
 
 	private final TextField titleField = createFullTextField("Title...");
 	private final TextField categoryField = createShortTextField("Category...");
 	private final TextField locationField = createShortTextField("Location...");
-
-	private final Select<String> statusField = createSelect("Status", List.of("ACTIVE", "EXPIRED", "DRAFT"));
+	private final Select<String> statusField = createSelect("Status", List.of("ACTIVE", "EXPIRED", "DRAFT", "SOLD"));
 
 	private final NumberField idMin = createNumberField("Min ID");
 	private final NumberField idMax = createNumberField("Max ID");
@@ -41,9 +36,13 @@ public class AdvertisementFilterFields {
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
-	private final Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-	private final Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	public AdvertisementFilterFields() {
+		super(new AdvertisementFilter());
+		applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
+		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	}
 
+	@Override
 	public void configure(ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
 		titleField.addValueChangeListener(e -> {
 			filter.setTitleFilter(e.getValue());
@@ -86,65 +85,35 @@ public class AdvertisementFilterFields {
 			updateState();
 		});
 
-		applyButton.addClickListener(e -> {
-			if (!isValidNumberRange(filter.getStartId(), filter.getEndId()) ||
-				!isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd()) ||
-				!isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd())) {
-
-				applyButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-				return;
-			}
-
-			applyButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
-			dataProvider.setFilter(filter);
-			defaultFilter.copyFrom(filter);
-			highlightChanges(true);
-		});
-
-		clearButton.addClickListener(e -> {
-			clearAll(titleField, categoryField, locationField, statusField,
-				idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
-
-			filter.clear();
-			defaultFilter.clear();
-			dataProvider.setFilter(filter);
-			updateButtonState();
-			highlightChanges(false);
-		});
+		setupButtons(dataProvider);
 	}
 
-	private void updateState() {
-		updateButtonState();
-		highlightChanges(true);
+	@Override
+	protected AdvertisementFilter cloneFilter(AdvertisementFilter original) {
+		AdvertisementFilter copy = new AdvertisementFilter();
+		copy.copyFrom(original);
+		return copy;
 	}
 
-	private void updateButtonState() {
-		applyButton.removeThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		if (isActive()) {
-			applyButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-		}
+	@Override
+	protected void applyToDataProvider(
+		ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
+		dataProvider.setFilter(filter);
 	}
 
-	private boolean isActive() {
-		return filter.getTitleFilter() != null && !filter.getTitleFilter().isBlank()
-			|| filter.getCategoryFilter() != null && !filter.getCategoryFilter().isBlank()
-			|| filter.getLocationFilter() != null && !filter.getLocationFilter().isBlank()
-			|| filter.getStatusFilter() != null
-			|| filter.getStartId() != null
-			|| filter.getEndId() != null
-			|| filter.getCreatedAtStart() != null
-			|| filter.getCreatedAtEnd() != null
-			|| filter.getUpdatedAtStart() != null
-			|| filter.getUpdatedAtEnd() != null;
+	@Override
+	protected void clearAllFields() {
+		clearAll(titleField, categoryField, locationField, statusField,
+			idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
 	}
 
-	private void highlightChanges(boolean enable) {
+	@Override
+	protected void highlightChangedFields(boolean enable) {
 		if (!enable) {
 			FilterHighlighterUtil.clearHighlight(titleField, categoryField, locationField, statusField,
 				idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
 			return;
 		}
-
 		FilterHighlighterUtil.highlight(titleField, filter.getTitleFilter(), defaultFilter.getTitleFilter());
 		FilterHighlighterUtil.highlight(categoryField, filter.getCategoryFilter(), defaultFilter.getCategoryFilter());
 		FilterHighlighterUtil.highlight(locationField, filter.getLocationFilter(), defaultFilter.getLocationFilter());
@@ -155,6 +124,34 @@ public class AdvertisementFilterFields {
 		FilterHighlighterUtil.highlight(createdEnd, filter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
 		FilterHighlighterUtil.highlight(updatedStart, filter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
 		FilterHighlighterUtil.highlight(updatedEnd, filter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
+	}
+
+	@Override
+	protected boolean isFilterActive() {
+		return (filter.getTitleFilter() != null && !filter.getTitleFilter().isBlank())
+			|| (filter.getCategoryFilter() != null && !filter.getCategoryFilter().isBlank())
+			|| (filter.getLocationFilter() != null && !filter.getLocationFilter().isBlank())
+			|| filter.getStatusFilter() != null
+			|| filter.getStartId() != null || filter.getEndId() != null
+			|| filter.getCreatedAtStart() != null || filter.getCreatedAtEnd() != null
+			|| filter.getUpdatedAtStart() != null || filter.getUpdatedAtEnd() != null;
+	}
+
+	@Override
+	protected boolean validate() {
+		return isValidNumberRange(filter.getStartId(), filter.getEndId())
+			&& isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd())
+			&& isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd());
+	}
+
+	@Override
+	protected void copyFilter(AdvertisementFilter source, AdvertisementFilter target) {
+		target.copyFrom(source);
+	}
+
+	@Override
+	protected void clearFilter(AdvertisementFilter target) {
+		target.clear();
 	}
 
 	public Component getTitleBlock() {
@@ -192,3 +189,4 @@ public class AdvertisementFilterFields {
 		return actions;
 	}
 }
+
