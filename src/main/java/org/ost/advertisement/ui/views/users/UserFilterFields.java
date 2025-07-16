@@ -13,7 +13,6 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
@@ -78,19 +77,10 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 	}
 
 	@Override
-	public void configure(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
-
-	}
-
-	@Override
 	protected UserFilter cloneFilter(UserFilter original) {
 		UserFilter clone = new UserFilter();
 		clone.copyFrom(original);
 		return clone;
-	}
-
-	@Override
-	protected void applyToDataProvider(ConfigurableFilterDataProvider<User, Void, UserFilter> dataProvider) {
 	}
 
 	@Override

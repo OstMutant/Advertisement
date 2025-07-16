@@ -14,7 +14,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
@@ -98,20 +97,10 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	}
 
 	@Override
-	public void configure(ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
-
-	}
-
-	@Override
 	protected AdvertisementFilter cloneFilter(AdvertisementFilter original) {
 		AdvertisementFilter copy = new AdvertisementFilter();
 		copy.copyFrom(original);
 		return copy;
-	}
-
-	@Override
-	protected void applyToDataProvider(
-		ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
 	}
 
 	@Override

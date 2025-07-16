@@ -10,7 +10,6 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import java.util.Collection;
 import lombok.Getter;
@@ -28,11 +27,7 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 		this.filter = cloneFilter(defaultFilter);
 	}
 
-	public abstract void configure(ConfigurableFilterDataProvider<TEntity, Void, TFilter> dataProvider);
-
 	protected abstract TFilter cloneFilter(TFilter original);
-
-	protected abstract void applyToDataProvider(ConfigurableFilterDataProvider<TEntity, Void, TFilter> dataProvider);
 
 	protected abstract void clearAllFields();
 
@@ -54,28 +49,6 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 		if (isFilterActive()) {
 			applyButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
 		}
-	}
-
-	protected void setupButtons(ConfigurableFilterDataProvider<TEntity, Void, TFilter> dataProvider) {
-		applyButton.addClickListener(e -> {
-			if (!validate()) {
-				applyButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-				return;
-			}
-			applyButton.removeThemeVariants(ButtonVariant.LUMO_ERROR);
-			applyToDataProvider(dataProvider);
-			copyFilter(filter, defaultFilter);
-			highlightChangedFields(true);
-		});
-
-		clearButton.addClickListener(e -> {
-			clearAllFields();
-			clearFilter(filter);
-			clearFilter(defaultFilter);
-			applyToDataProvider(dataProvider);
-			updateButtonState();
-			highlightChangedFields(false);
-		});
 	}
 
 	protected boolean validate() {
@@ -123,12 +96,6 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 		button.setText("");
 		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);
 		button.getElement().setProperty("title", tooltip);
-		return button;
-	}
-
-	public Button createTextIconButton(String text, VaadinIcon icon, ButtonVariant... variants) {
-		Button button = new Button(text, icon.create());
-		button.addThemeVariants(variants);
 		return button;
 	}
 
