@@ -14,9 +14,6 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.CallbackDataProvider;
-import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
-import com.vaadin.flow.data.provider.DataProvider;
 import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
@@ -28,11 +25,12 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.stream.Collectors;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
+import org.ost.advertisement.ui.components.PaginationBarModern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -45,54 +43,74 @@ import org.springframework.data.domain.Sort;
 public class AdvertisementListView extends VerticalLayout {
 
 	private final AdvertisementRepository repository;
-	private Grid<Advertisement> grid;
-	private ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider;
+	private final Grid<Advertisement> grid = new Grid<>(Advertisement.class, false);
+	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
+	private AdvertisementFilter currentFilter = new AdvertisementFilter();
+	private Sort currentSort = Sort.unsorted();
 
 	@Autowired
 	public AdvertisementListView(AdvertisementRepository repository) {
 		this.repository = repository;
 		addClassName("advertisement-list-view");
 		setSizeFull();
+
+		paginationBar.setPageSize(25);
+		paginationBar.setPageChangeListener(e -> refreshGrid());
+
+		grid.addSortListener(event -> {
+			List<Sort.Order> orders = event.getSortOrder().stream()
+				.map(order -> {
+					String property = order.getSorted().getKey();
+					return order.getDirection() == SortDirection.ASCENDING
+						? Sort.Order.asc(property)
+						: Sort.Order.desc(property);
+				}).toList();
+			currentSort = Sort.by(orders);
+			refreshGrid();
+		});
+
+		filterFields.configure(() -> {
+			currentFilter = filterFields.getFilter();
+			paginationBar.setTotalCount(0);
+			refreshGrid();
+		});
+
 		configureGrid();
-		add(grid);
+		add(grid, paginationBar);
 	}
 
 	@PostConstruct
 	private void init() {
-		AdvertisementFilter filter = filterFields.getFilter();
-		CallbackDataProvider<Advertisement, AdvertisementFilter> callbackDataProvider = DataProvider.fromFilteringCallbacks(
-			query -> {
-				Sort sort = Sort.by(query.getSortOrders().stream()
-					.map(order -> order.getDirection() == SortDirection.ASCENDING
-						? Sort.Order.asc(order.getSorted())
-						: Sort.Order.desc(order.getSorted()))
-					.collect(Collectors.toList()));
-				PageRequest pageable = PageRequest.of(query.getOffset() / query.getLimit(), query.getLimit(), sort);
-				return repository.findByFilter(query.getFilter().orElse(filter), pageable).stream();
-			},
-			query -> repository.countByFilter(query.getFilter().orElse(filter)).intValue()
-		);
-		dataProvider = callbackDataProvider.withConfigurableFilter();
-		dataProvider.setFilter(filter);
-		grid.setDataProvider(dataProvider);
-		filterFields.configure(dataProvider);
+		refreshGrid();
+	}
+
+	public void refreshGrid() {
+		int page = paginationBar.getCurrentPage();
+		int size = paginationBar.getPageSize();
+		PageRequest pageable = PageRequest.of(page, size, currentSort);
+
+		List<Advertisement> pageData = repository.findByFilter(currentFilter, pageable);
+		int totalCount = repository.countByFilter(currentFilter).intValue();
+
+		paginationBar.setTotalCount(totalCount);
+		grid.setItems(pageData);
 	}
 
 	private void configureGrid() {
-		grid = new Grid<>(Advertisement.class, false);
 		grid.setSizeFull();
 
 		Column<Advertisement> idColumn = grid.addColumn(Advertisement::getId)
 			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
-			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
+			.setTextAlign(ColumnTextAlign.END).setAutoWidth(true).setFlexGrow(0);
 
 		Column<Advertisement> titleColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
 				Span span = new Span(ad.getTitle());
 				span.getElement().setProperty("title", ad.getTitle());
 				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
 				return span;
-			})).setHeader("Title").setKey("title").setSortable(true).setSortProperty("title")
+			}))
+			.setHeader("Title").setKey("title").setSortable(true).setSortProperty("title")
 			.setAutoWidth(false).setFlexGrow(1);
 
 		Column<Advertisement> categoryColumn = grid.addColumn(Advertisement::getCategory)
@@ -117,7 +135,7 @@ public class AdvertisementListView extends VerticalLayout {
 
 		Column<Advertisement> userIdColumn = grid.addColumn(Advertisement::getUserId)
 			.setHeader("User ID").setKey("userId").setSortable(true).setSortProperty("userId")
-			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
+			.setTextAlign(ColumnTextAlign.END).setAutoWidth(true).setFlexGrow(0);
 
 		Column<Advertisement> actionsColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
@@ -132,33 +150,35 @@ public class AdvertisementListView extends VerticalLayout {
 				layout.setSpacing(false);
 				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 				return layout;
-			})).setHeader("Actions").setKey("actions")
-			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
+			}))
+			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0)
+			.setTextAlign(ColumnTextAlign.CENTER);
 
-		HeaderRow filterRow = grid.appendHeaderRow();
-		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
-		filterRow.getCell(titleColumn).setComponent(filterFields.getTitleBlock());
-		filterRow.getCell(categoryColumn).setComponent(filterFields.getCategoryBlock());
-		filterRow.getCell(locationColumn).setComponent(filterFields.getLocationBlock());
-		filterRow.getCell(statusColumn).setComponent(filterFields.getStatusBlock());
-		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
-		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
-		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
+		HeaderRow header = grid.appendHeaderRow();
+		header.getCell(idColumn).setComponent(filterFields.getIdBlock());
+		header.getCell(titleColumn).setComponent(filterFields.getTitleBlock());
+		header.getCell(categoryColumn).setComponent(filterFields.getCategoryBlock());
+		header.getCell(locationColumn).setComponent(filterFields.getLocationBlock());
+		header.getCell(statusColumn).setComponent(filterFields.getStatusBlock());
+		header.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
+		header.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
+		header.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
 	}
+
 
 	private String formatInstant(Instant instant) {
 		if (instant == null) {
 			return "N/A";
 		}
-		return LocalDateTime.ofInstant(instant, ZoneId.systemDefault())
-			.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+		LocalDateTime dt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+		return dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
 
 	private void openAdvertisementFormDialog(Advertisement ad) {
 		AdvertisementFormDialog dialog = new AdvertisementFormDialog(ad, repository);
 		dialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
-				refreshAll();
+				refreshGrid();
 			}
 		});
 		dialog.open();
@@ -173,7 +193,7 @@ public class AdvertisementListView extends VerticalLayout {
 				repository.delete(ad);
 				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-				refreshAll();
+				refreshGrid();
 			} catch (Exception ex) {
 				log.error("Error deleting advertisement", ex);
 				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
@@ -187,11 +207,5 @@ public class AdvertisementListView extends VerticalLayout {
 		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 		dialog.getFooter().add(cancel, confirm);
 		dialog.open();
-	}
-
-	public void refreshAll() {
-		if (dataProvider != null) {
-			dataProvider.refreshAll();
-		}
 	}
 }

@@ -33,7 +33,7 @@ public class AdvertisementsView extends VerticalLayout {
 		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementRepository);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
-				advertisementListView.refreshAll();
+				advertisementListView.refreshGrid();
 			}
 		});
 		dialog.open();

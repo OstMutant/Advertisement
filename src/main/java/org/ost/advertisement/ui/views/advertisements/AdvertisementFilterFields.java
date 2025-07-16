@@ -42,8 +42,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 	}
 
-	@Override
-	public void configure(ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
+	public void configure(Runnable onApply) {
 		titleField.addValueChangeListener(e -> {
 			filter.setTitleFilter(e.getValue());
 			updateState();
@@ -85,7 +84,22 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			updateState();
 		});
 
-		setupButtons(dataProvider);
+		applyButton.addClickListener(e -> {
+			highlightChangedFields(false);
+			onApply.run();
+		});
+
+		clearButton.addClickListener(e -> {
+			clearAllFields();
+			filter.clear();
+			highlightChangedFields(false);
+			onApply.run();
+		});
+	}
+
+	@Override
+	public void configure(ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
+
 	}
 
 	@Override
@@ -98,7 +112,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	@Override
 	protected void applyToDataProvider(
 		ConfigurableFilterDataProvider<Advertisement, Void, AdvertisementFilter> dataProvider) {
-		dataProvider.setFilter(filter);
 	}
 
 	@Override
@@ -189,4 +202,3 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		return actions;
 	}
 }
-

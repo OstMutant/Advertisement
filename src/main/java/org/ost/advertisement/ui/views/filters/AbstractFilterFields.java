@@ -100,7 +100,6 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 	public TextField createShortTextField(String placeholder) {
 		TextField field = createTextField(placeholder);
 		field.setWidth("140px");
-		;
 		return field;
 	}
 
