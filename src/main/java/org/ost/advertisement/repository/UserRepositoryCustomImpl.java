@@ -1,8 +1,8 @@
-// UserRepositoryCustomImpl.java
-package org.ost.advertisement.repository; // Update package if different
+package org.ost.advertisement.repository;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
@@ -16,78 +16,61 @@ import org.springframework.stereotype.Repository;
 @RequiredArgsConstructor
 public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 
-    // Changed from R2dbcEntityTemplate to JdbcAggregateTemplate
-    private final JdbcAggregateTemplate template;
+	private final JdbcAggregateTemplate template;
 
-    /**
-     * Builds the criteria for filtering users based on the UserFilter object.
-     * This method is private as it's a helper for the repository methods.
-     *
-     * @param filter The filter criteria to apply.
-     * @return The constructed Criteria object.
-     */
-    private Criteria buildCriteria(UserFilter filter) {
-        List<Criteria> criteriaList = new ArrayList<>();
+	private Criteria buildCriteria(UserFilter filter) {
+		List<Criteria> criteriaList = new ArrayList<>();
 
-        if (filter != null) {
-            // Filtering by nameFilter (partial match, case-insensitive)
-            if (filter.getNameFilter() != null && !filter.getNameFilter().isBlank()) {
-                criteriaList.add(Criteria.where("name").like("%" + filter.getNameFilter().toLowerCase() + "%").ignoreCase(true));
-            }
+		if (filter != null) {
+			if (filter.getNameFilter() != null && !filter.getNameFilter().isBlank()) {
+				criteriaList.add(
+					Criteria.where("name").like("%" + filter.getNameFilter().toLowerCase() + "%").ignoreCase(true));
+			}
 
-            // Filtering by createdAt range
-            if (filter.getCreatedAtStart() != null) {
-                criteriaList.add(Criteria.where("created_at").greaterThanOrEquals(filter.getCreatedAtStart()));
-            }
-            if (filter.getCreatedAtEnd() != null) {
-                criteriaList.add(Criteria.where("created_at").lessThanOrEquals(filter.getCreatedAtEnd()));
-            }
+			if (filter.getCreatedAtStart() != null) {
+				criteriaList.add(Criteria.where("created_at").greaterThanOrEquals(filter.getCreatedAtStart()));
+			}
+			if (filter.getCreatedAtEnd() != null) {
+				criteriaList.add(Criteria.where("created_at").lessThanOrEquals(filter.getCreatedAtEnd()));
+			}
 
-            // Filtering by updatedAt range
-            if (filter.getUpdatedAtStart() != null) {
-                criteriaList.add(Criteria.where("updated_at").greaterThanOrEquals(filter.getUpdatedAtStart()));
-            }
-            if (filter.getUpdatedAtEnd() != null) {
-                criteriaList.add(Criteria.where("updated_at").lessThanOrEquals(filter.getUpdatedAtEnd()));
-            }
+			if (filter.getUpdatedAtStart() != null) {
+				criteriaList.add(Criteria.where("updated_at").greaterThanOrEquals(filter.getUpdatedAtStart()));
+			}
+			if (filter.getUpdatedAtEnd() != null) {
+				criteriaList.add(Criteria.where("updated_at").lessThanOrEquals(filter.getUpdatedAtEnd()));
+			}
 
-            // Filtering by ID range
-            if (filter.getStartId() != null && filter.getStartId() > 0) {
-                criteriaList.add(Criteria.where("id").greaterThanOrEquals(filter.getStartId()));
-            }
-            if (filter.getEndId() != null && filter.getEndId() > 0) {
-                criteriaList.add(Criteria.where("id").lessThanOrEquals(filter.getEndId()));
-            }
-        }
-        // Combine all criteria with AND. If criteriaList is empty, Criteria.empty() is returned.
-        return criteriaList.stream().reduce(Criteria.empty(), Criteria::and);
-    }
+			if (filter.getStartId() != null && filter.getStartId() > 0) {
+				criteriaList.add(Criteria.where("id").greaterThanOrEquals(filter.getStartId()));
+			}
+			if (filter.getEndId() != null && filter.getEndId() > 0) {
+				criteriaList.add(Criteria.where("id").lessThanOrEquals(filter.getEndId()));
+			}
+		}
+		return criteriaList.stream().reduce(Criteria.empty(), Criteria::and);
+	}
 
-    @Override
-    public List<User> findByFilter(UserFilter filter, Pageable pageable) { // Changed return type from Flux to List
-        // Build criteria using the helper method
-        Criteria finalCriteria = buildCriteria(filter);
-        // Create query with criteria and pagination
-        Query query = Query.query(finalCriteria).with(pageable);
+	@Override
+	public List<User> findByFilter(UserFilter filter, Pageable pageable) {
+		Criteria finalCriteria = buildCriteria(filter);
+		Query query = Query.query(finalCriteria).with(pageable);
 
-        // Execute the select query
-        return template.findAll(query, User.class); // Explicit cast for clarity
-    }
+		return template.findAll(query, User.class);
+	}
 
-    /**
-     * Counts the number of users matching the given filter criteria.
-     *
-     * @param filter The filter criteria to apply.
-     * @return A Long representing the total count of matching users.
-     */
-    @Override
-    public Long countByFilter(UserFilter filter) { // Changed return type from Mono<Long> to Long
-        // Build criteria using the helper method
-        Criteria finalCriteria = buildCriteria(filter);
-        // Create query with criteria (no pagination needed for count)
-        Query query = Query.query(finalCriteria);
+	@Override
+	public Long countByFilter(UserFilter filter) {
+		Criteria finalCriteria = buildCriteria(filter);
+		Query query = Query.query(finalCriteria);
 
-        // Execute the count query
-        return template.count(query, User.class);
-    }
+		return template.count(query, User.class);
+	}
+
+	@Override
+	public Optional<User> findByEmail(String email) {
+		Criteria criteria = Criteria.where("email").is(email);
+		Query query = Query.query(criteria);
+		return template.findOne(query, User.class);
+	}
 }

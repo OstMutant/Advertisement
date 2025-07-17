@@ -47,7 +47,6 @@ public class AdvertisementListView extends VerticalLayout {
 	private AdvertisementFilter currentFilter = new AdvertisementFilter();
 	private Sort currentSort = Sort.unsorted();
 
-	@Autowired
 	public AdvertisementListView(AdvertisementRepository repository) {
 		this.repository = repository;
 		addClassName("advertisement-list-view");

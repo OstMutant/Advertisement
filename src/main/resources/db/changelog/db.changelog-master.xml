@@ -5,5 +5,8 @@
   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
   <include file="db/changelog/changes/01-create-user-information-table.xml"/>
-  <include file="db/changelog/changes/02-create-advertisement-table.xml"/> <!-- NEW: Include for advertisement table -->
+  <include file="db/changelog/changes/02-create-advertisement-table.xml"/>
+  <include file="db/changelog/changes/03-create-role-table.xml"/>
+  <include file="db/changelog/changes/04-extend-user-information.xml"/>
+  <include file="db/changelog/changes/05-insert-initial-roles.xml"/>
 </databaseChangeLog>

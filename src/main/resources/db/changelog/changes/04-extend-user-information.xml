@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+  <changeSet id="4-extend-user-information" author="ostap">
+    <comment>Add login fields and role link to USER_INFORMATION</comment>
+    <addColumn tableName="user_information">
+      <column name="email" type="VARCHAR(255)"/>
+      <column name="password_hash" type="VARCHAR(255)"/>
+      <column name="role_id" type="BIGINT"/>
+      <column name="external_provider" type="VARCHAR(50)"/>
+      <column name="external_id" type="VARCHAR(255)"/>
+    </addColumn>
+
+    <addForeignKeyConstraint
+      baseTableName="user_information"
+      baseColumnNames="role_id"
+      constraintName="fk_user_role"
+      referencedTableName="role"
+      referencedColumnNames="id"
+      onDelete="SET NULL"/>
+  </changeSet>
+
+</databaseChangeLog>

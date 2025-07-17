@@ -1,19 +1,19 @@
 package org.ost.advertisement.ui;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
-import org.ost.advertisement.ui.views.users.UsersView;
-
 import java.util.HashMap;
 import java.util.Map;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.views.header.HeaderBar;
+import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
+import org.ost.advertisement.ui.views.users.UsersView;
 
 @SpringComponent
 @UIScope
@@ -23,10 +23,12 @@ public class MainView extends VerticalLayout {
 	private final Tabs tabs;
 	private final Div pages;
 
+	private final HeaderBar headerBar;
 	private final AdvertisementsView advertisementsView;
 	private final UsersView usersView;
 
-	public MainView(AdvertisementsView advertisementsView, UsersView usersView) {
+	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UsersView usersView) {
+		this.headerBar = headerBar;
 		this.advertisementsView = advertisementsView;
 		this.usersView = usersView;
 
@@ -36,6 +38,8 @@ public class MainView extends VerticalLayout {
 		setPadding(false);
 		setSpacing(false);
 		setAlignItems(Alignment.STRETCH);
+
+		add(headerBar);
 
 		Tab advertisementTab = new Tab("Advertisements");
 		Tab usersTab = new Tab("Users");

@@ -49,7 +49,6 @@ public class UserListView extends VerticalLayout {
 	private UserFilter currentFilter = new UserFilter();
 	private Sort currentSort = Sort.unsorted();
 
-	@Autowired
 	public UserListView(UserRepository repository) {
 		this.repository = repository;
 		addClassName("user-list-view");
