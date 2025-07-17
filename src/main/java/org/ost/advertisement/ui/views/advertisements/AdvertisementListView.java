@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -21,10 +23,6 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
@@ -163,15 +161,6 @@ public class AdvertisementListView extends VerticalLayout {
 		header.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		header.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
 		header.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
-	}
-
-
-	private String formatInstant(Instant instant) {
-		if (instant == null) {
-			return "N/A";
-		}
-		LocalDateTime dt = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-		return dt.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
 
 	private void openAdvertisementFormDialog(Advertisement ad) {

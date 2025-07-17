@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.users;
 
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -69,19 +71,19 @@ public class UserListView extends VerticalLayout {
 			refreshGrid();
 		});
 
-		configureGrid();
-		add(paginationBar, grid);
-	}
-
-	@PostConstruct
-	private void init() {
-		paginationBar.setPageSize(25);
 		paginationBar.setPageChangeListener(e -> refreshGrid());
 		filterFields.configure(() -> {
 			currentFilter = filterFields.getFilter();
 			paginationBar.setTotalCount(0);
 			refreshGrid();
 		});
+
+		configureGrid();
+		add(grid, paginationBar);
+	}
+
+	@PostConstruct
+	private void init() {
 		refreshGrid();
 	}
 
@@ -95,7 +97,6 @@ public class UserListView extends VerticalLayout {
 
 		paginationBar.setTotalCount(totalCount);
 		grid.setItems(pageData);
-		add(grid, paginationBar);
 	}
 
 	private void configureGrid() {
@@ -144,14 +145,6 @@ public class UserListView extends VerticalLayout {
 		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
 		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
-	}
-
-	private String formatInstant(Instant instant) {
-		if (instant == null) {
-			return "N/A";
-		}
-		LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
-		return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
 
 	private void openUserFormDialog(User user) {
