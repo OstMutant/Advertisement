@@ -1,34 +1,31 @@
 package org.ost.advertisement.services;
 
+import static java.util.Optional.ofNullable;
+
 import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.entyties.User;
-import org.ost.advertisement.repository.RoleRepository;
 import org.springframework.stereotype.Service;
 
 @Service
 public class SecurityService {
 
-	private final RoleRepository roleRepository;
-
-	public SecurityService(RoleRepository roleRepository) {
-		this.roleRepository = roleRepository;
+	public SecurityService() {
 	}
 
-	public boolean hasRole(User user, String roleCode) {
-		if (user == null || user.getRoleId() == null) {
-			return false;
-		}
-
-		Role role = roleRepository.findById(user.getRoleId()).orElse(null);
-		return role != null && roleCode.equalsIgnoreCase(role.getCode());
+	public boolean hasRole(User user, Role role) {
+		return ofNullable(user).map(User::getRole).filter(v -> v == role).isPresent();
 	}
 
 	public boolean isAdmin(User user) {
-		return hasRole(user, "ADMIN");
+		return hasRole(user, Role.ADMIN);
 	}
 
 	public boolean isModerator(User user) {
-		return hasRole(user, "MODERATOR");
+		return hasRole(user, Role.MODERATOR);
+	}
+
+	public boolean isUser(User user) {
+		return hasRole(user, Role.USER);
 	}
 
 	public boolean isOwner(User user, Long ownerUserId) {

@@ -20,12 +20,11 @@ public class User {
 	private String email;
 	private String passwordHash;
 
-	private Long roleId;
+	private Role role;
 
 	private String externalProvider;
 	private String externalId;
 
 	private Instant createdAt;
-
 	private Instant updatedAt;
 }

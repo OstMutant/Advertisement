@@ -13,6 +13,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.time.Instant;
 import java.util.regex.Pattern;
+import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.utils.PasswordEncoderUtil;
@@ -38,8 +39,11 @@ public class SignUpDialog extends Dialog {
 			String email = emailField.getValue().trim();
 			String rawPassword = passwordField.getValue().trim();
 
-			boolean valid = validateFields(nameField, emailField, passwordField, name, email, rawPassword, userRepository);
-			if (!valid) return;
+			boolean valid = validateFields(nameField, emailField, passwordField, name, email, rawPassword,
+				userRepository);
+			if (!valid) {
+				return;
+			}
 
 			User newUser = new User();
 			newUser.setName(name);
@@ -47,6 +51,7 @@ public class SignUpDialog extends Dialog {
 			newUser.setPasswordHash(PasswordEncoderUtil.encode(rawPassword));
 			newUser.setCreatedAt(Instant.now());
 			newUser.setUpdatedAt(Instant.now());
+			newUser.setRole(Role.USER);
 
 			userRepository.save(newUser);
 			Notification.show("User registered successfully", 2000, Notification.Position.TOP_CENTER);

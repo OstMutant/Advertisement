@@ -9,4 +9,5 @@
   <include file="db/changelog/changes/03-create-role-table.xml"/>
   <include file="db/changelog/changes/04-extend-user-information.xml"/>
   <include file="db/changelog/changes/05-insert-initial-roles.xml"/>
+  <include file="db/changelog/changes/06-migrate-to-enum-role.xml"/>
 </databaseChangeLog>
