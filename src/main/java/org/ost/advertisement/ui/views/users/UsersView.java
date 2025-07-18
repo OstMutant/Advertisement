@@ -1,22 +1,20 @@
 package org.ost.advertisement.ui.views.users;
 
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.components.FloatingActionButton;
 
-@SpringComponent
-@UIScope
 public class UsersView extends VerticalLayout {
 
 	private final UserListView userListView;
 	private final UserRepository userRepository;
 
-	public UsersView(UserListView userListView, UserRepository userRepository) {
-		this.userListView = userListView;
+	public UsersView(UserRepository userRepository) {
 		this.userRepository = userRepository;
+		this.userListView = new UserListView(userRepository);
 
 		setSizeFull();
 		setPadding(false);

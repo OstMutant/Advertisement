@@ -1,23 +1,18 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.components.FloatingActionButton;
 
-@SpringComponent
-@UIScope
 public class AdvertisementsView extends VerticalLayout {
 
 	private final AdvertisementListView advertisementListView;
 	private final AdvertisementRepository advertisementRepository;
 
-	public AdvertisementsView(AdvertisementListView advertisementListView,
-							  AdvertisementRepository advertisementRepository) {
-		this.advertisementListView = advertisementListView;
+	public AdvertisementsView(AdvertisementRepository advertisementRepository) {
 		this.advertisementRepository = advertisementRepository;
+		this.advertisementListView = new AdvertisementListView(advertisementRepository);
 
 		setSizeFull();
 		setPadding(false);

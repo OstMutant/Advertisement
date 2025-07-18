@@ -20,21 +20,15 @@ import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.components.PaginationBarModern;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-@SpringComponent
-@UIScope
 @PageTitle("Advertisements | Advertisement App")
 @Route("advertisements")
 @Slf4j
@@ -75,10 +69,6 @@ public class AdvertisementListView extends VerticalLayout {
 
 		configureGrid();
 		add(grid, paginationBar);
-	}
-
-	@PostConstruct
-	private void init() {
 		refreshGrid();
 	}
 

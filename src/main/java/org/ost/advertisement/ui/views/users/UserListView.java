@@ -20,24 +20,15 @@ import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.components.PaginationBarModern;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-@SpringComponent
-@UIScope
 @PageTitle("Users | Advertisement App")
 @Route("users")
 public class UserListView extends VerticalLayout {
@@ -79,10 +70,6 @@ public class UserListView extends VerticalLayout {
 
 		configureGrid();
 		add(grid, paginationBar);
-	}
-
-	@PostConstruct
-	private void init() {
 		refreshGrid();
 	}
 
