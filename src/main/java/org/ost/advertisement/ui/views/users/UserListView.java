@@ -20,7 +20,6 @@ import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;

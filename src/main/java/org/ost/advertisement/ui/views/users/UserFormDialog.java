@@ -1,109 +1,114 @@
 package org.ost.advertisement.ui.views.users;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
+import static java.util.Optional.ofNullable;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import java.time.Instant;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
 @Slf4j
-public class UserFormDialog extends Dialog {
+public class UserFormDialog extends BaseDialog {
+
+	private final TextField nameField = createNameField();
+	private final ComboBox<Role> roleCombo = createRoleCombo();
+	private final Span createdAtSpan = createDateSpan();
+	private final Span updatedAtSpan = createDateSpan();
+	private final Component createdAtComponent = createDateComponent("Created At:", createdAtSpan);
+	private final Component updatedAtComponent = createDateComponent("Updated At:", updatedAtSpan);
+	private final Span emailSpan = createEmailSpan();
+	private final Component emailComponent = createEmailComponent("Email:", emailSpan);
+
+	private final Binder<User> binder = new Binder<>(User.class);
 
 	private final UserRepository userRepository;
-	private final Binder<User> binder = new Binder<>(User.class);
-	private User currentUser;
-
-	private TextField nameField;
+	private final User currentUser;
 
 	public UserFormDialog(User user, UserRepository userRepository) {
+		super();
+
 		this.userRepository = userRepository;
-		this.currentUser = (user == null) ? new User() : user;
+		this.currentUser = user;
 
-		setHeaderTitle((user == null) ? "Add User" : "Edit User");
-		setCloseOnEsc(true);
-		setCloseOnOutsideClick(true);
+		configureBinder();
 
-		createDialogLayout();
-		setupBinder();
-		populateForm();
+		title.setText("Edit User");
+		actionsFooter.add(createSaveButton(event -> saveUser()), createCancelButton());
+		content.add(emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
 	}
 
-	private void createDialogLayout() {
-		nameField = new TextField("Name");
-		nameField.setPlaceholder("Enter name");
-		nameField.setRequired(true);
-		nameField.setMaxLength(255);
-		nameField.setAutofocus(true);
-
-		FormLayout formLayout = new FormLayout(nameField);
-		formLayout.setResponsiveSteps(
-			new FormLayout.ResponsiveStep("0", 1),
-			new FormLayout.ResponsiveStep("500px", 1)
-		);
-
-		Button saveButton = new Button("Save");
-		saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-		saveButton.addClickListener(event -> saveUser());
-
-		Button cancelButton = new Button("Cancel");
-		cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-		cancelButton.addClickListener(event -> close());
-
-		HorizontalLayout buttonBar = new HorizontalLayout(saveButton, cancelButton);
-		buttonBar.setJustifyContentMode(FlexComponent.JustifyContentMode.END);
-		buttonBar.setWidthFull();
-
-		add(formLayout, buttonBar);
+	private TextField createNameField() {
+		TextField field = new TextField("Name");
+		field.setPlaceholder("Enter name");
+		field.setRequired(true);
+		field.setMaxLength(255);
+		field.setAutofocus(true);
+		return field;
 	}
 
-	private void setupBinder() {
+	private ComboBox<Role> createRoleCombo() {
+		ComboBox<Role> combo = new ComboBox<>("Role");
+		combo.setItems(Arrays.asList(Role.values()));
+		combo.setRequired(true);
+		combo.setAllowCustomValue(false);
+
+		combo.setMinWidth("110px");
+		combo.setMaxWidth("160px");
+
+		return combo;
+	}
+
+	private void configureBinder() {
+		binder.setBean(currentUser);
+
 		binder.forField(nameField)
 			.asRequired("Name cannot be empty")
 			.withValidator(new StringLengthValidator("Name must be between 1 and 255 characters", 1, 255))
 			.bind(User::getName, User::setName);
 
-		binder.setBean(currentUser);
-	}
+		binder.forField(roleCombo)
+			.asRequired("Role is required")
+			.bind(User::getRole, User::setRole);
 
-	private void populateForm() {
-		// Binder handles population
+		emailSpan.setText(ofNullable(currentUser.getEmail()).orElse(""));
+		createdAtSpan.setText(formatDate(currentUser.getCreatedAt()));
+		updatedAtSpan.setText(formatDate(currentUser.getUpdatedAt()));
 	}
 
 	private void saveUser() {
 		try {
 			binder.writeBean(currentUser);
-
-			if (currentUser.getId() == null) {
-				currentUser.setCreatedAt(Instant.now());
-				currentUser.setUpdatedAt(Instant.now());
-			} else {
-				currentUser.setUpdatedAt(Instant.now());
-			}
+			currentUser.setUpdatedAt(Instant.now());
 
 			userRepository.save(currentUser);
-			Notification.show("User saved successfully!", 3000, Notification.Position.BOTTOM_START)
+			Notification.show("User updated", 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();
-
 		} catch (ValidationException e) {
-			log.warn("User validation failed: {}", e.getMessage());
-			Notification.show("Validation error: " + e.getLocalizedMessage(), 5000, Notification.Position.BOTTOM_START)
+			log.warn("Validation error: {}", e.getMessage());
+			Notification.show("Validation failed", 5000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_ERROR);
 		} catch (Exception e) {
-			log.error("Failed to save user: ", e);
-			Notification.show("Error saving user: " + e.getMessage(), 5000, Notification.Position.BOTTOM_START)
+			log.error("Save failed", e);
+			Notification.show("Save error: " + e.getMessage(), 5000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_ERROR);
 		}
+	}
+
+	private String formatDate(Instant instant) {
+		return formatInstant(instant, "—");
 	}
 }

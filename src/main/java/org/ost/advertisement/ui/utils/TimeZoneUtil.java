@@ -24,8 +24,12 @@ public class TimeZoneUtil {
 	}
 
 	public static String formatInstant(Instant instant) {
+		return formatInstant(instant, "N/A");
+	}
+
+	public static String formatInstant(Instant instant, String valueIfNull) {
 		if (instant == null) {
-			return "N/A";
+			return valueIfNull;
 		}
 
 		LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of(getClientTimeZoneId()));
