@@ -1,11 +1,13 @@
 package org.ost.advertisement.ui.views.dialogs;
 
 import com.vaadin.flow.component.ClickEvent;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -45,11 +47,24 @@ public class BaseDialog extends Dialog {
 		content = createFormLayout();
 		actionsFooter = createButtonBar();
 
-		VerticalLayout layout = new VerticalLayout(title, content, actionsFooter);
+		VerticalLayout layout = new VerticalLayout();
 		layout.setPadding(true);
-		layout.setSpacing(true);
+		layout.setSpacing(false);
+		layout.setHeight("100%");
+
+		layout.add(title, createScrollableComponent(content), actionsFooter);
 
 		add(layout);
+	}
+
+	private Div createScrollableComponent(Component content) {
+		Div scrollArea = new Div(content);
+		scrollArea.setHeight("100%");
+		scrollArea.getStyle()
+			.set("overflow", "auto")
+			.set("flex-grow", "1");
+
+		return scrollArea;
 	}
 
 	private FormLayout createFormLayout() {

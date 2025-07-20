@@ -149,13 +149,30 @@ public class AdvertisementListView extends VerticalLayout {
 		header.getCell(statusColumn).setComponent(filterFields.getStatusBlock());
 		header.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		header.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
-		header.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
+		header.getCell(actionsColumn).setComponent(createActionBlock(filterFields.getActionBlock()));
 	}
 
-	private void openAdvertisementFormDialog(Advertisement ad) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(ad, repository);
-		dialog.addOpenedChangeListener(e -> {
-			if (!e.isOpened()) {
+	private VerticalLayout createActionBlock(HorizontalLayout previousActions) {
+		HorizontalLayout newActions = new HorizontalLayout(createAddButton());
+		newActions.setSpacing(false);
+		newActions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+
+		VerticalLayout actions = new VerticalLayout(previousActions, newActions);
+		actions.setSpacing(false);
+		return actions;
+	}
+
+	private Button createAddButton() {
+		Button add = new Button("Add", VaadinIcon.PLUS.create());
+		add.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
+		add.addClickListener(e -> openAdvertisementFormDialog(null));
+		return add;
+	}
+
+	public void openAdvertisementFormDialog(Advertisement advertisement) {
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, repository);
+		dialog.addOpenedChangeListener(event -> {
+			if (!event.isOpened()) {
 				refreshGrid();
 			}
 		});
