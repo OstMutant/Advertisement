@@ -2,3 +2,5 @@
 /target
 /src/main/frontend
 /src/main/bundles
+/*.json
+/*.ts
