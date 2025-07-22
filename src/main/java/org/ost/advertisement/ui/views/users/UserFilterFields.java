@@ -72,6 +72,9 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 		});
 
 		applyButton.addClickListener(e -> {
+			if (!validate()) {
+				return;
+			}
 			highlightChangedFields(false);
 			onApply.run();
 		});
@@ -98,8 +101,8 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 	@Override
 	protected void highlightChangedFields(boolean enable) {
 		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(idMin, idMax, nameField, roleCombo, createdStart, createdEnd, updatedStart,
-				updatedEnd);
+			FilterHighlighterUtil.clearHighlight(idMin, idMax, nameField, roleCombo, createdStart, createdEnd,
+				updatedStart, updatedEnd);
 			return;
 		}
 		FilterHighlighterUtil.highlight(idMin, filter.getStartId(), defaultFilter.getStartId());
@@ -150,11 +153,11 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 		return roleCombo;
 	}
 
-	public Component getCreatedBlock() {
+	public Component getCreatedAtBlock() {
 		return createFilterBlock(createdStart, createdEnd);
 	}
 
-	public Component getUpdatedBlock() {
+	public Component getUpdatedAtBlock() {
 		return createFilterBlock(updatedStart, updatedEnd);
 	}
 

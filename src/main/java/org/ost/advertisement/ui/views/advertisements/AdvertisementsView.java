@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.repository.AdvertisementRepository;
-import org.ost.advertisement.ui.components.FloatingActionButton;
 
 public class AdvertisementsView extends VerticalLayout {
 

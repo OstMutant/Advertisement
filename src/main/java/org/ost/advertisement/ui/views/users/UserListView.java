@@ -132,8 +132,8 @@ public class UserListView extends VerticalLayout {
 		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
 		filterRow.getCell(nameColumn).setComponent(filterFields.getNameBlock());
 		filterRow.getCell(roleColumn).setComponent(filterFields.getRoleBlock());
-		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
-		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
+		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedAtBlock());
+		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedAtBlock());
 		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
 	}
 
