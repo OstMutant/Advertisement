@@ -25,12 +25,16 @@ public class UserFormDialog extends BaseDialog {
 
 	private final TextField nameField = createNameField();
 	private final ComboBox<Role> roleCombo = createRoleCombo();
+
+	private final Span idSpan = new Span();
+	private final Span emailSpan = new Span();
+	private final Component idComponent = createEmailComponent("ID:", idSpan);
+	private final Component emailComponent = createEmailComponent("Email:", emailSpan);
+
 	private final Span createdAtSpan = createDateSpan();
 	private final Span updatedAtSpan = createDateSpan();
 	private final Component createdAtComponent = createDateComponent("Created At:", createdAtSpan);
 	private final Component updatedAtComponent = createDateComponent("Updated At:", updatedAtSpan);
-	private final Span emailSpan = createEmailSpan();
-	private final Component emailComponent = createEmailComponent("Email:", emailSpan);
 
 	private final Binder<User> binder = new Binder<>(User.class);
 
@@ -47,7 +51,8 @@ public class UserFormDialog extends BaseDialog {
 
 		title.setText("Edit User");
 		actionsFooter.add(createSaveButton(event -> saveUser()), createCancelButton());
-		content.add(emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
+
+		content.add(idComponent, emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
 	}
 
 	private TextField createNameField() {
@@ -64,10 +69,8 @@ public class UserFormDialog extends BaseDialog {
 		combo.setItems(Arrays.asList(Role.values()));
 		combo.setRequired(true);
 		combo.setAllowCustomValue(false);
-
 		combo.setMinWidth("110px");
 		combo.setMaxWidth("160px");
-
 		return combo;
 	}
 
@@ -83,6 +86,7 @@ public class UserFormDialog extends BaseDialog {
 			.asRequired("Role is required")
 			.bind(User::getRole, User::setRole);
 
+		idSpan.setText(String.valueOf(currentUser.getId()));
 		emailSpan.setText(ofNullable(currentUser.getEmail()).orElse(""));
 		createdAtSpan.setText(formatDate(currentUser.getCreatedAt()));
 		updatedAtSpan.setText(formatDate(currentUser.getUpdatedAt()));
