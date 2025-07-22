@@ -7,6 +7,7 @@ import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -14,6 +15,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import org.ost.advertisement.dto.UserFilter;
+import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
@@ -23,6 +25,7 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 	private final NumberField idMin = createNumberField("Min ID");
 	private final NumberField idMax = createNumberField("Max ID");
 	private final TextField nameField = createFullTextField("Name...");
+	private final ComboBox<Role> roleCombo = createCombo("Any role", Role.values());
 	private final DatePicker createdStart = createDatePicker("Created from");
 	private final DatePicker createdEnd = createDatePicker("Created to");
 	private final DatePicker updatedStart = createDatePicker("Updated from");
@@ -45,6 +48,10 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 		});
 		nameField.addValueChangeListener(e -> {
 			filter.setNameFilter(e.getValue());
+			updateState();
+		});
+		roleCombo.addValueChangeListener(e -> {
+			filter.setRole(e.getValue());
 			updateState();
 		});
 		createdStart.addValueChangeListener(e -> {
@@ -85,19 +92,20 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
 	@Override
 	protected void clearAllFields() {
-		clearAll(idMin, idMax, nameField, createdStart, createdEnd, updatedStart, updatedEnd);
+		clearAll(idMin, idMax, nameField, roleCombo, createdStart, createdEnd, updatedStart, updatedEnd);
 	}
 
 	@Override
 	protected void highlightChangedFields(boolean enable) {
 		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(nameField, idMin, idMax, createdStart, createdEnd, updatedStart,
+			FilterHighlighterUtil.clearHighlight(idMin, idMax, nameField, roleCombo, createdStart, createdEnd, updatedStart,
 				updatedEnd);
 			return;
 		}
-		FilterHighlighterUtil.highlight(nameField, filter.getNameFilter(), defaultFilter.getNameFilter());
 		FilterHighlighterUtil.highlight(idMin, filter.getStartId(), defaultFilter.getStartId());
 		FilterHighlighterUtil.highlight(idMax, filter.getEndId(), defaultFilter.getEndId());
+		FilterHighlighterUtil.highlight(nameField, filter.getNameFilter(), defaultFilter.getNameFilter());
+		FilterHighlighterUtil.highlight(roleCombo, filter.getRole(), defaultFilter.getRole());
 		FilterHighlighterUtil.highlight(createdStart, filter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
 		FilterHighlighterUtil.highlight(createdEnd, filter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
 		FilterHighlighterUtil.highlight(updatedStart, filter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
@@ -107,6 +115,7 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 	@Override
 	protected boolean isFilterActive() {
 		return filter.getNameFilter() != null && !filter.getNameFilter().isBlank()
+			|| filter.getRole() != null
 			|| filter.getStartId() != null || filter.getEndId() != null
 			|| filter.getCreatedAtStart() != null || filter.getCreatedAtEnd() != null
 			|| filter.getUpdatedAtStart() != null || filter.getUpdatedAtEnd() != null;
@@ -135,6 +144,10 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
 	public Component getNameBlock() {
 		return nameField;
+	}
+
+	public Component getRoleBlock() {
+		return roleCombo;
 	}
 
 	public Component getCreatedBlock() {

@@ -1,18 +1,25 @@
 package org.ost.advertisement.ui.utils;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.time.Instant;
 import java.util.Objects;
+import org.ost.advertisement.entyties.Role;
 
 public class FilterHighlighterUtil {
 
 	private static final String HIGHLIGHT_COLOR = "#fff9c4"; // світло-жовтий
 
 	public static void highlight(TextField field, String currentValue, String defaultValue) {
+		boolean changed = !Objects.equals(currentValue, defaultValue);
+		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
+	}
+
+	public static <T> void highlight(ComboBox<T> field, T currentValue, T defaultValue) {
 		boolean changed = !Objects.equals(currentValue, defaultValue);
 		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
 	}
@@ -29,7 +36,7 @@ public class FilterHighlighterUtil {
 
 	public static <T> void highlight(Select<T> field, T currentValue, T originalValue) {
 		if (!Objects.equals(currentValue, originalValue)) {
-			field.getStyle().set("background-color", "#ffeeba"); // Світло-жовтий
+			field.getStyle().set("background-color", "#ffeeba");
 		} else {
 			field.getStyle().remove("background-color");
 		}

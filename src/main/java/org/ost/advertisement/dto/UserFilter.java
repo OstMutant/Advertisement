@@ -1,10 +1,10 @@
 package org.ost.advertisement.dto;
 
 import java.time.Instant;
-import java.util.Objects;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.ost.advertisement.entyties.Role;
 
 @Data
 @NoArgsConstructor
@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class UserFilter {
 
 	private String nameFilter;
+	private Role role;
 	private Instant createdAtStart;
 	private Instant createdAtEnd;
 	private Instant updatedAtStart;
@@ -22,6 +23,7 @@ public class UserFilter {
 
 	public void clear() {
 		this.nameFilter = null;
+		this.role = null;
 		this.startId = null;
 		this.endId = null;
 		this.createdAtStart = null;
@@ -32,6 +34,7 @@ public class UserFilter {
 
 	public void copyFrom(UserFilter other) {
 		this.nameFilter = other.nameFilter;
+		this.role = other.role;
 		this.startId = other.startId;
 		this.endId = other.endId;
 		this.createdAtStart = other.createdAtStart;

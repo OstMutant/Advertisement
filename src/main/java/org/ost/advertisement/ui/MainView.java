@@ -53,7 +53,7 @@ public class MainView extends VerticalLayout {
 		pages.setSizeFull();
 		add(pages);
 
-		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
+//		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
 			UsersView usersView = new UsersView(userRepository);
 			usersView.setSizeFull();
 			usersView.setVisible(false);
@@ -62,7 +62,7 @@ public class MainView extends VerticalLayout {
 			tabs.add(usersTab);
 			tabsToPages.put(usersTab, usersView);
 			pages.add(usersView);
-		}
+//		}
 
 		tabs.addSelectedChangeListener(event -> {
 			tabsToPages.values().forEach(page -> page.setVisible(false));

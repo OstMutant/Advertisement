@@ -26,7 +26,10 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 				criteriaList.add(
 					Criteria.where("name").like("%" + filter.getNameFilter().toLowerCase() + "%").ignoreCase(true));
 			}
-
+			if (filter.getRole() != null) {
+				criteriaList.add(
+					Criteria.where("role").like("%" + filter.getRole().name().toUpperCase() + "%").ignoreCase(true));
+			}
 			if (filter.getCreatedAtStart() != null) {
 				criteriaList.add(Criteria.where("created_at").greaterThanOrEquals(filter.getCreatedAtStart()));
 			}

@@ -4,6 +4,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasValue;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -82,6 +83,15 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 		field.setClearButtonVisible(true);
 		field.setValueChangeMode(ValueChangeMode.EAGER);
 		return field;
+	}
+
+	public <T> ComboBox<T> createCombo(String placeholder, T[] items) {
+		ComboBox<T> comboBox = new ComboBox<>();
+		comboBox.setItems(items);
+		comboBox.setClearButtonVisible(true);
+		comboBox.setPlaceholder(placeholder);
+		comboBox.setWidth("100%");
+		return comboBox;
 	}
 
 	public DatePicker createDatePicker(String placeholder) {

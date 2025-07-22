@@ -100,6 +100,10 @@ public class UserListView extends VerticalLayout {
 			.setHeader("Name").setKey("name").setSortable(true).setSortProperty("name")
 			.setAutoWidth(false).setFlexGrow(1);
 
+		Column<User> roleColumn = grid.addColumn(user -> user.getRole().name())
+			.setHeader("Role").setKey("role").setSortable(true).setSortProperty("role")
+			.setAutoWidth(true).setFlexGrow(0);
+
 		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
 			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
 			.setAutoWidth(true).setFlexGrow(0);
@@ -127,6 +131,7 @@ public class UserListView extends VerticalLayout {
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
 		filterRow.getCell(nameColumn).setComponent(filterFields.getNameBlock());
+		filterRow.getCell(roleColumn).setComponent(filterFields.getRoleBlock());
 		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
 		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
