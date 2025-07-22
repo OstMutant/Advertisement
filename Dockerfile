@@ -1,10 +1,15 @@
 FROM eclipse-temurin:21-jdk AS builder
 WORKDIR /app
+
+COPY pom.xml mvnw ./
+COPY .mvn .mvn
+
+RUN ./mvnw dependency:go-offline
+
 COPY . .
 
 RUN chmod +x mvnw
-
-RUN ./mvnw clean package "-Dspring.profiles.active=prod" "-Dvaadin.productionMode=true"
+RUN ./mvnw clean package "-Dspring.profiles.active=prod"
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
