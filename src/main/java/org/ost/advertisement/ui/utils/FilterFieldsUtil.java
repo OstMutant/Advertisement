@@ -1,8 +1,6 @@
 package org.ost.advertisement.ui.utils;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Objects;
 
 public class FilterFieldsUtil {
@@ -33,11 +31,11 @@ public class FilterFieldsUtil {
 		return start == null || end == null || !start.isAfter(end);
 	}
 
-	public static <T> boolean hasNotChanged(T current, T original) {
-		return Objects.equals(current, original);
+	public static <T> boolean hasNotChanged(T current, T previous) {
+		return Objects.equals(current, previous);
 	}
 
-	public static <T> boolean hasChanged(T current, T original) {
-		return !hasNotChanged(current, original);
+	public static <T> boolean hasChanged(T current, T previous) {
+		return !hasNotChanged(current, previous);
 	}
 }

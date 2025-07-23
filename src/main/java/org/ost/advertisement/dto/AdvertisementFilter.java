@@ -3,11 +3,13 @@ package org.ost.advertisement.dto;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
 public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
 	private String titleFilter;

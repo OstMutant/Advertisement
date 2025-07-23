@@ -47,9 +47,11 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	}
 
 	protected void updateButtonState() {
-		applyButton.removeThemeVariants(ButtonVariant.LUMO_CONTRAST);
+		applyButton.getStyle().remove("border");
+		applyButton.getStyle().remove("border-radius");
 		if (isFilterActive()) {
-			applyButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+			applyButton.getStyle().set("border", "3px solid orange");
+			applyButton.getStyle().set("border-radius", "4px");
 		}
 	}
 

@@ -1,9 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
+import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
 import com.vaadin.flow.component.AbstractField;
@@ -16,7 +18,6 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementFilter;
-import org.ost.advertisement.ui.utils.FilterHighlighterUtil;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
@@ -84,14 +85,19 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		});
 
 		applyButton.addClickListener(e -> {
-			dehighlightFields();
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			updateState();
 			onApply.run();
 		});
 
 		clearButton.addClickListener(e -> {
 			clearAllFields();
 			newFilter.clear();
-			dehighlightFields();
+			originalFilter.clear();
+			updateState();
 			onApply.run();
 		});
 	}
@@ -108,29 +114,33 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	@Override
 	protected void highlightChangedFields() {
-		FilterHighlighterUtil.highlight(titleField, newFilter.getTitleFilter(), defaultFilter.getTitleFilter());
-		FilterHighlighterUtil.highlight(categoryField, newFilter.getCategoryFilter(),
+		boolean isIdValid = isValidNumberRange(newFilter.getStartId(), newFilter.getEndId());
+		highlight(idMin, newFilter.getStartId(), originalFilter.getStartId(), defaultFilter.getStartId(), isIdValid);
+		highlight(idMax, newFilter.getEndId(), originalFilter.getEndId(), defaultFilter.getEndId(), isIdValid);
+
+		highlight(titleField, newFilter.getTitleFilter(), originalFilter.getTitleFilter(),
+			defaultFilter.getTitleFilter());
+		highlight(categoryField, newFilter.getCategoryFilter(), originalFilter.getCategoryFilter(),
 			defaultFilter.getCategoryFilter());
-		FilterHighlighterUtil.highlight(locationField, newFilter.getLocationFilter(),
+		highlight(locationField, newFilter.getLocationFilter(), originalFilter.getLocationFilter(),
 			defaultFilter.getLocationFilter());
-		FilterHighlighterUtil.highlight(statusField, newFilter.getStatusFilter(), defaultFilter.getStatusFilter());
-		FilterHighlighterUtil.highlight(idMin, newFilter.getStartId(), defaultFilter.getStartId());
-		FilterHighlighterUtil.highlight(idMax, newFilter.getEndId(), defaultFilter.getEndId());
-		FilterHighlighterUtil.highlight(createdStart, newFilter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
-		FilterHighlighterUtil.highlight(createdEnd, newFilter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
-		FilterHighlighterUtil.highlight(updatedStart, newFilter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
-		FilterHighlighterUtil.highlight(updatedEnd, newFilter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
+
+		boolean isCreatedAtValid = isValidDateRange(newFilter.getCreatedAtStart(), newFilter.getCreatedAtEnd());
+		highlight(createdStart, newFilter.getCreatedAtStart(), originalFilter.getCreatedAtStart(),
+			defaultFilter.getCreatedAtStart(), isCreatedAtValid);
+		highlight(createdEnd, newFilter.getCreatedAtEnd(), originalFilter.getCreatedAtEnd(),
+			defaultFilter.getCreatedAtEnd(), isCreatedAtValid);
+
+		boolean isUpdatedAtValid = isValidDateRange(newFilter.getUpdatedAtStart(), newFilter.getUpdatedAtEnd());
+		highlight(updatedStart, newFilter.getUpdatedAtStart(), originalFilter.getUpdatedAtStart(),
+			defaultFilter.getUpdatedAtStart(), isUpdatedAtValid);
+		highlight(updatedEnd, newFilter.getUpdatedAtEnd(), originalFilter.getUpdatedAtEnd(),
+			defaultFilter.getUpdatedAtEnd(), isUpdatedAtValid);
 	}
 
 	@Override
 	protected boolean isFilterActive() {
-		return (newFilter.getTitleFilter() != null && !newFilter.getTitleFilter().isBlank())
-			|| (newFilter.getCategoryFilter() != null && !newFilter.getCategoryFilter().isBlank())
-			|| (newFilter.getLocationFilter() != null && !newFilter.getLocationFilter().isBlank())
-			|| newFilter.getStatusFilter() != null
-			|| newFilter.getStartId() != null || newFilter.getEndId() != null
-			|| newFilter.getCreatedAtStart() != null || newFilter.getCreatedAtEnd() != null
-			|| newFilter.getUpdatedAtStart() != null || newFilter.getUpdatedAtEnd() != null;
+		return validate() && hasChanged(newFilter, originalFilter);
 	}
 
 	@Override
