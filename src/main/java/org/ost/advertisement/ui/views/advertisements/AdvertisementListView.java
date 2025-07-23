@@ -38,7 +38,6 @@ public class AdvertisementListView extends VerticalLayout {
 	private final Grid<Advertisement> grid = new Grid<>(Advertisement.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
-	private AdvertisementFilter currentFilter = new AdvertisementFilter();
 	private Sort currentSort = Sort.unsorted();
 
 	public AdvertisementListView(AdvertisementRepository repository) {
@@ -62,7 +61,6 @@ public class AdvertisementListView extends VerticalLayout {
 		});
 
 		filterFields.configure(() -> {
-			currentFilter = filterFields.getFilter();
 			paginationBar.setTotalCount(0);
 			refreshGrid();
 		});
@@ -76,7 +74,7 @@ public class AdvertisementListView extends VerticalLayout {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 		PageRequest pageable = PageRequest.of(page, size, currentSort);
-
+		AdvertisementFilter currentFilter = filterFields.getNewFilter();
 		List<Advertisement> pageData = repository.findByFilter(currentFilter, pageable);
 		int totalCount = repository.countByFilter(currentFilter).intValue();
 

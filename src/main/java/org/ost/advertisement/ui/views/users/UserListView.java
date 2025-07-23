@@ -36,7 +36,6 @@ public class UserListView extends VerticalLayout {
 	private final Grid<User> grid = new Grid<>(User.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final UserFilterFields filterFields = new UserFilterFields();
-	private UserFilter currentFilter = new UserFilter();
 	private Sort currentSort = Sort.unsorted();
 
 	public UserListView(UserRepository repository) {
@@ -62,7 +61,6 @@ public class UserListView extends VerticalLayout {
 
 		paginationBar.setPageChangeListener(e -> refreshGrid());
 		filterFields.configure(() -> {
-			currentFilter = filterFields.getFilter();
 			paginationBar.setTotalCount(0);
 			refreshGrid();
 		});
@@ -77,6 +75,7 @@ public class UserListView extends VerticalLayout {
 		int size = paginationBar.getPageSize();
 		PageRequest pageable = PageRequest.of(page, size, currentSort);
 
+		UserFilter currentFilter = filterFields.getNewFilter();
 		List<User> pageData = repository.findByFilter(currentFilter, pageable);
 		int totalCount = repository.countByFilter(currentFilter).intValue();
 

@@ -15,21 +15,23 @@ import com.vaadin.flow.data.value.ValueChangeMode;
 import java.util.Collection;
 import java.util.List;
 import lombok.Getter;
+import org.ost.advertisement.dto.Filter;
 
-public abstract class AbstractFilterFields<E, F> {
+public abstract class AbstractFilterFields<F extends Filter<F>> {
 
 	protected final F defaultFilter;
 	@Getter
-	protected final F filter;
+	protected final F originalFilter;
+	@Getter
+	protected final F newFilter;
 	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
 	public AbstractFilterFields(F defaultFilter) {
 		this.defaultFilter = defaultFilter;
-		this.filter = cloneFilter(defaultFilter);
+		this.originalFilter = defaultFilter.copy();
+		this.newFilter = defaultFilter.copy();
 	}
-
-	protected abstract F cloneFilter(F original);
 
 	protected abstract void clearAllFields();
 

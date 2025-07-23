@@ -9,7 +9,7 @@ import org.ost.advertisement.entyties.Role;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UserFilter {
+public class UserFilter implements Filter<UserFilter> {
 
 	private String nameFilter;
 	private Role role;
@@ -21,6 +21,7 @@ public class UserFilter {
 	private Long startId;
 	private Long endId;
 
+	@Override
 	public void clear() {
 		this.nameFilter = null;
 		this.role = null;
@@ -32,6 +33,7 @@ public class UserFilter {
 		this.updatedAtEnd = null;
 	}
 
+	@Override
 	public void copyFrom(UserFilter other) {
 		this.nameFilter = other.nameFilter;
 		this.role = other.role;
@@ -41,6 +43,20 @@ public class UserFilter {
 		this.createdAtEnd = other.createdAtEnd;
 		this.updatedAtStart = other.updatedAtStart;
 		this.updatedAtEnd = other.updatedAtEnd;
+	}
+
+	@Override
+	public UserFilter copy() {
+		UserFilter filter = new UserFilter();
+		filter.nameFilter = this.nameFilter;
+		filter.role = this.role;
+		filter.startId = this.startId;
+		filter.endId = this.endId;
+		filter.createdAtStart = this.createdAtStart;
+		filter.createdAtEnd = this.createdAtEnd;
+		filter.updatedAtStart = this.updatedAtStart;
+		filter.updatedAtEnd = this.updatedAtEnd;
+		return filter;
 	}
 
 }

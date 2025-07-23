@@ -8,47 +8,68 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdvertisementFilter {
-    private String titleFilter;
-    private String categoryFilter;
-    private String locationFilter;
-    private String statusFilter;
+public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
-    private Instant createdAtStart;
-    private Instant createdAtEnd;
-    private Instant updatedAtStart;
-    private Instant updatedAtEnd;
+	private String titleFilter;
+	private String categoryFilter;
+	private String locationFilter;
+	private String statusFilter;
 
-    private Long startId;
-    private Long endId;
+	private Instant createdAtStart;
+	private Instant createdAtEnd;
+	private Instant updatedAtStart;
+	private Instant updatedAtEnd;
 
-    public void copyFrom(AdvertisementFilter other) {
-        this.titleFilter = other.titleFilter;
-        this.categoryFilter = other.categoryFilter;
-        this.locationFilter = other.locationFilter;
-        this.statusFilter = other.statusFilter;
+	private Long startId;
+	private Long endId;
 
-        this.createdAtStart = other.createdAtStart;
-        this.createdAtEnd = other.createdAtEnd;
-        this.updatedAtStart = other.updatedAtStart;
-        this.updatedAtEnd = other.updatedAtEnd;
+	@Override
+	public void clear() {
+		this.titleFilter = null;
+		this.categoryFilter = null;
+		this.locationFilter = null;
+		this.statusFilter = null;
 
-        this.startId = other.startId;
-        this.endId = other.endId;
-    }
+		this.createdAtStart = null;
+		this.createdAtEnd = null;
+		this.updatedAtStart = null;
+		this.updatedAtEnd = null;
 
-    public void clear() {
-        this.titleFilter = null;
-        this.categoryFilter = null;
-        this.locationFilter = null;
-        this.statusFilter = null;
+		this.startId = null;
+		this.endId = null;
+	}
 
-        this.createdAtStart = null;
-        this.createdAtEnd = null;
-        this.updatedAtStart = null;
-        this.updatedAtEnd = null;
+	@Override
+	public void copyFrom(AdvertisementFilter other) {
+		this.titleFilter = other.titleFilter;
+		this.categoryFilter = other.categoryFilter;
+		this.locationFilter = other.locationFilter;
+		this.statusFilter = other.statusFilter;
 
-        this.startId = null;
-        this.endId = null;
-    }
+		this.createdAtStart = other.createdAtStart;
+		this.createdAtEnd = other.createdAtEnd;
+		this.updatedAtStart = other.updatedAtStart;
+		this.updatedAtEnd = other.updatedAtEnd;
+
+		this.startId = other.startId;
+		this.endId = other.endId;
+	}
+
+	@Override
+	public AdvertisementFilter copy() {
+		AdvertisementFilter filter = new AdvertisementFilter();
+		filter.titleFilter = this.titleFilter;
+		filter.categoryFilter = this.categoryFilter;
+		filter.locationFilter = this.locationFilter;
+		filter.statusFilter = this.statusFilter;
+
+		filter.createdAtStart = this.createdAtStart;
+		filter.createdAtEnd = this.createdAtEnd;
+		filter.updatedAtStart = this.updatedAtStart;
+		filter.updatedAtEnd = this.updatedAtEnd;
+
+		filter.startId = this.startId;
+		filter.endId = this.endId;
+		return filter;
+	}
 }
