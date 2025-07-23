@@ -11,7 +11,6 @@ import java.util.Map;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.services.SecurityService;
-import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
@@ -20,13 +19,8 @@ import org.ost.advertisement.ui.views.users.UsersView;
 @Route("")
 public class MainView extends VerticalLayout {
 
-	private final HeaderBar headerBar;
-	private final SecurityService securityService;
-
 	public MainView(HeaderBar headerBar, SecurityService securityService, UserRepository userRepository,
 					AdvertisementRepository advertisementRepository) {
-		this.headerBar = headerBar;
-		this.securityService = securityService;
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -54,14 +48,14 @@ public class MainView extends VerticalLayout {
 		add(pages);
 
 //		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
-			UsersView usersView = new UsersView(userRepository);
-			usersView.setSizeFull();
-			usersView.setVisible(false);
+		UsersView usersView = new UsersView(userRepository);
+		usersView.setSizeFull();
+		usersView.setVisible(false);
 
-			Tab usersTab = new Tab("Users");
-			tabs.add(usersTab);
-			tabsToPages.put(usersTab, usersView);
-			pages.add(usersView);
+		Tab usersTab = new Tab("Users");
+		tabs.add(usersTab);
+		tabsToPages.put(usersTab, usersView);
+		pages.add(usersView);
 //		}
 
 		tabs.addSelectedChangeListener(event -> {

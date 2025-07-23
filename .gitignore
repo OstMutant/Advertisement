@@ -1,6 +1,14 @@
 /.idea
 /target
-/src/main/frontend
 /src/main/bundles
-/*.json
-/*.ts
+/node_modules
+/src/main/frontend/generated/
+/src/main/frontend/index.html
+/tsconfig.json
+/types.d.ts
+/vite.config.ts
+/vite.generated.ts
+/package.json
+/package-lock.json
+/examples.iml
+/src/main/frontend

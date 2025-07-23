@@ -2,9 +2,11 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
+import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
+import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -35,10 +37,11 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
+	private final List<AbstractField<?, ?>> filterFields = List.of(titleField, categoryField, locationField,
+		statusField, idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
+
 	public AdvertisementFilterFields() {
 		super(new AdvertisementFilter());
-		applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 	}
 
 	public void configure(Runnable onApply) {
@@ -84,14 +87,14 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		});
 
 		applyButton.addClickListener(e -> {
-			highlightChangedFields(false);
+			dehighlightFields();
 			onApply.run();
 		});
 
 		clearButton.addClickListener(e -> {
 			clearAllFields();
 			filter.clear();
-			highlightChangedFields(false);
+			dehighlightFields();
 			onApply.run();
 		});
 	}
@@ -105,17 +108,16 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	@Override
 	protected void clearAllFields() {
-		clearAll(titleField, categoryField, locationField, statusField,
-			idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
+		clearAll(filterFields);
 	}
 
 	@Override
-	protected void highlightChangedFields(boolean enable) {
-		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(titleField, categoryField, locationField, statusField,
-				idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
-			return;
-		}
+	protected void dehighlightFields() {
+		dehighlight(filterFields);
+	}
+
+	@Override
+	protected void highlightChangedFields() {
 		FilterHighlighterUtil.highlight(titleField, filter.getTitleFilter(), defaultFilter.getTitleFilter());
 		FilterHighlighterUtil.highlight(categoryField, filter.getCategoryFilter(), defaultFilter.getCategoryFilter());
 		FilterHighlighterUtil.highlight(locationField, filter.getLocationFilter(), defaultFilter.getLocationFilter());
@@ -144,16 +146,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		return isValidNumberRange(filter.getStartId(), filter.getEndId())
 			&& isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd())
 			&& isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd());
-	}
-
-	@Override
-	protected void copyFilter(AdvertisementFilter source, AdvertisementFilter target) {
-		target.copyFrom(source);
-	}
-
-	@Override
-	protected void clearFilter(AdvertisementFilter target) {
-		target.clear();
 	}
 
 	public Component getTitleBlock() {

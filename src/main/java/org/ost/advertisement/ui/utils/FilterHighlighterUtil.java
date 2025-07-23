@@ -1,49 +1,44 @@
 package org.ost.advertisement.ui.utils;
 
+import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
+
+import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.select.Select;
-import com.vaadin.flow.component.textfield.NumberField;
-import com.vaadin.flow.component.textfield.TextField;
-import java.time.Instant;
-import java.util.Objects;
-import org.ost.advertisement.entyties.Role;
+import java.util.List;
 
 public class FilterHighlighterUtil {
 
-	private static final String HIGHLIGHT_COLOR = "#fff9c4"; // світло-жовтий
+	public enum HighlightStyle {
+		CHANGED("rgba(200,230,201,0.5)"),
+		INVALID("rgba(255,0,0,0.08)"),
+		VALID("rgba(255,255,0,0.1)");
 
-	public static void highlight(TextField field, String currentValue, String defaultValue) {
-		boolean changed = !Objects.equals(currentValue, defaultValue);
-		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
-	}
+		private final String bg;
 
-	public static <T> void highlight(ComboBox<T> field, T currentValue, T defaultValue) {
-		boolean changed = !Objects.equals(currentValue, defaultValue);
-		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
-	}
+		HighlightStyle(String bg) {
+			this.bg = bg;
+		}
 
-	public static void highlight(NumberField field, Long currentValue, Long defaultValue) {
-		boolean changed = !Objects.equals(currentValue, defaultValue);
-		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
-	}
-
-	public static void highlight(DatePicker field, Instant current, Instant base) {
-		boolean changed = !Objects.equals(current, base);
-		field.getStyle().set("background-color", changed ? HIGHLIGHT_COLOR : "");
-	}
-
-	public static <T> void highlight(Select<T> field, T currentValue, T originalValue) {
-		if (!Objects.equals(currentValue, originalValue)) {
-			field.getStyle().set("background-color", "#ffeeba");
-		} else {
-			field.getStyle().remove("background-color");
+		public String background() {
+			return bg;
 		}
 	}
 
-	public static void clearHighlight(Component... components) {
-		for (Component c : components) {
+	public static <T> void highlight(Component field, T newValue, T originalValue) {
+		highlight(field, newValue, originalValue, true);
+	}
+
+	public static <T> void highlight(Component field, T newValue, T originalValue, boolean isValid) {
+		if (hasChanged(newValue, originalValue)) {
+			field.getStyle().set("background-color",
+				isValid ? HighlightStyle.VALID.background() : HighlightStyle.INVALID.background());
+			return;
+		}
+		field.getElement().getStyle().remove("background-color");
+	}
+
+	public static void dehighlight(List<AbstractField<?, ?>> fields) {
+		for (Component c : fields) {
 			c.getStyle().remove("background-color");
 		}
 	}

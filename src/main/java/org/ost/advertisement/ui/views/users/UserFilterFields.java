@@ -2,9 +2,11 @@ package org.ost.advertisement.ui.views.users;
 
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toInstant;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
+import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
+import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -14,6 +16,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import java.util.List;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.entyties.User;
@@ -31,10 +34,11 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
+	private final List<AbstractField<?, ?>> filterFields = List.of(idMin, idMax, nameField, roleCombo, createdStart,
+		createdEnd, updatedStart, updatedEnd);
+
 	public UserFilterFields() {
 		super(new UserFilter());
-		applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-		clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 	}
 
 	public void configure(Runnable onApply) {
@@ -75,13 +79,13 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 			if (!validate()) {
 				return;
 			}
-			highlightChangedFields(false);
+			dehighlightFields();
 			onApply.run();
 		});
 		clearButton.addClickListener(e -> {
 			clearAllFields();
 			filter.clear();
-			highlightChangedFields(false);
+			dehighlightFields();
 			onApply.run();
 		});
 	}
@@ -95,24 +99,34 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 
 	@Override
 	protected void clearAllFields() {
-		clearAll(idMin, idMax, nameField, roleCombo, createdStart, createdEnd, updatedStart, updatedEnd);
+		clearAll(filterFields);
 	}
 
 	@Override
-	protected void highlightChangedFields(boolean enable) {
-		if (!enable) {
-			FilterHighlighterUtil.clearHighlight(idMin, idMax, nameField, roleCombo, createdStart, createdEnd,
-				updatedStart, updatedEnd);
-			return;
-		}
-		FilterHighlighterUtil.highlight(idMin, filter.getStartId(), defaultFilter.getStartId());
-		FilterHighlighterUtil.highlight(idMax, filter.getEndId(), defaultFilter.getEndId());
+	protected void dehighlightFields() {
+		dehighlight(filterFields);
+	}
+
+	@Override
+	protected void highlightChangedFields() {
+		boolean isIdValid = isValidNumberRange(filter.getStartId(), filter.getEndId());
+		FilterHighlighterUtil.highlight(idMin, filter.getStartId(), defaultFilter.getStartId(), isIdValid);
+		FilterHighlighterUtil.highlight(idMax, filter.getEndId(), defaultFilter.getEndId(), isIdValid);
+
 		FilterHighlighterUtil.highlight(nameField, filter.getNameFilter(), defaultFilter.getNameFilter());
 		FilterHighlighterUtil.highlight(roleCombo, filter.getRole(), defaultFilter.getRole());
-		FilterHighlighterUtil.highlight(createdStart, filter.getCreatedAtStart(), defaultFilter.getCreatedAtStart());
-		FilterHighlighterUtil.highlight(createdEnd, filter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd());
-		FilterHighlighterUtil.highlight(updatedStart, filter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart());
-		FilterHighlighterUtil.highlight(updatedEnd, filter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd());
+
+		boolean isCreatedAtValid = isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd());
+		FilterHighlighterUtil.highlight(createdStart, filter.getCreatedAtStart(), defaultFilter.getCreatedAtStart(),
+			isCreatedAtValid);
+		FilterHighlighterUtil.highlight(createdEnd, filter.getCreatedAtEnd(), defaultFilter.getCreatedAtEnd(),
+			isCreatedAtValid);
+
+		boolean isUpdatedAtValid = isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd());
+		FilterHighlighterUtil.highlight(updatedStart, filter.getUpdatedAtStart(), defaultFilter.getUpdatedAtStart(),
+			isUpdatedAtValid);
+		FilterHighlighterUtil.highlight(updatedEnd, filter.getUpdatedAtEnd(), defaultFilter.getUpdatedAtEnd(),
+			isUpdatedAtValid);
 	}
 
 	@Override
@@ -129,16 +143,6 @@ public class UserFilterFields extends AbstractFilterFields<User, UserFilter> {
 		return isValidNumberRange(filter.getStartId(), filter.getEndId())
 			&& isValidDateRange(filter.getCreatedAtStart(), filter.getCreatedAtEnd())
 			&& isValidDateRange(filter.getUpdatedAtStart(), filter.getUpdatedAtEnd());
-	}
-
-	@Override
-	protected void copyFilter(UserFilter source, UserFilter target) {
-		target.copyFrom(source);
-	}
-
-	@Override
-	protected void clearFilter(UserFilter target) {
-		target.clear();
 	}
 
 	public Component getIdBlock() {

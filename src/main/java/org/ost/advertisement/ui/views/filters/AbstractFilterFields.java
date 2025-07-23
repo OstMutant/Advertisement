@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.filters;
 
+import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.HasValue;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -13,36 +13,35 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import java.util.Collection;
+import java.util.List;
 import lombok.Getter;
 
-public abstract class AbstractFilterFields<TEntity, TFilter> {
+public abstract class AbstractFilterFields<E, F> {
 
-	protected final TFilter defaultFilter;
+	protected final F defaultFilter;
 	@Getter
-	protected final TFilter filter;
-	protected Button applyButton;
-	protected Button clearButton;
+	protected final F filter;
+	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
+	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
-	public AbstractFilterFields(TFilter defaultFilter) {
+	public AbstractFilterFields(F defaultFilter) {
 		this.defaultFilter = defaultFilter;
 		this.filter = cloneFilter(defaultFilter);
 	}
 
-	protected abstract TFilter cloneFilter(TFilter original);
+	protected abstract F cloneFilter(F original);
 
 	protected abstract void clearAllFields();
 
-	protected abstract void highlightChangedFields(boolean enable);
+	protected abstract void dehighlightFields();
+
+	protected abstract void highlightChangedFields();
 
 	protected abstract boolean isFilterActive();
 
-	protected abstract void copyFilter(TFilter source, TFilter target);
-
-	protected abstract void clearFilter(TFilter target);
-
 	protected void updateState() {
 		updateButtonState();
-		highlightChangedFields(true);
+		highlightChangedFields();
 	}
 
 	protected void updateButtonState() {
@@ -128,8 +127,8 @@ public abstract class AbstractFilterFields<TEntity, TFilter> {
 		return select;
 	}
 
-	public void clearAll(HasValue<?, ?>... fields) {
-		for (HasValue<?, ?> field : fields) {
+	public void clearAll(List<AbstractField<?, ?>> fields) {
+		for (AbstractField<?, ?> field : fields) {
 			field.clear();
 		}
 	}

@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.utils;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -35,4 +36,9 @@ public class TimeZoneUtil {
 		LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of(getClientTimeZoneId()));
 		return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
 	}
+
+	public static Instant toInstant(LocalDate date) {
+		return date != null ? date.atStartOfDay(ZoneId.of(getClientTimeZoneId())).toInstant() : null;
+	}
+
 }
