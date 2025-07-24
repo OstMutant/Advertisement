@@ -1,9 +1,12 @@
-package org.ost.advertisement.ui.utils;
+package org.ost.advertisement.utils;
 
 import java.time.Instant;
 import java.util.Objects;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-public class FilterFieldsUtil {
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public class FilterUtil {
 
 	public static Long toLong(Double value) {
 		return value != null ? value.longValue() : null;

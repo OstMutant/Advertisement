@@ -1,5 +1,8 @@
 package org.ost.advertisement.dto;
 
+import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
+import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
+
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -73,5 +76,12 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 		filter.startId = this.startId;
 		filter.endId = this.endId;
 		return filter;
+	}
+
+	@Override
+	public boolean isValid() {
+		return isValidNumberRange(getStartId(), getEndId())
+			&& isValidDateRange(getCreatedAtStart(), getCreatedAtEnd())
+			&& isValidDateRange(getUpdatedAtStart(), getUpdatedAtEnd());
 	}
 }

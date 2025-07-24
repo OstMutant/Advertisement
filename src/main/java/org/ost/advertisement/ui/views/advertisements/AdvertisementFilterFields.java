@@ -1,11 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
-import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
+import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
+import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
+import static org.ost.advertisement.utils.FilterUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -38,6 +37,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	}
 
 	public void configure(Runnable onApply) {
+		super.configure(onApply);
 		register(titleField, newFilter::setTitleFilter);
 		register(categoryField, newFilter::setCategoryFilter);
 		register(locationField, newFilter::setLocationFilter);
@@ -48,23 +48,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		register(createdEnd, v -> newFilter.setCreatedAtEnd(toInstant(v)));
 		register(updatedStart, v -> newFilter.setUpdatedAtStart(toInstant(v)));
 		register(updatedEnd, v -> newFilter.setUpdatedAtEnd(toInstant(v)));
-
-		applyButton.addClickListener(e -> {
-			if (!validate()) {
-				return;
-			}
-			originalFilter.copyFrom(newFilter);
-			updateState();
-			onApply.run();
-		});
-
-		clearButton.addClickListener(e -> {
-			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
-			updateState();
-			onApply.run();
-		});
 	}
 
 	@Override
@@ -91,18 +74,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			defaultFilter.getUpdatedAtStart(), isUpdatedAtValid);
 		highlight(updatedEnd, newFilter.getUpdatedAtEnd(), originalFilter.getUpdatedAtEnd(),
 			defaultFilter.getUpdatedAtEnd(), isUpdatedAtValid);
-	}
-
-	@Override
-	protected boolean isFilterActive() {
-		return validate() && hasChanged(newFilter, originalFilter);
-	}
-
-	@Override
-	protected boolean validate() {
-		return isValidNumberRange(newFilter.getStartId(), newFilter.getEndId())
-			&& isValidDateRange(newFilter.getCreatedAtStart(), newFilter.getCreatedAtEnd())
-			&& isValidDateRange(newFilter.getUpdatedAtStart(), newFilter.getUpdatedAtEnd());
 	}
 
 	public Component getTitleBlock() {

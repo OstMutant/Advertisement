@@ -7,4 +7,6 @@ public interface Filter<T extends Filter<T>> {
 	void copyFrom(T f);
 
 	T copy();
+
+	boolean isValid();
 }

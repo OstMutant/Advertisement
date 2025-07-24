@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.filters;
 
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
+import static org.ost.advertisement.utils.FilterUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
@@ -29,26 +29,48 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	@Getter
 	protected final F newFilter;
 	private final Set<AbstractField<?, ?>> filterFields = new HashSet<>();
-
+	
 	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
-	public AbstractFilterFields(F defaultFilter) {
+	protected AbstractFilterFields(F defaultFilter) {
 		this.defaultFilter = defaultFilter;
 		this.originalFilter = defaultFilter.copy();
 		this.newFilter = defaultFilter.copy();
 	}
 
-	protected abstract void highlightChangedFields();
-
-	protected abstract boolean isFilterActive();
-
-	protected void clearAllFields() {
-		clearAll(filterFields);
+	public void configure(Runnable onApply) {
+		applyButton.addClickListener(e -> {
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			onApply.run();
+			updateState();
+		});
+		clearButton.addClickListener(e -> {
+			clearAllFields();
+			newFilter.clear();
+			originalFilter.clear();
+			onApply.run();
+			updateState();
+		});
 	}
 
-	protected void dehighlightFields() {
-		dehighlight(filterFields);
+	protected abstract void highlightChangedFields();
+
+	protected <T, C extends AbstractField<?, T>> void register(C field, Consumer<T> setter) {
+		filterFields.add(field);
+		field.addValueChangeListener(e -> {
+			setter.accept(e.getValue());
+			updateState();
+		});
+	}
+
+	protected void clearAllFields() {
+		for (AbstractField<?, ?> field : filterFields) {
+			field.clear();
+		}
 	}
 
 	protected void updateState() {
@@ -65,11 +87,15 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		}
 	}
 
-	protected boolean validate() {
-		return true;
+	protected boolean isFilterActive() {
+		return validate() && hasChanged(newFilter, originalFilter);
 	}
 
-	public NumberField createNumberField(String placeholder) {
+	protected boolean validate() {
+		return newFilter.isValid();
+	}
+
+	protected NumberField createNumberField(String placeholder) {
 		NumberField field = new NumberField();
 		field.setWidth("100px");
 		field.setClearButtonVisible(true);
@@ -78,19 +104,19 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return field;
 	}
 
-	public TextField createFullTextField(String placeholder) {
+	protected TextField createFullTextField(String placeholder) {
 		TextField field = createTextField(placeholder);
 		field.setWidthFull();
 		return field;
 	}
 
-	public TextField createShortTextField(String placeholder) {
+	protected TextField createShortTextField(String placeholder) {
 		TextField field = createTextField(placeholder);
 		field.setWidth("140px");
 		return field;
 	}
 
-	public TextField createTextField(String placeholder) {
+	protected TextField createTextField(String placeholder) {
 		TextField field = new TextField();
 		field.setPlaceholder(placeholder);
 		field.setClearButtonVisible(true);
@@ -98,7 +124,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return field;
 	}
 
-	public <T> ComboBox<T> createCombo(String placeholder, T[] items) {
+	protected <T> ComboBox<T> createCombo(String placeholder, T[] items) {
 		ComboBox<T> comboBox = new ComboBox<>();
 		comboBox.setItems(items);
 		comboBox.setClearButtonVisible(true);
@@ -107,14 +133,14 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return comboBox;
 	}
 
-	public DatePicker createDatePicker(String placeholder) {
+	protected DatePicker createDatePicker(String placeholder) {
 		DatePicker field = new DatePicker();
 		field.setWidth("140px");
 		field.setPlaceholder(placeholder);
 		return field;
 	}
 
-	public Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
+	protected Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
 		Button button = new Button(icon.create());
 		button.setText("");
 		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);
@@ -122,7 +148,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return button;
 	}
 
-	public VerticalLayout createFilterBlock(Component... components) {
+	protected VerticalLayout createFilterBlock(Component... components) {
 		VerticalLayout layout = new VerticalLayout(components);
 		layout.setPadding(false);
 		layout.setSpacing(false);
@@ -131,7 +157,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return layout;
 	}
 
-	public <T> Select<T> createSelect(String placeholder, Collection<T> items) {
+	protected <T> Select<T> createSelect(String placeholder, Collection<T> items) {
 		Select<T> select = new Select<>();
 		select.setItems(items);
 		select.setPlaceholder(placeholder);
@@ -139,21 +165,6 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		select.setEmptySelectionAllowed(true);
 		select.setEmptySelectionCaption("Any");
 		return select;
-	}
-
-	protected <T, C extends AbstractField<?, T>> void register(C field, Consumer<T> setter) {
-		filterFields.add(field);
-		field.addValueChangeListener(e -> {
-			setter.accept(e.getValue());
-			updateState();
-		});
-	}
-
-
-	public void clearAll(Set<AbstractField<?, ?>> fields) {
-		for (AbstractField<?, ?> field : fields) {
-			field.clear();
-		}
 	}
 }
 
