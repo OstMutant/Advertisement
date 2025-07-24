@@ -4,11 +4,9 @@ import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
-import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -35,54 +33,21 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
-	private final List<AbstractField<?, ?>> filterFields = List.of(titleField, categoryField, locationField,
-		statusField, idMin, idMax, createdStart, createdEnd, updatedStart, updatedEnd);
-
 	public AdvertisementFilterFields() {
 		super(new AdvertisementFilter());
 	}
 
 	public void configure(Runnable onApply) {
-		titleField.addValueChangeListener(e -> {
-			newFilter.setTitleFilter(e.getValue());
-			updateState();
-		});
-		categoryField.addValueChangeListener(e -> {
-			newFilter.setCategoryFilter(e.getValue());
-			updateState();
-		});
-		locationField.addValueChangeListener(e -> {
-			newFilter.setLocationFilter(e.getValue());
-			updateState();
-		});
-		statusField.addValueChangeListener(e -> {
-			newFilter.setStatusFilter(e.getValue());
-			updateState();
-		});
-		idMin.addValueChangeListener(e -> {
-			newFilter.setStartId(toLong(e.getValue()));
-			updateState();
-		});
-		idMax.addValueChangeListener(e -> {
-			newFilter.setEndId(toLong(e.getValue()));
-			updateState();
-		});
-		createdStart.addValueChangeListener(e -> {
-			newFilter.setCreatedAtStart(toInstant(e.getValue()));
-			updateState();
-		});
-		createdEnd.addValueChangeListener(e -> {
-			newFilter.setCreatedAtEnd(toInstant(e.getValue()));
-			updateState();
-		});
-		updatedStart.addValueChangeListener(e -> {
-			newFilter.setUpdatedAtStart(toInstant(e.getValue()));
-			updateState();
-		});
-		updatedEnd.addValueChangeListener(e -> {
-			newFilter.setUpdatedAtEnd(toInstant(e.getValue()));
-			updateState();
-		});
+		register(titleField, newFilter::setTitleFilter);
+		register(categoryField, newFilter::setCategoryFilter);
+		register(locationField, newFilter::setLocationFilter);
+		register(statusField, newFilter::setStatusFilter);
+		register(idMin, v -> newFilter.setStartId(toLong(v)));
+		register(idMax, v -> newFilter.setEndId(toLong(v)));
+		register(createdStart, v -> newFilter.setCreatedAtStart(toInstant(v)));
+		register(createdEnd, v -> newFilter.setCreatedAtEnd(toInstant(v)));
+		register(updatedStart, v -> newFilter.setUpdatedAtStart(toInstant(v)));
+		register(updatedEnd, v -> newFilter.setUpdatedAtEnd(toInstant(v)));
 
 		applyButton.addClickListener(e -> {
 			if (!validate()) {
@@ -100,16 +65,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			updateState();
 			onApply.run();
 		});
-	}
-
-	@Override
-	protected void clearAllFields() {
-		clearAll(filterFields);
-	}
-
-	@Override
-	protected void dehighlightFields() {
-		dehighlight(filterFields);
 	}
 
 	@Override

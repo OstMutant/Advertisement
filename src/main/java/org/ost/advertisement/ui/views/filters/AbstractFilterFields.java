@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.filters;
 
+import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
+
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -13,7 +15,9 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import java.util.Collection;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.ost.advertisement.dto.Filter;
 
@@ -24,6 +28,8 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	protected final F originalFilter;
 	@Getter
 	protected final F newFilter;
+	private final Set<AbstractField<?, ?>> filterFields = new HashSet<>();
+
 	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
@@ -33,13 +39,17 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		this.newFilter = defaultFilter.copy();
 	}
 
-	protected abstract void clearAllFields();
-
-	protected abstract void dehighlightFields();
-
 	protected abstract void highlightChangedFields();
 
 	protected abstract boolean isFilterActive();
+
+	protected void clearAllFields() {
+		clearAll(filterFields);
+	}
+
+	protected void dehighlightFields() {
+		dehighlight(filterFields);
+	}
 
 	protected void updateState() {
 		updateButtonState();
@@ -131,7 +141,16 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		return select;
 	}
 
-	public void clearAll(List<AbstractField<?, ?>> fields) {
+	protected <T, C extends AbstractField<?, T>> void register(C field, Consumer<T> setter) {
+		filterFields.add(field);
+		field.addValueChangeListener(e -> {
+			setter.accept(e.getValue());
+			updateState();
+		});
+	}
+
+
+	public void clearAll(Set<AbstractField<?, ?>> fields) {
 		for (AbstractField<?, ?> field : fields) {
 			field.clear();
 		}

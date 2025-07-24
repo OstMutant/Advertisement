@@ -4,11 +4,9 @@ import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidDateRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.isValidNumberRange;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.toLong;
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.dehighlight;
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
-import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -16,7 +14,6 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import java.util.List;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
@@ -32,46 +29,19 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
-	private final List<AbstractField<?, ?>> filterFields = List.of(idMin, idMax, nameField, roleCombo, createdStart,
-		createdEnd, updatedStart, updatedEnd);
-
 	public UserFilterFields() {
 		super(new UserFilter());
 	}
 
 	public void configure(Runnable onApply) {
-		idMin.addValueChangeListener(e -> {
-			newFilter.setStartId(toLong(e.getValue()));
-			updateState();
-		});
-		idMax.addValueChangeListener(e -> {
-			newFilter.setEndId(toLong(e.getValue()));
-			updateState();
-		});
-		nameField.addValueChangeListener(e -> {
-			newFilter.setNameFilter(e.getValue() == null ? null : e.getValue().isBlank() ? null : e.getValue());
-			updateState();
-		});
-		roleCombo.addValueChangeListener(e -> {
-			newFilter.setRole(e.getValue());
-			updateState();
-		});
-		createdStart.addValueChangeListener(e -> {
-			newFilter.setCreatedAtStart(toInstant(e.getValue()));
-			updateState();
-		});
-		createdEnd.addValueChangeListener(e -> {
-			newFilter.setCreatedAtEnd(toInstant(e.getValue()));
-			updateState();
-		});
-		updatedStart.addValueChangeListener(e -> {
-			newFilter.setUpdatedAtStart(toInstant(e.getValue()));
-			updateState();
-		});
-		updatedEnd.addValueChangeListener(e -> {
-			newFilter.setUpdatedAtEnd(toInstant(e.getValue()));
-			updateState();
-		});
+		register(idMin, v -> newFilter.setStartId(toLong(v)));
+		register(idMax, v -> newFilter.setEndId(toLong(v)));
+		register(nameField, v -> newFilter.setNameFilter(v == null ? null : v.isBlank() ? null : v));
+		register(roleCombo, newFilter::setRole);
+		register(createdStart, v -> newFilter.setCreatedAtStart(toInstant(v)));
+		register(createdEnd, v -> newFilter.setCreatedAtEnd(toInstant(v)));
+		register(updatedStart, v -> newFilter.setUpdatedAtStart(toInstant(v)));
+		register(updatedEnd, v -> newFilter.setUpdatedAtEnd(toInstant(v)));
 
 		applyButton.addClickListener(e -> {
 			if (!validate()) {
@@ -88,16 +58,6 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 			updateState();
 			onApply.run();
 		});
-	}
-
-	@Override
-	protected void clearAllFields() {
-		clearAll(filterFields);
-	}
-
-	@Override
-	protected void dehighlightFields() {
-		dehighlight(filterFields);
 	}
 
 	@Override

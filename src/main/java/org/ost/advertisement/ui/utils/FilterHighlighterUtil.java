@@ -3,7 +3,7 @@ package org.ost.advertisement.ui.utils;
 import static org.ost.advertisement.ui.utils.FilterFieldsUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
-import java.util.List;
+import java.util.Set;
 
 public class FilterHighlighterUtil {
 
@@ -43,7 +43,7 @@ public class FilterHighlighterUtil {
 		dehighlight(field);
 	}
 
-	public static void dehighlight(List<AbstractField<?, ?>> fields) {
+	public static void dehighlight(Set<AbstractField<?, ?>> fields) {
 		for (AbstractField<?, ?> field : fields) {
 			dehighlight(field);
 		}
