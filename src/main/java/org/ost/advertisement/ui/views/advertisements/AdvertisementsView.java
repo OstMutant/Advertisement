@@ -6,12 +6,10 @@ import org.ost.advertisement.repository.AdvertisementRepository;
 public class AdvertisementsView extends VerticalLayout {
 
 	public AdvertisementsView(AdvertisementRepository repository) {
-		AdvertisementListView listView = new AdvertisementListView(repository);
-
 		setSizeFull();
 		setPadding(false);
 		setSpacing(false);
 
-		add(listView);
+		add(new AdvertisementListView(repository));
 	}
 }
