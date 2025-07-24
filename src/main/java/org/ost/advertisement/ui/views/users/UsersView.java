@@ -5,10 +5,8 @@ import org.ost.advertisement.repository.UserRepository;
 
 public class UsersView extends VerticalLayout {
 
-	private final UserListView userListView;
-
 	public UsersView(UserRepository userRepository) {
-		this.userListView = new UserListView(userRepository);
+		UserListView userListView = new UserListView(userRepository);
 
 		setSizeFull();
 		setPadding(false);

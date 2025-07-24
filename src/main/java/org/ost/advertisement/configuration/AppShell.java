@@ -5,5 +5,4 @@ import com.vaadin.flow.server.PWA;
 
 @PWA(name = "Advertisement App", shortName = "AdvertApp")
 public class AppShell implements AppShellConfigurator {
-	// No code needed here for basic configuration
 }

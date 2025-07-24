@@ -6,6 +6,8 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 
 import java.util.function.Consumer;
+import lombok.Getter;
+import lombok.Setter;
 
 public class PaginationBarModern extends HorizontalLayout {
 
@@ -15,10 +17,13 @@ public class PaginationBarModern extends HorizontalLayout {
 	private final Button lastButton = new Button("Last »");
 	private final Span pageIndicator = new Span();
 
+	@Getter
 	private int currentPage = 0;
+	@Getter
 	private int pageSize = 25;
 	private int totalCount = 0;
 
+	@Setter
 	private Consumer<PaginationEvent> pageChangeListener;
 
 	public PaginationBarModern() {
@@ -63,21 +68,9 @@ public class PaginationBarModern extends HorizontalLayout {
 		updateUI();
 	}
 
-	public int getCurrentPage() {
-		return currentPage;
-	}
-
-	public int getPageSize() {
-		return pageSize;
-	}
-
 	public void setPageSize(int size) {
 		this.pageSize = size;
 		updateUI();
-	}
-
-	public void setPageChangeListener(Consumer<PaginationEvent> listener) {
-		this.pageChangeListener = listener;
 	}
 
 	private int getTotalPages() {
