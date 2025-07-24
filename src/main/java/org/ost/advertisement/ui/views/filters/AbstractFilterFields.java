@@ -32,6 +32,14 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	@Getter
 	protected final F newFilter;
 
+	public record FilterFieldsRelationship<F, T>(
+		AbstractField<?, ?> field,
+		Function<F, T> getter,
+		Predicate<F> validation
+	) {
+
+	}
+
 	protected final Set<FilterFieldsRelationship<F, ?>> filterFieldsRelationships = new HashSet<>();
 
 	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
@@ -69,17 +77,8 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		}
 	}
 
-	public record FilterFieldsRelationship<F, T>(
-		AbstractField<?, ?> field,
-		Function<F, T> getter,
-		Predicate<F> validation
-	) {
-
-	}
-
 	protected <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
-																  Function<F, R> getter,
-																  Predicate<F> validation) {
+																  Function<F, R> getter, Predicate<F> validation) {
 		filterFieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
