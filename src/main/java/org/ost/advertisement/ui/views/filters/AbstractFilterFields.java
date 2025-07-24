@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.filters;
 
+import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.utils.FilterUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
@@ -17,7 +18,9 @@ import com.vaadin.flow.data.value.ValueChangeMode;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.Filter;
 
@@ -28,8 +31,9 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	protected final F originalFilter;
 	@Getter
 	protected final F newFilter;
-	private final Set<AbstractField<?, ?>> filterFields = new HashSet<>();
-	
+
+	protected final Set<FilterFieldsRelationship<F, ?>> filterFieldsRelationships = new HashSet<>();
+
 	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
@@ -57,19 +61,35 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		});
 	}
 
-	protected abstract void highlightChangedFields();
+	protected void highlightChangedFields() {
+		for (FilterFieldsRelationship<F, ?> fieldRelationship : filterFieldsRelationships) {
+			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newFilter),
+				fieldRelationship.getter.apply(originalFilter), fieldRelationship.getter.apply(defaultFilter)
+				, fieldRelationship.validation.test(newFilter));
+		}
+	}
 
-	protected <T, C extends AbstractField<?, T>> void register(C field, Consumer<T> setter) {
-		filterFields.add(field);
+	public record FilterFieldsRelationship<F, T>(
+		AbstractField<?, ?> field,
+		Function<F, T> getter,
+		Predicate<F> validation
+	) {
+
+	}
+
+	protected <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
+																  Function<F, R> getter,
+																  Predicate<F> validation) {
+		filterFieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
-			setter.accept(e.getValue());
+			setter.accept(newFilter, e.getValue());
 			updateState();
 		});
 	}
 
 	protected void clearAllFields() {
-		for (AbstractField<?, ?> field : filterFields) {
-			field.clear();
+		for (FilterFieldsRelationship<?, ?> fieldRelationship : filterFieldsRelationships) {
+			fieldRelationship.field.clear();
 		}
 	}
 

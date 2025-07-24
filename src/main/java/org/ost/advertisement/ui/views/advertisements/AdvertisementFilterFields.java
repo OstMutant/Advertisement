@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
 import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
@@ -14,6 +13,7 @@ import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.List;
+import java.util.function.Predicate;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
@@ -36,44 +36,33 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		super(new AdvertisementFilter());
 	}
 
+	@Override
 	public void configure(Runnable onApply) {
 		super.configure(onApply);
-		register(titleField, newFilter::setTitleFilter);
-		register(categoryField, newFilter::setCategoryFilter);
-		register(locationField, newFilter::setLocationFilter);
-		register(statusField, newFilter::setStatusFilter);
-		register(idMin, v -> newFilter.setStartId(toLong(v)));
-		register(idMax, v -> newFilter.setEndId(toLong(v)));
-		register(createdStart, v -> newFilter.setCreatedAtStart(toInstant(v)));
-		register(createdEnd, v -> newFilter.setCreatedAtEnd(toInstant(v)));
-		register(updatedStart, v -> newFilter.setUpdatedAtStart(toInstant(v)));
-		register(updatedEnd, v -> newFilter.setUpdatedAtEnd(toInstant(v)));
-	}
+		register(titleField, AdvertisementFilter::setTitleFilter, AdvertisementFilter::getTitleFilter, f -> true);
+		register(categoryField, AdvertisementFilter::setCategoryFilter, AdvertisementFilter::getCategoryFilter,
+			f -> true);
+		register(locationField, AdvertisementFilter::setLocationFilter, AdvertisementFilter::getLocationFilter,
+			f -> true);
+		register(statusField, AdvertisementFilter::setStatusFilter, AdvertisementFilter::getStatusFilter, f -> true);
 
-	@Override
-	protected void highlightChangedFields() {
-		boolean isIdValid = isValidNumberRange(newFilter.getStartId(), newFilter.getEndId());
-		highlight(idMin, newFilter.getStartId(), originalFilter.getStartId(), defaultFilter.getStartId(), isIdValid);
-		highlight(idMax, newFilter.getEndId(), originalFilter.getEndId(), defaultFilter.getEndId(), isIdValid);
+		Predicate<AdvertisementFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
+		register(idMin, (f, v) -> f.setStartId(toLong(v)), AdvertisementFilter::getStartId, validationId);
+		register(idMax, (f, v) -> f.setEndId(toLong(v)), AdvertisementFilter::getEndId, validationId);
 
-		highlight(titleField, newFilter.getTitleFilter(), originalFilter.getTitleFilter(),
-			defaultFilter.getTitleFilter());
-		highlight(categoryField, newFilter.getCategoryFilter(), originalFilter.getCategoryFilter(),
-			defaultFilter.getCategoryFilter());
-		highlight(locationField, newFilter.getLocationFilter(), originalFilter.getLocationFilter(),
-			defaultFilter.getLocationFilter());
+		Predicate<AdvertisementFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(),
+			f.getCreatedAtEnd());
+		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)), AdvertisementFilter::getCreatedAtStart,
+			validationCreatedAt);
+		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)), AdvertisementFilter::getCreatedAtEnd,
+			validationCreatedAt);
 
-		boolean isCreatedAtValid = isValidDateRange(newFilter.getCreatedAtStart(), newFilter.getCreatedAtEnd());
-		highlight(createdStart, newFilter.getCreatedAtStart(), originalFilter.getCreatedAtStart(),
-			defaultFilter.getCreatedAtStart(), isCreatedAtValid);
-		highlight(createdEnd, newFilter.getCreatedAtEnd(), originalFilter.getCreatedAtEnd(),
-			defaultFilter.getCreatedAtEnd(), isCreatedAtValid);
-
-		boolean isUpdatedAtValid = isValidDateRange(newFilter.getUpdatedAtStart(), newFilter.getUpdatedAtEnd());
-		highlight(updatedStart, newFilter.getUpdatedAtStart(), originalFilter.getUpdatedAtStart(),
-			defaultFilter.getUpdatedAtStart(), isUpdatedAtValid);
-		highlight(updatedEnd, newFilter.getUpdatedAtEnd(), originalFilter.getUpdatedAtEnd(),
-			defaultFilter.getUpdatedAtEnd(), isUpdatedAtValid);
+		Predicate<AdvertisementFilter> validationUpdatedAt = f -> isValidDateRange(f.getUpdatedAtStart(),
+			f.getUpdatedAtEnd());
+		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)), AdvertisementFilter::getUpdatedAtStart,
+			validationUpdatedAt);
+		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)), AdvertisementFilter::getUpdatedAtEnd,
+			validationUpdatedAt);
 	}
 
 	public Component getTitleBlock() {

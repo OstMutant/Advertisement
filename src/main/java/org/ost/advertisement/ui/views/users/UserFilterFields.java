@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
 import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
@@ -13,6 +12,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import java.util.function.Predicate;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.Role;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
@@ -32,38 +32,28 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 		super(new UserFilter());
 	}
 
+	@Override
 	public void configure(Runnable onApply) {
 		super.configure(onApply);
-		register(idMin, v -> newFilter.setStartId(toLong(v)));
-		register(idMax, v -> newFilter.setEndId(toLong(v)));
-		register(nameField, v -> newFilter.setNameFilter(v == null ? null : v.isBlank() ? null : v));
-		register(roleCombo, newFilter::setRole);
-		register(createdStart, v -> newFilter.setCreatedAtStart(toInstant(v)));
-		register(createdEnd, v -> newFilter.setCreatedAtEnd(toInstant(v)));
-		register(updatedStart, v -> newFilter.setUpdatedAtStart(toInstant(v)));
-		register(updatedEnd, v -> newFilter.setUpdatedAtEnd(toInstant(v)));
-	}
+		Predicate<UserFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
+		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
+		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
 
-	@Override
-	protected void highlightChangedFields() {
-		boolean isIdValid = isValidNumberRange(newFilter.getStartId(), newFilter.getEndId());
-		highlight(idMin, newFilter.getStartId(), originalFilter.getStartId(), defaultFilter.getStartId(), isIdValid);
-		highlight(idMax, newFilter.getEndId(), originalFilter.getEndId(), defaultFilter.getEndId(), isIdValid);
+		register(nameField, (f, v) -> f.setNameFilter(v == null ? null : v.isBlank() ? null : v),
+			UserFilter::getNameFilter, f -> true);
+		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> true);
 
-		highlight(nameField, newFilter.getNameFilter(), originalFilter.getNameFilter(), defaultFilter.getNameFilter());
-		highlight(roleCombo, newFilter.getRole(), originalFilter.getRole(), defaultFilter.getRole());
+		Predicate<UserFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
+			UserFilter::getCreatedAtStart, validationCreatedAt);
+		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
+			UserFilter::getCreatedAtEnd, validationCreatedAt);
 
-		boolean isCreatedAtValid = isValidDateRange(newFilter.getCreatedAtStart(), newFilter.getCreatedAtEnd());
-		highlight(createdStart, newFilter.getCreatedAtStart(), originalFilter.getCreatedAtStart(),
-			defaultFilter.getCreatedAtStart(), isCreatedAtValid);
-		highlight(createdEnd, newFilter.getCreatedAtEnd(), originalFilter.getCreatedAtEnd(),
-			defaultFilter.getCreatedAtEnd(), isCreatedAtValid);
-
-		boolean isUpdatedAtValid = isValidDateRange(newFilter.getUpdatedAtStart(), newFilter.getUpdatedAtEnd());
-		highlight(updatedStart, newFilter.getUpdatedAtStart(), originalFilter.getUpdatedAtStart(),
-			defaultFilter.getUpdatedAtStart(), isUpdatedAtValid);
-		highlight(updatedEnd, newFilter.getUpdatedAtEnd(), originalFilter.getUpdatedAtEnd(),
-			defaultFilter.getUpdatedAtEnd(), isUpdatedAtValid);
+		Predicate<UserFilter> validationUpdatedAt = f -> isValidDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
+			UserFilter::getUpdatedAtStart, validationUpdatedAt);
+		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
+			UserFilter::getUpdatedAtEnd, validationUpdatedAt);
 	}
 
 	public Component getIdBlock() {
