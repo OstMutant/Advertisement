@@ -1,6 +1,5 @@
 package org.ost.advertisement.repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -19,39 +18,17 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 	private final JdbcAggregateTemplate template;
 
 	private Criteria buildCriteria(UserFilter filter) {
-		List<Criteria> criteriaList = new ArrayList<>();
-
-		if (filter != null) {
-			if (filter.getNameFilter() != null && !filter.getNameFilter().isBlank()) {
-				criteriaList.add(
-					Criteria.where("name").like("%" + filter.getNameFilter().toLowerCase() + "%").ignoreCase(true));
-			}
-			if (filter.getRole() != null) {
-				criteriaList.add(
-					Criteria.where("role").like("%" + filter.getRole().name().toUpperCase() + "%").ignoreCase(true));
-			}
-			if (filter.getCreatedAtStart() != null) {
-				criteriaList.add(Criteria.where("created_at").greaterThanOrEquals(filter.getCreatedAtStart()));
-			}
-			if (filter.getCreatedAtEnd() != null) {
-				criteriaList.add(Criteria.where("created_at").lessThanOrEquals(filter.getCreatedAtEnd()));
-			}
-
-			if (filter.getUpdatedAtStart() != null) {
-				criteriaList.add(Criteria.where("updated_at").greaterThanOrEquals(filter.getUpdatedAtStart()));
-			}
-			if (filter.getUpdatedAtEnd() != null) {
-				criteriaList.add(Criteria.where("updated_at").lessThanOrEquals(filter.getUpdatedAtEnd()));
-			}
-
-			if (filter.getStartId() != null && filter.getStartId() > 0) {
-				criteriaList.add(Criteria.where("id").greaterThanOrEquals(filter.getStartId()));
-			}
-			if (filter.getEndId() != null && filter.getEndId() > 0) {
-				criteriaList.add(Criteria.where("id").lessThanOrEquals(filter.getEndId()));
-			}
+		if (filter == null) {
+			return Criteria.empty();
 		}
-		return criteriaList.stream().reduce(Criteria.empty(), Criteria::and);
+
+		return new CriteriaBuilder()
+			.like("name", filter.getNameFilter())
+			.equal("role", filter.getRole() != null ? filter.getRole().name() : null)
+			.range("created_at", filter.getCreatedAtStart(), filter.getCreatedAtEnd())
+			.range("updated_at", filter.getUpdatedAtStart(), filter.getUpdatedAtEnd())
+			.range("id", filter.getStartId(), filter.getEndId())
+			.build();
 	}
 
 	@Override
@@ -66,7 +43,6 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 	public Long countByFilter(UserFilter filter) {
 		Criteria finalCriteria = buildCriteria(filter);
 		Query query = Query.query(finalCriteria);
-
 		return template.count(query, User.class);
 	}
 
