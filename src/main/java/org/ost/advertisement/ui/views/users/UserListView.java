@@ -16,17 +16,23 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.ost.advertisement.dto.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.components.PaginationBarModern;
+import org.ost.advertisement.ui.components.SortToggleButton;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Order;
 
 @PageTitle("Users | Advertisement App")
 @Route("users")
@@ -46,20 +52,6 @@ public class UserListView extends VerticalLayout {
 		paginationBar.setPageSize(25);
 		paginationBar.setPageChangeListener(event -> refreshGrid());
 
-		grid.addSortListener(event -> {
-			List<Sort.Order> orders = event.getSortOrder().stream()
-				.map(order -> {
-					String property = order.getSorted().getKey();
-					return order.getDirection() == SortDirection.ASCENDING
-						? Sort.Order.asc(property)
-						: Sort.Order.desc(property);
-				}).toList();
-
-			currentSort = Sort.by(orders);
-			refreshGrid();
-		});
-
-		paginationBar.setPageChangeListener(e -> refreshGrid());
 		filterFields.configure(() -> {
 			paginationBar.setTotalCount(0);
 			refreshGrid();
@@ -73,10 +65,8 @@ public class UserListView extends VerticalLayout {
 	public void refreshGrid() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		PageRequest pageable = PageRequest.of(page, size, currentSort);
-
 		UserFilter currentFilter = filterFields.getNewFilter();
-		List<User> pageData = repository.findByFilter(currentFilter, pageable);
+		List<User> pageData = repository.findByFilter(currentFilter, PageRequest.of(page, size, currentSort));
 		int totalCount = repository.countByFilter(currentFilter).intValue();
 
 		paginationBar.setTotalCount(totalCount);
@@ -87,28 +77,56 @@ public class UserListView extends VerticalLayout {
 		grid.setSizeFull();
 
 		Column<User> idColumn = grid.addColumn(User::getId)
-			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
+			.setHeader("ID").setKey("id")
 			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
 
 		Column<User> nameColumn = grid.addColumn(new ComponentRenderer<>(user -> {
-				Span span = new Span(user.getName());
-				span.getElement().setProperty("title", user.getName());
-				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
-				return span;
+				Span nameSpan = new Span(user.getName());
+				nameSpan.getStyle()
+					.set("font-weight", "500")
+					.set("white-space", "normal")
+					.set("overflow-wrap", "anywhere");
+
+				Span emailSpan = new Span(user.getEmail());
+				emailSpan.getStyle()
+					.set("font-size", "12px")
+					.set("color", "gray")
+					.set("white-space", "normal")
+					.set("overflow-wrap", "anywhere");
+
+				VerticalLayout layout = new VerticalLayout(nameSpan, emailSpan);
+				layout.setSpacing(false);
+				layout.setPadding(false);
+				layout.setMargin(false);
+				return layout;
 			}))
-			.setHeader("Name").setKey("name").setSortable(true).setSortProperty("name")
+			.setHeader("Name / Email").setKey("name")
 			.setAutoWidth(false).setFlexGrow(1);
 
 		Column<User> roleColumn = grid.addColumn(user -> user.getRole().name())
-			.setHeader("Role").setKey("role").setSortable(true).setSortProperty("role")
+			.setKey("role")
 			.setAutoWidth(true).setFlexGrow(0);
 
+		SortToggleButton roleSort = new SortToggleButton(currentSort, "role", order -> {
+			List<Order> orders = currentSort.stream().filter(v -> !"role".equals(v.getProperty()))
+				.collect(Collectors.toList());
+			if (Objects.nonNull(order)) {
+				orders.add(order);
+			}
+			currentSort = Sort.by(orders);
+			refreshGrid();
+		});
+
+		HorizontalLayout roleHeader = new HorizontalLayout(new Span("Role"), roleSort);
+		roleHeader.setAlignItems(FlexComponent.Alignment.CENTER);
+		roleColumn.setHeader(roleHeader);
+
 		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
-			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
+			.setHeader("Created At").setKey("createdAt")
 			.setAutoWidth(true).setFlexGrow(0);
 
 		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.getUpdatedAt()))
-			.setHeader("Updated At").setKey("updatedAt").setSortable(true).setSortProperty("updatedAt")
+			.setHeader("Updated At").setKey("updatedAt")
 			.setAutoWidth(true).setFlexGrow(0);
 
 		Column<User> actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
@@ -125,7 +143,8 @@ public class UserListView extends VerticalLayout {
 				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 				return layout;
 			}))
-			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
+			.setHeader("Actions").setAutoWidth(true)
+			.setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
