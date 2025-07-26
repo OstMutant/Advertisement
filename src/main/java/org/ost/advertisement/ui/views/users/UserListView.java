@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.users;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -56,7 +57,7 @@ public class UserListView extends VerticalLayout {
 		refreshGrid();
 	}
 
-	public void refreshGrid() {
+	private void refreshGrid() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 		UserFilter currentFilter = filterFields.getNewFilter();
@@ -71,11 +72,8 @@ public class UserListView extends VerticalLayout {
 		grid.setSizeFull();
 
 		Column<User> idColumn = grid.addColumn(User::getId)
-			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END);
-		HorizontalLayout idHeader = new HorizontalLayout(new Span("ID"),
-			new SortToggleButton(customSort, "id", this::refreshGrid));
-		idHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-		idColumn.setHeader(idHeader);
+			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
+			.setHeader(createSortableHeader("ID", "id"));
 
 		Column<User> nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Span nameSpan = new Span(user.getName());
@@ -97,34 +95,20 @@ public class UserListView extends VerticalLayout {
 				layout.setMargin(false);
 				return layout;
 			}))
-			.setHeader("Name / Email").setKey("name")
-			.setAutoWidth(false).setFlexGrow(1);
-		HorizontalLayout nameAndEmailHeader = new HorizontalLayout(new Span("Name"),
-			new SortToggleButton(customSort, "name", this::refreshGrid), new Span(" / "), new Span("Email"),
-			new SortToggleButton(customSort, "email", this::refreshGrid));
-		nameAndEmailHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-		nameAndEmailColumn.setHeader(nameAndEmailHeader);
+			.setAutoWidth(false).setFlexGrow(1)
+			.setHeader(createDualSortableHeader("Name", "name", "Email", "email"));
 
 		Column<User> roleColumn = grid.addColumn(user -> user.getRole().name())
-			.setAutoWidth(true).setFlexGrow(0);
-		HorizontalLayout roleHeader = new HorizontalLayout(new Span("Role"),
-			new SortToggleButton(customSort, "role", this::refreshGrid));
-		roleHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-		roleColumn.setHeader(roleHeader);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("Role", "role"));
 
 		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
-			.setAutoWidth(true).setFlexGrow(0);
-		HorizontalLayout createdHeader = new HorizontalLayout(new Span("Created At"),
-			new SortToggleButton(customSort, "createdAt", this::refreshGrid));
-		createdHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-		createdColumn.setHeader(createdHeader);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("Created At", "createdAt"));
 
 		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.getUpdatedAt()))
-			.setAutoWidth(true).setFlexGrow(0);
-		HorizontalLayout updatedHeader = new HorizontalLayout(new Span("Updated At"),
-			new SortToggleButton(customSort, "updatedAt", this::refreshGrid));
-		updatedHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-		updatedColumn.setHeader(updatedHeader);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("Updated At", "updatedAt"));
 
 		Column<User> actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
@@ -186,5 +170,25 @@ public class UserListView extends VerticalLayout {
 
 		dialog.getFooter().add(cancel, confirm);
 		dialog.open();
+	}
+
+	private Component createSortableHeader(String label, String property) {
+		Span title = new Span(label);
+		SortToggleButton toggle = new SortToggleButton(customSort, property, this::refreshGrid);
+		HorizontalLayout layout = new HorizontalLayout(title, toggle);
+		layout.setAlignItems(Alignment.CENTER);
+		return layout;
+	}
+
+	private Component createDualSortableHeader(String label1, String property1, String label2, String property2) {
+		HorizontalLayout layout = new HorizontalLayout(
+			new Span(label1),
+			new SortToggleButton(customSort, property1, this::refreshGrid),
+			new Span(" / "),
+			new Span(label2),
+			new SortToggleButton(customSort, property2, this::refreshGrid)
+		);
+		layout.setAlignItems(Alignment.CENTER);
+		return layout;
 	}
 }
