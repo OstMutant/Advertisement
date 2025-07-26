@@ -22,6 +22,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final NumberField idMin = createNumberField("Min ID");
 	private final NumberField idMax = createNumberField("Max ID");
 	private final TextField nameField = createFullTextField("Name...");
+	private final TextField emailField = createFullTextField("Email");
 	private final ComboBox<Role> roleCombo = createCombo("Any role", Role.values());
 	private final DatePicker createdStart = createDatePicker("Created from");
 	private final DatePicker createdEnd = createDatePicker("Created to");
@@ -39,8 +40,10 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
 
-		register(nameField, (f, v) -> f.setNameFilter(v == null ? null : v.isBlank() ? null : v),
-			UserFilter::getNameFilter, f -> true);
+		register(nameField, (f, v) -> f.setName(v == null ? null : v.isBlank() ? null : v),
+			UserFilter::getName, f -> true);
+		register(emailField, (f, v) -> f.setEmail(v == null ? null : v.isBlank() ? null : v),
+			UserFilter::getEmail, f -> true);
 		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> true);
 
 		Predicate<UserFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
@@ -62,6 +65,10 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	public Component getNameBlock() {
 		return nameField;
+	}
+
+	public Component getEmailBlock() {
+		return emailField;
 	}
 
 	public Component getRoleBlock() {

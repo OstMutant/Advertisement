@@ -129,7 +129,11 @@ public class UserListView extends VerticalLayout {
 
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
-		filterRow.getCell(nameAndEmailColumn).setComponent(filterFields.getNameBlock());
+		VerticalLayout nameAndEmailLayout = new VerticalLayout(filterFields.getNameBlock(), filterFields.getEmailBlock());
+		nameAndEmailLayout.setSpacing(false);
+		nameAndEmailLayout.setPadding(false);
+		nameAndEmailLayout.setMargin(false);
+		filterRow.getCell(nameAndEmailColumn).setComponent(nameAndEmailLayout);
 		filterRow.getCell(roleColumn).setComponent(filterFields.getRoleBlock());
 		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedAtBlock());
 		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedAtBlock());

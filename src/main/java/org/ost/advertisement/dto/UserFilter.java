@@ -16,7 +16,8 @@ import org.ost.advertisement.entyties.Role;
 @EqualsAndHashCode
 public class UserFilter implements Filter<UserFilter> {
 
-	private String nameFilter;
+	private String name;
+	private String email;
 	private Role role;
 	private Instant createdAtStart;
 	private Instant createdAtEnd;
@@ -28,7 +29,8 @@ public class UserFilter implements Filter<UserFilter> {
 
 	@Override
 	public void clear() {
-		this.nameFilter = null;
+		this.name = null;
+		this.email = null;
 		this.role = null;
 		this.startId = null;
 		this.endId = null;
@@ -40,7 +42,8 @@ public class UserFilter implements Filter<UserFilter> {
 
 	@Override
 	public void copyFrom(UserFilter other) {
-		this.nameFilter = other.nameFilter;
+		this.name = other.name;
+		this.email = other.email;
 		this.role = other.role;
 		this.startId = other.startId;
 		this.endId = other.endId;
@@ -53,7 +56,8 @@ public class UserFilter implements Filter<UserFilter> {
 	@Override
 	public UserFilter copy() {
 		UserFilter filter = new UserFilter();
-		filter.nameFilter = this.nameFilter;
+		filter.name = this.name;
+		filter.email = this.email;
 		filter.role = this.role;
 		filter.startId = this.startId;
 		filter.endId = this.endId;

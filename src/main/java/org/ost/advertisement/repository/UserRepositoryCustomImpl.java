@@ -23,7 +23,8 @@ public class UserRepositoryCustomImpl implements UserRepositoryCustom {
 		}
 
 		return new CriteriaBuilder()
-			.like("name", filter.getNameFilter())
+			.like("name", filter.getName())
+			.like("email", filter.getEmail())
 			.equal("role", filter.getRole() != null ? filter.getRole().name() : null)
 			.range("created_at", filter.getCreatedAtStart(), filter.getCreatedAtEnd())
 			.range("updated_at", filter.getUpdatedAtStart(), filter.getUpdatedAtEnd())
