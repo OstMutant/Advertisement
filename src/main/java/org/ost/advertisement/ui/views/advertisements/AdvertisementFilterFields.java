@@ -9,20 +9,15 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
-import java.util.List;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
 
-	private final TextField titleField = createFullTextField("Title...");
-	private final TextField categoryField = createShortTextField("Category...");
-	private final TextField locationField = createShortTextField("Location...");
-	private final Select<String> statusField = createSelect("Status", List.of("ACTIVE", "EXPIRED", "DRAFT", "SOLD"));
+	private final TextField title = createFullTextField("Title...");
 
 	private final NumberField idMin = createNumberField("Min ID");
 	private final NumberField idMax = createNumberField("Max ID");
@@ -39,12 +34,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	@Override
 	public void configure(Runnable onApply) {
 		super.configure(onApply);
-		register(titleField, AdvertisementFilter::setTitleFilter, AdvertisementFilter::getTitleFilter, f -> true);
-		register(categoryField, AdvertisementFilter::setCategoryFilter, AdvertisementFilter::getCategoryFilter,
-			f -> true);
-		register(locationField, AdvertisementFilter::setLocationFilter, AdvertisementFilter::getLocationFilter,
-			f -> true);
-		register(statusField, AdvertisementFilter::setStatusFilter, AdvertisementFilter::getStatusFilter, f -> true);
+		register(title, AdvertisementFilter::setTitle, AdvertisementFilter::getTitle, f -> true);
 
 		Predicate<AdvertisementFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), AdvertisementFilter::getStartId, validationId);
@@ -66,19 +56,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	}
 
 	public Component getTitleBlock() {
-		return titleField;
-	}
-
-	public Component getCategoryBlock() {
-		return categoryField;
-	}
-
-	public Component getLocationBlock() {
-		return locationField;
-	}
-
-	public Component getStatusBlock() {
-		return statusField;
+		return title;
 	}
 
 	public Component getIdBlock() {

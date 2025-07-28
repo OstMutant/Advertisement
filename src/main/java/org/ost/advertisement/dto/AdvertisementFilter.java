@@ -15,10 +15,7 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode
 public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
-	private String titleFilter;
-	private String categoryFilter;
-	private String locationFilter;
-	private String statusFilter;
+	private String title;
 
 	private Instant createdAtStart;
 	private Instant createdAtEnd;
@@ -30,10 +27,7 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
 	@Override
 	public void clear() {
-		this.titleFilter = null;
-		this.categoryFilter = null;
-		this.locationFilter = null;
-		this.statusFilter = null;
+		this.title = null;
 
 		this.createdAtStart = null;
 		this.createdAtEnd = null;
@@ -46,11 +40,7 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
 	@Override
 	public void copyFrom(AdvertisementFilter other) {
-		this.titleFilter = other.titleFilter;
-		this.categoryFilter = other.categoryFilter;
-		this.locationFilter = other.locationFilter;
-		this.statusFilter = other.statusFilter;
-
+		this.title = other.title;
 		this.createdAtStart = other.createdAtStart;
 		this.createdAtEnd = other.createdAtEnd;
 		this.updatedAtStart = other.updatedAtStart;
@@ -63,10 +53,7 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 	@Override
 	public AdvertisementFilter copy() {
 		AdvertisementFilter filter = new AdvertisementFilter();
-		filter.titleFilter = this.titleFilter;
-		filter.categoryFilter = this.categoryFilter;
-		filter.locationFilter = this.locationFilter;
-		filter.statusFilter = this.statusFilter;
+		filter.title = this.title;
 
 		filter.createdAtStart = this.createdAtStart;
 		filter.createdAtEnd = this.createdAtEnd;

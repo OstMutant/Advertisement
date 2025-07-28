@@ -98,18 +98,6 @@ public class AdvertisementListView extends VerticalLayout {
 			.setHeader("Title").setKey("title").setSortable(true).setSortProperty("title")
 			.setAutoWidth(false).setFlexGrow(1);
 
-		Column<Advertisement> categoryColumn = grid.addColumn(Advertisement::getCategory)
-			.setHeader("Category").setKey("category").setSortable(true).setSortProperty("category")
-			.setAutoWidth(true).setFlexGrow(0);
-
-		Column<Advertisement> locationColumn = grid.addColumn(Advertisement::getLocation)
-			.setHeader("Location").setKey("location").setSortable(true).setSortProperty("location")
-			.setAutoWidth(true).setFlexGrow(0);
-
-		Column<Advertisement> statusColumn = grid.addColumn(Advertisement::getStatus)
-			.setHeader("Status").setKey("status").setSortable(true).setSortProperty("status")
-			.setAutoWidth(true).setFlexGrow(0);
-
 		Column<Advertisement> createdColumn = grid.addColumn(ad -> formatInstant(ad.getCreatedAt()))
 			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
 			.setAutoWidth(true).setFlexGrow(0);
@@ -142,9 +130,6 @@ public class AdvertisementListView extends VerticalLayout {
 		HeaderRow header = grid.appendHeaderRow();
 		header.getCell(idColumn).setComponent(filterFields.getIdBlock());
 		header.getCell(titleColumn).setComponent(filterFields.getTitleBlock());
-		header.getCell(categoryColumn).setComponent(filterFields.getCategoryBlock());
-		header.getCell(locationColumn).setComponent(filterFields.getLocationBlock());
-		header.getCell(statusColumn).setComponent(filterFields.getStatusBlock());
 		header.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		header.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
 		header.getCell(actionsColumn).setComponent(createActionBlock(filterFields.getActionBlock()));

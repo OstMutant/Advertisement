@@ -22,9 +22,6 @@ public class AdvertisementFormDialog extends BaseDialog {
 
 	private final TextField titleField = createTextField("Title");
 	private final TextArea descriptionField = createTextArea("Description");
-	private final TextField categoryField = createTextField("Category");
-	private final TextField locationField = createTextField("Location");
-	private final ComboBox<String> statusCombo = createStatusCombo();
 
 	private final Span createdAtSpan = createDateSpan();
 	private final Span updatedAtSpan = createDateSpan();
@@ -49,9 +46,6 @@ public class AdvertisementFormDialog extends BaseDialog {
 		content.add(
 			titleField,
 			descriptionField,
-			categoryField,
-			locationField,
-			statusCombo,
 			createDateComponent("Created At:", createdAtSpan),
 			createDateComponent("Updated At:", updatedAtSpan),
 			createEmailComponent("User ID:", userIdSpan)
@@ -94,18 +88,6 @@ public class AdvertisementFormDialog extends BaseDialog {
 		binder.forField(descriptionField)
 			.asRequired("Description required")
 			.bind(Advertisement::getDescription, Advertisement::setDescription);
-
-		binder.forField(categoryField)
-			.asRequired("Category required")
-			.bind(Advertisement::getCategory, Advertisement::setCategory);
-
-		binder.forField(locationField)
-			.asRequired("Location required")
-			.bind(Advertisement::getLocation, Advertisement::setLocation);
-
-		binder.forField(statusCombo)
-			.asRequired("Status required")
-			.bind(Advertisement::getStatus, Advertisement::setStatus);
 
 		createdAtSpan.setText(formatDate(currentAd.getCreatedAt()));
 		updatedAtSpan.setText(formatDate(currentAd.getUpdatedAt()));

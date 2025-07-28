@@ -18,12 +18,6 @@ public class Advertisement {
 
 	private String title;
 	private String description;
-	private String category;
-	private String location;
-	private String contactInfo;
-
-	private String imageUrls;
-	private String status;
 
 	private Instant createdAt;
 	private Instant updatedAt;

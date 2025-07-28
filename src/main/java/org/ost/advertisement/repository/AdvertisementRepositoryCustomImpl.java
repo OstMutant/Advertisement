@@ -22,10 +22,7 @@ public class AdvertisementRepositoryCustomImpl implements AdvertisementRepositor
         }
 
 		return new CriteriaBuilder()
-			.like("title", filter.getTitleFilter())
-			.equal("category", filter.getCategoryFilter())
-			.like("location", filter.getLocationFilter())
-			.equal("status", filter.getStatusFilter())
+			.like("title", filter.getTitle())
 			.range("created_at", filter.getCreatedAtStart(), filter.getCreatedAtEnd())
 			.range("updated_at", filter.getUpdatedAtStart(), filter.getUpdatedAtEnd())
 			.range("id", filter.getStartId(), filter.getEndId())
