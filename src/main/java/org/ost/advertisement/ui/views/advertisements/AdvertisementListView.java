@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -16,49 +17,34 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.data.provider.SortDirection;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.components.PaginationBarModern;
+import org.ost.advertisement.ui.components.SortToggleButton;
+import org.ost.advertisement.ui.views.sort.CustomSort;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 @PageTitle("Advertisements | Advertisement App")
 @Route("advertisements")
-@Slf4j
 public class AdvertisementListView extends VerticalLayout {
 
 	private final AdvertisementRepository repository;
 	private final Grid<Advertisement> grid = new Grid<>(Advertisement.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
-	private Sort currentSort = Sort.unsorted();
+	private final CustomSort customSort = new CustomSort();
 
 	public AdvertisementListView(AdvertisementRepository repository) {
 		this.repository = repository;
-		addClassName("advertisement-list-view");
 		setSizeFull();
 
 		paginationBar.setPageSize(25);
 		paginationBar.setPageChangeListener(e -> refreshGrid());
-
-		grid.addSortListener(event -> {
-			List<Sort.Order> orders = event.getSortOrder().stream()
-				.map(order -> {
-					String property = order.getSorted().getKey();
-					return order.getDirection() == SortDirection.ASCENDING
-						? Sort.Order.asc(property)
-						: Sort.Order.desc(property);
-				}).toList();
-			currentSort = Sort.by(orders);
-			refreshGrid();
-		});
 
 		filterFields.configure(() -> {
 			paginationBar.setTotalCount(0);
@@ -70,10 +56,10 @@ public class AdvertisementListView extends VerticalLayout {
 		refreshGrid();
 	}
 
-	public void refreshGrid() {
+	private void refreshGrid() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		PageRequest pageable = PageRequest.of(page, size, currentSort);
+		PageRequest pageable = PageRequest.of(page, size, customSort.getSort());
 		AdvertisementFilter currentFilter = filterFields.getNewFilter();
 		List<Advertisement> pageData = repository.findByFilter(currentFilter, pageable);
 		int totalCount = repository.countByFilter(currentFilter).intValue();
@@ -86,8 +72,9 @@ public class AdvertisementListView extends VerticalLayout {
 		grid.setSizeFull();
 
 		Column<Advertisement> idColumn = grid.addColumn(Advertisement::getId)
-			.setHeader("ID").setKey("id").setSortable(true).setSortProperty("id")
-			.setTextAlign(ColumnTextAlign.END).setAutoWidth(true).setFlexGrow(0);
+			.setTextAlign(ColumnTextAlign.END)
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("ID", "id"));
 
 		Column<Advertisement> titleColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
 				Span span = new Span(ad.getTitle());
@@ -95,20 +82,21 @@ public class AdvertisementListView extends VerticalLayout {
 				span.getStyle().set("white-space", "normal").set("overflow-wrap", "anywhere");
 				return span;
 			}))
-			.setHeader("Title").setKey("title").setSortable(true).setSortProperty("title")
-			.setAutoWidth(false).setFlexGrow(1);
+			.setAutoWidth(false).setFlexGrow(1)
+			.setHeader(createSortableHeader("Title", "title"));
 
 		Column<Advertisement> createdColumn = grid.addColumn(ad -> formatInstant(ad.getCreatedAt()))
-			.setHeader("Created At").setKey("createdAt").setSortable(true).setSortProperty("createdAt")
-			.setAutoWidth(true).setFlexGrow(0);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("Created At", "created_at"));
 
 		Column<Advertisement> updatedColumn = grid.addColumn(ad -> formatInstant(ad.getUpdatedAt()))
-			.setHeader("Updated At").setKey("updatedAt").setSortable(true).setSortProperty("updatedAt")
-			.setAutoWidth(true).setFlexGrow(0);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("Updated At", "updated_at"));
 
 		Column<Advertisement> userIdColumn = grid.addColumn(Advertisement::getUserId)
-			.setHeader("User ID").setKey("userId").setSortable(true).setSortProperty("userId")
-			.setTextAlign(ColumnTextAlign.END).setAutoWidth(true).setFlexGrow(0);
+			.setTextAlign(ColumnTextAlign.END)
+			.setAutoWidth(true).setFlexGrow(0)
+			.setHeader(createSortableHeader("User ID", "user_id"));
 
 		Column<Advertisement> actionsColumn = grid.addColumn(new ComponentRenderer<>(ad -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
@@ -124,8 +112,9 @@ public class AdvertisementListView extends VerticalLayout {
 				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 				return layout;
 			}))
-			.setHeader("Actions").setAutoWidth(true).setFlexGrow(0)
-			.setTextAlign(ColumnTextAlign.CENTER);
+			.setAutoWidth(true).setFlexGrow(0)
+			.setTextAlign(ColumnTextAlign.CENTER)
+			.setHeader("Actions");
 
 		HeaderRow header = grid.appendHeaderRow();
 		header.getCell(idColumn).setComponent(filterFields.getIdBlock());
@@ -133,6 +122,14 @@ public class AdvertisementListView extends VerticalLayout {
 		header.getCell(createdColumn).setComponent(filterFields.getCreatedBlock());
 		header.getCell(updatedColumn).setComponent(filterFields.getUpdatedBlock());
 		header.getCell(actionsColumn).setComponent(createActionBlock(filterFields.getActionBlock()));
+	}
+
+	private Component createSortableHeader(String label, String property) {
+		Span title = new Span(label);
+		SortToggleButton toggle = new SortToggleButton(customSort, property, this::refreshGrid);
+		HorizontalLayout layout = new HorizontalLayout(title, toggle);
+		layout.setAlignItems(Alignment.CENTER);
+		return layout;
 	}
 
 	private VerticalLayout createActionBlock(HorizontalLayout previousActions) {
@@ -152,7 +149,7 @@ public class AdvertisementListView extends VerticalLayout {
 		return add;
 	}
 
-	public void openAdvertisementFormDialog(Advertisement advertisement) {
+	private void openAdvertisementFormDialog(Advertisement advertisement) {
 		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, repository);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
@@ -173,7 +170,6 @@ public class AdvertisementListView extends VerticalLayout {
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				refreshGrid();
 			} catch (Exception ex) {
-				log.error("Error deleting advertisement", ex);
 				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_ERROR);
 			}
