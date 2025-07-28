@@ -3,10 +3,31 @@
   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
-                        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="2-create-advertisement-table" author="your_name">
-    <comment>Create the ADVERTISEMENT table</comment>
+  <!-- Create USER_INFORMATION table -->
+  <changeSet id="01-01" author="ostap">
+    <createTable tableName="user_information">
+      <column name="id" type="BIGSERIAL">
+        <constraints primaryKey="true" nullable="false"/>
+      </column>
+      <column name="name" type="VARCHAR(255)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="email" type="VARCHAR(255)"/>
+      <column name="password_hash" type="VARCHAR(255)"/>
+      <column name="role" type="VARCHAR(50)">
+        <constraints nullable="false"/>
+      </column>
+      <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+        <constraints nullable="false"/>
+      </column>
+      <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+    </createTable>
+  </changeSet>
+
+  <!-- Create ADVERTISEMENT table -->
+  <changeSet id="01-02" author="ostap">
     <createTable tableName="advertisement">
       <column name="id" type="BIGSERIAL">
         <constraints primaryKey="true" nullable="false"/>
@@ -15,23 +36,16 @@
         <constraints nullable="false"/>
       </column>
       <column name="description" type="TEXT"/>
-      <column name="category" type="VARCHAR(255)"/>
-      <column name="location" type="VARCHAR(255)"/>
-      <column name="contact_info" type="TEXT"/>
-      <column name="image_urls" type="TEXT"/> <!-- Stores comma-separated or JSON string of URLs -->
-      <column name="status" type="VARCHAR(50)" defaultValueComputed="'ACTIVE'">
-        <constraints nullable="false"/>
-      </column>
       <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
         <constraints nullable="false"/>
       </column>
       <column name="updated_at" type="TIMESTAMP WITH TIME ZONE">
         <constraints nullable="false"/>
       </column>
-      <column name="user_id" type="BIGINT"/> <!-- Foreign key to the User who created the ad -->
+      <column name="user_id" type="BIGINT"/>
     </createTable>
 
-    <!-- Add foreign key constraint -->
+    <!-- FK and indexes -->
     <addForeignKeyConstraint baseTableName="advertisement"
       baseColumnNames="user_id"
       constraintName="fk_advertisement_user_id"
@@ -39,18 +53,8 @@
       referencedColumnNames="id"
       onDelete="SET NULL"/>
 
-    <!-- Add indexes for frequently queried columns for better performance -->
     <createIndex indexName="idx_advertisement_title" tableName="advertisement">
       <column name="title"/>
-    </createIndex>
-    <createIndex indexName="idx_advertisement_category" tableName="advertisement">
-      <column name="category"/>
-    </createIndex>
-    <createIndex indexName="idx_advertisement_location" tableName="advertisement">
-      <column name="location"/>
-    </createIndex>
-    <createIndex indexName="idx_advertisement_status" tableName="advertisement">
-      <column name="status"/>
     </createIndex>
     <createIndex indexName="idx_advertisement_created_at" tableName="advertisement">
       <column name="created_at"/>
@@ -58,7 +62,12 @@
     <createIndex indexName="idx_advertisement_user_id" tableName="advertisement">
       <column name="user_id"/>
     </createIndex>
-
   </changeSet>
-
+  <changeSet id="01-03" author="ostap">
+    <sql>
+      ALTER TABLE user_information
+      ADD CONSTRAINT chk_user_role
+      CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'));
+    </sql>
+  </changeSet>
 </databaseChangeLog>

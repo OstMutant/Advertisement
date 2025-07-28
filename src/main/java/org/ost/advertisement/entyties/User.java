@@ -22,9 +22,6 @@ public class User {
 
 	private Role role;
 
-	private String externalProvider;
-	private String externalId;
-
 	private Instant createdAt;
 	private Instant updatedAt;
 }
