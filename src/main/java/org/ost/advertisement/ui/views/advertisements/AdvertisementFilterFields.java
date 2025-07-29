@@ -71,7 +71,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		return createFilterBlock(updatedStart, updatedEnd);
 	}
 
-	public HorizontalLayout getActionBlock() {
+	public Component getActionBlock() {
 		HorizontalLayout actions = new HorizontalLayout(applyButton, clearButton);
 		actions.setSpacing(false);
 		actions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
