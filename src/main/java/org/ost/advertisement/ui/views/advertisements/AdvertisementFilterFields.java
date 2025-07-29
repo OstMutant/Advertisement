@@ -34,7 +34,8 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	@Override
 	public void configure(Runnable onApply) {
 		super.configure(onApply);
-		register(title, AdvertisementFilter::setTitle, AdvertisementFilter::getTitle, f -> true);
+		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
+			f -> true);
 
 		Predicate<AdvertisementFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), AdvertisementFilter::getStartId, validationId);
