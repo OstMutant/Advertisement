@@ -1,8 +1,8 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.accordion.Accordion;
-import com.vaadin.flow.component.accordion.AccordionPanel;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -17,16 +17,16 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 	@Getter
 	private final CustomSort customSort = new CustomSort();
 
-	public AdvertisementLeftSidebar(Runnable onFilterAction) {
+	public AdvertisementLeftSidebar(Runnable onFilterAction, Runnable onAddButton) {
 		setWidth("250px");
-		setHeightFull();
+		setHeight("1000px");
+		getStyle().set("box-shadow", "2px 0 4px rgba(0,0,0,0.05)");
+		getStyle().set("transition", "height 0.3s ease");
 		setPadding(true);
 		setSpacing(true);
 		getStyle().set("background-color", "#f4f4f4");
 
 		filterFields.configure(onFilterAction);
-
-		Accordion accordion = new Accordion();
 
 		VerticalLayout filtersContent = new VerticalLayout();
 		filtersContent.setSpacing(true);
@@ -38,9 +38,8 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 			filterFields.getUpdatedBlock(),
 			filterFields.getActionBlock()
 		);
-
-		AccordionPanel filtersPanel = accordion.add("Filters", filtersContent);
-		filtersPanel.setOpened(true);
+		Details filtersBlock = new Details("Filters", filtersContent);
+		filtersBlock.setOpened(true);
 
 		VerticalLayout sortingContent = new VerticalLayout();
 		sortingContent.setSpacing(true);
@@ -52,9 +51,22 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 			createSortableField("Updated At", "updated_at", onFilterAction),
 			createSortableField("User ID", "user_id", onFilterAction)
 		);
-		accordion.add("Sorting", sortingContent);
+		Details sortingBlock = new Details("Sorting", sortingContent);
+		sortingBlock.setOpened(true);
 
-		add(accordion);
+		Button addAdvertisementButton = createAddButton(onAddButton);
+
+		VerticalLayout collapsibleSidebar = new VerticalLayout(addAdvertisementButton, filtersBlock, sortingBlock);
+		collapsibleSidebar.setSpacing(true);
+		collapsibleSidebar.setPadding(false);
+
+		add(collapsibleSidebar);
+	}
+
+	private Button createAddButton(Runnable onAddButton) {
+		Button add = new Button("Add Advertisement");
+		add.addClickListener(e -> onAddButton.run());
+		return add;
 	}
 
 	private Component createSortableField(String label, String property, Runnable onFilterAction) {
@@ -63,21 +75,5 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		HorizontalLayout layout = new HorizontalLayout(title, toggle);
 		layout.setAlignItems(Alignment.CENTER);
 		return layout;
-	}
-
-	public void hide() {
-		setVisible(false);
-		setEnabled(false);
-	}
-
-	public void show() {
-		setVisible(true);
-		setEnabled(true);
-	}
-
-	public void toggle() {
-		boolean visible = isVisible();
-		setVisible(!visible);
-		setEnabled(!visible);
 	}
 }

@@ -1,6 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
@@ -36,18 +41,10 @@ public class AdvertisementListView extends VerticalLayout {
 		sidebar = new AdvertisementLeftSidebar(() -> {
 			paginationBar.setTotalCount(0);
 			refreshAdvertisements();
-		});
-		sidebar.hide();
+		}, () -> openAdvertisementFormDialog(null));
 
 		filterFields = sidebar.getFilterFields();
 		customSort = sidebar.getCustomSort();
-
-		Button toggleSidebarButton = new Button("☰ Toggle Sidebar", e -> sidebar.toggle());
-		Button addAdvertisementButton = createAddButton();
-
-		HorizontalLayout topBar = new HorizontalLayout(toggleSidebarButton, addAdvertisementButton);
-		topBar.setWidthFull();
-		topBar.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
 		VerticalLayout contentLayout = new VerticalLayout(advertisementContainer, paginationBar);
 		contentLayout.setSizeFull();
@@ -59,7 +56,7 @@ public class AdvertisementListView extends VerticalLayout {
 		mainLayout.setSizeFull();
 		mainLayout.setFlexGrow(1, contentLayout);
 
-		add(topBar, mainLayout);
+		add(mainLayout);
 		refreshAdvertisements();
 	}
 
@@ -75,15 +72,9 @@ public class AdvertisementListView extends VerticalLayout {
 		advertisementContainer.removeAll();
 		pageData.forEach(ad ->
 			advertisementContainer.add(
-				new AdvertisementCardView(ad, repository, this::refreshAdvertisements)
+				new AdvertisementCardView(ad, () -> openAdvertisementFormDialog(ad), () -> openConfirmDeleteDialog(ad))
 			)
 		);
-	}
-
-	private Button createAddButton() {
-		Button add = new Button("Add Advertisement");
-		add.addClickListener(e -> openAdvertisementFormDialog(null));
-		return add;
 	}
 
 	private void openAdvertisementFormDialog(Advertisement advertisement) {
@@ -93,6 +84,31 @@ public class AdvertisementListView extends VerticalLayout {
 				refreshAdvertisements();
 			}
 		});
+		dialog.open();
+	}
+
+	private void openConfirmDeleteDialog(Advertisement ad) {
+		Dialog dialog = new Dialog();
+		dialog.add(new Span("Delete advertisement \"" + ad.getTitle() + "\" (ID " + ad.getId() + ")?"));
+
+		Button confirm = new Button("Delete", e -> {
+			try {
+				repository.delete(ad);
+				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
+					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+				refreshAdvertisements();
+			} catch (Exception ex) {
+				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
+					.addThemeVariants(NotificationVariant.LUMO_ERROR);
+			}
+			dialog.close();
+		});
+		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
+
+		Button cancel = new Button("Cancel", e -> dialog.close());
+		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+		dialog.getFooter().add(cancel, confirm);
 		dialog.open();
 	}
 }
