@@ -1,11 +1,10 @@
-package org.ost.advertisement.ui.views.components;
+package org.ost.advertisement.ui.views.components.sort;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.domain.Sort.Order;
 
 public class SortToggleButton extends Button {
 

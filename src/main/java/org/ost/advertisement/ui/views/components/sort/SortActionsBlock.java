@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.filters;
+package org.ost.advertisement.ui.views.components.sort;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -7,12 +7,12 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 
-public class FilterActionsBlock {
+public class SortActionsBlock {
 
-	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	protected Button applyButton = createButton(VaadinIcon.SORT, "Apply sort", ButtonVariant.LUMO_PRIMARY);
+	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear sort", ButtonVariant.LUMO_TERTIARY);
 
-	public FilterActionsBlock() {
+	public SortActionsBlock() {
 	}
 
 	public void configure(Runnable onApply, Runnable onClear) {

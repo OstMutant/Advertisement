@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.sort;
+package org.ost.advertisement.ui.views.components.sort;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.utils.FilterUtil.hasChanged;

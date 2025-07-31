@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.filters;
+package org.ost.advertisement.ui.views.components.filters;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.utils.FilterUtil.hasChanged;

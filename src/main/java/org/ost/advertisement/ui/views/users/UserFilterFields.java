@@ -13,8 +13,8 @@ import com.vaadin.flow.component.textfield.TextField;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entyties.Role;
-import org.ost.advertisement.ui.views.filters.FilterActionsBlock;
-import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
+import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
+import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 
 public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
