@@ -11,11 +11,10 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.util.List;
-import org.ost.advertisement.dto.AdvertisementFilter;
+import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
-import org.ost.advertisement.ui.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.sort.CustomSort;
+import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.springframework.data.domain.PageRequest;
 
 @PageTitle("Advertisements | Advertisement App")
@@ -26,7 +25,7 @@ public class AdvertisementListView extends VerticalLayout {
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final AdvertisementLeftSidebar sidebar;
 	private final AdvertisementFilterFields filterFields;
-	private final CustomSort customSort;
+	private final AdvertisementSortFields sortFields;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
 
 	public AdvertisementListView(AdvertisementRepository repository) {
@@ -44,7 +43,7 @@ public class AdvertisementListView extends VerticalLayout {
 		}, () -> openAdvertisementFormDialog(null));
 
 		filterFields = sidebar.getFilterFields();
-		customSort = sidebar.getCustomSort();
+		sortFields = sidebar.getSortFields();
 
 		VerticalLayout contentLayout = new VerticalLayout(advertisementContainer, paginationBar);
 		contentLayout.setSizeFull();
@@ -63,10 +62,10 @@ public class AdvertisementListView extends VerticalLayout {
 	private void refreshAdvertisements() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		PageRequest pageable = PageRequest.of(page, size, customSort.getSort());
-		AdvertisementFilter currentFilter = filterFields.getNewFilter();
-		List<Advertisement> pageData = repository.findByFilter(currentFilter, pageable);
-		int totalCount = repository.countByFilter(currentFilter).intValue();
+		PageRequest pageable = PageRequest.of(page, size, sortFields.getOriginalSort().getSort());
+		AdvertisementFilter originalFilter = filterFields.getOriginalFilter();
+		List<Advertisement> pageData = repository.findByFilter(originalFilter, pageable);
+		int totalCount = repository.countByFilter(originalFilter).intValue();
 
 		paginationBar.setTotalCount(totalCount);
 		advertisementContainer.removeAll();

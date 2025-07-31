@@ -21,13 +21,14 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.util.List;
-import org.ost.advertisement.dto.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
-import org.ost.advertisement.ui.components.PaginationBarModern;
-import org.ost.advertisement.ui.components.SortToggleButton;
-import org.ost.advertisement.ui.views.sort.CustomSort;
+import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.SortToggleButton;
+import org.ost.advertisement.dto.sort.CustomSort;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @PageTitle("Users | Advertisement App")
 @Route("users")
@@ -37,7 +38,7 @@ public class UserListView extends VerticalLayout {
 	private final Grid<User> grid = new Grid<>(User.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final UserFilterFields filterFields = new UserFilterFields();
-	private final CustomSort customSort = new CustomSort();
+	private final CustomSort customSort = new CustomSort(Sort.unsorted());
 
 	public UserListView(UserRepository repository) {
 		this.repository = repository;

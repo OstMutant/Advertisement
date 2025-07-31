@@ -1,4 +1,4 @@
-package org.ost.advertisement.dto;
+package org.ost.advertisement.dto.filter;
 
 public interface Filter<T extends Filter<T>> {
 

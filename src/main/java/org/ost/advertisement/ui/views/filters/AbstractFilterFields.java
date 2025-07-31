@@ -5,11 +5,8 @@ import static org.ost.advertisement.utils.FilterUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.textfield.NumberField;
@@ -22,7 +19,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.dto.Filter;
+import org.ost.advertisement.dto.filter.Filter;
 
 public abstract class AbstractFilterFields<F extends Filter<F>> {
 
@@ -40,10 +37,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 
 	}
 
-	protected final Set<FilterFieldsRelationship<F, ?>> filterFieldsRelationships = new HashSet<>();
-
-	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
 	protected AbstractFilterFields(F defaultFilter) {
 		this.defaultFilter = defaultFilter;
@@ -51,26 +45,10 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		this.newFilter = defaultFilter.copy();
 	}
 
-	public void configure(Runnable onApply) {
-		applyButton.addClickListener(e -> {
-			if (!validate()) {
-				return;
-			}
-			originalFilter.copyFrom(newFilter);
-			onApply.run();
-			updateState();
-		});
-		clearButton.addClickListener(e -> {
-			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
-			onApply.run();
-			updateState();
-		});
-	}
+	public abstract void configure(Runnable onApply);
 
 	protected void highlightChangedFields() {
-		for (FilterFieldsRelationship<F, ?> fieldRelationship : filterFieldsRelationships) {
+		for (FilterFieldsRelationship<F, ?> fieldRelationship : fieldsRelationships) {
 			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newFilter),
 				fieldRelationship.getter.apply(originalFilter), fieldRelationship.getter.apply(defaultFilter)
 				, fieldRelationship.validation.test(newFilter));
@@ -79,7 +57,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 
 	protected <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
 																  Function<F, R> getter, Predicate<F> validation) {
-		filterFieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
+		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
 			updateState();
@@ -87,23 +65,13 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 	}
 
 	protected void clearAllFields() {
-		for (FilterFieldsRelationship<?, ?> fieldRelationship : filterFieldsRelationships) {
+		for (FilterFieldsRelationship<?, ?> fieldRelationship : fieldsRelationships) {
 			fieldRelationship.field.clear();
 		}
 	}
 
 	protected void updateState() {
-		updateButtonState();
 		highlightChangedFields();
-	}
-
-	protected void updateButtonState() {
-		applyButton.getStyle().remove("border");
-		applyButton.getStyle().remove("border-radius");
-		if (isFilterActive()) {
-			applyButton.getStyle().set("border", "3px solid orange");
-			applyButton.getStyle().set("border-radius", "4px");
-		}
 	}
 
 	protected boolean isFilterActive() {
@@ -157,14 +125,6 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		field.setWidth("140px");
 		field.setPlaceholder(placeholder);
 		return field;
-	}
-
-	protected Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
-		Button button = new Button(icon.create());
-		button.setText("");
-		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);
-		button.getElement().setProperty("title", tooltip);
-		return button;
 	}
 
 	protected VerticalLayout createFilterBlock(Component... components) {

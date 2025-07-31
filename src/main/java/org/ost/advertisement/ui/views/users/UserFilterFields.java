@@ -8,13 +8,12 @@ import static org.ost.advertisement.utils.FilterUtil.toLong;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.function.Predicate;
-import org.ost.advertisement.dto.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entyties.Role;
+import org.ost.advertisement.ui.views.filters.FilterActionsBlock;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
 public class UserFilterFields extends AbstractFilterFields<UserFilter> {
@@ -28,14 +27,34 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker createdEnd = createDatePicker("Created to");
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
+	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
 	public UserFilterFields() {
 		super(new UserFilter());
 	}
 
 	@Override
+	protected void updateState() {
+		super.updateState();
+		actionsBlock.updateButtonState(isFilterActive());
+	}
+
+	@Override
 	public void configure(Runnable onApply) {
-		super.configure(onApply);
+		actionsBlock.configure(() -> {
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			onApply.run();
+			updateState();
+		}, () -> {
+			clearAllFields();
+			newFilter.clear();
+			originalFilter.clear();
+			onApply.run();
+			updateState();
+		});
 		Predicate<UserFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
@@ -84,9 +103,6 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	}
 
 	public Component getActionBlock() {
-		HorizontalLayout actions = new HorizontalLayout(applyButton, clearButton);
-		actions.setSpacing(false);
-		actions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
-		return actions;
+		return actionsBlock.getActionBlock();
 	}
 }

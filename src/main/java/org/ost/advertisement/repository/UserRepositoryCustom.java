@@ -2,7 +2,7 @@ package org.ost.advertisement.repository;
 
 import java.util.List;
 import java.util.Optional;
-import org.ost.advertisement.dto.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entyties.User;
 import org.springframework.data.domain.Pageable;
 

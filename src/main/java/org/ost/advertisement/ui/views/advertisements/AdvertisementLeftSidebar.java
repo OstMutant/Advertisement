@@ -3,23 +3,19 @@ package org.ost.advertisement.ui.views.advertisements;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.details.Details;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import java.util.List;
 import lombok.Getter;
-import org.ost.advertisement.ui.components.SortToggleButton;
-import org.ost.advertisement.ui.views.sort.CustomSort;
 
 public class AdvertisementLeftSidebar extends VerticalLayout {
 
 	@Getter
 	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
 	@Getter
-	private final CustomSort customSort = new CustomSort();
+	private final AdvertisementSortFields sortFields = new AdvertisementSortFields();
 
-	public AdvertisementLeftSidebar(Runnable onFilterAction, Runnable onAddButton) {
-		setWidth("250px");
+	public AdvertisementLeftSidebar(Runnable onRefreshAction, Runnable onAddButton) {
+		setWidth("270px");
 		setHeight("1000px");
 		getStyle().set("box-shadow", "2px 0 4px rgba(0,0,0,0.05)");
 		getStyle().set("transition", "height 0.3s ease");
@@ -27,8 +23,7 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		setSpacing(true);
 		getStyle().set("background-color", "#f4f4f4");
 
-		filterFields.configure(onFilterAction);
-
+		filterFields.configure(onRefreshAction);
 		List<Component> filterComponentList = List.of(
 			filterFields.getIdBlock(),
 			filterFields.getTitleBlock(),
@@ -38,12 +33,12 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		);
 		Details filtersBlock = createDetails("Filters", filterComponentList);
 
+		sortFields.configure(onRefreshAction);
 		List<Component> sortComponentList = List.of(
-			createSortableField("ID", "id", onFilterAction),
-			createSortableField("Title", "title", onFilterAction),
-			createSortableField("Created At", "created_at", onFilterAction),
-			createSortableField("Updated At", "updated_at", onFilterAction),
-			createSortableField("User ID", "user_id", onFilterAction)
+			sortFields.getTitleBlock(),
+			sortFields.getCreatedAtBlock(),
+			sortFields.getUpdatedAtBlock(),
+			sortFields.getActionBlock()
 		);
 		Details sortingBlock = createDetails("Sorting", sortComponentList);
 
@@ -70,13 +65,5 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		Button add = new Button("Add Advertisement");
 		add.addClickListener(e -> onAddButton.run());
 		return add;
-	}
-
-	private HorizontalLayout createSortableField(String label, String property, Runnable onFilterAction) {
-		Span title = new Span(label);
-		SortToggleButton toggle = new SortToggleButton(customSort, property, onFilterAction);
-		HorizontalLayout layout = new HorizontalLayout(title, toggle);
-		layout.setAlignItems(Alignment.CENTER);
-		return layout;
 	}
 }

@@ -1,9 +1,9 @@
-package org.ost.advertisement.ui.components;
+package org.ost.advertisement.ui.views.components;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import org.ost.advertisement.ui.views.sort.CustomSort;
+import org.ost.advertisement.dto.sort.CustomSort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.domain.Sort.Order;
 
@@ -32,12 +32,7 @@ public class SortToggleButton extends Button {
 			case DESC -> null;
 		};
 		updateIcon();
-		Order order = switch (direction) {
-			case ASC -> Order.asc(property);
-			case DESC -> Order.desc(property);
-			case null -> null;
-		};
-		customSort.updateSort(property, order);
+		customSort.updateSort(property, direction);
 		onSort.run();
 	}
 

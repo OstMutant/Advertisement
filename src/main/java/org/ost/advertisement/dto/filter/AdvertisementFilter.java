@@ -1,4 +1,4 @@
-package org.ost.advertisement.dto;
+package org.ost.advertisement.dto.filter;
 
 import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
 import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
@@ -8,17 +8,15 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.entyties.Role;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @EqualsAndHashCode
-public class UserFilter implements Filter<UserFilter> {
+public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
-	private String name;
-	private String email;
-	private Role role;
+	private String title;
+
 	private Instant createdAtStart;
 	private Instant createdAtEnd;
 	private Instant updatedAtStart;
@@ -29,42 +27,41 @@ public class UserFilter implements Filter<UserFilter> {
 
 	@Override
 	public void clear() {
-		this.name = null;
-		this.email = null;
-		this.role = null;
-		this.startId = null;
-		this.endId = null;
+		this.title = null;
+
 		this.createdAtStart = null;
 		this.createdAtEnd = null;
 		this.updatedAtStart = null;
 		this.updatedAtEnd = null;
+
+		this.startId = null;
+		this.endId = null;
 	}
 
 	@Override
-	public void copyFrom(UserFilter other) {
-		this.name = other.name;
-		this.email = other.email;
-		this.role = other.role;
-		this.startId = other.startId;
-		this.endId = other.endId;
+	public void copyFrom(AdvertisementFilter other) {
+		this.title = other.title;
 		this.createdAtStart = other.createdAtStart;
 		this.createdAtEnd = other.createdAtEnd;
 		this.updatedAtStart = other.updatedAtStart;
 		this.updatedAtEnd = other.updatedAtEnd;
+
+		this.startId = other.startId;
+		this.endId = other.endId;
 	}
 
 	@Override
-	public UserFilter copy() {
-		UserFilter filter = new UserFilter();
-		filter.name = this.name;
-		filter.email = this.email;
-		filter.role = this.role;
-		filter.startId = this.startId;
-		filter.endId = this.endId;
+	public AdvertisementFilter copy() {
+		AdvertisementFilter filter = new AdvertisementFilter();
+		filter.title = this.title;
+
 		filter.createdAtStart = this.createdAtStart;
 		filter.createdAtEnd = this.createdAtEnd;
 		filter.updatedAtStart = this.updatedAtStart;
 		filter.updatedAtEnd = this.updatedAtEnd;
+
+		filter.startId = this.startId;
+		filter.endId = this.endId;
 		return filter;
 	}
 
@@ -74,5 +71,4 @@ public class UserFilter implements Filter<UserFilter> {
 			&& isValidDateRange(getCreatedAtStart(), getCreatedAtEnd())
 			&& isValidDateRange(getUpdatedAtStart(), getUpdatedAtEnd());
 	}
-
 }

@@ -7,12 +7,11 @@ import static org.ost.advertisement.utils.FilterUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.function.Predicate;
-import org.ost.advertisement.dto.AdvertisementFilter;
+import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.ui.views.filters.FilterActionsBlock;
 import org.ost.advertisement.ui.views.filters.AbstractFilterFields;
 
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
@@ -27,13 +26,34 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final DatePicker updatedStart = createDatePicker("Updated from");
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 
+	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
+
 	public AdvertisementFilterFields() {
 		super(new AdvertisementFilter());
 	}
 
 	@Override
+	protected void updateState() {
+		super.updateState();
+		actionsBlock.updateButtonState(isFilterActive());
+	}
+
+	@Override
 	public void configure(Runnable onApply) {
-		super.configure(onApply);
+		actionsBlock.configure(() -> {
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			onApply.run();
+			updateState();
+		}, () -> {
+			clearAllFields();
+			newFilter.clear();
+			originalFilter.clear();
+			onApply.run();
+			updateState();
+		});
 		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
 			f -> true);
 
@@ -73,9 +93,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	}
 
 	public Component getActionBlock() {
-		HorizontalLayout actions = new HorizontalLayout(applyButton, clearButton);
-		actions.setSpacing(false);
-		actions.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
-		return actions;
+		return actionsBlock.getActionBlock();
 	}
 }
