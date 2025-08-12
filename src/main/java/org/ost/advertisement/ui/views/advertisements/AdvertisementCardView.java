@@ -9,21 +9,21 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import org.ost.advertisement.entyties.Advertisement;
+import org.ost.advertisement.dto.AdvertisementView;
 
 public class AdvertisementCardView extends VerticalLayout {
 
-	public AdvertisementCardView(Advertisement ad, Runnable onEdit, Runnable onDelete) {
+	public AdvertisementCardView(AdvertisementView ad, Runnable onEdit, Runnable onDelete) {
 		addClassName("advertisement-card");
 		getStyle().set("border", "1px solid #ccc");
 		getStyle().set("border-radius", "8px");
 		getStyle().set("padding", "16px");
 		getStyle().set("box-shadow", "2px 2px 6px rgba(0,0,0,0.05)");
 
-		H3 title = new H3(ad.getTitle());
-		title.getElement().setProperty("title", ad.getTitle());
+		H3 title = new H3(ad.title());
+		title.getElement().setProperty("title", ad.title());
 
-		Span description = new Span(ad.getDescription());
+		Span description = new Span(ad.description());
 		description.getStyle()
 			.set("display", "-webkit-box")
 			.set("overflow", "hidden")
@@ -33,9 +33,9 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("-webkit-box-orient", "vertical")
 			.set("white-space", "normal");
 
-		Span createdAt = new Span("Created: " + formatInstant(ad.getCreatedAt()));
-		Span updatedAt = new Span("Updated: " + formatInstant(ad.getUpdatedAt()));
-		Span userId = new Span("User ID: " + ad.getUserId());
+		Span createdAt = new Span("Created: " + formatInstant(ad.createdAt()));
+		Span updatedAt = new Span("Updated: " + formatInstant(ad.updatedAt()));
+		Span userId = new Span("User ID: " + ad.userId());
 
 		VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
 		meta.setSpacing(false);

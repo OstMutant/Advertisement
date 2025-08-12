@@ -11,8 +11,10 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.util.List;
+import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.entyties.Advertisement;
+import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.springframework.data.domain.PageRequest;
@@ -64,14 +66,16 @@ public class AdvertisementListView extends VerticalLayout {
 		int size = paginationBar.getPageSize();
 		PageRequest pageable = PageRequest.of(page, size, sortFields.getOriginalSort().getSort());
 		AdvertisementFilter originalFilter = filterFields.getOriginalFilter();
-		List<Advertisement> pageData = repository.findByFilter(originalFilter, pageable);
+		List<AdvertisementView> pageData = repository.findByFilter(originalFilter, pageable);
 		int totalCount = repository.countByFilter(originalFilter).intValue();
 
 		paginationBar.setTotalCount(totalCount);
 		advertisementContainer.removeAll();
 		pageData.forEach(ad ->
 			advertisementContainer.add(
-				new AdvertisementCardView(ad, () -> openAdvertisementFormDialog(ad), () -> openConfirmDeleteDialog(ad))
+				new AdvertisementCardView(ad,
+					() -> openAdvertisementFormDialog(AdvertisementMapper.INSTANCE.dtoToEntity(ad)),
+					() -> openConfirmDeleteDialog(ad))
 			)
 		);
 	}
@@ -86,13 +90,13 @@ public class AdvertisementListView extends VerticalLayout {
 		dialog.open();
 	}
 
-	private void openConfirmDeleteDialog(Advertisement ad) {
+	private void openConfirmDeleteDialog(AdvertisementView ad) {
 		Dialog dialog = new Dialog();
-		dialog.add(new Span("Delete advertisement \"" + ad.getTitle() + "\" (ID " + ad.getId() + ")?"));
+		dialog.add(new Span("Delete advertisement \"" + ad.title() + "\" (ID " + ad.id() + ")?"));
 
 		Button confirm = new Button("Delete", e -> {
 			try {
-				repository.delete(ad);
+				repository.deleteById(ad.id());
 				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				refreshAdvertisements();

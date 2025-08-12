@@ -1,20 +1,15 @@
 package org.ost.advertisement.ui.views.components.sort;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
-import static org.ost.advertisement.utils.FilterUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.combobox.ComboBox;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.domain.Sort.Order;
 
 public abstract class AbstractSortFields {
 

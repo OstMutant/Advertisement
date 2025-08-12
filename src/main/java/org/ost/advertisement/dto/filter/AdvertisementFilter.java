@@ -22,9 +22,6 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 	private Instant updatedAtStart;
 	private Instant updatedAtEnd;
 
-	private Long startId;
-	private Long endId;
-
 	@Override
 	public void clear() {
 		this.title = null;
@@ -33,9 +30,6 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 		this.createdAtEnd = null;
 		this.updatedAtStart = null;
 		this.updatedAtEnd = null;
-
-		this.startId = null;
-		this.endId = null;
 	}
 
 	@Override
@@ -45,9 +39,6 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 		this.createdAtEnd = other.createdAtEnd;
 		this.updatedAtStart = other.updatedAtStart;
 		this.updatedAtEnd = other.updatedAtEnd;
-
-		this.startId = other.startId;
-		this.endId = other.endId;
 	}
 
 	@Override
@@ -60,15 +51,12 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 		filter.updatedAtStart = this.updatedAtStart;
 		filter.updatedAtEnd = this.updatedAtEnd;
 
-		filter.startId = this.startId;
-		filter.endId = this.endId;
 		return filter;
 	}
 
 	@Override
 	public boolean isValid() {
-		return isValidNumberRange(getStartId(), getEndId())
-			&& isValidDateRange(getCreatedAtStart(), getCreatedAtEnd())
+		return isValidDateRange(getCreatedAtStart(), getCreatedAtEnd())
 			&& isValidDateRange(getUpdatedAtStart(), getUpdatedAtEnd());
 	}
 }

@@ -25,7 +25,6 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 
 		filterFields.configure(onRefreshAction);
 		List<Component> filterComponentList = List.of(
-			filterFields.getIdBlock(),
 			filterFields.getTitleBlock(),
 			filterFields.getCreatedBlock(),
 			filterFields.getUpdatedBlock(),

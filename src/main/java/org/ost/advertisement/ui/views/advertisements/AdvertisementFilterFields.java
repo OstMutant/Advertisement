@@ -18,9 +18,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	private final TextField title = createFullTextField("Title...");
 
-	private final NumberField idMin = createNumberField("Min ID");
-	private final NumberField idMax = createNumberField("Max ID");
-
 	private final DatePicker createdStart = createDatePicker("Created from");
 	private final DatePicker createdEnd = createDatePicker("Created to");
 	private final DatePicker updatedStart = createDatePicker("Updated from");
@@ -57,10 +54,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
 			f -> true);
 
-		Predicate<AdvertisementFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
-		register(idMin, (f, v) -> f.setStartId(toLong(v)), AdvertisementFilter::getStartId, validationId);
-		register(idMax, (f, v) -> f.setEndId(toLong(v)), AdvertisementFilter::getEndId, validationId);
-
 		Predicate<AdvertisementFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(),
 			f.getCreatedAtEnd());
 		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)), AdvertisementFilter::getCreatedAtStart,
@@ -78,10 +71,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	public Component getTitleBlock() {
 		return title;
-	}
-
-	public Component getIdBlock() {
-		return createFilterBlock(idMin, idMax);
 	}
 
 	public Component getCreatedBlock() {
