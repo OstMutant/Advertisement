@@ -9,8 +9,8 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 
 public class FilterActionsBlock {
 
-	protected Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
-	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
+	private Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
+	private Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
 
 	public FilterActionsBlock() {
 	}
@@ -29,7 +29,7 @@ public class FilterActionsBlock {
 		}
 	}
 
-	protected Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
+	private Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
 		Button button = new Button(icon.create());
 		button.setText("");
 		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);

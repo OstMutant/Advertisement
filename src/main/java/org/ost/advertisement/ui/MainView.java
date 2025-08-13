@@ -8,7 +8,6 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
-import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.services.SecurityService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
@@ -20,7 +19,7 @@ import org.ost.advertisement.ui.views.users.UsersView;
 public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, SecurityService securityService, UserRepository userRepository,
-					AdvertisementRepository advertisementRepository) {
+					AdvertisementsView advertisementsView) {
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -36,8 +35,6 @@ public class MainView extends VerticalLayout {
 		tabs.setSelectedTab(advertisementTab);
 		add(tabs);
 
-		AdvertisementsView advertisementsView = new AdvertisementsView(advertisementRepository);
-		advertisementsView.setSizeFull();
 		advertisementsView.setVisible(true);
 
 		Map<Tab, Component> tabsToPages = new HashMap<>();
