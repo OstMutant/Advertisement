@@ -22,7 +22,7 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilter;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;

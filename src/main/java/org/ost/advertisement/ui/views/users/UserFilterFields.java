@@ -12,7 +12,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
-import org.ost.advertisement.entyties.Role;
+import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 

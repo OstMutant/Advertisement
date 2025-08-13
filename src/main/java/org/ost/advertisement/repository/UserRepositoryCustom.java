@@ -3,7 +3,7 @@ package org.ost.advertisement.repository;
 import java.util.List;
 import java.util.Optional;
 import org.ost.advertisement.dto.filter.UserFilter;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.User;
 import org.springframework.data.domain.Pageable;
 
 public interface UserRepositoryCustom {

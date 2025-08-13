@@ -1,4 +1,4 @@
-package org.ost.advertisement.entyties;
+package org.ost.advertisement.entities;
 
 public enum Role {
 	USER,

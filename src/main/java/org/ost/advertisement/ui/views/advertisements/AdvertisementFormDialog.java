@@ -13,7 +13,7 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.entyties.Advertisement;
+import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 

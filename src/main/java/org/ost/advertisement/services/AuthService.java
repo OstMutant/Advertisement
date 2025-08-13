@@ -1,7 +1,5 @@
 package org.ost.advertisement.services;
 
-import java.util.Optional;
-import org.ost.advertisement.entyties.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.utils.PasswordEncoderUtil;

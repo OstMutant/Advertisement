@@ -6,7 +6,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.ui.utils.SessionUtil;
 
 @SpringComponent

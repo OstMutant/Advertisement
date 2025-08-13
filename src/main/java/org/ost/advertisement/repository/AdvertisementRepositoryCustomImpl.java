@@ -32,9 +32,7 @@ public class AdvertisementRepositoryCustomImpl implements AdvertisementRepositor
 			        u.id AS userId,
 			        u.name AS userName,
 			        u.email AS userEmail
-			    FROM advertisement a
-			    LEFT JOIN user_information u ON a.user_id = u.id
-			""");
+			""").append(getSourceTables());
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		applyConditions(sql, params, filter);
 		applySorting(sql, SORT_PROPERTY_MAP, pageable.getSort());
@@ -54,14 +52,17 @@ public class AdvertisementRepositoryCustomImpl implements AdvertisementRepositor
 
 	@Override
 	public Long countByFilter(AdvertisementFilter filter) {
-		StringBuilder sql = new StringBuilder("""
-			    SELECT COUNT(*)
-			    FROM advertisement a
-			    LEFT JOIN user_information u ON a.user_id = u.id
-			""");
+		StringBuilder sql = new StringBuilder("SELECT COUNT(*)").append(getSourceTables());
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		applyConditions(sql, params, filter);
 		return jdbc.queryForObject(sql.toString(), params, Long.class);
+	}
+
+	private StringBuilder getSourceTables() {
+		return new StringBuilder("""
+			    FROM advertisement a
+			    LEFT JOIN user_information u ON a.user_id = u.id
+			""");
 	}
 
 	private void applyConditions(StringBuilder sql, MapSqlParameterSource params, AdvertisementFilter filter) {

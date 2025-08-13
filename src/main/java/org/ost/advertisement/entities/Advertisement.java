@@ -1,4 +1,4 @@
-package org.ost.advertisement.entyties;
+package org.ost.advertisement.entities;
 
 import java.time.Instant;
 import lombok.Getter;
@@ -8,20 +8,19 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @NoArgsConstructor
-@Table("user_information")
+@Table("advertisement")
 @Getter
 @Setter
-public class User {
+public class Advertisement {
 
 	@Id
 	private Long id;
 
-	private String name;
-	private String email;
-	private String passwordHash;
-
-	private Role role;
+	private String title;
+	private String description;
 
 	private Instant createdAt;
 	private Instant updatedAt;
+
+	private Long userId;
 }

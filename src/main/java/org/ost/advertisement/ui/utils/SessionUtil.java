@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.utils;
 
 import com.vaadin.flow.server.VaadinSession;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.User;
 
 public class SessionUtil {
 

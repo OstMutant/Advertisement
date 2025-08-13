@@ -2,8 +2,8 @@ package org.ost.advertisement.services;
 
 import static java.util.Optional.ofNullable;
 
-import org.ost.advertisement.entyties.Role;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.springframework.stereotype.Service;
 
 @Service

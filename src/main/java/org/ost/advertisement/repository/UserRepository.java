@@ -1,6 +1,6 @@
 package org.ost.advertisement.repository;
 
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.User;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
 

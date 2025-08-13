@@ -13,8 +13,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.time.Instant;
 import java.util.regex.Pattern;
-import org.ost.advertisement.entyties.Role;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.utils.PasswordEncoderUtil;
 

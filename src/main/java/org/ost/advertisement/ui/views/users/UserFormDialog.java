@@ -15,8 +15,8 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import java.time.Instant;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.entyties.Role;
-import org.ost.advertisement.entyties.User;
+import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.UserRepository;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
