@@ -1,13 +1,10 @@
 package org.ost.advertisement.repository;
 
 import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.ost.advertisement.dto.AdvertisementView;
@@ -34,10 +31,11 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 
 	@Override
 	public Long countByFilter(AdvertisementFilter filter) {
-		return countByFilter(AdvertisementFieldRelations.SOURCE, params -> AdvertisementFieldConditions.applyALL(params, filter));
+		return countByFilter(AdvertisementFieldRelations.SOURCE,
+			params -> AdvertisementFieldConditions.applyALL(params, filter));
 	}
 
-	private enum AdvertisementFieldConditions {
+	private enum AdvertisementFieldConditions implements FieldConditions<AdvertisementFilter> {
 		TITLE(AdvertisementFieldRelations.TITLE.getField(), "title"),
 		CREATED_AT_START(AdvertisementFieldRelations.CREATED_AT.getField(), "createdAt_start"),
 		CREATED_AT_END(AdvertisementFieldRelations.CREATED_AT.getField(), "createdAt_end"),
@@ -47,14 +45,7 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 		private static final Set<AdvertisementFieldConditions> ALL = EnumSet.allOf(AdvertisementFieldConditions.class);
 
 		public static String applyALL(MapSqlParameterSource params, AdvertisementFilter filter) {
-			List<String> conditions = new ArrayList<>();
-			for (AdvertisementFieldConditions condition : ALL) {
-				String conditionStr = condition.apply(params, filter);
-				if (conditionStr != null) {
-					conditions.add(conditionStr);
-				}
-			}
-			return String.join(" AND ", conditions);
+			return FieldConditions.applyAllThroughtAnd(params, filter, ALL);
 		}
 
 		@Getter
@@ -68,54 +59,19 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 			this.variable = variable;
 		}
 
+		@Override
 		public String apply(MapSqlParameterSource params, AdvertisementFilter filter) {
 			return switch (this) {
-				case TITLE -> {
-					String title = filter.getTitle();
-					if (title != null && !title.isBlank()) {
-						params.addValue(variable, title);
-						yield field + " ILIKE '%' || :" + variable + " || '%'";
-					}
-					yield null;
-				}
-				case CREATED_AT_START -> {
-					Timestamp createdAtStart = toTimestamp(filter.getCreatedAtStart());
-					if (createdAtStart != null) {
-						params.addValue(variable, createdAtStart);
-						yield field + " >= :" + variable;
-					}
-					yield null;
-				}
-				case CREATED_AT_END -> {
-					Timestamp createdAtEnd = toTimestamp(filter.getCreatedAtEnd());
-					if (createdAtEnd != null) {
-						params.addValue(variable, createdAtEnd);
-						yield field + " <= :" + variable;
-					}
-					yield null;
-				}
-				case UPDATED_AT_START -> {
-					Timestamp updatedAtStart = toTimestamp(filter.getUpdatedAtStart());
-					if (updatedAtStart != null) {
-						params.addValue(variable, updatedAtStart);
-						yield field + " >= :" + variable;
-					}
-					yield null;
-				}
-				case UPDATED_AT_END -> {
-					Timestamp updatedAtEnd = toTimestamp(filter.getUpdatedAtEnd());
-					if (updatedAtEnd != null) {
-						params.addValue(variable, updatedAtEnd);
-						yield field + " <= :" + variable;
-					}
-					yield null;
-				}
+				case TITLE -> applyFullLike(params, filter.getTitle());
+				case CREATED_AT_START -> applyTimestamp(params, " >= :", filter.getCreatedAtStart());
+				case CREATED_AT_END -> applyTimestamp(params, " <= :", filter.getCreatedAtEnd());
+				case UPDATED_AT_START -> applyTimestamp(params, " >= :", filter.getUpdatedAtStart());
+				case UPDATED_AT_END -> applyTimestamp(params, " <= :", filter.getUpdatedAtEnd());
 			};
 		}
 	}
 
-
-	private enum AdvertisementFieldRelations {
+	private enum AdvertisementFieldRelations implements FieldRelations<AdvertisementViewBuilder> {
 		ID("a.id", "id"),
 		TITLE("a.title", "title"),
 		DESCRIPTION("a.description", "description"),
@@ -130,19 +86,14 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 			    LEFT JOIN user_information u ON a.user_id = u.id
 			""";
 
-		private static final Set<AdvertisementFieldRelations> ALL = EnumSet.allOf(AdvertisementFieldRelations.class);
+		private static final Set<? extends FieldRelations<AdvertisementViewBuilder>> ALL = EnumSet.allOf(AdvertisementFieldRelations.class);
 
 		public static Map<String, String> getFieldMap() {
-			return ALL.stream().collect(
-				Collectors.toMap(AdvertisementFieldRelations::getAlias, AdvertisementFieldRelations::getField));
+			return FieldRelations.getFieldMap( ALL);
 		}
 
 		public static AdvertisementView transform(ResultSet rs) {
-			AdvertisementViewBuilder builder = AdvertisementView.builder();
-			for (AdvertisementFieldRelations field : ALL) {
-				builder = field.apply(rs, builder);
-			}
-			return builder.build();
+			return FieldRelations.transform(rs, AdvertisementView.builder(), ALL).build();
 		}
 
 		@Getter
@@ -157,6 +108,7 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 		}
 
 		@SneakyThrows
+		@Override
 		public AdvertisementViewBuilder apply(ResultSet rs, AdvertisementViewBuilder b) {
 			return switch (this) {
 				case ID -> b.id(rs.getObject("id", Long.class));

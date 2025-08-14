@@ -1,10 +1,13 @@
 package org.ost.advertisement.repository;
 
+import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Pageable;
@@ -45,7 +48,7 @@ public class RepositoryCustom {
 		return jdbc.queryForObject(sql.toString(), params, Long.class);
 	}
 
-	protected StringBuilder prepareSelectTemplate(String source, String fields, String conditions, String sorting,
+	private StringBuilder prepareSelectTemplate(String source, String fields, String conditions, String sorting,
 												  String pagination) {
 		return new StringBuilder()
 			.append("SELECT ")
@@ -88,4 +91,63 @@ public class RepositoryCustom {
 		return column == null ? null : column + " " + order.getDirection().name();
 	}
 
+
+	interface FieldConditions<F> {
+
+		String getField();
+
+		String getVariable();
+
+		String apply(MapSqlParameterSource params, F filter);
+
+		static <F> String applyAllThroughtAnd(MapSqlParameterSource params, F filter,
+											  Set<? extends FieldConditions<F>> items) {
+			List<String> conditions = new ArrayList<>();
+			for (FieldConditions<F> condition : items) {
+				String conditionStr = condition.apply(params, filter);
+				if (conditionStr != null) {
+					conditions.add(conditionStr);
+				}
+			}
+			return String.join(" AND ", conditions);
+		}
+
+		default String applyTimestamp(MapSqlParameterSource params, String condition, Instant timeInstant) {
+			Timestamp timestamp = toTimestamp(timeInstant);
+			if (timestamp != null) {
+				params.addValue(getVariable(), timestamp);
+				return getField() + condition + getVariable();
+			}
+			return null;
+		}
+
+		default String applyFullLike(MapSqlParameterSource params, String title) {
+			if (title != null && !title.isBlank()) {
+				params.addValue(getVariable(), title);
+				return getField() + " ILIKE '%' || :" + getVariable() + " || '%'";
+			}
+			return null;
+		}
+	}
+
+	interface FieldRelations<B> {
+
+		String getField();
+
+		String getAlias();
+
+		B apply(ResultSet rs, B builder);
+
+		static <B> Map<String, String> getFieldMap(Set<? extends FieldRelations<B>> items) {
+			return items.stream().collect(
+				Collectors.toMap(FieldRelations::getAlias, FieldRelations::getField));
+		}
+
+		static <B> B transform(ResultSet rs, B builder, Set<? extends FieldRelations<B>> items) {
+			for (FieldRelations<B> field : items) {
+				builder = field.apply(rs, builder);
+			}
+			return builder;
+		}
+	}
 }
