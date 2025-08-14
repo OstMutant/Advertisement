@@ -28,44 +28,92 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 	@Override
 	public List<AdvertisementView> findByFilter(AdvertisementFilter filter, Pageable pageable) {
 		return findByFilter(AdvertisementFieldRelations.SOURCE, AdvertisementFieldRelations.getFieldMap(),
-			params -> applyConditions(params, filter),
+			params -> AdvertisementFieldConditions.applyALL(params, filter),
 			pageable, (rs, rowNum) -> AdvertisementFieldRelations.transform(rs));
 	}
 
 	@Override
 	public Long countByFilter(AdvertisementFilter filter) {
-		return countByFilter(AdvertisementFieldRelations.SOURCE, params -> applyConditions(params, filter));
+		return countByFilter(AdvertisementFieldRelations.SOURCE, params -> AdvertisementFieldConditions.applyALL(params, filter));
 	}
 
-	private String applyConditions(MapSqlParameterSource params, AdvertisementFilter filter) {
-		String title = filter.getTitle();
-		Timestamp createdAtStart = toTimestamp(filter.getCreatedAtStart());
-		Timestamp createdAtEnd = toTimestamp(filter.getCreatedAtEnd());
-		Timestamp updatedAtStart = toTimestamp(filter.getUpdatedAtStart());
-		Timestamp updatedAtEnd = toTimestamp(filter.getUpdatedAtEnd());
-		List<String> sqlConditions = new ArrayList<>();
-		if (title != null && !title.isBlank()) {
-			params.addValue("title", title);
-			sqlConditions.add("a.title ILIKE '%' || :title || '%'");
+	private enum AdvertisementFieldConditions {
+		TITLE(AdvertisementFieldRelations.TITLE.getField(), "title"),
+		CREATED_AT_START(AdvertisementFieldRelations.CREATED_AT.getField(), "createdAt_start"),
+		CREATED_AT_END(AdvertisementFieldRelations.CREATED_AT.getField(), "createdAt_end"),
+		UPDATED_AT_START(AdvertisementFieldRelations.UPDATED_AT.getField(), "updatedAt_start"),
+		UPDATED_AT_END(AdvertisementFieldRelations.UPDATED_AT.getField(), "updatedAt_end");
+
+		private static final Set<AdvertisementFieldConditions> ALL = EnumSet.allOf(AdvertisementFieldConditions.class);
+
+		public static String applyALL(MapSqlParameterSource params, AdvertisementFilter filter) {
+			List<String> conditions = new ArrayList<>();
+			for (AdvertisementFieldConditions condition : ALL) {
+				String conditionStr = condition.apply(params, filter);
+				if (conditionStr != null) {
+					conditions.add(conditionStr);
+				}
+			}
+			return String.join(" AND ", conditions);
 		}
-		if (createdAtStart != null) {
-			params.addValue("createdAt_start", createdAtStart);
-			sqlConditions.add("a.created_at >= :createdAt_start");
+
+		@Getter
+		private final String field;
+
+		@Getter
+		private final String variable;
+
+		AdvertisementFieldConditions(String field, String variable) {
+			this.field = field;
+			this.variable = variable;
 		}
-		if (createdAtEnd != null) {
-			params.addValue("createdAt_end", createdAtEnd);
-			sqlConditions.add("a.created_at <= :createdAt_end");
+
+		public String apply(MapSqlParameterSource params, AdvertisementFilter filter) {
+			return switch (this) {
+				case TITLE -> {
+					String title = filter.getTitle();
+					if (title != null && !title.isBlank()) {
+						params.addValue(variable, title);
+						yield field + " ILIKE '%' || :" + variable + " || '%'";
+					}
+					yield null;
+				}
+				case CREATED_AT_START -> {
+					Timestamp createdAtStart = toTimestamp(filter.getCreatedAtStart());
+					if (createdAtStart != null) {
+						params.addValue(variable, createdAtStart);
+						yield field + " >= :" + variable;
+					}
+					yield null;
+				}
+				case CREATED_AT_END -> {
+					Timestamp createdAtEnd = toTimestamp(filter.getCreatedAtEnd());
+					if (createdAtEnd != null) {
+						params.addValue(variable, createdAtEnd);
+						yield field + " <= :" + variable;
+					}
+					yield null;
+				}
+				case UPDATED_AT_START -> {
+					Timestamp updatedAtStart = toTimestamp(filter.getUpdatedAtStart());
+					if (updatedAtStart != null) {
+						params.addValue(variable, updatedAtStart);
+						yield field + " >= :" + variable;
+					}
+					yield null;
+				}
+				case UPDATED_AT_END -> {
+					Timestamp updatedAtEnd = toTimestamp(filter.getUpdatedAtEnd());
+					if (updatedAtEnd != null) {
+						params.addValue(variable, updatedAtEnd);
+						yield field + " <= :" + variable;
+					}
+					yield null;
+				}
+			};
 		}
-		if (updatedAtStart != null) {
-			params.addValue("updatedAt_start", updatedAtStart);
-			sqlConditions.add("a.updated_at >= :updatedAt_start");
-		}
-		if (updatedAtEnd != null) {
-			params.addValue("updatedAt_end", updatedAtEnd);
-			sqlConditions.add("a.updated_at <= :updatedAt_end");
-		}
-		return String.join(" AND ", sqlConditions);
 	}
+
 
 	private enum AdvertisementFieldRelations {
 		ID("a.id", "id"),
@@ -86,7 +134,7 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 
 		public static Map<String, String> getFieldMap() {
 			return ALL.stream().collect(
-				Collectors.toMap(AdvertisementFieldRelations::getAlias, AdvertisementFieldRelations::getFieldPath));
+				Collectors.toMap(AdvertisementFieldRelations::getAlias, AdvertisementFieldRelations::getField));
 		}
 
 		public static AdvertisementView transform(ResultSet rs) {
@@ -98,13 +146,13 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom implemen
 		}
 
 		@Getter
-		private final String fieldPath;
+		private final String field;
 
 		@Getter
 		private final String alias;
 
-		AdvertisementFieldRelations(String fieldPath, String alias) {
-			this.fieldPath = fieldPath;
+		AdvertisementFieldRelations(String field, String alias) {
+			this.field = field;
 			this.alias = alias;
 		}
 
