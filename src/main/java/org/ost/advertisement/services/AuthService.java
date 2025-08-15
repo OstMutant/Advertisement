@@ -1,6 +1,6 @@
 package org.ost.advertisement.services;
 
-import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.utils.PasswordEncoderUtil;
 import org.springframework.stereotype.Service;

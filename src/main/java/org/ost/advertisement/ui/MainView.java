@@ -8,7 +8,7 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
-import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.services.SecurityService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;

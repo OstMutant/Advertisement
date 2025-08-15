@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository;
+package org.ost.advertisement.repository.advertisement;
 
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementView;

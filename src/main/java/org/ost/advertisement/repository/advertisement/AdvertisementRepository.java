@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository;
+package org.ost.advertisement.repository.advertisement;
 
 import org.ost.advertisement.entities.Advertisement;
 import org.springframework.data.repository.CrudRepository;

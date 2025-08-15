@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.repository.user.UserRepository;
 
 public class UsersView extends VerticalLayout {
 

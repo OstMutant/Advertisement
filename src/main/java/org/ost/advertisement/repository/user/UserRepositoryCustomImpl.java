@@ -1,10 +1,11 @@
-package org.ost.advertisement.repository;
+package org.ost.advertisement.repository.user;
 
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.repository.CriteriaBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jdbc.core.JdbcAggregateTemplate;
 import org.springframework.data.relational.core.query.Criteria;

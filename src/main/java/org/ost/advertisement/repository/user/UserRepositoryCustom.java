@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository;
+package org.ost.advertisement.repository.user;
 
 import java.util.List;
 import java.util.Optional;

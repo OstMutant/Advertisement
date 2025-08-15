@@ -92,7 +92,7 @@ public class RepositoryCustom {
 	}
 
 
-	interface FieldConditions<F> {
+	public interface FieldConditions<F> {
 
 		String getField();
 
@@ -130,7 +130,7 @@ public class RepositoryCustom {
 		}
 	}
 
-	interface FieldRelations<B> {
+	public interface FieldRelations<B> {
 
 		String getField();
 

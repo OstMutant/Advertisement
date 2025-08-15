@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository;
+package org.ost.advertisement.repository.advertisement;
 
 import java.sql.ResultSet;
 import java.util.EnumSet;
@@ -10,6 +10,7 @@ import lombok.SneakyThrows;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.AdvertisementView.AdvertisementViewBuilder;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.repository.RepositoryCustom;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;

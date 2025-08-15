@@ -15,7 +15,7 @@ import java.time.Instant;
 import java.util.regex.Pattern;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.UserRepository;
+import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.utils.PasswordEncoderUtil;
 
 @SpringComponent
