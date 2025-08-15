@@ -7,6 +7,6 @@ import org.ost.advertisement.entities.Advertisement;
 @Mapper(componentModel = "spring")
 public interface AdvertisementMapper {
 
-	Advertisement toEntity(AdvertisementView dto);
+	Advertisement toAdvertisement(AdvertisementView dto);
 
 }

@@ -76,7 +76,7 @@ public class AdvertisementsView extends VerticalLayout {
 		pageData.forEach(ad ->
 			advertisementContainer.add(
 				new AdvertisementCardView(ad,
-					() -> openAdvertisementFormDialog(advertisementMapper.toEntity(ad)),
+					() -> openAdvertisementFormDialog(advertisementMapper.toAdvertisement(ad)),
 					() -> openConfirmDeleteDialog(ad))
 			)
 		);
