@@ -45,7 +45,6 @@ public class UserListView extends VerticalLayout {
 		addClassName("user-list-view");
 		setSizeFull();
 
-		paginationBar.setPageSize(25);
 		paginationBar.setPageChangeListener(event -> refreshGrid());
 
 		filterFields.configure(() -> {

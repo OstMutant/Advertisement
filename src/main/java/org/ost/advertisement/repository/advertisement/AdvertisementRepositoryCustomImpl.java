@@ -72,7 +72,6 @@ public class AdvertisementRepositoryCustomImpl extends
 						before(relation, filter.getUpdatedAtEnd(), fieldConditions);
 					default -> throw new IllegalStateException("Unexpected value: " + relation);
 				}
-				;
 			}
 			params.addValues(fieldConditions.toParams());
 			return fieldConditions.toSqlApplyingAnd();

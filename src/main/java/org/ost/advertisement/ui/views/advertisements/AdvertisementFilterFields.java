@@ -26,7 +26,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
 	public AdvertisementFilterFields() {
-		super(new AdvertisementFilter());
+		super(AdvertisementFilter.empty());
 	}
 
 	@Override

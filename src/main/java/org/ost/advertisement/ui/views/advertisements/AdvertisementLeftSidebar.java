@@ -4,17 +4,27 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.List;
 import lombok.Getter;
+import org.springframework.context.annotation.Scope;
 
+@SpringComponent
+@Scope("prototype")
 public class AdvertisementLeftSidebar extends VerticalLayout {
 
 	@Getter
-	private final AdvertisementFilterFields filterFields = new AdvertisementFilterFields();
+	private final AdvertisementFilterFields filterFields;
 	@Getter
-	private final AdvertisementSortFields sortFields = new AdvertisementSortFields();
+	private final AdvertisementSortFields sortFields;
+	private final Button addAdvertisementButton;
 
-	public AdvertisementLeftSidebar(Runnable onRefreshAction, Runnable onAddButton) {
+
+	public AdvertisementLeftSidebar() {
+		this.filterFields = new AdvertisementFilterFields();
+		this.sortFields = new AdvertisementSortFields();
+		this.addAdvertisementButton = createAddButton();
+
 		setWidth("270px");
 		setHeight("1000px");
 		getStyle().set("box-shadow", "2px 0 4px rgba(0,0,0,0.05)");
@@ -23,7 +33,6 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		setSpacing(true);
 		getStyle().set("background-color", "#f4f4f4");
 
-		filterFields.configure(onRefreshAction);
 		List<Component> filterComponentList = List.of(
 			filterFields.getTitleBlock(),
 			filterFields.getCreatedBlock(),
@@ -32,7 +41,6 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		);
 		Details filtersBlock = createDetails("Filters", filterComponentList);
 
-		sortFields.configure(onRefreshAction);
 		List<Component> sortComponentList = List.of(
 			sortFields.getTitleBlock(),
 			sortFields.getCreatedAtBlock(),
@@ -41,13 +49,17 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		);
 		Details sortingBlock = createDetails("Sorting", sortComponentList);
 
-		Button addAdvertisementButton = createAddButton(onAddButton);
-
 		VerticalLayout collapsibleSidebar = new VerticalLayout(addAdvertisementButton, filtersBlock, sortingBlock);
 		collapsibleSidebar.setSpacing(true);
 		collapsibleSidebar.setPadding(false);
 
 		add(collapsibleSidebar);
+	}
+
+	public void eventProcessor(Runnable onRefreshAction, Runnable onAddButton) {
+		filterFields.configure(onRefreshAction);
+		sortFields.configure(onRefreshAction);
+		addAdvertisementButton.addClickListener(e -> onAddButton.run());
 	}
 
 	private Details createDetails(String label, List<Component> components) {
@@ -60,9 +72,8 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		return sortingBlock;
 	}
 
-	private Button createAddButton(Runnable onAddButton) {
-		Button add = new Button("Add Advertisement");
-		add.addClickListener(e -> onAddButton.run());
-		return add;
+	private Button createAddButton() {
+		return new Button("Add Advertisement");
 	}
+
 }

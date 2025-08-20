@@ -25,23 +25,25 @@ public class AdvertisementsView extends VerticalLayout {
 
 	private final AdvertisementRepository repository;
 	private final AdvertisementMapper advertisementMapper;
-	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final AdvertisementLeftSidebar sidebar;
 	private final AdvertisementFilterFields filterFields;
 	private final AdvertisementSortFields sortFields;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
+	private final PaginationBarModern paginationBar = new PaginationBarModern();
 
-	public AdvertisementsView(AdvertisementRepository repository, AdvertisementMapper advertisementMapper) {
+	public AdvertisementsView(AdvertisementRepository repository, AdvertisementMapper advertisementMapper,
+							  AdvertisementLeftSidebar sidebar) {
 		this.advertisementMapper = advertisementMapper;
 		this.repository = repository;
+		this.sidebar = sidebar;
+
 		setSizeFull();
 		setSpacing(true);
 		setPadding(true);
 
-		paginationBar.setPageSize(25);
 		paginationBar.setPageChangeListener(e -> refreshAdvertisements());
 
-		sidebar = new AdvertisementLeftSidebar(() -> {
+		sidebar.eventProcessor(() -> {
 			paginationBar.setTotalCount(0);
 			refreshAdvertisements();
 		}, () -> openAdvertisementFormDialog(null));
