@@ -65,7 +65,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	@Override
 	public void eventProcessor(Runnable onApply) {
-		actionsBlock.configure(() -> {
+		actionsBlock.eventProcessor(() -> {
 			if (!validate()) {
 				return;
 			}

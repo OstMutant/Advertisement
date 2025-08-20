@@ -10,12 +10,16 @@ import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
+import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
+import org.springframework.context.annotation.Scope;
 
+@SpringComponent
+@Scope("prototype")
 public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	private final NumberField idMin = createNumberField("Min ID");
@@ -31,30 +35,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	public UserFilterFields() {
 		super(new UserFilter());
-	}
 
-	@Override
-	protected void updateState() {
-		super.updateState();
-		actionsBlock.updateButtonState(isFilterActive());
-	}
-
-	@Override
-	public void eventProcessor(Runnable onApply) {
-		actionsBlock.configure(() -> {
-			if (!validate()) {
-				return;
-			}
-			originalFilter.copyFrom(newFilter);
-			onApply.run();
-			updateState();
-		}, () -> {
-			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
-			onApply.run();
-			updateState();
-		});
 		Predicate<UserFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
@@ -76,6 +57,30 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 			UserFilter::getUpdatedAtStart, validationUpdatedAt);
 		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
 			UserFilter::getUpdatedAtEnd, validationUpdatedAt);
+	}
+
+	@Override
+	protected void updateState() {
+		super.updateState();
+		actionsBlock.updateButtonState(isFilterActive());
+	}
+
+	@Override
+	public void eventProcessor(Runnable onApply) {
+		actionsBlock.eventProcessor(() -> {
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			onApply.run();
+			updateState();
+		}, () -> {
+			clearAllFields();
+			newFilter.clear();
+			originalFilter.clear();
+			onApply.run();
+			updateState();
+		});
 	}
 
 	public Component getIdBlock() {

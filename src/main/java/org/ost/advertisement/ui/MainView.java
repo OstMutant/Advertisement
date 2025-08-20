@@ -13,13 +13,13 @@ import org.ost.advertisement.services.SecurityService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
-import org.ost.advertisement.ui.views.users.UsersView;
+import org.ost.advertisement.ui.views.users.UserView;
 
 @Route("")
 public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, SecurityService securityService, UserRepository userRepository,
-					AdvertisementsView advertisementsView) {
+					AdvertisementsView advertisementsView, UserView usersView) {
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -45,7 +45,6 @@ public class MainView extends VerticalLayout {
 		add(pages);
 
 //		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
-		UsersView usersView = new UsersView(userRepository);
 		usersView.setVisible(false);
 
 		Tab usersTab = new Tab("Users");

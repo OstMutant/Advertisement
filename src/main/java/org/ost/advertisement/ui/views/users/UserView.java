@@ -18,8 +18,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
-import com.vaadin.flow.router.PageTitle;
-import com.vaadin.flow.router.Route;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.User;
@@ -27,23 +26,27 @@ import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 import org.ost.advertisement.dto.sort.CustomSort;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-@PageTitle("Users | Advertisement App")
-@Route("users")
-public class UserListView extends VerticalLayout {
+@SpringComponent
+@Scope("prototype")
+public class UserView extends VerticalLayout {
 
 	private final UserRepository repository;
 	private final Grid<User> grid = new Grid<>(User.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
-	private final UserFilterFields filterFields = new UserFilterFields();
+	private final UserFilterFields filterFields;
 	private final CustomSort customSort = new CustomSort(Sort.unsorted());
 
-	public UserListView(UserRepository repository) {
+	public UserView(UserRepository repository, UserFilterFields filterFields) {
 		this.repository = repository;
+		this.filterFields = filterFields;
 		addClassName("user-list-view");
 		setSizeFull();
+		setPadding(false);
+		setSpacing(false);
 
 		paginationBar.setPageChangeListener(event -> refreshGrid());
 
