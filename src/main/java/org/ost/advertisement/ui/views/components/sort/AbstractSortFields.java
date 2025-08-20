@@ -19,14 +19,14 @@ public abstract class AbstractSortFields {
 	@Getter
 	protected CustomSort newSort;
 
-	public record SortFieldsRelationship<F, T>(
+	public record SortFieldsRelationship<T>(
 		AbstractField<?, ?> field,
 		Function<CustomSort, T> getter
 	) {
 
 	}
 
-	protected final Set<SortFieldsRelationship<CustomSort, ?>> fieldsRelationships = new HashSet<>();
+	protected final Set<SortFieldsRelationship<?>> fieldsRelationships = new HashSet<>();
 
 	protected AbstractSortFields(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
@@ -34,10 +34,10 @@ public abstract class AbstractSortFields {
 		this.newSort = defaultSort.copy();
 	}
 
-	public abstract void configure(Runnable onApply);
+	public abstract void eventProcessor(Runnable onApply);
 
 	protected void register(ComboBox<Direction> field, String property) {
-		fieldsRelationships.add(new SortFieldsRelationship<>(field, v-> v.getDirection(property)));
+		fieldsRelationships.add(new SortFieldsRelationship<>(field, v -> v.getDirection(property)));
 		field.addValueChangeListener(e -> {
 			newSort.updateSort(property, e.getValue());
 			updateState();
@@ -53,13 +53,13 @@ public abstract class AbstractSortFields {
 	}
 
 	protected void clearAllFields() {
-		for (SortFieldsRelationship<?, ?> relationship : fieldsRelationships) {
+		for (SortFieldsRelationship<?> relationship : fieldsRelationships) {
 			relationship.field.clear();
 		}
 	}
 
 	protected void highlightChangedFields() {
-		for (SortFieldsRelationship<CustomSort, ?> fieldRelationship : fieldsRelationships) {
+		for (SortFieldsRelationship<?> fieldRelationship : fieldsRelationships) {
 			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newSort),
 				fieldRelationship.getter.apply(originalSort), fieldRelationship.getter.apply(defaultSort), true);
 		}

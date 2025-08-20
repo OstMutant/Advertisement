@@ -17,13 +17,12 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 	private final AdvertisementFilterFields filterFields;
 	@Getter
 	private final AdvertisementSortFields sortFields;
-	private final Button addAdvertisementButton;
+	private final Button addAdvertisementButton = new Button("Add Advertisement");
 
 
-	public AdvertisementLeftSidebar() {
-		this.filterFields = new AdvertisementFilterFields();
-		this.sortFields = new AdvertisementSortFields();
-		this.addAdvertisementButton = createAddButton();
+	public AdvertisementLeftSidebar(AdvertisementSortFields sortFields, AdvertisementFilterFields filterFields) {
+		this.filterFields = filterFields;
+		this.sortFields = sortFields;
 
 		setWidth("270px");
 		setHeight("1000px");
@@ -33,21 +32,8 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		setSpacing(true);
 		getStyle().set("background-color", "#f4f4f4");
 
-		List<Component> filterComponentList = List.of(
-			filterFields.getTitleBlock(),
-			filterFields.getCreatedBlock(),
-			filterFields.getUpdatedBlock(),
-			filterFields.getActionBlock()
-		);
-		Details filtersBlock = createDetails("Filters", filterComponentList);
-
-		List<Component> sortComponentList = List.of(
-			sortFields.getTitleBlock(),
-			sortFields.getCreatedAtBlock(),
-			sortFields.getUpdatedAtBlock(),
-			sortFields.getActionBlock()
-		);
-		Details sortingBlock = createDetails("Sorting", sortComponentList);
+		Details filtersBlock = createDetails("Filters", filterFields.getFilterComponentList());
+		Details sortingBlock = createDetails("Sorting", sortFields.getSortComponentList());
 
 		VerticalLayout collapsibleSidebar = new VerticalLayout(addAdvertisementButton, filtersBlock, sortingBlock);
 		collapsibleSidebar.setSpacing(true);
@@ -57,8 +43,8 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 	}
 
 	public void eventProcessor(Runnable onRefreshAction, Runnable onAddButton) {
-		filterFields.configure(onRefreshAction);
-		sortFields.configure(onRefreshAction);
+		filterFields.eventProcessor(onRefreshAction);
+		sortFields.eventProcessor(onRefreshAction);
 		addAdvertisementButton.addClickListener(e -> onAddButton.run());
 	}
 
@@ -71,9 +57,4 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		sortingBlock.setOpened(true);
 		return sortingBlock;
 	}
-
-	private Button createAddButton() {
-		return new Button("Add Advertisement");
-	}
-
 }

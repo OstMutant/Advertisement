@@ -15,7 +15,7 @@ public class SortActionsBlock {
 	public SortActionsBlock() {
 	}
 
-	public void configure(Runnable onApply, Runnable onClear) {
+	public void eventProcessor(Runnable onApply, Runnable onClear) {
 		applyButton.addClickListener(e -> onApply.run());
 		clearButton.addClickListener(e -> onClear.run());
 	}

@@ -2,18 +2,21 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
-import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
-import static org.ost.advertisement.utils.FilterUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import java.util.List;
 import java.util.function.Predicate;
+import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
+import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
+import org.springframework.context.annotation.Scope;
 
+@SpringComponent
+@Scope("prototype")
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
 
 	private final TextField title = createFullTextField("Title...");
@@ -25,32 +28,17 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
+	@Getter
+	private final List<Component> filterComponentList = List.of(
+		title,
+		createFilterBlock(createdStart, createdEnd),
+		createFilterBlock(updatedStart, updatedEnd),
+		actionsBlock.getActionBlock()
+	);
+
 	public AdvertisementFilterFields() {
 		super(AdvertisementFilter.empty());
-	}
 
-	@Override
-	protected void updateState() {
-		super.updateState();
-		actionsBlock.updateButtonState(isFilterActive());
-	}
-
-	@Override
-	public void configure(Runnable onApply) {
-		actionsBlock.configure(() -> {
-			if (!validate()) {
-				return;
-			}
-			originalFilter.copyFrom(newFilter);
-			onApply.run();
-			updateState();
-		}, () -> {
-			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
-			onApply.run();
-			updateState();
-		});
 		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
 			f -> true);
 
@@ -69,19 +57,27 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			validationUpdatedAt);
 	}
 
-	public Component getTitleBlock() {
-		return title;
+	@Override
+	protected void updateState() {
+		super.updateState();
+		actionsBlock.updateButtonState(isFilterActive());
 	}
 
-	public Component getCreatedBlock() {
-		return createFilterBlock(createdStart, createdEnd);
-	}
-
-	public Component getUpdatedBlock() {
-		return createFilterBlock(updatedStart, updatedEnd);
-	}
-
-	public Component getActionBlock() {
-		return actionsBlock.getActionBlock();
+	@Override
+	public void eventProcessor(Runnable onApply) {
+		actionsBlock.configure(() -> {
+			if (!validate()) {
+				return;
+			}
+			originalFilter.copyFrom(newFilter);
+			onApply.run();
+			updateState();
+		}, () -> {
+			clearAllFields();
+			newFilter.clear();
+			originalFilter.clear();
+			onApply.run();
+			updateState();
+		});
 	}
 }

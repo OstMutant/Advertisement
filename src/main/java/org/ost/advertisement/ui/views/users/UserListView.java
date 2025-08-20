@@ -47,7 +47,7 @@ public class UserListView extends VerticalLayout {
 
 		paginationBar.setPageChangeListener(event -> refreshGrid());
 
-		filterFields.configure(() -> {
+		filterFields.eventProcessor(() -> {
 			paginationBar.setTotalCount(0);
 			refreshGrid();
 		});

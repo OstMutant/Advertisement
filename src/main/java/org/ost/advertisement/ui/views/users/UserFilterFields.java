@@ -40,7 +40,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	}
 
 	@Override
-	public void configure(Runnable onApply) {
+	public void eventProcessor(Runnable onApply) {
 		actionsBlock.configure(() -> {
 			if (!validate()) {
 				return;

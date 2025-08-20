@@ -45,7 +45,7 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 		this.newFilter = defaultFilter.copy();
 	}
 
-	public abstract void configure(Runnable onApply);
+	public abstract void eventProcessor(Runnable onApply);
 
 	protected void highlightChangedFields() {
 		for (FilterFieldsRelationship<F, ?> fieldRelationship : fieldsRelationships) {

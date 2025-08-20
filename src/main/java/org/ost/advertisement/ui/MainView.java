@@ -46,7 +46,6 @@ public class MainView extends VerticalLayout {
 
 //		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
 		UsersView usersView = new UsersView(userRepository);
-		usersView.setSizeFull();
 		usersView.setVisible(false);
 
 		Tab usersTab = new Tab("Users");
