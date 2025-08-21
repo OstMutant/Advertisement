@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.mappers.AdvertisementFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.springframework.context.annotation.Scope;
@@ -28,6 +29,8 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
+	private final AdvertisementFilterMapper filterMapper;
+
 	@Getter
 	private final List<Component> filterComponentList = List.of(
 		title,
@@ -36,8 +39,9 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		actionsBlock.getActionBlock()
 	);
 
-	public AdvertisementFilterFields() {
-		super(AdvertisementFilter.empty());
+	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper) {
+		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty());
+		this.filterMapper = filterMapper;
 
 		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
 			f -> true);
@@ -69,13 +73,13 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			if (!validate()) {
 				return;
 			}
-			originalFilter.copyFrom(newFilter);
+			filterMapper.update(originalFilter, newFilter);
 			onApply.run();
 			updateState();
 		}, () -> {
 			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
+			filterMapper.update(newFilter, defaultFilter);
+			filterMapper.update(originalFilter, defaultFilter);
 			onApply.run();
 			updateState();
 		});

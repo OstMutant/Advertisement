@@ -19,9 +19,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.dto.filter.Filter;
+import org.ost.advertisement.dto.filter.FilterValidation;
 
-public abstract class AbstractFilterFields<F extends Filter<F>> {
+public abstract class AbstractFilterFields<F extends FilterValidation<F>> {
 
 	protected final F defaultFilter;
 	@Getter
@@ -39,10 +39,10 @@ public abstract class AbstractFilterFields<F extends Filter<F>> {
 
 	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
-	protected AbstractFilterFields(F defaultFilter) {
+	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter) {
 		this.defaultFilter = defaultFilter;
-		this.originalFilter = defaultFilter.copy();
-		this.newFilter = defaultFilter.copy();
+		this.originalFilter = originalFilter;
+		this.newFilter = newFilter;
 	}
 
 	public abstract void eventProcessor(Runnable onApply);

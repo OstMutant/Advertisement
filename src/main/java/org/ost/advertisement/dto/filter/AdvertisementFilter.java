@@ -11,8 +11,8 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class AdvertisementFilter implements Filter<AdvertisementFilter> {
+@Builder(toBuilder = true)
+public class AdvertisementFilter implements FilterValidation<AdvertisementFilter> {
 
 	private String title;
 
@@ -23,31 +23,6 @@ public class AdvertisementFilter implements Filter<AdvertisementFilter> {
 
 	public static AdvertisementFilter empty() {
 		return new AdvertisementFilter();
-	}
-
-	@Override
-	public void clear() {
-		copyFrom(empty());
-	}
-
-	@Override
-	public void copyFrom(AdvertisementFilter other) {
-		this.title = other.title;
-		this.createdAtStart = other.createdAtStart;
-		this.createdAtEnd = other.createdAtEnd;
-		this.updatedAtStart = other.updatedAtStart;
-		this.updatedAtEnd = other.updatedAtEnd;
-	}
-
-	@Override
-	public AdvertisementFilter copy() {
-		return AdvertisementFilter.builder()
-			.title(this.getTitle())
-			.createdAtStart(this.getCreatedAtStart())
-			.createdAtEnd(this.getCreatedAtEnd())
-			.updatedAtStart(this.getUpdatedAtStart())
-			.updatedAtEnd(this.getUpdatedAtEnd())
-			.build();
 	}
 
 	@Override

@@ -14,6 +14,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.mappers.UserFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.springframework.context.annotation.Scope;
@@ -33,8 +34,11 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
-	public UserFilterFields() {
-		super(new UserFilter());
+	private final UserFilterMapper filterMapper;
+
+	public UserFilterFields(UserFilterMapper filterMapper) {
+		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty());
+		this.filterMapper = filterMapper;
 
 		Predicate<UserFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
@@ -71,13 +75,13 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 			if (!validate()) {
 				return;
 			}
-			originalFilter.copyFrom(newFilter);
+			filterMapper.update(originalFilter, newFilter);
 			onApply.run();
 			updateState();
 		}, () -> {
 			clearAllFields();
-			newFilter.clear();
-			originalFilter.clear();
+			filterMapper.update(newFilter, defaultFilter);
+			filterMapper.update(originalFilter, defaultFilter);
 			onApply.run();
 			updateState();
 		});
