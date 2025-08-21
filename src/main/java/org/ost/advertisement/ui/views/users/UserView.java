@@ -21,28 +21,28 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.user.UserRepository;
+import org.ost.advertisement.services.users.UserService;
+import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
-import org.ost.advertisement.dto.sort.CustomSort;
 import org.springframework.context.annotation.Scope;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @Scope("prototype")
 public class UserView extends VerticalLayout {
 
-	private final UserRepository repository;
+	private final UserService userService;
 	private final Grid<User> grid = new Grid<>(User.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final UserFilterFields filterFields;
 	private final CustomSort customSort = new CustomSort(Sort.unsorted());
 
-	public UserView(UserRepository repository, UserFilterFields filterFields) {
-		this.repository = repository;
+	public UserView(UserFilterFields filterFields, UserService userService) {
 		this.filterFields = filterFields;
+		this.userService = userService;
 		addClassName("user-list-view");
 		setSizeFull();
 		setPadding(false);
@@ -64,8 +64,8 @@ public class UserView extends VerticalLayout {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 		UserFilter currentFilter = filterFields.getNewFilter();
-		List<User> pageData = repository.findByFilter(currentFilter, PageRequest.of(page, size, customSort.getSort()));
-		int totalCount = repository.countByFilter(currentFilter).intValue();
+		List<User> pageData = userService.getFilteredUsers(currentFilter, page, size, customSort.getSort());
+		int totalCount = userService.countFilteredUsers(currentFilter);
 
 		paginationBar.setTotalCount(totalCount);
 		grid.setItems(pageData);
@@ -132,7 +132,8 @@ public class UserView extends VerticalLayout {
 
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
-		VerticalLayout nameAndEmailLayout = new VerticalLayout(filterFields.getNameBlock(), filterFields.getEmailBlock());
+		VerticalLayout nameAndEmailLayout = new VerticalLayout(filterFields.getNameBlock(),
+			filterFields.getEmailBlock());
 		nameAndEmailLayout.setSpacing(false);
 		nameAndEmailLayout.setPadding(false);
 		nameAndEmailLayout.setMargin(false);
@@ -144,7 +145,7 @@ public class UserView extends VerticalLayout {
 	}
 
 	private void openUserFormDialog(User user) {
-		UserFormDialog dialog = new UserFormDialog(user, repository);
+		UserFormDialog dialog = new UserFormDialog(user, userService);
 		dialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
 				refreshGrid();
@@ -159,7 +160,7 @@ public class UserView extends VerticalLayout {
 
 		Button confirm = new Button("Delete", e -> {
 			try {
-				repository.delete(user);
+				userService.delete(SessionUtil.getCurrentUser(), user);
 				Notification notification = Notification.show("User deleted", 3000, Notification.Position.BOTTOM_START);
 				notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				refreshGrid();

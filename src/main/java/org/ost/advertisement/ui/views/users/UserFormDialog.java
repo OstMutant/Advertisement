@@ -17,7 +17,8 @@ import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.user.UserRepository;
+import org.ost.advertisement.services.users.UserService;
+import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
 @Slf4j
@@ -36,18 +37,22 @@ public class UserFormDialog extends BaseDialog {
 	private final Component createdAtComponent = createDateComponent("Created At:", createdAtSpan);
 	private final Component updatedAtComponent = createDateComponent("Updated At:", updatedAtSpan);
 
-	private final Binder<User> binder = new Binder<>(User.class);
+	private final Binder<User> binder;
 
-	private final UserRepository userRepository;
-	private final User currentUser;
+	private final UserService userService;
+	private final User user;
 
-	public UserFormDialog(User user, UserRepository userRepository) {
+	public UserFormDialog(User user, UserService userService) {
 		super();
+		this.user = user;
+		this.userService = userService;
 
-		this.userRepository = userRepository;
-		this.currentUser = user;
+		binder = createBinder(user, nameField, roleCombo);
 
-		configureBinder();
+		idSpan.setText(String.valueOf(user.getId()));
+		emailSpan.setText(ofNullable(user.getEmail()).orElse(""));
+		createdAtSpan.setText(formatDate(user.getCreatedAt()));
+		updatedAtSpan.setText(formatDate(user.getUpdatedAt()));
 
 		title.setText("Edit User");
 		actionsFooter.add(createSaveButton(event -> saveUser()), createCancelButton());
@@ -74,8 +79,9 @@ public class UserFormDialog extends BaseDialog {
 		return combo;
 	}
 
-	private void configureBinder() {
-		binder.setBean(currentUser);
+	public Binder<User> createBinder(User user, TextField nameField, ComboBox<Role> roleCombo) {
+		Binder<User> binder = new Binder<>(User.class);
+		binder.setBean(user);
 
 		binder.forField(nameField)
 			.asRequired("Name cannot be empty")
@@ -86,18 +92,13 @@ public class UserFormDialog extends BaseDialog {
 			.asRequired("Role is required")
 			.bind(User::getRole, User::setRole);
 
-		idSpan.setText(String.valueOf(currentUser.getId()));
-		emailSpan.setText(ofNullable(currentUser.getEmail()).orElse(""));
-		createdAtSpan.setText(formatDate(currentUser.getCreatedAt()));
-		updatedAtSpan.setText(formatDate(currentUser.getUpdatedAt()));
+		return binder;
 	}
 
 	private void saveUser() {
 		try {
-			binder.writeBean(currentUser);
-			currentUser.setUpdatedAt(Instant.now());
-
-			userRepository.save(currentUser);
+			binder.writeBean(user);
+			userService.save(SessionUtil.getCurrentUser(), user);
 			Notification.show("User updated", 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();

@@ -8,6 +8,7 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
+import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.SessionUtil;
@@ -22,6 +23,13 @@ public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
 					@Qualifier("userAccessEvaluator") AccessEvaluator<User> access) {
+		//------------------------------------------ just for test
+		User adminUser = new User();
+		adminUser.setId(1000L);
+		adminUser.setName("admin");
+		adminUser.setRole(Role.ADMIN);
+		SessionUtil.setCurrentUser(adminUser);
+		//------------------------------------------
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -46,14 +54,14 @@ public class MainView extends VerticalLayout {
 		pages.setSizeFull();
 		add(pages);
 
-		// if (access.canView(SessionUtil.getCurrentUser())) {
+		if (access.canView(SessionUtil.getCurrentUser())) {
 			usersView.setVisible(false);
 
 			Tab usersTab = new Tab("Users");
 			tabs.add(usersTab);
 			tabsToPages.put(usersTab, usersView);
 			pages.add(usersView);
-		// }
+		}
 
 		tabs.addSelectedChangeListener(event -> {
 			tabsToPages.values().forEach(page -> page.setVisible(false));
