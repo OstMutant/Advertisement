@@ -8,18 +8,20 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
-import org.ost.advertisement.repository.user.UserRepository;
-import org.ost.advertisement.services.SecurityService;
+import org.ost.advertisement.entities.User;
+import org.ost.advertisement.security.AccessEvaluator;
+import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
 import org.ost.advertisement.ui.views.users.UserView;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Route("")
 public class MainView extends VerticalLayout {
 
-	public MainView(HeaderBar headerBar, SecurityService securityService, UserRepository userRepository,
-					AdvertisementsView advertisementsView, UserView usersView) {
+	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
+					@Qualifier("userAccessEvaluator") AccessEvaluator<User> access) {
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -44,14 +46,14 @@ public class MainView extends VerticalLayout {
 		pages.setSizeFull();
 		add(pages);
 
-//		if (securityService.isAdmin(SessionUtil.getCurrentUser())) {
-		usersView.setVisible(false);
+		// if (access.canView(SessionUtil.getCurrentUser())) {
+			usersView.setVisible(false);
 
-		Tab usersTab = new Tab("Users");
-		tabs.add(usersTab);
-		tabsToPages.put(usersTab, usersView);
-		pages.add(usersView);
-//		}
+			Tab usersTab = new Tab("Users");
+			tabs.add(usersTab);
+			tabsToPages.put(usersTab, usersView);
+			pages.add(usersView);
+		// }
 
 		tabs.addSelectedChangeListener(event -> {
 			tabsToPages.values().forEach(page -> page.setVisible(false));
