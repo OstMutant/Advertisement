@@ -14,27 +14,26 @@ import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.mappers.AdvertisementMapper;
-import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
+import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.springframework.context.annotation.Scope;
-import org.springframework.data.domain.PageRequest;
 
 @SpringComponent
 @Scope("prototype")
 public class AdvertisementsView extends VerticalLayout {
 
-	private final AdvertisementRepository repository;
-	private final AdvertisementMapper advertisementMapper;
+	private final AdvertisementService advertisementService;
+	private final AdvertisementMapper mapper;
 	private final AdvertisementLeftSidebar sidebar;
 	private final AdvertisementFilterFields filterFields;
 	private final AdvertisementSortFields sortFields;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 
-	public AdvertisementsView(AdvertisementRepository repository, AdvertisementMapper advertisementMapper,
+	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
 							  AdvertisementLeftSidebar sidebar) {
-		this.advertisementMapper = advertisementMapper;
-		this.repository = repository;
+		this.mapper = mapper;
+		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
 
 		setSizeFull();
@@ -68,24 +67,24 @@ public class AdvertisementsView extends VerticalLayout {
 	private void refreshAdvertisements() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		PageRequest pageable = PageRequest.of(page, size, sortFields.getOriginalSort().getSort());
 		AdvertisementFilter originalFilter = filterFields.getOriginalFilter();
-		List<AdvertisementView> pageData = repository.findByFilter(originalFilter, pageable);
-		int totalCount = repository.countByFilter(originalFilter).intValue();
+		List<AdvertisementView> pageData = advertisementService.getFiltered(originalFilter, page, size,
+			sortFields.getOriginalSort().getSort());
+		int totalCount = advertisementService.count(originalFilter);
 
 		paginationBar.setTotalCount(totalCount);
 		advertisementContainer.removeAll();
 		pageData.forEach(ad ->
 			advertisementContainer.add(
 				new AdvertisementCardView(ad,
-					() -> openAdvertisementFormDialog(advertisementMapper.toAdvertisement(ad)),
+					() -> openAdvertisementFormDialog(mapper.toAdvertisement(ad)),
 					() -> openConfirmDeleteDialog(ad))
 			)
 		);
 	}
 
 	private void openAdvertisementFormDialog(Advertisement advertisement) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, repository);
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementService);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
 				refreshAdvertisements();
@@ -100,7 +99,7 @@ public class AdvertisementsView extends VerticalLayout {
 
 		Button confirm = new Button("Delete", e -> {
 			try {
-				repository.deleteById(ad.id());
+				advertisementService.delete(ad);
 				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
 					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				refreshAdvertisements();

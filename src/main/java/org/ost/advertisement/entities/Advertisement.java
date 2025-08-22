@@ -4,6 +4,7 @@ import java.time.Instant;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.ost.advertisement.security.UserIdMarker;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -11,7 +12,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Table("advertisement")
 @Getter
 @Setter
-public class Advertisement {
+public class Advertisement implements UserIdMarker {
 
 	@Id
 	private Long id;

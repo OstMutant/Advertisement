@@ -23,7 +23,7 @@ import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.users.UserService;
+import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
@@ -64,8 +64,8 @@ public class UserView extends VerticalLayout {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 		UserFilter currentFilter = filterFields.getNewFilter();
-		List<User> pageData = userService.getFilteredUsers(currentFilter, page, size, customSort.getSort());
-		int totalCount = userService.countFilteredUsers(currentFilter);
+		List<User> pageData = userService.getFiltered(currentFilter, page, size, customSort.getSort());
+		int totalCount = userService.count(currentFilter);
 
 		paginationBar.setTotalCount(totalCount);
 		grid.setItems(pageData);

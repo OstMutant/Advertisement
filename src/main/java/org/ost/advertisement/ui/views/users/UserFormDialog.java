@@ -17,7 +17,7 @@ import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.users.UserService;
+import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 

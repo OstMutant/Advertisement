@@ -16,13 +16,12 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
 import org.ost.advertisement.ui.views.users.UserView;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Route("")
 public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
-					@Qualifier("userAccessEvaluator") AccessEvaluator<User> access) {
+					AccessEvaluator access) {
 		//------------------------------------------ just for test
 		User adminUser = new User();
 		adminUser.setId(1000L);

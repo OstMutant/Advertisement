@@ -14,7 +14,8 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Advertisement;
-import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
+import org.ost.advertisement.services.AdvertisementService;
+import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
 @Slf4j
@@ -29,14 +30,14 @@ public class AdvertisementFormDialog extends BaseDialog {
 
 	private final Binder<Advertisement> binder = new Binder<>(Advertisement.class);
 
-	private final AdvertisementRepository repository;
-	private final Advertisement currentAd;
+	private final AdvertisementService advertisementService;
+	private final Advertisement ad;
 
-	public AdvertisementFormDialog(Advertisement advertisement, AdvertisementRepository repository) {
+	public AdvertisementFormDialog(Advertisement advertisement, AdvertisementService advertisementService) {
 		super();
 
-		this.repository = repository;
-		this.currentAd = advertisement == null ? new Advertisement() : advertisement;
+		this.advertisementService = advertisementService;
+		this.ad = advertisement == null ? new Advertisement() : advertisement;
 
 		configureBinder();
 
@@ -78,7 +79,7 @@ public class AdvertisementFormDialog extends BaseDialog {
 	}
 
 	private void configureBinder() {
-		binder.setBean(currentAd);
+		binder.setBean(ad);
 
 		binder.forField(titleField)
 			.asRequired("Title is required")
@@ -89,20 +90,15 @@ public class AdvertisementFormDialog extends BaseDialog {
 			.asRequired("Description required")
 			.bind(Advertisement::getDescription, Advertisement::setDescription);
 
-		createdAtSpan.setText(formatDate(currentAd.getCreatedAt()));
-		updatedAtSpan.setText(formatDate(currentAd.getUpdatedAt()));
-		userIdSpan.setText(String.valueOf(currentAd.getUserId()));
+		createdAtSpan.setText(formatDate(ad.getCreatedAt()));
+		updatedAtSpan.setText(formatDate(ad.getUpdatedAt()));
+		userIdSpan.setText(String.valueOf(ad.getUserId()));
 	}
 
 	private void saveAdvertisement() {
 		try {
-			binder.writeBean(currentAd);
-			if (currentAd.getId() == null) {
-				currentAd.setCreatedAt(Instant.now());
-			}
-			currentAd.setUpdatedAt(Instant.now());
-
-			repository.save(currentAd);
+			binder.writeBean(ad);
+			advertisementService.save(SessionUtil.getCurrentUser(), ad);
 			Notification.show("Advertisement saved", 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();
