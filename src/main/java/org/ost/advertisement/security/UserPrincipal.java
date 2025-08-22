@@ -7,17 +7,8 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public class UserPrincipal implements UserDetails {
 
-	private final User user;
-
-	public UserPrincipal(User user) {
-		this.user = user;
-	}
-
-	public User getUser() {
-		return user;
-	}
+public record UserPrincipal(User user) implements UserDetails {
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {

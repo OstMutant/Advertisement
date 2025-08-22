@@ -25,6 +25,6 @@ public class SessionUtil {
 			return Optional.empty();
 		}
 
-		return Optional.of(((UserPrincipal) principal).getUser());
+		return Optional.of(((UserPrincipal) principal).user());
 	}
 }
