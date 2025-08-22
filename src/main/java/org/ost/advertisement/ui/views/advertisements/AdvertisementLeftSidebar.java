@@ -5,12 +5,13 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.details.Details;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import lombok.Getter;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class AdvertisementLeftSidebar extends VerticalLayout {
 
 	@Getter

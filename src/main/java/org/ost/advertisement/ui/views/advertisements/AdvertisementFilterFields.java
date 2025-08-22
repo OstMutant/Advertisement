@@ -7,6 +7,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
@@ -17,7 +18,7 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
 
 	private final TextField title = createFullTextField("Title...");

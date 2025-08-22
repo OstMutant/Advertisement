@@ -9,6 +9,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
@@ -19,7 +20,7 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class AdvertisementsView extends VerticalLayout {
 
 	private final AdvertisementService advertisementService;

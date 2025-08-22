@@ -70,4 +70,11 @@
       CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'));
     </sql>
   </changeSet>
+  <changeSet id="01-04" author="ostap">
+    <addColumn tableName="user_information">
+      <column name="locale" type="VARCHAR(10)">
+        <constraints nullable="true"/>
+      </column>
+    </addColumn>
+  </changeSet>
 </databaseChangeLog>

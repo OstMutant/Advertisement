@@ -10,7 +10,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.SessionUtil;
-import org.ost.advertisement.ui.utils.TestSecurityUtil;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
@@ -21,9 +20,6 @@ public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
 					AccessEvaluator access) {
-		//------------------------------------------ just for test
-//		TestSecurityUtil.setTestUser();
-		//------------------------------------------
 
 		TimeZoneUtil.detectTimeZone();
 

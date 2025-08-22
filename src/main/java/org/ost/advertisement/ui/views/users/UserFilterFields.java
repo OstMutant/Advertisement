@@ -11,6 +11,7 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
@@ -20,7 +21,7 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	private final NumberField idMin = createNumberField("Min ID");

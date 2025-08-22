@@ -6,6 +6,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
@@ -16,7 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class AdvertisementSortFields extends AbstractSortFields {
 
 	private final ComboBox<Direction> titleCombo = createCombo();

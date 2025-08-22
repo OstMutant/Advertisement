@@ -19,6 +19,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.dto.sort.CustomSort;
@@ -31,7 +32,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
 @SpringComponent
-@Scope("prototype")
+@UIScope
 public class UserView extends VerticalLayout {
 
 	private final UserService userService;
