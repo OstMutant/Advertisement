@@ -7,7 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.UserPrincipal;
-import org.ost.advertisement.utils.PasswordEncoderUtil;
+import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

@@ -13,6 +13,7 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.AuthService;
+import org.ost.advertisement.ui.utils.SessionUtil;
 
 @SpringComponent
 @UIScope
@@ -36,6 +37,7 @@ public class LoginDialog extends Dialog {
 			if (success) {
 				close();
 				Notification.show("Logged in successfully", 2000, Notification.Position.TOP_CENTER);
+				SessionUtil.refreshCurrentLocale();
 				UI.getCurrent().getPage().reload();
 			} else {
 				Notification.show("Invalid email or password", 3000, Notification.Position.MIDDLE);

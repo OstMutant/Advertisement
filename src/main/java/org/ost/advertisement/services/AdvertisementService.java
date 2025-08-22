@@ -11,7 +11,7 @@ import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -41,7 +41,7 @@ public class AdvertisementService {
 	}
 
 	public void delete(AdvertisementView ad) {
-		if (!canDelete(SessionUtil.getCurrentUser(), ad)) {
+		if (!canDelete(AuthUtil.getCurrentUser(), ad)) {
 			throw new AccessDeniedException("You cannot delete this advertisement");
 		}
 		repository.delete(mapper.toAdvertisement(ad));

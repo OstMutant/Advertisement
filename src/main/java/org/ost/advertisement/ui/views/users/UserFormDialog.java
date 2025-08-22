@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
 @Slf4j
@@ -98,7 +98,7 @@ public class UserFormDialog extends BaseDialog {
 	private void saveUser() {
 		try {
 			binder.writeBean(user);
-			userService.save(SessionUtil.getCurrentUser(), user);
+			userService.save(AuthUtil.getCurrentUser(), user);
 			Notification.show("User updated", 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();

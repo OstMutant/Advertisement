@@ -9,7 +9,7 @@ import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
@@ -44,7 +44,7 @@ public class MainView extends VerticalLayout {
 		pages.setSizeFull();
 		add(pages);
 
-		if (access.canView(SessionUtil.getCurrentUser())) {
+		if (access.canView(AuthUtil.getCurrentUser())) {
 			usersView.setVisible(false);
 
 			Tab usersTab = new Tab("Users");

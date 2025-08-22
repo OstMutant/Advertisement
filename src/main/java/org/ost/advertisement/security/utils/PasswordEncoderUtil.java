@@ -1,4 +1,4 @@
-package org.ost.advertisement.utils;
+package org.ost.advertisement.security.utils;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 

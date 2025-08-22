@@ -25,10 +25,9 @@ import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
-import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
 @SpringComponent
@@ -161,7 +160,7 @@ public class UserView extends VerticalLayout {
 
 		Button confirm = new Button("Delete", e -> {
 			try {
-				userService.delete(SessionUtil.getCurrentUser(), user);
+				userService.delete(AuthUtil.getCurrentUser(), user);
 				Notification notification = Notification.show("User deleted", 3000, Notification.Position.BOTTOM_START);
 				notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 				refreshGrid();

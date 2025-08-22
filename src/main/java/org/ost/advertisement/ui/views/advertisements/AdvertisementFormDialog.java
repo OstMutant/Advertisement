@@ -15,7 +15,7 @@ import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.services.AdvertisementService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.ui.views.dialogs.BaseDialog;
 
 @Slf4j
@@ -98,7 +98,7 @@ public class AdvertisementFormDialog extends BaseDialog {
 	private void saveAdvertisement() {
 		try {
 			binder.writeBean(ad);
-			advertisementService.save(SessionUtil.getCurrentUser(), ad);
+			advertisementService.save(AuthUtil.getCurrentUser(), ad);
 			Notification.show("Advertisement saved", 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();

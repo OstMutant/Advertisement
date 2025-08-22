@@ -36,6 +36,11 @@ public class UserService {
 		repository.save(targetUser);
 	}
 
+	public void save(User user) {
+		user.setUpdatedAt(Instant.now());
+		repository.save(user);
+	}
+
 	public void delete(User currentUser, User targetUser) {
 		if (!canDelete(currentUser, targetUser)) {
 			throw new AccessDeniedException("You cannot delete this user");
