@@ -41,6 +41,11 @@
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-spring-boot-starter</artifactId>
         </dependency>
+<!-- Security -->
+        <dependency>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
 <!-- PostgresSQL JDBC Driver -->
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -60,14 +65,14 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
-        <!-- MapStruct API -->
+<!-- MapStruct API -->
         <dependency>
           <groupId>org.mapstruct</groupId>
           <artifactId>mapstruct</artifactId>
           <version>${mapstruct.version}</version>
         </dependency>
 
-        <!-- Lombok MapStruct Binding -->
+<!-- Lombok MapStruct Binding -->
         <dependency>
           <groupId>org.projectlombok</groupId>
           <artifactId>lombok-mapstruct-binding</artifactId>

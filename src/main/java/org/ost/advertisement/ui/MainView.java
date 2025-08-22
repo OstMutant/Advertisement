@@ -8,10 +8,9 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
-import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.ui.utils.TestSecurityUtil;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
@@ -23,11 +22,7 @@ public class MainView extends VerticalLayout {
 	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
 					AccessEvaluator access) {
 		//------------------------------------------ just for test
-		User adminUser = new User();
-		adminUser.setId(1000L);
-		adminUser.setName("admin");
-		adminUser.setRole(Role.ADMIN);
-		SessionUtil.setCurrentUser(adminUser);
+//		TestSecurityUtil.setTestUser();
 		//------------------------------------------
 
 		TimeZoneUtil.detectTimeZone();

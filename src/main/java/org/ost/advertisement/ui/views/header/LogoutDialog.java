@@ -14,9 +14,10 @@ public class LogoutDialog extends ConfirmDialog {
 		setHeader("Are you sure?");
 		setText("Do you want to log out?");
 		setConfirmButton("Yes", ed -> {
+			UI ui = UI.getCurrent();
 			authService.logout();
 			close();
-			UI.getCurrent().getPage().reload();
+			ui.getPage().reload();
 		});
 		setCancelButton("Cancel", ed -> this.close());
 	}

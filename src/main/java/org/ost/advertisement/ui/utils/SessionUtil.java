@@ -1,23 +1,30 @@
 package org.ost.advertisement.ui.utils;
 
-import com.vaadin.flow.server.VaadinSession;
+import java.util.Optional;
+import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
+@NoArgsConstructor(access = lombok.AccessLevel.PRIVATE)
 public class SessionUtil {
 
 	public static User getCurrentUser() {
-		return VaadinSession.getCurrent().getAttribute(User.class);
+		return getOptionalCurrentUser().orElse(null);
 	}
 
-	public static boolean isEmptyCurrentUser() {
-		return SessionUtil.getCurrentUser() == null;
-	}
+	private static Optional<User> getOptionalCurrentUser() {
+		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+		if (auth == null || !auth.isAuthenticated()) {
+			return Optional.empty();
+		}
 
-	public static void setCurrentUser(User user) {
-		VaadinSession.getCurrent().setAttribute(User.class, user);
-	}
+		Object principal = auth.getPrincipal();
+		if (!(principal instanceof UserPrincipal)) {
+			return Optional.empty();
+		}
 
-	public static void clearUser() {
-		VaadinSession.getCurrent().setAttribute(User.class, null);
+		return Optional.of(((UserPrincipal) principal).getUser());
 	}
 }
