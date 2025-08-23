@@ -38,6 +38,7 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 			.orElse(LOCALES.getFirst());
 
 		localeSelect.setValue(selected);
+		add(localeSelect);
 
 		localeSelect.addValueChangeListener(event -> {
 			Locale newLocale = event.getValue().locale();
@@ -45,12 +46,12 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 			if (currentUser != null) {
 				currentUser.setLocale(newLocale);
 				userService.save(currentUser);
+			} else {
+				UI.getCurrent().getSession().setLocale(newLocale);
 			}
 			SessionUtil.refreshCurrentLocale();
 			UI.getCurrent().getPage().reload();
 		});
-
-		add(localeSelect);
 	}
 
 	private record LocaleWrapper(String label, Locale locale) {

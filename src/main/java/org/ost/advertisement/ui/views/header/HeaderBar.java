@@ -27,31 +27,29 @@ public class HeaderBar extends HorizontalLayout {
 		authBlock.setSpacing(false);
 		authBlock.setPadding(false);
 		authBlock.setAlignItems(Alignment.END);
+		authBlock.add(new HorizontalLayout(localeSelectorComponent));
 
-		User currentUser = AuthUtil.getCurrentUser();
+		HorizontalLayout authBlockRow = new HorizontalLayout();
+		authBlockRow.setAlignItems(Alignment.CENTER);
+
+		authBlock.add(authBlockRow);
+		add(authBlock);
 
 		Span userInfo = new Span();
+		User currentUser = AuthUtil.getCurrentUser();
 		if (currentUser != null) {
 			userInfo.setText(i18n.get("header.signedIn", currentUser.getEmail()));
-			authBlock.add(new HorizontalLayout(userInfo, localeSelectorComponent));
-		} else {
-			userInfo.setText(i18n.get("header.notSignedIn"));
-			authBlock.add(new HorizontalLayout(userInfo));
-		}
-
-		if (currentUser != null) {
 			Button logoutButton = new Button(i18n.get("header.logout"), VaadinIcon.SIGN_OUT.create(),
 				e -> logoutDialog.open());
-			authBlock.add(new HorizontalLayout(logoutButton));
+			authBlockRow.add(userInfo, logoutButton);
 		} else {
+			userInfo.setText(i18n.get("header.notSignedIn"));
 			Button loginButton = new Button(i18n.get("header.login"), VaadinIcon.SIGN_IN.create(),
 				e -> loginDialog.open());
 			Button signUpButton = new Button(i18n.get("header.signup"), VaadinIcon.USER.create(),
 				e -> signUpDialog.open());
-			authBlock.add(new HorizontalLayout(loginButton, signUpButton));
+			authBlockRow.add(userInfo, loginButton, signUpButton);
 		}
-
-		add(authBlock);
 	}
 }
 

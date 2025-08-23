@@ -17,6 +17,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
+import org.ost.advertisement.services.I18nService;
 
 @SpringComponent
 @UIScope
@@ -24,26 +25,38 @@ public class SignUpDialog extends Dialog {
 
 	private final Pattern emailPattern = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
-	public SignUpDialog(UserRepository userRepository) {
-		setHeaderTitle("Register New User");
+	public SignUpDialog(UserRepository userRepository, I18nService i18n) {
+		setModal(true);
+		setDraggable(false);
+		setResizable(false);
+		setHeaderTitle(i18n.get("signup.header.title"));
 
-		TextField nameField = new TextField("Name");
-		EmailField emailField = new EmailField("Email");
-		PasswordField passwordField = new PasswordField("Password");
+		TextField nameField = new TextField(i18n.get("signup.name.label"));
+		EmailField emailField = new EmailField(i18n.get("signup.email.label"));
+		PasswordField passwordField = new PasswordField(i18n.get("signup.password.label"));
 
-		Button registerButton = new Button("Sign Up");
-		Button cancelButton = new Button("Cancel", e -> close());
+		Button registerButton = new Button(i18n.get("signup.button.submit"));
+		registerButton.addThemeName("primary");
+
+		Button cancelButton = new Button(i18n.get("signup.button.cancel"), e -> close());
+		cancelButton.addThemeName("tertiary");
+
+		HorizontalLayout actions = new HorizontalLayout(registerButton, cancelButton);
+		actions.setSpacing(true);
+		actions.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
+
+		FormLayout form = new FormLayout(nameField, emailField, passwordField, new Div(actions));
+		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
+
+		add(form);
 
 		registerButton.addClickListener(event -> {
 			String name = nameField.getValue().trim();
 			String email = emailField.getValue().trim();
 			String rawPassword = passwordField.getValue().trim();
 
-			boolean valid = validateFields(nameField, emailField, passwordField, name, email, rawPassword,
-				userRepository);
-			if (!valid) {
-				return;
-			}
+			boolean valid = validateFields(nameField, emailField, passwordField, name, email, rawPassword, userRepository, i18n);
+			if (!valid) return;
 
 			User newUser = new User();
 			newUser.setName(name);
@@ -54,34 +67,19 @@ public class SignUpDialog extends Dialog {
 			newUser.setRole(Role.USER);
 
 			userRepository.save(newUser);
-			Notification.show("User registered successfully", 2000, Notification.Position.TOP_CENTER);
+			Notification.show(i18n.get("signup.success"), 2000, Notification.Position.TOP_CENTER);
 			close();
 		});
-
-		registerButton.addThemeName("primary");
-		cancelButton.addThemeName("tertiary");
-
-		HorizontalLayout actions = new HorizontalLayout(registerButton, cancelButton);
-		actions.setSpacing(true);
-		actions.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
-
-		FormLayout form = new FormLayout(nameField, emailField, passwordField, new Div(actions));
-		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1)); // одна колонка
-
-		add(form);
-		setModal(true);
-		setDraggable(false);
-		setResizable(false);
 	}
 
 	private boolean validateFields(TextField nameField, EmailField emailField, PasswordField passwordField,
 								   String name, String email, String password,
-								   UserRepository userRepository) {
+								   UserRepository userRepository, I18nService i18n) {
 		boolean valid = true;
 
 		if (name.isEmpty()) {
 			nameField.setInvalid(true);
-			nameField.setErrorMessage("Name is required");
+			nameField.setErrorMessage(i18n.get("signup.error.name.required"));
 			valid = false;
 		} else {
 			nameField.setInvalid(false);
@@ -89,11 +87,11 @@ public class SignUpDialog extends Dialog {
 
 		if (!emailPattern.matcher(email).matches()) {
 			emailField.setInvalid(true);
-			emailField.setErrorMessage("Enter a valid email address");
+			emailField.setErrorMessage(i18n.get("signup.error.email.invalid"));
 			valid = false;
 		} else if (userRepository.findByEmail(email).isPresent()) {
 			emailField.setInvalid(true);
-			emailField.setErrorMessage("Email already registered");
+			emailField.setErrorMessage(i18n.get("signup.error.email.exists"));
 			valid = false;
 		} else {
 			emailField.setInvalid(false);
@@ -101,7 +99,7 @@ public class SignUpDialog extends Dialog {
 
 		if (password.length() < 6) {
 			passwordField.setInvalid(true);
-			passwordField.setErrorMessage("Password must be at least 6 characters");
+			passwordField.setErrorMessage(i18n.get("signup.error.password.short"));
 			valid = false;
 		} else {
 			passwordField.setInvalid(false);
