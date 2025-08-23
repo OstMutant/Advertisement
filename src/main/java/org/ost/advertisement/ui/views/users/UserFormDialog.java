@@ -79,7 +79,7 @@ public class UserFormDialog extends BaseDialog {
 		return combo;
 	}
 
-	public Binder<User> createBinder(User user, TextField nameField, ComboBox<Role> roleCombo) {
+	private Binder<User> createBinder(User user, TextField nameField, ComboBox<Role> roleCombo) {
 		Binder<User> binder = new Binder<>(User.class);
 		binder.setBean(user);
 
