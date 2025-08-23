@@ -19,7 +19,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.security.utils.AuthUtil;
-import org.ost.advertisement.ui.views.dialogs.BaseDialog;
+import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 
 @Slf4j
 public class UserFormDialog extends BaseDialog {

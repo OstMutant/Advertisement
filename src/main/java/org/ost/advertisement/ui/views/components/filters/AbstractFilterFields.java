@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components.filters;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
-import static org.ost.advertisement.utils.FilterUtil.hasChanged;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;

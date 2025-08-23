@@ -16,7 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.security.utils.AuthUtil;
-import org.ost.advertisement.ui.views.dialogs.BaseDialog;
+import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 
 @Slf4j
 public class AdvertisementFormDialog extends BaseDialog {

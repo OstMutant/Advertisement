@@ -1,4 +1,4 @@
-package org.ost.advertisement.utils;
+package org.ost.advertisement.dto.filter.utils;
 
 import java.time.Instant;
 import java.util.Objects;

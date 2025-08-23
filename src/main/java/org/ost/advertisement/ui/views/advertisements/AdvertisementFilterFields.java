@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -15,7 +15,6 @@ import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.mappers.AdvertisementFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
-import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @UIScope

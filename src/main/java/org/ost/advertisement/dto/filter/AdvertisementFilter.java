@@ -1,6 +1,6 @@
 package org.ost.advertisement.dto.filter;
 
-import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
 
 import java.time.Instant;
 import lombok.AllArgsConstructor;

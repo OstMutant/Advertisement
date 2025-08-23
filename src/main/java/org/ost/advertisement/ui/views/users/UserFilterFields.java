@@ -1,9 +1,9 @@
 package org.ost.advertisement.ui.views.users;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.utils.FilterUtil.isValidDateRange;
-import static org.ost.advertisement.utils.FilterUtil.isValidNumberRange;
-import static org.ost.advertisement.utils.FilterUtil.toLong;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidNumberRange;
+import static org.ost.advertisement.dto.filter.utils.FilterUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -18,7 +18,6 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.UserFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
-import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @UIScope

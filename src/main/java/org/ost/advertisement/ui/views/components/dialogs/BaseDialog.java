@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.dialogs;
+package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.component.ClickEvent;
 import com.vaadin.flow.component.Component;
@@ -20,21 +20,6 @@ public class BaseDialog extends Dialog {
 	protected final H2 title;
 	protected final FormLayout content;
 	protected final HorizontalLayout actionsFooter;
-
-	protected static void updateElementBy13pxGray(Element element) {
-		element.getStyle()
-			.set("font-size", "13px")
-			.set("color", "gray")
-			.set("padding", "4px 8px");
-	}
-
-	protected static void updateElementByEmailStyle(Element element) {
-		element.getStyle()
-			.set("font-size", "14px")
-			.set("font-weight", "bold")
-			.set("color", "var(--lumo-primary-text)")
-			.set("padding", "4px 8px");
-	}
 
 	public BaseDialog() {
 		setModal(true);
@@ -63,7 +48,6 @@ public class BaseDialog extends Dialog {
 		scrollArea.getStyle()
 			.set("overflow", "auto")
 			.set("flex-grow", "1");
-
 		return scrollArea;
 	}
 
@@ -114,5 +98,20 @@ public class BaseDialog extends Dialog {
 		Button cancelButton = new Button("Cancel", e -> close());
 		cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 		return cancelButton;
+	}
+
+	protected void updateElementBy13pxGray(Element element) {
+		element.getStyle()
+			.set("font-size", "13px")
+			.set("color", "gray")
+			.set("padding", "4px 8px");
+	}
+
+	protected void updateElementByEmailStyle(Element element) {
+		element.getStyle()
+			.set("font-size", "14px")
+			.set("font-weight", "bold")
+			.set("color", "var(--lumo-primary-text)")
+			.set("padding", "4px 8px");
 	}
 }
