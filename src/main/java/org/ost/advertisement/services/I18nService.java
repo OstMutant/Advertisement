@@ -1,6 +1,6 @@
 package org.ost.advertisement.services;
 
-import java.util.Locale;
+import org.ost.advertisement.ui.utils.SessionUtil;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +13,7 @@ public class I18nService {
 		this.messageSource = messageSource;
 	}
 
-	public String get(String key, Locale locale, Object... args) {
-		return messageSource.getMessage(key, args, locale);
+	public String get(String key, Object... args) {
+		return messageSource.getMessage(key, args, SessionUtil.getCurrentLocale());
 	}
 }

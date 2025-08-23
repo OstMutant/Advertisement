@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.header;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -8,11 +7,9 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import java.util.Locale;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.SessionUtil;
 
 @SpringComponent
 @UIScope
@@ -33,25 +30,23 @@ public class HeaderBar extends HorizontalLayout {
 
 		User currentUser = AuthUtil.getCurrentUser();
 
-		Locale locale = SessionUtil.getCurrentLocale();
-
 		Span userInfo = new Span();
 		if (currentUser != null) {
-			userInfo.setText(i18n.get("header.signedIn", locale, currentUser.getEmail()));
+			userInfo.setText(i18n.get("header.signedIn", currentUser.getEmail()));
 			authBlock.add(new HorizontalLayout(userInfo, localeSelectorComponent));
 		} else {
-			userInfo.setText(i18n.get("header.notSignedIn", locale));
+			userInfo.setText(i18n.get("header.notSignedIn"));
 			authBlock.add(new HorizontalLayout(userInfo));
 		}
 
 		if (currentUser != null) {
-			Button logoutButton = new Button(i18n.get("header.logout", locale), VaadinIcon.SIGN_OUT.create(),
+			Button logoutButton = new Button(i18n.get("header.logout"), VaadinIcon.SIGN_OUT.create(),
 				e -> logoutDialog.open());
 			authBlock.add(new HorizontalLayout(logoutButton));
 		} else {
-			Button loginButton = new Button(i18n.get("header.login", locale), VaadinIcon.SIGN_IN.create(),
+			Button loginButton = new Button(i18n.get("header.login"), VaadinIcon.SIGN_IN.create(),
 				e -> loginDialog.open());
-			Button signUpButton = new Button(i18n.get("header.signup", locale), VaadinIcon.USER.create(),
+			Button signUpButton = new Button(i18n.get("header.signup"), VaadinIcon.USER.create(),
 				e -> signUpDialog.open());
 			authBlock.add(new HorizontalLayout(loginButton, signUpButton));
 		}
