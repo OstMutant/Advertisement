@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.header;
 
+import static org.ost.advertisement.Constants.EMAIL_PATTERN;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
@@ -12,20 +14,23 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.time.Instant;
-import java.util.regex.Pattern;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.validation.NewUserValidator;
 
 @SpringComponent
 @UIScope
 public class SignUpDialog extends Dialog {
-
-	private final Pattern emailPattern = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+	private final UserRepository userRepository;
+	private final I18nService i18n;
 
 	public SignUpDialog(UserRepository userRepository, I18nService i18n) {
+		this.userRepository = userRepository;
+		this.i18n = i18n;
+
 		setModal(true);
 		setDraggable(false);
 		setResizable(false);
@@ -55,8 +60,9 @@ public class SignUpDialog extends Dialog {
 			String email = emailField.getValue().trim();
 			String rawPassword = passwordField.getValue().trim();
 
-			boolean valid = validateFields(nameField, emailField, passwordField, name, email, rawPassword, userRepository, i18n);
-			if (!valid) return;
+			if (!validateFields(nameField, emailField, passwordField, name, email, rawPassword)) {
+				return;
+			}
 
 			User newUser = new User();
 			newUser.setName(name);
@@ -73,8 +79,7 @@ public class SignUpDialog extends Dialog {
 	}
 
 	private boolean validateFields(TextField nameField, EmailField emailField, PasswordField passwordField,
-								   String name, String email, String password,
-								   UserRepository userRepository, I18nService i18n) {
+								   String name, String email, String password) {
 		boolean valid = true;
 
 		if (name.isEmpty()) {
@@ -85,7 +90,7 @@ public class SignUpDialog extends Dialog {
 			nameField.setInvalid(false);
 		}
 
-		if (!emailPattern.matcher(email).matches()) {
+		if (!EMAIL_PATTERN.matcher(email).matches()) {
 			emailField.setInvalid(true);
 			emailField.setErrorMessage(i18n.get("signup.error.email.invalid"));
 			valid = false;

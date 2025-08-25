@@ -1,9 +1,7 @@
 package org.ost.advertisement.ui.views.users;
 
+import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidNumberRange;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.toLong;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -18,6 +16,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.UserFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
+import org.ost.advertisement.validation.filter.UserFilterValidator;
 
 @SpringComponent
 @UIScope
@@ -36,27 +35,29 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	private final UserFilterMapper filterMapper;
 
-	public UserFilterFields(UserFilterMapper filterMapper) {
-		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty());
+	public UserFilterFields(UserFilterMapper filterMapper, UserFilterValidator validator) {
+		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validator);
 		this.filterMapper = filterMapper;
 
-		Predicate<UserFilter> validationId = f -> isValidNumberRange(f.getStartId(), f.getEndId());
+		Predicate<UserFilter> validationId = f -> validator.validateIdRange(f.getStartId(), f.getEndId());
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
 
-		register(nameField, (f, v) -> f.setName(v == null ? null : v.isBlank() ? null : v),
-			UserFilter::getName, f -> true);
-		register(emailField, (f, v) -> f.setEmail(v == null ? null : v.isBlank() ? null : v),
-			UserFilter::getEmail, f -> true);
-		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> true);
+		register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
+			UserFilter::getName, f -> validator.validateName(f.getName()));
+		register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
+			UserFilter::getEmail, f -> validator.validateEmail(f.getEmail()));
+		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> validator.validateRole(f.getRole()));
 
-		Predicate<UserFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		Predicate<UserFilter> validationCreatedAt =
+			f -> validator.validateCreatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
 		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
 			UserFilter::getCreatedAtStart, validationCreatedAt);
 		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
 			UserFilter::getCreatedAtEnd, validationCreatedAt);
 
-		Predicate<UserFilter> validationUpdatedAt = f -> isValidDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		Predicate<UserFilter> validationUpdatedAt =
+			f -> validator.validateUpdatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
 		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
 			UserFilter::getUpdatedAtStart, validationUpdatedAt);
 		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),

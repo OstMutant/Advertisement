@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components.filters;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.hasChanged;
+import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.Component;
@@ -19,15 +19,17 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.dto.filter.FilterValidation;
+import org.ost.advertisement.validation.filter.AbstractFilterValidator;
 
-public abstract class AbstractFilterFields<F extends FilterValidation<F>> {
+public abstract class AbstractFilterFields<F> {
 
 	protected final F defaultFilter;
 	@Getter
 	protected final F originalFilter;
 	@Getter
 	protected final F newFilter;
+
+	protected final AbstractFilterValidator<F> validator;
 
 	public record FilterFieldsRelationship<F, T>(
 		AbstractField<?, ?> field,
@@ -39,10 +41,12 @@ public abstract class AbstractFilterFields<F extends FilterValidation<F>> {
 
 	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
-	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter) {
+	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter,
+								   AbstractFilterValidator<F> validator) {
 		this.defaultFilter = defaultFilter;
 		this.originalFilter = originalFilter;
 		this.newFilter = newFilter;
+		this.validator = validator;
 	}
 
 	public abstract void eventProcessor(Runnable onApply);
@@ -78,8 +82,9 @@ public abstract class AbstractFilterFields<F extends FilterValidation<F>> {
 		return validate() && hasChanged(newFilter, originalFilter);
 	}
 
-	protected boolean validate() {
-		return newFilter.isValid();
+
+	public boolean validate() {
+		return validator.validate(this.newFilter);
 	}
 
 	protected NumberField createNumberField(String placeholder) {

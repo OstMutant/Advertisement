@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.utils;
 
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.hasChanged;
+import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import java.util.Set;

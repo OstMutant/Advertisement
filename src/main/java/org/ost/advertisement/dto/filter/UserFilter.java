@@ -1,8 +1,5 @@
 package org.ost.advertisement.dto.filter;
 
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidNumberRange;
-
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +11,7 @@ import org.ost.advertisement.entities.Role;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder(toBuilder = true)
-public class UserFilter implements FilterValidation<UserFilter> {
+public class UserFilter {
 
 	private String name;
 	private String email;
@@ -29,13 +26,6 @@ public class UserFilter implements FilterValidation<UserFilter> {
 
 	public static UserFilter empty() {
 		return new UserFilter();
-	}
-
-	@Override
-	public boolean isValid() {
-		return isValidNumberRange(startId, endId)
-			&& isValidDateRange(createdAtStart, createdAtEnd)
-			&& isValidDateRange(updatedAtStart, updatedAtEnd);
 	}
 
 }

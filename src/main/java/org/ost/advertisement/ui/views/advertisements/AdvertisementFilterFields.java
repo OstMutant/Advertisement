@@ -1,7 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.dto.filter.utils.FilterUtil.isValidDateRange;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -15,6 +14,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.mappers.AdvertisementFilterMapper;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
+import org.ost.advertisement.validation.filter.AdvertisementFilterValidator;
 
 @SpringComponent
 @UIScope
@@ -39,22 +39,22 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		actionsBlock.getActionBlock()
 	);
 
-	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper) {
-		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty());
+	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper, AdvertisementFilterValidator validator) {
+		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validator);
 		this.filterMapper = filterMapper;
 
-		register(title, (f, v) -> f.setTitle(v == null ? null : v.isBlank() ? null : v), AdvertisementFilter::getTitle,
-			f -> true);
+		register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v), AdvertisementFilter::getTitle,
+			f -> validator.validateTitle(f.getTitle()));
 
-		Predicate<AdvertisementFilter> validationCreatedAt = f -> isValidDateRange(f.getCreatedAtStart(),
-			f.getCreatedAtEnd());
+		Predicate<AdvertisementFilter> validationCreatedAt =
+			f -> validator.validateCreatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
 		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)), AdvertisementFilter::getCreatedAtStart,
 			validationCreatedAt);
 		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)), AdvertisementFilter::getCreatedAtEnd,
 			validationCreatedAt);
 
-		Predicate<AdvertisementFilter> validationUpdatedAt = f -> isValidDateRange(f.getUpdatedAtStart(),
-			f.getUpdatedAtEnd());
+		Predicate<AdvertisementFilter> validationUpdatedAt =
+			f -> validator.validateUpdatedDateRange(f.getUpdatedAtStart(), f.getUpdatedAtEnd());
 		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)), AdvertisementFilter::getUpdatedAtStart,
 			validationUpdatedAt);
 		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)), AdvertisementFilter::getUpdatedAtEnd,
@@ -66,6 +66,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		super.updateState();
 		actionsBlock.updateButtonState(isFilterActive());
 	}
+
 
 	@Override
 	public void eventProcessor(Runnable onApply) {
