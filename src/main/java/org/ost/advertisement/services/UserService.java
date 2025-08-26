@@ -1,5 +1,6 @@
 package org.ost.advertisement.services;
 
+import jakarta.validation.Valid;
 import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -12,19 +13,21 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.validation.annotation.Validated;
 
 @Service
 @RequiredArgsConstructor
+@Validated
 public class UserService {
 
 	private final UserRepository repository;
 	private final AccessEvaluator access;
 
-	public List<User> getFiltered(UserFilter filter, int page, int size, Sort sort) {
+	public List<User> getFiltered(@Valid UserFilter filter, int page, int size, Sort sort) {
 		return repository.findByFilter(filter, PageRequest.of(page, size, sort));
 	}
 
-	public int count(UserFilter filter) {
+	public int count(@Valid UserFilter filter) {
 		return repository.countByFilter(filter).intValue();
 	}
 

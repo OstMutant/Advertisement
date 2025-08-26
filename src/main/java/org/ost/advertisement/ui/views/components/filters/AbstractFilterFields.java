@@ -19,7 +19,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.validation.filter.AbstractFilterValidator;
+import org.ost.advertisement.services.ValidationService;
 
 public abstract class AbstractFilterFields<F> {
 
@@ -28,8 +28,6 @@ public abstract class AbstractFilterFields<F> {
 	protected final F originalFilter;
 	@Getter
 	protected final F newFilter;
-
-	protected final AbstractFilterValidator<F> validator;
 
 	public record FilterFieldsRelationship<F, T>(
 		AbstractField<?, ?> field,
@@ -41,12 +39,13 @@ public abstract class AbstractFilterFields<F> {
 
 	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
-	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter,
-								   AbstractFilterValidator<F> validator) {
+	protected final ValidationService<F> validation;
+
+	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter, ValidationService<F> validation) {
 		this.defaultFilter = defaultFilter;
 		this.originalFilter = originalFilter;
 		this.newFilter = newFilter;
-		this.validator = validator;
+		this.validation = validation;
 	}
 
 	public abstract void eventProcessor(Runnable onApply);
@@ -84,7 +83,7 @@ public abstract class AbstractFilterFields<F> {
 
 
 	public boolean validate() {
-		return validator.validate(this.newFilter);
+		return validation.isValid(this.newFilter);
 	}
 
 	protected NumberField createNumberField(String placeholder) {

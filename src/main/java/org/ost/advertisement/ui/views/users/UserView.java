@@ -20,12 +20,16 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 import org.springframework.data.domain.Sort;
@@ -64,11 +68,16 @@ public class UserView extends VerticalLayout {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 		UserFilter currentFilter = filterFields.getNewFilter();
-		List<User> pageData = userService.getFiltered(currentFilter, page, size, customSort.getSort());
-		int totalCount = userService.count(currentFilter);
-
-		paginationBar.setTotalCount(totalCount);
-		grid.setItems(pageData);
+		try {
+			List<User> pageData = userService.getFiltered(currentFilter, page, size, customSort.getSort());
+			int totalCount = userService.count(currentFilter);
+			paginationBar.setTotalCount(totalCount);
+			grid.setItems(pageData);
+		} catch (ConstraintViolationException ex) {
+			showValidationErrors(ex);
+			grid.setItems(List.of());
+			paginationBar.setTotalCount(0);
+		}
 	}
 
 	private void configureGrid() {
@@ -198,5 +207,17 @@ public class UserView extends VerticalLayout {
 		);
 		layout.setAlignItems(Alignment.CENTER);
 		return layout;
+	}
+
+	private void showValidationErrors(ConstraintViolationException ex) {
+		Set<ConstraintViolation<?>> violations = ex.getConstraintViolations();
+		String message = violations.stream()
+			.map(v -> v.getPropertyPath() + ": " + v.getMessage())
+			.distinct()
+			.sorted()
+			.collect(Collectors.joining("\n"));
+
+		Notification notification = Notification.show(message, 5000, Notification.Position.BOTTOM_START);
+		notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
 	}
 }

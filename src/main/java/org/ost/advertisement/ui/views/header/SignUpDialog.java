@@ -19,7 +19,6 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.validation.NewUserValidator;
 
 @SpringComponent
 @UIScope

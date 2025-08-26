@@ -7,14 +7,16 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.validation.ConstraintViolation;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.mappers.AdvertisementFilterMapper;
+import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
-import org.ost.advertisement.validation.filter.AdvertisementFilterValidator;
 
 @SpringComponent
 @UIScope
@@ -39,22 +41,22 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		actionsBlock.getActionBlock()
 	);
 
-	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper, AdvertisementFilterValidator validator) {
-		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validator);
+	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper, ValidationService<AdvertisementFilter> validation) {
+		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation);
 		this.filterMapper = filterMapper;
 
 		register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v), AdvertisementFilter::getTitle,
-			f -> validator.validateTitle(f.getTitle()));
+			f -> !validation.hasViolationFor(f, "title"));
 
 		Predicate<AdvertisementFilter> validationCreatedAt =
-			f -> validator.validateCreatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+			f -> !validation.hasViolationFor(f, "createdAtStart") && !validation.hasViolationFor(f, "createdAtEnd");
 		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)), AdvertisementFilter::getCreatedAtStart,
 			validationCreatedAt);
 		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)), AdvertisementFilter::getCreatedAtEnd,
 			validationCreatedAt);
 
 		Predicate<AdvertisementFilter> validationUpdatedAt =
-			f -> validator.validateUpdatedDateRange(f.getUpdatedAtStart(), f.getUpdatedAtEnd());
+			f -> !validation.hasViolationFor(f, "updatedAtStart") && !validation.hasViolationFor(f, "updatedAtEnd");
 		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)), AdvertisementFilter::getUpdatedAtStart,
 			validationUpdatedAt);
 		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)), AdvertisementFilter::getUpdatedAtEnd,

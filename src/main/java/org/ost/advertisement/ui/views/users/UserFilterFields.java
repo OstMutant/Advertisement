@@ -14,9 +14,9 @@ import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.UserFilterMapper;
+import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
-import org.ost.advertisement.validation.filter.UserFilterValidator;
 
 @SpringComponent
 @UIScope
@@ -35,29 +35,29 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	private final UserFilterMapper filterMapper;
 
-	public UserFilterFields(UserFilterMapper filterMapper, UserFilterValidator validator) {
-		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validator);
+	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation) {
+		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validation);
 		this.filterMapper = filterMapper;
 
-		Predicate<UserFilter> validationId = f -> validator.validateIdRange(f.getStartId(), f.getEndId());
+		Predicate<UserFilter> validationId = f -> !validation.hasViolationFor(f, "startId") && !validation.hasViolationFor(f, "endId");
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
 
 		register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
-			UserFilter::getName, f -> validator.validateName(f.getName()));
+			UserFilter::getName, f -> !validation.hasViolationFor(f, "name"));
 		register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilter::getEmail, f -> validator.validateEmail(f.getEmail()));
-		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> validator.validateRole(f.getRole()));
+			UserFilter::getEmail, f -> !validation.hasViolationFor(f, "email"));
+		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> !validation.hasViolationFor(f, "role"));
 
-		Predicate<UserFilter> validationCreatedAt =
-			f -> validator.validateCreatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		Predicate<UserFilter> validationCreatedAt = f -> !validation.hasViolationFor(f, "createdAtStart")
+			&& !validation.hasViolationFor(f, "createdAtEnd");
 		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
 			UserFilter::getCreatedAtStart, validationCreatedAt);
 		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
 			UserFilter::getCreatedAtEnd, validationCreatedAt);
 
-		Predicate<UserFilter> validationUpdatedAt =
-			f -> validator.validateUpdatedDateRange(f.getCreatedAtStart(), f.getCreatedAtEnd());
+		Predicate<UserFilter> validationUpdatedAt = f -> !validation.hasViolationFor(f, "updatedAtStart")
+			&& !validation.hasViolationFor(f, "updatedAtEnd");
 		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
 			UserFilter::getUpdatedAtStart, validationUpdatedAt);
 		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),

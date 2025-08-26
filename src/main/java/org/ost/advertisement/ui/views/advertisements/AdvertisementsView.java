@@ -17,7 +17,6 @@ import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @UIScope
