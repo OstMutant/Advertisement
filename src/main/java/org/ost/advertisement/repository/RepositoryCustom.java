@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
@@ -44,17 +45,24 @@ public class RepositoryCustom<T, F> {
 
 	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(),
-			fieldRelations.fieldsToSql(), fieldConditionsRules.apply(params, filter),
-			fieldRelations.sortToSql(pageable.getSort()), pageableToSql(params, pageable));
+		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
+			fieldConditionsRules.apply(params, filter), fieldRelations.sortToSql(pageable.getSort()),
+			pageableToSql(params, pageable));
 		return jdbc.query(sql.toString(), params, fieldRelations);
 	}
 
-	protected Long countByFilter(F filter) {
+	public Long countByFilter(F filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), "COUNT(*)",
 			fieldConditionsRules.apply(params, filter), null, null);
 		return jdbc.queryForObject(sql.toString(), params, Long.class);
+	}
+
+	public <C> Optional<T> find(FieldConditionsRules<C> fieldConditionsRules, C filter) {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
+			fieldConditionsRules.apply(params, filter), null, null);
+		return jdbc.query(sql.toString(), params, fieldRelations).stream().findFirst();
 	}
 
 	private StringBuilder prepareSelectTemplate(String source, String fields, String conditions, String sorting,
@@ -195,6 +203,21 @@ public class RepositoryCustom<T, F> {
 		public void before(Relation relation, Instant value, FieldConditions<F> fieldConditions) {
 			applyConditions(value != null, relation, value,
 				(sqlField, param) -> sqlField + " <= :" + param, Timestamp::from, fieldConditions);
+		}
+
+		public void after(Relation relation, Long value, FieldConditions<F> fieldConditions) {
+			applyConditions(value != null, relation, value,
+				(sqlField, param) -> sqlField + " >= :" + param, Function.identity(), fieldConditions);
+		}
+
+		public void before(Relation relation, Long value, FieldConditions<F> fieldConditions) {
+			applyConditions(value != null, relation, value,
+				(sqlField, param) -> sqlField + " <= :" + param, Function.identity(), fieldConditions);
+		}
+
+		public void equalsTo(Relation relation, String value, FieldConditions<F> fieldConditions) {
+			applyConditions(value != null, relation, value,
+				(sqlField, param) -> sqlField + " = :" + param, Function.identity(), fieldConditions);
 		}
 
 		public abstract String apply(MapSqlParameterSource params, F filter);

@@ -27,16 +27,6 @@ public class AdvertisementRepositoryCustomImpl extends
 		super(jdbc, ADVERTISEMENT_MAPPER, ADVERTISEMENT_CONDITIONS_RULES);
 	}
 
-	@Override
-	public List<AdvertisementView> findByFilter(AdvertisementFilter filter, Pageable pageable) {
-		return super.findByFilter(filter, pageable);
-	}
-
-	@Override
-	public Long countByFilter(AdvertisementFilter filter) {
-		return super.countByFilter(filter);
-	}
-
 	private static class AdvertisementFieldConditionsRules extends FieldConditionsRules<AdvertisementFilter> {
 
 		@AllArgsConstructor

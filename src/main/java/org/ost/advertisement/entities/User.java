@@ -2,6 +2,8 @@ package org.ost.advertisement.entities;
 
 import java.time.Instant;
 import java.util.Locale;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,9 +12,11 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 
 @NoArgsConstructor
+@AllArgsConstructor
 @Table("user_information")
 @Getter
 @Setter
+@Builder
 public class User implements UserIdMarker {
 
 	@Id
