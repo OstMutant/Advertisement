@@ -35,6 +35,7 @@ public class AdvertisementsView extends VerticalLayout {
 		this.mapper = mapper;
 		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
+		addClassName("advertisement-list-view");
 
 		setSizeFull();
 		setSpacing(true);

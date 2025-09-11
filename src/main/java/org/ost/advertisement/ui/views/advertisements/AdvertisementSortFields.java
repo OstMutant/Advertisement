@@ -12,7 +12,6 @@ import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.sort.AbstractSortFields;
 import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
-import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
