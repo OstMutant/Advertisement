@@ -10,11 +10,9 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.mappers.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 
-@RequiredArgsConstructor
 public class FilterFieldsProcessor<F> {
 
 	private final FilterMapper<F> filterMapper;
@@ -28,7 +26,15 @@ public class FilterFieldsProcessor<F> {
 	@Getter
 	private final F newFilter;
 
-	public record FilterFieldsRelationship<F, T>(
+	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validation, F defaultFilter) {
+		this.filterMapper = filterMapper;
+		this.validation = validation;
+		this.defaultFilter = defaultFilter;
+		this.originalFilter = filterMapper.copy(defaultFilter);
+		this.newFilter = filterMapper.copy(defaultFilter);
+	}
+
+	private record FilterFieldsRelationship<F, T>(
 		AbstractField<?, ?> field,
 		Function<F, T> getter,
 		Predicate<F> validation

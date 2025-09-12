@@ -8,4 +8,6 @@ import org.ost.advertisement.dto.filter.UserFilter;
 public interface UserFilterMapper extends FilterMapper<UserFilter> {
 
 	void update(@MappingTarget UserFilter target, UserFilter source);
+
+	UserFilter copy(UserFilter source);
 }

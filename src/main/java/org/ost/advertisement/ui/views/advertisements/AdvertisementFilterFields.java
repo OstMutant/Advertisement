@@ -40,8 +40,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper,
 									 ValidationService<AdvertisementFilter> validation) {
-		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation,
-			filterMapper);
+		super(AdvertisementFilter.empty(), validation, filterMapper);
 	}
 
 	@PostConstruct

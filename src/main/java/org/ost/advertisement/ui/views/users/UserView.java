@@ -42,7 +42,7 @@ public class UserView extends VerticalLayout {
 	private final Grid<User> grid = new Grid<>(User.class, false);
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final UserFilterFields filterFields;
-	private final CustomSort customSort = new CustomSort(Sort.unsorted());
+	private final CustomSort customSort = new CustomSort();
 
 	public UserView(UserFilterFields filterFields, UserService userService) {
 		this.filterFields = filterFields;

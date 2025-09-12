@@ -16,10 +16,8 @@ public abstract class AbstractFilterFields<F> {
 	@Getter
 	protected final FilterFieldsProcessor<F> filterFieldsProcessor;
 
-	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter, ValidationService<F> validation,
-								   FilterMapper<F> filterMapper) {
-		this.filterFieldsProcessor = new FilterFieldsProcessor<>(filterMapper, validation, defaultFilter,
-			originalFilter, newFilter);
+	protected AbstractFilterFields(F defaultFilter, ValidationService<F> validation, FilterMapper<F> filterMapper) {
+		this.filterFieldsProcessor = new FilterFieldsProcessor<>(filterMapper, validation, defaultFilter);
 	}
 
 	protected boolean isValidProperty(F filter, String property) {

@@ -35,7 +35,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
 	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation) {
-		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validation, filterMapper);
+		super(UserFilter.empty(), validation, filterMapper);
 	}
 
 	@PostConstruct

@@ -12,7 +12,6 @@ import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.sort.AbstractSortFields;
 import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 
 @SpringComponent
@@ -33,7 +32,7 @@ public class AdvertisementSortFields extends AbstractSortFields {
 		actionsBlock.getActionBlock());
 
 	protected AdvertisementSortFields() {
-		super(new CustomSort(Sort.unsorted()));
+		super(new CustomSort());
 		register(titleCombo, "title");
 		register(createdAtCombo, "createdAt");
 		register(updatedAtCombo, "updatedAt");
