@@ -19,6 +19,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
+import org.ost.advertisement.mappers.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 
 public abstract class AbstractFilterFields<F> {
@@ -41,11 +42,15 @@ public abstract class AbstractFilterFields<F> {
 
 	protected final ValidationService<F> validation;
 
-	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter, ValidationService<F> validation) {
+	protected final FilterMapper<F> filterMapper;
+
+	protected AbstractFilterFields(F defaultFilter, F originalFilter, F newFilter, ValidationService<F> validation,
+								   FilterMapper<F> filterMapper) {
 		this.defaultFilter = defaultFilter;
 		this.originalFilter = originalFilter;
 		this.newFilter = newFilter;
 		this.validation = validation;
+		this.filterMapper = filterMapper;
 	}
 
 	public abstract void eventProcessor(Runnable onApply);
@@ -63,17 +68,23 @@ public abstract class AbstractFilterFields<F> {
 		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
-			updateState();
+			refreshFilter();
 		});
 	}
 
-	protected void clearAllFields() {
+	protected void updateFilter() {
+		filterMapper.update(originalFilter, newFilter);
+	}
+
+	protected void clearFilter() {
 		for (FilterFieldsRelationship<?, ?> fieldRelationship : fieldsRelationships) {
 			fieldRelationship.field.clear();
 		}
+		filterMapper.update(newFilter, defaultFilter);
+		filterMapper.update(originalFilter, defaultFilter);
 	}
 
-	protected void updateState() {
+	protected void refreshFilter() {
 		highlightChangedFields();
 	}
 

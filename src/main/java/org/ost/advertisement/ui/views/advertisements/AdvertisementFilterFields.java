@@ -29,8 +29,6 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
-	private final AdvertisementFilterMapper filterMapper;
-
 	@Getter
 	private final List<Component> filterComponentList = List.of(
 		title,
@@ -40,8 +38,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	);
 
 	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper, ValidationService<AdvertisementFilter> validation) {
-		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation);
-		this.filterMapper = filterMapper;
+		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation, filterMapper);
 
 		register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v), AdvertisementFilter::getTitle,
 			f -> !validation.hasViolationFor(f, "title"));
@@ -62,8 +59,8 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	}
 
 	@Override
-	protected void updateState() {
-		super.updateState();
+	protected void refreshFilter() {
+		super.refreshFilter();
 		actionsBlock.updateButtonState(isFilterActive());
 	}
 
@@ -74,15 +71,13 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 			if (!validate()) {
 				return;
 			}
-			filterMapper.update(originalFilter, newFilter);
+			updateFilter();
 			onApply.run();
-			updateState();
+			refreshFilter();
 		}, () -> {
-			clearAllFields();
-			filterMapper.update(newFilter, defaultFilter);
-			filterMapper.update(originalFilter, defaultFilter);
+			clearFilter();
 			onApply.run();
-			updateState();
+			refreshFilter();
 		});
 	}
 }

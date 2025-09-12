@@ -5,7 +5,7 @@ import org.mapstruct.MappingTarget;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 
 @Mapper(componentModel = "spring")
-public interface AdvertisementFilterMapper {
+public interface AdvertisementFilterMapper extends FilterMapper<AdvertisementFilter> {
 
 	void update(@MappingTarget AdvertisementFilter target, AdvertisementFilter source);
 }

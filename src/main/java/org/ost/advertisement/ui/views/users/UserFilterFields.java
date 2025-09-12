@@ -33,13 +33,11 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker updatedEnd = createDatePicker("Updated to");
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
-	private final UserFilterMapper filterMapper;
-
 	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation) {
-		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validation);
-		this.filterMapper = filterMapper;
+		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validation, filterMapper);
 
-		Predicate<UserFilter> validationId = f -> !validation.hasViolationFor(f, "startId") && !validation.hasViolationFor(f, "endId");
+		Predicate<UserFilter> validationId = f -> !validation.hasViolationFor(f, "startId")
+			&& !validation.hasViolationFor(f, "endId");
 		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
 		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
 
@@ -65,8 +63,8 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	}
 
 	@Override
-	protected void updateState() {
-		super.updateState();
+	protected void refreshFilter() {
+		super.refreshFilter();
 		actionsBlock.updateButtonState(isFilterActive());
 	}
 
@@ -76,15 +74,13 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 			if (!validate()) {
 				return;
 			}
-			filterMapper.update(originalFilter, newFilter);
+			updateFilter();
 			onApply.run();
-			updateState();
+			refreshFilter();
 		}, () -> {
-			clearAllFields();
-			filterMapper.update(newFilter, defaultFilter);
-			filterMapper.update(originalFilter, defaultFilter);
+			clearFilter();
 			onApply.run();
-			updateState();
+			refreshFilter();
 		});
 	}
 

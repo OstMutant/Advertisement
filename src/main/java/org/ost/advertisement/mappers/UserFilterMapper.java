@@ -5,7 +5,7 @@ import org.mapstruct.MappingTarget;
 import org.ost.advertisement.dto.filter.UserFilter;
 
 @Mapper(componentModel = "spring")
-public interface UserFilterMapper {
+public interface UserFilterMapper extends FilterMapper<UserFilter> {
 
 	void update(@MappingTarget UserFilter target, UserFilter source);
 }
