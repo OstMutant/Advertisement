@@ -7,6 +7,7 @@ import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
@@ -37,47 +38,49 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		actionsBlock.getActionBlock()
 	);
 
-	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper, ValidationService<AdvertisementFilter> validation) {
-		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation, filterMapper);
+	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper,
+									 ValidationService<AdvertisementFilter> validation) {
+		super(AdvertisementFilter.empty(), AdvertisementFilter.empty(), AdvertisementFilter.empty(), validation,
+			filterMapper);
+	}
 
-		register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v), AdvertisementFilter::getTitle,
-			f -> !validation.hasViolationFor(f, "title"));
+	@PostConstruct
+	private void init() {
+		filterFieldsProcessor.register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v),
+			AdvertisementFilter::getTitle, f -> isValidProperty(f, "title"), actionsBlock);
 
 		Predicate<AdvertisementFilter> validationCreatedAt =
-			f -> !validation.hasViolationFor(f, "createdAtStart") && !validation.hasViolationFor(f, "createdAtEnd");
-		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)), AdvertisementFilter::getCreatedAtStart,
-			validationCreatedAt);
-		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)), AdvertisementFilter::getCreatedAtEnd,
-			validationCreatedAt);
+			f -> isValidProperty(f, "createdAtStart") && isValidProperty(f, "createdAtEnd");
+		filterFieldsProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
+			AdvertisementFilter::getCreatedAtStart, validationCreatedAt, actionsBlock);
+		filterFieldsProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
+			AdvertisementFilter::getCreatedAtEnd, validationCreatedAt, actionsBlock);
 
 		Predicate<AdvertisementFilter> validationUpdatedAt =
-			f -> !validation.hasViolationFor(f, "updatedAtStart") && !validation.hasViolationFor(f, "updatedAtEnd");
-		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)), AdvertisementFilter::getUpdatedAtStart,
-			validationUpdatedAt);
-		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)), AdvertisementFilter::getUpdatedAtEnd,
-			validationUpdatedAt);
+			f -> isValidProperty(f, "updatedAtStart") && isValidProperty(f, "updatedAtEnd");
+		filterFieldsProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
+			AdvertisementFilter::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
+		filterFieldsProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
+			AdvertisementFilter::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
 	}
-
-	@Override
-	protected void refreshFilter() {
-		super.refreshFilter();
-		actionsBlock.updateButtonState(isFilterActive());
-	}
-
 
 	@Override
 	public void eventProcessor(Runnable onApply) {
+		Runnable combinedOnApply = () -> {
+			onApply.run();
+			filterFieldsProcessor.refreshFilter();
+			actionsBlock.onEventFilterChanged(filterFieldsProcessor.isFilterChanged());
+		};
+
 		actionsBlock.eventProcessor(() -> {
-			if (!validate()) {
+			if (!filterFieldsProcessor.validate()) {
 				return;
 			}
-			updateFilter();
-			onApply.run();
-			refreshFilter();
+			filterFieldsProcessor.updateFilter();
+			combinedOnApply.run();
 		}, () -> {
-			clearFilter();
-			onApply.run();
-			refreshFilter();
+			filterFieldsProcessor.clearFilter();
+			combinedOnApply.run();
 		});
 	}
 }

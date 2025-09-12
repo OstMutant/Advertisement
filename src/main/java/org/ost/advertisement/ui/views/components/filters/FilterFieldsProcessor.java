@@ -19,6 +19,7 @@ public class FilterFieldsProcessor<F> {
 
 	private final FilterMapper<F> filterMapper;
 
+	@Getter
 	private final ValidationService<F> validation;
 
 	private final F defaultFilter;
@@ -38,12 +39,17 @@ public class FilterFieldsProcessor<F> {
 	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
 	public <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
-															   Function<F, R> getter, Predicate<F> validation) {
+															   Function<F, R> getter, Predicate<F> validation,
+															   FilterFieldsProcessorEvents events) {
 		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
-			highlightChangedFields();
+			events.onEventFilterChanged(isFilterChanged());
 		});
+	}
+
+	public void refreshFilter() {
+		highlightChangedFields();
 	}
 
 	public void updateFilter() {
@@ -58,10 +64,9 @@ public class FilterFieldsProcessor<F> {
 		filterMapper.update(originalFilter, defaultFilter);
 	}
 
-	public boolean isFilterActive() {
+	public boolean isFilterChanged() {
 		return validate() && hasChanged(newFilter, originalFilter);
 	}
-
 
 	public boolean validate() {
 		return validation.isValid(this.newFilter);

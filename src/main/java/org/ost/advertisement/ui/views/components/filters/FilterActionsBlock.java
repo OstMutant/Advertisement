@@ -9,7 +9,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
-public class FilterActionsBlock {
+public class FilterActionsBlock implements FilterFieldsProcessorEvents {
 
 	private final Button applyButton = createButton(VaadinIcon.FILTER, "Apply filters", ButtonVariant.LUMO_PRIMARY);
 	private final Button clearButton = createButton(VaadinIcon.ERASER, "Clear filters", ButtonVariant.LUMO_TERTIARY);
@@ -19,10 +19,11 @@ public class FilterActionsBlock {
 		clearButton.addClickListener(e -> onClear.run());
 	}
 
-	public void updateButtonState(boolean isActive) {
+	@Override
+	public void onEventFilterChanged(boolean isFilterChanged) {
 		applyButton.getStyle().remove("border");
 		applyButton.getStyle().remove("border-radius");
-		if (isActive) {
+		if (isFilterChanged) {
 			applyButton.getStyle().set("border", "3px solid orange");
 			applyButton.getStyle().set("border-radius", "4px");
 		}

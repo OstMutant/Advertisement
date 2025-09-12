@@ -67,7 +67,7 @@ public class UserView extends VerticalLayout {
 	private void refreshGrid() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		UserFilter currentFilter = filterFields.getNewFilter();
+		UserFilter currentFilter = filterFields.getFilterFieldsProcessor().getNewFilter();
 		try {
 			List<User> pageData = userService.getFiltered(currentFilter, page, size, customSort.getSort());
 			int totalCount = userService.count(currentFilter);

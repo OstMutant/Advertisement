@@ -10,6 +10,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
@@ -35,52 +36,55 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation) {
 		super(UserFilter.empty(), UserFilter.empty(), UserFilter.empty(), validation, filterMapper);
-
-		Predicate<UserFilter> validationId = f -> !validation.hasViolationFor(f, "startId")
-			&& !validation.hasViolationFor(f, "endId");
-		register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId);
-		register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId);
-
-		register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
-			UserFilter::getName, f -> !validation.hasViolationFor(f, "name"));
-		register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilter::getEmail, f -> !validation.hasViolationFor(f, "email"));
-		register(roleCombo, UserFilter::setRole, UserFilter::getRole, f -> !validation.hasViolationFor(f, "role"));
-
-		Predicate<UserFilter> validationCreatedAt = f -> !validation.hasViolationFor(f, "createdAtStart")
-			&& !validation.hasViolationFor(f, "createdAtEnd");
-		register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
-			UserFilter::getCreatedAtStart, validationCreatedAt);
-		register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
-			UserFilter::getCreatedAtEnd, validationCreatedAt);
-
-		Predicate<UserFilter> validationUpdatedAt = f -> !validation.hasViolationFor(f, "updatedAtStart")
-			&& !validation.hasViolationFor(f, "updatedAtEnd");
-		register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
-			UserFilter::getUpdatedAtStart, validationUpdatedAt);
-		register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
-			UserFilter::getUpdatedAtEnd, validationUpdatedAt);
 	}
 
-	@Override
-	protected void refreshFilter() {
-		super.refreshFilter();
-		actionsBlock.updateButtonState(isFilterActive());
+	@PostConstruct
+	private void init() {
+		Predicate<UserFilter> validationId = f -> isValidProperty(f, "startId") && isValidProperty(f, "endId");
+		filterFieldsProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId,
+			actionsBlock);
+		filterFieldsProcessor.register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId,
+			actionsBlock);
+
+		filterFieldsProcessor.register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
+			UserFilter::getName, f -> isValidProperty(f, "name"), actionsBlock);
+		filterFieldsProcessor.register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
+			UserFilter::getEmail, f -> isValidProperty(f, "email"), actionsBlock);
+		filterFieldsProcessor.register(roleCombo, UserFilter::setRole, UserFilter::getRole,
+			f -> isValidProperty(f, "role"), actionsBlock);
+
+		Predicate<UserFilter> validationCreatedAt = f -> isValidProperty(f, "createdAtStart") && isValidProperty(f,
+			"createdAtEnd");
+		filterFieldsProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
+			UserFilter::getCreatedAtStart, validationCreatedAt, actionsBlock);
+		filterFieldsProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
+			UserFilter::getCreatedAtEnd, validationCreatedAt, actionsBlock);
+
+		Predicate<UserFilter> validationUpdatedAt = f -> !isValidProperty(f, "updatedAtStart") && isValidProperty(f,
+			"updatedAtEnd");
+		filterFieldsProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
+			UserFilter::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
+		filterFieldsProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
+			UserFilter::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
 	}
 
 	@Override
 	public void eventProcessor(Runnable onApply) {
+		Runnable combinedOnApply = () -> {
+			onApply.run();
+			filterFieldsProcessor.refreshFilter();
+			actionsBlock.onEventFilterChanged(filterFieldsProcessor.isFilterChanged());
+		};
+
 		actionsBlock.eventProcessor(() -> {
-			if (!validate()) {
+			if (!filterFieldsProcessor.validate()) {
 				return;
 			}
-			updateFilter();
-			onApply.run();
-			refreshFilter();
+			filterFieldsProcessor.updateFilter();
+			combinedOnApply.run();
 		}, () -> {
-			clearFilter();
-			onApply.run();
-			refreshFilter();
+			filterFieldsProcessor.clearFilter();
+			combinedOnApply.run();
 		});
 	}
 

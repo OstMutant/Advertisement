@@ -25,8 +25,6 @@ public class AdvertisementsView extends VerticalLayout {
 	private final AdvertisementService advertisementService;
 	private final AdvertisementMapper mapper;
 	private final AdvertisementLeftSidebar sidebar;
-	private final AdvertisementFilterFields filterFields;
-	private final AdvertisementSortFields sortFields;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 
@@ -48,9 +46,6 @@ public class AdvertisementsView extends VerticalLayout {
 			refreshAdvertisements();
 		}, () -> openAdvertisementFormDialog(null));
 
-		filterFields = sidebar.getFilterFields();
-		sortFields = sidebar.getSortFields();
-
 		VerticalLayout contentLayout = new VerticalLayout(advertisementContainer, paginationBar);
 		contentLayout.setSizeFull();
 		contentLayout.setSpacing(true);
@@ -68,9 +63,9 @@ public class AdvertisementsView extends VerticalLayout {
 	private void refreshAdvertisements() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		AdvertisementFilter originalFilter = filterFields.getOriginalFilter();
+		AdvertisementFilter originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor().getOriginalFilter();
 		List<AdvertisementView> pageData = advertisementService.getFiltered(originalFilter, page, size,
-			sortFields.getOriginalSort().getSort());
+			sidebar.getSortFields().getOriginalSort().getSort());
 		int totalCount = advertisementService.count(originalFilter);
 
 		paginationBar.setTotalCount(totalCount);
