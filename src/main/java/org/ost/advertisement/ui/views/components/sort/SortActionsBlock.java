@@ -9,7 +9,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor
-public class SortActionsBlock {
+public class SortActionsBlock implements SortFieldsProcessorEvents {
 
 	protected Button applyButton = createButton(VaadinIcon.SORT, "Apply sort", ButtonVariant.LUMO_PRIMARY);
 	protected Button clearButton = createButton(VaadinIcon.ERASER, "Clear sort", ButtonVariant.LUMO_TERTIARY);
@@ -19,7 +19,8 @@ public class SortActionsBlock {
 		clearButton.addClickListener(e -> onClear.run());
 	}
 
-	public void updateButtonState(boolean isActive) {
+	@Override
+	public void onEventSortChanged(boolean isActive) {
 		applyButton.getStyle().remove("border");
 		applyButton.getStyle().remove("border-radius");
 		if (isActive) {

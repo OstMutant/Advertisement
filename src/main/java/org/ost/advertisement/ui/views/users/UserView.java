@@ -32,7 +32,6 @@ import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
-import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope

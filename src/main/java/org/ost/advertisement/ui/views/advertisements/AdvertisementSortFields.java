@@ -10,19 +10,22 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
-import org.ost.advertisement.ui.views.components.sort.AbstractSortFields;
 import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
+import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.springframework.data.domain.Sort.Direction;
 
 @SpringComponent
 @UIScope
-public class AdvertisementSortFields extends AbstractSortFields {
+public class AdvertisementSortFields {
 
 	private final ComboBox<Direction> titleCombo = createCombo();
 	private final ComboBox<Direction> createdAtCombo = createCombo();
 	private final ComboBox<Direction> updatedAtCombo = createCombo();
 
 	private final SortActionsBlock actionsBlock = new SortActionsBlock();
+
+	@Getter
+	private final SortFieldsProcessor sortFieldsProcessor;
 
 	@Getter
 	private final List<Component> sortComponentList = List.of(
@@ -32,31 +35,25 @@ public class AdvertisementSortFields extends AbstractSortFields {
 		actionsBlock.getActionBlock());
 
 	protected AdvertisementSortFields() {
-		super(new CustomSort());
-		register(titleCombo, "title");
-		register(createdAtCombo, "createdAt");
-		register(updatedAtCombo, "updatedAt");
+		sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
+		sortFieldsProcessor.register(titleCombo, "title", actionsBlock);
+		sortFieldsProcessor.register(createdAtCombo, "createdAt", actionsBlock);
+		sortFieldsProcessor.register(updatedAtCombo, "updatedAt", actionsBlock);
 
 	}
 
-	@Override
-	protected void updateState() {
-		super.updateState();
-		actionsBlock.updateButtonState(isSortActive());
-	}
-
-	@Override
 	public void eventProcessor(Runnable onApply) {
+		Runnable combinedOnApply = () -> {
+			onApply.run();
+			sortFieldsProcessor.refreshSorting();
+			actionsBlock.onEventSortChanged(sortFieldsProcessor.isSortingChanged());
+		};
 		actionsBlock.eventProcessor(() -> {
-			originalSort.copyFrom(this.newSort);
-			onApply.run();
-			updateState();
+			sortFieldsProcessor.updateSorting();
+			combinedOnApply.run();
 		}, () -> {
-			clearAllFields();
-			newSort.clear();
-			originalSort.clear();
-			onApply.run();
-			updateState();
+			sortFieldsProcessor.clearSorting();
+			combinedOnApply.run();
 		});
 	}
 
@@ -66,7 +63,7 @@ public class AdvertisementSortFields extends AbstractSortFields {
 		return layout;
 	}
 
-	protected ComboBox<Direction> createCombo() {
+	private ComboBox<Direction> createCombo() {
 		ComboBox<Direction> comboBox = new ComboBox<>();
 		comboBox.setItems(Direction.ASC, Direction.DESC);
 		comboBox.setClearButtonVisible(true);

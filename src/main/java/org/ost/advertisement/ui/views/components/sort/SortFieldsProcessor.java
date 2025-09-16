@@ -11,7 +11,7 @@ import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.springframework.data.domain.Sort.Direction;
 
-public abstract class AbstractSortFields {
+public class SortFieldsProcessor {
 
 	protected CustomSort defaultSort;
 	@Getter
@@ -28,34 +28,39 @@ public abstract class AbstractSortFields {
 
 	protected final Set<SortFieldsRelationship<?>> fieldsRelationships = new HashSet<>();
 
-	protected AbstractSortFields(CustomSort defaultSort) {
+	public SortFieldsProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
 		this.originalSort = defaultSort.copy();
 		this.newSort = defaultSort.copy();
 	}
 
-	public abstract void eventProcessor(Runnable onApply);
-
-	protected void register(ComboBox<Direction> field, String property) {
+	public void register(ComboBox<Direction> field, String property, SortFieldsProcessorEvents events) {
 		fieldsRelationships.add(new SortFieldsRelationship<>(field, v -> v.getDirection(property)));
 		field.addValueChangeListener(e -> {
 			newSort.updateSort(property, e.getValue());
-			updateState();
+			events.onEventSortChanged(isSortingChanged());
+			refreshSorting();
 		});
 	}
 
-	protected void updateState() {
+	public void refreshSorting() {
 		highlightChangedFields();
 	}
 
-	protected boolean isSortActive() {
+	public boolean isSortingChanged() {
 		return !originalSort.areSortsEquivalent(newSort);
 	}
 
-	protected void clearAllFields() {
+	public void updateSorting() {
+		originalSort.copyFrom(newSort);
+	}
+
+	public void clearSorting() {
 		for (SortFieldsRelationship<?> relationship : fieldsRelationships) {
 			relationship.field.clear();
 		}
+		originalSort.copyFrom(defaultSort);
+		newSort.copyFrom(defaultSort);
 	}
 
 	protected void highlightChangedFields() {

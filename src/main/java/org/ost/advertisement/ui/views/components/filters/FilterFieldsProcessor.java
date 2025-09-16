@@ -51,6 +51,7 @@ public class FilterFieldsProcessor<F> {
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
 			events.onEventFilterChanged(isFilterChanged());
+			refreshFilter();
 		});
 	}
 

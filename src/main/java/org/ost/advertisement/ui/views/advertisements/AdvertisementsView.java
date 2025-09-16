@@ -65,7 +65,7 @@ public class AdvertisementsView extends VerticalLayout {
 		int size = paginationBar.getPageSize();
 		AdvertisementFilter originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor().getOriginalFilter();
 		List<AdvertisementView> pageData = advertisementService.getFiltered(originalFilter, page, size,
-			sidebar.getSortFields().getOriginalSort().getSort());
+			sidebar.getSortFields().getSortFieldsProcessor().getOriginalSort().getSort());
 		int totalCount = advertisementService.count(originalFilter);
 
 		paginationBar.setTotalCount(totalCount);
