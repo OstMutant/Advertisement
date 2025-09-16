@@ -7,6 +7,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
@@ -34,12 +35,15 @@ public class AdvertisementSortFields {
 		createSortableField("Updated At", updatedAtCombo),
 		actionsBlock.getActionBlock());
 
-	protected AdvertisementSortFields() {
+	public AdvertisementSortFields() {
 		sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
+	}
+
+	@PostConstruct
+	private void init() {
 		sortFieldsProcessor.register(titleCombo, "title", actionsBlock);
 		sortFieldsProcessor.register(createdAtCombo, "createdAt", actionsBlock);
 		sortFieldsProcessor.register(updatedAtCombo, "updatedAt", actionsBlock);
-
 	}
 
 	public void eventProcessor(Runnable onApply) {
