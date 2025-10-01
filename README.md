@@ -2,60 +2,79 @@
 
 A declarative, type-safe backend framework for managing advertisement entities with full control over SQL filtering, DTO mapping, and repository logic. Designed to replace boilerplate-heavy JPA/Hibernate with transparent, maintainable abstractions.
 
----
+## 🚀 Project Philosophy
 
-## 🚀 Key Features
+This project is built on principles of architectural clarity and full control:
 
-- ✅ **Custom SQL Filtering Framework** — built on `RepositoryCustom<T, F>` with explicit control over WHERE, ORDER BY, and pagination
-- 🧩 **DTO-driven architecture** — no magic, no annotations, just clean mappings
-- 🔍 **Type-safe field relations** — SQL ↔ DTO mapping via enums
-- 🧪 **Composable filter rules** — reusable, declarative conditions for any entity
-- 🛡️ **Immutable DTOs** — designed for safety, clarity, and testability
+- ❌ No magic
+- ❌ No boilerplate
+- ✅ Full transparency across all layers
+- ✅ Explicit SQL, DTO, and filter logic
+- ✅ Scalable abstractions for any entity
 
----
+Every repository is a composition of declarative mappings and reusable filter rules. Every DTO is immutable and purpose-driven. Every SQL query is generated with precision.
 
-## 📁 Project Structure
+## 📦 Project Structure
 
-src/ 
-├── main/ 
-│ ├── java/org/ost/advertisement/ 
-│ │ ├── entities/ # Domain models (e.g. User, Role) 
-│ │ ├── dto/filter/ # Filter DTOs for querying 
-│ │ ├── repository/ # Core SQL framework 
-│ │ ├── repository/user/ # User-specific repository logic 
-│ │ └── security/ # UserId marker interface 
-│ └── resources/ 
-│ └── application.yml # Configuration
+src/  
+├── main/  
+│   ├── java/org/ost/advertisement/  
+│   │   ├── domain/                # Domain models (e.g., User, Role)  
+│   │   ├── dto/                   # Filter DTOs for querying  
+│   │   ├── repository/            # Core SQL framework (RepositoryCustom, FieldRelations, etc.)  
+│   │   ├── repository/user/       # User-specific repository logic and mappers  
+│   │   ├── user/                  # UserId marker interface  
+│   └── resources/  
+│       └── application.yml        # Spring Boot configuration  
+├── test/  
+│   └── java/org/ost/advertisement/ # (To be added) Unit and integration tests
 
+## ⚙️ Getting Started
 
----
+### Prerequisites
 
-## 🧠 Core Concepts
+- Java 21
+- Maven
+- PostgreSQL
 
-### `RepositoryCustom<T, F>`
-A generic base class for building SQL repositories with:
+### Run locally
 
-- `FieldRelations<T>` — maps DTO fields to SQL columns
-- `FieldConditionsRules<F>` — generates SQL WHERE clauses from filters
-- `RowMapper<T>` — explicit mapping from `ResultSet` to DTO
+git clone https://github.com/OstMutant/Advertisement.git  
+cd Advertisement  
+./mvnw spring-boot:run
 
-### `UserRepositoryCustomImpl`
-Custom repository for `User` entity with:
+### Sample application.yml
 
-- `findByFilter(UserFilter, Pageable)`
-- `countByFilter(UserFilter)`
-- `findByEmail(String)`
+spring:  
+datasource:  
+url: jdbc:postgresql://localhost:5432/advertisement  
+username: postgres  
+password: password  
+sql:  
+init:  
+mode: always
 
----
+## 🧪 Testing Recommendations
 
-## 🔍 Usage Example
+- Unit test FieldConditionsRules for SQL generation
+- Integration test UserRepositoryCustomImpl with real DB
+- Validate sorting, pagination, and edge cases
 
-```java
-UserFilter filter = new UserFilter();
-filter.setRole(Role.ADMIN);
-filter.setEmail("admin@example.com");
+## 📌 TODO
 
-Pageable pageable = PageRequest.of(0, 10, Sort.by("createdAt").descending());
+- Add locale-based filtering
+- Introduce DSL for condition composition
+- Add test coverage for all repository methods
+- Document framework usage for other entities
 
-List<User> users = userRepository.findByFilter(filter, pageable);
+## 🛠️ Tech Stack
 
+- Java 21
+- Spring JDBC
+- PostgreSQL
+- Maven
+- Docker (optional)
+
+## 👤 Author
+
+Designed and maintained by Ostap — declarative architect, refactoring perfectionist, and legacy liberator.
