@@ -16,6 +16,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 
 @SpringComponent
@@ -27,12 +28,14 @@ public class AdvertisementsView extends VerticalLayout {
 	private final AdvertisementLeftSidebar sidebar;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
+	private final I18nService i18n;
 
 	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
-							  AdvertisementLeftSidebar sidebar) {
+							  AdvertisementLeftSidebar sidebar, I18nService i18n) {
 		this.mapper = mapper;
 		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
+		this.i18n = i18n;
 		addClassName("advertisement-list-view");
 
 		setSizeFull();
@@ -80,7 +83,7 @@ public class AdvertisementsView extends VerticalLayout {
 	}
 
 	private void openAdvertisementFormDialog(Advertisement advertisement) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementService);
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementService, i18n);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
 				refreshAdvertisements();

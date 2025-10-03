@@ -8,7 +8,8 @@ import java.util.List;
 public enum TailwindStyle {
 	BASE_LABEL(null, "px-2", "py-1"),
 	GRAY_LABEL(BASE_LABEL, "text-sm", "text-gray-500"),
-	EMAIL_LABEL(BASE_LABEL, "text-base", "font-bold", "text-blue-600");
+	EMAIL_LABEL(BASE_LABEL, "text-base", "font-bold", "text-blue-600"),
+	SCROLL_CONTAINER(null, "h-full", "overflow-auto", "flex-grow");
 
 	private final List<String> classes = new ArrayList<>();
 

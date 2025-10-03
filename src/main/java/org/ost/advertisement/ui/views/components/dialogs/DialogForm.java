@@ -88,8 +88,7 @@ public abstract class DialogForm extends Dialog {
 
 	private Div createScrollable(Component inner) {
 		Div scroll = new Div(inner);
-		scroll.setHeight("100%");
-		scroll.getStyle().set("overflow", "auto").set("flex-grow", "1");
+		TailwindStyle.SCROLL_CONTAINER.apply(scroll);
 		return scroll;
 	}
 }
