@@ -5,7 +5,6 @@ import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.textfield.TextField;
@@ -17,60 +16,57 @@ import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.security.utils.AuthUtil;
-import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
+import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.views.TailwindStyle;
+import org.ost.advertisement.ui.views.components.dialogs.DialogForm;
 
 @Slf4j
-public class UserFormDialog extends BaseDialog {
+public class UserFormDialog extends DialogForm {
 
-	private final TextField nameField = createNameField();
-	private final ComboBox<Role> roleCombo = createRoleCombo();
-
-	private final Span idSpan = new Span();
-	private final Span emailSpan = new Span();
-	private final Component idComponent = createEmailComponent("ID:", idSpan);
-	private final Component emailComponent = createEmailComponent("Email:", emailSpan);
-
-	private final Span createdAtSpan = createDateSpan();
-	private final Span updatedAtSpan = createDateSpan();
-	private final Component createdAtComponent = createDateComponent("Created At:", createdAtSpan);
-	private final Component updatedAtComponent = createDateComponent("Updated At:", updatedAtSpan);
-
+	private final transient UserService userService;
+	private final transient User user;
 	private final Binder<User> binder;
 
-	private final UserService userService;
-	private final User user;
 
-	public UserFormDialog(User user, UserService userService) {
-		super();
+	public UserFormDialog(User user, UserService userService, I18nService i18n) {
+		super(i18n);
 		this.user = user;
 		this.userService = userService;
 
-		binder = createBinder(user, nameField, roleCombo);
+		TextField nameField = createNameField();
+		ComboBox<Role> roleCombo = createRoleCombo();
+		binder = createBinder(nameField, roleCombo);
 
-		idSpan.setText(String.valueOf(user.getId()));
-		emailSpan.setText(ofNullable(user.getEmail()).orElse(""));
-		createdAtSpan.setText(formatDate(user.getCreatedAt()));
-		updatedAtSpan.setText(formatDate(user.getUpdatedAt()));
+		setTitle("user.dialog.title");
 
-		title.setText("Edit User");
-		actionsFooter.add(createSaveButton(event -> saveUser()), createCancelButton());
+		Component idComponent =
+			labeled("user.dialog.field.id.label", String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL );
+		Component emailComponent =
+			labeled("user.dialog.field.email.label", ofNullable(user.getEmail()).orElse(""), TailwindStyle.EMAIL_LABEL);
+		Component createdAtComponent =
+			labeled("user.dialog.field.created.label", formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL);
+		Component updatedAtComponent =
+			labeled("user.dialog.field.updated.label", formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL);
+		addContent(idComponent, emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
 
-		content.add(idComponent, emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
+		addActions(createSaveButton("user.dialog.button.save", event -> saveUser()),
+			createCancelButton("user.dialog.button.cancel"));
+
 	}
 
+
 	private TextField createNameField() {
-		TextField field = new TextField("Name");
-		field.setPlaceholder("Enter name");
+		TextField field = new TextField(i18n.get("user.dialog.field.name.label"));
+		field.setPlaceholder(i18n.get("user.dialog.field.name.placeholder"));
 		field.setRequired(true);
 		field.setMaxLength(255);
-		field.setAutofocus(true);
 		return field;
 	}
 
 	private ComboBox<Role> createRoleCombo() {
-		ComboBox<Role> combo = new ComboBox<>("Role");
+		ComboBox<Role> combo = new ComboBox<>(i18n.get("user.dialog.field.role.label"));
 		combo.setItems(Arrays.asList(Role.values()));
 		combo.setRequired(true);
 		combo.setAllowCustomValue(false);
@@ -79,36 +75,37 @@ public class UserFormDialog extends BaseDialog {
 		return combo;
 	}
 
-	private Binder<User> createBinder(User user, TextField nameField, ComboBox<Role> roleCombo) {
-		Binder<User> binder = new Binder<>(User.class);
-		binder.setBean(user);
+	private Binder<User> createBinder(TextField nameField, ComboBox<Role> roleCombo) {
+		Binder<User> newBinder = new Binder<>(User.class);
+		newBinder.setBean(user);
 
-		binder.forField(nameField)
-			.asRequired("Name cannot be empty")
-			.withValidator(new StringLengthValidator("Name must be between 1 and 255 characters", 1, 255))
+		newBinder.forField(nameField)
+			.asRequired(i18n.get("user.dialog.validation.name.required"))
+			.withValidator(new StringLengthValidator(i18n.get("user.dialog.validation.name.length"), 1, 255))
 			.bind(User::getName, User::setName);
 
-		binder.forField(roleCombo)
-			.asRequired("Role is required")
+		newBinder.forField(roleCombo)
+			.asRequired(i18n.get("user.dialog.validation.role.required"))
 			.bind(User::getRole, User::setRole);
 
-		return binder;
+		return newBinder;
 	}
 
 	private void saveUser() {
 		try {
 			binder.writeBean(user);
 			userService.save(AuthUtil.getCurrentUser(), user);
-			Notification.show("User updated", 3000, Notification.Position.BOTTOM_START)
+			Notification.show(i18n.get("user.dialog.notification.success"), 3000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
 			close();
 		} catch (ValidationException e) {
 			log.warn("Validation error: {}", e.getMessage());
-			Notification.show("Validation failed", 5000, Notification.Position.BOTTOM_START)
+			Notification.show(i18n.get("user.dialog.notification.validation.failed"), 5000, Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_ERROR);
 		} catch (Exception e) {
 			log.error("Save failed", e);
-			Notification.show("Save error: " + e.getMessage(), 5000, Notification.Position.BOTTOM_START)
+			Notification.show(i18n.get("user.dialog.notification.save.error", e.getMessage()), 5000,
+					Notification.Position.BOTTOM_START)
 				.addThemeVariants(NotificationVariant.LUMO_ERROR);
 		}
 	}
@@ -117,3 +114,4 @@ public class UserFormDialog extends BaseDialog {
 		return formatInstant(instant, "—");
 	}
 }
+

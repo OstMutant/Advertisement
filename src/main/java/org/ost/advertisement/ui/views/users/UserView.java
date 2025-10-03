@@ -29,6 +29,7 @@ import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
@@ -42,10 +43,12 @@ public class UserView extends VerticalLayout {
 	private final PaginationBarModern paginationBar = new PaginationBarModern();
 	private final UserFilterFields filterFields;
 	private final CustomSort customSort = new CustomSort();
+	private final I18nService i18n;
 
-	public UserView(UserFilterFields filterFields, UserService userService) {
+	public UserView(UserFilterFields filterFields, UserService userService, I18nService i18n) {
 		this.filterFields = filterFields;
 		this.userService = userService;
+		this.i18n = i18n;
 		addClassName("user-list-view");
 		setSizeFull();
 		setPadding(false);
@@ -153,7 +156,7 @@ public class UserView extends VerticalLayout {
 	}
 
 	private void openUserFormDialog(User user) {
-		UserFormDialog dialog = new UserFormDialog(user, userService);
+		UserFormDialog dialog = new UserFormDialog(user, userService, i18n);
 		dialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
 				refreshGrid();
