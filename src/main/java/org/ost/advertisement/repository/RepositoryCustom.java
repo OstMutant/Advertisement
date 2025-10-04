@@ -1,6 +1,5 @@
 package org.ost.advertisement.repository;
 
-import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 
 import java.sql.Timestamp;
@@ -71,21 +70,23 @@ public class RepositoryCustom<T, F> {
 
 	private StringBuilder prepareSelectTemplate(String source, String fields, String conditions, String sorting,
 												String pagination) {
-		return new StringBuilder()
-			.append("SELECT ")
-			.append(StringUtils.isBlank(fields) ? "*" : fields)
-			.append(" FROM ")
-			.append(source)
-			.append(StringUtils.isBlank(conditions) ? "" : " WHERE " + conditions)
-			.append(StringUtils.isBlank(sorting) ? "" : sorting)
-			.append(StringUtils.isBlank(pagination) ? "" : pagination);
+		String selectFields = ofNullable(fields).filter(StringUtils::isNotBlank).orElse("*");
+		StringBuilder sql = new StringBuilder("SELECT ").append(selectFields).append(" FROM ").append(source);
+		ofNullable(conditions).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" WHERE ").append(s));
+		ofNullable(sorting).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" ").append(s));
+		ofNullable(pagination).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" ").append(s));
+		return sql;
 	}
 
 	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
-		String sql = " LIMIT :limit OFFSET :offset ";
-		params.addValue("limit", pageable.getPageSize())
-			.addValue("offset", pageable.getOffset());
-		return sql;
+		return ofNullable(pageable)
+			.filter(p -> !p.isUnpaged())
+			.map(p -> {
+				params.addValue("limit", p.getPageSize())
+					.addValue("offset", p.getOffset());
+				return " LIMIT :limit OFFSET :offset ";
+			})
+			.orElse("");
 	}
 
 	public abstract static class FieldRelations<T> implements RowMapper<T> {
@@ -98,13 +99,15 @@ public class RepositoryCustom<T, F> {
 		}
 
 		private static Map<String, String> from(SqlDtoFieldRelation[] items) {
-			return Objects.nonNull(items)
-				? Stream.of(items).collect(Collectors.toMap(
-				SqlDtoFieldRelation::getDtoField,
-				SqlDtoFieldRelation::getSqlField,
-				(existing, replacement) -> existing,
-				HashMap::new))
-				: Map.of();
+			return ofNullable(items)
+				.map(Stream::of)
+				.orElseGet(Stream::empty)
+				.collect(Collectors.toMap(
+					SqlDtoFieldRelation::getDtoField,
+					SqlDtoFieldRelation::getSqlField,
+					(existing, replacement) -> existing,
+					HashMap::new
+				));
 		}
 
 		private final Map<String, String> dtoToSqlRelations;
@@ -126,16 +129,16 @@ public class RepositoryCustom<T, F> {
 		}
 
 		public String sortToSql(Sort sort) {
-			String orderByFragment = sort.stream()
+			String orderByFragment = ofNullable(sort)
+				.filter(s -> !s.isEmpty())
+				.map(Sort::stream)
+				.orElseGet(Stream::empty)
 				.map(order -> ofNullable(dtoToSqlRelations.get(order.getProperty()))
-					.map(column -> column + " " + order.getDirection().name())
+					.map(col -> col + " " + order.getDirection().name())
 					.orElse(null))
 				.filter(Objects::nonNull)
 				.collect(Collectors.joining(", "));
-			return of(orderByFragment)
-				.filter(StringUtils::isNotBlank)
-				.map(s -> " ORDER BY " + s)
-				.orElse("");
+			return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
 		}
 	}
 
@@ -196,32 +199,31 @@ public class RepositoryCustom<T, F> {
 
 		public void like(Relation relation, String value, FieldConditions<F> fieldConditions) {
 			applyConditions(value != null && !value.isBlank(), relation, value,
-				(sqlField, param) -> sqlField + " ILIKE '%' || :" + param + " || '%'", v -> v, fieldConditions);
+				(sqlField, param) -> sqlField + " ILIKE :" + param, v -> "%" + v + "%", fieldConditions);
 		}
 
 		public void after(Relation relation, Instant value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null, relation, value,
-				(sqlField, param) -> sqlField + " >= :" + param, Timestamp::from, fieldConditions);
+			condition(relation, value, ">=", Timestamp::from, fieldConditions);
 		}
 
 		public void before(Relation relation, Instant value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null, relation, value,
-				(sqlField, param) -> sqlField + " <= :" + param, Timestamp::from, fieldConditions);
+			condition(relation, value, "<=", Timestamp::from, fieldConditions);
 		}
 
 		public void after(Relation relation, Long value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null, relation, value,
-				(sqlField, param) -> sqlField + " >= :" + param, Function.identity(), fieldConditions);
+			condition(relation, value, ">=", Function.identity(), fieldConditions);
 		}
 
 		public void before(Relation relation, Long value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null, relation, value,
-				(sqlField, param) -> sqlField + " <= :" + param, Function.identity(), fieldConditions);
+			condition(relation, value, "<=", Function.identity(), fieldConditions);
 		}
 
 		public void equalsTo(Relation relation, String value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null, relation, value,
-				(sqlField, param) -> sqlField + " = :" + param, Function.identity(), fieldConditions);
+			condition(relation, value, "=", Function.identity(), fieldConditions);
+		}
+
+		protected <V, R> void condition(Relation r, V v, String op, Function<V, R> f, FieldConditions<F> fc) {
+			applyConditions(v != null, r, v, (sql, param) -> sql + " " + op + " :" + param, f, fc);
 		}
 	}
 }
