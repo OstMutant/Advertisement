@@ -1,5 +1,6 @@
 package org.ost.advertisement.repository;
 
+import static java.util.Optional.of;
 import static java.util.Optional.ofNullable;
 
 import java.sql.Timestamp;
@@ -131,7 +132,7 @@ public class RepositoryCustom<T, F> {
 					.orElse(null))
 				.filter(Objects::nonNull)
 				.collect(Collectors.joining(", "));
-			return ofNullable(orderByFragment)
+			return of(orderByFragment)
 				.filter(StringUtils::isNotBlank)
 				.map(s -> " ORDER BY " + s)
 				.orElse("");
