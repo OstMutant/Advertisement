@@ -6,7 +6,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.ost.advertisement.security.UserIdMarker;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -20,7 +19,7 @@ import org.springframework.data.relational.core.mapping.Table;
 @Getter
 @Setter
 @Table("advertisement")
-public class Advertisement implements UserIdMarker {
+public class Advertisement {
 
 	@Id
 	private Long id;
@@ -37,8 +36,4 @@ public class Advertisement implements UserIdMarker {
 	private Long createdByUserId;
 	@LastModifiedBy
 	private Long lastModifiedByUserId;
-
-	public Long getUserId() {
-		return createdByUserId;
-	}
 }

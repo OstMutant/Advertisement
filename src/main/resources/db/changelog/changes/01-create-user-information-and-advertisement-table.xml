@@ -74,4 +74,9 @@
     </createIndex>
 
   </changeSet>
+  <changeSet id="01-02-test-data" author="ostap">
+    <sqlFile path="test-data.sql" relativeToChangelogFile="true"/>
+  </changeSet>
+
+
 </databaseChangeLog>

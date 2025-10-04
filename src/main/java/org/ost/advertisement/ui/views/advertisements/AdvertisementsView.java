@@ -13,7 +13,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -76,14 +75,15 @@ public class AdvertisementsView extends VerticalLayout {
 		pageData.forEach(ad ->
 			advertisementContainer.add(
 				new AdvertisementCardView(ad,
-					() -> openAdvertisementFormDialog(mapper.toAdvertisement(ad)),
+					() -> openAdvertisementFormDialog(ad),
 					() -> openConfirmDeleteDialog(ad))
 			)
 		);
 	}
 
-	private void openAdvertisementFormDialog(Advertisement advertisement) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementService, i18n);
+	private void openAdvertisementFormDialog(AdvertisementView ad) {
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(mapper.toAdvertisementEdit(ad),
+			advertisementService, i18n);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
 				refreshAdvertisements();

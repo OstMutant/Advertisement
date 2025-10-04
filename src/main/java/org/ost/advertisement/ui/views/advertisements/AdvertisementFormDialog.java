@@ -4,19 +4,18 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.entities.Advertisement;
-import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.dto.AdvertisementEdit;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 
 @Slf4j
-public class AdvertisementFormDialog extends GenericFormDialog<Advertisement> {
+public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit> {
 
-	public AdvertisementFormDialog(Advertisement advertisement, AdvertisementService advertisementService,
+	public AdvertisementFormDialog(AdvertisementEdit advertisement, AdvertisementService advertisementService,
 								   I18nService i18n) {
-		super(advertisement == null ? new Advertisement() : advertisement, Advertisement.class, i18n);
+		super(advertisement == null ? new AdvertisementEdit() : advertisement, AdvertisementEdit.class, i18n);
 
 		TextField titleField = createTitleField();
 		TextArea descriptionField = createDescriptionField();
@@ -24,15 +23,13 @@ public class AdvertisementFormDialog extends GenericFormDialog<Advertisement> {
 		binder.forField(titleField)
 			.asRequired(i18n.get("advertisement.dialog.validation.title.required"))
 			.withValidator(new StringLengthValidator(i18n.get("advertisement.dialog.validation.title.length"), 1, 255))
-			.bind(Advertisement::getTitle, Advertisement::setTitle);
+			.bind(AdvertisementEdit::getTitle, AdvertisementEdit::setTitle);
 
 		binder.forField(descriptionField)
 			.asRequired(i18n.get("advertisement.dialog.validation.description.required"))
-			.bind(Advertisement::getDescription, Advertisement::setDescription);
+			.bind(AdvertisementEdit::getDescription, AdvertisementEdit::setDescription);
 
-		setTitle(dto.getId() == null
-			? "advertisement.dialog.title.new"
-			: "advertisement.dialog.title.edit");
+		setTitle(dto.getId() == null ? "advertisement.dialog.title.new" : "advertisement.dialog.title.edit");
 
 		addContent(
 			titleField,
@@ -44,8 +41,7 @@ public class AdvertisementFormDialog extends GenericFormDialog<Advertisement> {
 
 		addActions(
 			createSaveButton("advertisement.dialog.button.save",
-				event -> save(
-					d -> advertisementService.save(AuthUtil.getCurrentUser(), d),
+				event -> save(advertisementService::save,
 					"advertisement.dialog.notification.success",
 					"advertisement.dialog.notification.save.error")),
 			createCancelButton("advertisement.dialog.button.cancel")
