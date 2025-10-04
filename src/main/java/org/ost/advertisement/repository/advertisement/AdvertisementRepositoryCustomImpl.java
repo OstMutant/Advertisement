@@ -90,7 +90,7 @@ public class AdvertisementRepositoryCustomImpl extends
 		protected AdvertisementMapper() {
 			super(EnumSet.allOf(AdvertisementFieldRelations.class), """
 				    advertisement a
-				    LEFT JOIN user_information u ON a.user_id = u.id
+				    LEFT JOIN user_information u ON a.created_by_user_id = u.id
 				""");
 		}
 

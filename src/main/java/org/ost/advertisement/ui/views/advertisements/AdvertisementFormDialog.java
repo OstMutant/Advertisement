@@ -16,8 +16,7 @@ public class AdvertisementFormDialog extends GenericFormDialog<Advertisement> {
 
 	public AdvertisementFormDialog(Advertisement advertisement, AdvertisementService advertisementService,
 								   I18nService i18n) {
-		super(advertisement == null ? new Advertisement(AuthUtil.getCurrentUser().getId()) : advertisement,
-			Advertisement.class, i18n);
+		super(advertisement == null ? new Advertisement() : advertisement, Advertisement.class, i18n);
 
 		TextField titleField = createTitleField();
 		TextArea descriptionField = createDescriptionField();

@@ -1,6 +1,5 @@
-package org.ost.advertisement.configuration;
+package org.ost.advertisement.configuration.db;
 
-import java.util.Optional;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
@@ -11,7 +10,7 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
 public class AuditingConfig {
 
 	@Bean
-	public AuditorAware<String> auditorProvider() {
-		return Optional::empty;
+	public AuditorAware<Long> auditorProvider() {
+		return new SecurityAuditorAware();
 	}
 }

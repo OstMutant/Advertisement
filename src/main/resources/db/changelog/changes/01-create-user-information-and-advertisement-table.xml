@@ -5,7 +5,7 @@
   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                       http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-  <changeSet id="01-01-base-schema-refactored" author="ostap" runAlways="false" runOnChange="false">
+  <changeSet id="01-01-base-schema-refactored-v2" author="ostap" runAlways="false" runOnChange="false">
 
     <createTable tableName="user_information">
       <column name="id" type="BIGSERIAL">
@@ -45,25 +45,33 @@
       <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
         <constraints nullable="false"/>
       </column>
-      <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/> <column name="user_id" type="BIGINT"/>
+      <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+
+      <column name="created_by_user_id" type="BIGINT">
+        <constraints nullable="false"/> </column>
+      <column name="last_modified_by_user_id" type="BIGINT"/>
+
     </createTable>
 
     <addForeignKeyConstraint baseTableName="advertisement"
-      baseColumnNames="user_id"
-      constraintName="fk_advertisement_user_id"
+      baseColumnNames="created_by_user_id"
+      constraintName="fk_advertisement_created_by"
       referencedTableName="user_information"
       referencedColumnNames="id"
-      onDelete="SET NULL"/>
-
-    <createIndex indexName="idx_advertisement_title" tableName="advertisement">
-      <column name="title"/>
-    </createIndex>
+      onDelete="RESTRICT"/> <addForeignKeyConstraint baseTableName="advertisement"
+    baseColumnNames="last_modified_by_user_id"
+    constraintName="fk_advertisement_modified_by"
+    referencedTableName="user_information"
+    referencedColumnNames="id"
+    onDelete="SET NULL"/> <createIndex indexName="idx_advertisement_title" tableName="advertisement">
+    <column name="title"/>
+  </createIndex>
     <createIndex indexName="idx_advertisement_created_at" tableName="advertisement">
       <column name="created_at"/>
     </createIndex>
-    <createIndex indexName="idx_advertisement_user_id" tableName="advertisement">
-      <column name="user_id"/>
+    <createIndex indexName="idx_advertisement_created_by" tableName="advertisement">
+      <column name="created_by_user_id"/>
     </createIndex>
-  </changeSet>
 
+  </changeSet>
 </databaseChangeLog>
