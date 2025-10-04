@@ -3,6 +3,7 @@ package org.ost.advertisement.repository.advertisement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.EnumSet;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementView;
@@ -15,8 +16,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class AdvertisementRepositoryCustomImpl extends
-	RepositoryCustom<AdvertisementView, AdvertisementFilter> implements AdvertisementRepositoryCustom {
+public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<AdvertisementView, AdvertisementFilter>
+	implements AdvertisementRepositoryCustom {
 
 	private static final AdvertisementMapper ADVERTISEMENT_MAPPER = new AdvertisementMapper();
 	private static final AdvertisementFieldConditionsRules ADVERTISEMENT_CONDITIONS_RULES = new AdvertisementFieldConditionsRules();
@@ -88,7 +89,7 @@ public class AdvertisementRepositoryCustomImpl extends
 
 
 		protected AdvertisementMapper() {
-			super(EnumSet.allOf(AdvertisementFieldRelations.class), """
+			super(AdvertisementFieldRelations.values(), """
 				    advertisement a
 				    LEFT JOIN user_information u ON a.created_by_user_id = u.id
 				""");

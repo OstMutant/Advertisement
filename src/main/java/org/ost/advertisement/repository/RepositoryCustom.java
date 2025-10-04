@@ -1,5 +1,7 @@
 package org.ost.advertisement.repository;
 
+import static java.util.Optional.ofNullable;
+
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -13,11 +15,12 @@ import java.util.Set;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.ost.advertisement.repository.RepositoryCustom.FieldRelations.SqlDtoFieldRelation;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Order;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -69,12 +72,12 @@ public class RepositoryCustom<T, F> {
 												String pagination) {
 		return new StringBuilder()
 			.append("SELECT ")
-			.append(fields == null || fields.isBlank() ? "*" : fields)
+			.append(StringUtils.isBlank(fields) ? "*" : fields)
 			.append(" FROM ")
 			.append(source)
-			.append(conditions == null || conditions.isBlank() ? "" : " WHERE " + conditions)
-			.append(sorting == null || sorting.isBlank() ? "" : sorting)
-			.append(pagination == null || pagination.isBlank() ? "" : pagination);
+			.append(StringUtils.isBlank(conditions) ? "" : " WHERE " + conditions)
+			.append(StringUtils.isBlank(sorting) ? "" : sorting)
+			.append(StringUtils.isBlank(pagination) ? "" : pagination);
 	}
 
 	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
@@ -93,16 +96,21 @@ public class RepositoryCustom<T, F> {
 			String getDtoField();
 		}
 
+		private static Map<String, String> from(SqlDtoFieldRelation[] items) {
+			return Objects.nonNull(items)
+				? Stream.of(items).collect(Collectors.toMap(
+				SqlDtoFieldRelation::getDtoField,
+				SqlDtoFieldRelation::getSqlField,
+				(existing, replacement) -> existing,
+				HashMap::new))
+				: Map.of();
+		}
+
 		private final Map<String, String> dtoToSqlRelations;
 		private final String sqlSource;
 
-		protected FieldRelations(Set<? extends SqlDtoFieldRelation> items, String sqlSource) {
-			if (Objects.isNull(items) || items.isEmpty()) {
-				this.dtoToSqlRelations = Map.of();
-			} else {
-				this.dtoToSqlRelations = items.stream().collect(
-					Collectors.toMap(SqlDtoFieldRelation::getDtoField, SqlDtoFieldRelation::getSqlField));
-			}
+		protected FieldRelations(SqlDtoFieldRelation[] items, String sqlSource) {
+			this.dtoToSqlRelations = from(items);
 			this.sqlSource = sqlSource;
 		}
 
@@ -111,29 +119,22 @@ public class RepositoryCustom<T, F> {
 		}
 
 		public String fieldsToSql() {
-			return dtoToSqlRelations.entrySet().stream().map(v -> v.getValue() + " AS " + v.getKey())
+			return dtoToSqlRelations.entrySet().stream()
+				.map(v -> v.getValue() + " AS " + v.getKey())
 				.collect(Collectors.joining(", "));
 		}
 
 		public String sortToSql(Sort sort) {
-			StringBuilder sql = new StringBuilder();
-			if (sort.isSorted()) {
-				sql.append(" ORDER BY ")
-					.append(
-						sort.stream().map(this::orderToSql).filter(Objects::nonNull)
-							.collect(Collectors.joining(", "))
-					);
-			}
-			return sql.toString();
-		}
-
-		public String resolve(String dtoField) {
-			return dtoToSqlRelations.getOrDefault(dtoField, dtoField);
-		}
-
-		private String orderToSql(Order order) {
-			String column = dtoToSqlRelations.get(order.getProperty());
-			return column == null ? null : column + " " + order.getDirection().name();
+			String orderByFragment = sort.stream()
+				.map(order -> ofNullable(dtoToSqlRelations.get(order.getProperty()))
+					.map(column -> column + " " + order.getDirection().name())
+					.orElse(null))
+				.filter(Objects::nonNull)
+				.collect(Collectors.joining(", "));
+			return ofNullable(orderByFragment)
+				.filter(StringUtils::isNotBlank)
+				.map(s -> " ORDER BY " + s)
+				.orElse("");
 		}
 	}
 
@@ -175,7 +176,7 @@ public class RepositoryCustom<T, F> {
 		protected final Set<? extends Relation> relations;
 
 		protected FieldConditionsRules(Set<? extends Relation> items) {
-			relations = items == null ? Set.of() : items;
+			relations = ofNullable(items).orElseGet(Set::of);
 		}
 
 		private <V, R> void applyConditions(boolean isApply, Relation relation, V value,
@@ -189,6 +190,8 @@ public class RepositoryCustom<T, F> {
 					parametersFunction.apply(value));
 			}
 		}
+
+		public abstract String apply(MapSqlParameterSource params, F filter);
 
 		public void like(Relation relation, String value, FieldConditions<F> fieldConditions) {
 			applyConditions(value != null && !value.isBlank(), relation, value,
@@ -219,7 +222,5 @@ public class RepositoryCustom<T, F> {
 			applyConditions(value != null, relation, value,
 				(sqlField, param) -> sqlField + " = :" + param, Function.identity(), fieldConditions);
 		}
-
-		public abstract String apply(MapSqlParameterSource params, F filter);
 	}
 }

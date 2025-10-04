@@ -52,7 +52,7 @@ public class UserRepositoryCustomImpl extends
 		}
 
 		public UserMapper() {
-			super(EnumSet.allOf(UserFieldRelations.class), "user_information u");
+			super(UserFieldRelations.values(), "user_information u");
 		}
 
 		@Override
