@@ -39,7 +39,6 @@ public class AdvertisementService {
 		if (!canEdit(currentUser, ad)) {
 			throw new AccessDeniedException("You cannot edit this advertisement");
 		}
-		ad.setUpdatedAt(Instant.now());
 		repository.save(ad);
 	}
 

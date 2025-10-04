@@ -35,12 +35,10 @@ public class UserService {
 		if (!canEdit(currentUser, targetUser)) {
 			throw new AccessDeniedException("You cannot edit this user");
 		}
-		targetUser.setUpdatedAt(Instant.now());
 		repository.save(targetUser);
 	}
 
 	public void save(User user) {
-		user.setUpdatedAt(Instant.now());
 		repository.save(user);
 	}
 

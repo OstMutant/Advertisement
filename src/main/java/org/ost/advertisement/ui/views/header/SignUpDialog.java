@@ -67,8 +67,6 @@ public class SignUpDialog extends Dialog {
 			newUser.setName(name);
 			newUser.setEmail(email);
 			newUser.setPasswordHash(PasswordEncoderUtil.encode(rawPassword));
-			newUser.setCreatedAt(Instant.now());
-			newUser.setUpdatedAt(Instant.now());
 			newUser.setRole(Role.USER);
 
 			userRepository.save(newUser);
