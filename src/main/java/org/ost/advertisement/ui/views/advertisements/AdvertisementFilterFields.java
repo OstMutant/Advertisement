@@ -13,6 +13,7 @@ import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.mappers.AdvertisementFilterMapper;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
@@ -21,26 +22,34 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 @UIScope
 public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
 
-	private final TextField title = createFullTextField("Title...");
-
-	private final DatePicker createdStart = createDatePicker("Created from");
-	private final DatePicker createdEnd = createDatePicker("Created to");
-	private final DatePicker updatedStart = createDatePicker("Updated from");
-	private final DatePicker updatedEnd = createDatePicker("Updated to");
+	private final TextField title;
+	private final DatePicker createdStart;
+	private final DatePicker createdEnd;
+	private final DatePicker updatedStart;
+	private final DatePicker updatedEnd;
 
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
 	@Getter
-	private final List<Component> filterComponentList = List.of(
-		title,
-		createFilterBlock(createdStart, createdEnd),
-		createFilterBlock(updatedStart, updatedEnd),
-		actionsBlock.getActionBlock()
-	);
+	private final List<Component> filterComponentList;
 
 	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper,
-									 ValidationService<AdvertisementFilter> validation) {
+									 ValidationService<AdvertisementFilter> validation,
+									 I18nService i18n) {
 		super(AdvertisementFilter.empty(), validation, filterMapper);
+
+		this.title = createFullTextField(i18n.get("advertisement.filter.title.placeholder"));
+		this.createdStart = createDatePicker(i18n.get("advertisement.filter.created.start"));
+		this.createdEnd = createDatePicker(i18n.get("advertisement.filter.created.end"));
+		this.updatedStart = createDatePicker(i18n.get("advertisement.filter.updated.start"));
+		this.updatedEnd = createDatePicker(i18n.get("advertisement.filter.updated.end"));
+
+		this.filterComponentList = List.of(
+			title,
+			createFilterBlock(createdStart, createdEnd),
+			createFilterBlock(updatedStart, updatedEnd),
+			actionsBlock.getActionBlock()
+		);
 	}
 
 	@PostConstruct
@@ -83,3 +92,4 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		});
 	}
 }
+

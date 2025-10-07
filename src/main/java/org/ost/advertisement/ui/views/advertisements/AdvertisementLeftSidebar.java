@@ -7,23 +7,30 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.ost.advertisement.services.I18nService;
 
 @SpringComponent
 @UIScope
 public class AdvertisementLeftSidebar extends VerticalLayout {
 
-	private final Button addAdvertisementButton = new Button("Add Advertisement");
-	private final Details filtersBlock = createDetails("Filters");
-	private final Details sortingBlock = createDetails("Sorting");
+	private final Button addAdvertisementButton;
+	private final Details filtersBlock;
+	private final Details sortingBlock;
 
 	@Getter
 	private final transient AdvertisementFilterFields filterFields;
 	@Getter
 	private final transient AdvertisementSortFields sortFields;
 
-	public AdvertisementLeftSidebar(AdvertisementFilterFields filterFields, AdvertisementSortFields sortFields) {
+	public AdvertisementLeftSidebar(AdvertisementFilterFields filterFields, AdvertisementSortFields sortFields,
+									I18nService i18n) {
 		this.filterFields = filterFields;
 		this.sortFields = sortFields;
+
+		this.addAdvertisementButton = new Button(i18n.get("advertisement.sidebar.button.add"));
+		this.filtersBlock = createDetails(i18n.get("advertisement.sidebar.section.filters"));
+		this.sortingBlock = createDetails(i18n.get("advertisement.sidebar.section.sorting"));
+
 		filtersBlock.add(filterFields.getFilterComponentList());
 		sortingBlock.add(sortFields.getSortComponentList());
 	}
@@ -53,7 +60,6 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 	}
 
 	private Details createDetails(String label) {
-
 		VerticalLayout component = new VerticalLayout();
 		component.setSpacing(true);
 		component.setPadding(false);
@@ -64,3 +70,4 @@ public class AdvertisementLeftSidebar extends VerticalLayout {
 		return detailsBlock;
 	}
 }
+

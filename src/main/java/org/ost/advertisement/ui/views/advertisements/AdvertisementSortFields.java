@@ -11,6 +11,7 @@ import jakarta.annotation.PostConstruct;
 import java.util.List;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.springframework.data.domain.Sort.Direction;
@@ -29,14 +30,17 @@ public class AdvertisementSortFields {
 	private final SortFieldsProcessor sortFieldsProcessor;
 
 	@Getter
-	private final List<Component> sortComponentList = List.of(
-		createSortableField("Title", titleCombo),
-		createSortableField("Created At", createdAtCombo),
-		createSortableField("Updated At", updatedAtCombo),
-		actionsBlock.getActionBlock());
+	private final List<Component> sortComponentList;
 
-	public AdvertisementSortFields() {
-		sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
+	public AdvertisementSortFields(I18nService i18n) {
+		this.sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
+
+		this.sortComponentList = List.of(
+			createSortableField(i18n.get("advertisement.sort.title"), titleCombo),
+			createSortableField(i18n.get("advertisement.sort.createdAt"), createdAtCombo),
+			createSortableField(i18n.get("advertisement.sort.updatedAt"), updatedAtCombo),
+			actionsBlock.getActionBlock()
+		);
 	}
 
 	@PostConstruct

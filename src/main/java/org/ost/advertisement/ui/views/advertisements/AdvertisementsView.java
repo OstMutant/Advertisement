@@ -75,8 +75,8 @@ public class AdvertisementsView extends VerticalLayout {
 			advertisementContainer.add(
 				new AdvertisementCardView(ad,
 					() -> openAdvertisementFormDialog(ad),
-					() -> openConfirmDeleteDialog(ad))
-			)
+					() -> openConfirmDeleteDialog(ad),
+					i18n))
 		);
 	}
 

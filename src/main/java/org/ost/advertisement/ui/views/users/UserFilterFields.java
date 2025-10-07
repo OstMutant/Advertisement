@@ -15,6 +15,7 @@ import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.UserFilterMapper;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
@@ -23,19 +24,29 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 @UIScope
 public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
-	private final NumberField idMin = createNumberField("Min ID");
-	private final NumberField idMax = createNumberField("Max ID");
-	private final TextField nameField = createFullTextField("Name...");
-	private final TextField emailField = createFullTextField("Email");
-	private final ComboBox<Role> roleCombo = createCombo("Any role", Role.values());
-	private final DatePicker createdStart = createDatePicker("Created from");
-	private final DatePicker createdEnd = createDatePicker("Created to");
-	private final DatePicker updatedStart = createDatePicker("Updated from");
-	private final DatePicker updatedEnd = createDatePicker("Updated to");
+	private final NumberField idMin;
+	private final NumberField idMax;
+	private final TextField nameField;
+	private final TextField emailField;
+	private final ComboBox<Role> roleCombo;
+	private final DatePicker createdStart;
+	private final DatePicker createdEnd;
+	private final DatePicker updatedStart;
+	private final DatePicker updatedEnd;
 	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
 
-	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation) {
+	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation, I18nService i18n) {
 		super(UserFilter.empty(), validation, filterMapper);
+
+		this.idMin = createNumberField(i18n.get("user.filter.id.min"));
+		this.idMax = createNumberField(i18n.get("user.filter.id.max"));
+		this.nameField = createFullTextField(i18n.get("user.filter.name.placeholder"));
+		this.emailField = createFullTextField(i18n.get("user.filter.email.placeholder"));
+		this.roleCombo = createCombo(i18n.get("user.filter.role.any"), Role.values());
+		this.createdStart = createDatePicker(i18n.get("user.filter.created.start"));
+		this.createdEnd = createDatePicker(i18n.get("user.filter.created.end"));
+		this.updatedStart = createDatePicker(i18n.get("user.filter.updated.start"));
+		this.updatedEnd = createDatePicker(i18n.get("user.filter.updated.end"));
 	}
 
 	@PostConstruct
@@ -60,7 +71,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 		filterFieldsProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
 			UserFilter::getCreatedAtEnd, validationCreatedAt, actionsBlock);
 
-		Predicate<UserFilter> validationUpdatedAt = f -> !isValidProperty(f, "updatedAtStart") && isValidProperty(f,
+		Predicate<UserFilter> validationUpdatedAt = f -> isValidProperty(f, "updatedAtStart") && isValidProperty(f,
 			"updatedAtEnd");
 		filterFieldsProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
 			UserFilter::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
