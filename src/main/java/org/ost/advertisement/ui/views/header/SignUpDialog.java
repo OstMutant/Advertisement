@@ -6,19 +6,18 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import java.time.Instant;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.NotificationType;
 
 @SpringComponent
 @UIScope
@@ -70,7 +69,7 @@ public class SignUpDialog extends Dialog {
 			newUser.setRole(Role.USER);
 
 			userRepository.save(newUser);
-			Notification.show(i18n.get("signup.success"), 2000, Notification.Position.TOP_CENTER);
+			NotificationType.SUCCESS.show(i18n.get("signup.success"));
 			close();
 		});
 	}
@@ -110,3 +109,4 @@ public class SignUpDialog extends Dialog {
 		return valid;
 	}
 }
+
