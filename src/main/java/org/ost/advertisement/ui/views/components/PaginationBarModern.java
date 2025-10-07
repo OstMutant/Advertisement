@@ -1,20 +1,26 @@
 package org.ost.advertisement.ui.views.components;
 
+import static org.ost.advertisement.constans.I18nKey.PAGINATION_FIRST;
+import static org.ost.advertisement.constans.I18nKey.PAGINATION_INDICATOR;
+import static org.ost.advertisement.constans.I18nKey.PAGINATION_LAST;
+import static org.ost.advertisement.constans.I18nKey.PAGINATION_NEXT;
+import static org.ost.advertisement.constans.I18nKey.PAGINATION_PREV;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-
 import java.util.function.Consumer;
 import lombok.Getter;
 import lombok.Setter;
+import org.ost.advertisement.services.I18nService;
 
 public class PaginationBarModern extends HorizontalLayout {
 
-	private final Button firstButton = new Button("« First");
-	private final Button prevButton = new Button("‹ Prev");
-	private final Button nextButton = new Button("Next ›");
-	private final Button lastButton = new Button("Last »");
+	private final Button firstButton;
+	private final Button prevButton;
+	private final Button nextButton;
+	private final Button lastButton;
 	private final Span pageIndicator = new Span();
 
 	@Getter
@@ -26,9 +32,17 @@ public class PaginationBarModern extends HorizontalLayout {
 	@Setter
 	private Consumer<PaginationEvent> pageChangeListener;
 
-	public PaginationBarModern() {
+	private final transient I18nService i18n;
+
+	public PaginationBarModern(I18nService i18n) {
+		this.i18n = i18n;
 		setAlignItems(Alignment.CENTER);
 		setSpacing(true);
+
+		firstButton = new Button(i18n.get(PAGINATION_FIRST));
+		prevButton = new Button(i18n.get(PAGINATION_PREV));
+		nextButton = new Button(i18n.get(PAGINATION_NEXT));
+		lastButton = new Button(i18n.get(PAGINATION_LAST));
 
 		firstButton.addClickListener(e -> {
 			currentPage = 0;
@@ -65,12 +79,10 @@ public class PaginationBarModern extends HorizontalLayout {
 		if (currentPage >= getTotalPages()) {
 			currentPage = Math.max(0, getTotalPages() - 1);
 		}
-		updateUI();
 	}
 
 	public void setPageSize(int size) {
 		this.pageSize = size;
-		updateUI();
 	}
 
 	private int getTotalPages() {
@@ -79,7 +91,7 @@ public class PaginationBarModern extends HorizontalLayout {
 
 	private void updateUI() {
 		int totalPages = getTotalPages();
-		pageIndicator.setText("Page " + (currentPage + 1) + " of " + totalPages);
+		pageIndicator.setText(i18n.get(PAGINATION_INDICATOR, currentPage + 1, totalPages));
 
 		firstButton.setEnabled(currentPage > 0);
 		prevButton.setEnabled(currentPage > 0);
@@ -88,11 +100,13 @@ public class PaginationBarModern extends HorizontalLayout {
 	}
 
 	private void triggerCallback() {
-		updateUI();
 		if (pageChangeListener != null) {
 			pageChangeListener.accept(new PaginationEvent(currentPage, pageSize));
 		}
 	}
 
-	public record PaginationEvent(int page, int size) {}
+	public record PaginationEvent(int page, int size) {
+
+	}
 }
+

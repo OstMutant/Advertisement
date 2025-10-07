@@ -1,5 +1,14 @@
 package org.ost.advertisement.ui.views.header;
 
+import static org.ost.advertisement.constans.I18nKey.LOGIN_BUTTON_CANCEL;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_BUTTON_SUBMIT;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_EMAIL_LABEL;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_ERROR;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_HEADER_TITLE;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_PASSWORD_LABEL;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_SUCCESS;
+import static org.ost.advertisement.constans.I18nKey.LOGIN_WELCOME;
+
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -24,15 +33,15 @@ public class LoginDialog extends Dialog {
 		setModal(true);
 		setDraggable(false);
 		setResizable(false);
-		setHeaderTitle(i18n.get("login.header.title"));
+		setHeaderTitle(i18n.get(LOGIN_HEADER_TITLE));
 
-		EmailField emailField = new EmailField(i18n.get("login.email.label"));
-		PasswordField passwordField = new PasswordField(i18n.get("login.password.label"));
+		EmailField emailField = new EmailField(i18n.get(LOGIN_EMAIL_LABEL));
+		PasswordField passwordField = new PasswordField(i18n.get(LOGIN_PASSWORD_LABEL));
 
-		Button loginButton = new Button(i18n.get("login.button.submit"));
+		Button loginButton = new Button(i18n.get(LOGIN_BUTTON_SUBMIT));
 		loginButton.addThemeName("primary");
 
-		Button cancelButton = new Button(i18n.get("login.button.cancel"), e -> close());
+		Button cancelButton = new Button(i18n.get(LOGIN_BUTTON_CANCEL), e -> close());
 		cancelButton.addThemeName("tertiary");
 
 		HorizontalLayout actions = new HorizontalLayout(loginButton, cancelButton);
@@ -42,18 +51,18 @@ public class LoginDialog extends Dialog {
 		FormLayout form = new FormLayout(emailField, passwordField, new Div(actions));
 		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
-		add(new H2(i18n.get("login.welcome")), form);
+		add(new H2(i18n.get(LOGIN_WELCOME)), form);
 
 		loginButton.addClickListener(event -> {
 			boolean success = authService.login(emailField.getValue(), passwordField.getValue());
 
 			if (success) {
 				close();
-				NotificationType.SUCCESS.show(i18n.get("login.success"));
+				NotificationType.SUCCESS.show(i18n.get(LOGIN_SUCCESS));
 				SessionUtil.refreshCurrentLocale();
 				UI.getCurrent().getPage().reload();
 			} else {
-				NotificationType.ERROR.show(i18n.get("login.error"));
+				NotificationType.ERROR.show(i18n.get(LOGIN_ERROR));
 			}
 		});
 	}

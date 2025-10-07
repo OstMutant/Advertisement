@@ -12,6 +12,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import org.ost.advertisement.constans.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.TailwindStyle;
 
@@ -47,31 +48,30 @@ public abstract class DialogForm extends Dialog {
 		add(layout);
 	}
 
-
-	protected Button createSaveButton(String i18nKey, ComponentEventListener<ClickEvent<Button>> listener) {
-		return createButton(i18nKey, listener, "primary");
+	protected Button createSaveButton(I18nKey key, ComponentEventListener<ClickEvent<Button>> listener) {
+		return createButton(key, listener, "primary");
 	}
 
-	protected Button createCancelButton(String i18nKey) {
-		return createButton(i18nKey, e -> close(), "tertiary");
+	protected Button createCancelButton(I18nKey key) {
+		return createButton(key, e -> close(), "tertiary");
 	}
 
-	protected Button createButton(String i18nKey, ComponentEventListener<ClickEvent<Button>> listener,
+	protected Button createButton(I18nKey key, ComponentEventListener<ClickEvent<Button>> listener,
 								  String... themeNames) {
-		Button button = new Button(i18n.get(i18nKey), listener);
+		Button button = new Button(i18n.get(key), listener);
 		button.addThemeNames(themeNames);
 		return button;
 	}
 
-	protected HorizontalLayout labeled(String i18nKey, Component value, TailwindStyle... styles) {
-		Span label = new Span(i18n.get(i18nKey));
+	protected HorizontalLayout labeled(I18nKey key, Component value, TailwindStyle... styles) {
+		Span label = new Span(i18n.get(key));
 		TailwindStyle.applyAll(label, styles);
 		TailwindStyle.applyAll(value, styles);
 		return new HorizontalLayout(label, value);
 	}
 
-	protected HorizontalLayout labeled(String i18nKey, String text, TailwindStyle... styles) {
-		return labeled(i18nKey, new Span(text), styles);
+	protected HorizontalLayout labeled(I18nKey key, String text, TailwindStyle... styles) {
+		return labeled(key, new Span(text), styles);
 	}
 
 	protected void addContent(Component... components) {
@@ -82,8 +82,8 @@ public abstract class DialogForm extends Dialog {
 		actionsFooter.add(components);
 	}
 
-	protected void setTitle(String i18nKey) {
-		title.setText(i18n.get(i18nKey));
+	protected void setTitle(I18nKey key) {
+		title.setText(i18n.get(key));
 	}
 
 	private Div createScrollable(Component inner) {
@@ -92,4 +92,5 @@ public abstract class DialogForm extends Dialog {
 		return scroll;
 	}
 }
+
 

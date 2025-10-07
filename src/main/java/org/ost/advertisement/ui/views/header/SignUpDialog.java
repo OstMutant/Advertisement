@@ -1,6 +1,17 @@
 package org.ost.advertisement.ui.views.header;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_CANCEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_SUBMIT;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_EMAIL_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_EXISTS;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_INVALID;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_NAME_REQUIRED;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_PASSWORD_SHORT;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_HEADER_TITLE;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_NAME_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_PASSWORD_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_SUCCESS;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -22,8 +33,9 @@ import org.ost.advertisement.ui.utils.NotificationType;
 @SpringComponent
 @UIScope
 public class SignUpDialog extends Dialog {
-	private final UserRepository userRepository;
-	private final I18nService i18n;
+
+	private final transient UserRepository userRepository;
+	private final transient I18nService i18n;
 
 	public SignUpDialog(UserRepository userRepository, I18nService i18n) {
 		this.userRepository = userRepository;
@@ -32,16 +44,16 @@ public class SignUpDialog extends Dialog {
 		setModal(true);
 		setDraggable(false);
 		setResizable(false);
-		setHeaderTitle(i18n.get("signup.header.title"));
+		setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
 
-		TextField nameField = new TextField(i18n.get("signup.name.label"));
-		EmailField emailField = new EmailField(i18n.get("signup.email.label"));
-		PasswordField passwordField = new PasswordField(i18n.get("signup.password.label"));
+		TextField nameField = new TextField(i18n.get(SIGNUP_NAME_LABEL));
+		EmailField emailField = new EmailField(i18n.get(SIGNUP_EMAIL_LABEL));
+		PasswordField passwordField = new PasswordField(i18n.get(SIGNUP_PASSWORD_LABEL));
 
-		Button registerButton = new Button(i18n.get("signup.button.submit"));
+		Button registerButton = new Button(i18n.get(SIGNUP_BUTTON_SUBMIT));
 		registerButton.addThemeName("primary");
 
-		Button cancelButton = new Button(i18n.get("signup.button.cancel"), e -> close());
+		Button cancelButton = new Button(i18n.get(SIGNUP_BUTTON_CANCEL), e -> close());
 		cancelButton.addThemeName("tertiary");
 
 		HorizontalLayout actions = new HorizontalLayout(registerButton, cancelButton);
@@ -69,7 +81,7 @@ public class SignUpDialog extends Dialog {
 			newUser.setRole(Role.USER);
 
 			userRepository.save(newUser);
-			NotificationType.SUCCESS.show(i18n.get("signup.success"));
+			NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
 			close();
 		});
 	}
@@ -80,7 +92,7 @@ public class SignUpDialog extends Dialog {
 
 		if (name.isEmpty()) {
 			nameField.setInvalid(true);
-			nameField.setErrorMessage(i18n.get("signup.error.name.required"));
+			nameField.setErrorMessage(i18n.get(SIGNUP_ERROR_NAME_REQUIRED));
 			valid = false;
 		} else {
 			nameField.setInvalid(false);
@@ -88,11 +100,11 @@ public class SignUpDialog extends Dialog {
 
 		if (!EMAIL_PATTERN.matcher(email).matches()) {
 			emailField.setInvalid(true);
-			emailField.setErrorMessage(i18n.get("signup.error.email.invalid"));
+			emailField.setErrorMessage(i18n.get(SIGNUP_ERROR_EMAIL_INVALID));
 			valid = false;
 		} else if (userRepository.findByEmail(email).isPresent()) {
 			emailField.setInvalid(true);
-			emailField.setErrorMessage(i18n.get("signup.error.email.exists"));
+			emailField.setErrorMessage(i18n.get(SIGNUP_ERROR_EMAIL_EXISTS));
 			valid = false;
 		} else {
 			emailField.setInvalid(false);
@@ -100,7 +112,7 @@ public class SignUpDialog extends Dialog {
 
 		if (password.length() < 6) {
 			passwordField.setInvalid(true);
-			passwordField.setErrorMessage(i18n.get("signup.error.password.short"));
+			passwordField.setErrorMessage(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT));
 			valid = false;
 		} else {
 			passwordField.setInvalid(false);

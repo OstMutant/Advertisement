@@ -1,6 +1,21 @@
 package org.ost.advertisement.ui.views.users;
 
 import static java.util.Optional.ofNullable;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_BUTTON_CANCEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_BUTTON_SAVE;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_CREATED_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_EMAIL_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_ID_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_NAME_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_NAME_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_ROLE_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_UPDATED_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_NOTIFICATION_SAVE_ERROR;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_NOTIFICATION_SUCCESS;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_TITLE;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME_LENGTH;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME_REQUIRED;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_ROLE_REQUIRED;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.textfield.TextField;
@@ -25,44 +40,44 @@ public class UserFormDialog extends GenericFormDialog<User> {
 		ComboBox<Role> roleCombo = createRoleCombo();
 
 		binder.forField(nameField)
-			.asRequired(i18n.get("user.dialog.validation.name.required"))
-			.withValidator(new StringLengthValidator(i18n.get("user.dialog.validation.name.length"), 1, 255))
+			.asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
+			.withValidator(new StringLengthValidator(i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
 			.bind(User::getName, User::setName);
 
 		binder.forField(roleCombo)
-			.asRequired(i18n.get("user.dialog.validation.role.required"))
+			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
 			.bind(User::getRole, User::setRole);
 
-		setTitle("user.dialog.title");
+		setTitle(USER_DIALOG_TITLE);
 
 		addContent(
-			labeled("user.dialog.field.id.label", String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL),
-			labeled("user.dialog.field.email.label", ofNullable(user.getEmail()).orElse(""), TailwindStyle.EMAIL_LABEL),
+			labeled(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL),
+			labeled(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""),
+				TailwindStyle.EMAIL_LABEL),
 			nameField,
 			roleCombo,
-			labeled("user.dialog.field.created.label", formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL),
-			labeled("user.dialog.field.updated.label", formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL)
+			labeled(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL),
+			labeled(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL)
 		);
 
 		addActions(
-			createSaveButton("user.dialog.button.save",
+			createSaveButton(USER_DIALOG_BUTTON_SAVE,
 				event -> save(dto -> userService.save(AuthUtil.getCurrentUser(), dto),
-					"user.dialog.notification.success", "user.dialog.notification.save.error")),
-			createCancelButton("user.dialog.button.cancel")
+					USER_DIALOG_NOTIFICATION_SUCCESS, USER_DIALOG_NOTIFICATION_SAVE_ERROR)),
+			createCancelButton(USER_DIALOG_BUTTON_CANCEL)
 		);
 	}
 
-
 	private TextField createNameField() {
-		TextField field = new TextField(i18n.get("user.dialog.field.name.label"));
-		field.setPlaceholder(i18n.get("user.dialog.field.name.placeholder"));
+		TextField field = new TextField(i18n.get(USER_DIALOG_FIELD_NAME_LABEL));
+		field.setPlaceholder(i18n.get(USER_DIALOG_FIELD_NAME_PLACEHOLDER));
 		field.setRequired(true);
 		field.setMaxLength(255);
 		return field;
 	}
 
 	private ComboBox<Role> createRoleCombo() {
-		ComboBox<Role> combo = new ComboBox<>(i18n.get("user.dialog.field.role.label"));
+		ComboBox<Role> combo = new ComboBox<>(i18n.get(USER_DIALOG_FIELD_ROLE_LABEL));
 		combo.setItems(Arrays.asList(Role.values()));
 		combo.setRequired(true);
 		combo.setAllowCustomValue(false);
@@ -71,4 +86,5 @@ public class UserFormDialog extends GenericFormDialog<User> {
 		return combo;
 	}
 }
+
 

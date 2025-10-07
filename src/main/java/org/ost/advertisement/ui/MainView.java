@@ -1,5 +1,8 @@
 package org.ost.advertisement.ui;
 
+import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_USERS;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -31,7 +34,7 @@ public class MainView extends VerticalLayout {
 
 		add(headerBar);
 
-		Tab advertisementTab = new Tab(i18n.get("main.tab.advertisements"));
+		Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
 		Tabs tabs = new Tabs(advertisementTab);
 		tabs.setSelectedTab(advertisementTab);
 		add(tabs);
@@ -48,7 +51,7 @@ public class MainView extends VerticalLayout {
 		if (access.canView(AuthUtil.getCurrentUser())) {
 			usersView.setVisible(false);
 
-			Tab usersTab = new Tab(i18n.get("main.tab.users"));
+			Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
 			tabs.add(usersTab);
 			tabsToPages.put(usersTab, usersView);
 			pages.add(usersView);

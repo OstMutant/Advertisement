@@ -1,5 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -21,12 +27,12 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 @UIScope
 public class AdvertisementsView extends VerticalLayout {
 
-	private final AdvertisementService advertisementService;
-	private final AdvertisementMapper mapper;
+	private final transient AdvertisementService advertisementService;
+	private final transient AdvertisementMapper mapper;
 	private final AdvertisementLeftSidebar sidebar;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
-	private final PaginationBarModern paginationBar = new PaginationBarModern();
-	private final I18nService i18n;
+	private final PaginationBarModern paginationBar;
+	private final transient I18nService i18n;
 
 	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
 							  AdvertisementLeftSidebar sidebar, I18nService i18n) {
@@ -34,6 +40,7 @@ public class AdvertisementsView extends VerticalLayout {
 		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
 		this.i18n = i18n;
+		this.paginationBar = new PaginationBarModern(i18n);
 		addClassName("advertisement-list-view");
 
 		setSizeFull();
@@ -93,22 +100,22 @@ public class AdvertisementsView extends VerticalLayout {
 
 	private void openConfirmDeleteDialog(AdvertisementView ad) {
 		Dialog dialog = new Dialog();
-		String confirmText = i18n.get("advertisement.view.confirm.delete.text", ad.title(), ad.id());
+		String confirmText = i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.title(), ad.id());
 		dialog.add(new Span(confirmText));
 
-		Button confirm = new Button(i18n.get("advertisement.view.confirm.delete.button"), e -> {
+		Button confirm = new Button(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON), e -> {
 			try {
 				advertisementService.delete(ad);
-				NotificationType.SUCCESS.show(i18n.get("advertisement.view.notification.deleted"));
+				NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
 				refreshAdvertisements();
 			} catch (Exception ex) {
-				NotificationType.ERROR.show(i18n.get("advertisement.view.notification.delete.error", ex.getMessage()));
+				NotificationType.ERROR.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
 			}
 			dialog.close();
 		});
 		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancel = new Button(i18n.get("advertisement.view.confirm.cancel.button"), e -> dialog.close());
+		Button cancel = new Button(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON), e -> dialog.close());
 		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
 		dialog.getFooter().add(cancel, confirm);

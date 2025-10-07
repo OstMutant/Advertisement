@@ -1,5 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_CREATED_END;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_CREATED_START;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_END;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_START;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
 import com.vaadin.flow.component.Component;
@@ -28,7 +33,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
 
-	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
+	private final FilterActionsBlock actionsBlock;
 
 	@Getter
 	private final List<Component> filterComponentList;
@@ -38,11 +43,12 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 									 I18nService i18n) {
 		super(AdvertisementFilter.empty(), validation, filterMapper);
 
-		this.title = createFullTextField(i18n.get("advertisement.filter.title.placeholder"));
-		this.createdStart = createDatePicker(i18n.get("advertisement.filter.created.start"));
-		this.createdEnd = createDatePicker(i18n.get("advertisement.filter.created.end"));
-		this.updatedStart = createDatePicker(i18n.get("advertisement.filter.updated.start"));
-		this.updatedEnd = createDatePicker(i18n.get("advertisement.filter.updated.end"));
+		this.title = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
+		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
+		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
+		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
+		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+		this.actionsBlock = new FilterActionsBlock(i18n);
 
 		this.filterComponentList = List.of(
 			title,

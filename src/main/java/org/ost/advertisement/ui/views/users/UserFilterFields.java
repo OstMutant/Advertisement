@@ -1,5 +1,14 @@
 package org.ost.advertisement.ui.views.users;
 
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_CREATED_END;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_CREATED_START;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_EMAIL_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_ID_MAX;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_ID_MIN;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_NAME_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_ROLE_ANY;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_END;
+import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_START;
 import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
@@ -33,20 +42,21 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker createdEnd;
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
-	private final FilterActionsBlock actionsBlock = new FilterActionsBlock();
+	private final FilterActionsBlock actionsBlock;
 
 	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation, I18nService i18n) {
 		super(UserFilter.empty(), validation, filterMapper);
 
-		this.idMin = createNumberField(i18n.get("user.filter.id.min"));
-		this.idMax = createNumberField(i18n.get("user.filter.id.max"));
-		this.nameField = createFullTextField(i18n.get("user.filter.name.placeholder"));
-		this.emailField = createFullTextField(i18n.get("user.filter.email.placeholder"));
-		this.roleCombo = createCombo(i18n.get("user.filter.role.any"), Role.values());
-		this.createdStart = createDatePicker(i18n.get("user.filter.created.start"));
-		this.createdEnd = createDatePicker(i18n.get("user.filter.created.end"));
-		this.updatedStart = createDatePicker(i18n.get("user.filter.updated.start"));
-		this.updatedEnd = createDatePicker(i18n.get("user.filter.updated.end"));
+		this.idMin = createNumberField(i18n.get(USER_FILTER_ID_MIN));
+		this.idMax = createNumberField(i18n.get(USER_FILTER_ID_MAX));
+		this.nameField = createFullTextField(i18n.get(USER_FILTER_NAME_PLACEHOLDER));
+		this.emailField = createFullTextField(i18n.get(USER_FILTER_EMAIL_PLACEHOLDER));
+		this.roleCombo = createCombo(i18n.get(USER_FILTER_ROLE_ANY), Role.values());
+		this.createdStart = createDatePicker(i18n.get(USER_FILTER_CREATED_START));
+		this.createdEnd = createDatePicker(i18n.get(USER_FILTER_CREATED_END));
+		this.updatedStart = createDatePicker(i18n.get(USER_FILTER_UPDATED_START));
+		this.updatedEnd = createDatePicker(i18n.get(USER_FILTER_UPDATED_END));
+		this.actionsBlock = new FilterActionsBlock(i18n);
 	}
 
 	@PostConstruct
@@ -127,3 +137,4 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 		return actionsBlock.getActionBlock();
 	}
 }
+

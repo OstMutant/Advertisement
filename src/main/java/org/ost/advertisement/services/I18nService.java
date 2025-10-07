@@ -1,5 +1,6 @@
 package org.ost.advertisement.services;
 
+import org.ost.advertisement.constans.I18nKey;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
@@ -15,5 +16,9 @@ public class I18nService {
 
 	public String get(String key, Object... args) {
 		return messageSource.getMessage(key, args, SessionUtil.getCurrentLocale());
+	}
+
+	public String get(I18nKey key, Object... args) {
+		return messageSource.getMessage(key.key(), args, SessionUtil.getCurrentLocale());
 	}
 }

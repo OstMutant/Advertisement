@@ -1,5 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_TITLE;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
+import static org.ost.advertisement.constans.I18nKey.SORT_DIRECTION_ASC;
+import static org.ost.advertisement.constans.I18nKey.SORT_DIRECTION_DESC;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Span;
@@ -24,7 +30,7 @@ public class AdvertisementSortFields {
 	private final ComboBox<Direction> createdAtCombo;
 	private final ComboBox<Direction> updatedAtCombo;
 
-	private final SortActionsBlock actionsBlock = new SortActionsBlock();
+	private final SortActionsBlock actionsBlock;
 
 	@Getter
 	private final SortFieldsProcessor sortFieldsProcessor;
@@ -38,11 +44,12 @@ public class AdvertisementSortFields {
 		this.titleCombo = createDirectionCombo(i18n);
 		this.createdAtCombo = createDirectionCombo(i18n);
 		this.updatedAtCombo = createDirectionCombo(i18n);
+		this.actionsBlock = new SortActionsBlock(i18n);
 
 		this.sortComponentList = List.of(
-			createSortableField(i18n.get("advertisement.sort.title"), titleCombo),
-			createSortableField(i18n.get("advertisement.sort.createdAt"), createdAtCombo),
-			createSortableField(i18n.get("advertisement.sort.updatedAt"), updatedAtCombo),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_TITLE), titleCombo),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdAtCombo),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedAtCombo),
 			actionsBlock.getActionBlock()
 		);
 	}
@@ -79,11 +86,12 @@ public class AdvertisementSortFields {
 		ComboBox<Direction> comboBox = new ComboBox<>();
 		comboBox.setItems(Direction.ASC, Direction.DESC);
 		comboBox.setItemLabelGenerator(dir -> switch (dir) {
-			case ASC -> i18n.get("sort.direction.asc");
-			case DESC -> i18n.get("sort.direction.desc");
+			case ASC -> i18n.get(SORT_DIRECTION_ASC);
+			case DESC -> i18n.get(SORT_DIRECTION_DESC);
 		});
 		comboBox.setClearButtonVisible(true);
 		comboBox.setWidth("110px");
 		return comboBox;
 	}
 }
+
