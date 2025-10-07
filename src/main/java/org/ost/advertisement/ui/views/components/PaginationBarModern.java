@@ -26,13 +26,13 @@ public class PaginationBarModern extends HorizontalLayout {
 	@Getter
 	private int currentPage = 0;
 	@Getter
-	private int pageSize = 25;
+	private final int pageSize = 25;
 	private int totalCount = 0;
 
 	@Setter
 	private Consumer<PaginationEvent> pageChangeListener;
 
-	private final transient I18nService i18n;
+	private final I18nService i18n;
 
 	public PaginationBarModern(I18nService i18n) {
 		this.i18n = i18n;
@@ -79,10 +79,7 @@ public class PaginationBarModern extends HorizontalLayout {
 		if (currentPage >= getTotalPages()) {
 			currentPage = Math.max(0, getTotalPages() - 1);
 		}
-	}
-
-	public void setPageSize(int size) {
-		this.pageSize = size;
+		updateUI();
 	}
 
 	private int getTotalPages() {
