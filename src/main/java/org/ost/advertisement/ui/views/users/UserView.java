@@ -12,8 +12,6 @@ import com.vaadin.flow.component.grid.Grid.Column;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -31,6 +29,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 
@@ -87,7 +86,7 @@ public class UserView extends VerticalLayout {
 
 		Column<User> idColumn = grid.addColumn(User::getId)
 			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
-			.setHeader(createSortableHeader("ID", "id"));
+			.setHeader(createSortableHeader(i18n.get("user.view.header.id"), "id"));
 
 		Column<User> nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Span nameSpan = new Span(user.getName());
@@ -110,19 +109,21 @@ public class UserView extends VerticalLayout {
 				return layout;
 			}))
 			.setAutoWidth(false).setFlexGrow(1)
-			.setHeader(createDualSortableHeader("Name", "name", "Email", "email"));
+			.setHeader(createDualSortableHeader(
+				i18n.get("user.view.header.name"), "name",
+				i18n.get("user.view.header.email"), "email"));
 
 		Column<User> roleColumn = grid.addColumn(user -> user.getRole().name())
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(createSortableHeader("Role", "role"));
+			.setHeader(createSortableHeader(i18n.get("user.view.header.role"), "role"));
 
 		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(createSortableHeader("Created At", "createdAt"));
+			.setHeader(createSortableHeader(i18n.get("user.view.header.created"), "createdAt"));
 
 		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.getUpdatedAt()))
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(createSortableHeader("Updated At", "updatedAt"));
+			.setHeader(createSortableHeader(i18n.get("user.view.header.updated"), "updatedAt"));
 
 		Column<User> actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
@@ -138,7 +139,8 @@ public class UserView extends VerticalLayout {
 				layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 				return layout;
 			}))
-			.setHeader("Actions").setAutoWidth(true)
+			.setHeader(i18n.get("user.view.header.actions"))
+			.setAutoWidth(true)
 			.setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = grid.appendHeaderRow();
@@ -167,24 +169,22 @@ public class UserView extends VerticalLayout {
 
 	private void confirmAndDelete(User user) {
 		Dialog dialog = new Dialog();
-		dialog.add(new Span("Delete user " + user.getName() + " (ID " + user.getId() + ")?"));
+		String confirmText = i18n.get("user.view.confirm.delete.text", user.getName(), user.getId());
+		dialog.add(new Span(confirmText));
 
-		Button confirm = new Button("Delete", e -> {
+		Button confirm = new Button(i18n.get("user.view.confirm.delete.button"), e -> {
 			try {
 				userService.delete(AuthUtil.getCurrentUser(), user);
-				Notification notification = Notification.show("User deleted", 3000, Notification.Position.BOTTOM_START);
-				notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+				NotificationType.SUCCESS.show(i18n.get("user.view.notification.deleted"));
 				refreshGrid();
 			} catch (Exception ex) {
-				Notification notification = Notification.show("Error: " + ex.getMessage(), 5000,
-					Notification.Position.BOTTOM_START);
-				notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+				NotificationType.ERROR.show(i18n.get("user.view.notification.delete.error", ex.getMessage()));
 			}
 			dialog.close();
 		});
 		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancel = new Button("Cancel", e -> dialog.close());
+		Button cancel = new Button(i18n.get("user.view.confirm.cancel.button"), e -> dialog.close());
 		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
 		dialog.getFooter().add(cancel, confirm);
@@ -219,7 +219,6 @@ public class UserView extends VerticalLayout {
 			.sorted()
 			.collect(Collectors.joining("\n"));
 
-		Notification notification = Notification.show(message, 5000, Notification.Position.BOTTOM_START);
-		notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
+		NotificationType.ERROR.show(i18n.get("user.view.notification.validation.failed") + "\n" + message);
 	}
 }

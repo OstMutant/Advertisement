@@ -4,8 +4,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -16,6 +14,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 
 @SpringComponent
@@ -94,23 +93,22 @@ public class AdvertisementsView extends VerticalLayout {
 
 	private void openConfirmDeleteDialog(AdvertisementView ad) {
 		Dialog dialog = new Dialog();
-		dialog.add(new Span("Delete advertisement \"" + ad.title() + "\" (ID " + ad.id() + ")?"));
+		String confirmText = i18n.get("advertisement.view.confirm.delete.text", ad.title(), ad.id());
+		dialog.add(new Span(confirmText));
 
-		Button confirm = new Button("Delete", e -> {
+		Button confirm = new Button(i18n.get("advertisement.view.confirm.delete.button"), e -> {
 			try {
 				advertisementService.delete(ad);
-				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
-					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+				NotificationType.SUCCESS.show(i18n.get("advertisement.view.notification.deleted"));
 				refreshAdvertisements();
 			} catch (Exception ex) {
-				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
-					.addThemeVariants(NotificationVariant.LUMO_ERROR);
+				NotificationType.ERROR.show(i18n.get("advertisement.view.notification.delete.error", ex.getMessage()));
 			}
 			dialog.close();
 		});
 		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancel = new Button("Cancel", e -> dialog.close());
+		Button cancel = new Button(i18n.get("advertisement.view.confirm.cancel.button"), e -> dialog.close());
 		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
 		dialog.getFooter().add(cancel, confirm);
