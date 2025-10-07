@@ -2,9 +2,11 @@ package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.data.binder.Binder;
 import java.time.Instant;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 
+@Slf4j
 public abstract class GenericFormDialog<T> extends DialogForm {
 
 	protected final transient T dto;
@@ -24,6 +26,7 @@ public abstract class GenericFormDialog<T> extends DialogForm {
 			showSuccess(successKey);
 			close();
 		} catch (Exception e) {
+			log.error("Failed to save {}", dto, e);
 			showError(errorKey, e.getMessage());
 		}
 	}
@@ -42,6 +45,7 @@ public abstract class GenericFormDialog<T> extends DialogForm {
 
 	@FunctionalInterface
 	public interface Saver<T> {
+
 		void save(T dto);
 	}
 }
