@@ -20,9 +20,9 @@ import org.springframework.data.domain.Sort.Direction;
 @UIScope
 public class AdvertisementSortFields {
 
-	private final ComboBox<Direction> titleCombo = createCombo();
-	private final ComboBox<Direction> createdAtCombo = createCombo();
-	private final ComboBox<Direction> updatedAtCombo = createCombo();
+	private final ComboBox<Direction> titleCombo;
+	private final ComboBox<Direction> createdAtCombo;
+	private final ComboBox<Direction> updatedAtCombo;
 
 	private final SortActionsBlock actionsBlock = new SortActionsBlock();
 
@@ -34,6 +34,10 @@ public class AdvertisementSortFields {
 
 	public AdvertisementSortFields(I18nService i18n) {
 		this.sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
+
+		this.titleCombo = createDirectionCombo(i18n);
+		this.createdAtCombo = createDirectionCombo(i18n);
+		this.updatedAtCombo = createDirectionCombo(i18n);
 
 		this.sortComponentList = List.of(
 			createSortableField(i18n.get("advertisement.sort.title"), titleCombo),
@@ -71,9 +75,13 @@ public class AdvertisementSortFields {
 		return layout;
 	}
 
-	private ComboBox<Direction> createCombo() {
+	private ComboBox<Direction> createDirectionCombo(I18nService i18n) {
 		ComboBox<Direction> comboBox = new ComboBox<>();
 		comboBox.setItems(Direction.ASC, Direction.DESC);
+		comboBox.setItemLabelGenerator(dir -> switch (dir) {
+			case ASC -> i18n.get("sort.direction.asc");
+			case DESC -> i18n.get("sort.direction.desc");
+		});
 		comboBox.setClearButtonVisible(true);
 		comboBox.setWidth("110px");
 		return comboBox;
