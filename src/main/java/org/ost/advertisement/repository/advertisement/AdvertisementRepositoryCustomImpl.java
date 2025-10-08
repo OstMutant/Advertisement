@@ -2,14 +2,12 @@ package org.ost.advertisement.repository.advertisement;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.EnumSet;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.ost.advertisement.repository.RepositoryCustom.FieldRelations.SqlDtoFieldRelation;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepositoryCustomImpl.AdvertisementMapper.AdvertisementFieldRelations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -20,50 +18,36 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 	implements AdvertisementRepositoryCustom {
 
 	private static final AdvertisementMapper ADVERTISEMENT_MAPPER = new AdvertisementMapper();
-	private static final AdvertisementFieldConditionsRules ADVERTISEMENT_CONDITIONS_RULES = new AdvertisementFieldConditionsRules();
+	private static final AdvertisementFilterApplier ADVERTISEMENT_CONDITIONS_RULES = new AdvertisementFilterApplier();
 
 	public AdvertisementRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
 		super(jdbc, ADVERTISEMENT_MAPPER, ADVERTISEMENT_CONDITIONS_RULES);
 	}
 
-	private static class AdvertisementFieldConditionsRules extends FieldConditionsRules<AdvertisementFilter> {
+	private static class AdvertisementFilterApplier extends FilterApplier<AdvertisementFilter> {
 
-		@AllArgsConstructor
-		public enum FilterFieldRelations implements Relation {
-			TITLE("title", AdvertisementFieldRelations.TITLE),
-			CREATED_AT_START("createdAt_start", AdvertisementFieldRelations.CREATED_AT),
-			CREATED_AT_END("createdAt_end", AdvertisementFieldRelations.CREATED_AT),
-			UPDATED_AT_START("updatedAt_start", AdvertisementFieldRelations.UPDATED_AT),
-			UPDATED_AT_END("updatedAt_end", AdvertisementFieldRelations.UPDATED_AT);
-			@Getter
-			private final String filterField;
-			@Getter
-			private final SqlDtoFieldRelation sqlDtoFieldRelation;
+		public AdvertisementFilterApplier() {
+			relations.addAll(List.of(
+				of("title", AdvertisementFieldRelations.TITLE,
+					(f, fc, self) -> self.like(f.getTitle(), fc)),
+
+				of("createdAt_start", AdvertisementFieldRelations.CREATED_AT,
+					(f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
+
+				of("createdAt_end", AdvertisementFieldRelations.CREATED_AT,
+					(f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
+
+				of("updatedAt_start", AdvertisementFieldRelations.UPDATED_AT,
+					(f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
+
+				of("updatedAt_end", AdvertisementFieldRelations.UPDATED_AT,
+					(f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc))
+			));
 		}
 
-
-		AdvertisementFieldConditionsRules() {
-			super(EnumSet.allOf(FilterFieldRelations.class));
-		}
-
+		@Override
 		public String apply(MapSqlParameterSource params, AdvertisementFilter filter) {
-			FieldConditions<AdvertisementFilter> fieldConditions = new FieldConditions<>(filter);
-			for (Relation relation : relations) {
-				switch (relation) {
-					case FilterFieldRelations.TITLE -> like(relation, filter.getTitle(), fieldConditions);
-					case FilterFieldRelations.CREATED_AT_START ->
-						after(relation, filter.getCreatedAtStart(), fieldConditions);
-					case FilterFieldRelations.CREATED_AT_END ->
-						before(relation, filter.getCreatedAtEnd(), fieldConditions);
-					case FilterFieldRelations.UPDATED_AT_START ->
-						after(relation, filter.getUpdatedAtStart(), fieldConditions);
-					case FilterFieldRelations.UPDATED_AT_END ->
-						before(relation, filter.getUpdatedAtEnd(), fieldConditions);
-					default -> throw new IllegalStateException("Unexpected value: " + relation);
-				}
-			}
-			params.addValues(fieldConditions.toParams());
-			return fieldConditions.toSqlApplyingAnd();
+			return applyRelations(params, filter);
 		}
 	}
 
@@ -87,14 +71,12 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 			private final String dtoField;
 		}
 
-
 		protected AdvertisementMapper() {
 			super(AdvertisementFieldRelations.values(), """
 				    advertisement a
 				    LEFT JOIN user_information u ON a.created_by_user_id = u.id
 				""");
 		}
-
 
 		@Override
 		public AdvertisementView mapRow(ResultSet rs, int rowNum) throws SQLException {

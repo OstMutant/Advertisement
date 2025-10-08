@@ -2,21 +2,20 @@ package org.ost.advertisement.repository;
 
 import static java.util.Optional.ofNullable;
 
+import jakarta.validation.constraints.NotNull;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.ost.advertisement.repository.RepositoryCustom.FieldRelations.SqlDtoFieldRelation;
 import org.springframework.data.domain.Pageable;
@@ -29,13 +28,13 @@ public class RepositoryCustom<T, F> {
 
 	protected final NamedParameterJdbcTemplate jdbc;
 	protected final FieldRelations<T> fieldRelations;
-	protected final FieldConditionsRules<F> fieldConditionsRules;
+	protected final FilterApplier<F> filterApplier;
 
 	protected RepositoryCustom(NamedParameterJdbcTemplate jdbc, FieldRelations<T> fieldRelations,
-							   FieldConditionsRules<F> fieldConditionsRules) {
+							   FilterApplier<F> filterApplier) {
 		this.jdbc = jdbc;
 		this.fieldRelations = fieldRelations;
-		this.fieldConditionsRules = fieldConditionsRules;
+		this.filterApplier = filterApplier;
 	}
 
 	public static Timestamp toTimestamp(Instant instant) {
@@ -48,34 +47,40 @@ public class RepositoryCustom<T, F> {
 
 	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
-			fieldConditionsRules.apply(params, filter), fieldRelations.sortToSql(pageable.getSort()),
+		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
+			filterApplier.apply(params, filter), fieldRelations.sortToSql(pageable.getSort()),
 			pageableToSql(params, pageable));
-		return jdbc.query(sql.toString(), params, fieldRelations);
+		return jdbc.query(sql, params, fieldRelations);
 	}
 
 	public Long countByFilter(F filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), "COUNT(*)",
-			fieldConditionsRules.apply(params, filter), null, null);
-		return jdbc.queryForObject(sql.toString(), params, Long.class);
+		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), "COUNT(*)",
+			filterApplier.apply(params, filter), null, null);
+		return jdbc.queryForObject(sql, params, Long.class);
 	}
 
-	public <C> Optional<T> find(FieldConditionsRules<C> fieldConditionsRules, C filter) {
+	public <C> Optional<T> find(FilterApplier<C> filterApplier, C filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		StringBuilder sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
-			fieldConditionsRules.apply(params, filter), null, null);
-		return jdbc.query(sql.toString(), params, fieldRelations).stream().findFirst();
+		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
+			filterApplier.apply(params, filter), null, null);
+		return jdbc.query(sql, params, fieldRelations).stream().findFirst();
 	}
 
-	private StringBuilder prepareSelectTemplate(String source, String fields, String conditions, String sorting,
-												String pagination) {
-		String selectFields = ofNullable(fields).filter(StringUtils::isNotBlank).orElse("*");
-		StringBuilder sql = new StringBuilder("SELECT ").append(selectFields).append(" FROM ").append(source);
-		ofNullable(conditions).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" WHERE ").append(s));
-		ofNullable(sorting).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" ").append(s));
-		ofNullable(pagination).filter(StringUtils::isNotBlank).ifPresent(s -> sql.append(" ").append(s));
-		return sql;
+	private static String prependIfNotBlank(String part, String prefix) {
+		return StringUtils.isNotBlank(part) ? prefix + part : "";
+	}
+
+	private String prepareSelectTemplate(String source, String fields, String where, String sort, String limit) {
+		return Stream.of(
+				"SELECT " + ofNullable(fields).filter(StringUtils::isNotBlank).orElse("*"),
+				"FROM " + source,
+				prependIfNotBlank(where, "WHERE "),
+				prependIfNotBlank(sort, ""),
+				prependIfNotBlank(limit, "")
+			)
+			.filter(StringUtils::isNotBlank)
+			.collect(Collectors.joining(" "));
 	}
 
 	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
@@ -142,88 +147,125 @@ public class RepositoryCustom<T, F> {
 		}
 	}
 
-	public static class FieldConditions<F> {
+	@NoArgsConstructor
+	public static class FieldsConditions {
 
-		@Getter
-		private final F filter;
-		private final List<String> sqlFragments = new ArrayList<>();
-		private final Map<String, Object> parameters = new LinkedHashMap<>();
+		public record Condition(String sql, String param, Object value) {
 
-		public FieldConditions(F filter) {
-			this.filter = filter;
 		}
 
-		public void update(String sqlFragment, String filterField, Object value) {
-			sqlFragments.add(sqlFragment);
-			parameters.put(filterField, value);
+		private final List<Condition> conditions = new ArrayList<>();
+
+		public FieldsConditions add(String sql, String param, Object value) {
+			conditions.add(new Condition(sql, param, value));
+			return this;
 		}
 
 		public String toSqlApplyingAnd() {
-			return String.join(" AND ", sqlFragments);
+			return toSql(" AND ");
 		}
 
 		public Map<String, Object> toParams() {
-			return new HashMap<>(parameters);
+			return conditions.stream()
+				.collect(Collectors.toMap(
+					Condition::param,
+					Condition::value,
+					(existing, replacement) -> replacement
+				));
+		}
+
+		public String toSql(String joiner) {
+			return conditions.stream().map(Condition::sql).collect(Collectors.joining(" " + joiner + " "));
 		}
 	}
 
+	public interface FilterRelation<F> {
 
-	public abstract static class FieldConditionsRules<F> {
+		String getFilterField();
 
-		public interface Relation {
+		SqlDtoFieldRelation getSqlDtoFieldRelation();
 
-			String getFilterField();
+		void applyConditions(F filter, FieldsConditions fieldsConditions);
 
-			SqlDtoFieldRelation getSqlDtoFieldRelation();
+		default FieldsConditions like(String value, FieldsConditions fieldsConditions) {
+			return applyConditions(value != null && !value.isBlank(), value,
+				(sqlField, param) -> sqlField + " ILIKE :" + param, v -> "%" + v + "%", fieldsConditions);
 		}
 
-		protected final Set<? extends Relation> relations;
-
-		protected FieldConditionsRules(Set<? extends Relation> items) {
-			relations = ofNullable(items).orElseGet(Set::of);
+		default FieldsConditions after(Instant value, FieldsConditions fieldsConditions) {
+			return condition(value, ">=", Timestamp::from, fieldsConditions);
 		}
 
-		private <V, R> void applyConditions(boolean isApply, Relation relation, V value,
-											BinaryOperator<String> sqlFunction,
-											Function<V, R> parametersFunction,
-											FieldConditions<F> fieldConditions) {
-			if (isApply) {
-				String filterField = relation.getFilterField();
-				String sqlField = relation.getSqlDtoFieldRelation().getSqlField();
-				fieldConditions.update(sqlFunction.apply(sqlField, filterField), filterField,
-					parametersFunction.apply(value));
-			}
+		default FieldsConditions before(Instant value, FieldsConditions fieldsConditions) {
+			return condition(value, "<=", Timestamp::from, fieldsConditions);
 		}
 
-		public abstract String apply(MapSqlParameterSource params, F filter);
-
-		public void like(Relation relation, String value, FieldConditions<F> fieldConditions) {
-			applyConditions(value != null && !value.isBlank(), relation, value,
-				(sqlField, param) -> sqlField + " ILIKE :" + param, v -> "%" + v + "%", fieldConditions);
+		default FieldsConditions after(Long value, FieldsConditions fieldsConditions) {
+			return condition(value, ">=", Function.identity(), fieldsConditions);
 		}
 
-		public void after(Relation relation, Instant value, FieldConditions<F> fieldConditions) {
-			condition(relation, value, ">=", Timestamp::from, fieldConditions);
+		default FieldsConditions before(Long value, FieldsConditions fieldsConditions) {
+			return condition(value, "<=", Function.identity(), fieldsConditions);
 		}
 
-		public void before(Relation relation, Instant value, FieldConditions<F> fieldConditions) {
-			condition(relation, value, "<=", Timestamp::from, fieldConditions);
+		default FieldsConditions equalsTo(String value, FieldsConditions fieldsConditions) {
+			return condition(value, "=", Function.identity(), fieldsConditions);
 		}
 
-		public void after(Relation relation, Long value, FieldConditions<F> fieldConditions) {
-			condition(relation, value, ">=", Function.identity(), fieldConditions);
+		default <V, R> FieldsConditions condition(V v, String op, Function<V, R> f, FieldsConditions fc) {
+			return applyConditions(v != null, v, (sql, param) -> sql + " " + op + " :" + param, f, fc);
 		}
 
-		public void before(Relation relation, Long value, FieldConditions<F> fieldConditions) {
-			condition(relation, value, "<=", Function.identity(), fieldConditions);
+		default <V, R> FieldsConditions applyConditions(boolean isApply, V value,
+														BinaryOperator<String> sqlFunction,
+														Function<V, R> parametersFunction,
+														FieldsConditions fieldsConditions) {
+			return isApply ? fieldsConditions.add(
+				sqlFunction.apply(getSqlDtoFieldRelation().getSqlField(), getFilterField()), getFilterField(),
+				parametersFunction.apply(value)) : fieldsConditions;
+		}
+	}
+
+	public abstract static class FilterApplier<F> {
+
+		protected static <F> FilterRelation<F> of(
+			String filterField,
+			SqlDtoFieldRelation sqlDtoFieldRelation,
+			TriFunction<F, FieldsConditions, FilterRelation<F>, FieldsConditions> fn
+		) {
+			return new FilterRelation<>() {
+				@Override
+				public String getFilterField() {
+					return filterField;
+				}
+
+				@Override
+				public SqlDtoFieldRelation getSqlDtoFieldRelation() {
+					return sqlDtoFieldRelation;
+				}
+
+				@Override
+				public void applyConditions(F filter, FieldsConditions fc) {
+					fn.apply(filter, fc, this);
+				}
+			};
 		}
 
-		public void equalsTo(Relation relation, String value, FieldConditions<F> fieldConditions) {
-			condition(relation, value, "=", Function.identity(), fieldConditions);
+		@FunctionalInterface
+		protected interface TriFunction<A, B, C, R> {
+
+			R apply(A a, B b, C c);
 		}
 
-		protected <V, R> void condition(Relation r, V v, String op, Function<V, R> f, FieldConditions<F> fc) {
-			applyConditions(v != null, r, v, (sql, param) -> sql + " " + op + " :" + param, f, fc);
+		protected final List<FilterRelation<F>> relations = new ArrayList<>();
+
+		protected String applyRelations(MapSqlParameterSource params, @NotNull F filter) {
+			FieldsConditions fc = new FieldsConditions();
+			relations.forEach(r -> r.applyConditions(filter, fc));
+			fc.toParams().forEach(params::addValue);
+			return fc.toSqlApplyingAnd();
 		}
+
+		public abstract String apply(MapSqlParameterSource params, @NotNull F filter);
 	}
 }
