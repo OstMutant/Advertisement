@@ -3,6 +3,8 @@ package org.ost.advertisement.repository;
 import static java.util.Optional.ofNullable;
 
 import jakarta.validation.constraints.NotNull;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -37,14 +39,6 @@ public class RepositoryCustom<T, F> {
 		this.filterApplier = filterApplier;
 	}
 
-	public static Timestamp toTimestamp(Instant instant) {
-		return instant != null ? Timestamp.from(instant) : null;
-	}
-
-	public static Instant toInstant(Timestamp ts) {
-		return ts != null ? ts.toInstant() : null;
-	}
-
 	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
@@ -67,10 +61,6 @@ public class RepositoryCustom<T, F> {
 		return jdbc.query(sql, params, fieldRelations).stream().findFirst();
 	}
 
-	private static String prependIfNotBlank(String part, String prefix) {
-		return StringUtils.isNotBlank(part) ? prefix + part : "";
-	}
-
 	private String prepareSelectTemplate(String source, String fields, String where, String sort, String limit) {
 		return Stream.of(
 				"SELECT " + ofNullable(fields).filter(StringUtils::isNotBlank).orElse("*"),
@@ -81,6 +71,10 @@ public class RepositoryCustom<T, F> {
 			)
 			.filter(StringUtils::isNotBlank)
 			.collect(Collectors.joining(" "));
+	}
+
+	private String prependIfNotBlank(String part, String prefix) {
+		return StringUtils.isNotBlank(part) ? prefix + part : "";
 	}
 
 	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
@@ -96,11 +90,31 @@ public class RepositoryCustom<T, F> {
 
 	public abstract static class FieldRelations<T> implements RowMapper<T> {
 
+		@FunctionalInterface
+		public interface ValueExtractor<T, U, R> {
+
+			R apply(T t, U u) throws SQLException;
+		}
+
 		public interface SqlDtoFieldRelation {
 
 			String getSqlField();
 
 			String getDtoField();
+
+			<V> ValueExtractor<ResultSet, String, V> getExtractorLogic();
+
+			default <V> V extract(ResultSet rs) throws SQLException {
+				return this.<V>getExtractorLogic().apply(rs, this.getDtoField());
+			}
+		}
+
+		public static Timestamp toTimestamp(Instant instant) {
+			return instant != null ? Timestamp.from(instant) : null;
+		}
+
+		public static Instant toInstant(Timestamp ts) {
+			return ts != null ? ts.toInstant() : null;
 		}
 
 		private static Map<String, String> from(SqlDtoFieldRelation[] items) {
@@ -231,7 +245,7 @@ public class RepositoryCustom<T, F> {
 		protected static <F> FilterRelation<F> of(
 			String filterField,
 			SqlDtoFieldRelation sqlDtoFieldRelation,
-			TriFunction<F, FieldsConditions, FilterRelation<F>, FieldsConditions> fn
+			FilterApplierFunction<F, FieldsConditions, FilterRelation<F>, FieldsConditions> fn
 		) {
 			return new FilterRelation<>() {
 				@Override
@@ -252,7 +266,7 @@ public class RepositoryCustom<T, F> {
 		}
 
 		@FunctionalInterface
-		protected interface TriFunction<A, B, C, R> {
+		protected interface FilterApplierFunction<A, B, C, R> {
 
 			R apply(A a, B b, C c);
 		}

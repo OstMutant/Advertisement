@@ -1,5 +1,6 @@
 package org.ost.advertisement.repository.advertisement;
 
+import jakarta.validation.constraints.NotNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -55,20 +56,23 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 
 		@AllArgsConstructor
 		public enum AdvertisementFieldRelations implements SqlDtoFieldRelation {
-			ID("a.id", "id"),
-			TITLE("a.title", "title"),
-			DESCRIPTION("a.description", "description"),
-			CREATED_AT("a.created_at", "createdAt"),
-			UPDATED_AT("a.updated_at", "updatedAt"),
-			USER_ID("u.id", "userId"),
-			USER_NAME("u.name", "userName"),
-			USER_EMAIL("u.email", "userEmail");
+			ID("a.id", "id", (rs, alias) -> rs.getObject(alias, Long.class)),
+			TITLE("a.title", "title", ResultSet::getString),
+			DESCRIPTION("a.description", "description", ResultSet::getString),
+			CREATED_AT("a.created_at", "createdAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
+			UPDATED_AT("a.updated_at", "updatedAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
+			USER_ID("u.id", "userId", (rs, alias) -> rs.getObject(alias, Long.class)),
+			USER_NAME("u.name", "userName", ResultSet::getString),
+			USER_EMAIL("u.email", "userEmail", ResultSet::getString);
 
 			@Getter
 			private final String sqlField;
 
 			@Getter
 			private final String dtoField;
+
+			@Getter
+			private final ValueExtractor<ResultSet, String, ?> extractorLogic;
 		}
 
 		protected AdvertisementMapper() {
@@ -79,16 +83,16 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 		}
 
 		@Override
-		public AdvertisementView mapRow(ResultSet rs, int rowNum) throws SQLException {
+		public AdvertisementView mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
 			return AdvertisementView.builder()
-				.id(rs.getObject(AdvertisementFieldRelations.ID.getDtoField(), Long.class))
-				.title(rs.getString(AdvertisementFieldRelations.TITLE.getDtoField()))
-				.description(rs.getString(AdvertisementFieldRelations.DESCRIPTION.getDtoField()))
-				.createdAt(toInstant(rs.getTimestamp(AdvertisementFieldRelations.CREATED_AT.getDtoField())))
-				.updatedAt(toInstant(rs.getTimestamp(AdvertisementFieldRelations.UPDATED_AT.getDtoField())))
-				.userId(rs.getObject(AdvertisementFieldRelations.USER_ID.getDtoField(), Long.class))
-				.userName(rs.getString(AdvertisementFieldRelations.USER_NAME.getDtoField()))
-				.userEmail(rs.getString(AdvertisementFieldRelations.USER_EMAIL.getDtoField()))
+				.id(AdvertisementFieldRelations.ID.extract(rs))
+				.title(AdvertisementFieldRelations.TITLE.extract(rs))
+				.description(AdvertisementFieldRelations.DESCRIPTION.extract(rs))
+				.createdAt(AdvertisementFieldRelations.CREATED_AT.extract(rs))
+				.updatedAt(AdvertisementFieldRelations.UPDATED_AT.extract(rs))
+				.userId(AdvertisementFieldRelations.USER_ID.extract(rs))
+				.userName(AdvertisementFieldRelations.USER_NAME.extract(rs))
+				.userEmail(AdvertisementFieldRelations.USER_EMAIL.extract(rs))
 				.build();
 		}
 	}

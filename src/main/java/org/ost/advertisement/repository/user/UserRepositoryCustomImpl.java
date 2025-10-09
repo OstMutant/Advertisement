@@ -1,6 +1,7 @@
 package org.ost.advertisement.repository.user;
 
 
+import jakarta.validation.constraints.NotNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -82,19 +83,21 @@ public class UserRepositoryCustomImpl extends
 
 		@AllArgsConstructor
 		public enum UserFieldRelations implements SqlDtoFieldRelation {
-			ID("u.id", "id"),
-			NAME("u.name", "name"),
-			EMAIL("u.email", "email"),
-			ROLE("u.role", "role"),
-			PASSWORD_HASH("u.password_hash", "passwordHash"),
-			CREATED_AT("u.created_at", "createdAt"),
-			UPDATED_AT("u.updated_at", "updatedAt"),
-			LOCALE("u.locale", "locale");
+			ID("u.id", "id", (rs, alias) -> rs.getObject(alias, Long.class)),
+			NAME("u.name", "name", ResultSet::getString),
+			EMAIL("u.email", "email", ResultSet::getString),
+			ROLE("u.role", "role", ResultSet::getString),
+			PASSWORD_HASH("u.password_hash", "passwordHash", ResultSet::getString),
+			CREATED_AT("u.created_at", "createdAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
+			UPDATED_AT("u.updated_at", "updatedAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
+			LOCALE("u.locale", "locale", ResultSet::getString);
 
 			@Getter
 			private final String sqlField;
 			@Getter
 			private final String dtoField;
+			@Getter
+			private final ValueExtractor<ResultSet, String, ?> extractorLogic;
 		}
 
 		public UserMapper() {
@@ -102,16 +105,16 @@ public class UserRepositoryCustomImpl extends
 		}
 
 		@Override
-		public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+		public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
 			return User.builder()
-				.id(rs.getObject(UserFieldRelations.ID.getDtoField(), Long.class))
-				.name(rs.getString(UserFieldRelations.NAME.getDtoField()))
-				.email(rs.getString(UserFieldRelations.EMAIL.getDtoField()))
-				.role(Role.valueOf(rs.getString(UserFieldRelations.ROLE.getDtoField())))
-				.passwordHash(rs.getString(UserFieldRelations.PASSWORD_HASH.getDtoField()))
-				.createdAt(toInstant(rs.getTimestamp(UserFieldRelations.CREATED_AT.getDtoField())))
-				.updatedAt(toInstant(rs.getTimestamp(UserFieldRelations.UPDATED_AT.getDtoField())))
-				.locale(rs.getString(UserFieldRelations.LOCALE.getDtoField()))
+				.id(UserFieldRelations.ID.extract(rs))
+				.name(UserFieldRelations.NAME.extract(rs))
+				.email(UserFieldRelations.EMAIL.extract(rs))
+				.role(Role.valueOf((String) UserFieldRelations.ROLE.extract(rs)))
+				.passwordHash(UserFieldRelations.PASSWORD_HASH.extract(rs))
+				.createdAt(UserFieldRelations.CREATED_AT.extract(rs))
+				.updatedAt(UserFieldRelations.UPDATED_AT.extract(rs))
+				.locale(UserFieldRelations.LOCALE.extract(rs))
 				.build();
 		}
 	}
