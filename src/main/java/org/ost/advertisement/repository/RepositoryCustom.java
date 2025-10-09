@@ -196,8 +196,8 @@ public class RepositoryCustom<T, F> {
 				}
 
 				@Override
-				public SqlDtoFieldRelation<?> getSqlDtoFieldRelation() {
-					return sqlDtoFieldRelation;
+				public String getSqlField() {
+					return sqlDtoFieldRelation.getSqlField();
 				}
 
 				@Override
@@ -229,15 +229,14 @@ public class RepositoryCustom<T, F> {
 
 		String getFilterField();
 
-		SqlDtoFieldRelation<?> getSqlDtoFieldRelation();
+		String getSqlField();
 
 		void applyConditions(F filter, FieldsConditions fieldsConditions);
 
 		default FieldsConditions like(String value, FieldsConditions fieldsConditions) {
 			return applyConditions(value != null && !value.isBlank(), value,
 				(sqlField, param) -> sqlField + " ILIKE :" + param,
-				v -> "%" + v + "%",
-				fieldsConditions);
+				v -> "%" + v + "%", fieldsConditions);
 		}
 
 		default FieldsConditions after(Instant value, FieldsConditions fieldsConditions) {
@@ -273,7 +272,7 @@ public class RepositoryCustom<T, F> {
 		) {
 			return isApply
 				? fieldsConditions.add(
-				sqlFunction.apply(getSqlDtoFieldRelation().getSqlField(), getFilterField()),
+				sqlFunction.apply(getSqlField(), getFilterField()),
 				getFilterField(),
 				parametersFunction.apply(value))
 				: fieldsConditions;
