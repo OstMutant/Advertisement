@@ -1,13 +1,15 @@
 package org.ost.advertisement.repository.advertisement;
 
-import jakarta.validation.constraints.NotNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.meta.fields.FieldDefinition.ValueExtractor;
+import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepositoryCustomImpl.AdvertisementMapper.AdvertisementFieldRelations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -29,18 +31,13 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 
 		public AdvertisementFilterApplier() {
 			relations.addAll(List.of(
-				of("title", AdvertisementFieldRelations.TITLE,
-					(f, fc, self) -> self.like(f.getTitle(), fc)),
-
+				of("title", AdvertisementFieldRelations.TITLE, (f, fc, self) -> self.like(f.getTitle(), fc)),
 				of("createdAt_start", AdvertisementFieldRelations.CREATED_AT,
 					(f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
-
 				of("createdAt_end", AdvertisementFieldRelations.CREATED_AT,
 					(f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
-
 				of("updatedAt_start", AdvertisementFieldRelations.UPDATED_AT,
 					(f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
-
 				of("updatedAt_end", AdvertisementFieldRelations.UPDATED_AT,
 					(f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc))
 			));
@@ -67,15 +64,13 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 
 			@Getter
 			private final String sqlField;
-
 			@Getter
 			private final String dtoField;
-
 			@Getter
-			private final ValueExtractor<ResultSet, String, ?> extractorLogic;
+			private final ValueExtractor<?> extractorLogic;
 		}
 
-		protected AdvertisementMapper() {
+		public AdvertisementMapper() {
 			super(AdvertisementFieldRelations.values(), """
 				    advertisement a
 				    LEFT JOIN user_information u ON a.created_by_user_id = u.id
@@ -97,4 +92,5 @@ public class AdvertisementRepositoryCustomImpl extends RepositoryCustom<Advertis
 		}
 	}
 }
+
 

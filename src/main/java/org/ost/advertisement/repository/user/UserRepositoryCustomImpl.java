@@ -1,24 +1,27 @@
 package org.ost.advertisement.repository.user;
 
 
-import jakarta.validation.constraints.NotNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.meta.fields.FieldDefinition.ValueExtractor;
+import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
 import org.ost.advertisement.repository.RepositoryCustom;
+import org.ost.advertisement.repository.user.UserRepositoryCustomImpl.UserMapper.UserFieldRelations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class UserRepositoryCustomImpl extends
-	RepositoryCustom<User, UserFilter> implements UserRepositoryCustom {
+public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
+	implements UserRepositoryCustom {
 
 	private static final UserMapper USER_MAPPER = new UserMapper();
 	private static final UserFilterApplier USER_CONDITIONS_RULES = new UserFilterApplier();
@@ -37,24 +40,20 @@ public class UserRepositoryCustomImpl extends
 
 		public UserFilterApplier() {
 			relations.addAll(List.of(
-				of("name", UserMapper.UserFieldRelations.NAME,
-					(f, fc, self) -> self.like(f.getName(), fc)),
-				of("email", UserMapper.UserFieldRelations.EMAIL,
-					(f, fc, self) -> self.like(f.getEmail(), fc)),
-				of("role", UserMapper.UserFieldRelations.ROLE,
+				of("name", UserFieldRelations.NAME, (f, fc, self) -> self.like(f.getName(), fc)),
+				of("email", UserFieldRelations.EMAIL, (f, fc, self) -> self.like(f.getEmail(), fc)),
+				of("role", UserFieldRelations.ROLE,
 					(f, fc, self) -> self.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
-				of("createdAt_start", UserMapper.UserFieldRelations.CREATED_AT,
+				of("createdAt_start", UserFieldRelations.CREATED_AT,
 					(f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", UserMapper.UserFieldRelations.CREATED_AT,
+				of("createdAt_end", UserFieldRelations.CREATED_AT,
 					(f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", UserMapper.UserFieldRelations.UPDATED_AT,
+				of("updatedAt_start", UserFieldRelations.UPDATED_AT,
 					(f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", UserMapper.UserFieldRelations.UPDATED_AT,
+				of("updatedAt_end", UserFieldRelations.UPDATED_AT,
 					(f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc)),
-				of("startId", UserMapper.UserFieldRelations.ID,
-					(f, fc, self) -> self.after(f.getStartId(), fc)),
-				of("endId", UserMapper.UserFieldRelations.ID,
-					(f, fc, self) -> self.before(f.getEndId(), fc))
+				of("startId", UserFieldRelations.ID, (f, fc, self) -> self.after(f.getStartId(), fc)),
+				of("endId", UserFieldRelations.ID, (f, fc, self) -> self.before(f.getEndId(), fc))
 			));
 		}
 
@@ -68,8 +67,7 @@ public class UserRepositoryCustomImpl extends
 
 		public UserEmailConditionsRule() {
 			relations.add(
-				of("email", UserMapper.UserFieldRelations.EMAIL,
-					(email, fc, self) -> self.equalsTo(email, fc))
+				of("email", UserFieldRelations.EMAIL, (email, fc, self) -> self.equalsTo(email, fc))
 			);
 		}
 
@@ -97,7 +95,7 @@ public class UserRepositoryCustomImpl extends
 			@Getter
 			private final String dtoField;
 			@Getter
-			private final ValueExtractor<ResultSet, String, ?> extractorLogic;
+			private final ValueExtractor<?> extractorLogic;
 		}
 
 		public UserMapper() {
@@ -110,7 +108,7 @@ public class UserRepositoryCustomImpl extends
 				.id(UserFieldRelations.ID.extract(rs))
 				.name(UserFieldRelations.NAME.extract(rs))
 				.email(UserFieldRelations.EMAIL.extract(rs))
-				.role(Role.valueOf((String) UserFieldRelations.ROLE.extract(rs)))
+				.role(Role.valueOf(UserFieldRelations.ROLE.extract(rs)))
 				.passwordHash(UserFieldRelations.PASSWORD_HASH.extract(rs))
 				.createdAt(UserFieldRelations.CREATED_AT.extract(rs))
 				.updatedAt(UserFieldRelations.UPDATED_AT.extract(rs))
@@ -119,3 +117,4 @@ public class UserRepositoryCustomImpl extends
 		}
 	}
 }
+

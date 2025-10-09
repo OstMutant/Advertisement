@@ -3,8 +3,6 @@ package org.ost.advertisement.repository;
 import static java.util.Optional.ofNullable;
 
 import jakarta.validation.constraints.NotNull;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -19,7 +17,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.repository.RepositoryCustom.FieldRelations.SqlDtoFieldRelation;
+import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
@@ -41,23 +39,37 @@ public class RepositoryCustom<T, F> {
 
 	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
-			filterApplier.apply(params, filter), fieldRelations.sortToSql(pageable.getSort()),
-			pageableToSql(params, pageable));
+		String sql = prepareSelectTemplate(
+			fieldRelations.sourceToSql(),
+			fieldRelations.fieldsToSql(),
+			filterApplier.apply(params, filter),
+			fieldRelations.sortToSql(pageable.getSort()),
+			pageableToSql(params, pageable)
+		);
 		return jdbc.query(sql, params, fieldRelations);
 	}
 
 	public Long countByFilter(F filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), "COUNT(*)",
-			filterApplier.apply(params, filter), null, null);
+		String sql = prepareSelectTemplate(
+			fieldRelations.sourceToSql(),
+			"COUNT(*)",
+			filterApplier.apply(params, filter),
+			null,
+			null
+		);
 		return jdbc.queryForObject(sql, params, Long.class);
 	}
 
 	public <C> Optional<T> find(FilterApplier<C> filterApplier, C filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = prepareSelectTemplate(fieldRelations.sourceToSql(), fieldRelations.fieldsToSql(),
-			filterApplier.apply(params, filter), null, null);
+		String sql = prepareSelectTemplate(
+			fieldRelations.sourceToSql(),
+			fieldRelations.fieldsToSql(),
+			filterApplier.apply(params, filter),
+			null,
+			null
+		);
 		return jdbc.query(sql, params, fieldRelations).stream().findFirst();
 	}
 
@@ -90,50 +102,17 @@ public class RepositoryCustom<T, F> {
 
 	public abstract static class FieldRelations<T> implements RowMapper<T> {
 
-		@FunctionalInterface
-		public interface ValueExtractor<T, U, R> {
+		private final Map<String, String> dtoToSqlRelations;
+		private final String sqlSource;
 
-			R apply(T t, U u) throws SQLException;
-		}
-
-		public interface SqlDtoFieldRelation {
-
-			String getSqlField();
-
-			String getDtoField();
-
-			<V> ValueExtractor<ResultSet, String, V> getExtractorLogic();
-
-			default <V> V extract(ResultSet rs) throws SQLException {
-				return this.<V>getExtractorLogic().apply(rs, this.getDtoField());
-			}
-		}
-
-		public static Timestamp toTimestamp(Instant instant) {
-			return instant != null ? Timestamp.from(instant) : null;
-		}
-
-		public static Instant toInstant(Timestamp ts) {
-			return ts != null ? ts.toInstant() : null;
-		}
-
-		private static Map<String, String> from(SqlDtoFieldRelation[] items) {
-			return ofNullable(items)
-				.map(Stream::of)
-				.orElseGet(Stream::empty)
+		protected FieldRelations(SqlDtoFieldRelation[] items, String sqlSource) {
+			this.dtoToSqlRelations = Stream.of(items)
 				.collect(Collectors.toMap(
 					SqlDtoFieldRelation::getDtoField,
 					SqlDtoFieldRelation::getSqlField,
 					(existing, replacement) -> existing,
 					HashMap::new
 				));
-		}
-
-		private final Map<String, String> dtoToSqlRelations;
-		private final String sqlSource;
-
-		protected FieldRelations(SqlDtoFieldRelation[] items, String sqlSource) {
-			this.dtoToSqlRelations = from(items);
 			this.sqlSource = sqlSource;
 		}
 
@@ -158,6 +137,14 @@ public class RepositoryCustom<T, F> {
 				.filter(Objects::nonNull)
 				.collect(Collectors.joining(", "));
 			return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
+		}
+
+		public static Timestamp toTimestamp(Instant instant) {
+			return instant != null ? Timestamp.from(instant) : null;
+		}
+
+		public static Instant toInstant(Timestamp ts) {
+			return ts != null ? ts.toInstant() : null;
 		}
 	}
 
@@ -283,3 +270,4 @@ public class RepositoryCustom<T, F> {
 		public abstract String apply(MapSqlParameterSource params, @NotNull F filter);
 	}
 }
+
