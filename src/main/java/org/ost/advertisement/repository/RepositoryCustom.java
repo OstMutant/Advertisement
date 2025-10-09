@@ -11,7 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.BinaryOperator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -138,14 +137,6 @@ public class RepositoryCustom<T, F> {
 				.collect(Collectors.joining(", "));
 			return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
 		}
-
-		public static Timestamp toTimestamp(Instant instant) {
-			return instant != null ? Timestamp.from(instant) : null;
-		}
-
-		public static Instant toInstant(Timestamp ts) {
-			return ts != null ? ts.toInstant() : null;
-		}
 	}
 
 	@NoArgsConstructor
@@ -162,67 +153,68 @@ public class RepositoryCustom<T, F> {
 			return this;
 		}
 
-		public String toSqlApplyingAnd() {
-			return toSql(" AND ");
-		}
-
-		public Map<String, Object> toParams() {
-			return conditions.stream()
-				.collect(Collectors.toMap(
-					Condition::param,
-					Condition::value,
-					(existing, replacement) -> replacement
-				));
-		}
-
 		public String toSql(String joiner) {
 			return conditions.stream()
 				.map(Condition::sql)
 				.collect(Collectors.joining(" " + joiner + " "));
 		}
+
+		public String toSqlApplyingAnd() {
+			return toSql("AND");
+		}
+
+		public Map<String, Object> toParams() {
+			return conditions.stream()
+				.collect(Collectors.toMap(Condition::param, Condition::value, (a, b) -> b));
+		}
 	}
 
 	public abstract static class FilterApplier<F> {
 
-		protected static <F> FilterRelation<F> of(
-			String filterField,
-			SqlDtoFieldRelation<?> sqlDtoFieldRelation,
-			FilterApplierFunction<F, FieldsConditions, FilterRelation<F>, FieldsConditions> fn
-		) {
-			return new FilterRelation<>() {
-				@Override
-				public String getFilterField() {
-					return filterField;
-				}
-
-				@Override
-				public String getSqlField() {
-					return sqlDtoFieldRelation.getSqlField();
-				}
-
-				@Override
-				public void applyConditions(F filter, FieldsConditions fc) {
-					fn.apply(filter, fc, this);
-				}
-			};
-		}
-
-		@FunctionalInterface
-		protected interface FilterApplierFunction<A, B, C, R> {
-
-			R apply(A a, B b, C c);
-		}
-
 		protected final List<FilterRelation<F>> relations = new ArrayList<>();
 
-		protected String applyRelations(MapSqlParameterSource params, @NotNull F filter) {
+		public String apply(MapSqlParameterSource params, @NotNull F filter) {
 			FieldsConditions fc = new FieldsConditions();
 			relations.forEach(r -> r.applyConditions(filter, fc));
 			fc.toParams().forEach(params::addValue);
 			return fc.toSqlApplyingAnd();
 		}
 
-		public abstract String apply(MapSqlParameterSource params, @NotNull F filter);
+		@FunctionalInterface
+		public interface FilterApplierFunction<F> {
+
+			void apply(F filter, FieldsConditions fc, FilterRelation<F> relation);
+		}
+
+		public static <F> FilterRelation<F> of(
+			String filterField,
+			SqlDtoFieldRelation<?> relation,
+			FilterApplierFunction<F> fn
+		) {
+			return new SimpleFilterRelation<>(filterField, relation, fn);
+		}
+
+		public record SimpleFilterRelation<F>(
+			String filterField,
+			SqlDtoFieldRelation<?> relation,
+			FilterApplierFunction<F> fn
+		) implements FilterRelation<F> {
+
+			@Override
+			public String getFilterField() {
+				return filterField;
+			}
+
+			@Override
+			public String getSqlField() {
+				return relation.getSqlField();
+			}
+
+			@Override
+			public void applyConditions(F filter, FieldsConditions fc) {
+				fn.apply(filter, fc, this);
+			}
+		}
 	}
 
 	public interface FilterRelation<F> {
@@ -231,53 +223,44 @@ public class RepositoryCustom<T, F> {
 
 		String getSqlField();
 
-		void applyConditions(F filter, FieldsConditions fieldsConditions);
+		void applyConditions(F filter, FieldsConditions fc);
 
-		default FieldsConditions like(String value, FieldsConditions fieldsConditions) {
-			return applyConditions(value != null && !value.isBlank(), value,
-				(sqlField, param) -> sqlField + " ILIKE :" + param,
-				v -> "%" + v + "%", fieldsConditions);
+		default FieldsConditions like(String value, FieldsConditions fc) {
+			return applyIfPresent(value, "ILIKE", v -> "%" + v + "%", fc);
 		}
 
-		default FieldsConditions after(Instant value, FieldsConditions fieldsConditions) {
-			return condition(value, ">=", Timestamp::from, fieldsConditions);
+		default FieldsConditions equalsTo(String value, FieldsConditions fc) {
+			return applyIfPresent(value, "=", Function.identity(), fc);
 		}
 
-		default FieldsConditions before(Instant value, FieldsConditions fieldsConditions) {
-			return condition(value, "<=", Timestamp::from, fieldsConditions);
+		default FieldsConditions after(Instant value, FieldsConditions fc) {
+			return applyIfPresent(value, ">=", Timestamp::from, fc);
 		}
 
-		default FieldsConditions after(Long value, FieldsConditions fieldsConditions) {
-			return condition(value, ">=", Function.identity(), fieldsConditions);
+		default FieldsConditions before(Instant value, FieldsConditions fc) {
+			return applyIfPresent(value, "<=", Timestamp::from, fc);
 		}
 
-		default FieldsConditions before(Long value, FieldsConditions fieldsConditions) {
-			return condition(value, "<=", Function.identity(), fieldsConditions);
+		default FieldsConditions after(Long value, FieldsConditions fc) {
+			return applyIfPresent(value, ">=", Function.identity(), fc);
 		}
 
-		default FieldsConditions equalsTo(String value, FieldsConditions fieldsConditions) {
-			return condition(value, "=", Function.identity(), fieldsConditions);
+		default FieldsConditions before(Long value, FieldsConditions fc) {
+			return applyIfPresent(value, "<=", Function.identity(), fc);
 		}
 
-		default <V, R> FieldsConditions condition(V v, String op, Function<V, R> f, FieldsConditions fc) {
-			return applyConditions(v != null, v, (sql, param) -> sql + " " + op + " :" + param, f, fc);
+		default <V, R> FieldsConditions applyIfPresent(V value, String op, Function<V, R> paramMapper,
+													   FieldsConditions fc) {
+			return value != null
+				? fc.add(sqlOp(op), getFilterField(), paramMapper.apply(value))
+				: fc;
 		}
 
-		default <V, R> FieldsConditions applyConditions(
-			boolean isApply,
-			V value,
-			BinaryOperator<String> sqlFunction,
-			Function<V, R> parametersFunction,
-			FieldsConditions fieldsConditions
-		) {
-			return isApply
-				? fieldsConditions.add(
-				sqlFunction.apply(getSqlField(), getFilterField()),
-				getFilterField(),
-				parametersFunction.apply(value))
-				: fieldsConditions;
+		private String sqlOp(String op) {
+			return getSqlField() + " " + op + " :" + getFilterField();
 		}
 	}
+
 }
 
 

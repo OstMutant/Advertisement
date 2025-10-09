@@ -54,22 +54,12 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 				of("endId", Fields.ID, (f, fc, self) -> self.before(f.getEndId(), fc))
 			));
 		}
-
-		@Override
-		public String apply(MapSqlParameterSource params, UserFilter filter) {
-			return applyRelations(params, filter);
-		}
 	}
 
 	public static class UserEmailConditionsRule extends FilterApplier<String> {
 
 		public UserEmailConditionsRule() {
 			relations.add(of("email", Fields.EMAIL, (email, fc, self) -> self.equalsTo(email, fc)));
-		}
-
-		@Override
-		public String apply(MapSqlParameterSource params, String email) {
-			return applyRelations(params, email);
 		}
 	}
 

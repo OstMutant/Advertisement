@@ -1,6 +1,8 @@
 package org.ost.advertisement.repository.advertisement;
 
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.*;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.id;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.instant;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,7 +15,6 @@ import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -39,11 +40,6 @@ public class AdvertisementRepositoryCustomImpl
 				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
 				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc))
 			));
-		}
-
-		@Override
-		public String apply(MapSqlParameterSource params, AdvertisementFilter filter) {
-			return applyRelations(params, filter);
 		}
 	}
 
