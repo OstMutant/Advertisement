@@ -1,20 +1,22 @@
 package org.ost.advertisement.repository.user;
 
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.id;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.instant;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.meta.fields.FieldDefinition.ValueExtractor;
 import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.ost.advertisement.repository.user.UserRepositoryCustomImpl.UserMapper.UserFieldRelations;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -40,20 +42,16 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 
 		public UserFilterApplier() {
 			relations.addAll(List.of(
-				of("name", UserFieldRelations.NAME, (f, fc, self) -> self.like(f.getName(), fc)),
-				of("email", UserFieldRelations.EMAIL, (f, fc, self) -> self.like(f.getEmail(), fc)),
-				of("role", UserFieldRelations.ROLE,
-					(f, fc, self) -> self.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
-				of("createdAt_start", UserFieldRelations.CREATED_AT,
-					(f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", UserFieldRelations.CREATED_AT,
-					(f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", UserFieldRelations.UPDATED_AT,
-					(f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", UserFieldRelations.UPDATED_AT,
-					(f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc)),
-				of("startId", UserFieldRelations.ID, (f, fc, self) -> self.after(f.getStartId(), fc)),
-				of("endId", UserFieldRelations.ID, (f, fc, self) -> self.before(f.getEndId(), fc))
+				of("name", Fields.NAME, (f, fc, self) -> self.like(f.getName(), fc)),
+				of("email", Fields.EMAIL, (f, fc, self) -> self.like(f.getEmail(), fc)),
+				of("role", Fields.ROLE, (f, fc, self) -> self.equalsTo(
+					f.getRole() != null ? f.getRole().name() : null, fc)),
+				of("createdAt_start", Fields.CREATED_AT, (f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
+				of("createdAt_end", Fields.CREATED_AT, (f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
+				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
+				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc)),
+				of("startId", Fields.ID, (f, fc, self) -> self.after(f.getStartId(), fc)),
+				of("endId", Fields.ID, (f, fc, self) -> self.before(f.getEndId(), fc))
 			));
 		}
 
@@ -66,9 +64,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 	public static class UserEmailConditionsRule extends FilterApplier<String> {
 
 		public UserEmailConditionsRule() {
-			relations.add(
-				of("email", UserFieldRelations.EMAIL, (email, fc, self) -> self.equalsTo(email, fc))
-			);
+			relations.add(of("email", Fields.EMAIL, (email, fc, self) -> self.equalsTo(email, fc)));
 		}
 
 		@Override
@@ -79,42 +75,38 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 
 	public static class UserMapper extends FieldRelations<User> {
 
-		@AllArgsConstructor
-		public enum UserFieldRelations implements SqlDtoFieldRelation {
-			ID("u.id", "id", (rs, alias) -> rs.getObject(alias, Long.class)),
-			NAME("u.name", "name", ResultSet::getString),
-			EMAIL("u.email", "email", ResultSet::getString),
-			ROLE("u.role", "role", ResultSet::getString),
-			PASSWORD_HASH("u.password_hash", "passwordHash", ResultSet::getString),
-			CREATED_AT("u.created_at", "createdAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
-			UPDATED_AT("u.updated_at", "updatedAt", (rs, alias) -> toInstant(rs.getTimestamp(alias))),
-			LOCALE("u.locale", "locale", ResultSet::getString);
-
-			@Getter
-			private final String sqlField;
-			@Getter
-			private final String dtoField;
-			@Getter
-			private final ValueExtractor<?> extractorLogic;
-		}
-
 		public UserMapper() {
-			super(UserFieldRelations.values(), "user_information u");
+			super(Fields.ALL, "user_information u");
 		}
 
 		@Override
 		public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
 			return User.builder()
-				.id(UserFieldRelations.ID.extract(rs))
-				.name(UserFieldRelations.NAME.extract(rs))
-				.email(UserFieldRelations.EMAIL.extract(rs))
-				.role(Role.valueOf(UserFieldRelations.ROLE.extract(rs)))
-				.passwordHash(UserFieldRelations.PASSWORD_HASH.extract(rs))
-				.createdAt(UserFieldRelations.CREATED_AT.extract(rs))
-				.updatedAt(UserFieldRelations.UPDATED_AT.extract(rs))
-				.locale(UserFieldRelations.LOCALE.extract(rs))
+				.id(Fields.ID.extract(rs))
+				.name(Fields.NAME.extract(rs))
+				.email(Fields.EMAIL.extract(rs))
+				.role(Role.valueOf(Fields.ROLE.extract(rs)))
+				.passwordHash(Fields.PASSWORD_HASH.extract(rs))
+				.createdAt(Fields.CREATED_AT.extract(rs))
+				.updatedAt(Fields.UPDATED_AT.extract(rs))
+				.locale(Fields.LOCALE.extract(rs))
 				.build();
 		}
 	}
-}
+	@NoArgsConstructor(access = AccessLevel.PRIVATE)
+	public static class Fields {
 
+		public static final SqlDtoFieldRelation<Long> ID = id("id", "u.id");
+		public static final SqlDtoFieldRelation<String> NAME = str("name", "u.name");
+		public static final SqlDtoFieldRelation<String> EMAIL = str("email", "u.email");
+		public static final SqlDtoFieldRelation<String> ROLE = str("role", "u.role");
+		public static final SqlDtoFieldRelation<String> PASSWORD_HASH = str("passwordHash", "u.password_hash");
+		public static final SqlDtoFieldRelation<Instant> CREATED_AT = instant("createdAt", "u.created_at");
+		public static final SqlDtoFieldRelation<Instant> UPDATED_AT = instant("updatedAt", "u.updated_at");
+		public static final SqlDtoFieldRelation<String> LOCALE = str("locale", "u.locale");
+
+		public static final SqlDtoFieldRelation<?>[] ALL = {
+			ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE
+		};
+	}
+}
