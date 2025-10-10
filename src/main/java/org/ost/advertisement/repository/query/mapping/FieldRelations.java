@@ -10,7 +10,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 

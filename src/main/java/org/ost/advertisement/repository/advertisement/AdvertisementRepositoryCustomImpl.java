@@ -1,8 +1,8 @@
 package org.ost.advertisement.repository.advertisement;
 
-import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.id;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.instant;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.str;
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
 import org.ost.advertisement.repository.query.mapping.FieldRelations;

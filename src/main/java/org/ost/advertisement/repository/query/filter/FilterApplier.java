@@ -3,7 +3,7 @@ package org.ost.advertisement.repository.query.filter;
 import jakarta.validation.constraints.NotNull;
 import java.util.ArrayList;
 import java.util.List;
-import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 public abstract class FilterApplier<F> {
