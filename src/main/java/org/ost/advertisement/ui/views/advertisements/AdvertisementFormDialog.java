@@ -19,18 +19,22 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.dto.AdvertisementEdit;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.dto.AdvertisementEdit;
+import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 
 @Slf4j
 public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit> {
 
+	private final AdvertisementMapper mapper;
+
 	public AdvertisementFormDialog(AdvertisementEdit advertisement, AdvertisementService advertisementService,
-								   I18nService i18n) {
+								   I18nService i18n, AdvertisementMapper mapper) {
 		super(advertisement == null ? new AdvertisementEdit() : advertisement, AdvertisementEdit.class, i18n);
+		this.mapper = mapper;
 
 		TextField titleField = createTitleField();
 		TextArea descriptionField = createDescriptionField();
@@ -51,12 +55,12 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 			descriptionField,
 			labeled(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatDate(dto.getCreatedAt()), TailwindStyle.GRAY_LABEL),
 			labeled(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatDate(dto.getUpdatedAt()), TailwindStyle.GRAY_LABEL),
-			labeled(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getUserId()), TailwindStyle.EMAIL_LABEL)
+			labeled(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()), TailwindStyle.EMAIL_LABEL)
 		);
 
 		addActions(
 			createSaveButton(ADVERTISEMENT_DIALOG_BUTTON_SAVE,
-				event -> save(advertisementService::save,
+				event -> save(ad -> advertisementService.save(mapper.toAdvertisement(ad)),
 					ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
 					ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR)),
 			createCancelButton(ADVERTISEMENT_DIALOG_BUTTON_CANCEL)

@@ -41,7 +41,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
 		Span createdAt = new Span(i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + formatInstant(ad.createdAt()));
 		Span updatedAt = new Span(i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + formatInstant(ad.updatedAt()));
-		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.userId());
+		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.createdByUserId());
 
 		VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
 		meta.setSpacing(false);

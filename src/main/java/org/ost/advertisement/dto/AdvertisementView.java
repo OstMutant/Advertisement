@@ -2,7 +2,6 @@ package org.ost.advertisement.dto;
 
 import java.time.Instant;
 import lombok.Builder;
-import lombok.Getter;
 import org.ost.advertisement.security.UserIdMarker;
 
 @Builder
@@ -12,9 +11,13 @@ public record AdvertisementView(
 	String description,
 	Instant createdAt,
 	Instant updatedAt,
-	@Getter Long userId,
-	String userName,
-	String userEmail
+	Long createdByUserId,
+	String createdByUserName,
+	String createdByUserEmail
 ) implements UserIdMarker {
 
+	@Override
+	public Long getOwnerUserId() {
+		return createdByUserId;
+	}
 }

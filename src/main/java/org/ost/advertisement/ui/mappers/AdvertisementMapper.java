@@ -1,8 +1,8 @@
-package org.ost.advertisement.mappers;
+package org.ost.advertisement.ui.mappers;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
-import org.ost.advertisement.dto.AdvertisementEdit;
+import org.ost.advertisement.ui.dto.AdvertisementEdit;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.entities.Advertisement;
 
@@ -10,7 +10,7 @@ import org.ost.advertisement.entities.Advertisement;
 public interface AdvertisementMapper {
 
 	@Mapping(target = "updatedAt", ignore = true)
-	@Mapping(source = "userId", target = "createdByUserId")
+	@Mapping(target = "lastModifiedByUserId", ignore = true)
 	Advertisement toAdvertisement(AdvertisementEdit dto);
 
 	AdvertisementEdit toAdvertisementEdit(AdvertisementView dto);

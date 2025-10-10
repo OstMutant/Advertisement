@@ -8,7 +8,7 @@ import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import lombok.Getter;
-import org.ost.advertisement.mappers.FilterMapper;
+import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 
 public abstract class AbstractFilterFields<F> {

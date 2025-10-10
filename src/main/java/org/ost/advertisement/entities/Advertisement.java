@@ -1,11 +1,7 @@
 package org.ost.advertisement.entities;
 
 import java.time.Instant;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import org.ost.advertisement.security.UserIdMarker;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -13,27 +9,19 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Getter
-@Setter
 @Table("advertisement")
-public class Advertisement {
+public record Advertisement(
+	@Id Long id,
+	String title,
+	String description,
+	@CreatedDate Instant createdAt,
+	@LastModifiedDate Instant updatedAt,
+	@CreatedBy Long createdByUserId,
+	@LastModifiedBy Long lastModifiedByUserId
+) implements UserIdMarker {
 
-	@Id
-	private Long id;
-
-	private String title;
-	private String description;
-
-	@CreatedDate
-	private Instant createdAt;
-	@LastModifiedDate
-	private Instant updatedAt;
-
-	@CreatedBy
-	private Long createdByUserId;
-	@LastModifiedBy
-	private Long lastModifiedByUserId;
+	@Override
+	public Long getOwnerUserId() {
+		return createdByUserId;
+	}
 }

@@ -1,4 +1,4 @@
-package org.ost.advertisement.mappers;
+package org.ost.advertisement.mappers.filters;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;

@@ -23,7 +23,7 @@ import jakarta.annotation.PostConstruct;
 import java.util.function.Predicate;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.mappers.UserFilterMapper;
+import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;

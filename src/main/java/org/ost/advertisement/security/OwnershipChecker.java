@@ -13,6 +13,6 @@ public class OwnershipChecker {
 	}
 
 	public boolean isOwner(User user, UserIdMarker target) {
-		return ofNullable(target).map(UserIdMarker::getUserId).filter(v -> isOwner(user, v)).isPresent();
+		return ofNullable(target).map(UserIdMarker::getOwnerUserId).filter(v -> isOwner(user, v)).isPresent();
 	}
 }

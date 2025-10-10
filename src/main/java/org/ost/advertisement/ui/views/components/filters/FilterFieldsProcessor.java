@@ -10,7 +10,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.mappers.FilterMapper;
+import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 
 public class FilterFieldsProcessor<F> {

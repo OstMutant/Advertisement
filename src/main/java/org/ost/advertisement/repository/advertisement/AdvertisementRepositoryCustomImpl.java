@@ -62,9 +62,9 @@ public class AdvertisementRepositoryCustomImpl
 				.description(Fields.DESCRIPTION.extract(rs))
 				.createdAt(Fields.CREATED_AT.extract(rs))
 				.updatedAt(Fields.UPDATED_AT.extract(rs))
-				.userId(Fields.USER_ID.extract(rs))
-				.userName(Fields.USER_NAME.extract(rs))
-				.userEmail(Fields.USER_EMAIL.extract(rs))
+				.createdByUserId(Fields.USER_ID.extract(rs))
+				.createdByUserName(Fields.USER_NAME.extract(rs))
+				.createdByUserEmail(Fields.USER_EMAIL.extract(rs))
 				.build();
 		}
 	}
@@ -77,9 +77,9 @@ public class AdvertisementRepositoryCustomImpl
 		public static final SqlDtoFieldDefinition<String> DESCRIPTION = str("description", "a.description");
 		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "a.created_at");
 		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "a.updated_at");
-		public static final SqlDtoFieldDefinition<Long> USER_ID = id("userId", "u.id");
-		public static final SqlDtoFieldDefinition<String> USER_NAME = str("userName", "u.name");
-		public static final SqlDtoFieldDefinition<String> USER_EMAIL = str("userEmail", "u.email");
+		public static final SqlDtoFieldDefinition<Long> USER_ID = id("createdByUserId", "u.id");
+		public static final SqlDtoFieldDefinition<String> USER_NAME = str("createdByUserName", "u.name");
+		public static final SqlDtoFieldDefinition<String> USER_EMAIL = str("createdByUserEmail", "u.email");
 
 		public static final SqlDtoFieldDefinition<?>[] ALL = {
 			ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL

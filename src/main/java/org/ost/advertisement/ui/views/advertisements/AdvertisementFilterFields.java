@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.mappers.AdvertisementFilterMapper;
+import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;

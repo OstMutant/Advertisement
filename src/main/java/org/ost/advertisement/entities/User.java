@@ -38,7 +38,7 @@ public class User implements UserIdMarker {
 	private String locale;
 
 	@Override
-	public Long getUserId() {
+	public Long getOwnerUserId() {
 		return id;
 	}
 

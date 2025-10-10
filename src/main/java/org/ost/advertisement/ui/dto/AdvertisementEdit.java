@@ -1,4 +1,4 @@
-package org.ost.advertisement.dto;
+package org.ost.advertisement.ui.dto;
 
 import java.time.Instant;
 import lombok.AllArgsConstructor;
@@ -6,14 +6,13 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.ost.advertisement.security.UserIdMarker;
 
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Getter
 @Setter
-public class AdvertisementEdit implements UserIdMarker {
+public class AdvertisementEdit {
 
 	private Long id;
 
@@ -23,5 +22,6 @@ public class AdvertisementEdit implements UserIdMarker {
 	private Instant createdAt;
 	private Instant updatedAt;
 
-	private Long userId;
+	private Long createdByUserId;
+	private Long lastModifiedByUserId;
 }
