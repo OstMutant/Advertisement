@@ -15,6 +15,7 @@ import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
+import org.ost.advertisement.repository.query.filter.FilterApplier;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -34,11 +35,11 @@ public class AdvertisementRepositoryCustomImpl
 
 		public AdvertisementFilterApplier() {
 			relations.addAll(List.of(
-				of("title", Fields.TITLE, (f, fc, self) -> self.like(f.getTitle(), fc)),
-				of("createdAt_start", Fields.CREATED_AT, (f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", Fields.CREATED_AT, (f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc))
+				of("title", Fields.TITLE, (f, fc, r) -> r.like(f.getTitle(), fc)),
+				of("createdAt_start", Fields.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
+				of("createdAt_end", Fields.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
+				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
+				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc))
 			));
 		}
 	}
@@ -47,9 +48,9 @@ public class AdvertisementRepositoryCustomImpl
 
 		public AdvertisementMapper() {
 			super(Fields.ALL, """
-                advertisement a
-                LEFT JOIN user_information u ON a.created_by_user_id = u.id
-            """);
+				    advertisement a
+				    LEFT JOIN user_information u ON a.created_by_user_id = u.id
+				""");
 		}
 
 		@Override
@@ -66,6 +67,7 @@ public class AdvertisementRepositoryCustomImpl
 				.build();
 		}
 	}
+
 	@NoArgsConstructor(access = AccessLevel.PRIVATE)
 	private static class Fields {
 

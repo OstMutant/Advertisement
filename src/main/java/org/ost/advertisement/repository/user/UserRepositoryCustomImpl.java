@@ -17,6 +17,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
+import org.ost.advertisement.repository.query.filter.FilterApplier;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -41,16 +42,15 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 
 		public UserFilterApplier() {
 			relations.addAll(List.of(
-				of("name", Fields.NAME, (f, fc, self) -> self.like(f.getName(), fc)),
-				of("email", Fields.EMAIL, (f, fc, self) -> self.like(f.getEmail(), fc)),
-				of("role", Fields.ROLE, (f, fc, self) -> self.equalsTo(
-					f.getRole() != null ? f.getRole().name() : null, fc)),
-				of("createdAt_start", Fields.CREATED_AT, (f, fc, self) -> self.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", Fields.CREATED_AT, (f, fc, self) -> self.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, self) -> self.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, self) -> self.before(f.getUpdatedAtEnd(), fc)),
-				of("startId", Fields.ID, (f, fc, self) -> self.after(f.getStartId(), fc)),
-				of("endId", Fields.ID, (f, fc, self) -> self.before(f.getEndId(), fc))
+				of("name", Fields.NAME, (f, fc, r) -> r.like(f.getName(), fc)),
+				of("email", Fields.EMAIL, (f, fc, r) -> r.like(f.getEmail(), fc)),
+				of("role", Fields.ROLE, (f, fc, r) -> r.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
+				of("createdAt_start", Fields.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
+				of("createdAt_end", Fields.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
+				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
+				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc)),
+				of("startId", Fields.ID, (f, fc, r) -> r.after(f.getStartId(), fc)),
+				of("endId", Fields.ID, (f, fc, r) -> r.before(f.getEndId(), fc))
 			));
 		}
 	}
@@ -58,7 +58,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 	public static class UserEmailFilterApplier extends FilterApplier<String> {
 
 		public UserEmailFilterApplier() {
-			relations.add(of("email", Fields.EMAIL, (email, fc, self) -> self.equalsTo(email, fc)));
+			relations.add(of("email", Fields.EMAIL, (email, fc, r) -> r.equalsTo(email, fc)));
 		}
 	}
 
@@ -82,6 +82,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 				.build();
 		}
 	}
+
 	@NoArgsConstructor(access = AccessLevel.PRIVATE)
 	public static class Fields {
 
