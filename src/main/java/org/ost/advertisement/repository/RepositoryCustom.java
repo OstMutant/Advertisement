@@ -2,19 +2,13 @@ package org.ost.advertisement.repository;
 
 import static java.util.Optional.ofNullable;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
+import org.ost.advertisement.repository.query.mapping.FieldRelations;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
@@ -31,7 +25,7 @@ public class RepositoryCustom<T, F> {
 		this.filterApplier = filterApplier;
 	}
 
-	public List<T> findByFilter(F filter, Pageable pageable) {
+	public java.util.List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		String sql = prepareSelectTemplate(
 			fieldRelations.sourceToSql(),
@@ -69,17 +63,21 @@ public class RepositoryCustom<T, F> {
 
 	private String prepareSelectTemplate(String source, String fields, String where, String sort, String limit) {
 		return Stream.of(
-				"SELECT " + ofNullable(fields).filter(StringUtils::isNotBlank).orElse("*"),
+				"SELECT " + fieldsOrDefault(fields),
 				"FROM " + source,
-				prependIfNotBlank(where, "WHERE "),
-				prependIfNotBlank(sort, ""),
-				prependIfNotBlank(limit, "")
+				prepend(where, "WHERE "),
+				prepend(sort, ""),
+				prepend(limit, "")
 			)
 			.filter(StringUtils::isNotBlank)
 			.collect(Collectors.joining(" "));
 	}
 
-	private String prependIfNotBlank(String part, String prefix) {
+	private String fieldsOrDefault(String fields) {
+		return StringUtils.isNotBlank(fields) ? fields : "*";
+	}
+
+	private String prepend(String part, String prefix) {
 		return StringUtils.isNotBlank(part) ? prefix + part : "";
 	}
 
@@ -92,45 +90,5 @@ public class RepositoryCustom<T, F> {
 				return "LIMIT :limit OFFSET :offset";
 			})
 			.orElse("");
-	}
-
-	public abstract static class FieldRelations<T> implements RowMapper<T> {
-
-		private final Map<String, String> dtoToSqlRelations;
-		private final String sqlSource;
-
-		protected FieldRelations(SqlDtoFieldDefinition<?>[] items, String sqlSource) {
-			this.dtoToSqlRelations = Stream.of(items)
-				.collect(Collectors.toMap(
-					SqlDtoFieldDefinition::getDtoField,
-					SqlDtoFieldDefinition::getSqlField,
-					(existing, replacement) -> existing,
-					HashMap::new
-				));
-			this.sqlSource = sqlSource;
-		}
-
-		public String sourceToSql() {
-			return sqlSource;
-		}
-
-		public String fieldsToSql() {
-			return dtoToSqlRelations.entrySet().stream()
-				.map(v -> v.getValue() + " AS " + v.getKey())
-				.collect(Collectors.joining(", "));
-		}
-
-		public String sortToSql(Sort sort) {
-			String orderByFragment = ofNullable(sort)
-				.filter(s -> !s.isEmpty())
-				.map(Sort::stream)
-				.orElseGet(Stream::empty)
-				.map(order -> ofNullable(dtoToSqlRelations.get(order.getProperty()))
-					.map(col -> col + " " + order.getDirection().name())
-					.orElse(null))
-				.filter(Objects::nonNull)
-				.collect(Collectors.joining(", "));
-			return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
-		}
 	}
 }

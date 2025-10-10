@@ -18,6 +18,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
+import org.ost.advertisement.repository.query.mapping.FieldRelations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
