@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
+import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
@@ -104,11 +104,11 @@ public class RepositoryCustom<T, F> {
 		private final Map<String, String> dtoToSqlRelations;
 		private final String sqlSource;
 
-		protected FieldRelations(SqlDtoFieldRelation<?>[] items, String sqlSource) {
+		protected FieldRelations(SqlDtoFieldDefinition<?>[] items, String sqlSource) {
 			this.dtoToSqlRelations = Stream.of(items)
 				.collect(Collectors.toMap(
-					SqlDtoFieldRelation::getDtoField,
-					SqlDtoFieldRelation::getSqlField,
+					SqlDtoFieldDefinition::getDtoField,
+					SqlDtoFieldDefinition::getSqlField,
 					(existing, replacement) -> existing,
 					HashMap::new
 				));
@@ -188,7 +188,7 @@ public class RepositoryCustom<T, F> {
 
 		public static <F> FilterRelation<F> of(
 			String filterField,
-			SqlDtoFieldRelation<?> relation,
+			SqlDtoFieldDefinition<?> relation,
 			FilterApplierFunction<F> fn
 		) {
 			return new SimpleFilterRelation<>(filterField, relation, fn);
@@ -196,7 +196,7 @@ public class RepositoryCustom<T, F> {
 
 		public record SimpleFilterRelation<F>(
 			String filterField,
-			SqlDtoFieldRelation<?> relation,
+			SqlDtoFieldDefinition<?> relation,
 			FilterApplierFunction<F> fn
 		) implements FilterRelation<F> {
 

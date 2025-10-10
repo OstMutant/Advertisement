@@ -1,8 +1,8 @@
 package org.ost.advertisement.repository.user;
 
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.id;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.instant;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.str;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.id;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.instant;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -15,9 +15,8 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
+import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -26,16 +25,16 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 	implements UserRepositoryCustom {
 
 	private static final UserMapper USER_MAPPER = new UserMapper();
-	private static final UserFilterApplier USER_CONDITIONS_RULES = new UserFilterApplier();
-	private static final UserEmailConditionsRule USER_EMAIL_CONDITIONS_RULE = new UserEmailConditionsRule();
+	private static final UserFilterApplier USER_FILTER_APPLIER = new UserFilterApplier();
+	private static final UserEmailFilterApplier USER_EMAIL_FILTER_APPLIER = new UserEmailFilterApplier();
 
 	public UserRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
-		super(jdbc, USER_MAPPER, USER_CONDITIONS_RULES);
+		super(jdbc, USER_MAPPER, USER_FILTER_APPLIER);
 	}
 
 	@Override
 	public Optional<User> findByEmail(String email) {
-		return find(USER_EMAIL_CONDITIONS_RULE, email);
+		return find(USER_EMAIL_FILTER_APPLIER, email);
 	}
 
 	public static class UserFilterApplier extends FilterApplier<UserFilter> {
@@ -56,9 +55,9 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 		}
 	}
 
-	public static class UserEmailConditionsRule extends FilterApplier<String> {
+	public static class UserEmailFilterApplier extends FilterApplier<String> {
 
-		public UserEmailConditionsRule() {
+		public UserEmailFilterApplier() {
 			relations.add(of("email", Fields.EMAIL, (email, fc, self) -> self.equalsTo(email, fc)));
 		}
 	}
@@ -86,16 +85,16 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 	@NoArgsConstructor(access = AccessLevel.PRIVATE)
 	public static class Fields {
 
-		public static final SqlDtoFieldRelation<Long> ID = id("id", "u.id");
-		public static final SqlDtoFieldRelation<String> NAME = str("name", "u.name");
-		public static final SqlDtoFieldRelation<String> EMAIL = str("email", "u.email");
-		public static final SqlDtoFieldRelation<String> ROLE = str("role", "u.role");
-		public static final SqlDtoFieldRelation<String> PASSWORD_HASH = str("passwordHash", "u.password_hash");
-		public static final SqlDtoFieldRelation<Instant> CREATED_AT = instant("createdAt", "u.created_at");
-		public static final SqlDtoFieldRelation<Instant> UPDATED_AT = instant("updatedAt", "u.updated_at");
-		public static final SqlDtoFieldRelation<String> LOCALE = str("locale", "u.locale");
+		public static final SqlDtoFieldDefinition<Long> ID = id("id", "u.id");
+		public static final SqlDtoFieldDefinition<String> NAME = str("name", "u.name");
+		public static final SqlDtoFieldDefinition<String> EMAIL = str("email", "u.email");
+		public static final SqlDtoFieldDefinition<String> ROLE = str("role", "u.role");
+		public static final SqlDtoFieldDefinition<String> PASSWORD_HASH = str("passwordHash", "u.password_hash");
+		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "u.created_at");
+		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "u.updated_at");
+		public static final SqlDtoFieldDefinition<String> LOCALE = str("locale", "u.locale");
 
-		public static final SqlDtoFieldRelation<?>[] ALL = {
+		public static final SqlDtoFieldDefinition<?>[] ALL = {
 			ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE
 		};
 	}

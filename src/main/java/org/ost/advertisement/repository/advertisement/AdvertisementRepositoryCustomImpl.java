@@ -1,8 +1,8 @@
 package org.ost.advertisement.repository.advertisement;
 
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.id;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.instant;
-import static org.ost.advertisement.meta.fields.SqlDtoFieldRelationBuilder.str;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.id;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.instant;
+import static org.ost.advertisement.meta.fields.SqlDtoFieldDefinitionBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.meta.fields.SqlDtoFieldRelation;
+import org.ost.advertisement.meta.fields.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,10 +24,10 @@ public class AdvertisementRepositoryCustomImpl
 	implements AdvertisementRepositoryCustom {
 
 	private static final AdvertisementMapper ADVERTISEMENT_MAPPER = new AdvertisementMapper();
-	private static final AdvertisementFilterApplier ADVERTISEMENT_CONDITIONS_RULES = new AdvertisementFilterApplier();
+	private static final AdvertisementFilterApplier ADVERTISEMENT_FILTER_APPLIER = new AdvertisementFilterApplier();
 
 	public AdvertisementRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
-		super(jdbc, ADVERTISEMENT_MAPPER, ADVERTISEMENT_CONDITIONS_RULES);
+		super(jdbc, ADVERTISEMENT_MAPPER, ADVERTISEMENT_FILTER_APPLIER);
 	}
 
 	private static class AdvertisementFilterApplier extends FilterApplier<AdvertisementFilter> {
@@ -69,16 +69,16 @@ public class AdvertisementRepositoryCustomImpl
 	@NoArgsConstructor(access = AccessLevel.PRIVATE)
 	private static class Fields {
 
-		public static final SqlDtoFieldRelation<Long> ID = id("id", "a.id");
-		public static final SqlDtoFieldRelation<String> TITLE = str("title", "a.title");
-		public static final SqlDtoFieldRelation<String> DESCRIPTION = str("description", "a.description");
-		public static final SqlDtoFieldRelation<Instant> CREATED_AT = instant("createdAt", "a.created_at");
-		public static final SqlDtoFieldRelation<Instant> UPDATED_AT = instant("updatedAt", "a.updated_at");
-		public static final SqlDtoFieldRelation<Long> USER_ID = id("userId", "u.id");
-		public static final SqlDtoFieldRelation<String> USER_NAME = str("userName", "u.name");
-		public static final SqlDtoFieldRelation<String> USER_EMAIL = str("userEmail", "u.email");
+		public static final SqlDtoFieldDefinition<Long> ID = id("id", "a.id");
+		public static final SqlDtoFieldDefinition<String> TITLE = str("title", "a.title");
+		public static final SqlDtoFieldDefinition<String> DESCRIPTION = str("description", "a.description");
+		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "a.created_at");
+		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "a.updated_at");
+		public static final SqlDtoFieldDefinition<Long> USER_ID = id("userId", "u.id");
+		public static final SqlDtoFieldDefinition<String> USER_NAME = str("userName", "u.name");
+		public static final SqlDtoFieldDefinition<String> USER_EMAIL = str("userEmail", "u.email");
 
-		public static final SqlDtoFieldRelation<?>[] ALL = {
+		public static final SqlDtoFieldDefinition<?>[] ALL = {
 			ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL
 		};
 	}
