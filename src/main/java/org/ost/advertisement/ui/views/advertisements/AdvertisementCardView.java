@@ -1,5 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_BUTTON_DELETE;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_BUTTON_EDIT;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_CREATED;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_UPDATED;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_USER;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
 import com.vaadin.flow.component.button.Button;
@@ -10,10 +15,11 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.dto.AdvertisementView;
+import org.ost.advertisement.services.I18nService;
 
 public class AdvertisementCardView extends VerticalLayout {
 
-	public AdvertisementCardView(AdvertisementView ad, Runnable onEdit, Runnable onDelete) {
+	public AdvertisementCardView(AdvertisementView ad, Runnable onEdit, Runnable onDelete, I18nService i18n) {
 		addClassName("advertisement-card");
 		getStyle().set("border", "1px solid #ccc");
 		getStyle().set("border-radius", "8px");
@@ -33,19 +39,19 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("-webkit-box-orient", "vertical")
 			.set("white-space", "normal");
 
-		Span createdAt = new Span("Created: " + formatInstant(ad.createdAt()));
-		Span updatedAt = new Span("Updated: " + formatInstant(ad.updatedAt()));
-		Span userId = new Span("User ID: " + ad.userId());
+		Span createdAt = new Span(i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + formatInstant(ad.createdAt()));
+		Span updatedAt = new Span(i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + formatInstant(ad.updatedAt()));
+		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.userId());
 
 		VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
 		meta.setSpacing(false);
 		meta.setPadding(false);
 
-		Button edit = new Button("Edit", VaadinIcon.EDIT.create());
+		Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
 		edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
 		edit.addClickListener(e -> onEdit.run());
 
-		Button delete = new Button("Delete", VaadinIcon.TRASH.create());
+		Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
 		delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
 		delete.addClickListener(e -> onDelete.run());
 
@@ -55,3 +61,5 @@ public class AdvertisementCardView extends VerticalLayout {
 		add(title, description, meta, actions);
 	}
 }
+
+

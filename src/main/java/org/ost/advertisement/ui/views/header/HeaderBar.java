@@ -1,5 +1,11 @@
 package org.ost.advertisement.ui.views.header;
 
+import static org.ost.advertisement.constans.I18nKey.HEADER_LOGIN;
+import static org.ost.advertisement.constans.I18nKey.HEADER_LOGOUT;
+import static org.ost.advertisement.constans.I18nKey.HEADER_NOT_SIGNED_IN;
+import static org.ost.advertisement.constans.I18nKey.HEADER_SIGNED_IN;
+import static org.ost.advertisement.constans.I18nKey.HEADER_SIGNUP;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -38,18 +44,19 @@ public class HeaderBar extends HorizontalLayout {
 		Span userInfo = new Span();
 		User currentUser = AuthUtil.getCurrentUser();
 		if (currentUser != null) {
-			userInfo.setText(i18n.get("header.signedIn", currentUser.getEmail()));
-			Button logoutButton = new Button(i18n.get("header.logout"), VaadinIcon.SIGN_OUT.create(),
+			userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
+			Button logoutButton = new Button(i18n.get(HEADER_LOGOUT), VaadinIcon.SIGN_OUT.create(),
 				e -> logoutDialog.open());
 			authBlockRow.add(userInfo, logoutButton);
 		} else {
-			userInfo.setText(i18n.get("header.notSignedIn"));
-			Button loginButton = new Button(i18n.get("header.login"), VaadinIcon.SIGN_IN.create(),
+			userInfo.setText(i18n.get(HEADER_NOT_SIGNED_IN));
+			Button loginButton = new Button(i18n.get(HEADER_LOGIN), VaadinIcon.SIGN_IN.create(),
 				e -> loginDialog.open());
-			Button signUpButton = new Button(i18n.get("header.signup"), VaadinIcon.USER.create(),
+			Button signUpButton = new Button(i18n.get(HEADER_SIGNUP), VaadinIcon.USER.create(),
 				e -> signUpDialog.open());
 			authBlockRow.add(userInfo, loginButton, signUpButton);
 		}
 	}
 }
+
 

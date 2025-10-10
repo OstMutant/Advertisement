@@ -1,76 +1,83 @@
 package org.ost.advertisement.ui.views.users;
 
 import static java.util.Optional.ofNullable;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_BUTTON_CANCEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_BUTTON_SAVE;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_CREATED_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_EMAIL_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_ID_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_NAME_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_NAME_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_ROLE_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_FIELD_UPDATED_LABEL;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_NOTIFICATION_SAVE_ERROR;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_NOTIFICATION_SUCCESS;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_TITLE;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME_LENGTH;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME_REQUIRED;
+import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_ROLE_REQUIRED;
 
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.data.binder.Binder;
-import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
-import java.time.Instant;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.security.utils.AuthUtil;
-import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
+import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.views.TailwindStyle;
+import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 
 @Slf4j
-public class UserFormDialog extends BaseDialog {
+public class UserFormDialog extends GenericFormDialog<User> {
 
-	private final TextField nameField = createNameField();
-	private final ComboBox<Role> roleCombo = createRoleCombo();
+	public UserFormDialog(User user, UserService userService, I18nService i18n) {
+		super(user, User.class, i18n);
 
-	private final Span idSpan = new Span();
-	private final Span emailSpan = new Span();
-	private final Component idComponent = createEmailComponent("ID:", idSpan);
-	private final Component emailComponent = createEmailComponent("Email:", emailSpan);
+		TextField nameField = createNameField();
+		ComboBox<Role> roleCombo = createRoleCombo();
 
-	private final Span createdAtSpan = createDateSpan();
-	private final Span updatedAtSpan = createDateSpan();
-	private final Component createdAtComponent = createDateComponent("Created At:", createdAtSpan);
-	private final Component updatedAtComponent = createDateComponent("Updated At:", updatedAtSpan);
+		binder.forField(nameField)
+			.asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
+			.withValidator(new StringLengthValidator(i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
+			.bind(User::getName, User::setName);
 
-	private final Binder<User> binder;
+		binder.forField(roleCombo)
+			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
+			.bind(User::getRole, User::setRole);
 
-	private final UserService userService;
-	private final User user;
+		setTitle(USER_DIALOG_TITLE);
 
-	public UserFormDialog(User user, UserService userService) {
-		super();
-		this.user = user;
-		this.userService = userService;
+		addContent(
+			labeled(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL),
+			labeled(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""),
+				TailwindStyle.EMAIL_LABEL),
+			nameField,
+			roleCombo,
+			labeled(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL),
+			labeled(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL)
+		);
 
-		binder = createBinder(user, nameField, roleCombo);
-
-		idSpan.setText(String.valueOf(user.getId()));
-		emailSpan.setText(ofNullable(user.getEmail()).orElse(""));
-		createdAtSpan.setText(formatDate(user.getCreatedAt()));
-		updatedAtSpan.setText(formatDate(user.getUpdatedAt()));
-
-		title.setText("Edit User");
-		actionsFooter.add(createSaveButton(event -> saveUser()), createCancelButton());
-
-		content.add(idComponent, emailComponent, nameField, roleCombo, createdAtComponent, updatedAtComponent);
+		addActions(
+			createSaveButton(USER_DIALOG_BUTTON_SAVE,
+				event -> save(dto -> userService.save(AuthUtil.getCurrentUser(), dto),
+					USER_DIALOG_NOTIFICATION_SUCCESS, USER_DIALOG_NOTIFICATION_SAVE_ERROR)),
+			createCancelButton(USER_DIALOG_BUTTON_CANCEL)
+		);
 	}
 
 	private TextField createNameField() {
-		TextField field = new TextField("Name");
-		field.setPlaceholder("Enter name");
+		TextField field = new TextField(i18n.get(USER_DIALOG_FIELD_NAME_LABEL));
+		field.setPlaceholder(i18n.get(USER_DIALOG_FIELD_NAME_PLACEHOLDER));
 		field.setRequired(true);
 		field.setMaxLength(255);
-		field.setAutofocus(true);
 		return field;
 	}
 
 	private ComboBox<Role> createRoleCombo() {
-		ComboBox<Role> combo = new ComboBox<>("Role");
+		ComboBox<Role> combo = new ComboBox<>(i18n.get(USER_DIALOG_FIELD_ROLE_LABEL));
 		combo.setItems(Arrays.asList(Role.values()));
 		combo.setRequired(true);
 		combo.setAllowCustomValue(false);
@@ -78,42 +85,6 @@ public class UserFormDialog extends BaseDialog {
 		combo.setMaxWidth("160px");
 		return combo;
 	}
-
-	private Binder<User> createBinder(User user, TextField nameField, ComboBox<Role> roleCombo) {
-		Binder<User> binder = new Binder<>(User.class);
-		binder.setBean(user);
-
-		binder.forField(nameField)
-			.asRequired("Name cannot be empty")
-			.withValidator(new StringLengthValidator("Name must be between 1 and 255 characters", 1, 255))
-			.bind(User::getName, User::setName);
-
-		binder.forField(roleCombo)
-			.asRequired("Role is required")
-			.bind(User::getRole, User::setRole);
-
-		return binder;
-	}
-
-	private void saveUser() {
-		try {
-			binder.writeBean(user);
-			userService.save(AuthUtil.getCurrentUser(), user);
-			Notification.show("User updated", 3000, Notification.Position.BOTTOM_START)
-				.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-			close();
-		} catch (ValidationException e) {
-			log.warn("Validation error: {}", e.getMessage());
-			Notification.show("Validation failed", 5000, Notification.Position.BOTTOM_START)
-				.addThemeVariants(NotificationVariant.LUMO_ERROR);
-		} catch (Exception e) {
-			log.error("Save failed", e);
-			Notification.show("Save error: " + e.getMessage(), 5000, Notification.Position.BOTTOM_START)
-				.addThemeVariants(NotificationVariant.LUMO_ERROR);
-		}
-	}
-
-	private String formatDate(Instant instant) {
-		return formatInstant(instant, "—");
-	}
 }
+
+

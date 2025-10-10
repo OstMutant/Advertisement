@@ -1,80 +1,52 @@
-# 🧠 Advertisement Platform
+# Advertisement Platform
 
-A declarative, type-safe backend framework for managing advertisement entities with full control over SQL filtering, DTO mapping, and repository logic. Designed to replace boilerplate-heavy JPA/Hibernate with transparent, maintainable abstractions.
+This backend platform manages advertisement campaigns using a declarative, type-safe architecture focused on full control, maintainability, and zero boilerplate. No magic, no hidden behavior—just explicit logic designed for scalability and clarity.
 
-## 🚀 Project Philosophy
+## Architectural Philosophy
 
-This project is built on principles of architectural clarity and full control:
+- Immutable DTOs: All data objects are constructed via builders or explicit constructors. No mutable state.
+- Generic Filtering: Powered by FieldCondition<T> and FieldRelation<T> interfaces for universal DTO filtering.
+- Manual SQL: No JPA or ORM. All queries are handcrafted using Spring JDBC for full transparency.
+- Explicit Mapping: All RowMapper implementations are written manually. No framework-generated mappers.
+- UI Without Logic: Vaadin views contain only layout and interaction wiring. All business logic lives in services.
+- Rule-Based Validation: Validation is declarative, testable, and decoupled from UI using custom Validator<T> interfaces.
+- Centralized Localization: All UI texts are managed via a LocaleKey enum and resolved through a LocaleService.
+- Declarative PDF Generation: Layouts are described via DTOs and rendered using iText without imperative code.
 
-- ❌ No magic
-- ❌ No boilerplate
-- ✅ Full transparency across all layers
-- ✅ Explicit SQL, DTO, and filter logic
-- ✅ Scalable abstractions for any entity
+## Project Structure
 
-Every repository is a composition of declarative mappings and reusable filter rules. Every DTO is immutable and purpose-driven. Every SQL query is generated with precision.
+src/
+├── dto/           # Immutable data transfer objects
+├── filter/        # Generic filtering logic with FieldCondition and FieldRelation
+├── repository/    # Explicit SQL repositories using Spring JDBC
+├── service/       # Business logic and validation
+├── view/          # Vaadin-based UI components (no business logic)
+├── config/        # Security and application configuration
+├── util/          # Utility classes and helpers
 
-## 📦 Project Structure
+## Getting Started
 
-src/  
-├── main/  
-│   ├── java/org/ost/advertisement/  
-│   │   ├── domain/                # Domain models (e.g., User, Role)  
-│   │   ├── dto/                   # Filter DTOs for querying  
-│   │   ├── repository/            # Core SQL framework (RepositoryCustom, FieldRelations, etc.)  
-│   │   ├── repository/user/       # User-specific repository logic and mappers  
-│   │   ├── user/                  # UserId marker interface  
-│   └── resources/  
-│       └── application.yml        # Spring Boot configuration  
-├── test/  
-│   └── java/org/ost/advertisement/ # (To be added) Unit and integration tests
+1. Clone the repository:
+   git clone https://github.com/OstMutant/Advertisement.git
+   cd Advertisement
+   git checkout feature/refactoring
 
-## ⚙️ Getting Started
+2. Run the application:
+   ./mvnw spring-boot:run
 
-### Prerequisites
+3. Open http://localhost:8080 in your browser.
 
-- Java 21
-- Maven
-- PostgreSQL
+## Test Data
 
-### Run locally
+Liquibase is used for schema and data migration. To populate test data, add a data-test.xml changelog with full DTO coverage.
 
-git clone https://github.com/OstMutant/Advertisement.git  
-cd Advertisement  
-./mvnw spring-boot:run
+## TODO / Ideas
 
-### Sample application.yml
+- Introduce Validator<T> interfaces for rule-based validation.
+- Implement LocaleService with centralized key management.
+- Refactor PDF generation into declarative DTO-driven layout.
+- Add integration tests with full SQL coverage.
 
-spring:  
-datasource:  
-url: jdbc:postgresql://localhost:5432/advertisement  
-username: postgres  
-password: password  
-sql:  
-init:  
-mode: always
+## Author
 
-## 🧪 Testing Recommendations
-
-- Unit test FieldConditionsRules for SQL generation
-- Integration test UserRepositoryCustomImpl with real DB
-- Validate sorting, pagination, and edge cases
-
-## 📌 TODO
-
-- Add locale-based filtering
-- Introduce DSL for condition composition
-- Add test coverage for all repository methods
-- Document framework usage for other entities
-
-## 🛠️ Tech Stack
-
-- Java 21
-- Spring JDBC
-- PostgreSQL
-- Maven
-- Docker (optional)
-
-## 👤 Author
-
-Designed and maintained by Ostap — declarative architect, refactoring perfectionist, and legacy liberator.
+Designed with a passion for clean architecture, type safety, and total control over every layer of the stack.

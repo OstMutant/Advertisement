@@ -1,148 +1,103 @@
 package org.ost.advertisement.repository.user;
 
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
+import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.EnumSet;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.filter.UserFilter;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.ost.advertisement.repository.RepositoryCustom.FieldRelations.SqlDtoFieldRelation;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.ost.advertisement.repository.query.filter.FilterApplier;
+import org.ost.advertisement.repository.query.mapping.FieldRelations;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class UserRepositoryCustomImpl extends
-	RepositoryCustom<User, UserFilter> implements UserRepositoryCustom {
+public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
+	implements UserRepositoryCustom {
 
 	private static final UserMapper USER_MAPPER = new UserMapper();
-	private static final UserFieldConditionsRules USER_CONDITIONS_RULES = new UserFieldConditionsRules();
-	private static final UserEmailConditionsRule USER_EMAIL_CONDITIONS_RULE = new UserEmailConditionsRule();
+	private static final UserFilterApplier USER_FILTER_APPLIER = new UserFilterApplier();
+	private static final UserEmailFilterApplier USER_EMAIL_FILTER_APPLIER = new UserEmailFilterApplier();
 
 	public UserRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
-		super(jdbc, USER_MAPPER, USER_CONDITIONS_RULES);
+		super(jdbc, USER_MAPPER, USER_FILTER_APPLIER);
 	}
 
 	@Override
 	public Optional<User> findByEmail(String email) {
-		return find(USER_EMAIL_CONDITIONS_RULE, email);
+		return find(USER_EMAIL_FILTER_APPLIER, email);
+	}
+
+	public static class UserFilterApplier extends FilterApplier<UserFilter> {
+
+		public UserFilterApplier() {
+			relations.addAll(List.of(
+				of("name", Fields.NAME, (f, fc, r) -> r.like(f.getName(), fc)),
+				of("email", Fields.EMAIL, (f, fc, r) -> r.like(f.getEmail(), fc)),
+				of("role", Fields.ROLE, (f, fc, r) -> r.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
+				of("createdAt_start", Fields.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
+				of("createdAt_end", Fields.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
+				of("updatedAt_start", Fields.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
+				of("updatedAt_end", Fields.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc)),
+				of("startId", Fields.ID, (f, fc, r) -> r.after(f.getStartId(), fc)),
+				of("endId", Fields.ID, (f, fc, r) -> r.before(f.getEndId(), fc))
+			));
+		}
+	}
+
+	public static class UserEmailFilterApplier extends FilterApplier<String> {
+
+		public UserEmailFilterApplier() {
+			relations.add(of("email", Fields.EMAIL, (email, fc, r) -> r.equalsTo(email, fc)));
+		}
 	}
 
 	public static class UserMapper extends FieldRelations<User> {
 
-		@AllArgsConstructor
-		public enum UserFieldRelations implements SqlDtoFieldRelation {
-			ID("u.id", "id"),
-			NAME("u.name", "name"),
-			EMAIL("u.email", "email"),
-			ROLE("u.role", "role"),
-			PASSWORD_HASH("u.password_hash", "passwordHash"),
-			CREATED_AT("u.created_at", "createdAt"),
-			UPDATED_AT("u.updated_at", "updatedAt"),
-			LOCALE("u.locale", "locale");
-
-			@Getter
-			private final String sqlField;
-			@Getter
-			private final String dtoField;
-		}
-
 		public UserMapper() {
-			super(EnumSet.allOf(UserFieldRelations.class), "user_information u");
+			super(Fields.ALL, "user_information u");
 		}
 
 		@Override
-		public User mapRow(ResultSet rs, int rowNum) throws SQLException {
+		public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
 			return User.builder()
-				.id(rs.getObject(UserFieldRelations.ID.getDtoField(), Long.class))
-				.name(rs.getString(UserFieldRelations.NAME.getDtoField()))
-				.email(rs.getString(UserFieldRelations.EMAIL.getDtoField()))
-				.role(Role.valueOf(rs.getString(UserFieldRelations.ROLE.getDtoField())))
-				.passwordHash(rs.getString(UserFieldRelations.PASSWORD_HASH.getDtoField()))
-				.createdAt(toInstant(rs.getTimestamp(UserFieldRelations.CREATED_AT.getDtoField())))
-				.updatedAt(toInstant(rs.getTimestamp(UserFieldRelations.UPDATED_AT.getDtoField())))
-				.locale(rs.getString(UserFieldRelations.LOCALE.getDtoField()))
+				.id(Fields.ID.extract(rs))
+				.name(Fields.NAME.extract(rs))
+				.email(Fields.EMAIL.extract(rs))
+				.role(Role.valueOf(Fields.ROLE.extract(rs)))
+				.passwordHash(Fields.PASSWORD_HASH.extract(rs))
+				.createdAt(Fields.CREATED_AT.extract(rs))
+				.updatedAt(Fields.UPDATED_AT.extract(rs))
+				.locale(Fields.LOCALE.extract(rs))
 				.build();
 		}
 	}
 
-	public static class UserFieldConditionsRules extends FieldConditionsRules<UserFilter> {
+	@NoArgsConstructor(access = AccessLevel.PRIVATE)
+	public static class Fields {
 
-		@AllArgsConstructor
-		public enum FilterFieldRelations implements Relation {
-			NAME("name", UserMapper.UserFieldRelations.NAME),
-			EMAIL("email", UserMapper.UserFieldRelations.EMAIL),
-			ROLE("role", UserMapper.UserFieldRelations.ROLE),
-			CREATED_AT_START("createdAt_start", UserMapper.UserFieldRelations.CREATED_AT),
-			CREATED_AT_END("createdAt_end", UserMapper.UserFieldRelations.CREATED_AT),
-			UPDATED_AT_START("updatedAt_start", UserMapper.UserFieldRelations.UPDATED_AT),
-			UPDATED_AT_END("updatedAt_end", UserMapper.UserFieldRelations.UPDATED_AT),
-			START_ID("startId", UserMapper.UserFieldRelations.ID),
-			END_ID("endId", UserMapper.UserFieldRelations.ID);
+		public static final SqlDtoFieldDefinition<Long> ID = id("id", "u.id");
+		public static final SqlDtoFieldDefinition<String> NAME = str("name", "u.name");
+		public static final SqlDtoFieldDefinition<String> EMAIL = str("email", "u.email");
+		public static final SqlDtoFieldDefinition<String> ROLE = str("role", "u.role");
+		public static final SqlDtoFieldDefinition<String> PASSWORD_HASH = str("passwordHash", "u.password_hash");
+		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "u.created_at");
+		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "u.updated_at");
+		public static final SqlDtoFieldDefinition<String> LOCALE = str("locale", "u.locale");
 
-			@Getter
-			private final String filterField;
-			@Getter
-			private final SqlDtoFieldRelation sqlDtoFieldRelation;
-		}
-
-		public UserFieldConditionsRules() {
-			super(EnumSet.allOf(FilterFieldRelations.class));
-		}
-
-		@Override
-		public String apply(MapSqlParameterSource params, UserFilter filter) {
-			FieldConditions<UserFilter> fieldConditions = new FieldConditions<>(filter);
-			for (Relation relation : relations) {
-				switch (relation) {
-					case FilterFieldRelations.NAME -> like(relation, filter.getName(), fieldConditions);
-					case FilterFieldRelations.EMAIL -> like(relation, filter.getEmail(), fieldConditions);
-					case FilterFieldRelations.ROLE ->
-						equalsTo(relation, filter.getRole() != null ? filter.getRole().name() : null, fieldConditions);
-					case FilterFieldRelations.CREATED_AT_START ->
-						after(relation, filter.getCreatedAtStart(), fieldConditions);
-					case FilterFieldRelations.CREATED_AT_END ->
-						before(relation, filter.getCreatedAtEnd(), fieldConditions);
-					case FilterFieldRelations.UPDATED_AT_START ->
-						after(relation, filter.getUpdatedAtStart(), fieldConditions);
-					case FilterFieldRelations.UPDATED_AT_END ->
-						before(relation, filter.getUpdatedAtEnd(), fieldConditions);
-					case FilterFieldRelations.START_ID -> after(relation, filter.getStartId(), fieldConditions);
-					case FilterFieldRelations.END_ID -> before(relation, filter.getEndId(), fieldConditions);
-					default -> throw new IllegalStateException("Unexpected relation: " + relation);
-				}
-			}
-			params.addValues(fieldConditions.toParams());
-			return fieldConditions.toSqlApplyingAnd();
-		}
-	}
-
-	public static class UserEmailConditionsRule extends FieldConditionsRules<String> {
-
-		@AllArgsConstructor
-		public enum FilterFieldRelations implements Relation {
-			EMAIL("email", UserMapper.UserFieldRelations.EMAIL);
-
-			@Getter
-			private final String filterField;
-			@Getter
-			private final SqlDtoFieldRelation sqlDtoFieldRelation;
-		}
-
-		public UserEmailConditionsRule() {
-			super(EnumSet.allOf(FilterFieldRelations.class));
-		}
-
-		@Override
-		public String apply(MapSqlParameterSource params, String email) {
-			FieldConditions<String> fieldConditions = new FieldConditions<>(email);
-			equalsTo(FilterFieldRelations.EMAIL, email, fieldConditions);
-			params.addValues(fieldConditions.toParams());
-			return fieldConditions.toSqlApplyingAnd();
-		}
+		public static final SqlDtoFieldDefinition<?>[] ALL = {
+			ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE
+		};
 	}
 }

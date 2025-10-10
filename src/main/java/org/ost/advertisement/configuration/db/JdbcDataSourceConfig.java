@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration;
+package org.ost.advertisement.configuration.db;
 
 import com.zaxxer.hikari.HikariDataSource;
 import javax.sql.DataSource;

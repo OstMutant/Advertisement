@@ -1,11 +1,15 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
+
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.notification.Notification;
-import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -13,26 +17,30 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
-import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
+import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 
 @SpringComponent
 @UIScope
 public class AdvertisementsView extends VerticalLayout {
 
-	private final AdvertisementService advertisementService;
-	private final AdvertisementMapper mapper;
+	private final transient AdvertisementService advertisementService;
+	private final transient AdvertisementMapper mapper;
 	private final AdvertisementLeftSidebar sidebar;
 	private final VerticalLayout advertisementContainer = new VerticalLayout();
-	private final PaginationBarModern paginationBar = new PaginationBarModern();
+	private final PaginationBarModern paginationBar;
+	private final transient I18nService i18n;
 
 	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
-							  AdvertisementLeftSidebar sidebar) {
+							  AdvertisementLeftSidebar sidebar, I18nService i18n) {
 		this.mapper = mapper;
 		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
+		this.i18n = i18n;
+		this.paginationBar = new PaginationBarModern(i18n);
 		addClassName("advertisement-list-view");
 
 		setSizeFull();
@@ -73,14 +81,15 @@ public class AdvertisementsView extends VerticalLayout {
 		pageData.forEach(ad ->
 			advertisementContainer.add(
 				new AdvertisementCardView(ad,
-					() -> openAdvertisementFormDialog(mapper.toAdvertisement(ad)),
-					() -> openConfirmDeleteDialog(ad))
-			)
+					() -> openAdvertisementFormDialog(ad),
+					() -> openConfirmDeleteDialog(ad),
+					i18n))
 		);
 	}
 
-	private void openAdvertisementFormDialog(Advertisement advertisement) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(advertisement, advertisementService);
+	private void openAdvertisementFormDialog(AdvertisementView ad) {
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(mapper.toAdvertisementEdit(ad),
+			advertisementService, i18n);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
 				refreshAdvertisements();
@@ -91,23 +100,22 @@ public class AdvertisementsView extends VerticalLayout {
 
 	private void openConfirmDeleteDialog(AdvertisementView ad) {
 		Dialog dialog = new Dialog();
-		dialog.add(new Span("Delete advertisement \"" + ad.title() + "\" (ID " + ad.id() + ")?"));
+		String confirmText = i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.title(), ad.id());
+		dialog.add(new Span(confirmText));
 
-		Button confirm = new Button("Delete", e -> {
+		Button confirm = new Button(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON), e -> {
 			try {
 				advertisementService.delete(ad);
-				Notification.show("Advertisement deleted", 3000, Notification.Position.BOTTOM_START)
-					.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+				NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
 				refreshAdvertisements();
 			} catch (Exception ex) {
-				Notification.show("Error: " + ex.getMessage(), 5000, Notification.Position.BOTTOM_START)
-					.addThemeVariants(NotificationVariant.LUMO_ERROR);
+				NotificationType.ERROR.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
 			}
 			dialog.close();
 		});
 		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
 
-		Button cancel = new Button("Cancel", e -> dialog.close());
+		Button cancel = new Button(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON), e -> dialog.close());
 		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
 		dialog.getFooter().add(cancel, confirm);

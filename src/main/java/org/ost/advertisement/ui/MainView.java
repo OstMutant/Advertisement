@@ -1,5 +1,8 @@
 package org.ost.advertisement.ui;
 
+import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_USERS;
+
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -10,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
@@ -19,7 +23,7 @@ import org.ost.advertisement.ui.views.users.UserView;
 public class MainView extends VerticalLayout {
 
 	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
-					AccessEvaluator access) {
+					AccessEvaluator access, I18nService i18n) {
 
 		TimeZoneUtil.detectTimeZone();
 
@@ -30,7 +34,7 @@ public class MainView extends VerticalLayout {
 
 		add(headerBar);
 
-		Tab advertisementTab = new Tab("Advertisements");
+		Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
 		Tabs tabs = new Tabs(advertisementTab);
 		tabs.setSelectedTab(advertisementTab);
 		add(tabs);
@@ -47,7 +51,7 @@ public class MainView extends VerticalLayout {
 		if (access.canView(AuthUtil.getCurrentUser())) {
 			usersView.setVisible(false);
 
-			Tab usersTab = new Tab("Users");
+			Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
 			tabs.add(usersTab);
 			tabsToPages.put(usersTab, usersView);
 			pages.add(usersView);
@@ -58,5 +62,5 @@ public class MainView extends VerticalLayout {
 			tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
 		});
 	}
-
 }
+

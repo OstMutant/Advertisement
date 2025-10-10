@@ -14,7 +14,7 @@ public class AuthUtil {
 		return getOptionalCurrentUser().orElse(null);
 	}
 
-	private static Optional<User> getOptionalCurrentUser() {
+	public static Optional<User> getOptionalCurrentUser() {
 		Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 		if (auth == null || !auth.isAuthenticated()) {
 			return Optional.empty();
