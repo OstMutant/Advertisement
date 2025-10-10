@@ -188,7 +188,7 @@ public class UserView extends VerticalLayout {
 
 		Button confirm = new Button(i18n.get(USER_VIEW_CONFIRM_DELETE_BUTTON), e -> {
 			try {
-				userService.delete(AuthUtil.getCurrentUser(), user);
+				userService.delete(user);
 				NotificationType.SUCCESS.show(i18n.get(USER_VIEW_NOTIFICATION_DELETED));
 				refreshGrid();
 			} catch (Exception ex) {

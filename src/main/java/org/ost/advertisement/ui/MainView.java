@@ -48,7 +48,7 @@ public class MainView extends VerticalLayout {
 		pages.setSizeFull();
 		add(pages);
 
-		if (access.canView(AuthUtil.getCurrentUser())) {
+		if (access.canView()) {
 			usersView.setVisible(false);
 
 			Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));

@@ -3,6 +3,7 @@ package org.ost.advertisement.security;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.security.utils.AuthUtil;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -12,27 +13,26 @@ public class AccessEvaluator {
 	private final RoleChecker roleChecker;
 	private final OwnershipChecker ownershipChecker;
 
-	public boolean canView(User currentUser, UserIdMarker target) {
-		return canView(currentUser) || ownershipChecker.isOwner(currentUser, target);
-	}
 
-	public boolean canView(User currentUser) {
+	public boolean canView() {
+		User currentUser = getCurrentUser();
 		return roleChecker.isAdmin(currentUser) || roleChecker.isModerator(currentUser);
 	}
 
-	public boolean canEdit(User currentUser, UserIdMarker target) {
-		return canEdit(currentUser) || ownershipChecker.isOwner(currentUser, target);
+	public boolean canNotEdit(UserIdMarker target) {
+		return !canOperate(target);
 	}
 
-	public boolean canEdit(User currentUser) {
-		return roleChecker.isAdmin(currentUser);
+	public boolean canNotDelete(UserIdMarker target) {
+		return !canOperate(target);
 	}
 
-	public boolean canDelete(User currentUser, UserIdMarker target) {
-		return canDelete(currentUser) || ownershipChecker.isOwner(currentUser, target);
+	public boolean canOperate(UserIdMarker target) {
+		User currentUser = getCurrentUser();
+		return roleChecker.isAdmin(currentUser) || ownershipChecker.isOwner(currentUser, target);
 	}
 
-	public boolean canDelete(User currentUser) {
-		return roleChecker.isAdmin(currentUser);
+	protected User getCurrentUser() {
+		return AuthUtil.getCurrentUser();
 	}
 }

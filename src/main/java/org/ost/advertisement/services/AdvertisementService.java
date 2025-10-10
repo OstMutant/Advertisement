@@ -6,11 +6,10 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementView;
 import org.ost.advertisement.dto.filter.AdvertisementFilter;
 import org.ost.advertisement.entities.Advertisement;
-import org.ost.advertisement.entities.User;
+import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -33,25 +32,17 @@ public class AdvertisementService {
 	}
 
 	public void save(Advertisement ad) {
-		if (!canEdit(AuthUtil.getCurrentUser(), ad)) {
+		if (access.canNotEdit(ad)) {
 			throw new AccessDeniedException("You cannot edit this advertisement");
 		}
 		repository.save(ad);
 	}
 
-	public void delete(AdvertisementView ad) {
-		if (!canDelete(AuthUtil.getCurrentUser(), ad)) {
+	public void delete(EntityMarker ad) {
+		if (access.canNotDelete(ad)) {
 			throw new AccessDeniedException("You cannot delete this advertisement");
 		}
-		repository.deleteById(ad.id());
-	}
-
-	public boolean canEdit(User currentUser, Advertisement target) {
-		return access.canEdit(currentUser, target);
-	}
-
-	public boolean canDelete(User currentUser, AdvertisementView target) {
-		return access.canDelete(currentUser, target);
+		repository.deleteById(ad.getId());
 	}
 
 }

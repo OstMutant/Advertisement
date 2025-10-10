@@ -62,7 +62,7 @@ public class UserFormDialog extends GenericFormDialog<User> {
 
 		addActions(
 			createSaveButton(USER_DIALOG_BUTTON_SAVE,
-				event -> save(dto -> userService.save(AuthUtil.getCurrentUser(), dto),
+				event -> save(userService::save,
 					USER_DIALOG_NOTIFICATION_SUCCESS, USER_DIALOG_NOTIFICATION_SAVE_ERROR)),
 			createCancelButton(USER_DIALOG_BUTTON_CANCEL)
 		);
