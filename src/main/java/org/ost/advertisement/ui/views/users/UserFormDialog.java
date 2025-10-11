@@ -17,6 +17,7 @@ import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME
 import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_NAME_REQUIRED;
 import static org.ost.advertisement.constans.I18nKey.USER_DIALOG_VALIDATION_ROLE_REQUIRED;
 
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
@@ -28,16 +29,35 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.TailwindStyle;
+import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
+import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
 
 @Slf4j
 public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 
-	public UserFormDialog(UserEditDto user, UserService userService, I18nService i18n, UserMapper mapper) {
+	public UserFormDialog(UserEditDto user,
+						  UserService userService,
+						  I18nService i18n,
+						  UserMapper mapper) {
 		super(user, UserEditDto.class, i18n);
 
-		TextField nameField = createNameField();
-		ComboBox<Role> roleCombo = createRoleCombo();
+		setTitle(USER_DIALOG_TITLE);
+
+		TextField nameField = DialogContentFactory.textField(
+			i18n,
+			USER_DIALOG_FIELD_NAME_LABEL,
+			USER_DIALOG_FIELD_NAME_PLACEHOLDER,
+			255,
+			true
+		);
+
+		ComboBox<Role> roleCombo = DialogContentFactory.comboBox(
+			i18n,
+			USER_DIALOG_FIELD_ROLE_LABEL,
+			Arrays.asList(Role.values()),
+			true
+		);
 
 		binder.forField(nameField)
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
@@ -48,43 +68,35 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
 			.bind(UserEditDto::getRole, UserEditDto::setRole);
 
-		setTitle(USER_DIALOG_TITLE);
+		LabeledField idField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
+		idField.set(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()));
+
+		LabeledField emailField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
+		emailField.set(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""));
+
+		LabeledField createdField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
+		createdField.set(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()));
+
+		LabeledField updatedField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
+		updatedField.set(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()));
 
 		addContent(
-			labeled(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL),
-			labeled(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""),
-				TailwindStyle.EMAIL_LABEL),
+			idField,
+			emailField,
 			nameField,
 			roleCombo,
-			labeled(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL),
-			labeled(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL)
+			createdField,
+			updatedField
 		);
 
-		addActions(
-			createSaveButton(USER_DIALOG_BUTTON_SAVE,
-				event -> save(u -> userService.save(mapper.toUser(u)),
-					USER_DIALOG_NOTIFICATION_SUCCESS, USER_DIALOG_NOTIFICATION_SAVE_ERROR)),
-			createCancelButton(USER_DIALOG_BUTTON_CANCEL)
-		);
-	}
+		Button saveButton = DialogContentFactory.saveButton(i18n, USER_DIALOG_BUTTON_SAVE,
+			event -> save(u -> userService.save(mapper.toUser(u)),
+				USER_DIALOG_NOTIFICATION_SUCCESS,
+				USER_DIALOG_NOTIFICATION_SAVE_ERROR));
 
-	private TextField createNameField() {
-		TextField field = new TextField(i18n.get(USER_DIALOG_FIELD_NAME_LABEL));
-		field.setPlaceholder(i18n.get(USER_DIALOG_FIELD_NAME_PLACEHOLDER));
-		field.setRequired(true);
-		field.setMaxLength(255);
-		return field;
-	}
+		Button cancelButton = DialogContentFactory.cancelButton(i18n, USER_DIALOG_BUTTON_CANCEL,
+			event -> close());
 
-	private ComboBox<Role> createRoleCombo() {
-		ComboBox<Role> combo = new ComboBox<>(i18n.get(USER_DIALOG_FIELD_ROLE_LABEL));
-		combo.setItems(Arrays.asList(Role.values()));
-		combo.setRequired(true);
-		combo.setAllowCustomValue(false);
-		combo.setMinWidth("110px");
-		combo.setMaxWidth("160px");
-		return combo;
+		addActions(saveButton, cancelButton);
 	}
 }
-
-

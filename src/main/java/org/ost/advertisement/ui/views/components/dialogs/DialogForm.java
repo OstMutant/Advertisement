@@ -8,7 +8,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -46,32 +45,6 @@ public abstract class DialogForm extends Dialog {
 		layout.setHeight("100%");
 
 		add(layout);
-	}
-
-	protected Button createSaveButton(I18nKey key, ComponentEventListener<ClickEvent<Button>> listener) {
-		return createButton(key, listener, "primary");
-	}
-
-	protected Button createCancelButton(I18nKey key) {
-		return createButton(key, e -> close(), "tertiary");
-	}
-
-	protected Button createButton(I18nKey key, ComponentEventListener<ClickEvent<Button>> listener,
-								  String... themeNames) {
-		Button button = new Button(i18n.get(key), listener);
-		button.addThemeNames(themeNames);
-		return button;
-	}
-
-	protected HorizontalLayout labeled(I18nKey key, Component value, TailwindStyle... styles) {
-		Span label = new Span(i18n.get(key));
-		TailwindStyle.applyAll(label, styles);
-		TailwindStyle.applyAll(value, styles);
-		return new HorizontalLayout(label, value);
-	}
-
-	protected HorizontalLayout labeled(I18nKey key, String text, TailwindStyle... styles) {
-		return labeled(key, new Span(text), styles);
 	}
 
 	protected void addContent(Component... components) {
