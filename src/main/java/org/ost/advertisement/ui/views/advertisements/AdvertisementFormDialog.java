@@ -29,12 +29,9 @@ import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 @Slf4j
 public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEditDto> {
 
-	private final AdvertisementMapper mapper;
-
 	public AdvertisementFormDialog(AdvertisementEditDto advertisement, AdvertisementService advertisementService,
 								   I18nService i18n, AdvertisementMapper mapper) {
 		super(advertisement == null ? new AdvertisementEditDto() : advertisement, AdvertisementEditDto.class, i18n);
-		this.mapper = mapper;
 
 		TextField titleField = createTitleField();
 		TextArea descriptionField = createDescriptionField();
@@ -55,7 +52,8 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 			descriptionField,
 			labeled(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatDate(dto.getCreatedAt()), TailwindStyle.GRAY_LABEL),
 			labeled(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatDate(dto.getUpdatedAt()), TailwindStyle.GRAY_LABEL),
-			labeled(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()), TailwindStyle.EMAIL_LABEL)
+			labeled(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()),
+				TailwindStyle.EMAIL_LABEL)
 		);
 
 		addActions(

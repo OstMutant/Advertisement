@@ -29,6 +29,7 @@ import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.springframework.security.core.userdetails.User.UserBuilder;
 
 @SpringComponent
 @UIScope
@@ -74,13 +75,13 @@ public class SignUpDialog extends Dialog {
 				return;
 			}
 
-			User newUser = new User();
-			newUser.setName(name);
-			newUser.setEmail(email);
-			newUser.setPasswordHash(PasswordEncoderUtil.encode(rawPassword));
-			newUser.setRole(Role.USER);
+			User.UserBuilder newUser = User.builder();
+			newUser.name(name);
+			newUser.email(email);
+			newUser.passwordHash(PasswordEncoderUtil.encode(rawPassword));
+			newUser.role(Role.USER);
 
-			userRepository.save(newUser);
+			userRepository.save(newUser.build());
 			NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
 			close();
 		});

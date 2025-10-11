@@ -41,6 +41,7 @@ import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
@@ -55,12 +56,14 @@ public class UserView extends VerticalLayout {
 	private final transient UserFilterFields filterFields;
 	private final transient CustomSort customSort = new CustomSort();
 	private final transient I18nService i18n;
+	private final transient UserMapper mapper;
 
-	public UserView(UserFilterFields filterFields, UserService userService, I18nService i18n) {
+	public UserView(UserFilterFields filterFields, UserService userService, I18nService i18n, UserMapper mapper) {
 		this.filterFields = filterFields;
 		this.userService = userService;
 		this.i18n = i18n;
 		this.paginationBar = new PaginationBarModern(i18n);
+		this.mapper = mapper;
 		addClassName("user-list-view");
 		setSizeFull();
 		setPadding(false);
@@ -102,13 +105,13 @@ public class UserView extends VerticalLayout {
 			.setHeader(createSortableHeader(i18n.get(USER_VIEW_HEADER_ID), "id"));
 
 		Column<User> nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
-				Span nameSpan = new Span(user.getName());
+				Span nameSpan = new Span(user.name());
 				nameSpan.getStyle()
 					.set("font-weight", "500")
 					.set("white-space", "normal")
 					.set("overflow-wrap", "anywhere");
 
-				Span emailSpan = new Span(user.getEmail());
+				Span emailSpan = new Span(user.email());
 				emailSpan.getStyle()
 					.set("font-size", "12px")
 					.set("color", "gray")
@@ -126,15 +129,15 @@ public class UserView extends VerticalLayout {
 				i18n.get(USER_VIEW_HEADER_NAME), "name",
 				i18n.get(USER_VIEW_HEADER_EMAIL), "email"));
 
-		Column<User> roleColumn = grid.addColumn(user -> user.getRole().name())
+		Column<User> roleColumn = grid.addColumn(user -> user.role().name())
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(createSortableHeader(i18n.get(USER_VIEW_HEADER_ROLE), "role"));
 
-		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.getCreatedAt()))
+		Column<User> createdColumn = grid.addColumn(user -> formatInstant(user.createdAt()))
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(createSortableHeader(i18n.get(USER_VIEW_HEADER_CREATED), "createdAt"));
 
-		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.getUpdatedAt()))
+		Column<User> updatedColumn = grid.addColumn(user -> formatInstant(user.updatedAt()))
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(createSortableHeader(i18n.get(USER_VIEW_HEADER_UPDATED), "updatedAt"));
 
@@ -171,7 +174,7 @@ public class UserView extends VerticalLayout {
 	}
 
 	private void openUserFormDialog(User user) {
-		UserFormDialog dialog = new UserFormDialog(user, userService, i18n);
+		UserFormDialog dialog = new UserFormDialog(mapper.toUserEdit(user), userService, i18n, mapper);
 		dialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
 				refreshGrid();
@@ -182,7 +185,7 @@ public class UserView extends VerticalLayout {
 
 	private void confirmAndDelete(User user) {
 		Dialog dialog = new Dialog();
-		String confirmText = i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId());
+		String confirmText = i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.getId());
 		dialog.add(new Span(confirmText));
 
 		Button confirm = new Button(i18n.get(USER_VIEW_CONFIRM_DELETE_BUTTON), e -> {

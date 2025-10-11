@@ -23,18 +23,18 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.dto.UserEditDto;
+import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 
 @Slf4j
-public class UserFormDialog extends GenericFormDialog<User> {
+public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 
-	public UserFormDialog(User user, UserService userService, I18nService i18n) {
-		super(user, User.class, i18n);
+	public UserFormDialog(UserEditDto user, UserService userService, I18nService i18n, UserMapper mapper) {
+		super(user, UserEditDto.class, i18n);
 
 		TextField nameField = createNameField();
 		ComboBox<Role> roleCombo = createRoleCombo();
@@ -42,11 +42,11 @@ public class UserFormDialog extends GenericFormDialog<User> {
 		binder.forField(nameField)
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
 			.withValidator(new StringLengthValidator(i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
-			.bind(User::getName, User::setName);
+			.bind(UserEditDto::getName, UserEditDto::setName);
 
 		binder.forField(roleCombo)
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
-			.bind(User::getRole, User::setRole);
+			.bind(UserEditDto::getRole, UserEditDto::setRole);
 
 		setTitle(USER_DIALOG_TITLE);
 
@@ -62,7 +62,7 @@ public class UserFormDialog extends GenericFormDialog<User> {
 
 		addActions(
 			createSaveButton(USER_DIALOG_BUTTON_SAVE,
-				event -> save(userService::save,
+				event -> save(u -> userService.save(mapper.toUser(u)),
 					USER_DIALOG_NOTIFICATION_SUCCESS, USER_DIALOG_NOTIFICATION_SAVE_ERROR)),
 			createCancelButton(USER_DIALOG_BUTTON_CANCEL)
 		);

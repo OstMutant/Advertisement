@@ -44,8 +44,9 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 			Locale newLocale = event.getValue().locale();
 			User currentUser = AuthUtil.getCurrentUser();
 			if (currentUser != null) {
-				currentUser.setLocale(newLocale);
+				currentUser = currentUser.withLocale(newLocale);
 				userService.save(currentUser);
+				AuthUtil.updateCurrentUser(currentUser);
 			} else {
 				UI.getCurrent().getSession().setLocale(newLocale);
 			}
