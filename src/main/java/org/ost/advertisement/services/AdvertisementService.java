@@ -3,8 +3,8 @@ package org.ost.advertisement.services;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.AdvertisementView;
-import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
@@ -23,11 +23,11 @@ public class AdvertisementService {
 	private final AdvertisementRepository repository;
 	private final AccessEvaluator access;
 
-	public List<AdvertisementView> getFiltered(@Valid AdvertisementFilter filter, int page, int size, Sort sort) {
+	public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
 		return repository.findByFilter(filter, PageRequest.of(page, size, sort));
 	}
 
-	public int count(@Valid AdvertisementFilter filter) {
+	public int count(@Valid AdvertisementFilterDto filter) {
 		return repository.countByFilter(filter).intValue();
 	}
 

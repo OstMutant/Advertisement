@@ -21,7 +21,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import java.util.function.Predicate;
-import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
@@ -31,7 +31,7 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 
 @SpringComponent
 @UIScope
-public class UserFilterFields extends AbstractFilterFields<UserFilter> {
+public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 
 	private final NumberField idMin;
 	private final NumberField idMax;
@@ -44,8 +44,8 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 	private final DatePicker updatedEnd;
 	private final FilterActionsBlock actionsBlock;
 
-	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilter> validation, I18nService i18n) {
-		super(UserFilter.empty(), validation, filterMapper);
+	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation, I18nService i18n) {
+		super(UserFilterDto.empty(), validation, filterMapper);
 
 		this.idMin = createNumberField(i18n.get(USER_FILTER_ID_MIN));
 		this.idMax = createNumberField(i18n.get(USER_FILTER_ID_MAX));
@@ -61,32 +61,32 @@ public class UserFilterFields extends AbstractFilterFields<UserFilter> {
 
 	@PostConstruct
 	private void init() {
-		Predicate<UserFilter> validationId = f -> isValidProperty(f, "startId") && isValidProperty(f, "endId");
-		filterFieldsProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilter::getStartId, validationId,
+		Predicate<UserFilterDto> validationId = f -> isValidProperty(f, "startId") && isValidProperty(f, "endId");
+		filterFieldsProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilterDto::getStartId, validationId,
 			actionsBlock);
-		filterFieldsProcessor.register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilter::getEndId, validationId,
+		filterFieldsProcessor.register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilterDto::getEndId, validationId,
 			actionsBlock);
 
 		filterFieldsProcessor.register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
-			UserFilter::getName, f -> isValidProperty(f, "name"), actionsBlock);
+			UserFilterDto::getName, f -> isValidProperty(f, "name"), actionsBlock);
 		filterFieldsProcessor.register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilter::getEmail, f -> isValidProperty(f, "email"), actionsBlock);
-		filterFieldsProcessor.register(roleCombo, UserFilter::setRole, UserFilter::getRole,
+			UserFilterDto::getEmail, f -> isValidProperty(f, "email"), actionsBlock);
+		filterFieldsProcessor.register(roleCombo, UserFilterDto::setRole, UserFilterDto::getRole,
 			f -> isValidProperty(f, "role"), actionsBlock);
 
-		Predicate<UserFilter> validationCreatedAt = f -> isValidProperty(f, "createdAtStart") && isValidProperty(f,
+		Predicate<UserFilterDto> validationCreatedAt = f -> isValidProperty(f, "createdAtStart") && isValidProperty(f,
 			"createdAtEnd");
 		filterFieldsProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
-			UserFilter::getCreatedAtStart, validationCreatedAt, actionsBlock);
+			UserFilterDto::getCreatedAtStart, validationCreatedAt, actionsBlock);
 		filterFieldsProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
-			UserFilter::getCreatedAtEnd, validationCreatedAt, actionsBlock);
+			UserFilterDto::getCreatedAtEnd, validationCreatedAt, actionsBlock);
 
-		Predicate<UserFilter> validationUpdatedAt = f -> isValidProperty(f, "updatedAtStart") && isValidProperty(f,
+		Predicate<UserFilterDto> validationUpdatedAt = f -> isValidProperty(f, "updatedAtStart") && isValidProperty(f,
 			"updatedAtEnd");
 		filterFieldsProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
-			UserFilter::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
+			UserFilterDto::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
 		filterFieldsProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
-			UserFilter::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
+			UserFilterDto::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
 	}
 
 	@Override

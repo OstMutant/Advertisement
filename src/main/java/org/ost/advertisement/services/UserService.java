@@ -3,7 +3,7 @@ package org.ost.advertisement.services;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
@@ -22,11 +22,11 @@ public class UserService {
 	private final UserRepository repository;
 	private final AccessEvaluator access;
 
-	public List<User> getFiltered(@Valid UserFilter filter, int page, int size, Sort sort) {
+	public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
 		return repository.findByFilter(filter, PageRequest.of(page, size, sort));
 	}
 
-	public int count(@Valid UserFilter filter) {
+	public int count(@Valid UserFilterDto filter) {
 		return repository.countByFilter(filter).intValue();
 	}
 

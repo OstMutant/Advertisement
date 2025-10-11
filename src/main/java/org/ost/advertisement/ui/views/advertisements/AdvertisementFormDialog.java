@@ -21,19 +21,19 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.dto.AdvertisementEdit;
+import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 
 @Slf4j
-public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit> {
+public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEditDto> {
 
 	private final AdvertisementMapper mapper;
 
-	public AdvertisementFormDialog(AdvertisementEdit advertisement, AdvertisementService advertisementService,
+	public AdvertisementFormDialog(AdvertisementEditDto advertisement, AdvertisementService advertisementService,
 								   I18nService i18n, AdvertisementMapper mapper) {
-		super(advertisement == null ? new AdvertisementEdit() : advertisement, AdvertisementEdit.class, i18n);
+		super(advertisement == null ? new AdvertisementEditDto() : advertisement, AdvertisementEditDto.class, i18n);
 		this.mapper = mapper;
 
 		TextField titleField = createTitleField();
@@ -42,11 +42,11 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 		binder.forField(titleField)
 			.asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED))
 			.withValidator(new StringLengthValidator(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH), 1, 255))
-			.bind(AdvertisementEdit::getTitle, AdvertisementEdit::setTitle);
+			.bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
 
 		binder.forField(descriptionField)
 			.asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED))
-			.bind(AdvertisementEdit::getDescription, AdvertisementEdit::setDescription);
+			.bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
 
 		setTitle(dto.getId() == null ? ADVERTISEMENT_DIALOG_TITLE_NEW : ADVERTISEMENT_DIALOG_TITLE_EDIT);
 

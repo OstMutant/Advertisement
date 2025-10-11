@@ -6,7 +6,7 @@ import lombok.Getter;
 import org.ost.advertisement.entities.EntityMarker;
 
 @Builder
-public record AdvertisementView(
+public record AdvertisementInfoDto(
 	@Getter Long id,
 	String title,
 	String description,

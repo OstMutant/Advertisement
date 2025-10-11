@@ -16,7 +16,7 @@ import org.ost.advertisement.validation.ValidRange;
 	@ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "createdAtStart must not be after createdAtEnd"),
 	@ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd")
 })
-public class AdvertisementFilter {
+public class AdvertisementFilterDto {
 
 	@Size(max = 255, message = "Name must not exceed 255 characters")
 	private String title;
@@ -26,7 +26,7 @@ public class AdvertisementFilter {
 	private Instant updatedAtStart;
 	private Instant updatedAtEnd;
 
-	public static AdvertisementFilter empty() {
-		return new AdvertisementFilter();
+	public static AdvertisementFilterDto empty() {
+		return new AdvertisementFilterDto();
 	}
 }

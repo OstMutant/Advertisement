@@ -15,8 +15,8 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
-import org.ost.advertisement.dto.AdvertisementView;
-import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -71,8 +71,8 @@ public class AdvertisementsView extends VerticalLayout {
 	private void refreshAdvertisements() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		AdvertisementFilter originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor().getOriginalFilter();
-		List<AdvertisementView> pageData = advertisementService.getFiltered(originalFilter, page, size,
+		AdvertisementFilterDto originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor().getOriginalFilter();
+		List<AdvertisementInfoDto> pageData = advertisementService.getFiltered(originalFilter, page, size,
 			sidebar.getSortFields().getSortFieldsProcessor().getOriginalSort().getSort());
 		int totalCount = advertisementService.count(originalFilter);
 
@@ -87,7 +87,7 @@ public class AdvertisementsView extends VerticalLayout {
 		);
 	}
 
-	private void openAdvertisementFormDialog(AdvertisementView ad) {
+	private void openAdvertisementFormDialog(AdvertisementInfoDto ad) {
 		AdvertisementFormDialog dialog = new AdvertisementFormDialog(mapper.toAdvertisementEdit(ad),
 			advertisementService, i18n, mapper);
 		dialog.addOpenedChangeListener(event -> {
@@ -98,7 +98,7 @@ public class AdvertisementsView extends VerticalLayout {
 		dialog.open();
 	}
 
-	private void openConfirmDeleteDialog(AdvertisementView ad) {
+	private void openConfirmDeleteDialog(AdvertisementInfoDto ad) {
 		Dialog dialog = new Dialog();
 		String confirmText = i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.title(), ad.id());
 		dialog.add(new Span(confirmText));

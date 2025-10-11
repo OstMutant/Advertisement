@@ -18,7 +18,7 @@ import org.ost.advertisement.validation.ValidRange;
 	@ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd"),
 	@ValidRange(start = "startId", end = "endId", message = "startId must not be greater than endId")
 })
-public class UserFilter {
+public class UserFilterDto {
 
 	@Size(max = 255, message = "Name must not exceed 255 characters")
 	private String name;
@@ -33,8 +33,8 @@ public class UserFilter {
 	private Long startId;
 	private Long endId;
 
-	public static UserFilter empty() {
-		return new UserFilter();
+	public static UserFilterDto empty() {
+		return new UserFilterDto();
 	}
 
 }

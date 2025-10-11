@@ -11,8 +11,8 @@ import java.util.List;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.dto.AdvertisementView;
-import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class AdvertisementRepositoryCustomImpl
-	extends RepositoryCustom<AdvertisementView, AdvertisementFilter>
+	extends RepositoryCustom<AdvertisementInfoDto, AdvertisementFilterDto>
 	implements AdvertisementRepositoryCustom {
 
 	private static final AdvertisementMapper ADVERTISEMENT_MAPPER = new AdvertisementMapper();
@@ -32,7 +32,7 @@ public class AdvertisementRepositoryCustomImpl
 		super(jdbc, ADVERTISEMENT_MAPPER, ADVERTISEMENT_FILTER_APPLIER);
 	}
 
-	private static class AdvertisementFilterApplier extends FilterApplier<AdvertisementFilter> {
+	private static class AdvertisementFilterApplier extends FilterApplier<AdvertisementFilterDto> {
 
 		public AdvertisementFilterApplier() {
 			relations.addAll(List.of(
@@ -45,7 +45,7 @@ public class AdvertisementRepositoryCustomImpl
 		}
 	}
 
-	public static class AdvertisementMapper extends FieldRelations<AdvertisementView> {
+	public static class AdvertisementMapper extends FieldRelations<AdvertisementInfoDto> {
 
 		public AdvertisementMapper() {
 			super(Fields.ALL, """
@@ -55,8 +55,8 @@ public class AdvertisementRepositoryCustomImpl
 		}
 
 		@Override
-		public AdvertisementView mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-			return AdvertisementView.builder()
+		public AdvertisementInfoDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+			return AdvertisementInfoDto.builder()
 				.id(Fields.ID.extract(rs))
 				.title(Fields.TITLE.extract(rs))
 				.description(Fields.DESCRIPTION.extract(rs))

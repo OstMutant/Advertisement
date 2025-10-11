@@ -12,7 +12,7 @@ import java.util.Optional;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
@@ -23,7 +23,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
+public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
 	implements UserRepositoryCustom {
 
 	private static final UserMapper USER_MAPPER = new UserMapper();
@@ -39,7 +39,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilter>
 		return find(USER_EMAIL_FILTER_APPLIER, email);
 	}
 
-	public static class UserFilterApplier extends FilterApplier<UserFilter> {
+	public static class UserFilterApplier extends FilterApplier<UserFilterDto> {
 
 		public UserFilterApplier() {
 			relations.addAll(List.of(

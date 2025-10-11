@@ -36,10 +36,9 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
@@ -82,7 +81,7 @@ public class UserView extends VerticalLayout {
 	private void refreshGrid() {
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
-		UserFilter currentFilter = filterFields.getFilterFieldsProcessor().getNewFilter();
+		UserFilterDto currentFilter = filterFields.getFilterFieldsProcessor().getNewFilter();
 		try {
 			List<User> pageData = userService.getFiltered(currentFilter, page, size, customSort.getSort());
 			int totalCount = userService.count(currentFilter);

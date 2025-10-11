@@ -16,7 +16,7 @@ import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.function.Predicate;
 import lombok.Getter;
-import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
@@ -25,7 +25,7 @@ import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 
 @SpringComponent
 @UIScope
-public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilter> {
+public class AdvertisementFilterFields extends AbstractFilterFields<AdvertisementFilterDto> {
 
 	private final TextField title;
 	private final DatePicker createdStart;
@@ -39,9 +39,9 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final List<Component> filterComponentList;
 
 	public AdvertisementFilterFields(AdvertisementFilterMapper filterMapper,
-									 ValidationService<AdvertisementFilter> validation,
+									 ValidationService<AdvertisementFilterDto> validation,
 									 I18nService i18n) {
-		super(AdvertisementFilter.empty(), validation, filterMapper);
+		super(AdvertisementFilterDto.empty(), validation, filterMapper);
 
 		this.title = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
 		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
@@ -61,21 +61,21 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	@PostConstruct
 	private void init() {
 		filterFieldsProcessor.register(title, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v),
-			AdvertisementFilter::getTitle, f -> isValidProperty(f, "title"), actionsBlock);
+			AdvertisementFilterDto::getTitle, f -> isValidProperty(f, "title"), actionsBlock);
 
-		Predicate<AdvertisementFilter> validationCreatedAt =
+		Predicate<AdvertisementFilterDto> validationCreatedAt =
 			f -> isValidProperty(f, "createdAtStart") && isValidProperty(f, "createdAtEnd");
 		filterFieldsProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
-			AdvertisementFilter::getCreatedAtStart, validationCreatedAt, actionsBlock);
+			AdvertisementFilterDto::getCreatedAtStart, validationCreatedAt, actionsBlock);
 		filterFieldsProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
-			AdvertisementFilter::getCreatedAtEnd, validationCreatedAt, actionsBlock);
+			AdvertisementFilterDto::getCreatedAtEnd, validationCreatedAt, actionsBlock);
 
-		Predicate<AdvertisementFilter> validationUpdatedAt =
+		Predicate<AdvertisementFilterDto> validationUpdatedAt =
 			f -> isValidProperty(f, "updatedAtStart") && isValidProperty(f, "updatedAtEnd");
 		filterFieldsProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
-			AdvertisementFilter::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
+			AdvertisementFilterDto::getUpdatedAtStart, validationUpdatedAt, actionsBlock);
 		filterFieldsProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
-			AdvertisementFilter::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
+			AdvertisementFilterDto::getUpdatedAtEnd, validationUpdatedAt, actionsBlock);
 	}
 
 	@Override

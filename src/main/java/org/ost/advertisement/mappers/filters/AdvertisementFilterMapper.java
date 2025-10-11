@@ -2,12 +2,12 @@ package org.ost.advertisement.mappers.filters;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
-import org.ost.advertisement.dto.filter.AdvertisementFilter;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 
 @Mapper(componentModel = "spring")
-public interface AdvertisementFilterMapper extends FilterMapper<AdvertisementFilter> {
+public interface AdvertisementFilterMapper extends FilterMapper<AdvertisementFilterDto> {
 
-	void update(@MappingTarget AdvertisementFilter target, AdvertisementFilter source);
+	void update(@MappingTarget AdvertisementFilterDto target, AdvertisementFilterDto source);
 
-	AdvertisementFilter copy(AdvertisementFilter source);
+	AdvertisementFilterDto copy(AdvertisementFilterDto source);
 }

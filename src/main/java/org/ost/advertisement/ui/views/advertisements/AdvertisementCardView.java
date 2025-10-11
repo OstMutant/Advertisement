@@ -14,12 +14,12 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import org.ost.advertisement.dto.AdvertisementView;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 
 public class AdvertisementCardView extends VerticalLayout {
 
-	public AdvertisementCardView(AdvertisementView ad, Runnable onEdit, Runnable onDelete, I18nService i18n) {
+	public AdvertisementCardView(AdvertisementInfoDto ad, Runnable onEdit, Runnable onDelete, I18nService i18n) {
 		addClassName("advertisement-card");
 		getStyle().set("border", "1px solid #ccc");
 		getStyle().set("border-radius", "8px");
