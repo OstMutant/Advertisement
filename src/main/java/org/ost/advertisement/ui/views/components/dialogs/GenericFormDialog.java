@@ -1,11 +1,14 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
+import static org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory.showError;
+import static org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory.showSuccess;
+
 import com.vaadin.flow.data.binder.Binder;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constans.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
 
 @Slf4j
 public abstract class GenericFormDialog<T> extends DialogForm {
@@ -24,24 +27,16 @@ public abstract class GenericFormDialog<T> extends DialogForm {
 		try {
 			binder.writeBean(dto);
 			saver.save(dto);
-			showSuccess(successKey);
+			showSuccess(i18n, successKey);
 			close();
 		} catch (Exception e) {
 			log.error("Failed to save {}", dto, e);
-			showError(errorKey, e.getMessage());
+			showError(i18n, errorKey, e.getMessage());
 		}
 	}
 
-	protected void showSuccess(I18nKey key) {
-		NotificationType.SUCCESS.show(i18n.get(key));
-	}
-
-	protected void showError(I18nKey key, String details) {
-		NotificationType.ERROR.show(i18n.get(key, details));
-	}
-
 	protected String formatDate(Instant instant) {
-		return org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant(instant, "—");
+		return TimeZoneUtil.formatInstant(instant, "—");
 	}
 
 	@FunctionalInterface

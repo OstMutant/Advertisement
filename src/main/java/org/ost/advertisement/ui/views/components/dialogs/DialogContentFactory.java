@@ -11,6 +11,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.constans.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.NotificationType;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DialogContentFactory {
@@ -59,5 +60,13 @@ public class DialogContentFactory {
 		Button button = new Button(i18n.get(key), listener);
 		button.addThemeNames(themeNames);
 		return button;
+	}
+
+	public static void showSuccess(I18nService i18n, I18nKey key) {
+		NotificationType.SUCCESS.show(i18n.get(key));
+	}
+
+	public static void showError(I18nService i18n, I18nKey key, String details) {
+		NotificationType.ERROR.show(i18n.get(key, details));
 	}
 }
