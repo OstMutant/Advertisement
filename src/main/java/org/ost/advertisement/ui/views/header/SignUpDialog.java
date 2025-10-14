@@ -1,24 +1,10 @@
 package org.ost.advertisement.ui.views.header;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_CANCEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_SUBMIT;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_EMAIL_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_EXISTS;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_INVALID;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_NAME_REQUIRED;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_PASSWORD_SHORT;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_HEADER_TITLE;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_NAME_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_PASSWORD_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_SUCCESS;
+import static org.ost.advertisement.constans.I18nKey.*;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
@@ -31,6 +17,8 @@ import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
+import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
+import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
 
 @SpringComponent
 @UIScope
@@ -43,15 +31,11 @@ public class SignUpDialog extends Dialog {
 		this.userRepository = userRepository;
 		this.i18n = i18n;
 
-		setModal(true);
-		setDraggable(false);
-		setResizable(false);
-		setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
+		DialogStyle.apply(this, i18n.get(SIGNUP_HEADER_TITLE));
 
 		TextField nameField = DialogContentFactory.textField(i18n, SIGNUP_NAME_LABEL, SIGNUP_NAME_LABEL, 255, true);
 		EmailField emailField = DialogContentFactory.emailField(i18n, SIGNUP_EMAIL_LABEL, SIGNUP_EMAIL_LABEL, true);
-		PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL,
-			SIGNUP_PASSWORD_LABEL, true);
+		PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL, SIGNUP_PASSWORD_LABEL, true);
 
 		Button registerButton = DialogContentFactory.primaryButton(i18n, SIGNUP_BUTTON_SUBMIT);
 		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, SIGNUP_BUTTON_CANCEL);
@@ -59,14 +43,12 @@ public class SignUpDialog extends Dialog {
 		cancelButton.addClickListener(e -> close());
 		registerButton.addClickListener(event -> handleRegistration(nameField, emailField, passwordField));
 
-		HorizontalLayout actions = new HorizontalLayout(registerButton, cancelButton);
-		actions.setSpacing(true);
-		actions.setJustifyContentMode(JustifyContentMode.END);
+		DialogLayout layout = new DialogLayout();
+		layout.setHeader(i18n.get(SIGNUP_HEADER_TITLE));
+		layout.addFormContent(nameField, emailField, passwordField);
+		layout.addActions(registerButton, cancelButton);
 
-		FormLayout form = new FormLayout(nameField, emailField, passwordField, new Div(actions));
-		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-
-		add(form);
+		add(layout.getLayout());
 	}
 
 	private void handleRegistration(TextField nameField, EmailField emailField, PasswordField passwordField) {
@@ -125,5 +107,3 @@ public class SignUpDialog extends Dialog {
 		return valid;
 	}
 }
-
-

@@ -5,11 +5,6 @@ import static org.ost.advertisement.constans.I18nKey.*;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -19,6 +14,8 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
+import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
+import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
 
 @SpringComponent
 @UIScope
@@ -28,10 +25,7 @@ public class LoginDialog extends Dialog {
 	private final PasswordField passwordField;
 
 	public LoginDialog(AuthService authService, I18nService i18n) {
-		setModal(true);
-		setDraggable(false);
-		setResizable(false);
-		setHeaderTitle(i18n.get(LOGIN_HEADER_TITLE));
+		DialogStyle.apply(this, i18n.get(LOGIN_HEADER_TITLE));
 
 		emailField = DialogContentFactory.emailField(i18n, LOGIN_EMAIL_LABEL, LOGIN_EMAIL_LABEL, true);
 		passwordField = DialogContentFactory.passwordField(i18n, LOGIN_PASSWORD_LABEL, LOGIN_PASSWORD_LABEL, true);
@@ -42,14 +36,12 @@ public class LoginDialog extends Dialog {
 		loginButton.addClickListener(event -> handleLogin(authService, i18n));
 		cancelButton.addClickListener(event -> close());
 
-		HorizontalLayout actions = new HorizontalLayout(loginButton, cancelButton);
-		actions.setSpacing(true);
-		actions.setJustifyContentMode(JustifyContentMode.END);
+		DialogLayout layout = new DialogLayout();
+		layout.setHeader(i18n.get(LOGIN_WELCOME));
+		layout.addFormContent(emailField, passwordField);
+		layout.addActions(loginButton, cancelButton);
 
-		FormLayout form = new FormLayout(emailField, passwordField, new Div(actions));
-		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-
-		add(new H2(i18n.get(LOGIN_WELCOME)), form);
+		add(layout.getLayout());
 	}
 
 	private void handleLogin(AuthService authService, I18nService i18n) {
