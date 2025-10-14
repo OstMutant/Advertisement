@@ -1,15 +1,30 @@
 package org.ost.advertisement.ui.views.header;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
-import static org.ost.advertisement.constans.I18nKey.*;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_CANCEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_SUBMIT;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_EMAIL_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_EXISTS;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_INVALID;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_NAME_REQUIRED;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_PASSWORD_SHORT;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_HEADER_TITLE;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_NAME_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_PASSWORD_LABEL;
+import static org.ost.advertisement.constans.I18nKey.SIGNUP_SUCCESS;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.data.binder.ValidationException;
+import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
@@ -20,12 +35,16 @@ import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
 
+@Slf4j
 @SpringComponent
 @UIScope
 public class SignUpDialog extends Dialog {
 
 	private final transient UserRepository userRepository;
 	private final transient I18nService i18n;
+
+	private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
+	private final SignUpDto dto = new SignUpDto();
 
 	public SignUpDialog(UserRepository userRepository, I18nService i18n) {
 		this.userRepository = userRepository;
@@ -35,75 +54,68 @@ public class SignUpDialog extends Dialog {
 
 		TextField nameField = DialogContentFactory.textField(i18n, SIGNUP_NAME_LABEL, SIGNUP_NAME_LABEL, 255, true);
 		EmailField emailField = DialogContentFactory.emailField(i18n, SIGNUP_EMAIL_LABEL, SIGNUP_EMAIL_LABEL, true);
-		PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL, SIGNUP_PASSWORD_LABEL, true);
+		PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL,
+			SIGNUP_PASSWORD_LABEL, true);
 
 		Button registerButton = DialogContentFactory.primaryButton(i18n, SIGNUP_BUTTON_SUBMIT);
 		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, SIGNUP_BUTTON_CANCEL);
 
 		cancelButton.addClickListener(e -> close());
-		registerButton.addClickListener(event -> handleRegistration(nameField, emailField, passwordField));
+		registerButton.addClickListener(event -> handleRegistration());
 
 		DialogLayout layout = new DialogLayout();
 		layout.setHeader(i18n.get(SIGNUP_HEADER_TITLE));
 		layout.addFormContent(nameField, emailField, passwordField);
 		layout.addActions(registerButton, cancelButton);
-
 		add(layout.getLayout());
+
+		setupBinder(nameField, emailField, passwordField);
 	}
 
-	private void handleRegistration(TextField nameField, EmailField emailField, PasswordField passwordField) {
-		String name = nameField.getValue().trim();
-		String email = emailField.getValue().trim();
-		String rawPassword = passwordField.getValue().trim();
+	private void setupBinder(TextField nameField, EmailField emailField, PasswordField passwordField) {
+		binder.setBean(dto);
 
-		if (!validateFields(nameField, emailField, passwordField, name, email, rawPassword)) {
-			return;
-		}
+		binder.forField(nameField)
+			.withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_NAME_REQUIRED), 1, 255))
+			.bind(SignUpDto::getName, SignUpDto::setName);
 
-		User newUser = User.builder()
-			.name(name)
-			.email(email)
-			.passwordHash(PasswordEncoderUtil.encode(rawPassword))
-			.role(Role.USER)
-			.build();
+		binder.forField(emailField)
+			.withValidator(email -> EMAIL_PATTERN.matcher(email == null ? "" : email.trim()).matches(),
+				i18n.get(SIGNUP_ERROR_EMAIL_INVALID))
+			.withValidator(email -> email != null && userRepository.findByEmail(email.trim()).isEmpty(),
+				i18n.get(SIGNUP_ERROR_EMAIL_EXISTS))
+			.bind(SignUpDto::getEmail, SignUpDto::setEmail);
 
-		userRepository.save(newUser);
-		NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
-		close();
+		binder.forField(passwordField)
+			.withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
+			.bind(SignUpDto::getPassword, SignUpDto::setPassword);
+		
 	}
 
-	private boolean validateFields(TextField nameField, EmailField emailField, PasswordField passwordField,
-								   String name, String email, String password) {
-		boolean valid = true;
+	private void handleRegistration() {
+		try {
+			binder.writeBean(dto);
 
-		if (name.isEmpty()) {
-			nameField.setInvalid(true);
-			nameField.setErrorMessage(i18n.get(SIGNUP_ERROR_NAME_REQUIRED));
-			valid = false;
-		} else {
-			nameField.setInvalid(false);
+			User newUser = User.builder()
+				.name(dto.getName().trim())
+				.email(dto.getEmail().trim())
+				.passwordHash(PasswordEncoderUtil.encode(dto.getPassword().trim()))
+				.role(Role.USER)
+				.build();
+
+			userRepository.save(newUser);
+			NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
+			close();
+		} catch (ValidationException ex) {
+			log.warn("SignUp validation failed: {}", ex.getMessage());
 		}
+	}
 
-		if (!EMAIL_PATTERN.matcher(email).matches()) {
-			emailField.setInvalid(true);
-			emailField.setErrorMessage(i18n.get(SIGNUP_ERROR_EMAIL_INVALID));
-			valid = false;
-		} else if (userRepository.findByEmail(email).isPresent()) {
-			emailField.setInvalid(true);
-			emailField.setErrorMessage(i18n.get(SIGNUP_ERROR_EMAIL_EXISTS));
-			valid = false;
-		} else {
-			emailField.setInvalid(false);
-		}
+	@Data
+	public static class SignUpDto {
 
-		if (password.length() < 6) {
-			passwordField.setInvalid(true);
-			passwordField.setErrorMessage(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT));
-			valid = false;
-		} else {
-			passwordField.setInvalid(false);
-		}
-
-		return valid;
+		private String name;
+		private String email;
+		private String password;
 	}
 }
