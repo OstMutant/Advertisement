@@ -17,6 +17,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
@@ -29,7 +30,7 @@ import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.utils.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
-import org.springframework.security.core.userdetails.User.UserBuilder;
+import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 
 @SpringComponent
 @UIScope
@@ -47,44 +48,46 @@ public class SignUpDialog extends Dialog {
 		setResizable(false);
 		setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
 
-		TextField nameField = new TextField(i18n.get(SIGNUP_NAME_LABEL));
-		EmailField emailField = new EmailField(i18n.get(SIGNUP_EMAIL_LABEL));
-		PasswordField passwordField = new PasswordField(i18n.get(SIGNUP_PASSWORD_LABEL));
+		TextField nameField = DialogContentFactory.textField(i18n, SIGNUP_NAME_LABEL, SIGNUP_NAME_LABEL, 255, true);
+		EmailField emailField = DialogContentFactory.emailField(i18n, SIGNUP_EMAIL_LABEL, SIGNUP_EMAIL_LABEL, true);
+		PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL,
+			SIGNUP_PASSWORD_LABEL, true);
 
-		Button registerButton = new Button(i18n.get(SIGNUP_BUTTON_SUBMIT));
-		registerButton.addThemeName("primary");
+		Button registerButton = DialogContentFactory.primaryButton(i18n, SIGNUP_BUTTON_SUBMIT);
+		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, SIGNUP_BUTTON_CANCEL);
 
-		Button cancelButton = new Button(i18n.get(SIGNUP_BUTTON_CANCEL), e -> close());
-		cancelButton.addThemeName("tertiary");
+		cancelButton.addClickListener(e -> close());
+		registerButton.addClickListener(event -> handleRegistration(nameField, emailField, passwordField));
 
 		HorizontalLayout actions = new HorizontalLayout(registerButton, cancelButton);
 		actions.setSpacing(true);
-		actions.setJustifyContentMode(HorizontalLayout.JustifyContentMode.END);
+		actions.setJustifyContentMode(JustifyContentMode.END);
 
 		FormLayout form = new FormLayout(nameField, emailField, passwordField, new Div(actions));
 		form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
 
 		add(form);
+	}
 
-		registerButton.addClickListener(event -> {
-			String name = nameField.getValue().trim();
-			String email = emailField.getValue().trim();
-			String rawPassword = passwordField.getValue().trim();
+	private void handleRegistration(TextField nameField, EmailField emailField, PasswordField passwordField) {
+		String name = nameField.getValue().trim();
+		String email = emailField.getValue().trim();
+		String rawPassword = passwordField.getValue().trim();
 
-			if (!validateFields(nameField, emailField, passwordField, name, email, rawPassword)) {
-				return;
-			}
+		if (!validateFields(nameField, emailField, passwordField, name, email, rawPassword)) {
+			return;
+		}
 
-			User.UserBuilder newUser = User.builder();
-			newUser.name(name);
-			newUser.email(email);
-			newUser.passwordHash(PasswordEncoderUtil.encode(rawPassword));
-			newUser.role(Role.USER);
+		User newUser = User.builder()
+			.name(name)
+			.email(email)
+			.passwordHash(PasswordEncoderUtil.encode(rawPassword))
+			.role(Role.USER)
+			.build();
 
-			userRepository.save(newUser.build());
-			NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
-			close();
-		});
+		userRepository.save(newUser);
+		NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
+		close();
 	}
 
 	private boolean validateFields(TextField nameField, EmailField emailField, PasswordField passwordField,
@@ -122,4 +125,5 @@ public class SignUpDialog extends Dialog {
 		return valid;
 	}
 }
+
 

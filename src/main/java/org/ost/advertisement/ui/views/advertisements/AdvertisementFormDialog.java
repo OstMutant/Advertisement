@@ -82,13 +82,13 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 			userField
 		);
 
-		Button saveButton = DialogContentFactory.saveButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE,
-			event -> save(ad -> advertisementService.save(mapper.toAdvertisement(ad)),
-				ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
-				ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR));
+		Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
+		saveButton.addClickListener(event -> save(ad -> advertisementService.save(mapper.toAdvertisement(ad)),
+			ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
+			ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR));
 
-		Button cancelButton = DialogContentFactory.cancelButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_CANCEL,
-			event -> close());
+		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_CANCEL);
+		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
 	}

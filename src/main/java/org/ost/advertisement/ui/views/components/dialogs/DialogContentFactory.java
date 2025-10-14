@@ -1,9 +1,9 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
-import com.vaadin.flow.component.ClickEvent;
-import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.textfield.EmailField;
+import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import java.util.List;
@@ -45,19 +45,34 @@ public class DialogContentFactory {
 		return combo;
 	}
 
-	public static Button saveButton(I18nService i18n, I18nKey key,
-									ComponentEventListener<ClickEvent<Button>> listener) {
-		return button(i18n, key, listener, "primary");
+	public static EmailField emailField(I18nService i18n, I18nKey labelKey,
+										I18nKey placeholderKey, boolean required) {
+		EmailField field = new EmailField(i18n.get(labelKey));
+		field.setPlaceholder(i18n.get(placeholderKey));
+		field.setRequired(required);
+		field.setWidthFull();
+		return field;
 	}
 
-	public static Button cancelButton(I18nService i18n, I18nKey key,
-									  ComponentEventListener<ClickEvent<Button>> listener) {
-		return button(i18n, key, listener, "tertiary");
+	public static PasswordField passwordField(I18nService i18n, I18nKey labelKey,
+											  I18nKey placeholderKey, boolean required) {
+		PasswordField field = new PasswordField(i18n.get(labelKey));
+		field.setPlaceholder(i18n.get(placeholderKey));
+		field.setRequired(required);
+		field.setWidthFull();
+		return field;
 	}
 
-	public static Button button(I18nService i18n, I18nKey key, ComponentEventListener<ClickEvent<Button>> listener,
-								String... themeNames) {
-		Button button = new Button(i18n.get(key), listener);
+	public static Button primaryButton(I18nService i18n, I18nKey key) {
+		return button(i18n, key, "primary");
+	}
+
+	public static Button tertiaryButton(I18nService i18n, I18nKey key) {
+		return button(i18n, key, "tertiary");
+	}
+
+	public static Button button(I18nService i18n, I18nKey key, String... themeNames) {
+		Button button = new Button(i18n.get(key));
 		button.addThemeNames(themeNames);
 		return button;
 	}

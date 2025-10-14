@@ -89,13 +89,13 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 			updatedField
 		);
 
-		Button saveButton = DialogContentFactory.saveButton(i18n, USER_DIALOG_BUTTON_SAVE,
-			event -> save(u -> userService.save(mapper.toUser(u)),
-				USER_DIALOG_NOTIFICATION_SUCCESS,
-				USER_DIALOG_NOTIFICATION_SAVE_ERROR));
+		Button saveButton = DialogContentFactory.primaryButton(i18n, USER_DIALOG_BUTTON_SAVE);
+		saveButton.addClickListener(event -> save(u -> userService.save(mapper.toUser(u)),
+			USER_DIALOG_NOTIFICATION_SUCCESS,
+			USER_DIALOG_NOTIFICATION_SAVE_ERROR));
 
-		Button cancelButton = DialogContentFactory.cancelButton(i18n, USER_DIALOG_BUTTON_CANCEL,
-			event -> close());
+		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, USER_DIALOG_BUTTON_CANCEL);
+		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
 	}
