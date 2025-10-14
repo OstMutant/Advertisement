@@ -18,7 +18,7 @@ public abstract class GenericFormDialog<T> extends Dialog {
 	protected final transient I18nService i18n;
 	protected final transient T dto;
 	protected final Binder<T> binder;
-	protected final DialogLayout layout = new DialogLayout();
+	protected final transient DialogLayout layout = new DialogLayout();
 
 	protected GenericFormDialog(T dto, Class<T> clazz, I18nService i18n) {
 		this.i18n = i18n;
