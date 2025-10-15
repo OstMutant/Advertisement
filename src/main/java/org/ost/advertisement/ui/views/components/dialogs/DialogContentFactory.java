@@ -1,7 +1,9 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.component.shared.ThemeVariant;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -64,16 +66,16 @@ public class DialogContentFactory {
 	}
 
 	public static Button primaryButton(I18nService i18n, I18nKey key) {
-		return button(i18n, key, "primary");
+		return button(i18n, key, ButtonVariant.LUMO_PRIMARY);
 	}
 
 	public static Button tertiaryButton(I18nService i18n, I18nKey key) {
-		return button(i18n, key, "tertiary");
+		return button(i18n, key, ButtonVariant.LUMO_TERTIARY);
 	}
 
-	public static Button button(I18nService i18n, I18nKey key, String... themeNames) {
+	public static Button button(I18nService i18n, I18nKey key, ButtonVariant... themeVariant) {
 		Button button = new Button(i18n.get(key));
-		button.addThemeNames(themeNames);
+		button.addThemeVariants(themeVariant);
 		return button;
 	}
 

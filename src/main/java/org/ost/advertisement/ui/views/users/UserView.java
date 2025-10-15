@@ -18,7 +18,6 @@ import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.Grid.Column;
@@ -44,6 +43,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 
 @SpringComponent
@@ -184,27 +184,20 @@ public class UserView extends VerticalLayout {
 	}
 
 	private void confirmAndDelete(User user) {
-		Dialog dialog = new Dialog();
-		String confirmText = i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.getId());
-		dialog.add(new Span(confirmText));
-
-		Button confirm = new Button(i18n.get(USER_VIEW_CONFIRM_DELETE_BUTTON), e -> {
-			try {
-				userService.delete(user);
-				NotificationType.SUCCESS.show(i18n.get(USER_VIEW_NOTIFICATION_DELETED));
-				refreshGrid();
-			} catch (Exception ex) {
-				NotificationType.ERROR.show(i18n.get(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
+		ConfirmDeleteHelper.showConfirm(i18n,
+			i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.getId()),
+			USER_VIEW_CONFIRM_DELETE_BUTTON,
+			USER_VIEW_CONFIRM_CANCEL_BUTTON,
+			() -> {
+				try {
+					userService.delete(user);
+					NotificationType.SUCCESS.show(i18n.get(USER_VIEW_NOTIFICATION_DELETED));
+					refreshGrid();
+				} catch (Exception ex) {
+					NotificationType.ERROR.show(i18n.get(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
+				}
 			}
-			dialog.close();
-		});
-		confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
-
-		Button cancel = new Button(i18n.get(USER_VIEW_CONFIRM_CANCEL_BUTTON), e -> dialog.close());
-		cancel.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-
-		dialog.getFooter().add(cancel, confirm);
-		dialog.open();
+		);
 	}
 
 	private Component createSortableHeader(String label, String property) {
