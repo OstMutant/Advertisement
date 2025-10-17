@@ -6,7 +6,6 @@ import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
 
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
@@ -20,51 +19,44 @@ import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 
 @SpringComponent
 @UIScope
-public class AdvertisementsView extends VerticalLayout {
+public class AdvertisementsView extends AdvertisementsLayout {
 
 	private final transient AdvertisementService advertisementService;
 	private final transient AdvertisementMapper mapper;
 	private final transient I18nService i18n;
 	private final AdvertisementLeftSidebar sidebar;
-	private final AdvertisementsLayout layout;
 
 	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
 							  AdvertisementLeftSidebar sidebar, I18nService i18n) {
+		super(sidebar, i18n);
 		this.mapper = mapper;
 		this.advertisementService = advertisementService;
 		this.sidebar = sidebar;
 		this.i18n = i18n;
-		this.layout = new AdvertisementsLayout(sidebar, i18n);
 
-		addClassName("advertisement-list-view");
-		setSizeFull();
-		setSpacing(false);
-		setPadding(false);
-
-		layout.getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
+		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
 
 		sidebar.eventProcessor(() -> {
-			layout.getPaginationBar().setTotalCount(0);
+			getPaginationBar().setTotalCount(0);
 			refreshAdvertisements();
 		}, () -> openAdvertisementFormDialog(null));
 
-		add(layout);
 		refreshAdvertisements();
 	}
 
 	private void refreshAdvertisements() {
-		int page = layout.getPaginationBar().getCurrentPage();
-		int size = layout.getPaginationBar().getPageSize();
+		int page = getPaginationBar().getCurrentPage();
+		int size = getPaginationBar().getPageSize();
 		AdvertisementFilterDto originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor()
 			.getOriginalFilter();
 		List<AdvertisementInfoDto> pageData = advertisementService.getFiltered(originalFilter, page, size,
 			sidebar.getSortFields().getSortFieldsProcessor().getOriginalSort().getSort());
 		int totalCount = advertisementService.count(originalFilter);
 
-		layout.getPaginationBar().setTotalCount(totalCount);
-		layout.getAdvertisementContainer().removeAll();
+		getPaginationBar().setTotalCount(totalCount);
+		getAdvertisementContainer().removeAll();
 		pageData.forEach(ad ->
-			layout.getAdvertisementContainer().add(
+			getAdvertisementContainer().add(
 				new AdvertisementCardView(ad,
 					() -> openAdvertisementFormDialog(ad),
 					() -> openConfirmDeleteDialog(ad),
