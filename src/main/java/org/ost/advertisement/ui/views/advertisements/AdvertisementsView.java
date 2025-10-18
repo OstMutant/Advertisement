@@ -26,20 +26,25 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient I18nService i18n;
 	private final AdvertisementLeftSidebar sidebar;
 
-	public AdvertisementsView(AdvertisementService advertisementService, AdvertisementMapper mapper,
-							  AdvertisementLeftSidebar sidebar, I18nService i18n) {
+	public AdvertisementsView(AdvertisementService advertisementService,
+							  AdvertisementMapper mapper,
+							  AdvertisementLeftSidebar sidebar,
+							  I18nService i18n) {
 		super(sidebar, i18n);
-		this.mapper = mapper;
 		this.advertisementService = advertisementService;
+		this.mapper = mapper;
 		this.sidebar = sidebar;
 		this.i18n = i18n;
 
 		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
 
-		sidebar.eventProcessor(() -> {
-			getPaginationBar().setTotalCount(0);
-			refreshAdvertisements();
-		}, () -> openAdvertisementFormDialog(null));
+		sidebar.eventProcessor(
+			() -> {
+				getPaginationBar().setTotalCount(0);
+				refreshAdvertisements();
+			},
+			() -> openAdvertisementFormDialog(null)
+		);
 
 		refreshAdvertisements();
 	}
@@ -47,26 +52,43 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private void refreshAdvertisements() {
 		int page = getPaginationBar().getCurrentPage();
 		int size = getPaginationBar().getPageSize();
-		AdvertisementFilterDto originalFilter = sidebar.getFilterFields().getFilterFieldsProcessor()
-			.getOriginalFilter();
-		List<AdvertisementInfoDto> pageData = advertisementService.getFiltered(originalFilter, page, size,
-			sidebar.getSortFields().getSortFieldsProcessor().getOriginalSort().getSort());
-		int totalCount = advertisementService.count(originalFilter);
 
-		getPaginationBar().setTotalCount(totalCount);
-		getAdvertisementContainer().removeAll();
-		pageData.forEach(ad ->
-			getAdvertisementContainer().add(
-				new AdvertisementCardView(ad,
-					() -> openAdvertisementFormDialog(ad),
-					() -> openConfirmDeleteDialog(ad),
-					i18n))
+		AdvertisementFilterDto filter = sidebar.getFilterFields()
+			.getFilterFieldsProcessor()
+			.getOriginalFilter();
+
+		List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
+			filter,
+			page,
+			size,
+			sidebar.getSortFields()
+				.getSortFieldsProcessor()
+				.getOriginalSort()
+				.getSort()
 		);
+
+		int totalCount = advertisementService.count(filter);
+		getPaginationBar().setTotalCount(totalCount);
+
+		getAdvertisementContainer().removeAll();
+		ads.forEach(ad -> {
+			AdvertisementCardView card = new AdvertisementCardView(
+				ad,
+				() -> openAdvertisementFormDialog(ad),
+				() -> openConfirmDeleteDialog(ad),
+				i18n
+			);
+			getAdvertisementContainer().add(card);
+		});
 	}
 
 	private void openAdvertisementFormDialog(AdvertisementInfoDto ad) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(mapper.toAdvertisementEdit(ad),
-			advertisementService, i18n, mapper);
+		AdvertisementFormDialog dialog = new AdvertisementFormDialog(
+			mapper.toAdvertisementEdit(ad),
+			advertisementService,
+			i18n,
+			mapper
+		);
 		dialog.addOpenedChangeListener(event -> {
 			if (!event.isOpened()) {
 				refreshAdvertisements();
@@ -88,7 +110,8 @@ public class AdvertisementsView extends AdvertisementsLayout {
 					refreshAdvertisements();
 				} catch (Exception ex) {
 					NotificationType.ERROR.show(
-						i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
+						i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
+					);
 				}
 			}
 		);
