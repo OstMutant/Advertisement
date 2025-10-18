@@ -2,10 +2,12 @@ package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import lombok.Getter;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 
+@Getter
 public class UserLayout extends VerticalLayout {
 
 	private final Grid<User> grid = new Grid<>(User.class, false);
@@ -21,13 +23,5 @@ public class UserLayout extends VerticalLayout {
 
 		grid.setSizeFull();
 		add(grid, paginationBar);
-	}
-
-	public Grid<User> getGrid() {
-		return grid;
-	}
-
-	public PaginationBarModern getPaginationBar() {
-		return paginationBar;
 	}
 }
