@@ -3,11 +3,8 @@ package org.ost.advertisement.ui.views.advertisements;
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.constans.I18nKey.SORT_DIRECTION_ASC;
-import static org.ost.advertisement.constans.I18nKey.SORT_DIRECTION_DESC;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -20,15 +17,15 @@ import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
-import org.springframework.data.domain.Sort.Direction;
+import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 
 @SpringComponent
 @UIScope
 public class AdvertisementSortFields {
 
-	private final ComboBox<Direction> titleCombo;
-	private final ComboBox<Direction> createdAtCombo;
-	private final ComboBox<Direction> updatedAtCombo;
+	private final TriStateSortIcon titleSortIcon;
+	private final TriStateSortIcon createdAtSortIcon;
+	private final TriStateSortIcon updatedAtSortIcon;
 
 	private final SortActionsBlock actionsBlock;
 
@@ -41,24 +38,24 @@ public class AdvertisementSortFields {
 	public AdvertisementSortFields(I18nService i18n) {
 		this.sortFieldsProcessor = new SortFieldsProcessor(new CustomSort());
 
-		this.titleCombo = createDirectionCombo(i18n);
-		this.createdAtCombo = createDirectionCombo(i18n);
-		this.updatedAtCombo = createDirectionCombo(i18n);
+		this.titleSortIcon = new TriStateSortIcon();
+		this.createdAtSortIcon = new TriStateSortIcon();
+		this.updatedAtSortIcon = new TriStateSortIcon();
 		this.actionsBlock = new SortActionsBlock(i18n);
 
 		this.sortComponentList = List.of(
-			createSortableField(i18n.get(ADVERTISEMENT_SORT_TITLE), titleCombo),
-			createSortableField(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdAtCombo),
-			createSortableField(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedAtCombo),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdAtSortIcon),
+			createSortableField(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedAtSortIcon),
 			actionsBlock.getActionBlock()
 		);
 	}
 
 	@PostConstruct
 	private void init() {
-		sortFieldsProcessor.register(titleCombo, "title", actionsBlock);
-		sortFieldsProcessor.register(createdAtCombo, "createdAt", actionsBlock);
-		sortFieldsProcessor.register(updatedAtCombo, "updatedAt", actionsBlock);
+		sortFieldsProcessor.register(titleSortIcon, "title", actionsBlock);
+		sortFieldsProcessor.register(createdAtSortIcon, "createdAt", actionsBlock);
+		sortFieldsProcessor.register(updatedAtSortIcon, "updatedAt", actionsBlock);
 	}
 
 	public void eventProcessor(Runnable onApply) {
@@ -76,22 +73,9 @@ public class AdvertisementSortFields {
 		});
 	}
 
-	private HorizontalLayout createSortableField(String label, ComboBox<Direction> combo) {
-		HorizontalLayout layout = new HorizontalLayout(new Span(label), combo);
+	private HorizontalLayout createSortableField(String label, Component sortComponent) {
+		HorizontalLayout layout = new HorizontalLayout(new Span(label), sortComponent);
 		layout.setAlignItems(Alignment.CENTER);
 		return layout;
 	}
-
-	private ComboBox<Direction> createDirectionCombo(I18nService i18n) {
-		ComboBox<Direction> comboBox = new ComboBox<>();
-		comboBox.setItems(Direction.ASC, Direction.DESC);
-		comboBox.setItemLabelGenerator(dir -> switch (dir) {
-			case ASC -> i18n.get(SORT_DIRECTION_ASC);
-			case DESC -> i18n.get(SORT_DIRECTION_DESC);
-		});
-		comboBox.setClearButtonVisible(true);
-		comboBox.setWidth("110px");
-		return comboBox;
-	}
 }
-

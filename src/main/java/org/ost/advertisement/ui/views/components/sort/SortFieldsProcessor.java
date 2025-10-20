@@ -3,8 +3,8 @@ package org.ost.advertisement.ui.views.components.sort;
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 
 import com.vaadin.flow.component.AbstractField;
-import com.vaadin.flow.component.combobox.ComboBox;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import lombok.Getter;
@@ -19,14 +19,15 @@ public class SortFieldsProcessor {
 	@Getter
 	protected CustomSort newSort;
 
-	public record SortFieldsRelationship<T>(
-		AbstractField<?, ?> field,
-		Function<CustomSort, T> getter
+	public record SortFieldsRelationship(
+		TriStateSortIcon field,
+		Function<CustomSort, Direction> getter,
+		Runnable clearAction
 	) {
 
 	}
 
-	protected final Set<SortFieldsRelationship<?>> fieldsRelationships = new HashSet<>();
+	protected final Set<SortFieldsRelationship> fieldsRelationships = new HashSet<>();
 
 	public SortFieldsProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
@@ -34,10 +35,14 @@ public class SortFieldsProcessor {
 		this.newSort = defaultSort.copy();
 	}
 
-	public void register(ComboBox<Direction> field, String property, SortFieldsProcessorEvents events) {
-		fieldsRelationships.add(new SortFieldsRelationship<>(field, v -> v.getDirection(property)));
-		field.addValueChangeListener(e -> {
-			newSort.updateSort(property, e.getValue());
+	public void register(TriStateSortIcon field, String property, SortFieldsProcessorEvents events) {
+		fieldsRelationships.add(new SortFieldsRelationship(
+			field,
+			v -> v.getDirection(property),
+			field::clear
+		));
+		field.addDirectionChangedListener(e -> {
+			newSort.updateSort(property, e.getDirection());
 			events.onEventSortChanged(isSortingChanged());
 			refreshSorting();
 		});
@@ -56,7 +61,7 @@ public class SortFieldsProcessor {
 	}
 
 	public void clearSorting() {
-		for (SortFieldsRelationship<?> relationship : fieldsRelationships) {
+		for (SortFieldsRelationship relationship : fieldsRelationships) {
 			relationship.field.clear();
 		}
 		originalSort.copyFrom(defaultSort);
@@ -64,9 +69,16 @@ public class SortFieldsProcessor {
 	}
 
 	protected void highlightChangedFields() {
-		for (SortFieldsRelationship<?> fieldRelationship : fieldsRelationships) {
-			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newSort),
-				fieldRelationship.getter.apply(originalSort), fieldRelationship.getter.apply(defaultSort), true);
+		for (SortFieldsRelationship rel : fieldsRelationships) {
+			Direction newVal = rel.getter.apply(newSort);
+			Direction origVal = rel.getter.apply(originalSort);
+			Direction defVal = rel.getter.apply(defaultSort);
+
+			String color = Objects.equals(newVal, origVal)
+				? (Objects.equals(origVal, defVal) ? "gray" : "green")
+				: "orange";
+
+			rel.field.setVisualColor(color);
 		}
 	}
 }
