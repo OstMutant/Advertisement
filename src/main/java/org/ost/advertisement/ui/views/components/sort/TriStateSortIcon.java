@@ -8,12 +8,13 @@ import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.shared.Registration;
 import lombok.Getter;
+import org.ost.advertisement.ui.views.components.SvgIcon;
 import org.springframework.data.domain.Sort.Direction;
 
 public class TriStateSortIcon extends Span {
 
 	private Direction currentDirection = null; // null = NONE
-	private SvgSortIcon icon;
+	private SvgIcon icon;
 
 	public TriStateSortIcon() {
 		setTitle("Click to change sort direction");
@@ -51,7 +52,7 @@ public class TriStateSortIcon extends Span {
 			color = "orange"; // CHANGED
 		}
 
-		icon = new SvgSortIcon(path);
+		icon = new SvgIcon(path);
 		icon.getStyle().set("color", color);
 		add(icon);
 	}
