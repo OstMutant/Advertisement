@@ -6,6 +6,9 @@ import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_TITLE_
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_END;
 import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_START;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;

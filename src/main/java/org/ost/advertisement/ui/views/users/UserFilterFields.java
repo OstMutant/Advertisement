@@ -11,6 +11,7 @@ import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_START;
 import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
+import static org.ost.advertisement.ui.views.components.ContentFactory.*;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -26,6 +27,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.ContentFactory;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
 import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 
