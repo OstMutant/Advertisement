@@ -1,8 +1,5 @@
 package org.ost.advertisement.ui.views.components.sort;
 
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
-
-import com.vaadin.flow.component.AbstractField;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
