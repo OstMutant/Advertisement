@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.function.Function;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
 public class SortFieldsProcessor {
@@ -32,7 +33,7 @@ public class SortFieldsProcessor {
 		this.newSort = defaultSort.copy();
 	}
 
-	public void register(TriStateSortIcon field, String property, SortFieldsProcessorEvents events) {
+	public void register(TriStateSortIcon field, String property, ActionStateChangeListener events) {
 		fieldsRelationships.add(new SortFieldsRelationship(
 			field,
 			v -> v.getDirection(property),
@@ -40,7 +41,7 @@ public class SortFieldsProcessor {
 		));
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
-			events.onEventSortChanged(isSortingChanged());
+			events.onActionStateChanged(isSortingChanged());
 			refreshSorting();
 		});
 	}

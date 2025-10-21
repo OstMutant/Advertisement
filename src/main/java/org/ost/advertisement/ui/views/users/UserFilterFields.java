@@ -94,7 +94,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			filterFieldsProcessor.refreshFilter();
-			actionsBlock.onEventFilterChanged(filterFieldsProcessor.isFilterChanged());
+			actionsBlock.onActionStateChanged(filterFieldsProcessor.isFilterChanged());
 		};
 
 		actionsBlock.eventProcessor(() -> {

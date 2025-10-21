@@ -10,8 +10,9 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 
-public class FilterActionsBlock implements FilterFieldsProcessorEvents {
+public class FilterActionsBlock implements ActionStateChangeListener {
 
 	private Button applyButton;
 	private Button clearButton;
@@ -29,10 +30,10 @@ public class FilterActionsBlock implements FilterFieldsProcessorEvents {
 	}
 
 	@Override
-	public void onEventFilterChanged(boolean isFilterChanged) {
+	public void onActionStateChanged(boolean isChanged) {
 		applyButton.getStyle().remove("border");
 		applyButton.getStyle().remove("border-radius");
-		if (isFilterChanged) {
+		if (isChanged) {
 			applyButton.getStyle().set("border", "3px solid orange");
 			applyButton.getStyle().set("border-radius", "4px");
 		}

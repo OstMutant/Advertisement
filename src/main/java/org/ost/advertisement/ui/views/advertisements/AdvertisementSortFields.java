@@ -62,7 +62,7 @@ public class AdvertisementSortFields {
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			sortFieldsProcessor.refreshSorting();
-			actionsBlock.onEventSortChanged(sortFieldsProcessor.isSortingChanged());
+			actionsBlock.onActionStateChanged(sortFieldsProcessor.isSortingChanged());
 		};
 		actionsBlock.eventProcessor(() -> {
 			sortFieldsProcessor.updateSorting();

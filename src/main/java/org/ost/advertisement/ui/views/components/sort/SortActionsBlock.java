@@ -10,8 +10,9 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 
-public class SortActionsBlock implements SortFieldsProcessorEvents {
+public class SortActionsBlock implements ActionStateChangeListener {
 
 	protected Button applyButton;
 	protected Button clearButton;
@@ -29,10 +30,10 @@ public class SortActionsBlock implements SortFieldsProcessorEvents {
 	}
 
 	@Override
-	public void onEventSortChanged(boolean isActive) {
+	public void onActionStateChanged(boolean isChanged) {
 		applyButton.getStyle().remove("border");
 		applyButton.getStyle().remove("border-radius");
-		if (isActive) {
+		if (isChanged) {
 			applyButton.getStyle().set("border", "3px solid orange");
 			applyButton.getStyle().set("border-radius", "4px");
 		}

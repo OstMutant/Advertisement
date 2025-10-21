@@ -83,7 +83,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			filterFieldsProcessor.refreshFilter();
-			actionsBlock.onEventFilterChanged(filterFieldsProcessor.isFilterChanged());
+			actionsBlock.onActionStateChanged(filterFieldsProcessor.isFilterChanged());
 		};
 
 		actionsBlock.eventProcessor(() -> {

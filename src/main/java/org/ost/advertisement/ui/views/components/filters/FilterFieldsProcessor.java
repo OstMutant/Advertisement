@@ -12,6 +12,7 @@ import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 
 public class FilterFieldsProcessor<F> {
 
@@ -46,11 +47,11 @@ public class FilterFieldsProcessor<F> {
 
 	public <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
 															   Function<F, R> getter, Predicate<F> validation,
-															   FilterFieldsProcessorEvents events) {
+															   ActionStateChangeListener events) {
 		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
-			events.onEventFilterChanged(isFilterChanged());
+			events.onActionStateChanged(isFilterChanged());
 			refreshFilter();
 		});
 	}
