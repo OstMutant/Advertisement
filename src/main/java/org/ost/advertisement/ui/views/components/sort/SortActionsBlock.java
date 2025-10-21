@@ -6,7 +6,6 @@ import static org.ost.advertisement.constans.I18nKey.SORT_ACTIONS_CLEAR_TOOLTIP;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.NoArgsConstructor;
@@ -22,9 +21,9 @@ public class SortActionsBlock implements SortFieldsProcessorEvents {
 
 	public SortActionsBlock(I18nService i18n) {
 		this.i18n = i18n;
-		this.applyButton = createButton(VaadinIcon.SORT, i18n.get(SORT_ACTIONS_APPLY_TOOLTIP),
+		this.applyButton = createButton("apply.svg", i18n.get(SORT_ACTIONS_APPLY_TOOLTIP),
 			ButtonVariant.LUMO_PRIMARY);
-		this.clearButton = createButton(VaadinIcon.ERASER, i18n.get(SORT_ACTIONS_CLEAR_TOOLTIP),
+		this.clearButton = createButton("clear.svg", i18n.get(SORT_ACTIONS_CLEAR_TOOLTIP),
 			ButtonVariant.LUMO_TERTIARY);
 	}
 
@@ -50,12 +49,12 @@ public class SortActionsBlock implements SortFieldsProcessorEvents {
 		return actions;
 	}
 
-	private Button createButton(VaadinIcon icon, String tooltip, ButtonVariant variant) {
-		Button button = new Button(icon.create());
+	private Button createButton(String svgPath, String tooltip, ButtonVariant variant) {
+		Button button = new Button(new SvgSortIcon("icons/" + svgPath));
 		button.setText("");
 		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);
 		button.getElement().setProperty("title", tooltip);
 		return button;
 	}
-}
 
+}
