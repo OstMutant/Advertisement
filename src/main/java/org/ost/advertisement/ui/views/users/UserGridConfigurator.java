@@ -1,12 +1,6 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_ACTIONS;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_CREATED;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_EMAIL;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_ID;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_NAME;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_ROLE;
-import static org.ost.advertisement.constans.I18nKey.USER_VIEW_HEADER_UPDATED;
+import static org.ost.advertisement.constans.I18nKey.*;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -24,19 +18,15 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import java.util.function.Consumer;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserGridConfigurator {
 
 	public static void configure(Grid<User> grid,
-								 UserFilterFields filterFields,
+								 UserQueryBlock queryBlock,
 								 I18nService i18n,
-								 CustomSort customSort,
 								 Consumer<User> onEdit,
 								 Consumer<User> onDelete,
 								 Runnable refreshGrid) {
@@ -45,7 +35,7 @@ public class UserGridConfigurator {
 
 		var idColumn = grid.addColumn(User::getId)
 			.setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
-			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ID), "id", customSort, i18n, refreshGrid));
+			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ID), queryBlock.getIdSortIcon()));
 
 		var nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Span nameSpan = new Span(user.name());
@@ -63,21 +53,21 @@ public class UserGridConfigurator {
 			}))
 			.setAutoWidth(false).setFlexGrow(1)
 			.setHeader(dualSortableHeader(
-				i18n.get(USER_VIEW_HEADER_NAME), "name",
-				i18n.get(USER_VIEW_HEADER_EMAIL), "email",
-				customSort, i18n, refreshGrid));
+				i18n.get(USER_VIEW_HEADER_NAME), queryBlock.getNameSortIcon(),
+				i18n.get(USER_VIEW_HEADER_EMAIL), queryBlock.getEmailSortIcon()
+			));
 
 		var roleColumn = grid.addColumn(user -> user.role().name())
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ROLE), "role", customSort, i18n, refreshGrid));
+			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ROLE), queryBlock.getRoleSortIcon()));
 
-		var createdColumn = grid.addColumn(user -> TimeZoneUtil.formatInstant(user.createdAt()))
+		var createdColumn = grid.addColumn(user -> user.createdAt().toString())
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_CREATED), "createdAt", customSort, i18n, refreshGrid));
+			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_CREATED), queryBlock.getCreatedSortIcon()));
 
-		var updatedColumn = grid.addColumn(user -> TimeZoneUtil.formatInstant(user.updatedAt()))
+		var updatedColumn = grid.addColumn(user -> user.updatedAt().toString())
 			.setAutoWidth(true).setFlexGrow(0)
-			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_UPDATED), "updatedAt", customSort, i18n, refreshGrid));
+			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_UPDATED), queryBlock.getUpdatedSortIcon()));
 
 		var actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
 				Button edit = new Button(VaadinIcon.EDIT.create());
@@ -98,38 +88,33 @@ public class UserGridConfigurator {
 			.setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
 		HeaderRow filterRow = grid.appendHeaderRow();
-		filterRow.getCell(idColumn).setComponent(filterFields.getIdBlock());
+		filterRow.getCell(idColumn).setComponent(queryBlock.getIdFilter());
 
-		VerticalLayout nameAndEmailLayout = new VerticalLayout(filterFields.getNameBlock(),
-			filterFields.getEmailBlock());
+		VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameFilter(), queryBlock.getEmailFilter());
 		nameAndEmailLayout.setSpacing(false);
 		nameAndEmailLayout.setPadding(false);
 		nameAndEmailLayout.setMargin(false);
 		filterRow.getCell(nameAndEmailColumn).setComponent(nameAndEmailLayout);
 
-		filterRow.getCell(roleColumn).setComponent(filterFields.getRoleBlock());
-		filterRow.getCell(createdColumn).setComponent(filterFields.getCreatedAtBlock());
-		filterRow.getCell(updatedColumn).setComponent(filterFields.getUpdatedAtBlock());
-		filterRow.getCell(actionsColumn).setComponent(filterFields.getActionBlock());
+		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleFilter());
+		filterRow.getCell(createdColumn).setComponent(queryBlock.getCreatedFilter());
+		filterRow.getCell(updatedColumn).setComponent(queryBlock.getUpdatedFilter());
+		filterRow.getCell(actionsColumn).setComponent(queryBlock.getActionBlock());
 	}
 
-	private static Component sortableHeader(String label, String property, CustomSort sort, I18nService i18n,
-											Runnable refreshGrid) {
+	private static Component sortableHeader(String label, Component sortIcon) {
 		Span title = new Span(label);
-		SortToggleButton toggle = new SortToggleButton(sort, property, refreshGrid, i18n);
-		HorizontalLayout layout = new HorizontalLayout(title, toggle);
+		HorizontalLayout layout = new HorizontalLayout(title, sortIcon);
 		layout.setAlignItems(Alignment.CENTER);
 		return layout;
 	}
 
-	private static Component dualSortableHeader(String label1, String property1, String label2, String property2,
-												CustomSort sort, I18nService i18n, Runnable refreshGrid) {
+	private static Component dualSortableHeader(String label1, Component sortIcon1,
+												String label2, Component sortIcon2) {
 		HorizontalLayout layout = new HorizontalLayout(
-			new Span(label1),
-			new SortToggleButton(sort, property1, refreshGrid, i18n),
+			new Span(label1), sortIcon1,
 			new Span(" / "),
-			new Span(label2),
-			new SortToggleButton(sort, property2, refreshGrid, i18n)
+			new Span(label2), sortIcon2
 		);
 		layout.setAlignItems(Alignment.CENTER);
 		return layout;
