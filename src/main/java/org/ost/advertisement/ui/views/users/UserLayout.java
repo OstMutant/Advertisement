@@ -1,6 +1,7 @@
 package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
 import org.ost.advertisement.entities.User;
@@ -22,6 +23,15 @@ public class UserLayout extends VerticalLayout {
 		setSpacing(false);
 
 		grid.setSizeFull();
-		add(grid, paginationBar);
+
+		Div gridWrapper = new Div(grid);
+		gridWrapper.setWidthFull();
+		gridWrapper.setHeight("100%");
+		gridWrapper.getStyle().set("overflow-x", "auto");
+		gridWrapper.getStyle().set("overflow-y", "auto");
+		gridWrapper.getStyle().set("flex-grow", "1");
+
+		setFlexGrow(1, gridWrapper);
+		add(gridWrapper, paginationBar);
 	}
 }
