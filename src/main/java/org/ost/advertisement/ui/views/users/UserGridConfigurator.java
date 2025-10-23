@@ -16,16 +16,21 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
+import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import java.util.function.Consumer;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.components.sort.SortToggleButton;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserGridConfigurator {
 
 	public static void configure(Grid<User> grid,
@@ -85,7 +90,7 @@ public class UserGridConfigurator {
 
 				HorizontalLayout layout = new HorizontalLayout(edit, delete);
 				layout.setSpacing(false);
-				layout.setJustifyContentMode(HorizontalLayout.JustifyContentMode.CENTER);
+				layout.setJustifyContentMode(JustifyContentMode.CENTER);
 				return layout;
 			}))
 			.setHeader(i18n.get(USER_VIEW_HEADER_ACTIONS))
@@ -113,7 +118,7 @@ public class UserGridConfigurator {
 		Span title = new Span(label);
 		SortToggleButton toggle = new SortToggleButton(sort, property, refreshGrid, i18n);
 		HorizontalLayout layout = new HorizontalLayout(title, toggle);
-		layout.setAlignItems(VerticalLayout.Alignment.CENTER);
+		layout.setAlignItems(Alignment.CENTER);
 		return layout;
 	}
 
@@ -126,7 +131,7 @@ public class UserGridConfigurator {
 			new Span(label2),
 			new SortToggleButton(sort, property2, refreshGrid, i18n)
 		);
-		layout.setAlignItems(VerticalLayout.Alignment.CENTER);
+		layout.setAlignItems(Alignment.CENTER);
 		return layout;
 	}
 }
