@@ -51,7 +51,7 @@ public class FilterFieldsProcessor<F> {
 		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
 			setter.accept(newFilter, e.getValue());
-			events.onActionStateChanged(isFilterChanged());
+			events.setChanged(isFilterChanged());
 			refreshFilter();
 		});
 	}

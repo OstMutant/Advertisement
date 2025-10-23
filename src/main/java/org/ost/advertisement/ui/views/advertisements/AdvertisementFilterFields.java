@@ -23,8 +23,8 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
-import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 
 @SpringComponent
 @UIScope
@@ -36,7 +36,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
 
-	private final FilterActionsBlock actionsBlock;
+	private final ActionBlock actionsBlock;
 
 	@Getter
 	private final List<Component> filterComponentList;
@@ -51,13 +51,13 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
 		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
 		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
-		this.actionsBlock = new FilterActionsBlock(i18n);
+		this.actionsBlock = new ActionBlock(i18n);
 
 		this.filterComponentList = List.of(
 			title,
 			createFilterBlock(createdStart, createdEnd),
 			createFilterBlock(updatedStart, updatedEnd),
-			actionsBlock.getActionBlock()
+			actionsBlock.getComponent()
 		);
 	}
 
@@ -86,7 +86,7 @@ public class AdvertisementFilterFields extends AbstractFilterFields<Advertisemen
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			filterFieldsProcessor.refreshFilter();
-			actionsBlock.onActionStateChanged(filterFieldsProcessor.isFilterChanged());
+			actionsBlock.setChanged(filterFieldsProcessor.isFilterChanged());
 		};
 
 		actionsBlock.eventProcessor(() -> {

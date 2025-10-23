@@ -129,12 +129,10 @@ public enum I18nKey {
 	ADVERTISEMENT_CARD_USER("advertisement.card.user"),
 	ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
 	ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
-	// Filter actions
-	FILTER_ACTIONS_APPLY_TOOLTIP("filter.actions.apply.tooltip"),
-	FILTER_ACTIONS_CLEAR_TOOLTIP("filter.actions.clear.tooltip"),
+	// Unified Actions
+	ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
+	ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
 	// Sort actions
-	SORT_ACTIONS_APPLY_TOOLTIP("sort.actions.apply.tooltip"),
-	SORT_ACTIONS_CLEAR_TOOLTIP("sort.actions.clear.tooltip"),
 	SORT_TOGGLE_TOOLTIP("sort.toggle.tooltip"),
 	// === Main Tabs ===
 	MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),

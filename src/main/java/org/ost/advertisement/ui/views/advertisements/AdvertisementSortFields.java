@@ -15,7 +15,7 @@ import java.util.List;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.sort.SortActionsBlock;
+import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 
@@ -27,7 +27,7 @@ public class AdvertisementSortFields {
 	private final TriStateSortIcon createdAtSortIcon;
 	private final TriStateSortIcon updatedAtSortIcon;
 
-	private final SortActionsBlock actionsBlock;
+	private final ActionBlock actionsBlock;
 
 	@Getter
 	private final SortFieldsProcessor sortFieldsProcessor;
@@ -41,13 +41,13 @@ public class AdvertisementSortFields {
 		this.titleSortIcon = new TriStateSortIcon();
 		this.createdAtSortIcon = new TriStateSortIcon();
 		this.updatedAtSortIcon = new TriStateSortIcon();
-		this.actionsBlock = new SortActionsBlock(i18n);
+		this.actionsBlock = new ActionBlock(i18n);
 
 		this.sortComponentList = List.of(
 			createSortableField(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon),
 			createSortableField(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdAtSortIcon),
 			createSortableField(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedAtSortIcon),
-			actionsBlock.getActionBlock()
+			actionsBlock.getComponent()
 		);
 	}
 
@@ -62,7 +62,7 @@ public class AdvertisementSortFields {
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			sortFieldsProcessor.refreshSorting();
-			actionsBlock.onActionStateChanged(sortFieldsProcessor.isSortingChanged());
+			actionsBlock.setChanged(sortFieldsProcessor.isSortingChanged());
 		};
 		actionsBlock.eventProcessor(() -> {
 			sortFieldsProcessor.updateSorting();

@@ -11,7 +11,11 @@ import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constans.I18nKey.USER_FILTER_UPDATED_START;
 import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.ui.views.components.ContentFactory.*;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createCombo;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createNumberField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -27,9 +31,8 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.ContentFactory;
+import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.AbstractFilterFields;
-import org.ost.advertisement.ui.views.components.filters.FilterActionsBlock;
 
 @SpringComponent
 @UIScope
@@ -44,9 +47,10 @@ public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 	private final DatePicker createdEnd;
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
-	private final FilterActionsBlock actionsBlock;
+	private final ActionBlock actionsBlock;
 
-	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation, I18nService i18n) {
+	public UserFilterFields(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
+							I18nService i18n) {
 		super(UserFilterDto.empty(), validation, filterMapper);
 
 		this.idMin = createNumberField(i18n.get(USER_FILTER_ID_MIN));
@@ -58,13 +62,14 @@ public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 		this.createdEnd = createDatePicker(i18n.get(USER_FILTER_CREATED_END));
 		this.updatedStart = createDatePicker(i18n.get(USER_FILTER_UPDATED_START));
 		this.updatedEnd = createDatePicker(i18n.get(USER_FILTER_UPDATED_END));
-		this.actionsBlock = new FilterActionsBlock(i18n);
+		this.actionsBlock = new ActionBlock(i18n);
 	}
 
 	@PostConstruct
 	private void init() {
 		Predicate<UserFilterDto> validationId = f -> isValidProperty(f, "startId") && isValidProperty(f, "endId");
-		filterFieldsProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilterDto::getStartId, validationId,
+		filterFieldsProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilterDto::getStartId,
+			validationId,
 			actionsBlock);
 		filterFieldsProcessor.register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilterDto::getEndId, validationId,
 			actionsBlock);
@@ -96,7 +101,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 		Runnable combinedOnApply = () -> {
 			onApply.run();
 			filterFieldsProcessor.refreshFilter();
-			actionsBlock.onActionStateChanged(filterFieldsProcessor.isFilterChanged());
+			actionsBlock.setChanged(filterFieldsProcessor.isFilterChanged());
 		};
 
 		actionsBlock.eventProcessor(() -> {
@@ -136,7 +141,7 @@ public class UserFilterFields extends AbstractFilterFields<UserFilterDto> {
 	}
 
 	public Component getActionBlock() {
-		return actionsBlock.getActionBlock();
+		return actionsBlock.getComponent();
 	}
 }
 

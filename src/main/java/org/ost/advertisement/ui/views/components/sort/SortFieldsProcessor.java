@@ -41,7 +41,7 @@ public class SortFieldsProcessor {
 		));
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
-			events.onActionStateChanged(isSortingChanged());
+			events.setChanged(isSortingChanged());
 			refreshSorting();
 		});
 	}
