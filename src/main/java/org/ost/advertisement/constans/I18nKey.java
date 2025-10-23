@@ -113,8 +113,6 @@ public enum I18nKey {
 
 	// === Advertisement Sidebar ===
 	ADVERTISEMENT_SIDEBAR_BUTTON_ADD("advertisement.sidebar.button.add"),
-	ADVERTISEMENT_SIDEBAR_SECTION_FILTERS("advertisement.sidebar.section.filters"),
-	ADVERTISEMENT_SIDEBAR_SECTION_SORTING("advertisement.sidebar.section.sorting"),
 
 	// === Advertisement Filter ===
 	ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER("advertisement.filter.title.placeholder"),

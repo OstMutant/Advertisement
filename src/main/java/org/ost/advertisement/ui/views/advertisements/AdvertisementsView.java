@@ -53,16 +53,16 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		int page = getPaginationBar().getCurrentPage();
 		int size = getPaginationBar().getPageSize();
 
-		AdvertisementFilterDto filter = sidebar.getFilterFields()
-			.getFilterFieldsProcessor()
+		AdvertisementFilterDto filter = sidebar.getQueryBlock()
+			.getFilterProcessor()
 			.getOriginalFilter();
 
 		List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
 			filter,
 			page,
 			size,
-			sidebar.getSortFields()
-				.getSortFieldsProcessor()
+			sidebar.getQueryBlock()
+				.getSortProcessor()
 				.getOriginalSort()
 				.getSort()
 		);
@@ -117,3 +117,4 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		);
 	}
 }
+
