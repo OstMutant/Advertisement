@@ -35,15 +35,15 @@ public class FilterFieldsProcessor<F> {
 		this.newFilter = filterMapper.copy(defaultFilter);
 	}
 
-	private record FilterFieldsRelationship<F, T>(
+	private record FilterFieldsRelationship<F, R>(
 		AbstractField<?, ?> field,
-		Function<F, T> getter,
+		Function<F, R> getter,
 		Predicate<F> validation
 	) {
 
 	}
 
-	protected final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
+	private final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
 	public <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
 															   Function<F, R> getter, Predicate<F> validation,
@@ -65,7 +65,7 @@ public class FilterFieldsProcessor<F> {
 	}
 
 	public void clearFilter() {
-		for (FilterFieldsRelationship<?, ?> fieldRelationship : fieldsRelationships) {
+		for (FilterFieldsRelationship<F, ?> fieldRelationship : fieldsRelationships) {
 			fieldRelationship.field.clear();
 		}
 		filterMapper.update(newFilter, defaultFilter);
@@ -83,8 +83,8 @@ public class FilterFieldsProcessor<F> {
 	private void highlightChangedFields() {
 		for (FilterFieldsRelationship<F, ?> fieldRelationship : fieldsRelationships) {
 			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newFilter),
-				fieldRelationship.getter.apply(originalFilter), fieldRelationship.getter.apply(defaultFilter)
-				, fieldRelationship.validation.test(newFilter));
+				fieldRelationship.getter.apply(originalFilter), fieldRelationship.getter.apply(defaultFilter),
+				fieldRelationship.validation.test(newFilter));
 		}
 	}
 }
