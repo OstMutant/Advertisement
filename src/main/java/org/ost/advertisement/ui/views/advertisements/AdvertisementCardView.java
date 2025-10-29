@@ -1,10 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_BUTTON_DELETE;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_BUTTON_EDIT;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_CREATED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_UPDATED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_CARD_USER;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_BUTTON_DELETE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_BUTTON_EDIT;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_CREATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_UPDATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_USER;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;

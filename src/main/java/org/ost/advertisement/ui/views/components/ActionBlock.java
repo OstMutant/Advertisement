@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components;
 
-import static org.ost.advertisement.constans.I18nKey.ACTIONS_APPLY_TOOLTIP;
-import static org.ost.advertisement.constans.I18nKey.ACTIONS_CLEAR_TOOLTIP;
+import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
+import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;

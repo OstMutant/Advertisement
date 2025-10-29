@@ -3,7 +3,6 @@ package org.ost.advertisement.ui.views.components.dialogs;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.combobox.ComboBox;
-import com.vaadin.flow.component.shared.ThemeVariant;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -11,7 +10,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import java.util.List;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.constans.I18nKey;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 

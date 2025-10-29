@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;

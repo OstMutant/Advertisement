@@ -1,10 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;

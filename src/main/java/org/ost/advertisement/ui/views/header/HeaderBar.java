@@ -1,10 +1,10 @@
 package org.ost.advertisement.ui.views.header;
 
-import static org.ost.advertisement.constans.I18nKey.HEADER_LOGIN;
-import static org.ost.advertisement.constans.I18nKey.HEADER_LOGOUT;
-import static org.ost.advertisement.constans.I18nKey.HEADER_NOT_SIGNED_IN;
-import static org.ost.advertisement.constans.I18nKey.HEADER_SIGNED_IN;
-import static org.ost.advertisement.constans.I18nKey.HEADER_SIGNUP;
+import static org.ost.advertisement.constants.I18nKey.HEADER_LOGIN;
+import static org.ost.advertisement.constants.I18nKey.HEADER_LOGOUT;
+import static org.ost.advertisement.constants.I18nKey.HEADER_NOT_SIGNED_IN;
+import static org.ost.advertisement.constants.I18nKey.HEADER_SIGNED_IN;
+import static org.ost.advertisement.constants.I18nKey.HEADER_SIGNUP;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Span;

@@ -1,4 +1,4 @@
-package org.ost.advertisement.constans;
+package org.ost.advertisement.constants;
 
 public enum I18nKey {
 	// === Header ===

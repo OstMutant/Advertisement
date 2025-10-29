@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.header;
 
-import static org.ost.advertisement.constans.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
@@ -11,7 +11,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;

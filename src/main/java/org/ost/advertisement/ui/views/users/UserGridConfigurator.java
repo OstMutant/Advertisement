@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.constans.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;

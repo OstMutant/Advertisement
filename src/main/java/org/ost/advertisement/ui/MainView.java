@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui;
 
-import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_ADVERTISEMENTS;
-import static org.ost.advertisement.constans.I18nKey.MAIN_TAB_USERS;
+import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
@@ -12,7 +12,6 @@ import com.vaadin.flow.router.Route;
 import java.util.HashMap;
 import java.util.Map;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;

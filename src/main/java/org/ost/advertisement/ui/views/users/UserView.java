@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.constans.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;

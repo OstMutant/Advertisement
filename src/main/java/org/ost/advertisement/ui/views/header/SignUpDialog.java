@@ -1,17 +1,17 @@
 package org.ost.advertisement.ui.views.header;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_CANCEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_BUTTON_SUBMIT;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_EMAIL_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_EXISTS;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_EMAIL_INVALID;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_NAME_REQUIRED;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_ERROR_PASSWORD_SHORT;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_HEADER_TITLE;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_NAME_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_PASSWORD_LABEL;
-import static org.ost.advertisement.constans.I18nKey.SIGNUP_SUCCESS;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_BUTTON_CANCEL;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_BUTTON_SUBMIT;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_EMAIL_LABEL;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_ERROR_EMAIL_EXISTS;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_ERROR_EMAIL_INVALID;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_ERROR_NAME_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_ERROR_PASSWORD_SHORT;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_HEADER_TITLE;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_NAME_LABEL;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_PASSWORD_LABEL;
+import static org.ost.advertisement.constants.I18nKey.SIGNUP_SUCCESS;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;

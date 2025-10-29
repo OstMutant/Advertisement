@@ -4,7 +4,7 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.constans.I18nKey;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

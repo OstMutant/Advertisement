@@ -8,7 +8,7 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.binder.Binder;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.constans.I18nKey;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 

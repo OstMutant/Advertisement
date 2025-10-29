@@ -1,19 +1,19 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_FIELD_CREATED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_FIELD_TITLE;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_FIELD_UPDATED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_TITLE_EDIT;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_TITLE_NEW;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
-import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_CREATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_TITLE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_UPDATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_EDIT;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_NEW;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.textfield.TextArea;
