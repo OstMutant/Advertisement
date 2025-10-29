@@ -7,8 +7,8 @@ import com.vaadin.flow.component.AbstractField;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
@@ -19,7 +19,7 @@ public class FilterFieldsProcessor<F> {
 	private final FilterMapper<F> filterMapper;
 
 	@Getter
-	private final ValidationService<F> validation;
+	private final ValidationService<F> validationService;
 
 	private final F defaultFilter;
 	@Getter
@@ -27,9 +27,9 @@ public class FilterFieldsProcessor<F> {
 	@Getter
 	private final F newFilter;
 
-	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validation, F defaultFilter) {
+	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService, F defaultFilter) {
 		this.filterMapper = filterMapper;
-		this.validation = validation;
+		this.validationService = validationService;
 		this.defaultFilter = defaultFilter;
 		this.originalFilter = filterMapper.copy(defaultFilter);
 		this.newFilter = filterMapper.copy(defaultFilter);
@@ -38,15 +38,17 @@ public class FilterFieldsProcessor<F> {
 	private record FilterFieldsRelationship<F, R>(
 		AbstractField<?, ?> field,
 		Function<F, R> getter,
-		Predicate<F> validation
+		BiPredicate<ValidationService<F>, F> validation
 	) {
 
 	}
 
 	private final Set<FilterFieldsRelationship<F, ?>> fieldsRelationships = new HashSet<>();
 
-	public <T, C extends AbstractField<?, T>, R> void register(C field, BiConsumer<F, T> setter,
-															   Function<F, R> getter, Predicate<F> validation,
+	public <T, C extends AbstractField<?, T>, R> void register(C field,
+															   BiConsumer<F, T> setter,
+															   Function<F, R> getter,
+															   BiPredicate<ValidationService<F>, F> validation,
 															   ActionStateChangeListener events) {
 		fieldsRelationships.add(new FilterFieldsRelationship<>(field, getter, validation));
 		field.addValueChangeListener(e -> {
@@ -77,14 +79,14 @@ public class FilterFieldsProcessor<F> {
 	}
 
 	public boolean validate() {
-		return validation.isValid(this.newFilter);
+		return validationService.isValid(this.newFilter);
 	}
 
 	private void highlightChangedFields() {
 		for (FilterFieldsRelationship<F, ?> fieldRelationship : fieldsRelationships) {
 			highlight(fieldRelationship.field, fieldRelationship.getter.apply(newFilter),
 				fieldRelationship.getter.apply(originalFilter), fieldRelationship.getter.apply(defaultFilter),
-				fieldRelationship.validation.test(newFilter));
+				fieldRelationship.validation.test(validationService, newFilter));
 		}
 	}
 }

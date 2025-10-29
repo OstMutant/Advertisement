@@ -1,36 +1,26 @@
 package org.ost.advertisement.services;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
 import jakarta.validation.Validator;
-import java.util.Set;
-import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
-@NoArgsConstructor
+@AllArgsConstructor
 public class ValidationService<T> {
 
-	private static final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
+	private final Validator validator;
 
 	public boolean isValid(T obj) {
 		return validator.validate(obj).isEmpty();
 	}
 
 	public boolean isValidProperty(T obj, String property) {
-		return validator.validateProperty(obj, property).isEmpty();
+		return validator.validate(obj).stream()
+			.noneMatch(v -> v.getPropertyPath().toString().contains(property));
 	}
 
-	public boolean hasViolationFor(T obj, String property) {
-		return hasViolationFor(getViolationFor(obj), property);
-	}
+//	public boolean isValidProperty(T obj, String property) {
+//		return validator.validateProperty(obj, property).isEmpty();
+//	}
 
-	public Set<ConstraintViolation<T>> getViolationFor(T obj) {
-		return validator.validate(obj);
-	}
-
-	public boolean hasViolationFor(Set<ConstraintViolation<T>> violations, String property) {
-		return violations.stream()
-			.anyMatch(v -> v.getPropertyPath().toString().contains(property));
-	}
 }

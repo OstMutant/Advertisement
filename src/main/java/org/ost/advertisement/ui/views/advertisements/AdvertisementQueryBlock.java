@@ -1,8 +1,16 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constans.I18nKey.*;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_CREATED_END;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_CREATED_START;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_END;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_FILTER_UPDATED_START;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_TITLE;
+import static org.ost.advertisement.constans.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
-import static org.ost.advertisement.ui.views.components.ContentFactory.*;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -14,7 +22,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
@@ -72,26 +80,23 @@ public class AdvertisementQueryBlock {
 		sortProcessor.register(titleSortIcon, "title", actionsBlock);
 		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
 		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
+		filterProcessor.register(titleField, (dto, v) -> dto.setTitle(v == null || v.isBlank() ? null : v),
+			AdvertisementFilterDto::getTitle, (validation, dto) -> validation.isValidProperty(dto, "title"), actionsBlock);
 
-		filterProcessor.register(titleField, (f, v) -> f.setTitle(v == null || v.isBlank() ? null : v),
-			AdvertisementFilterDto::getTitle, f -> filterProcessor.getValidation().isValidProperty(f, "title"), actionsBlock);
+		BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> createdValid =
+			(validation, dto) -> validation.isValidProperty(dto, "createdAtStart") && validation.isValidProperty(dto, "createdAtEnd");
 
-		Predicate<AdvertisementFilterDto> createdValid = f ->
-			filterProcessor.getValidation().isValidProperty(f, "createdAtStart") &&
-				filterProcessor.getValidation().isValidProperty(f, "createdAtEnd");
-
-		filterProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
+		filterProcessor.register(createdStart, (dto, v) -> dto.setCreatedAtStart(toInstant(v)),
 			AdvertisementFilterDto::getCreatedAtStart, createdValid, actionsBlock);
-		filterProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
+		filterProcessor.register(createdEnd, (dto, v) -> dto.setCreatedAtEnd(toInstant(v)),
 			AdvertisementFilterDto::getCreatedAtEnd, createdValid, actionsBlock);
 
-		Predicate<AdvertisementFilterDto> updatedValid = f ->
-			filterProcessor.getValidation().isValidProperty(f, "updatedAtStart") &&
-				filterProcessor.getValidation().isValidProperty(f, "updatedAtEnd");
+		BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> updatedValid =
+			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart") && validation.isValidProperty(dto, "updatedAtEnd");
 
-		filterProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
+		filterProcessor.register(updatedStart, (dto, v) -> dto.setUpdatedAtStart(toInstant(v)),
 			AdvertisementFilterDto::getUpdatedAtStart, updatedValid, actionsBlock);
-		filterProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
+		filterProcessor.register(updatedEnd, (dto, v) -> dto.setUpdatedAtEnd(toInstant(v)),
 			AdvertisementFilterDto::getUpdatedAtEnd, updatedValid, actionsBlock);
 	}
 
@@ -134,7 +139,9 @@ public class AdvertisementQueryBlock {
 		};
 
 		actionsBlock.eventProcessor(() -> {
-			if (!filterProcessor.validate()) return;
+			if (!filterProcessor.validate()) {
+				return;
+			}
 			filterProcessor.updateFilter();
 			sortProcessor.updateSorting();
 			combined.run();

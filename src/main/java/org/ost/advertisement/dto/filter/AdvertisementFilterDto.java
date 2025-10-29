@@ -12,10 +12,8 @@ import org.ost.advertisement.validation.ValidRange;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder(toBuilder = true)
-@ValidRange.List({
-	@ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "createdAtStart must not be after createdAtEnd"),
-	@ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd")
-})
+@ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "createdAtStart must not be after createdAtEnd")
+@ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd")
 public class AdvertisementFilterDto {
 
 	@Size(max = 255, message = "Name must not exceed 255 characters")

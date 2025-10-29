@@ -25,7 +25,7 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.util.function.Predicate;
+import java.util.function.BiPredicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
@@ -71,11 +71,8 @@ public class UserQueryBlock {
 	@Getter
 	private final TriStateSortIcon updatedSortIcon;
 
-	private final I18nService i18n;
-
 	public UserQueryBlock(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
 						  I18nService i18n) {
-		this.i18n = i18n;
 		this.actionsBlock = new ActionBlock(i18n);
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, UserFilterDto.empty());
 		this.sortProcessor = new SortFieldsProcessor(new CustomSort());
@@ -107,35 +104,36 @@ public class UserQueryBlock {
 		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
 		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
 
-		Predicate<UserFilterDto> idValid = f -> filterProcessor.getValidation().isValidProperty(f, "startId") &&
-			filterProcessor.getValidation().isValidProperty(f, "endId");
+		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> idValid =
+			(validation, dto) -> validation.isValidProperty(dto, "startId")
+				&& validation.isValidProperty(dto, "endId");
 
-		filterProcessor.register(idMin, (f, v) -> f.setStartId(toLong(v)), UserFilterDto::getStartId, idValid,
+		filterProcessor.register(idMin, (dto, v) -> dto.setStartId(toLong(v)), UserFilterDto::getStartId, idValid,
 			actionsBlock);
-		filterProcessor.register(idMax, (f, v) -> f.setEndId(toLong(v)), UserFilterDto::getEndId, idValid,
+		filterProcessor.register(idMax, (dto, v) -> dto.setEndId(toLong(v)), UserFilterDto::getEndId, idValid,
 			actionsBlock);
 
-		filterProcessor.register(nameField, (f, v) -> f.setName(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getName, f -> filterProcessor.getValidation().isValidProperty(f, "name"), actionsBlock);
+		filterProcessor.register(nameField, (dto, v) -> dto.setName(v == null || v.isBlank() ? null : v),
+			UserFilterDto::getName, (validation, f) -> validation.isValidProperty(f, "name"), actionsBlock);
 
-		filterProcessor.register(emailField, (f, v) -> f.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getEmail, f -> filterProcessor.getValidation().isValidProperty(f, "email"), actionsBlock);
+		filterProcessor.register(emailField, (dto, v) -> dto.setEmail(v == null || v.isBlank() ? null : v),
+			UserFilterDto::getEmail, (validation, f) -> validation.isValidProperty(f, "email"), actionsBlock);
 
 		filterProcessor.register(roleCombo, UserFilterDto::setRole, UserFilterDto::getRole,
-			f -> filterProcessor.getValidation().isValidProperty(f, "role"), actionsBlock);
+			(validation, dto) -> validation.isValidProperty(dto, "role"), actionsBlock);
 
-		Predicate<UserFilterDto> createdValid = f ->
-			filterProcessor.getValidation().isValidProperty(f, "createdAtStart") &&
-				filterProcessor.getValidation().isValidProperty(f, "createdAtEnd");
+		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> createdValid =
+			(validation, dto) -> validation.isValidProperty(dto, "createdAtStart")
+				&& validation.isValidProperty(dto, "createdAtEnd");
 
-		filterProcessor.register(createdStart, (f, v) -> f.setCreatedAtStart(toInstant(v)),
+		filterProcessor.register(createdStart, (dto, v) -> dto.setCreatedAtStart(toInstant(v)),
 			UserFilterDto::getCreatedAtStart, createdValid, actionsBlock);
-		filterProcessor.register(createdEnd, (f, v) -> f.setCreatedAtEnd(toInstant(v)),
+		filterProcessor.register(createdEnd, (dto, v) -> dto.setCreatedAtEnd(toInstant(v)),
 			UserFilterDto::getCreatedAtEnd, createdValid, actionsBlock);
 
-		Predicate<UserFilterDto> updatedValid = f ->
-			filterProcessor.getValidation().isValidProperty(f, "updatedAtStart") &&
-				filterProcessor.getValidation().isValidProperty(f, "updatedAtEnd");
+		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> updatedValid =
+			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart") && validation.isValidProperty(dto,
+				"updatedAtEnd");
 
 		filterProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
 			UserFilterDto::getUpdatedAtStart, updatedValid, actionsBlock);
