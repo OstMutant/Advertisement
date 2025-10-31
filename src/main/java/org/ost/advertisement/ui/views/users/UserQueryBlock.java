@@ -114,10 +114,10 @@ public class UserQueryBlock {
 			actionsBlock);
 
 		filterProcessor.register(nameField, (dto, v) -> dto.setName(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getName, (validation, f) -> validation.isValidProperty(f, "name"), actionsBlock);
+			UserFilterDto::getName, (validation, dto) -> validation.isValidProperty(dto, "name"), actionsBlock);
 
 		filterProcessor.register(emailField, (dto, v) -> dto.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getEmail, (validation, f) -> validation.isValidProperty(f, "email"), actionsBlock);
+			UserFilterDto::getEmail, (validation, dto) -> validation.isValidProperty(dto, "email"), actionsBlock);
 
 		filterProcessor.register(roleCombo, UserFilterDto::setRole, UserFilterDto::getRole,
 			(validation, dto) -> validation.isValidProperty(dto, "role"), actionsBlock);
@@ -132,8 +132,8 @@ public class UserQueryBlock {
 			UserFilterDto::getCreatedAtEnd, createdValid, actionsBlock);
 
 		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> updatedValid =
-			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart") && validation.isValidProperty(dto,
-				"updatedAtEnd");
+			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart")
+				&& validation.isValidProperty(dto, "updatedAtEnd");
 
 		filterProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
 			UserFilterDto::getUpdatedAtStart, updatedValid, actionsBlock);
