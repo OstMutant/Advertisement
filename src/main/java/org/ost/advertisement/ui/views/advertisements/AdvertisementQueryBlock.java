@@ -26,6 +26,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.meta.filter.AdvertisementFilterMeta;
+import org.ost.advertisement.meta.sort.AdvertisementSortMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -76,9 +77,9 @@ public class AdvertisementQueryBlock {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(titleSortIcon, "title", actionsBlock);
-		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
-		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
+		sortProcessor.register(titleSortIcon, AdvertisementSortMeta.TITLE_NAME, actionsBlock);
+		sortProcessor.register(createdSortIcon, AdvertisementSortMeta.CREATED_AT_NAME, actionsBlock);
+		sortProcessor.register(updatedSortIcon, AdvertisementSortMeta.UPDATED_AT_NAME, actionsBlock);
 
 		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
 		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);
