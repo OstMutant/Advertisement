@@ -1,12 +1,11 @@
 package org.ost.advertisement.services;
 
 import jakarta.validation.Valid;
-import java.time.Instant;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.filter.UserFilter;
+import org.ost.advertisement.dto.filter.UserFilterDto;
+import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.exceptions.EntityNotFoundException;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -23,41 +22,26 @@ public class UserService {
 	private final UserRepository repository;
 	private final AccessEvaluator access;
 
-	public List<User> getFiltered(@Valid UserFilter filter, int page, int size, Sort sort) {
+	public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
 		return repository.findByFilter(filter, PageRequest.of(page, size, sort));
 	}
 
-	public int count(@Valid UserFilter filter) {
+	public int count(@Valid UserFilterDto filter) {
 		return repository.countByFilter(filter).intValue();
 	}
 
-	public void save(User currentUser, User targetUser) {
-		if (!canEdit(currentUser, targetUser)) {
+	public void save(User targetUser) {
+		if (access.canNotEdit(targetUser)) {
 			throw new AccessDeniedException("You cannot edit this user");
 		}
 		repository.save(targetUser);
 	}
 
-	public void save(User user) {
-		repository.save(user);
-	}
-
-	public void delete(User currentUser, User targetUser) {
-		if (!canDelete(currentUser, targetUser)) {
+	public void delete(EntityMarker targetUser) {
+		if (access.canNotDelete(targetUser)) {
 			throw new AccessDeniedException("You cannot delete this user");
 		}
-		repository.delete(targetUser);
+		repository.deleteById(targetUser.getId());
 	}
 
-	public User getById(Long id) {
-		return repository.findById(id).orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
-	}
-
-	public boolean canEdit(User currentUser, User targetUser) {
-		return access.canEdit(currentUser, targetUser);
-	}
-
-	public boolean canDelete(User currentUser, User targetUser) {
-		return access.canDelete(currentUser, targetUser);
-	}
 }

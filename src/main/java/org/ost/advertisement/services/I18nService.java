@@ -1,6 +1,6 @@
 package org.ost.advertisement.services;
 
-import org.ost.advertisement.constans.I18nKey;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.ui.utils.SessionUtil;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;

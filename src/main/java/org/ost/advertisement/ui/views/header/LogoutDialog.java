@@ -1,8 +1,8 @@
 package org.ost.advertisement.ui.views.header;
 
-import static org.ost.advertisement.constans.I18nKey.LOGOUT_CONFIRM_CANCEL;
-import static org.ost.advertisement.constans.I18nKey.LOGOUT_CONFIRM_TEXT;
-import static org.ost.advertisement.constans.I18nKey.LOGOUT_CONFIRM_YES;
+import static org.ost.advertisement.constants.I18nKey.LOGOUT_CONFIRM_CANCEL;
+import static org.ost.advertisement.constants.I18nKey.LOGOUT_CONFIRM_TEXT;
+import static org.ost.advertisement.constants.I18nKey.LOGOUT_CONFIRM_YES;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;

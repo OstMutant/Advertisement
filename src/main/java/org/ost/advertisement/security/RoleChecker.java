@@ -22,7 +22,7 @@ public class RoleChecker {
 	}
 
 	private boolean hasRole(User user, Role role) {
-		return ofNullable(user).map(User::getRole).filter(v -> v == role).isPresent();
+		return ofNullable(user).map(User::role).filter(v -> v == role).isPresent();
 	}
 }
 

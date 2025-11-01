@@ -1,10 +1,10 @@
 package org.ost.advertisement.ui.views.components;
 
-import static org.ost.advertisement.constans.I18nKey.PAGINATION_FIRST;
-import static org.ost.advertisement.constans.I18nKey.PAGINATION_INDICATOR;
-import static org.ost.advertisement.constans.I18nKey.PAGINATION_LAST;
-import static org.ost.advertisement.constans.I18nKey.PAGINATION_NEXT;
-import static org.ost.advertisement.constans.I18nKey.PAGINATION_PREV;
+import static org.ost.advertisement.constants.I18nKey.PAGINATION_FIRST;
+import static org.ost.advertisement.constants.I18nKey.PAGINATION_INDICATOR;
+import static org.ost.advertisement.constants.I18nKey.PAGINATION_LAST;
+import static org.ost.advertisement.constants.I18nKey.PAGINATION_NEXT;
+import static org.ost.advertisement.constants.I18nKey.PAGINATION_PREV;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;

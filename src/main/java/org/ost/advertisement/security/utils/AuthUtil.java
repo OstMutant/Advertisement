@@ -4,6 +4,7 @@ import java.util.Optional;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.UserPrincipal;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -26,5 +27,18 @@ public class AuthUtil {
 		}
 
 		return Optional.of(((UserPrincipal) principal).user());
+	}
+
+	public static void updateCurrentUser(User updatedUser) {
+		UserPrincipal newPrincipal = new UserPrincipal(updatedUser);
+		Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+
+		Authentication newAuth = new UsernamePasswordAuthenticationToken(
+			newPrincipal,
+			currentAuth.getCredentials(),
+			currentAuth.getAuthorities()
+		);
+
+		SecurityContextHolder.getContext().setAuthentication(newAuth);
 	}
 }

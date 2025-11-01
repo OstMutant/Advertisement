@@ -2,8 +2,6 @@ package org.ost.advertisement.repository.query.mapping;
 
 import static java.util.Optional.ofNullable;
 
-import java.sql.Timestamp;
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -51,13 +49,5 @@ public abstract class FieldRelations<T> implements RowMapper<T> {
 			.filter(Objects::nonNull)
 			.collect(Collectors.joining(", "));
 		return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
-	}
-
-	public static Timestamp toTimestamp(Instant instant) {
-		return instant != null ? Timestamp.from(instant) : null;
-	}
-
-	public static Instant toInstant(Timestamp ts) {
-		return ts != null ? ts.toInstant() : null;
 	}
 }

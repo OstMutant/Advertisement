@@ -12,17 +12,17 @@ public record UserPrincipal(User user) implements UserDetails {
 
 	@Override
 	public Collection<? extends GrantedAuthority> getAuthorities() {
-		return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
+		return List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name()));
 	}
 
 	@Override
 	public String getPassword() {
-		return user.getPasswordHash();
+		return user.passwordHash();
 	}
 
 	@Override
 	public String getUsername() {
-		return user.getEmail();
+		return user.email();
 	}
 
 	@Override
