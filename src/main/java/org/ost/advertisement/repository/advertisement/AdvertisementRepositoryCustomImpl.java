@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.AdvertisementInfoDto.Fields;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
@@ -45,14 +46,14 @@ public class AdvertisementRepositoryCustomImpl
 
 	public static class AdvertisementMapper extends FieldRelations<AdvertisementInfoDto> {
 
-		public static final SqlDtoFieldDefinition<Long> ID = id("id", "a.id");
-		public static final SqlDtoFieldDefinition<String> TITLE = str("title", "a.title");
-		public static final SqlDtoFieldDefinition<String> DESCRIPTION = str("description", "a.description");
-		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "a.created_at");
-		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "a.updated_at");
-		public static final SqlDtoFieldDefinition<Long> USER_ID = id("createdByUserId", "u.id");
-		public static final SqlDtoFieldDefinition<String> USER_NAME = str("createdByUserName", "u.name");
-		public static final SqlDtoFieldDefinition<String> USER_EMAIL = str("createdByUserEmail", "u.email");
+		public static final SqlDtoFieldDefinition<Long> ID = id(Fields.id, "a.id");
+		public static final SqlDtoFieldDefinition<String> TITLE = str(Fields.title, "a.title");
+		public static final SqlDtoFieldDefinition<String> DESCRIPTION = str(Fields.description, "a.description");
+		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant(Fields.createdAt, "a.created_at");
+		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant(Fields.updatedAt, "a.updated_at");
+		public static final SqlDtoFieldDefinition<Long> USER_ID = id(Fields.createdByUserId, "u.id");
+		public static final SqlDtoFieldDefinition<String> USER_NAME = str(Fields.createdByUserName, "u.name");
+		public static final SqlDtoFieldDefinition<String> USER_EMAIL = str(Fields.createdByUserEmail, "u.email");
 
 		public AdvertisementMapper() {
 			super(new SqlDtoFieldDefinition<?>[]{

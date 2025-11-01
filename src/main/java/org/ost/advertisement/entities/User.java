@@ -3,24 +3,33 @@ package org.ost.advertisement.entities;
 import java.time.Instant;
 import java.util.Locale;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Value;
+import lombok.experimental.FieldNameConstants;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.relational.core.mapping.Table;
 
+@Value
 @Builder
+@FieldNameConstants
 @Table("user_information")
-public record User(
-	@Id @Getter Long id,
-	String name,
-	String email,
-	String passwordHash,
-	Role role,
-	@CreatedDate Instant createdAt,
-	@LastModifiedDate Instant updatedAt,
-	String locale
-) implements EntityMarker {
+public class User implements EntityMarker {
+
+	@Id
+	Long id;
+	String name;
+	String email;
+	String passwordHash;
+	Role role;
+
+	@CreatedDate
+	Instant createdAt;
+
+	@LastModifiedDate
+	Instant updatedAt;
+
+	String locale;
 
 	@Override
 	public Long getOwnerUserId() {

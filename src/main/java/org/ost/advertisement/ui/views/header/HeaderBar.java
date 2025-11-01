@@ -44,7 +44,7 @@ public class HeaderBar extends HorizontalLayout {
 		Span userInfo = new Span();
 		User currentUser = AuthUtil.getCurrentUser();
 		if (currentUser != null) {
-			userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.email()));
+			userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
 			Button logoutButton = new Button(i18n.get(HEADER_LOGOUT), VaadinIcon.SIGN_OUT.create(),
 				e -> logoutDialog.open());
 			authBlockRow.add(userInfo, logoutButton);
