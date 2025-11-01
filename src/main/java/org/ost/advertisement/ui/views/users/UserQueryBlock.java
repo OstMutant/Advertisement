@@ -9,8 +9,7 @@ import static org.ost.advertisement.constants.I18nKey.USER_FILTER_NAME_PLACEHOLD
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_ROLE_ANY;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_START;
-import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
+import static org.ost.advertisement.meta.filter.UserFilterMeta.*;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createCombo;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
@@ -25,12 +24,12 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.util.function.BiPredicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
+import org.ost.advertisement.meta.filter.UserFilterMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -104,41 +103,15 @@ public class UserQueryBlock {
 		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
 		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
 
-		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> idValid =
-			(validation, dto) -> validation.isValidProperty(dto, "startId")
-				&& validation.isValidProperty(dto, "endId");
-
-		filterProcessor.register(idMin, (dto, v) -> dto.setStartId(toLong(v)), UserFilterDto::getStartId, idValid,
-			actionsBlock);
-		filterProcessor.register(idMax, (dto, v) -> dto.setEndId(toLong(v)), UserFilterDto::getEndId, idValid,
-			actionsBlock);
-
-		filterProcessor.register(nameField, (dto, v) -> dto.setName(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getName, (validation, dto) -> validation.isValidProperty(dto, "name"), actionsBlock);
-
-		filterProcessor.register(emailField, (dto, v) -> dto.setEmail(v == null || v.isBlank() ? null : v),
-			UserFilterDto::getEmail, (validation, dto) -> validation.isValidProperty(dto, "email"), actionsBlock);
-
-		filterProcessor.register(roleCombo, UserFilterDto::setRole, UserFilterDto::getRole,
-			(validation, dto) -> validation.isValidProperty(dto, "role"), actionsBlock);
-
-		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> createdValid =
-			(validation, dto) -> validation.isValidProperty(dto, "createdAtStart")
-				&& validation.isValidProperty(dto, "createdAtEnd");
-
-		filterProcessor.register(createdStart, (dto, v) -> dto.setCreatedAtStart(toInstant(v)),
-			UserFilterDto::getCreatedAtStart, createdValid, actionsBlock);
-		filterProcessor.register(createdEnd, (dto, v) -> dto.setCreatedAtEnd(toInstant(v)),
-			UserFilterDto::getCreatedAtEnd, createdValid, actionsBlock);
-
-		BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> updatedValid =
-			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart")
-				&& validation.isValidProperty(dto, "updatedAtEnd");
-
-		filterProcessor.register(updatedStart, (f, v) -> f.setUpdatedAtStart(toInstant(v)),
-			UserFilterDto::getUpdatedAtStart, updatedValid, actionsBlock);
-		filterProcessor.register(updatedEnd, (f, v) -> f.setUpdatedAtEnd(toInstant(v)),
-			UserFilterDto::getUpdatedAtEnd, updatedValid, actionsBlock);
+		filterProcessor.register(idMin, ID_MIN, actionsBlock);
+		filterProcessor.register(idMax, ID_MAX, actionsBlock);
+		filterProcessor.register(nameField, NAME, actionsBlock);
+		filterProcessor.register(emailField, EMAIL, actionsBlock);
+		filterProcessor.register(roleCombo, ROLE, actionsBlock);
+		filterProcessor.register(createdStart, CREATED_AT_START, actionsBlock);
+		filterProcessor.register(createdEnd, CREATED_AT_END, actionsBlock);
+		filterProcessor.register(updatedStart, UPDATED_AT_START, actionsBlock);
+		filterProcessor.register(updatedEnd, UPDATED_AT_END, actionsBlock);
 	}
 
 	public void eventProcessor(Runnable onApply) {
