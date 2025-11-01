@@ -35,7 +35,7 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("flex", "1 1 300px")
 			.set("max-width", "400px");
 
-		H3 title = new H3(ad.title());
+		H3 title = new H3(ad.getTitle());
 		title.getStyle()
 			.set("font-size", "1.2rem")
 			.set("font-weight", "600")
@@ -44,7 +44,7 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("overflow", "hidden")
 			.set("text-overflow", "ellipsis");
 
-		Span description = new Span(ad.description());
+		Span description = new Span(ad.getDescription());
 		description.getStyle()
 			.set("display", "-webkit-box")
 			.set("overflow", "hidden")
@@ -61,13 +61,13 @@ public class AdvertisementCardView extends VerticalLayout {
 		Button toggle = new Button("Read more");
 		toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
 		toggle.getStyle().set("padding", "0");
-		toggle.addClickListener(e -> new AdvertisementDescriptionDialog(ad.title(), ad.description()).open());
+		toggle.addClickListener(e -> new AdvertisementDescriptionDialog(ad.getTitle(), ad.getDescription()).open());
 
 		Span createdAt = new Span(
-			i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.createdAt()));
+			i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
 		Span updatedAt = new Span(
-			i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.updatedAt()));
-		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.createdByUserId());
+			i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
+		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.getCreatedByUserId());
 
 		VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
 		meta.getStyle()
