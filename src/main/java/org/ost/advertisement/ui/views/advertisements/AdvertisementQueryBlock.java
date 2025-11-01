@@ -8,7 +8,6 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
@@ -22,11 +21,11 @@ import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import java.util.function.BiPredicate;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
+import org.ost.advertisement.meta.filter.AdvertisementFilterMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -80,24 +79,12 @@ public class AdvertisementQueryBlock {
 		sortProcessor.register(titleSortIcon, "title", actionsBlock);
 		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
 		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
-		filterProcessor.register(titleField, (dto, v) -> dto.setTitle(v == null || v.isBlank() ? null : v),
-			AdvertisementFilterDto::getTitle, (validation, dto) -> validation.isValidProperty(dto, "title"), actionsBlock);
 
-		BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> createdValid =
-			(validation, dto) -> validation.isValidProperty(dto, "createdAtStart") && validation.isValidProperty(dto, "createdAtEnd");
-
-		filterProcessor.register(createdStart, (dto, v) -> dto.setCreatedAtStart(toInstant(v)),
-			AdvertisementFilterDto::getCreatedAtStart, createdValid, actionsBlock);
-		filterProcessor.register(createdEnd, (dto, v) -> dto.setCreatedAtEnd(toInstant(v)),
-			AdvertisementFilterDto::getCreatedAtEnd, createdValid, actionsBlock);
-
-		BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> updatedValid =
-			(validation, dto) -> validation.isValidProperty(dto, "updatedAtStart") && validation.isValidProperty(dto, "updatedAtEnd");
-
-		filterProcessor.register(updatedStart, (dto, v) -> dto.setUpdatedAtStart(toInstant(v)),
-			AdvertisementFilterDto::getUpdatedAtStart, updatedValid, actionsBlock);
-		filterProcessor.register(updatedEnd, (dto, v) -> dto.setUpdatedAtEnd(toInstant(v)),
-			AdvertisementFilterDto::getUpdatedAtEnd, updatedValid, actionsBlock);
+		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
+		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);
+		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, actionsBlock);
+		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, actionsBlock);
+		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, actionsBlock);
 	}
 
 	public Component getComponent() {
