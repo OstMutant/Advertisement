@@ -27,9 +27,8 @@ import lombok.Getter;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
-import org.ost.advertisement.meta.filter.UserFilterMeta;
-import org.ost.advertisement.meta.sort.UserSortMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -96,12 +95,12 @@ public class UserQueryBlock {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(idSortIcon, UserSortMeta.ID, actionsBlock);
-		sortProcessor.register(nameSortIcon, UserSortMeta.NAME, actionsBlock);
-		sortProcessor.register(emailSortIcon, UserSortMeta.EMAIL, actionsBlock);
-		sortProcessor.register(roleSortIcon, UserSortMeta.ROLE, actionsBlock);
-		sortProcessor.register(createdSortIcon, UserSortMeta.CREATED_AT, actionsBlock);
-		sortProcessor.register(updatedSortIcon, UserSortMeta.UPDATED_AT, actionsBlock);
+		sortProcessor.register(idSortIcon, User.Fields.id, actionsBlock);
+		sortProcessor.register(nameSortIcon, User.Fields.name, actionsBlock);
+		sortProcessor.register(emailSortIcon, User.Fields.email, actionsBlock);
+		sortProcessor.register(roleSortIcon, User.Fields.role, actionsBlock);
+		sortProcessor.register(createdSortIcon, User.Fields.createdAt, actionsBlock);
+		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, actionsBlock);
 
 		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, actionsBlock);
 		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, actionsBlock);

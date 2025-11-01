@@ -1,5 +1,6 @@
 package org.ost.advertisement.repository.user;
 
+import static org.ost.advertisement.entities.User.Fields;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
@@ -64,14 +65,14 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
 	public static class UserMapper extends FieldRelations<User> {
 
-		public static final SqlDtoFieldDefinition<Long> ID = id("id", "u.id");
-		public static final SqlDtoFieldDefinition<String> NAME = str("name", "u.name");
-		public static final SqlDtoFieldDefinition<String> EMAIL = str("email", "u.email");
-		public static final SqlDtoFieldDefinition<String> ROLE = str("role", "u.role");
-		public static final SqlDtoFieldDefinition<String> PASSWORD_HASH = str("passwordHash", "u.password_hash");
-		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant("createdAt", "u.created_at");
-		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant("updatedAt", "u.updated_at");
-		public static final SqlDtoFieldDefinition<String> LOCALE = str("locale", "u.locale");
+		public static final SqlDtoFieldDefinition<Long> ID = id(Fields.id, "u.id");
+		public static final SqlDtoFieldDefinition<String> NAME = str(Fields.name, "u.name");
+		public static final SqlDtoFieldDefinition<String> EMAIL = str(Fields.email, "u.email");
+		public static final SqlDtoFieldDefinition<String> ROLE = str(Fields.role, "u.role");
+		public static final SqlDtoFieldDefinition<String> PASSWORD_HASH = str(Fields.passwordHash, "u.password_hash");
+		public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant(Fields.createdAt, "u.created_at");
+		public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant(Fields.updatedAt, "u.updated_at");
+		public static final SqlDtoFieldDefinition<String> LOCALE = str(Fields.locale, "u.locale");
 
 		public UserMapper() {
 			super(new SqlDtoFieldDefinition<?>[]{

@@ -1,31 +1,23 @@
 package org.ost.advertisement.ui.views.components.sort;
 
-import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
 import lombok.Getter;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
+
 public class SortFieldsProcessor {
 
-	protected CustomSort defaultSort;
+	protected final CustomSort defaultSort;
 	@Getter
-	protected CustomSort originalSort;
+	protected final CustomSort originalSort;
 	@Getter
-	protected CustomSort newSort;
+	protected final CustomSort newSort;
 
-	public record SortFieldsRelationship(
-		TriStateSortIcon field,
-		Function<CustomSort, Direction> getter,
-		Runnable clearAction
-	) {
-
-	}
-
-	protected final Set<SortFieldsRelationship> fieldsRelationships = new HashSet<>();
+	private final Map<TriStateSortIcon, String> fieldsMap = new LinkedHashMap<>();
 
 	public SortFieldsProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
@@ -34,11 +26,7 @@ public class SortFieldsProcessor {
 	}
 
 	public void register(TriStateSortIcon field, String property, ActionStateChangeListener events) {
-		fieldsRelationships.add(new SortFieldsRelationship(
-			field,
-			v -> v.getDirection(property),
-			field::clear
-		));
+		fieldsMap.put(field, property);
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
 			events.setChanged(isSortingChanged());
@@ -59,24 +47,26 @@ public class SortFieldsProcessor {
 	}
 
 	public void clearSorting() {
-		for (SortFieldsRelationship relationship : fieldsRelationships) {
-			relationship.field.clear();
-		}
+		fieldsMap.keySet().forEach(TriStateSortIcon::clear);
 		originalSort.copyFrom(defaultSort);
 		newSort.copyFrom(defaultSort);
 	}
 
 	protected void highlightChangedFields() {
-		for (SortFieldsRelationship rel : fieldsRelationships) {
-			Direction newVal = rel.getter.apply(newSort);
-			Direction origVal = rel.getter.apply(originalSort);
-			Direction defVal = rel.getter.apply(defaultSort);
+		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
+			TriStateSortIcon field = entry.getKey();
+			String property = entry.getValue();
+
+			Direction newVal = newSort.getDirection(property);
+			Direction origVal = originalSort.getDirection(property);
+			Direction defVal = defaultSort.getDirection(property);
 
 			String color = Objects.equals(newVal, origVal)
 				? (Objects.equals(origVal, defVal) ? "gray" : "green")
 				: "orange";
 
-			rel.field.setVisualColor(color);
+			field.setVisualColor(color);
 		}
 	}
 }
+
