@@ -5,45 +5,45 @@ import org.apache.commons.lang3.StringUtils;
 
 public class SqlQueryBuilder {
 
-	public String buildSelect(String fields, String source) {
-		return join(
-			"SELECT " + defaultFields(fields),
+	public String select(String fields, String source) {
+		return concat(
+			"SELECT " + normalizeFields(fields),
 			"FROM " + source
 		);
 	}
 
-	public String buildSelect(String fields, String source, String where) {
-		return join(
-			buildSelect(fields, source),
-			prefix(where, "WHERE ")
+	public String select(String fields, String source, String where) {
+		return concat(
+			select(fields, source),
+			wrap("WHERE ", where)
 		);
 	}
 
-	public String buildSelect(String fields, String source, String where, String sort, String limit) {
-		return join(
-			buildSelect(fields, source, where),
-			prefix(sort, ""),
-			prefix(limit, "")
+	public String select(String fields, String source, String where, String orderBy, String limit) {
+		return concat(
+			select(fields, source, where),
+			wrap("ORDER BY ", orderBy),
+			wrap("LIMIT ", limit)
 		);
 	}
 
-	public String buildCount(String source, String where) {
-		return join(
+	public String count(String source, String where) {
+		return concat(
 			"SELECT COUNT(*)",
 			"FROM " + source,
-			prefix(where, "WHERE ")
+			wrap("WHERE ", where)
 		);
 	}
 
-	private String defaultFields(String fields) {
+	private String normalizeFields(String fields) {
 		return StringUtils.isNotBlank(fields) ? fields : "*";
 	}
 
-	private String prefix(String part, String prefix) {
+	private String wrap(String prefix, String part) {
 		return StringUtils.isNotBlank(part) ? prefix + part : "";
 	}
 
-	private String join(String... parts) {
+	private String concat(String... parts) {
 		return String.join(" ",
 			Arrays.stream(parts)
 				.filter(StringUtils::isNotBlank)

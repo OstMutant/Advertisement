@@ -28,7 +28,7 @@ public class RepositoryCustom<T, F> {
 
 	public java.util.List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildSelect(
+		String sql = sqlBuilder.select(
 			fieldRelations.fieldsToSql(),
 			fieldRelations.sourceToSql(),
 			filterApplier.apply(params, filter),
@@ -40,7 +40,7 @@ public class RepositoryCustom<T, F> {
 
 	public Long countByFilter(F filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildCount(
+		String sql = sqlBuilder.count(
 			fieldRelations.sourceToSql(),
 			filterApplier.apply(params, filter)
 		);
@@ -49,7 +49,7 @@ public class RepositoryCustom<T, F> {
 
 	public <C> Optional<T> find(FilterApplier<C> customApplier, C filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildSelect(
+		String sql = sqlBuilder.select(
 			fieldRelations.fieldsToSql(),
 			fieldRelations.sourceToSql(),
 			customApplier.apply(params, filter)

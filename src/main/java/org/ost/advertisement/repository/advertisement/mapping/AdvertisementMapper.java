@@ -28,7 +28,6 @@ public class AdvertisementMapper extends FieldRelations<AdvertisementInfoDto> {
 	public static final SqlDtoFieldDefinition<String> DESCRIPTION = str(description, "a.description");
 	public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant(createdAt, "a.created_at");
 	public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant(updatedAt, "a.updated_at");
-
 	public static final SqlDtoFieldDefinition<Long> USER_ID = id(createdByUserId, "u.id");
 	public static final SqlDtoFieldDefinition<String> USER_NAME = str(createdByUserName, "u.name");
 	public static final SqlDtoFieldDefinition<String> USER_EMAIL = str(createdByUserEmail, "u.email");
