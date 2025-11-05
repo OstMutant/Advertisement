@@ -3,6 +3,7 @@ package org.ost.advertisement.repository.query.mapping;
 import static java.util.Optional.ofNullable;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -17,8 +18,8 @@ public abstract class FieldRelations<T> implements RowMapper<T> {
 	private final Map<String, String> dtoToSqlRelations;
 	private final String sqlSource;
 
-	protected FieldRelations(SqlDtoFieldDefinition<?>[] items, String sqlSource) {
-		this.dtoToSqlRelations = Stream.of(items)
+	protected FieldRelations(List<SqlDtoFieldDefinition<?>> items, String sqlSource) {
+		this.dtoToSqlRelations = items.stream()
 			.collect(Collectors.toMap(
 				SqlDtoFieldDefinition::dtoField,
 				SqlDtoFieldDefinition::sqlField,
