@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
 import org.springframework.data.domain.Sort;
@@ -16,9 +17,12 @@ import org.springframework.jdbc.core.RowMapper;
 public abstract class FieldRelations<T> implements RowMapper<T> {
 
 	private final Map<String, String> dtoToSqlRelations;
+	@Getter
 	private final String sqlSource;
 
 	protected FieldRelations(List<SqlDtoFieldDefinition<?>> items, String sqlSource) {
+		Objects.requireNonNull(items, "Parameter 'items' must not be null.");
+		Objects.requireNonNull(sqlSource, "Parameter 'sqlSource' must not be null.");
 		this.dtoToSqlRelations = items.stream()
 			.collect(Collectors.toMap(
 				SqlDtoFieldDefinition::dtoField,
@@ -29,17 +33,13 @@ public abstract class FieldRelations<T> implements RowMapper<T> {
 		this.sqlSource = sqlSource;
 	}
 
-	public String sourceToSql() {
-		return sqlSource;
-	}
-
-	public String fieldsToSql() {
+	public String getAliasedFieldsString() {
 		return dtoToSqlRelations.entrySet().stream()
 			.map(e -> e.getValue() + " AS " + e.getKey())
 			.collect(Collectors.joining(", "));
 	}
 
-	public String sortToSql(Sort sort) {
+	public String getSqlOrderByClause(Sort sort) {
 		String orderByFragment = ofNullable(sort)
 			.filter(s -> !s.isEmpty())
 			.map(Sort::stream)
