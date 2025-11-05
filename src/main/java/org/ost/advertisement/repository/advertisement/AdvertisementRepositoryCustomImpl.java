@@ -1,5 +1,10 @@
 package org.ost.advertisement.repository.advertisement;
 
+import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.createdAtEnd;
+import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.createdAtStart;
+import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.title;
+import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.updatedAtEnd;
+import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.updatedAtStart;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
@@ -35,11 +40,11 @@ public class AdvertisementRepositoryCustomImpl
 
 		public AdvertisementFilterApplier() {
 			relations.addAll(List.of(
-				of("title", AdvertisementMapper.TITLE, (f, fc, r) -> r.like(f.getTitle(), fc)),
-				of("createdAt_start", AdvertisementMapper.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", AdvertisementMapper.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", AdvertisementMapper.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", AdvertisementMapper.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc))
+				of(title, AdvertisementMapper.TITLE, (f, fc, r) -> r.like(f.getTitle(), fc)),
+				of(createdAtStart, AdvertisementMapper.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
+				of(createdAtEnd, AdvertisementMapper.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
+				of(updatedAtStart, AdvertisementMapper.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
+				of(updatedAtEnd, AdvertisementMapper.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc))
 			));
 		}
 	}

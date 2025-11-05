@@ -1,5 +1,14 @@
 package org.ost.advertisement.repository.user;
 
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.createdAtEnd;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.createdAtStart;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.email;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.endId;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.name;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.role;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.startId;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtEnd;
+import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtStart;
 import static org.ost.advertisement.entities.User.Fields;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
 import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
@@ -42,16 +51,16 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
 		public UserFilterApplier() {
 			relations.addAll(List.of(
-				of("name", UserMapper.NAME, (f, fc, r) -> r.like(f.getName(), fc)),
-				of("email", UserMapper.EMAIL, (f, fc, r) -> r.like(f.getEmail(), fc)),
-				of("role", UserMapper.ROLE,
+				of(name, UserMapper.NAME, (f, fc, r) -> r.like(f.getName(), fc)),
+				of(email, UserMapper.EMAIL, (f, fc, r) -> r.like(f.getEmail(), fc)),
+				of(role, UserMapper.ROLE,
 					(f, fc, r) -> r.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
-				of("createdAt_start", UserMapper.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
-				of("createdAt_end", UserMapper.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
-				of("updatedAt_start", UserMapper.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
-				of("updatedAt_end", UserMapper.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc)),
-				of("startId", UserMapper.ID, (f, fc, r) -> r.after(f.getStartId(), fc)),
-				of("endId", UserMapper.ID, (f, fc, r) -> r.before(f.getEndId(), fc))
+				of(createdAtStart, UserMapper.CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
+				of(createdAtEnd, UserMapper.CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
+				of(updatedAtStart, UserMapper.UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
+				of(updatedAtEnd, UserMapper.UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc)),
+				of(startId, UserMapper.ID, (f, fc, r) -> r.after(f.getStartId(), fc)),
+				of(endId, UserMapper.ID, (f, fc, r) -> r.before(f.getEndId(), fc))
 			));
 		}
 	}
