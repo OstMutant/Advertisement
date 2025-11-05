@@ -57,7 +57,7 @@ public class RepositoryCustom<T, F> {
 		return executor.executeSingle(sql, params);
 	}
 
-	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
+	private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
 		return ofNullable(pageable)
 			.filter(p -> !p.isUnpaged())
 			.map(p -> {

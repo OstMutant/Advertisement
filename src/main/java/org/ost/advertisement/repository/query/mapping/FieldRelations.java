@@ -49,6 +49,6 @@ public abstract class FieldRelations<T> implements RowMapper<T> {
 				.orElse(null))
 			.filter(Objects::nonNull)
 			.collect(Collectors.joining(", "));
-		return StringUtils.isBlank(orderByFragment) ? "" : " ORDER BY " + orderByFragment;
+		return StringUtils.isBlank(orderByFragment) ? "" : "ORDER BY " + orderByFragment;
 	}
 }

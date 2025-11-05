@@ -9,6 +9,7 @@ import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.role;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.startId;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtEnd;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtStart;
+import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 import static org.ost.advertisement.repository.user.mapping.UserMapper.CREATED_AT;
 import static org.ost.advertisement.repository.user.mapping.UserMapper.EMAIL;
 import static org.ost.advertisement.repository.user.mapping.UserMapper.ID;

@@ -17,39 +17,4 @@ public abstract class FilterApplier<F> {
 		return fc.toSqlApplyingAnd();
 	}
 
-	@FunctionalInterface
-	public interface FilterApplierFunction<F> {
-
-		void apply(F filter, FieldsConditions fc, FilterRelation<F> relation);
-	}
-
-	public static <F> FilterRelation<F> of(
-		String filterField,
-		SqlDtoFieldDefinition<?> relation,
-		FilterApplierFunction<F> fn
-	) {
-		return new SimpleFilterRelation<>(filterField, relation, fn);
-	}
-
-	public record SimpleFilterRelation<F>(
-		String filterField,
-		SqlDtoFieldDefinition<?> relation,
-		FilterApplierFunction<F> fn
-	) implements FilterRelation<F> {
-
-		@Override
-		public String getFilterField() {
-			return filterField;
-		}
-
-		@Override
-		public String getSqlField() {
-			return relation.sqlField();
-		}
-
-		@Override
-		public void applyConditions(F filter, FieldsConditions fc) {
-			fn.apply(filter, fc, this);
-		}
-	}
 }

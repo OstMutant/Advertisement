@@ -1,5 +1,6 @@
 package org.ost.advertisement.repository.user.filter;
 
+import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 import static org.ost.advertisement.repository.user.mapping.UserMapper.EMAIL;
 
 import org.ost.advertisement.repository.query.filter.FilterApplier;

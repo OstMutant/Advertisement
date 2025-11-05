@@ -8,6 +8,7 @@ import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.upd
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.CREATED_AT;
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.TITLE;
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.UPDATED_AT;
+import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 
 import java.util.List;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
