@@ -8,6 +8,9 @@ import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.upd
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.CREATED_AT;
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.TITLE;
 import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.UPDATED_AT;
+import static org.ost.advertisement.repository.query.filter.Condition.after;
+import static org.ost.advertisement.repository.query.filter.Condition.before;
+import static org.ost.advertisement.repository.query.filter.Condition.like;
 import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 
 import java.util.List;
@@ -18,11 +21,11 @@ public class AdvertisementFilterApplier extends FilterApplier<AdvertisementFilte
 
 	public AdvertisementFilterApplier() {
 		relations.addAll(List.of(
-			of(title, TITLE, (f, fc, r) -> r.like(f.getTitle(), fc)),
-			of(createdAtStart, CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
-			of(createdAtEnd, CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
-			of(updatedAtStart, UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
-			of(updatedAtEnd, UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc))
+			of(title, TITLE, (projection, value) -> like(projection, value.getTitle())),
+			of(createdAtStart, CREATED_AT, (projection, value) -> after(projection, value.getCreatedAtStart())),
+			of(createdAtEnd, CREATED_AT, (projection, value) -> before(projection, value.getCreatedAtEnd())),
+			of(updatedAtStart, UPDATED_AT, (projection, value) -> after(projection, value.getUpdatedAtStart())),
+			of(updatedAtEnd, UPDATED_AT, (projection, value) -> before(projection, value.getUpdatedAtEnd()))
 		));
 	}
 }

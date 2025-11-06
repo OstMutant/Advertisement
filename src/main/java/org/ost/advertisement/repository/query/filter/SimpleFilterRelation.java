@@ -1,39 +1,31 @@
 package org.ost.advertisement.repository.query.filter;
 
+import java.util.function.BiFunction;
 import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlFieldProjection;
 
-public record SimpleFilterRelation<F>(
-	String filterField,
-	SqlFieldDefinition<?> relation,
-	FilterApplierFunction<F> fn
-) implements FilterRelation<F> {
+public record SimpleFilterRelation<F, R>(
+	String filterProperty,
+	SqlFieldProjection sqlFieldDefinition,
+	BiFunction<FilterProjection, F, Condition<R>> conditionFunction
+) implements FilterRelation<F, R> {
 
-	public static <F> SimpleFilterRelation<F> of(
+	public static <F1, R1> SimpleFilterRelation<F1, R1> of(
 		String filterField,
-		SqlFieldDefinition<?> relation,
-		FilterApplierFunction<F> fn
+		SqlFieldDefinition<?> sqlFieldDefinition,
+		BiFunction<FilterProjection, F1, Condition<R1>> conditionFunction
 	) {
-		return new SimpleFilterRelation<>(filterField, relation, fn);
+		return new SimpleFilterRelation<>(filterField, sqlFieldDefinition, conditionFunction);
 	}
 
 	@Override
-	public String getFilterField() {
-		return filterField;
+	public String sqlExpression() {
+		return sqlFieldDefinition.sqlExpression();
 	}
 
 	@Override
-	public String getSqlField() {
-		return relation.sqlExpression();
+	public Condition<R> getCondition(F value) {
+		return conditionFunction.apply(this, value);
 	}
 
-	@Override
-	public void applyConditions(F filter, FieldsConditions fc) {
-		fn.apply(filter, fc, this);
-	}
-
-	@FunctionalInterface
-	public interface FilterApplierFunction<F> {
-
-		void apply(F filter, FieldsConditions fc, FilterRelation<F> relation);
-	}
 }

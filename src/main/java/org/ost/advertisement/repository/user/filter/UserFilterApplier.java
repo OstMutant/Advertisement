@@ -9,6 +9,10 @@ import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.role;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.startId;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtEnd;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtStart;
+import static org.ost.advertisement.repository.query.filter.Condition.after;
+import static org.ost.advertisement.repository.query.filter.Condition.before;
+import static org.ost.advertisement.repository.query.filter.Condition.equalsTo;
+import static org.ost.advertisement.repository.query.filter.Condition.like;
 import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 import static org.ost.advertisement.repository.user.mapping.UserProjection.CREATED_AT;
 import static org.ost.advertisement.repository.user.mapping.UserProjection.EMAIL;
@@ -25,15 +29,16 @@ public class UserFilterApplier extends FilterApplier<UserFilterDto> {
 
 	public UserFilterApplier() {
 		relations.addAll(List.of(
-			of(name, NAME, (f, fc, r) -> r.like(f.getName(), fc)),
-			of(email, EMAIL, (f, fc, r) -> r.like(f.getEmail(), fc)),
-			of(role, ROLE, (f, fc, r) -> r.equalsTo(f.getRole() != null ? f.getRole().name() : null, fc)),
-			of(createdAtStart, CREATED_AT, (f, fc, r) -> r.after(f.getCreatedAtStart(), fc)),
-			of(createdAtEnd, CREATED_AT, (f, fc, r) -> r.before(f.getCreatedAtEnd(), fc)),
-			of(updatedAtStart, UPDATED_AT, (f, fc, r) -> r.after(f.getUpdatedAtStart(), fc)),
-			of(updatedAtEnd, UPDATED_AT, (f, fc, r) -> r.before(f.getUpdatedAtEnd(), fc)),
-			of(startId, ID, (f, fc, r) -> r.after(f.getStartId(), fc)),
-			of(endId, ID, (f, fc, r) -> r.before(f.getEndId(), fc))
+			of(name, NAME, (projection, value) -> like(projection, value.getName())),
+			of(email, EMAIL, (projection, value) -> like(projection, value.getEmail())),
+			of(role, ROLE,
+				(projection, value) -> equalsTo(projection, value.getRole() != null ? value.getRole().name() : null)),
+			of(createdAtStart, CREATED_AT, (projection, value) -> after(projection, value.getCreatedAtStart())),
+			of(createdAtEnd, CREATED_AT, (projection, value) -> before(projection, value.getCreatedAtEnd())),
+			of(updatedAtStart, UPDATED_AT, (projection, value) -> after(projection, value.getUpdatedAtStart())),
+			of(updatedAtEnd, UPDATED_AT, (projection, value) -> before(projection, value.getUpdatedAtEnd())),
+			of(startId, ID, (projection, value) -> after(projection, value.getStartId())),
+			of(endId, ID, (projection, value) -> before(projection, value.getEndId()))
 		));
 	}
 }
