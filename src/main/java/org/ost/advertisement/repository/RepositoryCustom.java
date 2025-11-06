@@ -2,6 +2,7 @@ package org.ost.advertisement.repository;
 
 import static java.util.Optional.ofNullable;
 
+import java.util.List;
 import java.util.Optional;
 import org.ost.advertisement.repository.query.exec.RepositoryExecutor;
 import org.ost.advertisement.repository.query.filter.FilterApplier;
@@ -23,10 +24,10 @@ public class RepositoryCustom<T, F> {
 		this.sqlProjection = sqlProjection;
 		this.filterApplier = filterApplier;
 		this.sqlQueryBuilder = new SqlQueryBuilder();
-		this.executor = new RepositoryExecutor<>(jdbc, sqlProjection);
+		this.executor = new RepositoryExecutor<>(jdbc);
 	}
 
-	public java.util.List<T> findByFilter(F filter, Pageable pageable) {
+	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		String sql = sqlQueryBuilder.select(
 			sqlProjection.getSelectClause(),
@@ -35,7 +36,7 @@ public class RepositoryCustom<T, F> {
 			sqlProjection.getOrderByClause(pageable.getSort()),
 			pageableToSql(params, pageable)
 		);
-		return executor.executeQuery(sql, params);
+		return executor.findAll(sql, params, sqlProjection);
 	}
 
 	public Long countByFilter(F filter) {
@@ -44,7 +45,7 @@ public class RepositoryCustom<T, F> {
 			sqlProjection.getSqlSource(),
 			filterApplier.apply(params, filter)
 		);
-		return executor.executeCount(sql, params);
+		return executor.count(sql, params);
 	}
 
 	public <C> Optional<T> find(FilterApplier<C> customApplier, C filter) {
@@ -54,7 +55,7 @@ public class RepositoryCustom<T, F> {
 			sqlProjection.getSqlSource(),
 			customApplier.apply(params, filter)
 		);
-		return executor.executeSingle(sql, params);
+		return executor.findOne(sql, params, sqlProjection);
 	}
 
 	private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
