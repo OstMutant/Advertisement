@@ -8,9 +8,9 @@ import static org.ost.advertisement.entities.User.Fields.name;
 import static org.ost.advertisement.entities.User.Fields.passwordHash;
 import static org.ost.advertisement.entities.User.Fields.role;
 import static org.ost.advertisement.entities.User.Fields.updatedAt;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.id;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.instant;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,21 +19,21 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.query.mapping.FieldRelations;
-import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.mapping.SqlProjection;
+import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
 
-public class UserMapper extends FieldRelations<User> {
+public class UserProjection extends SqlProjection<User> {
 
-	public static final SqlDtoFieldDefinition<Long> ID = id(id, "u.id");
-	public static final SqlDtoFieldDefinition<String> NAME = str(name, "u.name");
-	public static final SqlDtoFieldDefinition<String> EMAIL = str(email, "u.email");
-	public static final SqlDtoFieldDefinition<String> ROLE = str(role, "u.role");
-	public static final SqlDtoFieldDefinition<String> PASSWORD_HASH = str(passwordHash, "u.password_hash");
-	public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant(createdAt, "u.created_at");
-	public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant(updatedAt, "u.updated_at");
-	public static final SqlDtoFieldDefinition<String> LOCALE = str(locale, "u.locale");
+	public static final SqlFieldDefinition<Long> ID = id("u.id", id);
+	public static final SqlFieldDefinition<String> NAME = str("u.name", name);
+	public static final SqlFieldDefinition<String> EMAIL = str("u.email", email);
+	public static final SqlFieldDefinition<String> ROLE = str("u.role", role);
+	public static final SqlFieldDefinition<String> PASSWORD_HASH = str("u.password_hash", passwordHash);
+	public static final SqlFieldDefinition<Instant> CREATED_AT = instant("u.created_at", createdAt);
+	public static final SqlFieldDefinition<Instant> UPDATED_AT = instant("u.updated_at", updatedAt);
+	public static final SqlFieldDefinition<String> LOCALE = str("u.locale", locale);
 
-	public UserMapper() {
+	public UserProjection() {
 		super(List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), "user_information u");
 	}
 

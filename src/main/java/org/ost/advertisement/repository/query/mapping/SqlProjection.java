@@ -10,41 +10,41 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 
-public abstract class FieldRelations<T> implements RowMapper<T> {
+public abstract class SqlProjection<T> implements RowMapper<T> {
 
-	private final Map<String, String> dtoToSqlRelations;
+	private final Map<String, String> aliasToSqlMap;
 	@Getter
 	private final String sqlSource;
 
-	protected FieldRelations(List<SqlDtoFieldDefinition<?>> items, String sqlSource) {
+	protected SqlProjection(List<SqlFieldDefinition<?>> items, String sqlSource) {
 		Objects.requireNonNull(items, "Parameter 'items' must not be null.");
 		Objects.requireNonNull(sqlSource, "Parameter 'sqlSource' must not be null.");
-		this.dtoToSqlRelations = items.stream()
+		this.aliasToSqlMap = items.stream()
 			.collect(Collectors.toMap(
-				SqlDtoFieldDefinition::dtoField,
-				SqlDtoFieldDefinition::sqlField,
+				SqlFieldDefinition::alias,
+				SqlFieldDefinition::sqlExpression,
 				(existing, replacement) -> existing,
 				HashMap::new
 			));
 		this.sqlSource = sqlSource;
 	}
 
-	public String getAliasedFieldsString() {
-		return dtoToSqlRelations.entrySet().stream()
+	public String getSelectClause() {
+		return aliasToSqlMap.entrySet().stream()
 			.map(e -> e.getValue() + " AS " + e.getKey())
 			.collect(Collectors.joining(", "));
 	}
 
-	public String getSqlOrderByClause(Sort sort) {
+	public String getOrderByClause(Sort sort) {
 		String orderByFragment = ofNullable(sort)
 			.filter(s -> !s.isEmpty())
 			.map(Sort::stream)
 			.orElseGet(Stream::empty)
-			.map(order -> ofNullable(dtoToSqlRelations.get(order.getProperty()))
+			.map(order -> ofNullable(aliasToSqlMap.get(order.getProperty()))
 				.map(col -> col + " " + order.getDirection().name())
 				.orElse(null))
 			.filter(Objects::nonNull)

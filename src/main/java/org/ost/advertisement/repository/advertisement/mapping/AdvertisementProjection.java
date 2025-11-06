@@ -8,9 +8,9 @@ import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.description;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.id;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.title;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.updatedAt;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.id;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.instant;
-import static org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinitionBuilder.str;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.id;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.instant;
+import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,21 +18,21 @@ import java.time.Instant;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.repository.query.mapping.FieldRelations;
-import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.mapping.SqlProjection;
+import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
 
-public class AdvertisementMapper extends FieldRelations<AdvertisementInfoDto> {
+public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto> {
 
-	public static final SqlDtoFieldDefinition<Long> ID = id(id, "a.id");
-	public static final SqlDtoFieldDefinition<String> TITLE = str(title, "a.title");
-	public static final SqlDtoFieldDefinition<String> DESCRIPTION = str(description, "a.description");
-	public static final SqlDtoFieldDefinition<Instant> CREATED_AT = instant(createdAt, "a.created_at");
-	public static final SqlDtoFieldDefinition<Instant> UPDATED_AT = instant(updatedAt, "a.updated_at");
-	public static final SqlDtoFieldDefinition<Long> USER_ID = id(createdByUserId, "u.id");
-	public static final SqlDtoFieldDefinition<String> USER_NAME = str(createdByUserName, "u.name");
-	public static final SqlDtoFieldDefinition<String> USER_EMAIL = str(createdByUserEmail, "u.email");
+	public static final SqlFieldDefinition<Long> ID = id("a.id", id);
+	public static final SqlFieldDefinition<String> TITLE = str("a.title", title);
+	public static final SqlFieldDefinition<String> DESCRIPTION = str("a.description", description);
+	public static final SqlFieldDefinition<Instant> CREATED_AT = instant("a.created_at", createdAt);
+	public static final SqlFieldDefinition<Instant> UPDATED_AT = instant("a.updated_at", updatedAt);
+	public static final SqlFieldDefinition<Long> USER_ID = id("u.id", createdByUserId);
+	public static final SqlFieldDefinition<String> USER_NAME = str("u.name", createdByUserName);
+	public static final SqlFieldDefinition<String> USER_EMAIL = str("u.email", createdByUserEmail);
 
-	public AdvertisementMapper() {
+	public AdvertisementProjection() {
 		super(
 			List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL),
 			"""

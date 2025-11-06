@@ -1,16 +1,16 @@
 package org.ost.advertisement.repository.query.filter;
 
-import org.ost.advertisement.repository.query.meta.SqlDtoFieldDefinition;
+import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
 
 public record SimpleFilterRelation<F>(
 	String filterField,
-	SqlDtoFieldDefinition<?> relation,
+	SqlFieldDefinition<?> relation,
 	FilterApplierFunction<F> fn
 ) implements FilterRelation<F> {
 
 	public static <F> SimpleFilterRelation<F> of(
 		String filterField,
-		SqlDtoFieldDefinition<?> relation,
+		SqlFieldDefinition<?> relation,
 		FilterApplierFunction<F> fn
 	) {
 		return new SimpleFilterRelation<>(filterField, relation, fn);
@@ -23,7 +23,7 @@ public record SimpleFilterRelation<F>(
 
 	@Override
 	public String getSqlField() {
-		return relation.sqlField();
+		return relation.sqlExpression();
 	}
 
 	@Override

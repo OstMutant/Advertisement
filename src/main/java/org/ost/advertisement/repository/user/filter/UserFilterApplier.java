@@ -10,12 +10,12 @@ import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.startId;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtEnd;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtStart;
 import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.CREATED_AT;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.EMAIL;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.ID;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.NAME;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.ROLE;
-import static org.ost.advertisement.repository.user.mapping.UserMapper.UPDATED_AT;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.CREATED_AT;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.EMAIL;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.ID;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.NAME;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.ROLE;
+import static org.ost.advertisement.repository.user.mapping.UserProjection.UPDATED_AT;
 
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilterDto;

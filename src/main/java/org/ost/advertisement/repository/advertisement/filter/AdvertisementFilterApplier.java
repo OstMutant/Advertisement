@@ -5,9 +5,9 @@ import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.cre
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.title;
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.updatedAtEnd;
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.updatedAtStart;
-import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.CREATED_AT;
-import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.TITLE;
-import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementMapper.UPDATED_AT;
+import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.CREATED_AT;
+import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.TITLE;
+import static org.ost.advertisement.repository.advertisement.mapping.AdvertisementProjection.UPDATED_AT;
 import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
 
 import java.util.List;

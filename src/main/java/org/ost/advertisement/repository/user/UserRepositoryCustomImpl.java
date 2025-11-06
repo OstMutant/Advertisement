@@ -6,7 +6,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.RepositoryCustom;
 import org.ost.advertisement.repository.user.filter.UserEmailFilterApplier;
 import org.ost.advertisement.repository.user.filter.UserFilterApplier;
-import org.ost.advertisement.repository.user.mapping.UserMapper;
+import org.ost.advertisement.repository.user.mapping.UserProjection;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
 	implements UserRepositoryCustom {
 
-	private static final UserMapper USER_MAPPER = new UserMapper();
+	private static final UserProjection USER_MAPPER = new UserProjection();
 	private static final UserFilterApplier USER_FILTER_APPLIER = new UserFilterApplier();
 	private static final UserEmailFilterApplier USER_EMAIL_FILTER_APPLIER = new UserEmailFilterApplier();
 

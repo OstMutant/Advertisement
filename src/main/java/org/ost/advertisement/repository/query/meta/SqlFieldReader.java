@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @FunctionalInterface
-public interface ValueExtractor<T> {
+public interface SqlFieldReader<T> {
 
-	T apply(ResultSet rs, String dtoField) throws SQLException;
+	T apply(ResultSet rs, String alias) throws SQLException;
 }

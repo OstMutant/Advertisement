@@ -4,14 +4,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import lombok.Getter;
 
-public record SqlDtoFieldDefinition<T>(
-	@Getter String dtoField,
-	@Getter String sqlField,
-	@Getter ValueExtractor<T> extractor
+public record SqlFieldDefinition<T>(
+	@Getter String sqlExpression,
+	@Getter String alias,
+	@Getter SqlFieldReader<T> extractor
 ) {
 
 	public T extract(ResultSet rs) throws SQLException {
-		return extractor.apply(rs, dtoField);
+		return extractor.apply(rs, alias);
 	}
 
 }
