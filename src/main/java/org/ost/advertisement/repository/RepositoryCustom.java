@@ -2,62 +2,63 @@ package org.ost.advertisement.repository;
 
 import static java.util.Optional.ofNullable;
 
+import java.util.List;
 import java.util.Optional;
 import org.ost.advertisement.repository.query.exec.RepositoryExecutor;
-import org.ost.advertisement.repository.query.filter.FilterApplier;
-import org.ost.advertisement.repository.query.mapping.FieldRelations;
-import org.ost.advertisement.repository.query.sql.SqlQueryBuilder;
+import org.ost.advertisement.repository.query.filter.FilterBuilder;
+import org.ost.advertisement.repository.query.projection.SqlProjection;
+import org.ost.advertisement.repository.query.exec.SqlQueryBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 public class RepositoryCustom<T, F> {
 
-	protected final FieldRelations<T> fieldRelations;
-	protected final FilterApplier<F> filterApplier;
-	protected final SqlQueryBuilder sqlBuilder;
+	protected final SqlProjection<T> sqlProjection;
+	protected final FilterBuilder<F> filterBuilder;
+	protected final SqlQueryBuilder sqlQueryBuilder;
 	protected final RepositoryExecutor<T> executor;
 
-	protected RepositoryCustom(NamedParameterJdbcTemplate jdbc, FieldRelations<T> fieldRelations,
-							   FilterApplier<F> filterApplier) {
-		this.fieldRelations = fieldRelations;
-		this.filterApplier = filterApplier;
-		this.sqlBuilder = new SqlQueryBuilder();
-		this.executor = new RepositoryExecutor<>(jdbc, fieldRelations);
+	protected RepositoryCustom(NamedParameterJdbcTemplate jdbc, SqlProjection<T> sqlProjection,
+							   FilterBuilder<F> filterBuilder) {
+		this.sqlProjection = sqlProjection;
+		this.filterBuilder = filterBuilder;
+		this.sqlQueryBuilder = new SqlQueryBuilder();
+		this.executor = new RepositoryExecutor<>(jdbc);
 	}
 
-	public java.util.List<T> findByFilter(F filter, Pageable pageable) {
+	public List<T> findByFilter(F filter, Pageable pageable) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildSelect(
-			fieldRelations.fieldsToSql(),
-			fieldRelations.sourceToSql(),
-			filterApplier.apply(params, filter),
-			fieldRelations.sortToSql(pageable.getSort()),
+		String sql = sqlQueryBuilder.select(
+			sqlProjection.getSelectClause(),
+			sqlProjection.getSqlSource(),
+			filterBuilder.build(params, filter),
+			sqlProjection.getOrderByClause(pageable.getSort()),
 			pageableToSql(params, pageable)
 		);
-		return executor.executeQuery(sql, params);
+		return executor.findAll(sql, params, sqlProjection);
 	}
 
 	public Long countByFilter(F filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildCount(
-			fieldRelations.sourceToSql(),
-			filterApplier.apply(params, filter)
+		String sql = sqlQueryBuilder.count(
+			sqlProjection.getSqlSource(),
+			filterBuilder.build(params, filter)
 		);
-		return executor.executeCount(sql, params);
+		return executor.count(sql, params);
 	}
 
-	public <C> Optional<T> find(FilterApplier<C> customApplier, C filter) {
+	public <C> Optional<T> find(FilterBuilder<C> customApplier, C filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		String sql = sqlBuilder.buildSelect(
-			fieldRelations.fieldsToSql(),
-			fieldRelations.sourceToSql(),
-			customApplier.apply(params, filter)
+		String sql = sqlQueryBuilder.select(
+			sqlProjection.getSelectClause(),
+			sqlProjection.getSqlSource(),
+			customApplier.build(params, filter)
 		);
-		return executor.executeSingle(sql, params);
+		return executor.findOne(sql, params, sqlProjection);
 	}
 
-	protected String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
+	private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
 		return ofNullable(pageable)
 			.filter(p -> !p.isUnpaged())
 			.map(p -> {

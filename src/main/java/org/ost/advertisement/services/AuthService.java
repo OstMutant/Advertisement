@@ -28,7 +28,7 @@ public class AuthService {
 		}
 
 		User user = optionalUser.get();
-		if (!PasswordEncoderUtil.matches(rawPassword, user.passwordHash())) {
+		if (!PasswordEncoderUtil.matches(rawPassword, user.getPasswordHash())) {
 			return false;
 		}
 

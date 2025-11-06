@@ -9,7 +9,6 @@ import static org.ost.advertisement.constants.I18nKey.USER_FILTER_NAME_PLACEHOLD
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_ROLE_ANY;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_START;
-import static org.ost.advertisement.meta.filter.UserFilterMeta.*;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createCombo;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
 import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
@@ -28,8 +27,8 @@ import lombok.Getter;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
-import org.ost.advertisement.meta.filter.UserFilterMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -96,22 +95,22 @@ public class UserQueryBlock {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(idSortIcon, "id", actionsBlock);
-		sortProcessor.register(nameSortIcon, "name", actionsBlock);
-		sortProcessor.register(emailSortIcon, "email", actionsBlock);
-		sortProcessor.register(roleSortIcon, "role", actionsBlock);
-		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
-		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
+		sortProcessor.register(idSortIcon, User.Fields.id, actionsBlock);
+		sortProcessor.register(nameSortIcon, User.Fields.name, actionsBlock);
+		sortProcessor.register(emailSortIcon, User.Fields.email, actionsBlock);
+		sortProcessor.register(roleSortIcon, User.Fields.role, actionsBlock);
+		sortProcessor.register(createdSortIcon, User.Fields.createdAt, actionsBlock);
+		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, actionsBlock);
 
-		filterProcessor.register(idMin, ID_MIN, actionsBlock);
-		filterProcessor.register(idMax, ID_MAX, actionsBlock);
-		filterProcessor.register(nameField, NAME, actionsBlock);
-		filterProcessor.register(emailField, EMAIL, actionsBlock);
-		filterProcessor.register(roleCombo, ROLE, actionsBlock);
-		filterProcessor.register(createdStart, CREATED_AT_START, actionsBlock);
-		filterProcessor.register(createdEnd, CREATED_AT_END, actionsBlock);
-		filterProcessor.register(updatedStart, UPDATED_AT_START, actionsBlock);
-		filterProcessor.register(updatedEnd, UPDATED_AT_END, actionsBlock);
+		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, actionsBlock);
+		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, actionsBlock);
+		filterProcessor.register(nameField, UserFilterMeta.NAME, actionsBlock);
+		filterProcessor.register(emailField, UserFilterMeta.EMAIL, actionsBlock);
+		filterProcessor.register(roleCombo, UserFilterMeta.ROLE, actionsBlock);
+		filterProcessor.register(createdStart, UserFilterMeta.CREATED_AT_START, actionsBlock);
+		filterProcessor.register(createdEnd, UserFilterMeta.CREATED_AT_END, actionsBlock);
+		filterProcessor.register(updatedStart, UserFilterMeta.UPDATED_AT_START, actionsBlock);
+		filterProcessor.register(updatedEnd, UserFilterMeta.UPDATED_AT_END, actionsBlock);
 	}
 
 	public void eventProcessor(Runnable onApply) {

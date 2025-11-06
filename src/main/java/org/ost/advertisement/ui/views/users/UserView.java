@@ -92,7 +92,7 @@ public class UserView extends UserLayout {
 	private void confirmAndDelete(User user) {
 		ConfirmDeleteHelper.showConfirm(
 			i18n,
-			i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.getId()),
+			i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()),
 			USER_VIEW_CONFIRM_DELETE_BUTTON,
 			USER_VIEW_CONFIRM_CANCEL_BUTTON,
 			() -> {

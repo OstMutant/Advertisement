@@ -22,10 +22,10 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
-import org.ost.advertisement.meta.filter.AdvertisementFilterMeta;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.ActionBlock;
@@ -76,9 +76,9 @@ public class AdvertisementQueryBlock {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(titleSortIcon, "title", actionsBlock);
-		sortProcessor.register(createdSortIcon, "createdAt", actionsBlock);
-		sortProcessor.register(updatedSortIcon, "updatedAt", actionsBlock);
+		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, actionsBlock);
+		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, actionsBlock);
+		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, actionsBlock);
 
 		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
 		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);

@@ -2,29 +2,21 @@ package org.ost.advertisement.repository.query.exec;
 
 import java.util.List;
 import java.util.Optional;
-import org.ost.advertisement.repository.query.mapping.FieldRelations;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-public class RepositoryExecutor<T> {
+public record RepositoryExecutor<T>(NamedParameterJdbcTemplate jdbc) {
 
-	private final NamedParameterJdbcTemplate jdbc;
-	private final FieldRelations<T> mapper;
-
-	public RepositoryExecutor(NamedParameterJdbcTemplate jdbc, FieldRelations<T> mapper) {
-		this.jdbc = jdbc;
-		this.mapper = mapper;
+	public List<T> findAll(String sql, MapSqlParameterSource params, RowMapper<T> rowMapper) {
+		return jdbc.query(sql, params, rowMapper);
 	}
 
-	public List<T> executeQuery(String sql, MapSqlParameterSource params) {
-		return jdbc.query(sql, params, mapper);
+	public Optional<T> findOne(String sql, MapSqlParameterSource params, RowMapper<T> rowMapper) {
+		return jdbc.query(sql, params, rowMapper).stream().findFirst();
 	}
 
-	public Optional<T> executeSingle(String sql, MapSqlParameterSource params) {
-		return jdbc.query(sql, params, mapper).stream().findFirst();
-	}
-
-	public Long executeCount(String sql, MapSqlParameterSource params) {
+	public Long count(String sql, MapSqlParameterSource params) {
 		return jdbc.queryForObject(sql, params, Long.class);
 	}
 }

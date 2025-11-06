@@ -38,10 +38,10 @@ public class UserGridConfigurator {
 			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ID), queryBlock.getIdSortIcon()));
 
 		var nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
-				Span nameSpan = new Span(user.name());
+				Span nameSpan = new Span(user.getName());
 				nameSpan.getStyle().set("font-weight", "500").set("white-space", "normal").set("overflow-wrap", "anywhere");
 
-				Span emailSpan = new Span(user.email());
+				Span emailSpan = new Span(user.getEmail());
 				emailSpan.getStyle().set("font-size", "12px").set("color", "gray").set("white-space", "normal")
 					.set("overflow-wrap", "anywhere");
 
@@ -57,15 +57,15 @@ public class UserGridConfigurator {
 				i18n.get(USER_VIEW_HEADER_EMAIL), queryBlock.getEmailSortIcon()
 			));
 
-		var roleColumn = grid.addColumn(user -> user.role().name())
+		var roleColumn = grid.addColumn(user -> user.getRole().name())
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ROLE), queryBlock.getRoleSortIcon()));
 
-		var createdColumn = grid.addColumn(user -> user.createdAt().toString())
+		var createdColumn = grid.addColumn(user -> user.getCreatedAt().toString())
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_CREATED), queryBlock.getCreatedSortIcon()));
 
-		var updatedColumn = grid.addColumn(user -> user.updatedAt().toString())
+		var updatedColumn = grid.addColumn(user -> user.getUpdatedAt().toString())
 			.setAutoWidth(true).setFlexGrow(0)
 			.setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_UPDATED), queryBlock.getUpdatedSortIcon()));
 

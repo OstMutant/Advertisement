@@ -100,7 +100,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private void openConfirmDeleteDialog(AdvertisementInfoDto ad) {
 		ConfirmDeleteHelper.showConfirm(
 			i18n,
-			i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.title(), ad.id()),
+			i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
 			ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
 			ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
 			() -> {
