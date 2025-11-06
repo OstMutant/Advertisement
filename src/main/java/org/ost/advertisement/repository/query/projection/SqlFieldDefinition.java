@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.query.meta;
+package org.ost.advertisement.repository.query.projection;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;

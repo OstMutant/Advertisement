@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.query.sql;
+package org.ost.advertisement.repository.query.exec;
 
 import java.util.Arrays;
 import org.apache.commons.lang3.StringUtils;

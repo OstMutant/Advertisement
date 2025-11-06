@@ -1,6 +1,6 @@
 package org.ost.advertisement.repository.query.filter;
 
-public interface FilterProjection {
+public interface FilterMapping {
 
 	String filterProperty();
 

@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.advertisement.mapping;
+package org.ost.advertisement.repository.advertisement;
 
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.createdAt;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.createdByUserEmail;
@@ -8,9 +8,9 @@ import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.description;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.id;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.title;
 import static org.ost.advertisement.dto.AdvertisementInfoDto.Fields.updatedAt;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.id;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.instant;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.str;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.id;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.instant;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,8 +18,8 @@ import java.time.Instant;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.repository.query.mapping.SqlProjection;
-import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
+import org.ost.advertisement.repository.query.projection.SqlProjection;
+import org.ost.advertisement.repository.query.projection.SqlFieldDefinition;
 
 public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto> {
 

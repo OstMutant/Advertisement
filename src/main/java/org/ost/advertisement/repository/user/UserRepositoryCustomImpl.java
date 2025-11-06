@@ -4,9 +4,6 @@ import java.util.Optional;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.RepositoryCustom;
-import org.ost.advertisement.repository.user.filter.UserEmailFilterApplier;
-import org.ost.advertisement.repository.user.filter.UserFilterApplier;
-import org.ost.advertisement.repository.user.mapping.UserProjection;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -14,16 +11,16 @@ import org.springframework.stereotype.Repository;
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
 	implements UserRepositoryCustom {
 
-	private static final UserProjection USER_MAPPER = new UserProjection();
-	private static final UserFilterApplier USER_FILTER_APPLIER = new UserFilterApplier();
-	private static final UserEmailFilterApplier USER_EMAIL_FILTER_APPLIER = new UserEmailFilterApplier();
+	private static final UserProjection USER_PROJECTION = new UserProjection();
+	private static final UserFilterBuilder USER_FILTER_BUILDER = new UserFilterBuilder();
+	private static final UserEmailFilterBuilder USER_EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
 
 	public UserRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
-		super(jdbc, USER_MAPPER, USER_FILTER_APPLIER);
+		super(jdbc, USER_PROJECTION, USER_FILTER_BUILDER);
 	}
 
 	@Override
 	public Optional<User> findByEmail(String email) {
-		return find(USER_EMAIL_FILTER_APPLIER, email);
+		return find(USER_EMAIL_FILTER_BUILDER, email);
 	}
 }

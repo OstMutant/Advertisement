@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.user.filter;
+package org.ost.advertisement.repository.user;
 
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.createdAtEnd;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.createdAtStart;
@@ -9,25 +9,25 @@ import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.role;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.startId;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtEnd;
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.updatedAtStart;
-import static org.ost.advertisement.repository.query.filter.Condition.after;
-import static org.ost.advertisement.repository.query.filter.Condition.before;
-import static org.ost.advertisement.repository.query.filter.Condition.equalsTo;
-import static org.ost.advertisement.repository.query.filter.Condition.like;
-import static org.ost.advertisement.repository.query.filter.SimpleFilterRelation.of;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.CREATED_AT;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.EMAIL;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.ID;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.NAME;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.ROLE;
-import static org.ost.advertisement.repository.user.mapping.UserProjection.UPDATED_AT;
+import static org.ost.advertisement.repository.query.filter.SqlCondition.after;
+import static org.ost.advertisement.repository.query.filter.SqlCondition.before;
+import static org.ost.advertisement.repository.query.filter.SqlCondition.equalsTo;
+import static org.ost.advertisement.repository.query.filter.SqlCondition.like;
+import static org.ost.advertisement.repository.query.filter.DefaultFilterBinding.of;
+import static org.ost.advertisement.repository.user.UserProjection.CREATED_AT;
+import static org.ost.advertisement.repository.user.UserProjection.EMAIL;
+import static org.ost.advertisement.repository.user.UserProjection.ID;
+import static org.ost.advertisement.repository.user.UserProjection.NAME;
+import static org.ost.advertisement.repository.user.UserProjection.ROLE;
+import static org.ost.advertisement.repository.user.UserProjection.UPDATED_AT;
 
 import java.util.List;
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.advertisement.repository.query.filter.FilterApplier;
+import org.ost.advertisement.repository.query.filter.FilterBuilder;
 
-public class UserFilterApplier extends FilterApplier<UserFilterDto> {
+public class UserFilterBuilder extends FilterBuilder<UserFilterDto> {
 
-	public UserFilterApplier() {
+	public UserFilterBuilder() {
 		relations.addAll(List.of(
 			of(name, NAME, (projection, value) -> like(projection, value.getName())),
 			of(email, EMAIL, (projection, value) -> like(projection, value.getEmail())),

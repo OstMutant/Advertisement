@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.user.mapping;
+package org.ost.advertisement.repository.user;
 
 import static org.ost.advertisement.entities.User.Fields.createdAt;
 import static org.ost.advertisement.entities.User.Fields.email;
@@ -8,9 +8,9 @@ import static org.ost.advertisement.entities.User.Fields.name;
 import static org.ost.advertisement.entities.User.Fields.passwordHash;
 import static org.ost.advertisement.entities.User.Fields.role;
 import static org.ost.advertisement.entities.User.Fields.updatedAt;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.id;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.instant;
-import static org.ost.advertisement.repository.query.meta.SqlFieldBuilder.str;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.id;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.instant;
+import static org.ost.advertisement.repository.query.projection.SqlFieldBuilder.str;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -19,8 +19,8 @@ import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.query.mapping.SqlProjection;
-import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
+import org.ost.advertisement.repository.query.projection.SqlProjection;
+import org.ost.advertisement.repository.query.projection.SqlFieldDefinition;
 
 public class UserProjection extends SqlProjection<User> {
 

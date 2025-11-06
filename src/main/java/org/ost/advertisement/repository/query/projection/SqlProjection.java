@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.query.mapping;
+package org.ost.advertisement.repository.query.projection;
 
 import static java.util.Optional.ofNullable;
 
@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
-import org.ost.advertisement.repository.query.meta.SqlFieldDefinition;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 

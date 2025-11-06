@@ -5,9 +5,9 @@ import static java.util.Optional.ofNullable;
 import java.util.List;
 import java.util.Optional;
 import org.ost.advertisement.repository.query.exec.RepositoryExecutor;
-import org.ost.advertisement.repository.query.filter.FilterApplier;
-import org.ost.advertisement.repository.query.mapping.SqlProjection;
-import org.ost.advertisement.repository.query.sql.SqlQueryBuilder;
+import org.ost.advertisement.repository.query.filter.FilterBuilder;
+import org.ost.advertisement.repository.query.projection.SqlProjection;
+import org.ost.advertisement.repository.query.exec.SqlQueryBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -15,14 +15,14 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 public class RepositoryCustom<T, F> {
 
 	protected final SqlProjection<T> sqlProjection;
-	protected final FilterApplier<F> filterApplier;
+	protected final FilterBuilder<F> filterBuilder;
 	protected final SqlQueryBuilder sqlQueryBuilder;
 	protected final RepositoryExecutor<T> executor;
 
 	protected RepositoryCustom(NamedParameterJdbcTemplate jdbc, SqlProjection<T> sqlProjection,
-							   FilterApplier<F> filterApplier) {
+							   FilterBuilder<F> filterBuilder) {
 		this.sqlProjection = sqlProjection;
-		this.filterApplier = filterApplier;
+		this.filterBuilder = filterBuilder;
 		this.sqlQueryBuilder = new SqlQueryBuilder();
 		this.executor = new RepositoryExecutor<>(jdbc);
 	}
@@ -32,7 +32,7 @@ public class RepositoryCustom<T, F> {
 		String sql = sqlQueryBuilder.select(
 			sqlProjection.getSelectClause(),
 			sqlProjection.getSqlSource(),
-			filterApplier.apply(params, filter),
+			filterBuilder.build(params, filter),
 			sqlProjection.getOrderByClause(pageable.getSort()),
 			pageableToSql(params, pageable)
 		);
@@ -43,17 +43,17 @@ public class RepositoryCustom<T, F> {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		String sql = sqlQueryBuilder.count(
 			sqlProjection.getSqlSource(),
-			filterApplier.apply(params, filter)
+			filterBuilder.build(params, filter)
 		);
 		return executor.count(sql, params);
 	}
 
-	public <C> Optional<T> find(FilterApplier<C> customApplier, C filter) {
+	public <C> Optional<T> find(FilterBuilder<C> customApplier, C filter) {
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		String sql = sqlQueryBuilder.select(
 			sqlProjection.getSelectClause(),
 			sqlProjection.getSqlSource(),
-			customApplier.apply(params, filter)
+			customApplier.build(params, filter)
 		);
 		return executor.findOne(sql, params, sqlProjection);
 	}
