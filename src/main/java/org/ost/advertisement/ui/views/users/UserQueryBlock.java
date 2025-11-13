@@ -35,6 +35,7 @@ import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope
@@ -73,7 +74,10 @@ public class UserQueryBlock {
 						  I18nService i18n) {
 		this.actionsBlock = new ActionBlock(i18n);
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, UserFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort());
+		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
+			Sort.Order.desc(User.Fields.updatedAt),
+			Sort.Order.desc(User.Fields.createdAt)
+		)));
 
 		this.idMin = createNumberField(i18n.get(USER_FILTER_ID_MIN));
 		this.idMax = createNumberField(i18n.get(USER_FILTER_ID_MAX));
@@ -101,6 +105,7 @@ public class UserQueryBlock {
 		sortProcessor.register(roleSortIcon, User.Fields.role, actionsBlock);
 		sortProcessor.register(createdSortIcon, User.Fields.createdAt, actionsBlock);
 		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, actionsBlock);
+		sortProcessor.refreshSorting();
 
 		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, actionsBlock);
 		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, actionsBlock);

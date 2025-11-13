@@ -32,6 +32,7 @@ import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope
@@ -61,7 +62,10 @@ public class AdvertisementQueryBlock {
 		this.i18n = i18n;
 		this.actionsBlock = new ActionBlock(i18n);
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort());
+		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
+			Sort.Order.desc(AdvertisementInfoDto.Fields.updatedAt),
+			Sort.Order.desc(AdvertisementInfoDto.Fields.createdAt)
+		)));
 
 		this.titleSortIcon = new TriStateSortIcon();
 		this.createdSortIcon = new TriStateSortIcon();
@@ -79,6 +83,7 @@ public class AdvertisementQueryBlock {
 		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, actionsBlock);
 		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, actionsBlock);
 		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, actionsBlock);
+		sortProcessor.refreshSorting();
 
 		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
 		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);

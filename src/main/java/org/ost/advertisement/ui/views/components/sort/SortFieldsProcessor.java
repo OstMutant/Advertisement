@@ -8,7 +8,6 @@ import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
-
 public class SortFieldsProcessor {
 
 	protected final CustomSort defaultSort;
@@ -27,6 +26,7 @@ public class SortFieldsProcessor {
 
 	public void register(TriStateSortIcon field, String property, ActionStateChangeListener events) {
 		fieldsMap.put(field, property);
+		field.setDirection(newSort.getDirection(property));
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
 			events.setChanged(isSortingChanged());
@@ -47,9 +47,15 @@ public class SortFieldsProcessor {
 	}
 
 	public void clearSorting() {
-		fieldsMap.keySet().forEach(TriStateSortIcon::clear);
 		originalSort.copyFrom(defaultSort);
 		newSort.copyFrom(defaultSort);
+
+		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
+			TriStateSortIcon field = entry.getKey();
+			String property = entry.getValue();
+			field.setDirection(newSort.getDirection(property));
+		}
+		refreshSorting();
 	}
 
 	protected void highlightChangedFields() {
