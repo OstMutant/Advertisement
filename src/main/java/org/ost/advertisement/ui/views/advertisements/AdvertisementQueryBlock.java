@@ -24,15 +24,15 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
+import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
-import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope
@@ -62,10 +62,7 @@ public class AdvertisementQueryBlock {
 		this.i18n = i18n;
 		this.actionsBlock = new ActionBlock(i18n);
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
-			Sort.Order.desc(AdvertisementInfoDto.Fields.updatedAt),
-			Sort.Order.desc(AdvertisementInfoDto.Fields.createdAt)
-		)));
+		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
 
 		this.titleSortIcon = new TriStateSortIcon();
 		this.createdSortIcon = new TriStateSortIcon();

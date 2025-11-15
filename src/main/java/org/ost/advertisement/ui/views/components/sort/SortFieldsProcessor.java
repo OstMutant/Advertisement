@@ -1,10 +1,14 @@
 package org.ost.advertisement.ui.views.components.sort;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.UnaryOperator;
 import lombok.Getter;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -56,6 +60,19 @@ public class SortFieldsProcessor {
 			field.setDirection(newSort.getDirection(property));
 		}
 		refreshSorting();
+	}
+
+	public List<String> getSortDescriptions(I18nService i18n, UnaryOperator<String> labelProvider) {
+		return newSort.getSort().stream()
+			.map(order -> {
+				String label = labelProvider.apply(order.getProperty());
+				String direction = switch (order.getDirection()) {
+					case ASC -> i18n.get(I18nKey.SORT_DIRECTION_ASC);
+					case DESC -> i18n.get(I18nKey.SORT_DIRECTION_DESC);
+				};
+				return label + " (" + direction + ")";
+			})
+			.toList();
 	}
 
 	protected void highlightChangedFields() {

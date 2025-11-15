@@ -16,6 +16,8 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 
 @SpringComponent
 @UIScope
@@ -50,21 +52,20 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	}
 
 	private void refreshAdvertisements() {
+		var queryBlock = sidebar.getQueryBlock();
+		FilterFieldsProcessor<AdvertisementFilterDto> filterFieldsProcessor = queryBlock.getFilterProcessor();
+		SortFieldsProcessor sortFieldsProcessor = queryBlock.getSortProcessor();
+
 		int page = getPaginationBar().getCurrentPage();
 		int size = getPaginationBar().getPageSize();
 
-		AdvertisementFilterDto filter = sidebar.getQueryBlock()
-			.getFilterProcessor()
-			.getOriginalFilter();
+		AdvertisementFilterDto filter = filterFieldsProcessor.getOriginalFilter();
 
 		List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
 			filter,
 			page,
 			size,
-			sidebar.getQueryBlock()
-				.getSortProcessor()
-				.getOriginalSort()
-				.getSort()
+			sortFieldsProcessor.getOriginalSort().getSort()
 		);
 
 		int totalCount = advertisementService.count(filter);
@@ -80,6 +81,8 @@ public class AdvertisementsView extends AdvertisementsLayout {
 			);
 			getAdvertisementContainer().add(card);
 		});
+
+		getStatusBar().update(filterFieldsProcessor, sortFieldsProcessor);
 	}
 
 	private void openAdvertisementFormDialog(AdvertisementInfoDto ad) {

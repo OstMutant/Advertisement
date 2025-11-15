@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.advertisements;
+package org.ost.advertisement.ui.views.advertisements.meta;
 
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.createdAtEnd;
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.createdAtStart;
