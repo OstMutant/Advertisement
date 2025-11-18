@@ -25,35 +25,44 @@ public class QueryStatusBar extends HorizontalLayout {
 		this.i18n = i18n;
 		this.sortLabelProvider = sortLabelProvider;
 
-		setWidthFull();
-		setSpacing(true);
-		setPadding(false);
-		setAlignItems(Alignment.BASELINE);
-		getStyle().set("font-size", "0.9rem");
-		getStyle().set("color", "#444");
-		getStyle().set("margin-bottom", "8px");
-		getStyle().set("border-bottom", "1px solid #ddd");
-		getStyle().set("padding-bottom", "4px");
-
-		filterInfo.getStyle().set("font-weight", "500");
-		sortInfo.getStyle().set("font-weight", "500");
-		separator.getStyle().set("margin", "0 8px").set("color", "#999");
-
+		applyStyles();
 		add(filterInfo, separator, sortInfo);
 		update(filterProcessor, sortProcessor);
 	}
 
 	public void update(FilterFieldsProcessor<?> filterProcessor, SortFieldsProcessor sortProcessor) {
 		List<String> filters = filterProcessor.getActiveFilterDescriptions();
+		List<String> sorts = sortProcessor.getSortDescriptions(i18n, sortLabelProvider);
+
 		filterInfo.setText(filters.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_FILTERS_NONE)
-			: i18n.get(I18nKey.QUERY_STATUS_FILTERS_PREFIX) + String.join(", ", filters));
+			: i18n.get(I18nKey.QUERY_STATUS_FILTERS_PREFIX) + " " + String.join(", ", filters));
 
-		List<String> sorts = sortProcessor.getSortDescriptions(i18n, sortLabelProvider);
 		sortInfo.setText(sorts.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_SORT_NONE)
-			: i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + String.join(", ", sorts));
+			: i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + " " + String.join(", ", sorts));
+
+		separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
+	}
+
+	private void applyStyles() {
+		setWidthFull();
+		setSpacing(true);
+		setPadding(false);
+		setAlignItems(Alignment.BASELINE);
+
+		getStyle()
+			.set("font-size", "0.85rem")
+			.set("color", "#444")
+			.set("background-color", "#f9f9f9")
+			.set("border-radius", "6px")
+			.set("padding", "8px 12px")
+			.set("margin-bottom", "12px")
+			.set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)")
+			.set("flex-wrap", "wrap");
+
+		filterInfo.getStyle().set("font-weight", "500");
+		sortInfo.getStyle().set("font-weight", "500");
+		separator.getStyle().set("margin", "0 8px").set("color", "#999");
 	}
 }
-
-
