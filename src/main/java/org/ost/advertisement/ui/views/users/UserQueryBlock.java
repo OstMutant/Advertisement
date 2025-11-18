@@ -35,6 +35,7 @@ import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
 import org.springframework.data.domain.Sort;
 
 @SpringComponent
