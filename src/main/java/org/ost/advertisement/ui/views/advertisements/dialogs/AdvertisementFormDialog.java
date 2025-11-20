@@ -1,6 +1,19 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_CREATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_TITLE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_UPDATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_EDIT;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_NEW;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -9,6 +22,7 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
@@ -36,11 +50,18 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 
 	@Override
 	public void open() {
-		open(new AdvertisementEditDto());
+		openNew();
 	}
 
-	public void open(AdvertisementEditDto dto) {
-		dto = dto == null ? new AdvertisementEditDto() : dto;
+	public void openNew() {
+		openInternal(new AdvertisementEditDto());
+	}
+
+	public void openEdit(AdvertisementEditDto dto) {
+		openInternal(dto == null ? new AdvertisementEditDto() : dto);
+	}
+
+	private void openInternal(AdvertisementEditDto dto) {
 		init(dto);
 		setTitle(dto.getId() == null ? ADVERTISEMENT_DIALOG_TITLE_NEW : ADVERTISEMENT_DIALOG_TITLE_EDIT);
 
@@ -61,16 +82,14 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 			.asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED))
 			.bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
 
-		LabeledField createdField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
-		createdField.set(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatDate(dto.getCreatedAt()));
-
-		LabeledField updatedField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
-		updatedField.set(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatDate(dto.getUpdatedAt()));
-
-		LabeledField userField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
-		userField.set(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()));
-
-		addContent(titleField, descriptionField, createdField, updatedField, userField);
+		addContent(
+			titleField,
+			descriptionField,
+			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatDate(dto.getCreatedAt()), TailwindStyle.GRAY_LABEL),
+			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatDate(dto.getUpdatedAt()), TailwindStyle.GRAY_LABEL),
+			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()),
+				TailwindStyle.EMAIL_LABEL)
+		);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
 		saveButton.addClickListener(event -> save(ad -> advertisementService.save(mapper.toAdvertisement(ad)),
@@ -82,5 +101,11 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 
 		addActions(saveButton, cancelButton);
 		super.open();
+	}
+
+	private LabeledField labeledMeta(I18nKey labelKey, String value, TailwindStyle style) {
+		LabeledField field = new LabeledField(i18n, style);
+		field.set(labelKey, value);
+		return field;
 	}
 }

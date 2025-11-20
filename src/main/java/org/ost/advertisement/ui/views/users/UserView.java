@@ -55,7 +55,7 @@ public class UserView extends UserLayout {
 			getGrid(),
 			queryBlock,
 			i18n,
-			u -> upsertDialog.open(mapper.toUserEdit(u)),
+			u -> upsertDialog.openEdit(mapper.toUserEdit(u)),
 			this::confirmAndDelete,
 			this::refreshGrid
 		);

@@ -83,7 +83,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		ads.forEach(ad -> {
 			AdvertisementCardView card = new AdvertisementCardView(
 				ad,
-				() -> upsertDialog.open(mapper.toAdvertisementEdit(ad)),
+				() -> upsertDialog.openEdit(mapper.toAdvertisementEdit(ad)),
 				() -> openConfirmDeleteDialog(ad),
 				i18n
 			);

@@ -25,6 +25,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
@@ -49,7 +50,15 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 		this.mapper = mapper;
 	}
 
-	public void open(UserEditDto user) {
+	@Override
+	public void open() {
+	}
+
+	public void openEdit(UserEditDto user) {
+		openInternal(user);
+	}
+
+	private void openInternal(UserEditDto user) {
 		init(user);
 		setTitle(USER_DIALOG_TITLE);
 
@@ -70,19 +79,14 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
 			.bind(UserEditDto::getRole, UserEditDto::setRole);
 
-		LabeledField idField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
-		idField.set(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()));
-
-		LabeledField emailField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
-		emailField.set(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""));
-
-		LabeledField createdField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
-		createdField.set(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()));
-
-		LabeledField updatedField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
-		updatedField.set(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()));
-
-		addContent(idField, emailField, nameField, roleCombo, createdField, updatedField);
+		addContent(
+			meta(USER_DIALOG_FIELD_ID_LABEL, String.valueOf(user.getId()), TailwindStyle.EMAIL_LABEL),
+			meta(USER_DIALOG_FIELD_EMAIL_LABEL, ofNullable(user.getEmail()).orElse(""), TailwindStyle.EMAIL_LABEL),
+			nameField,
+			roleCombo,
+			meta(USER_DIALOG_FIELD_CREATED_LABEL, formatDate(user.getCreatedAt()), TailwindStyle.GRAY_LABEL),
+			meta(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()), TailwindStyle.GRAY_LABEL)
+		);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, USER_DIALOG_BUTTON_SAVE);
 		saveButton.addClickListener(event -> save(
@@ -95,6 +99,12 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
-		open();
+		super.open();
+	}
+
+	private LabeledField meta(I18nKey label, String value, TailwindStyle style) {
+		LabeledField field = new LabeledField(i18n, style);
+		field.set(label, value);
+		return field;
 	}
 }
