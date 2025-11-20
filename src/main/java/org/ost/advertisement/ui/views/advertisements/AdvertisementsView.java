@@ -15,6 +15,7 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementFormDialog;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;

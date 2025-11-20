@@ -16,6 +16,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.ost.advertisement.ui.views.users.dialogs.UserFormDialog;
 
 @SpringComponent
 @UIScope

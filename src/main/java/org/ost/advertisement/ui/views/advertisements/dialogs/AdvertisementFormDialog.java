@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.advertisements;
+package org.ost.advertisement.ui.views.advertisements.dialogs;
 
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;

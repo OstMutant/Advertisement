@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.users;
+package org.ost.advertisement.ui.views.users.dialogs;
 
 import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.USER_DIALOG_BUTTON_CANCEL;
