@@ -8,8 +8,6 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -30,6 +28,7 @@ import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.ActionBlock;
+import org.ost.advertisement.ui.views.components.ContentFactory;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
@@ -56,6 +55,9 @@ public class AdvertisementQueryBlock {
 
 	private final I18nService i18n;
 
+	@Getter
+	private final VerticalLayout layout;
+
 	public AdvertisementQueryBlock(I18nService i18n,
 								   AdvertisementFilterMapper filterMapper,
 								   ValidationService<AdvertisementFilterDto> validation) {
@@ -68,11 +70,13 @@ public class AdvertisementQueryBlock {
 		this.createdSortIcon = new TriStateSortIcon();
 		this.updatedSortIcon = new TriStateSortIcon();
 
-		this.titleField = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
-		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
-		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
-		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
-		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+		this.titleField = ContentFactory.createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
+		this.createdStart = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
+		this.createdEnd = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
+		this.updatedStart = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
+		this.updatedEnd = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+
+		this.layout = buildLayout();
 	}
 
 	@PostConstruct
@@ -89,11 +93,18 @@ public class AdvertisementQueryBlock {
 		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, actionsBlock);
 	}
 
-	public Component getComponent() {
+	private VerticalLayout buildLayout() {
 		VerticalLayout layout = new VerticalLayout();
 		layout.setPadding(false);
 		layout.setSpacing(false);
-		layout.getStyle().set("gap", "6px");
+		layout.setVisible(false);
+		layout.getStyle()
+			.set("margin-top", "8px")
+			.set("padding", "8px")
+			.set("border", "1px solid #ddd")
+			.set("border-radius", "6px")
+			.set("background-color", "#fafafa")
+			.set("gap", "6px");
 
 		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon, titleField));
 		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdSortIcon, createdStart, createdEnd));

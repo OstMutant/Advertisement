@@ -1,7 +1,10 @@
 package org.ost.advertisement.ui.views.advertisements;
 
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
+
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
 import org.ost.advertisement.services.I18nService;
@@ -10,39 +13,58 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.QueryStatusBar;
 
 @Getter
-public class AdvertisementsLayout extends HorizontalLayout {
+public class AdvertisementsLayout extends VerticalLayout {
 
+	private final QueryStatusBar statusBar;
+	private final AdvertisementQueryBlock queryBlock;
+	private final Button addAdvertisementButton;
 	private final FlexLayout advertisementContainer = new FlexLayout();
 	private final PaginationBarModern paginationBar;
-	private final QueryStatusBar statusBar;
 
-	public AdvertisementsLayout(AdvertisementLeftSidebar sideBar, I18nService i18n) {
-		this.paginationBar = new PaginationBarModern(i18n);
+	public AdvertisementsLayout(AdvertisementQueryBlock queryBlock, I18nService i18n) {
+		this.queryBlock = queryBlock;
+
 		this.statusBar = new QueryStatusBar(
 			i18n,
-			sideBar.getQueryBlock().getFilterProcessor(),
-			sideBar.getQueryBlock().getSortProcessor(),
+			queryBlock.getFilterProcessor(),
+			queryBlock.getSortProcessor(),
 			AdvertisementSortMeta.labelProvider(i18n)
 		);
 
+		this.addAdvertisementButton = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+		addAdvertisementButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+		addAdvertisementButton.getStyle().set("margin-top", "12px");
+
 		setSizeFull();
-		setSpacing(true);
+		setSpacing(false);
 		setPadding(true);
 
 		advertisementContainer.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-		advertisementContainer.setJustifyContentMode(JustifyContentMode.START);
-		advertisementContainer.setAlignItems(Alignment.START);
+		advertisementContainer.setJustifyContentMode(FlexLayout.JustifyContentMode.START);
+		advertisementContainer.setAlignItems(FlexLayout.Alignment.START);
 		advertisementContainer.getStyle()
 			.set("gap", "16px")
 			.set("padding", "16px");
 
-		VerticalLayout contentLayout = new VerticalLayout(statusBar, advertisementContainer, paginationBar);
-		contentLayout.setSizeFull();
-		contentLayout.setSpacing(true);
-		contentLayout.setPadding(false);
-		contentLayout.setFlexGrow(1, advertisementContainer);
+		statusBar.getElement().addEventListener("click", e ->
+			queryBlock.getLayout().setVisible(!queryBlock.getLayout().isVisible())
+		);
+		statusBar.getStyle().set("cursor", "pointer");
 
-		add(sideBar, contentLayout);
-		setFlexGrow(1, contentLayout);
+		this.paginationBar = new PaginationBarModern(i18n);
+
+		add(
+			statusBar,
+			queryBlock.getLayout(),
+			addAdvertisementButton,
+			advertisementContainer,
+			paginationBar
+		);
+		setFlexGrow(1, advertisementContainer);
+	}
+
+	public void eventProcessor(Runnable onRefreshAction, Runnable onAddButton) {
+		addAdvertisementButton.addClickListener(e -> onAddButton.run());
+		queryBlock.eventProcessor(onRefreshAction);
 	}
 }

@@ -26,21 +26,21 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient AdvertisementService advertisementService;
 	private final transient AdvertisementMapper mapper;
 	private final transient I18nService i18n;
-	private final AdvertisementLeftSidebar sidebar;
+	private final AdvertisementQueryBlock queryBlock;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
 							  AdvertisementMapper mapper,
-							  AdvertisementLeftSidebar sidebar,
+							  AdvertisementQueryBlock queryBlock,
 							  I18nService i18n) {
-		super(sidebar, i18n);
+		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
 		this.mapper = mapper;
-		this.sidebar = sidebar;
+		this.queryBlock = queryBlock;
 		this.i18n = i18n;
 
 		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
 
-		sidebar.eventProcessor(
+		eventProcessor(
 			() -> {
 				getPaginationBar().setTotalCount(0);
 				refreshAdvertisements();
@@ -52,7 +52,6 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	}
 
 	private void refreshAdvertisements() {
-		var queryBlock = sidebar.getQueryBlock();
 		FilterFieldsProcessor<AdvertisementFilterDto> filterFieldsProcessor = queryBlock.getFilterProcessor();
 		SortFieldsProcessor sortFieldsProcessor = queryBlock.getSortProcessor();
 
