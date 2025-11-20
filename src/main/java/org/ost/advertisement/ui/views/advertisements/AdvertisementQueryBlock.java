@@ -106,28 +106,30 @@ public class AdvertisementQueryBlock {
 			.set("background-color", "#fafafa")
 			.set("gap", "6px");
 
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon, titleField));
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdSortIcon, createdStart, createdEnd));
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedSortIcon, updatedStart, updatedEnd));
+		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon, titleField));
+		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdSortIcon, createdStart, createdEnd));
+		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedSortIcon, updatedStart, updatedEnd));
 		layout.add(actionsBlock.getComponent());
 
 		return layout;
 	}
 
-	private Component createRow(String labelText, Component sortIcon, Component... filterFields) {
+	private Component createInlineRow(String labelText, Component sortIcon, Component... filterFields) {
 		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(labelText), sortIcon);
 		labelAndSort.setAlignItems(Alignment.CENTER);
 		labelAndSort.setSpacing(true);
 
-		VerticalLayout filters = new VerticalLayout(filterFields);
-		filters.setPadding(false);
-		filters.setSpacing(false);
-		filters.getStyle().set("gap", "4px");
+		HorizontalLayout filters = new HorizontalLayout(filterFields);
+		filters.setAlignItems(Alignment.END);
+		filters.setSpacing(true);
 
-		VerticalLayout block = new VerticalLayout(labelAndSort, filters);
-		block.setPadding(false);
-		block.setSpacing(false);
-		return block;
+		HorizontalLayout row = new HorizontalLayout(labelAndSort, filters);
+		row.setWidthFull();
+		row.setAlignItems(Alignment.CENTER);
+		row.setSpacing(true);
+		row.getStyle().set("gap", "12px");
+
+		return row;
 	}
 
 	public void eventProcessor(Runnable onApply) {
