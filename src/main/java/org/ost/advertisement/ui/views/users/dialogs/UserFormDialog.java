@@ -21,6 +21,8 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
@@ -33,30 +35,30 @@ import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
 
+@SpringComponent
+@UIScope
 @Slf4j
 public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 
-	public UserFormDialog(UserEditDto user,
-						  UserService userService,
-						  I18nService i18n,
-						  UserMapper mapper) {
-		super(user, UserEditDto.class, i18n);
+	private final UserService userService;
+	private final UserMapper mapper;
 
+	public UserFormDialog(UserService userService, I18nService i18n, UserMapper mapper) {
+		super(UserEditDto.class, i18n);
+		this.userService = userService;
+		this.mapper = mapper;
+	}
+
+	public void open(UserEditDto user) {
+		init(user);
 		setTitle(USER_DIALOG_TITLE);
 
 		TextField nameField = DialogContentFactory.textField(
-			i18n,
-			USER_DIALOG_FIELD_NAME_LABEL,
-			USER_DIALOG_FIELD_NAME_PLACEHOLDER,
-			255,
-			true
+			i18n, USER_DIALOG_FIELD_NAME_LABEL, USER_DIALOG_FIELD_NAME_PLACEHOLDER, 255, true
 		);
 
 		ComboBox<Role> roleCombo = DialogContentFactory.comboBox(
-			i18n,
-			USER_DIALOG_FIELD_ROLE_LABEL,
-			Arrays.asList(Role.values()),
-			true
+			i18n, USER_DIALOG_FIELD_ROLE_LABEL, Arrays.asList(Role.values()), true
 		);
 
 		binder.forField(nameField)
@@ -80,23 +82,19 @@ public class UserFormDialog extends GenericFormDialog<UserEditDto> {
 		LabeledField updatedField = new LabeledField(i18n, TailwindStyle.GRAY_LABEL);
 		updatedField.set(USER_DIALOG_FIELD_UPDATED_LABEL, formatDate(user.getUpdatedAt()));
 
-		addContent(
-			idField,
-			emailField,
-			nameField,
-			roleCombo,
-			createdField,
-			updatedField
-		);
+		addContent(idField, emailField, nameField, roleCombo, createdField, updatedField);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, USER_DIALOG_BUTTON_SAVE);
-		saveButton.addClickListener(event -> save(u -> userService.save(mapper.toUser(u)),
+		saveButton.addClickListener(event -> save(
+			u -> userService.save(mapper.toUser(u)),
 			USER_DIALOG_NOTIFICATION_SUCCESS,
-			USER_DIALOG_NOTIFICATION_SAVE_ERROR));
+			USER_DIALOG_NOTIFICATION_SAVE_ERROR
+		));
 
 		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, USER_DIALOG_BUTTON_CANCEL);
 		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
+		open();
 	}
 }

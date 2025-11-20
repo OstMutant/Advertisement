@@ -11,21 +11,21 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 public class DialogLayout {
 
 	private final VerticalLayout root = new VerticalLayout();
+	private final H2 title = new H2();
 	private final FormLayout form = new FormLayout();
 	private final HorizontalLayout actions = new HorizontalLayout();
 
 	public DialogLayout() {
+		DialogStyle.applyTitle(title);
 		DialogStyle.applyFormLayout(form);
 		DialogStyle.applyActionsLayout(actions);
 		DialogStyle.applyRootLayout(root);
 
-		root.add(wrapScrollable(form), actions);
+		root.add(title, wrapScrollable(form), actions);
 	}
 
 	public void setHeader(String titleText) {
-		H2 title = new H2(titleText);
-		title.addClassName("dialog-title");
-		root.addComponentAsFirst(title);
+		title.setText(titleText);
 	}
 
 	public void addFormContent(Component... components) {
@@ -38,6 +38,12 @@ public class DialogLayout {
 
 	public Component getLayout() {
 		return root;
+	}
+
+	public void removeAll() {
+		title.removeAll();
+		form.removeAll();
+		actions.removeAll();
 	}
 }
 

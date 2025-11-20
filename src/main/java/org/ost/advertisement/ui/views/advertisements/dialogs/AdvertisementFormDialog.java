@@ -1,24 +1,13 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_CREATED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_TITLE;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_UPDATED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_EDIT;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_NEW;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -29,31 +18,38 @@ import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
 
+@SpringComponent
+@UIScope
 @Slf4j
 public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEditDto> {
 
-	public AdvertisementFormDialog(AdvertisementEditDto advertisement,
-								   AdvertisementService advertisementService,
+	private final AdvertisementService advertisementService;
+	private final AdvertisementMapper mapper;
+
+	public AdvertisementFormDialog(AdvertisementService advertisementService,
 								   I18nService i18n,
 								   AdvertisementMapper mapper) {
-		super(advertisement == null ? new AdvertisementEditDto() : advertisement, AdvertisementEditDto.class, i18n);
+		super(AdvertisementEditDto.class, i18n);
+		this.advertisementService = advertisementService;
+		this.mapper = mapper;
+	}
 
+	@Override
+	public void open() {
+		open(new AdvertisementEditDto());
+	}
+
+	public void open(AdvertisementEditDto dto) {
+		dto = dto == null ? new AdvertisementEditDto() : dto;
+		init(dto);
 		setTitle(dto.getId() == null ? ADVERTISEMENT_DIALOG_TITLE_NEW : ADVERTISEMENT_DIALOG_TITLE_EDIT);
 
 		TextField titleField = DialogContentFactory.textField(
-			i18n,
-			ADVERTISEMENT_DIALOG_FIELD_TITLE,
-			ADVERTISEMENT_DIALOG_FIELD_TITLE,
-			255,
-			true
+			i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true
 		);
 
 		TextArea descriptionField = DialogContentFactory.textArea(
-			i18n,
-			ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION,
-			ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION,
-			1000,
-			true
+			i18n, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, 1000, true
 		);
 
 		binder.forField(titleField)
@@ -74,13 +70,7 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 		LabeledField userField = new LabeledField(i18n, TailwindStyle.EMAIL_LABEL);
 		userField.set(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()));
 
-		addContent(
-			titleField,
-			descriptionField,
-			createdField,
-			updatedField,
-			userField
-		);
+		addContent(titleField, descriptionField, createdField, updatedField, userField);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
 		saveButton.addClickListener(event -> save(ad -> advertisementService.save(mapper.toAdvertisement(ad)),
@@ -91,5 +81,6 @@ public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEdit
 		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
+		super.open();
 	}
 }

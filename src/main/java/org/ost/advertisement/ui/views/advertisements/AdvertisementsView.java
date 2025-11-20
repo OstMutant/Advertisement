@@ -27,16 +27,24 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient AdvertisementService advertisementService;
 	private final transient AdvertisementMapper mapper;
 	private final transient I18nService i18n;
-	private final AdvertisementQueryBlock queryBlock;
+	private final transient AdvertisementQueryBlock queryBlock;
+	private final AdvertisementFormDialog upsertDialog;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
 							  AdvertisementMapper mapper,
 							  AdvertisementQueryBlock queryBlock,
+							  AdvertisementFormDialog upsertDialog,
 							  I18nService i18n) {
 		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
 		this.mapper = mapper;
 		this.queryBlock = queryBlock;
+		this.upsertDialog = upsertDialog;
+		this.upsertDialog.addOpenedChangeListener(event -> {
+			if (!event.isOpened()) {
+				refreshAdvertisements();
+			}
+		});
 		this.i18n = i18n;
 
 		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
@@ -46,7 +54,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 				getPaginationBar().setTotalCount(0);
 				refreshAdvertisements();
 			},
-			() -> openAdvertisementFormDialog(null)
+			upsertDialog::open
 		);
 
 		refreshAdvertisements();
@@ -75,7 +83,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		ads.forEach(ad -> {
 			AdvertisementCardView card = new AdvertisementCardView(
 				ad,
-				() -> openAdvertisementFormDialog(ad),
+				() -> upsertDialog.open(mapper.toAdvertisementEdit(ad)),
 				() -> openConfirmDeleteDialog(ad),
 				i18n
 			);
@@ -83,21 +91,6 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		});
 
 		getStatusBar().update(filterFieldsProcessor, sortFieldsProcessor);
-	}
-
-	private void openAdvertisementFormDialog(AdvertisementInfoDto ad) {
-		AdvertisementFormDialog dialog = new AdvertisementFormDialog(
-			mapper.toAdvertisementEdit(ad),
-			advertisementService,
-			i18n,
-			mapper
-		);
-		dialog.addOpenedChangeListener(event -> {
-			if (!event.isOpened()) {
-				refreshAdvertisements();
-			}
-		});
-		dialog.open();
 	}
 
 	private void openConfirmDeleteDialog(AdvertisementInfoDto ad) {

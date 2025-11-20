@@ -82,7 +82,7 @@ public class DialogContentFactory {
 		NotificationType.SUCCESS.show(i18n.get(key));
 	}
 
-	public static void showError(I18nService i18n, I18nKey key, String details) {
-		NotificationType.ERROR.show(i18n.get(key, details));
+	public static void showError(I18nService i18n, I18nKey key, String... args) {
+		NotificationType.ERROR.show(i18n.get(key, args));
 	}
 }

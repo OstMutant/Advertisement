@@ -15,19 +15,24 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 @Slf4j
 public abstract class GenericFormDialog<T> extends Dialog {
 
-	protected final transient I18nService i18n;
-	protected final transient T dto;
-	protected final Binder<T> binder;
-	protected final transient DialogLayout layout = new DialogLayout();
+	protected final I18nService i18n;
+	protected T dto;
+	protected Binder<T> binder;
+	protected final DialogLayout layout = new DialogLayout();
+	protected final Class<T> clazz;
 
-	protected GenericFormDialog(T dto, Class<T> clazz, I18nService i18n) {
+	protected GenericFormDialog(Class<T> clazz, I18nService i18n) {
 		this.i18n = i18n;
+		this.clazz = clazz;
+		DialogStyle.apply(this, "");
+		add(layout.getLayout());
+	}
+
+	public void init(T dto) {
+		layout.removeAll();
 		this.dto = dto;
 		this.binder = new Binder<>(clazz);
 		this.binder.setBean(dto);
-
-		DialogStyle.apply(this, ""); // заголовок встановлюється окремо
-		add(layout.getLayout());
 	}
 
 	protected void setTitle(I18nKey key) {
@@ -43,6 +48,11 @@ public abstract class GenericFormDialog<T> extends Dialog {
 	}
 
 	protected void save(Saver<T> saver, I18nKey successKey, I18nKey errorKey) {
+		if (dto == null) {
+			log.error("DTO is null, cannot save");
+			showError(i18n, errorKey, "DTO is not initialized");
+			return;
+		}
 		try {
 			binder.writeBean(dto);
 			saver.save(dto);
@@ -60,7 +70,7 @@ public abstract class GenericFormDialog<T> extends Dialog {
 
 	@FunctionalInterface
 	public interface Saver<T> {
-
 		void save(T dto);
 	}
+
 }

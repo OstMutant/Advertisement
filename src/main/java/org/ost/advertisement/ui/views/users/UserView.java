@@ -26,16 +26,23 @@ public class UserView extends UserLayout {
 	private final transient UserMapper mapper;
 	private final transient I18nService i18n;
 	private final transient UserQueryBlock queryBlock;
+	private final transient UserFormDialog upsertDialog;
 
 	public UserView(UserQueryBlock queryBlock,
 					UserService userService,
 					I18nService i18n,
-					UserMapper mapper) {
+					UserMapper mapper, UserFormDialog upsertDialog) {
 		super(i18n);
 		this.queryBlock = queryBlock;
 		this.userService = userService;
 		this.i18n = i18n;
 		this.mapper = mapper;
+		this.upsertDialog = upsertDialog;
+		this.upsertDialog.addOpenedChangeListener(e -> {
+			if (!e.isOpened()) {
+				refreshGrid();
+			}
+		});
 
 		getPaginationBar().setPageChangeListener(event -> refreshGrid());
 
@@ -48,7 +55,7 @@ public class UserView extends UserLayout {
 			getGrid(),
 			queryBlock,
 			i18n,
-			this::openUserFormDialog,
+			u -> upsertDialog.open(mapper.toUserEdit(u)),
 			this::confirmAndDelete,
 			this::refreshGrid
 		);
@@ -73,21 +80,6 @@ public class UserView extends UserLayout {
 			getGrid().setItems(List.of());
 			getPaginationBar().setTotalCount(0);
 		}
-	}
-
-	private void openUserFormDialog(User user) {
-		UserFormDialog dialog = new UserFormDialog(
-			mapper.toUserEdit(user),
-			userService,
-			i18n,
-			mapper
-		);
-		dialog.addOpenedChangeListener(e -> {
-			if (!e.isOpened()) {
-				refreshGrid();
-			}
-		});
-		dialog.open();
 	}
 
 	private void confirmAndDelete(User user) {
