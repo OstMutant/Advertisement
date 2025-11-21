@@ -14,6 +14,9 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+import static org.ost.advertisement.ui.views.TailwindStyle.EMAIL_LABEL;
+import static org.ost.advertisement.ui.views.TailwindStyle.GRAY_LABEL;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.textfield.TextArea;
@@ -22,13 +25,11 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
@@ -44,8 +45,8 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 
 	public AdvertisementUpsertDialog(AdvertisementService advertisementService,
 									 I18nService i18n,
-									 AdvertisementMapper mapper) {
-		super(AdvertisementEditDto.class, i18n);
+									 AdvertisementMapper mapper, LabeledField.Builder labeledFieldFBuilder) {
+		super(AdvertisementEditDto.class, i18n, labeledFieldFBuilder);
 		this.advertisementService = advertisementService;
 		this.mapper = mapper;
 	}
@@ -83,10 +84,20 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 		addContent(
 			titleField,
 			descriptionField,
-			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatDate(dto.getCreatedAt()), TailwindStyle.GRAY_LABEL),
-			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatDate(dto.getUpdatedAt()), TailwindStyle.GRAY_LABEL),
-			labeledMeta(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()),
-				TailwindStyle.EMAIL_LABEL)
+			labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_CREATED)
+				.withValue(formatInstant(dto.getCreatedAt()))
+				.withStyles(GRAY_LABEL)
+				.build(),
+
+			labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_UPDATED)
+				.withValue(formatInstant(dto.getUpdatedAt()))
+				.withStyles(GRAY_LABEL)
+				.build(),
+
+			labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_USER)
+				.withValue(String.valueOf(dto.getCreatedByUserId()))
+				.withStyles(EMAIL_LABEL)
+				.build()
 		);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
@@ -99,11 +110,5 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 
 		addActions(saveButton, cancelButton);
 		open();
-	}
-
-	private LabeledField labeledMeta(I18nKey labelKey, String value, TailwindStyle style) {
-		LabeledField field = new LabeledField(i18n, style);
-		field.set(labelKey, value);
-		return field;
 	}
 }

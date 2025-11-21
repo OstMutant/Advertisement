@@ -7,26 +7,26 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.shared.Registration;
-import java.time.Instant;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
 
 @Slf4j
 public abstract class GenericFormDialog<T> extends Dialog {
 
-	protected final I18nService i18n;
-	protected T dto;
-	protected Binder<T> binder;
-	protected final DialogLayout layout = new DialogLayout();
+	protected final transient I18nService i18n;
 	protected final Class<T> clazz;
+	protected final LabeledField.Builder labeledFieldBuilder;
+	protected final transient DialogLayout layout = new DialogLayout();
+	protected transient T dto;
+	protected Binder<T> binder;
 	protected Registration openedChangeListenerRegistration;
 
-	protected GenericFormDialog(Class<T> clazz, I18nService i18n) {
+	protected GenericFormDialog(Class<T> clazz, I18nService i18n, LabeledField.Builder labeledFieldBuilder) {
 		this.i18n = i18n;
 		this.clazz = clazz;
+		this.labeledFieldBuilder = labeledFieldBuilder;
 		DialogStyle.apply(this, "");
 		add(layout.getLayout());
 	}
@@ -73,10 +73,6 @@ public abstract class GenericFormDialog<T> extends Dialog {
 		} else {
 			showError(i18n, errorKey, "Validation failed");
 		}
-	}
-
-	protected String formatDate(Instant instant) {
-		return TimeZoneUtil.formatInstant(instant, "—");
 	}
 
 	@FunctionalInterface
