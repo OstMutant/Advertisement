@@ -17,15 +17,17 @@ import static org.ost.advertisement.constants.I18nKey.USER_DIALOG_VALIDATION_NAM
 import static org.ost.advertisement.constants.I18nKey.USER_DIALOG_VALIDATION_NAME_REQUIRED;
 import static org.ost.advertisement.constants.I18nKey.USER_DIALOG_VALIDATION_ROLE_REQUIRED;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+import static org.ost.advertisement.ui.views.TailwindStyle.EMAIL_LABEL;
+import static org.ost.advertisement.ui.views.TailwindStyle.GRAY_LABEL;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.Arrays;
 import java.util.Objects;
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
@@ -33,35 +35,40 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
-import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
-import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
+import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
 @Slf4j
-public class UserEditDialog extends GenericFormDialog<UserEditDto> {
+@AllArgsConstructor
+public class UserEditDialog {
 
-	private final transient UserService userService;
-	private final transient UserMapper mapper;
-
-	public UserEditDialog(UserService userService, I18nService i18n, UserMapper mapper,
-						  LabeledField.Builder labeledFieldBuilder) {
-		super(UserEditDto.class, i18n, labeledFieldBuilder);
-		this.userService = userService;
-		this.mapper = mapper;
-	}
+	private final UserService userService;
+	private final UserMapper mapper;
+	private final FormDialogDelegate.Builder<UserEditDto> delegateBuilder;
+	private final LabeledField.Builder labeledFieldBuilder;
+	private final I18nService i18n;
 
 	public void openEdit(User user, Runnable refresh) {
-		openInternal(mapper.toUserEdit(Objects.requireNonNull(user)), refresh);
+		UserEditDto dto = mapper.toUserEdit(Objects.requireNonNull(user));
+		FormDialogDelegate<UserEditDto> delegate = buildDelegate(dto, refresh);
+		delegate.setTitle(i18n.get(USER_DIALOG_TITLE));
+		configureDialog(delegate, dto);
+		delegate.open();
 	}
 
-	private void openInternal(UserEditDto user, Runnable refresh) {
-		init(user, refresh);
-		setTitle(USER_DIALOG_TITLE);
+	private FormDialogDelegate<UserEditDto> buildDelegate(UserEditDto dto, Runnable refresh) {
+		return delegateBuilder
+			.withClass(UserEditDto.class)
+			.withDto(dto)
+			.withRefresh(refresh)
+			.build();
+	}
 
+	private void configureDialog(FormDialogDelegate<UserEditDto> delegate, UserEditDto user) {
 		TextField nameField = DialogContentFactory.textField(
 			i18n, USER_DIALOG_FIELD_NAME_LABEL, USER_DIALOG_FIELD_NAME_PLACEHOLDER, 255, true
 		);
@@ -70,47 +77,46 @@ public class UserEditDialog extends GenericFormDialog<UserEditDto> {
 			i18n, USER_DIALOG_FIELD_ROLE_LABEL, Arrays.asList(Role.values()), true
 		);
 
-		binder.forField(nameField)
+		delegate.getBinder().forField(nameField)
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
 			.withValidator(new StringLengthValidator(i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
 			.bind(UserEditDto::getName, UserEditDto::setName);
 
-		binder.forField(roleCombo)
+		delegate.getBinder().forField(roleCombo)
 			.asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
 			.bind(UserEditDto::getRole, UserEditDto::setRole);
 
-		addContent(
+		delegate.addContent(
 			labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_ID_LABEL)
 				.withValue(String.valueOf(user.getId()))
-				.withStyles(TailwindStyle.EMAIL_LABEL)
+				.withStyles(EMAIL_LABEL)
 				.build(),
 			labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_EMAIL_LABEL)
 				.withValue(ofNullable(user.getEmail()).orElse(""))
-				.withStyles(TailwindStyle.EMAIL_LABEL)
+				.withStyles(EMAIL_LABEL)
 				.build(),
 			nameField,
 			roleCombo,
 			labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_CREATED_LABEL)
 				.withValue(formatInstant(user.getCreatedAt()))
-				.withStyles(TailwindStyle.GRAY_LABEL)
+				.withStyles(GRAY_LABEL)
 				.build(),
 			labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_UPDATED_LABEL)
 				.withValue(formatInstant(user.getUpdatedAt()))
-				.withStyles(TailwindStyle.GRAY_LABEL)
+				.withStyles(GRAY_LABEL)
 				.build()
 		);
 
 		Button saveButton = DialogContentFactory.primaryButton(i18n, USER_DIALOG_BUTTON_SAVE);
-		saveButton.addClickListener(event -> save(
+		saveButton.addClickListener(event -> delegate.save(
 			u -> userService.save(mapper.toUser(u)),
 			USER_DIALOG_NOTIFICATION_SUCCESS,
 			USER_DIALOG_NOTIFICATION_SAVE_ERROR
 		));
 
 		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, USER_DIALOG_BUTTON_CANCEL);
-		cancelButton.addClickListener(event -> close());
+		cancelButton.addClickListener(event -> delegate.close());
 
-		addActions(saveButton, cancelButton);
-		open();
+		delegate.addActions(saveButton, cancelButton);
 	}
 }
