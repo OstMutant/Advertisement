@@ -6,7 +6,9 @@ import static org.ost.advertisement.ui.views.components.dialogs.DialogContentFac
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.binder.Binder;
+import com.vaadin.flow.shared.Registration;
 import java.time.Instant;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
@@ -20,6 +22,7 @@ public abstract class GenericFormDialog<T> extends Dialog {
 	protected Binder<T> binder;
 	protected final DialogLayout layout = new DialogLayout();
 	protected final Class<T> clazz;
+	protected Registration openedChangeListenerRegistration;
 
 	protected GenericFormDialog(Class<T> clazz, I18nService i18n) {
 		this.i18n = i18n;
@@ -28,11 +31,21 @@ public abstract class GenericFormDialog<T> extends Dialog {
 		add(layout.getLayout());
 	}
 
-	public void init(T dto) {
-		layout.removeAll();
+	public void init(T dto, Runnable refresh) {
 		this.dto = dto;
 		this.binder = new Binder<>(clazz);
 		this.binder.setBean(dto);
+
+		if (Objects.nonNull(openedChangeListenerRegistration)) {
+			openedChangeListenerRegistration.remove();
+		}
+		if (Objects.nonNull(refresh)) {
+			openedChangeListenerRegistration = addOpenedChangeListener(event -> {
+				if (!event.isOpened()) {
+					refresh.run();
+				}
+			});
+		}
 	}
 
 	protected void setTitle(I18nKey key) {
@@ -53,14 +66,12 @@ public abstract class GenericFormDialog<T> extends Dialog {
 			showError(i18n, errorKey, "DTO is not initialized");
 			return;
 		}
-		try {
-			binder.writeBean(dto);
+		if (binder.writeBeanIfValid(dto)) {
 			saver.save(dto);
 			showSuccess(i18n, successKey);
 			close();
-		} catch (Exception e) {
-			log.error("Failed to save {}", dto, e);
-			showError(i18n, errorKey, e.getMessage());
+		} else {
+			showError(i18n, errorKey, "Validation failed");
 		}
 	}
 
@@ -70,6 +81,7 @@ public abstract class GenericFormDialog<T> extends Dialog {
 
 	@FunctionalInterface
 	public interface Saver<T> {
+
 		void save(T dto);
 	}
 

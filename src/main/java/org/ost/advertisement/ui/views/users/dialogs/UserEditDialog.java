@@ -24,9 +24,11 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.Arrays;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
@@ -50,16 +52,12 @@ public class UserEditDialog extends GenericFormDialog<UserEditDto> {
 		this.mapper = mapper;
 	}
 
-	@Override
-	public void open() {
+	public void openEdit(User user, Runnable refresh) {
+		openInternal(mapper.toUserEdit(Objects.requireNonNull(user)), refresh);
 	}
 
-	public void openEdit(UserEditDto user) {
-		openInternal(user);
-	}
-
-	private void openInternal(UserEditDto user) {
-		init(user);
+	private void openInternal(UserEditDto user, Runnable refresh) {
+		init(user, refresh);
 		setTitle(USER_DIALOG_TITLE);
 
 		TextField nameField = DialogContentFactory.textField(
@@ -99,7 +97,7 @@ public class UserEditDialog extends GenericFormDialog<UserEditDto> {
 		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
-		super.open();
+		open();
 	}
 
 	private LabeledField meta(I18nKey label, String value, TailwindStyle style) {

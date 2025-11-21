@@ -39,12 +39,6 @@ public class DialogLayout {
 	public Component getLayout() {
 		return root;
 	}
-
-	public void removeAll() {
-		title.removeAll();
-		form.removeAll();
-		actions.removeAll();
-	}
 }
 
 

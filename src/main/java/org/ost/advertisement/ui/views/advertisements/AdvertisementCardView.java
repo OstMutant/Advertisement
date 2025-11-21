@@ -27,6 +27,7 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -35,12 +36,13 @@ public class AdvertisementCardView extends VerticalLayout {
 
 	private final transient I18nService i18n;
 	private final transient AdvertisementService advertisementService;
-	private final transient AdvertisementUpsertDialog upsertDialog;
+	private final transient ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider;
 
-	public AdvertisementCardView(I18nService i18n, AdvertisementService advertisementService, AdvertisementUpsertDialog upsertDialog) {
+	public AdvertisementCardView(I18nService i18n, AdvertisementService advertisementService,
+								 ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider) {
 		this.i18n = i18n;
 		this.advertisementService = advertisementService;
-		this.upsertDialog = upsertDialog;
+		this.upsertDialogProvider = upsertDialogProvider;
 	}
 
 	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
@@ -103,7 +105,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
 		Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
 		edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-		edit.addClickListener(e -> upsertDialog.openEdit(ad));
+		edit.addClickListener(e -> upsertDialogProvider.getObject().openEdit(ad, refreshAdvertisements));
 
 		Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
 		delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);

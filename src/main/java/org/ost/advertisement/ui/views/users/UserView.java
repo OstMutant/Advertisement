@@ -1,6 +1,11 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_CONFIRM_CANCEL_BUTTON;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_CONFIRM_DELETE_BUTTON;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_CONFIRM_DELETE_TEXT;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_NOTIFICATION_DELETED;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_NOTIFICATION_DELETE_ERROR;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_NOTIFICATION_VALIDATION_FAILED;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -13,36 +18,29 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
+import org.springframework.beans.factory.ObjectProvider;
 
 @SpringComponent
 @UIScope
 public class UserView extends UserLayout {
 
 	private final transient UserService userService;
-	private final transient UserMapper mapper;
 	private final transient I18nService i18n;
 	private final transient UserQueryBlock queryBlock;
-	private final transient UserEditDialog editDialog;
+	private final transient ObjectProvider<UserEditDialog> editDialogProvider;
 
 	public UserView(UserQueryBlock queryBlock,
 					UserService userService,
 					I18nService i18n,
-					UserMapper mapper, UserEditDialog editDialog) {
+					ObjectProvider<UserEditDialog> editDialogProvider) {
 		super(i18n);
 		this.queryBlock = queryBlock;
 		this.userService = userService;
 		this.i18n = i18n;
-		this.mapper = mapper;
-		this.editDialog = editDialog;
-		this.editDialog.addOpenedChangeListener(e -> {
-			if (!e.isOpened()) {
-				refreshGrid();
-			}
-		});
+		this.editDialogProvider = editDialogProvider;
 
 		getPaginationBar().setPageChangeListener(event -> refreshGrid());
 
@@ -55,7 +53,7 @@ public class UserView extends UserLayout {
 			getGrid(),
 			queryBlock,
 			i18n,
-			u -> editDialog.openEdit(mapper.toUserEdit(u)),
+			u -> editDialogProvider.getObject().openEdit(u, this::refreshGrid),
 			this::confirmAndDelete,
 			this::refreshGrid
 		);

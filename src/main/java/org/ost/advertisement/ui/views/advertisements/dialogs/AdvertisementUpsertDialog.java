@@ -20,7 +20,7 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
@@ -32,9 +32,10 @@ import org.ost.advertisement.ui.views.TailwindStyle;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.GenericFormDialog;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
+import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@UIScope
+@Scope("prototype")
 @Slf4j
 public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEditDto> {
 
@@ -49,22 +50,18 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 		this.mapper = mapper;
 	}
 
-	@Override
-	public void open() {
-		openNew();
+	public void openNew(Runnable refresh) {
+		setTitle(ADVERTISEMENT_DIALOG_TITLE_NEW);
+		openInternal(new AdvertisementEditDto(), refresh);
 	}
 
-	public void openNew() {
-		openInternal(new AdvertisementEditDto());
+	public void openEdit(AdvertisementInfoDto dto, Runnable refresh) {
+		setTitle(ADVERTISEMENT_DIALOG_TITLE_EDIT);
+		openInternal(mapper.toAdvertisementEdit(Objects.requireNonNull(dto)), refresh);
 	}
 
-	public void openEdit(AdvertisementInfoDto dto) {
-		openInternal(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto));
-	}
-
-	private void openInternal(AdvertisementEditDto dto) {
-		init(dto);
-		setTitle(dto.getId() == null ? ADVERTISEMENT_DIALOG_TITLE_NEW : ADVERTISEMENT_DIALOG_TITLE_EDIT);
+	private void openInternal(AdvertisementEditDto dto, Runnable refresh) {
+		init(dto, refresh);
 
 		TextField titleField = DialogContentFactory.textField(
 			i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true
@@ -101,7 +98,7 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 		cancelButton.addClickListener(event -> close());
 
 		addActions(saveButton, cancelButton);
-		super.open();
+		open();
 	}
 
 	private LabeledField labeledMeta(I18nKey labelKey, String value, TailwindStyle style) {

@@ -19,22 +19,17 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient AdvertisementService advertisementService;
 	private final transient I18nService i18n;
 	private final transient AdvertisementQueryBlock queryBlock;
-	private final AdvertisementUpsertDialog upsertDialog;
-	private final ObjectProvider<AdvertisementCardView> cardProvider;
+	private final transient ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider;
+	private final transient ObjectProvider<AdvertisementCardView> cardProvider;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
 							  AdvertisementQueryBlock queryBlock,
-							  AdvertisementUpsertDialog upsertDialog,
+							  ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider,
 							  I18nService i18n, ObjectProvider<AdvertisementCardView> cardProvider) {
 		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
 		this.queryBlock = queryBlock;
-		this.upsertDialog = upsertDialog;
-		this.upsertDialog.addOpenedChangeListener(event -> {
-			if (!event.isOpened()) {
-				refreshAdvertisements();
-			}
-		});
+		this.upsertDialogProvider = upsertDialogProvider;
 		this.i18n = i18n;
 		this.cardProvider = cardProvider;
 
@@ -45,7 +40,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 				getPaginationBar().setTotalCount(0);
 				refreshAdvertisements();
 			},
-			upsertDialog::open
+			() -> upsertDialogProvider.getObject().openNew(this::refreshAdvertisements)
 		);
 
 		refreshAdvertisements();
@@ -72,8 +67,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 
 		getAdvertisementContainer().removeAll();
 		ads.forEach(ad -> {
-			AdvertisementCardView card = cardProvider.getObject()
-				.build(ad, this::refreshAdvertisements);
+			AdvertisementCardView card = cardProvider.getObject().build(ad, this::refreshAdvertisements);
 			getAdvertisementContainer().add(card);
 		});
 
