@@ -16,7 +16,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
-import org.ost.advertisement.ui.views.users.dialogs.UserFormDialog;
+import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
 
 @SpringComponent
 @UIScope
@@ -26,19 +26,19 @@ public class UserView extends UserLayout {
 	private final transient UserMapper mapper;
 	private final transient I18nService i18n;
 	private final transient UserQueryBlock queryBlock;
-	private final transient UserFormDialog upsertDialog;
+	private final transient UserEditDialog editDialog;
 
 	public UserView(UserQueryBlock queryBlock,
 					UserService userService,
 					I18nService i18n,
-					UserMapper mapper, UserFormDialog upsertDialog) {
+					UserMapper mapper, UserEditDialog editDialog) {
 		super(i18n);
 		this.queryBlock = queryBlock;
 		this.userService = userService;
 		this.i18n = i18n;
 		this.mapper = mapper;
-		this.upsertDialog = upsertDialog;
-		this.upsertDialog.addOpenedChangeListener(e -> {
+		this.editDialog = editDialog;
+		this.editDialog.addOpenedChangeListener(e -> {
 			if (!e.isOpened()) {
 				refreshGrid();
 			}
@@ -55,7 +55,7 @@ public class UserView extends UserLayout {
 			getGrid(),
 			queryBlock,
 			i18n,
-			u -> upsertDialog.openEdit(mapper.toUserEdit(u)),
+			u -> editDialog.openEdit(mapper.toUserEdit(u)),
 			this::confirmAndDelete,
 			this::refreshGrid
 		);

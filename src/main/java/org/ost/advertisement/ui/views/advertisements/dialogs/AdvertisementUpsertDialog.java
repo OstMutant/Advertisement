@@ -35,14 +35,14 @@ import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
 @SpringComponent
 @UIScope
 @Slf4j
-public class AdvertisementFormDialog extends GenericFormDialog<AdvertisementEditDto> {
+public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEditDto> {
 
 	private final AdvertisementService advertisementService;
 	private final AdvertisementMapper mapper;
 
-	public AdvertisementFormDialog(AdvertisementService advertisementService,
-								   I18nService i18n,
-								   AdvertisementMapper mapper) {
+	public AdvertisementUpsertDialog(AdvertisementService advertisementService,
+									 I18nService i18n,
+									 AdvertisementMapper mapper) {
 		super(AdvertisementEditDto.class, i18n);
 		this.advertisementService = advertisementService;
 		this.mapper = mapper;
