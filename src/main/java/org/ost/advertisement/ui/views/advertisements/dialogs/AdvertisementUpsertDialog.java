@@ -23,6 +23,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
@@ -57,8 +58,8 @@ public class AdvertisementUpsertDialog extends GenericFormDialog<AdvertisementEd
 		openInternal(new AdvertisementEditDto());
 	}
 
-	public void openEdit(AdvertisementEditDto dto) {
-		openInternal(dto == null ? new AdvertisementEditDto() : dto);
+	public void openEdit(AdvertisementInfoDto dto) {
+		openInternal(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto));
 	}
 
 	private void openInternal(AdvertisementEditDto dto) {

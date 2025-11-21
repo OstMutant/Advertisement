@@ -7,7 +7,6 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
@@ -18,20 +17,17 @@ import org.springframework.beans.factory.ObjectProvider;
 public class AdvertisementsView extends AdvertisementsLayout {
 
 	private final transient AdvertisementService advertisementService;
-	private final transient AdvertisementMapper mapper;
 	private final transient I18nService i18n;
 	private final transient AdvertisementQueryBlock queryBlock;
 	private final AdvertisementUpsertDialog upsertDialog;
 	private final ObjectProvider<AdvertisementCardView> cardProvider;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
-							  AdvertisementMapper mapper,
 							  AdvertisementQueryBlock queryBlock,
 							  AdvertisementUpsertDialog upsertDialog,
 							  I18nService i18n, ObjectProvider<AdvertisementCardView> cardProvider) {
 		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
-		this.mapper = mapper;
 		this.queryBlock = queryBlock;
 		this.upsertDialog = upsertDialog;
 		this.upsertDialog.addOpenedChangeListener(event -> {
@@ -78,7 +74,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		ads.forEach(ad -> {
 			AdvertisementCardView card = cardProvider.getObject()
 				.build(ad,
-					() -> upsertDialog.openEdit(mapper.toAdvertisementEdit(ad)),
+					() -> upsertDialog.openEdit(ad),
 					this::refreshAdvertisements);
 			getAdvertisementContainer().add(card);
 		});
