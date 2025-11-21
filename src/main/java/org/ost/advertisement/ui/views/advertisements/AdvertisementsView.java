@@ -10,7 +10,6 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
-import org.springframework.beans.factory.ObjectProvider;
 
 @SpringComponent
 @UIScope
@@ -20,19 +19,19 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient I18nService i18n;
 	private final transient AdvertisementQueryBlock queryBlock;
 	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
-	private final transient ObjectProvider<AdvertisementCardView> cardProvider;
+	private final transient AdvertisementCardView.Builder cardBuilder;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
 							  AdvertisementQueryBlock queryBlock,
 							  AdvertisementUpsertDialog.Builder upsertDialogBuilder,
 							  I18nService i18n,
-							  ObjectProvider<AdvertisementCardView> cardProvider) {
+							  AdvertisementCardView.Builder cardBuilder) {
 		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
 		this.queryBlock = queryBlock;
 		this.upsertDialogBuilder = upsertDialogBuilder;
 		this.i18n = i18n;
-		this.cardProvider = cardProvider;
+		this.cardBuilder = cardBuilder;
 
 		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
 
@@ -41,7 +40,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 				getPaginationBar().setTotalCount(0);
 				refreshAdvertisements();
 			},
-			() -> upsertDialogBuilder.buildAndOpen(null, this::refreshAdvertisements)
+			() -> upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements)
 		);
 
 		refreshAdvertisements();
@@ -67,10 +66,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		getPaginationBar().setTotalCount(totalCount);
 
 		getAdvertisementContainer().removeAll();
-		ads.forEach(ad -> {
-			AdvertisementCardView card = cardProvider.getObject().build(ad, this::refreshAdvertisements);
-			getAdvertisementContainer().add(card);
-		});
+		ads.forEach(ad -> getAdvertisementContainer().add(cardBuilder.build(ad, this::refreshAdvertisements)));
 
 		getStatusBar().update(filterFieldsProcessor, sortFieldsProcessor);
 	}

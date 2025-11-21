@@ -19,6 +19,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.AllArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -27,25 +28,19 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
+@AllArgsConstructor
 public class AdvertisementCardView extends VerticalLayout {
 
 	private final transient I18nService i18n;
 	private final transient AdvertisementService advertisementService;
 	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
 
-	public AdvertisementCardView(I18nService i18n,
-								 AdvertisementService advertisementService,
-								 AdvertisementUpsertDialog.Builder upsertDialogBuilder) {
-		this.i18n = i18n;
-		this.advertisementService = advertisementService;
-		this.upsertDialogBuilder = upsertDialogBuilder;
-	}
-
-	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+	private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
 		addClassName("advertisement-card");
 		getStyle()
 			.set("border", "1px solid #ccc")
@@ -138,5 +133,21 @@ public class AdvertisementCardView extends VerticalLayout {
 				}
 			}
 		);
+	}
+
+	@SpringComponent
+	@AllArgsConstructor
+	public static class Builder {
+
+		private final I18nService i18n;
+		private final AdvertisementService advertisementService;
+		private final AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+		private final ObjectProvider<AdvertisementCardView> cardProvider;
+
+		public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
+			AdvertisementCardView cardView = cardProvider.getObject(i18n, advertisementService, upsertDialogBuilder);
+			cardView.setupContent(ad, refresh);
+			return cardView;
+		}
 	}
 }
