@@ -1,11 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
-
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
@@ -14,9 +8,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.springframework.beans.factory.ObjectProvider;
@@ -87,31 +79,11 @@ public class AdvertisementsView extends AdvertisementsLayout {
 			AdvertisementCardView card = cardProvider.getObject()
 				.build(ad,
 					() -> upsertDialog.openEdit(mapper.toAdvertisementEdit(ad)),
-					() -> openConfirmDeleteDialog(ad));
+					this::refreshAdvertisements);
 			getAdvertisementContainer().add(card);
 		});
 
 		getStatusBar().update(filterFieldsProcessor, sortFieldsProcessor);
-	}
-
-	private void openConfirmDeleteDialog(AdvertisementInfoDto ad) {
-		ConfirmDeleteHelper.showConfirm(
-			i18n,
-			i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
-			ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
-			ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
-			() -> {
-				try {
-					advertisementService.delete(ad);
-					NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
-					refreshAdvertisements();
-				} catch (Exception ex) {
-					NotificationType.ERROR.show(
-						i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
-					);
-				}
-			}
-		);
 	}
 }
 
