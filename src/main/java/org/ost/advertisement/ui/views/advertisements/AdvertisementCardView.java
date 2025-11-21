@@ -25,6 +25,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
+import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.springframework.context.annotation.Scope;
 
@@ -34,13 +35,15 @@ public class AdvertisementCardView extends VerticalLayout {
 
 	private final transient I18nService i18n;
 	private final transient AdvertisementService advertisementService;
+	private final transient AdvertisementUpsertDialog upsertDialog;
 
-	public AdvertisementCardView(I18nService i18n, AdvertisementService advertisementService) {
+	public AdvertisementCardView(I18nService i18n, AdvertisementService advertisementService, AdvertisementUpsertDialog upsertDialog) {
 		this.i18n = i18n;
 		this.advertisementService = advertisementService;
+		this.upsertDialog = upsertDialog;
 	}
 
-	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable onEdit, Runnable onDelete) {
+	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
 		addClassName("advertisement-card");
 		getStyle()
 			.set("border", "1px solid #ccc")
@@ -100,11 +103,11 @@ public class AdvertisementCardView extends VerticalLayout {
 
 		Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
 		edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-		edit.addClickListener(e -> onEdit.run());
+		edit.addClickListener(e -> upsertDialog.openEdit(ad));
 
 		Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
 		delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-		delete.addClickListener(e -> openConfirmDeleteDialog(ad, onDelete));
+		delete.addClickListener(e -> openConfirmDeleteDialog(ad, refreshAdvertisements));
 
 		HorizontalLayout actions = new HorizontalLayout(edit, delete);
 		actions.getStyle()
@@ -116,7 +119,7 @@ public class AdvertisementCardView extends VerticalLayout {
 		return this;
 	}
 
-	private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onDelete) {
+	private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
 		ConfirmDeleteHelper.showConfirm(
 			i18n,
 			i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
@@ -126,7 +129,7 @@ public class AdvertisementCardView extends VerticalLayout {
 				try {
 					advertisementService.delete(ad);
 					NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
-					onDelete.run();
+					refreshAdvertisements.run();
 				} catch (Exception ex) {
 					NotificationType.ERROR.show(
 						i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())

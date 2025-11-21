@@ -73,9 +73,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 		getAdvertisementContainer().removeAll();
 		ads.forEach(ad -> {
 			AdvertisementCardView card = cardProvider.getObject()
-				.build(ad,
-					() -> upsertDialog.openEdit(ad),
-					this::refreshAdvertisements);
+				.build(ad, this::refreshAdvertisements);
 			getAdvertisementContainer().add(card);
 		});
 
