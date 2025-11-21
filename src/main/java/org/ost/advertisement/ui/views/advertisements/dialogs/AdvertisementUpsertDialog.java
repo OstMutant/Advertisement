@@ -1,6 +1,19 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_CANCEL;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_BUTTON_SAVE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_CREATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_TITLE;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_UPDATED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_EDIT;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_TITLE_NEW;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 import static org.ost.advertisement.ui.views.TailwindStyle.EMAIL_LABEL;
 import static org.ost.advertisement.ui.views.TailwindStyle.GRAY_LABEL;
@@ -10,8 +23,8 @@ import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import java.util.Objects;
 import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
@@ -21,6 +34,7 @@ import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -31,35 +45,16 @@ public class AdvertisementUpsertDialog {
 
 	private final AdvertisementService advertisementService;
 	private final AdvertisementMapper mapper;
-	private final FormDialogDelegate.Builder<AdvertisementEditDto> delegateBuilder;
 	private final LabeledField.Builder labeledFieldBuilder;
 	private final I18nService i18n;
+	@Getter
+	private final FormDialogDelegate<AdvertisementEditDto> delegate;
 
-	public void openNew(Runnable refresh) {
-		AdvertisementEditDto dto = new AdvertisementEditDto();
-		FormDialogDelegate<AdvertisementEditDto> delegate = buildDelegate(dto, refresh);
-		delegate.setTitle(i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW));
-		configureDialog(delegate, dto);
-		delegate.open();
-	}
+	private void configureDialog() {
+		AdvertisementEditDto dto = delegate.getDto();
+		delegate.setTitle(
+			dto.getId() == null ? i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW) : i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
 
-	public void openEdit(AdvertisementInfoDto dto, Runnable refresh) {
-		AdvertisementEditDto editDto = mapper.toAdvertisementEdit(Objects.requireNonNull(dto));
-		FormDialogDelegate<AdvertisementEditDto> delegate = buildDelegate(editDto, refresh);
-		delegate.setTitle(i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
-		configureDialog(delegate, editDto);
-		delegate.open();
-	}
-
-	private FormDialogDelegate<AdvertisementEditDto> buildDelegate(AdvertisementEditDto dto, Runnable refresh) {
-		return delegateBuilder
-			.withClass(AdvertisementEditDto.class)
-			.withDto(dto)
-			.withRefresh(refresh)
-			.build();
-	}
-
-	private void configureDialog(FormDialogDelegate<AdvertisementEditDto> delegate, AdvertisementEditDto dto) {
 		TextField titleField = DialogContentFactory.textField(
 			i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true
 		);
@@ -105,5 +100,47 @@ public class AdvertisementUpsertDialog {
 		cancelButton.addClickListener(event -> delegate.close());
 
 		delegate.addActions(saveButton, cancelButton);
+	}
+
+	public void open() {
+		delegate.open();
+	}
+
+	@SpringComponent
+	@AllArgsConstructor
+	public static class Builder {
+
+		private final AdvertisementService advertisementService;
+		private final AdvertisementMapper mapper;
+		private final LabeledField.Builder labeledFieldBuilder;
+		private final I18nService i18n;
+		private final FormDialogDelegate.Builder<AdvertisementEditDto> delegateBuilder;
+		private final ObjectProvider<AdvertisementUpsertDialog> dialogProvider;
+
+		public AdvertisementUpsertDialog build(Runnable refresh) {
+			return build(null, refresh);
+		}
+
+		public AdvertisementUpsertDialog build(AdvertisementInfoDto dto, Runnable refresh) {
+			FormDialogDelegate<AdvertisementEditDto> delegate = delegateBuilder
+				.withClass(AdvertisementEditDto.class)
+				.withDto(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto))
+				.withRefresh(refresh)
+				.build();
+			AdvertisementUpsertDialog dialog = dialogProvider.getObject(advertisementService, mapper,
+				labeledFieldBuilder, i18n, delegate);
+			dialog.configureDialog();
+			return dialog;
+		}
+
+		public AdvertisementUpsertDialog buildAndOpen(Runnable refresh) {
+			return buildAndOpen(null, refresh);
+		}
+
+		public AdvertisementUpsertDialog buildAndOpen(AdvertisementInfoDto dto, Runnable refresh) {
+			AdvertisementUpsertDialog dialog = build(dto, refresh);
+			dialog.getDelegate().open();
+			return dialog;
+		}
 	}
 }

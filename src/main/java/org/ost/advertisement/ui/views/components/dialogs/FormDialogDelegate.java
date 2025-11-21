@@ -11,6 +11,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @Slf4j
@@ -21,7 +22,7 @@ public class FormDialogDelegate<T> {
 	private final transient I18nService i18n;
 	private final DialogLayout layout = new DialogLayout();
 	private final Dialog dialog = new Dialog();
-
+	@Getter
 	private final T dto;
 	@Getter
 	private final Binder<T> binder;
@@ -89,13 +90,15 @@ public class FormDialogDelegate<T> {
 	public static class Builder<T> {
 
 		private final I18nService i18n;
+		private final ObjectProvider<FormDialogDelegate<T>> delegateProvider;
 
 		private Class<T> clazz;
 		private T dto;
 		private Runnable refresh;
 
-		public Builder(I18nService i18n) {
+		public Builder(I18nService i18n, ObjectProvider<FormDialogDelegate<T>> delegateProvider) {
 			this.i18n = i18n;
+			this.delegateProvider = delegateProvider;
 		}
 
 		public Builder<T> withClass(Class<T> clazz) {
@@ -120,7 +123,7 @@ public class FormDialogDelegate<T> {
 			if (dto == null) {
 				throw new IllegalStateException("DTO must be provided");
 			}
-			return new FormDialogDelegate<>(clazz, i18n, dto, refresh);
+			return delegateProvider.getObject(clazz, i18n, dto, refresh);
 		}
 	}
 }

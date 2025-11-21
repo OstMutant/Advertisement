@@ -21,7 +21,6 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
-import org.springframework.beans.factory.ObjectProvider;
 
 @SpringComponent
 @UIScope
@@ -30,17 +29,17 @@ public class UserView extends UserLayout {
 	private final transient UserService userService;
 	private final transient I18nService i18n;
 	private final transient UserQueryBlock queryBlock;
-	private final transient ObjectProvider<UserEditDialog> editDialogProvider;
+	private final transient UserEditDialog.Builder editDialogBuilder;
 
 	public UserView(UserQueryBlock queryBlock,
 					UserService userService,
 					I18nService i18n,
-					ObjectProvider<UserEditDialog> editDialogProvider) {
+					UserEditDialog.Builder editDialogBuilder) {
 		super(i18n);
 		this.queryBlock = queryBlock;
 		this.userService = userService;
 		this.i18n = i18n;
-		this.editDialogProvider = editDialogProvider;
+		this.editDialogBuilder = editDialogBuilder;
 
 		getPaginationBar().setPageChangeListener(event -> refreshGrid());
 
@@ -53,7 +52,7 @@ public class UserView extends UserLayout {
 			getGrid(),
 			queryBlock,
 			i18n,
-			u -> editDialogProvider.getObject().openEdit(u, this::refreshGrid),
+			u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
 			this::confirmAndDelete,
 			this::refreshGrid
 		);

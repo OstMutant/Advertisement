@@ -27,7 +27,6 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -36,13 +35,14 @@ public class AdvertisementCardView extends VerticalLayout {
 
 	private final transient I18nService i18n;
 	private final transient AdvertisementService advertisementService;
-	private final transient ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider;
+	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
 
-	public AdvertisementCardView(I18nService i18n, AdvertisementService advertisementService,
-								 ObjectProvider<AdvertisementUpsertDialog> upsertDialogProvider) {
+	public AdvertisementCardView(I18nService i18n,
+								 AdvertisementService advertisementService,
+								 AdvertisementUpsertDialog.Builder upsertDialogBuilder) {
 		this.i18n = i18n;
 		this.advertisementService = advertisementService;
-		this.upsertDialogProvider = upsertDialogProvider;
+		this.upsertDialogBuilder = upsertDialogBuilder;
 	}
 
 	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
@@ -52,7 +52,6 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("border-radius", "8px")
 			.set("padding", "16px")
 			.set("box-shadow", "2px 2px 6px rgba(0,0,0,0.05)")
-			.set("max-width", "600px")
 			.set("width", "100%")
 			.set("box-sizing", "border-box")
 			.set("display", "flex")
@@ -105,7 +104,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
 		Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
 		edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-		edit.addClickListener(e -> upsertDialogProvider.getObject().openEdit(ad, refreshAdvertisements));
+		edit.addClickListener(e -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
 
 		Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
 		delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);

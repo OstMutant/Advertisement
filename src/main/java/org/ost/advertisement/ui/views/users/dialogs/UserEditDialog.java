@@ -27,7 +27,7 @@ import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import java.util.Arrays;
 import java.util.Objects;
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
@@ -38,37 +38,37 @@ import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
 import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
 @Slf4j
-@AllArgsConstructor
 public class UserEditDialog {
 
 	private final UserService userService;
 	private final UserMapper mapper;
-	private final FormDialogDelegate.Builder<UserEditDto> delegateBuilder;
 	private final LabeledField.Builder labeledFieldBuilder;
 	private final I18nService i18n;
+	@Getter
+	private final FormDialogDelegate<UserEditDto> delegate;
 
-	public void openEdit(User user, Runnable refresh) {
-		UserEditDto dto = mapper.toUserEdit(Objects.requireNonNull(user));
-		FormDialogDelegate<UserEditDto> delegate = buildDelegate(dto, refresh);
+	private UserEditDialog(UserService userService,
+						   UserMapper mapper,
+						   LabeledField.Builder labeledFieldBuilder,
+						   I18nService i18n,
+						   FormDialogDelegate<UserEditDto> delegate) {
+		this.userService = userService;
+		this.mapper = mapper;
+		this.labeledFieldBuilder = labeledFieldBuilder;
+		this.i18n = i18n;
+		this.delegate = delegate;
+	}
+
+	private void configureDialog() {
+		UserEditDto user = delegate.getDto();
 		delegate.setTitle(i18n.get(USER_DIALOG_TITLE));
-		configureDialog(delegate, dto);
-		delegate.open();
-	}
 
-	private FormDialogDelegate<UserEditDto> buildDelegate(UserEditDto dto, Runnable refresh) {
-		return delegateBuilder
-			.withClass(UserEditDto.class)
-			.withDto(dto)
-			.withRefresh(refresh)
-			.build();
-	}
-
-	private void configureDialog(FormDialogDelegate<UserEditDto> delegate, UserEditDto user) {
 		TextField nameField = DialogContentFactory.textField(
 			i18n, USER_DIALOG_FIELD_NAME_LABEL, USER_DIALOG_FIELD_NAME_PLACEHOLDER, 255, true
 		);
@@ -118,5 +118,48 @@ public class UserEditDialog {
 		cancelButton.addClickListener(event -> delegate.close());
 
 		delegate.addActions(saveButton, cancelButton);
+	}
+
+	@SpringComponent
+	public static class Builder {
+
+		private final UserService userService;
+		private final UserMapper mapper;
+		private final LabeledField.Builder labeledFieldBuilder;
+		private final I18nService i18n;
+		private final FormDialogDelegate.Builder<UserEditDto> delegateBuilder;
+		private final ObjectProvider<UserEditDialog> dialogProvider;
+
+		public Builder(UserService userService,
+					   UserMapper mapper,
+					   LabeledField.Builder labeledFieldBuilder,
+					   I18nService i18n,
+					   FormDialogDelegate.Builder<UserEditDto> delegateBuilder,
+					   ObjectProvider<UserEditDialog> dialogProvider) {
+			this.userService = userService;
+			this.mapper = mapper;
+			this.labeledFieldBuilder = labeledFieldBuilder;
+			this.i18n = i18n;
+			this.delegateBuilder = delegateBuilder;
+			this.dialogProvider = dialogProvider;
+		}
+
+		public UserEditDialog build(User user, Runnable refresh) {
+			FormDialogDelegate<UserEditDto> delegate = delegateBuilder
+				.withClass(UserEditDto.class)
+				.withDto(mapper.toUserEdit(Objects.requireNonNull(user)))
+				.withRefresh(refresh)
+				.build();
+
+			UserEditDialog dialog = dialogProvider.getObject(userService, mapper, labeledFieldBuilder, i18n, delegate);
+			dialog.configureDialog();
+			return dialog;
+		}
+
+		public UserEditDialog buildAndOpen(User user, Runnable refresh) {
+			UserEditDialog dialog = build(user, refresh);
+			dialog.getDelegate().open();
+			return dialog;
+		}
 	}
 }
