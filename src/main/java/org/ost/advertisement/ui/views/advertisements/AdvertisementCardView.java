@@ -13,14 +13,24 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
+import org.springframework.context.annotation.Scope;
 
+@SpringComponent
+@Scope("prototype")
 public class AdvertisementCardView extends VerticalLayout {
 
-	public AdvertisementCardView(AdvertisementInfoDto ad, Runnable onEdit, Runnable onDelete, I18nService i18n) {
+	private final I18nService i18n;
+
+	public AdvertisementCardView(I18nService i18n) {
+		this.i18n = i18n;
+	}
+
+	public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable onEdit, Runnable onDelete) {
 		addClassName("advertisement-card");
 		getStyle()
 			.set("border", "1px solid #ccc")
@@ -92,5 +102,7 @@ public class AdvertisementCardView extends VerticalLayout {
 			.set("gap", "8px");
 
 		add(title, description, toggle, meta, actions);
+
+		return this;
 	}
 }

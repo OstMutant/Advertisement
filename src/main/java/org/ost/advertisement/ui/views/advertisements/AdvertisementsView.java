@@ -19,6 +19,7 @@ import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsert
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.springframework.beans.factory.ObjectProvider;
 
 @SpringComponent
 @UIScope
@@ -29,12 +30,13 @@ public class AdvertisementsView extends AdvertisementsLayout {
 	private final transient I18nService i18n;
 	private final transient AdvertisementQueryBlock queryBlock;
 	private final AdvertisementUpsertDialog upsertDialog;
+	private final ObjectProvider<AdvertisementCardView> cardProvider;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
 							  AdvertisementMapper mapper,
 							  AdvertisementQueryBlock queryBlock,
 							  AdvertisementUpsertDialog upsertDialog,
-							  I18nService i18n) {
+							  I18nService i18n, ObjectProvider<AdvertisementCardView> cardProvider) {
 		super(queryBlock, i18n);
 		this.advertisementService = advertisementService;
 		this.mapper = mapper;
@@ -46,6 +48,7 @@ public class AdvertisementsView extends AdvertisementsLayout {
 			}
 		});
 		this.i18n = i18n;
+		this.cardProvider = cardProvider;
 
 		getPaginationBar().setPageChangeListener(e -> refreshAdvertisements());
 
@@ -81,12 +84,10 @@ public class AdvertisementsView extends AdvertisementsLayout {
 
 		getAdvertisementContainer().removeAll();
 		ads.forEach(ad -> {
-			AdvertisementCardView card = new AdvertisementCardView(
-				ad,
-				() -> upsertDialog.openEdit(mapper.toAdvertisementEdit(ad)),
-				() -> openConfirmDeleteDialog(ad),
-				i18n
-			);
+			AdvertisementCardView card = cardProvider.getObject()
+				.build(ad,
+					() -> upsertDialog.openEdit(mapper.toAdvertisementEdit(ad)),
+					() -> openConfirmDeleteDialog(ad));
 			getAdvertisementContainer().add(card);
 		});
 
