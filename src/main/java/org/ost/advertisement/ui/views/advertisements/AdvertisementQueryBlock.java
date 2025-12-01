@@ -20,6 +20,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
@@ -94,11 +95,11 @@ public class AdvertisementQueryBlock {
 	}
 
 	private VerticalLayout buildLayout() {
-		VerticalLayout layout = new VerticalLayout();
-		layout.setPadding(false);
-		layout.setSpacing(false);
-		layout.setVisible(false);
-		layout.getStyle()
+		VerticalLayout localLayout = new VerticalLayout();
+		localLayout.setPadding(false);
+		localLayout.setSpacing(false);
+		localLayout.setVisible(false);
+		localLayout.getStyle()
 			.set("margin-top", "8px")
 			.set("padding", "8px")
 			.set("border", "1px solid #ddd")
@@ -106,16 +107,16 @@ public class AdvertisementQueryBlock {
 			.set("background-color", "#fafafa")
 			.set("gap", "6px");
 
-		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon, titleField));
-		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdSortIcon, createdStart, createdEnd));
-		layout.add(createInlineRow(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedSortIcon, updatedStart, updatedEnd));
-		layout.add(actionsBlock.getComponent());
+		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField));
+		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart, createdEnd));
+		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart, updatedEnd));
+		localLayout.add(actionsBlock.getComponent());
 
-		return layout;
+		return localLayout;
 	}
 
-	private Component createInlineRow(String labelText, Component sortIcon, Component... filterFields) {
-		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(labelText), sortIcon);
+	private Component createInlineRow(I18nKey labelI18nKey, Component sortIcon, Component... filterFields) {
+		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18n.get(labelI18nKey)), sortIcon);
 		labelAndSort.setAlignItems(Alignment.CENTER);
 		labelAndSort.setSpacing(true);
 

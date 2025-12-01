@@ -15,8 +15,8 @@ public class QueryStatusBar extends HorizontalLayout {
 	private final Span sortInfo = new Span();
 	private final Span separator = new Span("|");
 
-	private final I18nService i18n;
-	private final UnaryOperator<String> sortLabelProvider;
+	private final transient I18nService i18n;
+	private final transient UnaryOperator<String> sortLabelProvider;
 
 	public QueryStatusBar(I18nService i18n,
 						  FilterFieldsProcessor<?> filterProcessor,
