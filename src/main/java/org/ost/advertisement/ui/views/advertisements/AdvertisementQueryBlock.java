@@ -30,13 +30,14 @@ import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMet
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.ContentFactory;
+import org.ost.advertisement.ui.views.components.QueryBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 
 @SpringComponent
 @UIScope
-public class AdvertisementQueryBlock {
+public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto> {
 
 	private final ActionBlock actionsBlock;
 	@Getter
@@ -57,7 +58,7 @@ public class AdvertisementQueryBlock {
 	private final I18nService i18n;
 
 	@Getter
-	private final VerticalLayout layout;
+	private final Component layout;
 
 	public AdvertisementQueryBlock(I18nService i18n,
 								   AdvertisementFilterMapper filterMapper,

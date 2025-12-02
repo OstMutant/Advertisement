@@ -10,7 +10,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 
-public class QueryStatusBar extends HorizontalLayout {
+public class QueryStatusBar<T> extends HorizontalLayout {
 
 	private final Span filterInfo = new Span();
 	private final Span sortInfo = new Span();
@@ -18,20 +18,21 @@ public class QueryStatusBar extends HorizontalLayout {
 	private final Span toggleIcon = new Span();
 
 	private final transient I18nService i18n;
+	private final transient QueryBlock<T> queryBlock;
 	private final transient UnaryOperator<String> sortLabelProvider;
 
 	public QueryStatusBar(I18nService i18n,
-						  FilterFieldsProcessor<?> filterProcessor,
-						  SortFieldsProcessor sortProcessor,
+						  QueryBlock<T> queryBlock,
 						  UnaryOperator<String> sortLabelProvider) {
 		this.i18n = i18n;
+		this.queryBlock = queryBlock;
 		this.sortLabelProvider = sortLabelProvider;
 
 		applyStyles();
 		applyToggleIcon();
 
 		add(toggleIcon, filterInfo, separator, sortInfo);
-		update(filterProcessor, sortProcessor);
+		update(queryBlock.getFilterProcessor(), queryBlock.getSortProcessor());
 	}
 
 	public void update(FilterFieldsProcessor<?> filterProcessor, SortFieldsProcessor sortProcessor) {
@@ -49,6 +50,13 @@ public class QueryStatusBar extends HorizontalLayout {
 		separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
 	}
 
+	public void toggle() {
+		Component layout = queryBlock.getLayout();
+		boolean nowVisible = !layout.isVisible();
+		layout.setVisible(nowVisible);
+		updateToggleIcon(nowVisible);
+	}
+
 	public void updateToggleIcon(boolean isOpen) {
 		toggleIcon.setText(isOpen ? "▾" : "▸");
 	}
@@ -56,12 +64,6 @@ public class QueryStatusBar extends HorizontalLayout {
 	private void applyToggleIcon() {
 		toggleIcon.setText("▸");
 		toggleIcon.getStyle().set("margin-right", "8px").set("font-weight", "bold");
-	}
-
-	public void toggle(Component layout) {
-		boolean nowVisible = !layout.isVisible();
-		layout.setVisible(nowVisible);
-		updateToggleIcon(nowVisible);
 	}
 
 	private void applyStyles() {
