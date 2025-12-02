@@ -8,7 +8,8 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.ui.views.components.ContentFactory.*;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -30,7 +31,6 @@ import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.ActionBlock;
-import org.ost.advertisement.ui.views.components.ContentFactory;
 import org.ost.advertisement.ui.views.components.QueryBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
