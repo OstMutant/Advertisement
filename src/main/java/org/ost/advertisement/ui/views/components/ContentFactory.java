@@ -20,6 +20,8 @@ public class ContentFactory {
 		button.setText("");
 		button.addThemeVariants(variant, ButtonVariant.LUMO_ICON);
 		button.getElement().setProperty("title", tooltip);
+		button.getStyle().set("border", "3px solid transparent");
+		button.getStyle().set("border-radius", "4px");
 		return button;
 	}
 
