@@ -1,15 +1,20 @@
 package org.ost.advertisement.ui.views.components;
 
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
 
+@Component
+@Scope("prototype")
+@UIScope
 public class QueryStatusBar<T> extends HorizontalLayout {
 
 	private final Span filterInfo = new Span();
@@ -29,7 +34,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 		this.sortLabelProvider = sortLabelProvider;
 
 		applyStyles();
-		applyToggleIcon();
+		initToggleIcon();
 
 		add(toggleIcon, filterInfo, separator, sortInfo);
 		update(queryBlock.getFilterProcessor(), queryBlock.getSortProcessor());
@@ -50,18 +55,18 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 		separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
 	}
 
-	public void toggle() {
-		Component layout = queryBlock.getLayout();
+	public void toggleVisibility() {
+		var layout = queryBlock.getLayout();
 		boolean nowVisible = !layout.isVisible();
 		layout.setVisible(nowVisible);
-		updateToggleIcon(nowVisible);
+		setToggleIconState(nowVisible);
 	}
 
-	public void updateToggleIcon(boolean isOpen) {
+	private void setToggleIconState(boolean isOpen) {
 		toggleIcon.setText(isOpen ? "▾" : "▸");
 	}
 
-	private void applyToggleIcon() {
+	private void initToggleIcon() {
 		toggleIcon.setText("▸");
 		toggleIcon.getStyle().set("margin-right", "8px").set("font-weight", "bold");
 	}

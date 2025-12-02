@@ -19,7 +19,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 public class FormDialogDelegate<T> {
 
-	private final transient I18nService i18n;
+	private final I18nService i18n;
 	private final DialogLayout layout = new DialogLayout();
 	private final Dialog dialog = new Dialog();
 	@Getter
@@ -27,7 +27,7 @@ public class FormDialogDelegate<T> {
 	@Getter
 	private final Binder<T> binder;
 
-	private FormDialogDelegate(Class<T> clazz, I18nService i18n, T dto, Runnable refresh) {
+	public FormDialogDelegate(Class<T> clazz, I18nService i18n, T dto, Runnable refresh) {
 		this.i18n = i18n;
 		this.dto = dto;
 		this.binder = new Binder<>(clazz);
