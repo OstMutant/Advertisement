@@ -26,9 +26,8 @@ public class AdvertisementQueryStatusBlock {
 			AdvertisementSortMeta.labelProvider(i18n)
 		);
 
-		statusBar.getElement().addEventListener("click", e ->
-			queryBlock.getLayout().setVisible(!queryBlock.getLayout().isVisible())
-		);
+		statusBar.getElement().addEventListener("click", e -> statusBar.toggle(queryBlock.getLayout()));
 		statusBar.getStyle().set("cursor", "pointer");
 	}
+
 }

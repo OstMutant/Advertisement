@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.components;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import java.util.List;
@@ -14,6 +15,7 @@ public class QueryStatusBar extends HorizontalLayout {
 	private final Span filterInfo = new Span();
 	private final Span sortInfo = new Span();
 	private final Span separator = new Span("|");
+	private final Span toggleIcon = new Span();
 
 	private final transient I18nService i18n;
 	private final transient UnaryOperator<String> sortLabelProvider;
@@ -26,7 +28,9 @@ public class QueryStatusBar extends HorizontalLayout {
 		this.sortLabelProvider = sortLabelProvider;
 
 		applyStyles();
-		add(filterInfo, separator, sortInfo);
+		applyToggleIcon();
+
+		add(toggleIcon, filterInfo, separator, sortInfo);
 		update(filterProcessor, sortProcessor);
 	}
 
@@ -43,6 +47,21 @@ public class QueryStatusBar extends HorizontalLayout {
 			: i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + " " + String.join(", ", sorts));
 
 		separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
+	}
+
+	public void updateToggleIcon(boolean isOpen) {
+		toggleIcon.setText(isOpen ? "▾" : "▸");
+	}
+
+	private void applyToggleIcon() {
+		toggleIcon.setText("▸");
+		toggleIcon.getStyle().set("margin-right", "8px").set("font-weight", "bold");
+	}
+
+	public void toggle(Component layout) {
+		boolean nowVisible = !layout.isVisible();
+		layout.setVisible(nowVisible);
+		updateToggleIcon(nowVisible);
 	}
 
 	private void applyStyles() {
@@ -66,3 +85,4 @@ public class QueryStatusBar extends HorizontalLayout {
 		separator.getStyle().set("margin", "0 8px").set("color", "#999");
 	}
 }
+

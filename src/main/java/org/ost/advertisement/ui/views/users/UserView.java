@@ -29,7 +29,6 @@ public class UserView extends UserLayout {
 	private final transient UserService userService;
 	private final transient I18nService i18n;
 	private final transient UserQueryBlock queryBlock;
-	private final transient UserEditDialog.Builder editDialogBuilder;
 
 	public UserView(UserQueryBlock queryBlock,
 					UserService userService,
@@ -39,7 +38,6 @@ public class UserView extends UserLayout {
 		this.queryBlock = queryBlock;
 		this.userService = userService;
 		this.i18n = i18n;
-		this.editDialogBuilder = editDialogBuilder;
 
 		getPaginationBar().setPageChangeListener(event -> refreshGrid());
 
@@ -53,8 +51,7 @@ public class UserView extends UserLayout {
 			queryBlock,
 			i18n,
 			u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
-			this::confirmAndDelete,
-			this::refreshGrid
+			this::confirmAndDelete
 		);
 
 		refreshGrid();
