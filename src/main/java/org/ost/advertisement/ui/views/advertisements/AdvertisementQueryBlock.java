@@ -8,6 +8,7 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
+import static org.ost.advertisement.ui.views.components.ContentFactory.*;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -72,11 +73,11 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.createdSortIcon = new TriStateSortIcon();
 		this.updatedSortIcon = new TriStateSortIcon();
 
-		this.titleField = ContentFactory.createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
-		this.createdStart = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
-		this.createdEnd = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
-		this.updatedStart = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
-		this.updatedEnd = ContentFactory.createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+		this.titleField = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
+		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
+		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
+		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
+		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
 
 		this.layout = buildLayout();
 	}

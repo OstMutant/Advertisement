@@ -21,7 +21,8 @@ import org.ost.advertisement.ui.views.components.filters.meta.ValidationPredicat
 public class AdvertisementFilterMeta {
 
 	public static final FilterField<String, AdvertisementFilterDto, String> TITLE =
-		FilterField.of(title, AdvertisementFilterDto::getTitle, AdvertisementFilterDto::setTitle);
+		FilterField.of(title, AdvertisementFilterDto::getTitle,
+			(dto, v) -> dto.setTitle(v == null || v.isBlank() ? null : v));
 
 	private static final BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> createdValid =
 		ValidationPredicates.range(createdAtStart, createdAtEnd);
