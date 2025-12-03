@@ -11,26 +11,21 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
-import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
-import org.ost.advertisement.ui.views.components.ActionBlock;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.content.ContentFactory;
-import org.ost.advertisement.ui.views.components.QueryBlock;
+import org.ost.advertisement.ui.views.components.content.QueryBlockFactory;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
@@ -39,7 +34,8 @@ import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 @UIScope
 public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto> {
 
-	private final ActionBlock actionsBlock;
+	@Getter
+	private final QueryActionBlock queryActionBlock;
 	@Getter
 	private final FilterFieldsProcessor<AdvertisementFilterDto> filterProcessor;
 	@Getter
@@ -55,17 +51,15 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
 
-	private final I18nService i18n;
-
 	@Getter
 	private final Component layout;
 
-	public AdvertisementQueryBlock(I18nService i18n,
-								   AdvertisementFilterMapper filterMapper,
+	public AdvertisementQueryBlock(AdvertisementFilterMapper filterMapper,
 								   ValidationService<AdvertisementFilterDto> validation,
-								   ContentFactory contentFactory) {
-		this.i18n = i18n;
-		this.actionsBlock = new ActionBlock(i18n);
+								   ContentFactory contentFactory,
+								   QueryBlockFactory queryBlockFactory,
+								   QueryActionBlock queryActionBlock) {
+		this.queryActionBlock = queryActionBlock;
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
 		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
 
@@ -79,80 +73,26 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.updatedStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_START);
 		this.updatedEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_END);
 
-		this.layout = buildLayout(createInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
-			createInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart, createdEnd),
-			createInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart, updatedEnd),
-			actionsBlock.getComponent());
+		this.layout = queryBlockFactory.buildQueryBlockLayout(
+			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
+			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart,
+				createdEnd),
+			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
+				updatedEnd),
+			this.queryActionBlock.getComponent());
 	}
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, actionsBlock);
-		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, actionsBlock);
-		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, actionsBlock);
+		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, queryActionBlock);
+		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, queryActionBlock);
+		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, queryActionBlock);
 		sortProcessor.refreshSorting();
 
-		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
-		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);
-		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, actionsBlock);
-		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, actionsBlock);
-		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, actionsBlock);
-	}
-
-	private VerticalLayout buildLayout(Component... components) {
-		VerticalLayout localLayout = new VerticalLayout();
-		localLayout.setPadding(false);
-		localLayout.setSpacing(false);
-		localLayout.setVisible(false);
-		localLayout.getStyle()
-			.set("margin-top", "8px")
-			.set("padding", "8px")
-			.set("border", "1px solid #ddd")
-			.set("border-radius", "6px")
-			.set("background-color", "#fafafa")
-			.set("gap", "6px");
-
-		localLayout.add(components);
-		return localLayout;
-	}
-
-	private Component createInlineRow(I18nKey labelI18nKey, Component sortIcon, Component... filterFields) {
-		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18n.get(labelI18nKey)), sortIcon);
-		labelAndSort.setAlignItems(Alignment.CENTER);
-		labelAndSort.setSpacing(true);
-
-		HorizontalLayout filters = new HorizontalLayout(filterFields);
-		filters.setAlignItems(Alignment.END);
-		filters.setSpacing(true);
-
-		HorizontalLayout row = new HorizontalLayout(labelAndSort, filters);
-		row.setWidthFull();
-		row.setAlignItems(Alignment.CENTER);
-		row.setSpacing(true);
-		row.getStyle().set("gap", "12px");
-
-		return row;
-	}
-
-	public void eventProcessor(Runnable onApply) {
-		Runnable combined = () -> {
-			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
-			actionsBlock.setChanged(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
-		};
-
-		actionsBlock.eventProcessor(() -> {
-			if (!filterProcessor.validate()) {
-				return;
-			}
-			filterProcessor.updateFilter();
-			sortProcessor.updateSorting();
-			combined.run();
-		}, () -> {
-			filterProcessor.clearFilter();
-			sortProcessor.clearSorting();
-			combined.run();
-		});
+		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, queryActionBlock);
+		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, queryActionBlock);
+		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, queryActionBlock);
+		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, queryActionBlock);
+		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, queryActionBlock);
 	}
 }

@@ -56,10 +56,6 @@ public class ContentFactory {
 		return field;
 	}
 
-	public TextField createFullTextField(I18nKey placeholderKey) {
-		return createFullTextField(i18n.get(placeholderKey));
-	}
-
 	public static <T> ComboBox<T> createCombo(String placeholder, T[] items) {
 		ComboBox<T> comboBox = new ComboBox<>();
 		comboBox.setItems(items);
@@ -76,10 +72,6 @@ public class ContentFactory {
 		return field;
 	}
 
-	public DatePicker createDatePicker(I18nKey placeholderKey) {
-		return createDatePicker(i18n.get(placeholderKey));
-	}
-
 	public static VerticalLayout createFilterBlock(Component... components) {
 		VerticalLayout layout = new VerticalLayout(components);
 		layout.setPadding(false);
@@ -87,5 +79,13 @@ public class ContentFactory {
 		layout.setMargin(false);
 		layout.getStyle().set("gap", "4px");
 		return layout;
+	}
+
+	public TextField createFullTextField(I18nKey placeholderKey) {
+		return createFullTextField(i18n.get(placeholderKey));
+	}
+
+	public DatePicker createDatePicker(I18nKey placeholderKey) {
+		return createDatePicker(i18n.get(placeholderKey));
 	}
 }

@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components;
+package org.ost.advertisement.ui.views.components.query;
 
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
@@ -10,13 +10,17 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
+import org.springframework.context.annotation.Scope;
 
-public class ActionBlock implements ActionStateChangeListener {
+@org.springframework.stereotype.Component
+@Scope("prototype")
+public class QueryActionBlock implements ActionStateChangeListener {
 
 	private final Button applyButton;
 	private final Button clearButton;
 
-	public ActionBlock(I18nService i18n) {
+	public QueryActionBlock(I18nService i18n) {
 		applyButton = createSvgActionButton("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
 		clearButton = createSvgActionButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
 	}

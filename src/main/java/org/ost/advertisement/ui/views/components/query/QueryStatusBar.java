@@ -1,8 +1,7 @@
-package org.ost.advertisement.ui.views.components;
+package org.ost.advertisement.ui.views.components.query;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.spring.annotation.UIScope;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import org.ost.advertisement.constants.I18nKey;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Scope("prototype")
-@UIScope
 public class QueryStatusBar<T> extends HorizontalLayout {
 
 	private final Span filterInfo = new Span();

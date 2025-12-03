@@ -104,7 +104,7 @@ public class UserGridConfigurator {
 		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleFilter());
 		filterRow.getCell(createdColumn).setComponent(queryBlock.getCreatedFilter());
 		filterRow.getCell(updatedColumn).setComponent(queryBlock.getUpdatedFilter());
-		filterRow.getCell(actionsColumn).setComponent(queryBlock.getActionBlock());
+		filterRow.getCell(actionsColumn).setComponent(queryBlock.getQueryActionBlock().getComponent());
 	}
 
 	private static Component sortableHeader(String label, Component sortIcon) {
