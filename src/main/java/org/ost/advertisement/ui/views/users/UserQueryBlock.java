@@ -31,9 +31,9 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
@@ -143,10 +143,5 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
 	public Component getUpdatedFilter() {
 		return createFilterBlock(updatedStart, updatedEnd);
-	}
-
-	@Override
-	public Component getLayout() {
-		return null;
 	}
 }

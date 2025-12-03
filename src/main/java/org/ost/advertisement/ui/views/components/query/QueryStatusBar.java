@@ -21,14 +21,15 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 	private final Span toggleIcon = new Span();
 
 	private final transient I18nService i18n;
-	private final transient QueryBlock<T> queryBlock;
+	private final transient QueryBlockLayout queryBlockLayout;
 	private final transient UnaryOperator<String> sortLabelProvider;
 
 	public QueryStatusBar(I18nService i18n,
 						  QueryBlock<T> queryBlock,
+						  QueryBlockLayout queryBlockLayout,
 						  UnaryOperator<String> sortLabelProvider) {
 		this.i18n = i18n;
-		this.queryBlock = queryBlock;
+		this.queryBlockLayout = queryBlockLayout;
 		this.sortLabelProvider = sortLabelProvider;
 
 		applyStyles();
@@ -54,7 +55,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 	}
 
 	public void toggleVisibility() {
-		var layout = queryBlock.getLayout();
+		var layout = queryBlockLayout.getLayout();
 		boolean nowVisible = !layout.isVisible();
 		layout.setVisible(nowVisible);
 		setToggleIconState(nowVisible);

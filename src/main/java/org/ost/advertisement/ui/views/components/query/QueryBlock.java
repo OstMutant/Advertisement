@@ -6,8 +6,6 @@ import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 
 public interface QueryBlock<T> {
 
-	Component getLayout();
-
 	FilterFieldsProcessor<T> getFilterProcessor();
 
 	SortFieldsProcessor getSortProcessor();

@@ -23,7 +23,7 @@ public class AdvertisementQueryStatusBlock {
 										 ObjectProvider<QueryStatusBar<AdvertisementFilterDto>> statusBarProvider) {
 		this.queryBlock = queryBlock;
 
-		this.statusBar = statusBarProvider.getObject(i18n, queryBlock, AdvertisementSortMeta.labelProvider(i18n));
+		this.statusBar = statusBarProvider.getObject(i18n, queryBlock, queryBlock, AdvertisementSortMeta.labelProvider(i18n));
 
 		statusBar.getElement().addEventListener("click", e -> statusBar.toggleVisibility());
 		statusBar.getStyle().set("cursor", "pointer");

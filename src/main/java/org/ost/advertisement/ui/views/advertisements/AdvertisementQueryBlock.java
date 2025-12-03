@@ -22,17 +22,18 @@ import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
-import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.content.ContentFactory;
 import org.ost.advertisement.ui.views.components.content.QueryBlockFactory;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 
 @SpringComponent
 @UIScope
-public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto> {
+public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
 
 	@Getter
 	private final QueryActionBlock queryActionBlock;
