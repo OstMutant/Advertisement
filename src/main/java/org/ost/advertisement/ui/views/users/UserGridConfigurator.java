@@ -95,13 +95,13 @@ public class UserGridConfigurator {
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(queryBlock.getIdFilter());
 
-		VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameFilter(), queryBlock.getEmailFilter());
+		VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameField(), queryBlock.getEmailField());
 		nameAndEmailLayout.setSpacing(false);
 		nameAndEmailLayout.setPadding(false);
 		nameAndEmailLayout.setMargin(false);
 		filterRow.getCell(nameAndEmailColumn).setComponent(nameAndEmailLayout);
 
-		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleFilter());
+		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleCombo());
 		filterRow.getCell(createdColumn).setComponent(queryBlock.getCreatedFilter());
 		filterRow.getCell(updatedColumn).setComponent(queryBlock.getUpdatedFilter());
 		filterRow.getCell(actionsColumn).setComponent(queryBlock.getQueryActionBlock().getComponent());

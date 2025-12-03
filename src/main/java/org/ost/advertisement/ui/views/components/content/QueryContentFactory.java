@@ -14,7 +14,7 @@ import org.ost.advertisement.services.I18nService;
 @SpringComponent
 @UIScope
 @AllArgsConstructor
-public class QueryBlockFactory {
+public class QueryContentFactory {
 
 	private final I18nService i18n;
 

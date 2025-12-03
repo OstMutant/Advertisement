@@ -23,7 +23,7 @@ import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.content.ContentFactory;
-import org.ost.advertisement.ui.views.components.content.QueryBlockFactory;
+import org.ost.advertisement.ui.views.components.content.QueryContentFactory;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
@@ -58,7 +58,7 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	public AdvertisementQueryBlock(AdvertisementFilterMapper filterMapper,
 								   ValidationService<AdvertisementFilterDto> validation,
 								   ContentFactory contentFactory,
-								   QueryBlockFactory queryBlockFactory,
+								   QueryContentFactory queryContentFactory,
 								   QueryActionBlock queryActionBlock) {
 		this.queryActionBlock = queryActionBlock;
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
@@ -74,11 +74,11 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.updatedStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_START);
 		this.updatedEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_END);
 
-		this.layout = queryBlockFactory.buildQueryBlockLayout(
-			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
-			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart,
+		this.layout = queryContentFactory.buildQueryBlockLayout(
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart,
 				createdEnd),
-			queryBlockFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
 				updatedEnd),
 			this.queryActionBlock.getComponent());
 	}

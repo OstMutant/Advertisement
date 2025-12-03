@@ -52,8 +52,11 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
 	private final NumberField idMin;
 	private final NumberField idMax;
+	@Getter
 	private final TextField nameField;
+	@Getter
 	private final TextField emailField;
+	@Getter
 	private final ComboBox<Role> roleCombo;
 	private final DatePicker createdStart;
 	private final DatePicker createdEnd;
@@ -74,8 +77,8 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 	private final TriStateSortIcon updatedSortIcon;
 
 	public UserQueryBlock(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
-						  I18nService i18n) {
-		this.queryActionBlock = new QueryActionBlock(i18n);
+						  I18nService i18n, QueryActionBlock queryActionBlock) {
+		this.queryActionBlock = queryActionBlock;
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, UserFilterDto.empty());
 		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
 			Sort.Order.desc(User.Fields.updatedAt),
@@ -123,18 +126,6 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
 	public Component getIdFilter() {
 		return createFilterBlock(idMin, idMax);
-	}
-
-	public Component getNameFilter() {
-		return nameField;
-	}
-
-	public Component getEmailFilter() {
-		return emailField;
-	}
-
-	public Component getRoleFilter() {
-		return roleCombo;
 	}
 
 	public Component getCreatedFilter() {
