@@ -2,7 +2,7 @@ package org.ost.advertisement.ui.views.components;
 
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createSvgButton;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createSvgActionButton;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -17,8 +17,8 @@ public class ActionBlock implements ActionStateChangeListener {
 	private final Button clearButton;
 
 	public ActionBlock(I18nService i18n) {
-		applyButton = createSvgButton("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
-		clearButton = createSvgButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
+		applyButton = createSvgActionButton("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
+		clearButton = createSvgActionButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
 	}
 
 	public void eventProcessor(Runnable onApply, Runnable onClear) {

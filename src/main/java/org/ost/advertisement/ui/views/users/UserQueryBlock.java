@@ -9,11 +9,11 @@ import static org.ost.advertisement.constants.I18nKey.USER_FILTER_NAME_PLACEHOLD
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_ROLE_ANY;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_START;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createCombo;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createNumberField;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createCombo;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createFilterBlock;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createFullTextField;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createNumberField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;

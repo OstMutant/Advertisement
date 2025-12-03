@@ -8,8 +8,6 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -31,6 +29,7 @@ import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.ActionBlock;
+import org.ost.advertisement.ui.views.components.content.ContentFactory;
 import org.ost.advertisement.ui.views.components.QueryBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
@@ -63,7 +62,8 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 
 	public AdvertisementQueryBlock(I18nService i18n,
 								   AdvertisementFilterMapper filterMapper,
-								   ValidationService<AdvertisementFilterDto> validation) {
+								   ValidationService<AdvertisementFilterDto> validation,
+								   ContentFactory contentFactory) {
 		this.i18n = i18n;
 		this.actionsBlock = new ActionBlock(i18n);
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
@@ -73,13 +73,16 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.createdSortIcon = new TriStateSortIcon();
 		this.updatedSortIcon = new TriStateSortIcon();
 
-		this.titleField = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
-		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
-		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
-		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
-		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+		this.titleField = contentFactory.createFullTextField(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER);
+		this.createdStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_START);
+		this.createdEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_END);
+		this.updatedStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_START);
+		this.updatedEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_END);
 
-		this.layout = buildLayout();
+		this.layout = buildLayout(createInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
+			createInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart, createdEnd),
+			createInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart, updatedEnd),
+			actionsBlock.getComponent());
 	}
 
 	@PostConstruct
@@ -96,7 +99,7 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, actionsBlock);
 	}
 
-	private VerticalLayout buildLayout() {
+	private VerticalLayout buildLayout(Component... components) {
 		VerticalLayout localLayout = new VerticalLayout();
 		localLayout.setPadding(false);
 		localLayout.setSpacing(false);
@@ -109,11 +112,7 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 			.set("background-color", "#fafafa")
 			.set("gap", "6px");
 
-		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField));
-		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart, createdEnd));
-		localLayout.add(createInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart, updatedEnd));
-		localLayout.add(actionsBlock.getComponent());
-
+		localLayout.add(components);
 		return localLayout;
 	}
 
