@@ -5,6 +5,7 @@ import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
 
 import com.vaadin.flow.component.AbstractField;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
@@ -27,7 +28,8 @@ public class FilterFieldsProcessor<F> {
 
 	private final Map<AbstractField<?, ?>, FilterField<?, F, ?>> fieldsMap = new LinkedHashMap<>();
 
-	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService, F defaultFilter) {
+	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
+								 F defaultFilter) {
 		this.filterMapper = filterMapper;
 		this.validationService = validationService;
 		this.defaultFilter = defaultFilter;
@@ -66,6 +68,13 @@ public class FilterFieldsProcessor<F> {
 
 	public boolean validate() {
 		return validationService.isValid(newFilter);
+	}
+
+	public List<String> getActiveFilterDescriptions() {
+		return fieldsMap.values().stream()
+			.filter(fFilterField -> fFilterField.hasValue(newFilter))
+			.map(fFilterField -> fFilterField.name() + ": " + fFilterField.getValueAsString(newFilter))
+			.toList();
 	}
 
 	private void highlightChangedFields() {

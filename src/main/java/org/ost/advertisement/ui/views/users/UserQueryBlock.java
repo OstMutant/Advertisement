@@ -9,11 +9,11 @@ import static org.ost.advertisement.constants.I18nKey.USER_FILTER_NAME_PLACEHOLD
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_ROLE_ANY;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_END;
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_UPDATED_START;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createCombo;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFilterBlock;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createNumberField;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createCombo;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createDatePicker;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createFilterBlock;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createFullTextField;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createNumberField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.combobox.ComboBox;
@@ -31,16 +31,20 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.ActionBlock;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
+import org.springframework.data.domain.Sort;
 
 @SpringComponent
 @UIScope
-public class UserQueryBlock {
+public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
-	private final ActionBlock actionsBlock;
+	@Getter
+	private final QueryActionBlock queryActionBlock;
 	@Getter
 	private final FilterFieldsProcessor<UserFilterDto> filterProcessor;
 	@Getter
@@ -48,8 +52,11 @@ public class UserQueryBlock {
 
 	private final NumberField idMin;
 	private final NumberField idMax;
+	@Getter
 	private final TextField nameField;
+	@Getter
 	private final TextField emailField;
+	@Getter
 	private final ComboBox<Role> roleCombo;
 	private final DatePicker createdStart;
 	private final DatePicker createdEnd;
@@ -70,10 +77,13 @@ public class UserQueryBlock {
 	private final TriStateSortIcon updatedSortIcon;
 
 	public UserQueryBlock(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
-						  I18nService i18n) {
-		this.actionsBlock = new ActionBlock(i18n);
+						  I18nService i18n, QueryActionBlock queryActionBlock) {
+		this.queryActionBlock = queryActionBlock;
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, UserFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort());
+		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
+			Sort.Order.desc(User.Fields.updatedAt),
+			Sort.Order.desc(User.Fields.createdAt)
+		)));
 
 		this.idMin = createNumberField(i18n.get(USER_FILTER_ID_MIN));
 		this.idMax = createNumberField(i18n.get(USER_FILTER_ID_MAX));
@@ -95,59 +105,27 @@ public class UserQueryBlock {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(idSortIcon, User.Fields.id, actionsBlock);
-		sortProcessor.register(nameSortIcon, User.Fields.name, actionsBlock);
-		sortProcessor.register(emailSortIcon, User.Fields.email, actionsBlock);
-		sortProcessor.register(roleSortIcon, User.Fields.role, actionsBlock);
-		sortProcessor.register(createdSortIcon, User.Fields.createdAt, actionsBlock);
-		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, actionsBlock);
+		sortProcessor.register(idSortIcon, User.Fields.id, queryActionBlock);
+		sortProcessor.register(nameSortIcon, User.Fields.name, queryActionBlock);
+		sortProcessor.register(emailSortIcon, User.Fields.email, queryActionBlock);
+		sortProcessor.register(roleSortIcon, User.Fields.role, queryActionBlock);
+		sortProcessor.register(createdSortIcon, User.Fields.createdAt, queryActionBlock);
+		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, queryActionBlock);
+		sortProcessor.refreshSorting();
 
-		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, actionsBlock);
-		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, actionsBlock);
-		filterProcessor.register(nameField, UserFilterMeta.NAME, actionsBlock);
-		filterProcessor.register(emailField, UserFilterMeta.EMAIL, actionsBlock);
-		filterProcessor.register(roleCombo, UserFilterMeta.ROLE, actionsBlock);
-		filterProcessor.register(createdStart, UserFilterMeta.CREATED_AT_START, actionsBlock);
-		filterProcessor.register(createdEnd, UserFilterMeta.CREATED_AT_END, actionsBlock);
-		filterProcessor.register(updatedStart, UserFilterMeta.UPDATED_AT_START, actionsBlock);
-		filterProcessor.register(updatedEnd, UserFilterMeta.UPDATED_AT_END, actionsBlock);
-	}
-
-	public void eventProcessor(Runnable onApply) {
-		actionsBlock.eventProcessor(() -> {
-			if (!filterProcessor.validate()) {
-				return;
-			}
-			filterProcessor.updateFilter();
-			sortProcessor.updateSorting();
-			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
-			actionsBlock.setChanged(false);
-		}, () -> {
-			filterProcessor.clearFilter();
-			sortProcessor.clearSorting();
-			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
-			actionsBlock.setChanged(false);
-		});
+		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, queryActionBlock);
+		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, queryActionBlock);
+		filterProcessor.register(nameField, UserFilterMeta.NAME, queryActionBlock);
+		filterProcessor.register(emailField, UserFilterMeta.EMAIL, queryActionBlock);
+		filterProcessor.register(roleCombo, UserFilterMeta.ROLE, queryActionBlock);
+		filterProcessor.register(createdStart, UserFilterMeta.CREATED_AT_START, queryActionBlock);
+		filterProcessor.register(createdEnd, UserFilterMeta.CREATED_AT_END, queryActionBlock);
+		filterProcessor.register(updatedStart, UserFilterMeta.UPDATED_AT_START, queryActionBlock);
+		filterProcessor.register(updatedEnd, UserFilterMeta.UPDATED_AT_END, queryActionBlock);
 	}
 
 	public Component getIdFilter() {
 		return createFilterBlock(idMin, idMax);
-	}
-
-	public Component getNameFilter() {
-		return nameField;
-	}
-
-	public Component getEmailFilter() {
-		return emailField;
-	}
-
-	public Component getRoleFilter() {
-		return roleCombo;
 	}
 
 	public Component getCreatedFilter() {
@@ -156,9 +134,5 @@ public class UserQueryBlock {
 
 	public Component getUpdatedFilter() {
 		return createFilterBlock(updatedStart, updatedEnd);
-	}
-
-	public Component getActionBlock() {
-		return actionsBlock.getComponent();
 	}
 }

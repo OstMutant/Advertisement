@@ -1,6 +1,12 @@
 package org.ost.advertisement.ui.views.users;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_ACTIONS;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_CREATED;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_EMAIL;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_ID;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_NAME;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_ROLE;
+import static org.ost.advertisement.constants.I18nKey.USER_VIEW_HEADER_UPDATED;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -28,8 +34,7 @@ public class UserGridConfigurator {
 								 UserQueryBlock queryBlock,
 								 I18nService i18n,
 								 Consumer<User> onEdit,
-								 Consumer<User> onDelete,
-								 Runnable refreshGrid) {
+								 Consumer<User> onDelete) {
 
 		grid.setSizeFull();
 
@@ -90,16 +95,16 @@ public class UserGridConfigurator {
 		HeaderRow filterRow = grid.appendHeaderRow();
 		filterRow.getCell(idColumn).setComponent(queryBlock.getIdFilter());
 
-		VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameFilter(), queryBlock.getEmailFilter());
+		VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameField(), queryBlock.getEmailField());
 		nameAndEmailLayout.setSpacing(false);
 		nameAndEmailLayout.setPadding(false);
 		nameAndEmailLayout.setMargin(false);
 		filterRow.getCell(nameAndEmailColumn).setComponent(nameAndEmailLayout);
 
-		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleFilter());
+		filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleCombo());
 		filterRow.getCell(createdColumn).setComponent(queryBlock.getCreatedFilter());
 		filterRow.getCell(updatedColumn).setComponent(queryBlock.getUpdatedFilter());
-		filterRow.getCell(actionsColumn).setComponent(queryBlock.getActionBlock());
+		filterRow.getCell(actionsColumn).setComponent(queryBlock.getQueryActionBlock().getComponent());
 	}
 
 	private static Component sortableHeader(String label, Component sortIcon) {

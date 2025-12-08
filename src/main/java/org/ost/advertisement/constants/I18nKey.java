@@ -140,7 +140,12 @@ public enum I18nKey {
 	PAGINATION_PREV("pagination.prev"),
 	PAGINATION_NEXT("pagination.next"),
 	PAGINATION_LAST("pagination.last"),
-	PAGINATION_INDICATOR("pagination.indicator");
+	PAGINATION_INDICATOR("pagination.indicator"),
+
+	QUERY_STATUS_FILTERS_PREFIX("query.status.filters.prefix"),
+	QUERY_STATUS_FILTERS_NONE("query.status.filters.none"),
+	QUERY_STATUS_SORT_PREFIX("query.status.sort.prefix"),
+	QUERY_STATUS_SORT_NONE("query.status.sort.none");
 
 	private final String key;
 

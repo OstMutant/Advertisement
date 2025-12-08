@@ -79,10 +79,18 @@ public class DialogContentFactory {
 	}
 
 	public static void showSuccess(I18nService i18n, I18nKey key) {
-		NotificationType.SUCCESS.show(i18n.get(key));
+		showSuccess(i18n.get(key));
 	}
 
-	public static void showError(I18nService i18n, I18nKey key, String details) {
-		NotificationType.ERROR.show(i18n.get(key, details));
+	public static void showError(I18nService i18n, I18nKey key, Object... args) {
+		showError(i18n.get(key, args));
+	}
+
+	public static void showSuccess(String successMsg) {
+		NotificationType.SUCCESS.show(successMsg);
+	}
+
+	public static void showError(String errorMsg) {
+		NotificationType.ERROR.show(errorMsg);
 	}
 }

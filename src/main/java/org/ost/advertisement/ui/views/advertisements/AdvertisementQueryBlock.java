@@ -8,15 +8,9 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDAT
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createDatePicker;
-import static org.ost.advertisement.ui.views.components.ContentFactory.createFullTextField;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
-import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -24,20 +18,25 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
-import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.ActionBlock;
+import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
+import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
+import org.ost.advertisement.ui.views.components.content.ContentFactory;
+import org.ost.advertisement.ui.views.components.content.QueryContentFactory;
 import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlock;
+import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
 import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
 
 @SpringComponent
 @UIScope
-public class AdvertisementQueryBlock {
+public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
 
-	private final ActionBlock actionsBlock;
+	@Getter
+	private final QueryActionBlock queryActionBlock;
 	@Getter
 	private final FilterFieldsProcessor<AdvertisementFilterDto> filterProcessor;
 	@Getter
@@ -53,89 +52,48 @@ public class AdvertisementQueryBlock {
 	private final DatePicker updatedStart;
 	private final DatePicker updatedEnd;
 
-	private final I18nService i18n;
+	@Getter
+	private final Component layout;
 
-	public AdvertisementQueryBlock(I18nService i18n,
-								   AdvertisementFilterMapper filterMapper,
-								   ValidationService<AdvertisementFilterDto> validation) {
-		this.i18n = i18n;
-		this.actionsBlock = new ActionBlock(i18n);
+	public AdvertisementQueryBlock(AdvertisementFilterMapper filterMapper,
+								   ValidationService<AdvertisementFilterDto> validation,
+								   ContentFactory contentFactory,
+								   QueryContentFactory queryContentFactory,
+								   QueryActionBlock queryActionBlock) {
+		this.queryActionBlock = queryActionBlock;
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort());
+		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
 
 		this.titleSortIcon = new TriStateSortIcon();
 		this.createdSortIcon = new TriStateSortIcon();
 		this.updatedSortIcon = new TriStateSortIcon();
 
-		this.titleField = createFullTextField(i18n.get(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER));
-		this.createdStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_START));
-		this.createdEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_CREATED_END));
-		this.updatedStart = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_START));
-		this.updatedEnd = createDatePicker(i18n.get(ADVERTISEMENT_FILTER_UPDATED_END));
+		this.titleField = contentFactory.createFullTextField(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER);
+		this.createdStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_START);
+		this.createdEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_END);
+		this.updatedStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_START);
+		this.updatedEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_END);
+
+		this.layout = queryContentFactory.buildQueryBlockLayout(
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart,
+				createdEnd),
+			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
+				updatedEnd),
+			this.queryActionBlock.getComponent());
 	}
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, actionsBlock);
-		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, actionsBlock);
-		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, actionsBlock);
+		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, queryActionBlock);
+		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, queryActionBlock);
+		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, queryActionBlock);
+		sortProcessor.refreshSorting();
 
-		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, actionsBlock);
-		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, actionsBlock);
-		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, actionsBlock);
-		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, actionsBlock);
-		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, actionsBlock);
-	}
-
-	public Component getComponent() {
-		VerticalLayout layout = new VerticalLayout();
-		layout.setPadding(false);
-		layout.setSpacing(false);
-		layout.getStyle().set("gap", "6px");
-
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_TITLE), titleSortIcon, titleField));
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_CREATED_AT), createdSortIcon, createdStart, createdEnd));
-		layout.add(createRow(i18n.get(ADVERTISEMENT_SORT_UPDATED_AT), updatedSortIcon, updatedStart, updatedEnd));
-		layout.add(actionsBlock.getComponent());
-
-		return layout;
-	}
-
-	private Component createRow(String labelText, Component sortIcon, Component... filterFields) {
-		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(labelText), sortIcon);
-		labelAndSort.setAlignItems(Alignment.CENTER);
-		labelAndSort.setSpacing(true);
-
-		VerticalLayout filters = new VerticalLayout(filterFields);
-		filters.setPadding(false);
-		filters.setSpacing(false);
-		filters.getStyle().set("gap", "4px");
-
-		VerticalLayout block = new VerticalLayout(labelAndSort, filters);
-		block.setPadding(false);
-		block.setSpacing(false);
-		return block;
-	}
-
-	public void eventProcessor(Runnable onApply) {
-		Runnable combined = () -> {
-			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
-			actionsBlock.setChanged(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
-		};
-
-		actionsBlock.eventProcessor(() -> {
-			if (!filterProcessor.validate()) {
-				return;
-			}
-			filterProcessor.updateFilter();
-			sortProcessor.updateSorting();
-			combined.run();
-		}, () -> {
-			filterProcessor.clearFilter();
-			sortProcessor.clearSorting();
-			combined.run();
-		});
+		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, queryActionBlock);
+		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, queryActionBlock);
+		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, queryActionBlock);
+		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, queryActionBlock);
+		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, queryActionBlock);
 	}
 }

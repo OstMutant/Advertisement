@@ -25,4 +25,14 @@ public record FilterField<I, F, R>(
 		BiPredicate<ValidationService<F>, F> validation) {
 		return new FilterField<>(name, getter, setter, validation);
 	}
+
+	public boolean hasValue(F filter) {
+		R value = getter().apply(filter);
+		return value != null && !(value instanceof String s && s.isBlank());
+	}
+
+	public String getValueAsString(F filter) {
+		R value = getter().apply(filter);
+		return value == null ? "" : value.toString();
+	}
 }

@@ -13,7 +13,7 @@ import org.springframework.data.domain.Sort.Direction;
 
 public class TriStateSortIcon extends Span {
 
-	private Direction currentDirection = null; // null = NONE
+	private Direction currentDirection = null;
 	private SvgIcon icon;
 
 	public TriStateSortIcon() {
@@ -38,22 +38,13 @@ public class TriStateSortIcon extends Span {
 			remove(icon);
 		}
 
-		String path;
-		String color;
-
-		if (currentDirection == null) {
-			path = "icons/sort-neutral.svg";
-			color = "gray"; // DEFAULT
-		} else {
-			path = switch (currentDirection) {
-				case ASC -> "icons/sort-asc.svg";
-				case DESC -> "icons/sort-desc.svg";
-			};
-			color = "orange"; // CHANGED
-		}
+		String path = switch (currentDirection) {
+			case null -> "icons/sort-neutral.svg";
+			case ASC -> "icons/sort-asc.svg";
+			case DESC -> "icons/sort-desc.svg";
+		};
 
 		icon = new SvgIcon(path);
-		icon.getStyle().set("color", color);
 		add(icon);
 	}
 
@@ -89,6 +80,5 @@ public class TriStateSortIcon extends Span {
 			super(source, false);
 			this.direction = direction;
 		}
-
 	}
 }

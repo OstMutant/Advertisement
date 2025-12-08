@@ -52,7 +52,7 @@ public class LoginDialog extends Dialog {
 			SessionUtil.refreshCurrentLocale();
 			UI.getCurrent().getPage().reload();
 		} else {
-			DialogContentFactory.showError(i18n, LOGIN_ERROR, "");
+			DialogContentFactory.showError(i18n, LOGIN_ERROR);
 		}
 	}
 }

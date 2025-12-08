@@ -1,7 +1,8 @@
-package org.ost.advertisement.ui.views.components;
+package org.ost.advertisement.ui.views.components.query;
 
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
+import static org.ost.advertisement.ui.views.components.content.ContentFactory.createSvgActionButton;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
@@ -9,17 +10,19 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
+import org.springframework.context.annotation.Scope;
 
-public class ActionBlock implements ActionStateChangeListener {
+@org.springframework.stereotype.Component
+@Scope("prototype")
+public class QueryActionBlock implements ActionStateChangeListener {
 
 	private final Button applyButton;
 	private final Button clearButton;
 
-	public ActionBlock(I18nService i18n) {
-		this.applyButton = ContentFactory.createSvgButton("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP),
-			ButtonVariant.LUMO_PRIMARY);
-		this.clearButton = ContentFactory.createSvgButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP),
-			ButtonVariant.LUMO_TERTIARY);
+	public QueryActionBlock(I18nService i18n) {
+		applyButton = createSvgActionButton("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
+		clearButton = createSvgActionButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
 	}
 
 	public void eventProcessor(Runnable onApply, Runnable onClear) {
@@ -29,11 +32,10 @@ public class ActionBlock implements ActionStateChangeListener {
 
 	@Override
 	public void setChanged(boolean changed) {
-		applyButton.getStyle().remove("border");
-		applyButton.getStyle().remove("border-radius");
 		if (changed) {
-			applyButton.getStyle().set("border", "3px solid orange");
-			applyButton.getStyle().set("border-radius", "4px");
+			applyButton.getStyle().set("border-color", "orange");
+		} else {
+			applyButton.getStyle().set("border-color", "transparent");
 		}
 	}
 
