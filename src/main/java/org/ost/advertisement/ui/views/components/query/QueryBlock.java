@@ -1,8 +1,7 @@
 package org.ost.advertisement.ui.views.components.query;
 
-import com.vaadin.flow.component.Component;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
 
 public interface QueryBlock<T> {
 

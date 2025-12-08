@@ -16,8 +16,8 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
 
 @SpringComponent
 @UIScope

@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.function.UnaryOperator;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 

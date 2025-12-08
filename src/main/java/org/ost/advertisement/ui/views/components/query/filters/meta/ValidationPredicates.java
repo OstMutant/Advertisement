@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.filters.meta;
+package org.ost.advertisement.ui.views.components.query.filters.meta;
 
 import java.util.function.BiPredicate;
 import lombok.AccessLevel;

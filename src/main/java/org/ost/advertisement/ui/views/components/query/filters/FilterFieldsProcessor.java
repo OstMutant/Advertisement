@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.filters;
+package org.ost.advertisement.ui.views.components.query.filters;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
@@ -10,8 +10,8 @@ import java.util.Map;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
-import org.ost.advertisement.ui.views.components.filters.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
+import org.ost.advertisement.ui.views.components.query.filters.meta.FilterField;
 
 public class FilterFieldsProcessor<F> {
 
@@ -39,7 +39,7 @@ public class FilterFieldsProcessor<F> {
 
 	public <I, C extends AbstractField<?, I>, R> void register(C field,
 															   FilterField<I, F, R> meta,
-															   ActionStateChangeListener events) {
+															   QueryActionBlockChangeListener events) {
 		fieldsMap.put(field, meta);
 		field.addValueChangeListener(e -> {
 			meta.setter().accept(newFilter, e.getValue());

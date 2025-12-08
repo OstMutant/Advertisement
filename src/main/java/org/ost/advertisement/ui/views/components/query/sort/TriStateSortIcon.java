@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.sort;
+package org.ost.advertisement.ui.views.components.query.sort;
 
 import static org.springframework.data.domain.Sort.Direction.ASC;
 import static org.springframework.data.domain.Sort.Direction.DESC;
@@ -46,10 +46,6 @@ public class TriStateSortIcon extends Span {
 
 		icon = new SvgIcon(path);
 		add(icon);
-	}
-
-	public Direction getDirection() {
-		return currentDirection;
 	}
 
 	public void setDirection(Direction direction) {

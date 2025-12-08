@@ -24,12 +24,12 @@ import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMet
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.content.ContentFactory;
 import org.ost.advertisement.ui.views.components.content.QueryContentFactory;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon;
 
 @SpringComponent
 @UIScope

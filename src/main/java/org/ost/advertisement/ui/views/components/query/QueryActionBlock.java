@@ -10,12 +10,11 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
 import org.springframework.context.annotation.Scope;
 
 @org.springframework.stereotype.Component
 @Scope("prototype")
-public class QueryActionBlock implements ActionStateChangeListener {
+public class QueryActionBlock implements QueryActionBlockChangeListener {
 
 	private final Button applyButton;
 	private final Button clearButton;
