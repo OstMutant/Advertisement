@@ -19,6 +19,7 @@ import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
@@ -55,7 +56,7 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	@Getter
 	private final Component layout;
 
-	public AdvertisementQueryBlock(AdvertisementFilterMapper filterMapper,
+	public AdvertisementQueryBlock(I18nService i18n, AdvertisementFilterMapper filterMapper,
 								   ValidationService<AdvertisementFilterDto> validation,
 								   ContentFactory contentFactory,
 								   QueryContentFactory queryContentFactory,
@@ -64,9 +65,9 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
 		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
 
-		this.titleSortIcon = new TriStateSortIcon();
-		this.createdSortIcon = new TriStateSortIcon();
-		this.updatedSortIcon = new TriStateSortIcon();
+		this.titleSortIcon = new TriStateSortIcon(i18n);
+		this.createdSortIcon = new TriStateSortIcon(i18n);
+		this.updatedSortIcon = new TriStateSortIcon(i18n);
 
 		this.titleField = contentFactory.createFullTextField(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER);
 		this.createdStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_START);

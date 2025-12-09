@@ -95,12 +95,12 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 		this.updatedStart = createDatePicker(i18n.get(USER_FILTER_UPDATED_START));
 		this.updatedEnd = createDatePicker(i18n.get(USER_FILTER_UPDATED_END));
 
-		this.idSortIcon = new TriStateSortIcon();
-		this.nameSortIcon = new TriStateSortIcon();
-		this.emailSortIcon = new TriStateSortIcon();
-		this.roleSortIcon = new TriStateSortIcon();
-		this.createdSortIcon = new TriStateSortIcon();
-		this.updatedSortIcon = new TriStateSortIcon();
+		this.idSortIcon = new TriStateSortIcon(i18n);
+		this.nameSortIcon = new TriStateSortIcon(i18n);
+		this.emailSortIcon = new TriStateSortIcon(i18n);
+		this.roleSortIcon = new TriStateSortIcon(i18n);
+		this.createdSortIcon = new TriStateSortIcon(i18n);
+		this.updatedSortIcon = new TriStateSortIcon(i18n);
 	}
 
 	@PostConstruct

@@ -1,70 +1,62 @@
 package org.ost.advertisement.ui.views.components.query.sort;
 
-import static org.springframework.data.domain.Sort.Direction.ASC;
-import static org.springframework.data.domain.Sort.Direction.DESC;
+import static org.ost.advertisement.constants.I18nKey.SORT_ICON_TOOLTIP;
+import static org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortIconState.fromDirection;
 
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.shared.Registration;
 import lombok.Getter;
+import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
 import org.springframework.data.domain.Sort.Direction;
 
 public class TriStateSortIcon extends Span {
 
-	private Direction currentDirection = null;
-	private SvgIcon icon;
+	private final I18nService i18n;
 
-	public TriStateSortIcon() {
-		setTitle("Click to change sort direction");
+	private Direction currentDirection = null;
+	private SvgIcon currentIcon;
+
+	public TriStateSortIcon(I18nService i18n) {
+		this.i18n = i18n;
+		setTitle(i18n.get(SORT_ICON_TOOLTIP));
 		getStyle().set("cursor", "pointer");
 		addClickListener(e -> toggleDirection());
-		updateIcon();
+		switchIcon();
 	}
 
 	private void toggleDirection() {
-		currentDirection = switch (currentDirection) {
-			case null -> ASC;
-			case ASC -> DESC;
-			case DESC -> null;
-		};
-		updateIcon();
+		currentDirection = fromDirection(currentDirection).next().getDirection();
+		switchIcon();
 		fireEvent(new SortDirectionChangedEvent(this, currentDirection));
 	}
 
-	private void updateIcon() {
-		if (icon != null) {
-			remove(icon);
+	private void switchIcon() {
+		if (currentIcon != null) {
+			remove(currentIcon);
 		}
 
-		String path = switch (currentDirection) {
-			case null -> "icons/sort-neutral.svg";
-			case ASC -> "icons/sort-asc.svg";
-			case DESC -> "icons/sort-desc.svg";
-		};
-
-		icon = new SvgIcon(path);
-		add(icon);
+		SortIconState state = fromDirection(currentDirection);
+		currentIcon = new SvgIcon(state.getPath());
+		currentIcon.setTitle(i18n.get(state.getTooltipKey()));
+		add(currentIcon);
 	}
 
 	public void setDirection(Direction direction) {
 		this.currentDirection = direction;
-		updateIcon();
-	}
-
-	public void clear() {
-		setDirection(null);
+		switchIcon();
 	}
 
 	public void setVisualColor(String color) {
-		if (icon != null) {
-			icon.getStyle().set("color", color);
+		if (currentIcon != null) {
+			currentIcon.getStyle().set("color", color);
 		}
 	}
 
-	public Registration addDirectionChangedListener(ComponentEventListener<SortDirectionChangedEvent> listener) {
-		return addListener(SortDirectionChangedEvent.class, listener);
+	public void addDirectionChangedListener(ComponentEventListener<SortDirectionChangedEvent> listener) {
+		addListener(SortDirectionChangedEvent.class, listener);
 	}
 
 	@Getter
@@ -75,6 +67,41 @@ public class TriStateSortIcon extends Span {
 		public SortDirectionChangedEvent(TriStateSortIcon source, Direction direction) {
 			super(source, false);
 			this.direction = direction;
+		}
+	}
+
+	@Getter
+	public enum SortIconState {
+		NEUTRAL("icons/sort-neutral.svg", I18nKey.SORT_ICON_NEUTRAL, null),
+		ASC("icons/sort-asc.svg", I18nKey.SORT_ICON_ASC, Direction.ASC),
+		DESC("icons/sort-desc.svg", I18nKey.SORT_ICON_DESC, Direction.DESC);
+
+		private final String path;
+		private final I18nKey tooltipKey;
+		private final Direction direction;
+
+		SortIconState(String path, I18nKey tooltipKey, Direction direction) {
+			this.path = path;
+			this.tooltipKey = tooltipKey;
+			this.direction = direction;
+		}
+
+		public static SortIconState fromDirection(Direction dir) {
+			if (dir == null) {
+				return NEUTRAL;
+			}
+			return switch (dir) {
+				case ASC -> ASC;
+				case DESC -> DESC;
+			};
+		}
+
+		public SortIconState next() {
+			return switch (this) {
+				case NEUTRAL -> ASC;
+				case ASC -> DESC;
+				case DESC -> NEUTRAL;
+			};
 		}
 	}
 }
