@@ -1,21 +1,21 @@
 package org.ost.advertisement.ui.views.components.query;
 
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
-import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 
 public interface QueryBlock<T> {
 
-	FilterFieldsProcessor<T> getFilterProcessor();
+	FilterProcessor<T> getFilterProcessor();
 
-	SortFieldsProcessor getSortProcessor();
+	SortProcessor getSortProcessor();
 
 	QueryActionBlock getQueryActionBlock();
 
 	default void addEventListener(Runnable onApply) {
 		QueryActionBlock queryActionBlock = getQueryActionBlock();
-		FilterFieldsProcessor<T> filterProcessor = getFilterProcessor();
-		SortFieldsProcessor sortProcessor = getSortProcessor();
+		FilterProcessor<T> filterProcessor = getFilterProcessor();
+		SortProcessor sortProcessor = getSortProcessor();
 
 		Runnable combined = () -> {
 			if (onApply != null) {

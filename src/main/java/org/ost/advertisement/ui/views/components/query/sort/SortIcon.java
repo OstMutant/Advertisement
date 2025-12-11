@@ -12,8 +12,12 @@ import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.stereotype.Component;
 
+@Component
+@Scope("prototype")
 public class SortIcon extends Span {
 
 	private final transient I18nService i18n;

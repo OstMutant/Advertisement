@@ -20,8 +20,8 @@ import lombok.NoArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.query.filters.meta.FilterField;
-import org.ost.advertisement.ui.views.components.query.filters.meta.ValidationPredicates;
+import org.ost.advertisement.ui.views.components.query.filter.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.filter.meta.ValidationPredicates;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFilterMeta {

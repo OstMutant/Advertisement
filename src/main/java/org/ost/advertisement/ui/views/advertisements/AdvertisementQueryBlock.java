@@ -18,18 +18,17 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
-import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
+import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementFilterProcessor;
+import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementSortProcessor;
 import org.ost.advertisement.ui.views.components.content.ContentFactory;
 import org.ost.advertisement.ui.views.components.content.QueryContentFactory;
-import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
-import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 
 @SpringComponent
@@ -39,9 +38,9 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	@Getter
 	private final QueryActionBlock queryActionBlock;
 	@Getter
-	private final FilterFieldsProcessor<AdvertisementFilterDto> filterProcessor;
+	private final FilterProcessor<AdvertisementFilterDto> filterProcessor;
 	@Getter
-	private final SortFieldsProcessor sortProcessor;
+	private final SortProcessor sortProcessor;
 
 	private final SortIcon titleSortIcon;
 	private final SortIcon createdSortIcon;
@@ -56,14 +55,14 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	@Getter
 	private final Component layout;
 
-	public AdvertisementQueryBlock(I18nService i18n, AdvertisementFilterMapper filterMapper,
-								   ValidationService<AdvertisementFilterDto> validation,
+	public AdvertisementQueryBlock(I18nService i18n, AdvertisementFilterProcessor filterProcessor,
 								   ContentFactory contentFactory,
 								   QueryContentFactory queryContentFactory,
-								   QueryActionBlock queryActionBlock) {
+								   QueryActionBlock queryActionBlock,
+								   AdvertisementSortProcessor sortProcessor) {
 		this.queryActionBlock = queryActionBlock;
-		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
+		this.filterProcessor = filterProcessor;
+		this.sortProcessor = sortProcessor;
 
 		this.titleSortIcon = new SortIcon(i18n);
 		this.createdSortIcon = new SortIcon(i18n);

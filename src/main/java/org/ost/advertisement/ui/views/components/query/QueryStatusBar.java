@@ -1,18 +1,17 @@
 package org.ost.advertisement.ui.views.components.query;
 
+
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import java.util.List;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
+import org.springframework.data.domain.Sort.Order;
 
-@Component
-@Scope("prototype")
 public class QueryStatusBar<T> extends HorizontalLayout {
 
 	private final Span filterInfo = new Span();
@@ -37,21 +36,34 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 
 		add(toggleIcon, filterInfo, separator, sortInfo);
 		update(queryBlock.getFilterProcessor(), queryBlock.getSortProcessor());
+
+		getElement().addEventListener("click", e -> toggleVisibility());
 	}
 
-	public void update(FilterFieldsProcessor<?> filterProcessor, SortFieldsProcessor sortProcessor) {
+	public void update(FilterProcessor<?> filterProcessor, SortProcessor sortProcessor) {
 		List<String> filters = filterProcessor.getActiveFilterDescriptions();
 
 		filterInfo.setText(filters.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_FILTERS_NONE)
 			: i18n.get(I18nKey.QUERY_STATUS_FILTERS_PREFIX) + " " + String.join(", ", filters));
 
-		List<String> sorts = sortProcessor.getSortDescriptions(i18n, sortLabelProvider);
+		List<String> sorts = sortProcessor.getSortDescriptions(getSortDescriptionFunction(i18n, sortLabelProvider));
 		sortInfo.setText(sorts.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_SORT_NONE)
 			: i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + " " + String.join(", ", sorts));
 
 		separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
+	}
+
+	private Function<Order, String> getSortDescriptionFunction(I18nService i18n, UnaryOperator<String> labelProvider) {
+		return order -> {
+			String label = labelProvider.apply(order.getProperty());
+			String direction = switch (order.getDirection()) {
+				case ASC -> i18n.get(I18nKey.SORT_DIRECTION_ASC);
+				case DESC -> i18n.get(I18nKey.SORT_DIRECTION_DESC);
+			};
+			return label + " (" + direction + ")";
+		};
 	}
 
 	public void toggleVisibility() {
@@ -84,7 +96,8 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 			.set("padding", "8px 12px")
 			.set("margin-bottom", "12px")
 			.set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)")
-			.set("flex-wrap", "wrap");
+			.set("flex-wrap", "wrap")
+			.set("cursor", "pointer");
 
 		filterInfo.getStyle().set("font-weight", "500");
 		sortInfo.getStyle().set("font-weight", "500");

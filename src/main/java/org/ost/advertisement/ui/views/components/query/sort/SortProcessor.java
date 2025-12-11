@@ -4,16 +4,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.UnaryOperator;
+import java.util.function.Function;
 import lombok.Getter;
-import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
-import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortHighlightColor;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
+import org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortHighlightColor;
 import org.springframework.data.domain.Sort.Direction;
+import org.springframework.data.domain.Sort.Order;
 
-public class SortFieldsProcessor {
+public class SortProcessor {
 
 	protected final CustomSort defaultSort;
 	@Getter
@@ -23,7 +22,7 @@ public class SortFieldsProcessor {
 
 	private final Map<String, SortIcon> fieldsMap = new LinkedHashMap<>();
 
-	public SortFieldsProcessor(CustomSort defaultSort) {
+	public SortProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
 		this.originalSort = defaultSort.copy();
 		this.newSort = defaultSort.copy();
@@ -42,23 +41,8 @@ public class SortFieldsProcessor {
 
 	public void refreshItemsColor() {
 		for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
-			String property = entry.getKey();
-			SortIcon field = entry.getValue();
-			field.setColor(refreshColor(property));
+			refreshItemColor(entry.getKey(), entry.getValue());
 		}
-	}
-
-	private SortHighlightColor refreshColor(String property) {
-		Direction newVal = newSort.getDirection(property);
-		Direction origVal = originalSort.getDirection(property);
-		Direction defVal = defaultSort.getDirection(property);
-
-		if (Objects.equals(newVal, origVal)) {
-			return Objects.equals(origVal, defVal)
-				? SortHighlightColor.DEFAULT
-				: SortHighlightColor.CUSTOM;
-		}
-		return SortHighlightColor.CHANGED;
 	}
 
 	public boolean isSortingChanged() {
@@ -74,24 +58,32 @@ public class SortFieldsProcessor {
 		newSort.copyFrom(defaultSort);
 
 		for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
-			String property = entry.getKey();
-			SortIcon field = entry.getValue();
-			field.setDirection(newSort.getDirection(property));
-			field.setColor(refreshColor(property));
+			updateItemDirectionAndRefreshColor(entry.getKey(), entry.getValue());
 		}
 	}
 
-	public List<String> getSortDescriptions(I18nService i18n, UnaryOperator<String> labelProvider) {
-		return newSort.getSort().stream()
-			.map(order -> {
-				String label = labelProvider.apply(order.getProperty());
-				String direction = switch (order.getDirection()) {
-					case ASC -> i18n.get(I18nKey.SORT_DIRECTION_ASC);
-					case DESC -> i18n.get(I18nKey.SORT_DIRECTION_DESC);
-				};
-				return label + " (" + direction + ")";
-			})
-			.toList();
+	public List<String> getSortDescriptions(Function<Order, String> transformer) {
+		return newSort.getSort().stream().map(transformer).toList();
+	}
+
+	private void updateItemDirectionAndRefreshColor(String property, SortIcon field) {
+		field.setDirection(newSort.getDirection(property));
+		refreshItemColor(property, field);
+	}
+
+	private void refreshItemColor(String property, SortIcon field) {
+		field.setColor(refreshColor(property));
+	}
+
+	private SortHighlightColor refreshColor(String property) {
+		Direction newVal = newSort.getDirection(property);
+		Direction origVal = originalSort.getDirection(property);
+		Direction defVal = defaultSort.getDirection(property);
+
+		if (Objects.equals(newVal, origVal)) {
+			return Objects.equals(origVal, defVal) ? SortHighlightColor.DEFAULT : SortHighlightColor.CUSTOM;
+		}
+		return SortHighlightColor.CHANGED;
 	}
 }
 

@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.query.filters.meta;
+package org.ost.advertisement.ui.views.components.query.filter.meta;
 
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;

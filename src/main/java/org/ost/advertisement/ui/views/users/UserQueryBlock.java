@@ -31,10 +31,10 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
-import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
 import org.springframework.data.domain.Sort;
@@ -46,9 +46,9 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 	@Getter
 	private final QueryActionBlock queryActionBlock;
 	@Getter
-	private final FilterFieldsProcessor<UserFilterDto> filterProcessor;
+	private final FilterProcessor<UserFilterDto> filterProcessor;
 	@Getter
-	private final SortFieldsProcessor sortProcessor;
+	private final SortProcessor sortProcessor;
 
 	private final NumberField idMin;
 	private final NumberField idMax;
@@ -79,8 +79,8 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 	public UserQueryBlock(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
 						  I18nService i18n, QueryActionBlock queryActionBlock) {
 		this.queryActionBlock = queryActionBlock;
-		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, UserFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(new CustomSort(Sort.by(
+		this.filterProcessor = new FilterProcessor<>(filterMapper, validation, UserFilterDto.empty());
+		this.sortProcessor = new SortProcessor(new CustomSort(Sort.by(
 			Sort.Order.desc(User.Fields.updatedAt),
 			Sort.Order.desc(User.Fields.createdAt)
 		)));

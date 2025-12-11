@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.query.filters;
+package org.ost.advertisement.ui.views.components.query.filter;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
@@ -11,9 +11,9 @@ import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
-import org.ost.advertisement.ui.views.components.query.filters.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.filter.meta.FilterField;
 
-public class FilterFieldsProcessor<F> {
+public class FilterProcessor<F> {
 
 	private final FilterMapper<F> filterMapper;
 
@@ -28,8 +28,8 @@ public class FilterFieldsProcessor<F> {
 
 	private final Map<AbstractField<?, ?>, FilterField<?, F, ?>> fieldsMap = new LinkedHashMap<>();
 
-	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
-								 F defaultFilter) {
+	public FilterProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
+						   F defaultFilter) {
 		this.filterMapper = filterMapper;
 		this.validationService = validationService;
 		this.defaultFilter = defaultFilter;
@@ -72,8 +72,8 @@ public class FilterFieldsProcessor<F> {
 
 	public List<String> getActiveFilterDescriptions() {
 		return fieldsMap.values().stream()
-			.filter(fFilterField -> fFilterField.hasValue(newFilter))
-			.map(fFilterField -> fFilterField.name() + ": " + fFilterField.getValueAsString(newFilter))
+			.filter(filterField -> filterField.hasValue(newFilter))
+			.map(filterField -> filterField.name() + ": " + filterField.getValueAsString(newFilter))
 			.toList();
 	}
 

@@ -20,7 +20,7 @@ public class AdvertisementSortMeta {
 		));
 	}
 
-	public static final Map<String, I18nKey> labelMap = Map.of(
+	private static final Map<String, I18nKey> labelMap = Map.of(
 		AdvertisementInfoDto.Fields.title, I18nKey.ADVERTISEMENT_SORT_TITLE,
 		AdvertisementInfoDto.Fields.createdAt, I18nKey.ADVERTISEMENT_SORT_CREATED_AT,
 		AdvertisementInfoDto.Fields.updatedAt, I18nKey.ADVERTISEMENT_SORT_UPDATED_AT
