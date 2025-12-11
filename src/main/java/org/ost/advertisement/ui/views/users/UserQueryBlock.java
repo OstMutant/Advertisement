@@ -105,12 +105,12 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
 	@PostConstruct
 	private void init() {
-		sortProcessor.register(idSortIcon, User.Fields.id, queryActionBlock);
-		sortProcessor.register(nameSortIcon, User.Fields.name, queryActionBlock);
-		sortProcessor.register(emailSortIcon, User.Fields.email, queryActionBlock);
-		sortProcessor.register(roleSortIcon, User.Fields.role, queryActionBlock);
-		sortProcessor.register(createdSortIcon, User.Fields.createdAt, queryActionBlock);
-		sortProcessor.register(updatedSortIcon, User.Fields.updatedAt, queryActionBlock);
+		sortProcessor.register(User.Fields.id, idSortIcon, queryActionBlock);
+		sortProcessor.register(User.Fields.name, nameSortIcon, queryActionBlock);
+		sortProcessor.register(User.Fields.email, emailSortIcon, queryActionBlock);
+		sortProcessor.register(User.Fields.role, roleSortIcon, queryActionBlock);
+		sortProcessor.register(User.Fields.createdAt, createdSortIcon, queryActionBlock);
+		sortProcessor.register(User.Fields.updatedAt, updatedSortIcon, queryActionBlock);
 		sortProcessor.refreshSorting();
 
 		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, queryActionBlock);

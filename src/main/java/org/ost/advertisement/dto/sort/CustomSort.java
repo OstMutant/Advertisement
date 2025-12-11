@@ -5,22 +5,20 @@ import static java.util.Optional.ofNullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.domain.Sort.Order;
 
+@AllArgsConstructor
+@Getter
 public class CustomSort {
 
-	@Getter
 	private Sort sort;
 
 	public CustomSort() {
 		this(Sort.unsorted());
-	}
-
-	public CustomSort(Sort sort) {
-		this.sort = sort;
 	}
 
 	public Direction getDirection(String property) {
@@ -31,6 +29,7 @@ public class CustomSort {
 	}
 
 	public void updateSort(String property, Direction direction) {
+		Objects.requireNonNull(property);
 		List<Order> orders = sort.stream().filter(v -> !property.equals(v.getProperty()))
 			.collect(Collectors.toList());
 		if (Objects.nonNull(direction)) {
@@ -40,6 +39,7 @@ public class CustomSort {
 	}
 
 	public void copyFrom(CustomSort sort) {
+		Objects.requireNonNull(sort);
 		this.sort = sort.getSort();
 	}
 
@@ -47,11 +47,8 @@ public class CustomSort {
 		return new CustomSort(sort);
 	}
 
-	public void clear() {
-		this.sort = Sort.unsorted();
-	}
-
 	public boolean areSortsEquivalent(CustomSort newSort) {
+		Objects.requireNonNull(newSort);
 		List<Order> list1 = this.getSort().stream().toList();
 		List<Sort.Order> list2 = newSort.getSort().stream().toList();
 

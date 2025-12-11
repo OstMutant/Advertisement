@@ -28,9 +28,13 @@ public class TriStateSortIcon extends Span {
 		switchIcon();
 	}
 
-	private void toggleDirection() {
-		currentDirection = fromDirection(currentDirection).next().getDirection();
+	public void setDirection(Direction direction) {
+		this.currentDirection = direction;
 		switchIcon();
+	}
+
+	private void toggleDirection() {
+		setDirection(fromDirection(currentDirection).next().getDirection());
 		fireEvent(new SortDirectionChangedEvent(this, currentDirection));
 	}
 
@@ -43,11 +47,6 @@ public class TriStateSortIcon extends Span {
 		currentIcon = new SvgIcon(state.getPath());
 		currentIcon.setTitle(i18n.get(state.getTooltipKey()));
 		add(currentIcon);
-	}
-
-	public void setDirection(Direction direction) {
-		this.currentDirection = direction;
-		switchIcon();
 	}
 
 	public void setVisualColor(SortHighlightColor sortHighlightColor) {
@@ -73,15 +72,15 @@ public class TriStateSortIcon extends Span {
 
 	@Getter
 	public enum SortIconState {
-		NEUTRAL("icons/sort-neutral.svg", I18nKey.SORT_ICON_NEUTRAL, null),
-		ASC("icons/sort-asc.svg", I18nKey.SORT_ICON_ASC, Direction.ASC),
-		DESC("icons/sort-desc.svg", I18nKey.SORT_ICON_DESC, Direction.DESC);
+		NEUTRAL(null, "icons/sort-neutral.svg", I18nKey.SORT_ICON_NEUTRAL),
+		ASC(Direction.ASC, "icons/sort-asc.svg", I18nKey.SORT_ICON_ASC),
+		DESC(Direction.DESC, "icons/sort-desc.svg", I18nKey.SORT_ICON_DESC);
 
 		private final String path;
 		private final I18nKey tooltipKey;
 		private final Direction direction;
 
-		SortIconState(String path, I18nKey tooltipKey, Direction direction) {
+		SortIconState(Direction direction, String path, I18nKey tooltipKey) {
 			this.path = path;
 			this.tooltipKey = tooltipKey;
 			this.direction = direction;

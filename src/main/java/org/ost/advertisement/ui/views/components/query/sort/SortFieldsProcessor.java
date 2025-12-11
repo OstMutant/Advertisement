@@ -10,8 +10,8 @@ import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
 import org.ost.advertisement.ui.views.components.SvgIcon.SortHighlightColor;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
 public class SortFieldsProcessor {
@@ -22,7 +22,7 @@ public class SortFieldsProcessor {
 	@Getter
 	protected final CustomSort newSort;
 
-	private final Map<TriStateSortIcon, String> fieldsMap = new LinkedHashMap<>();
+	private final Map<String, TriStateSortIcon> fieldsMap = new LinkedHashMap<>();
 
 	public SortFieldsProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
@@ -30,8 +30,8 @@ public class SortFieldsProcessor {
 		this.newSort = defaultSort.copy();
 	}
 
-	public void register(TriStateSortIcon field, String property, QueryActionBlockChangeListener events) {
-		fieldsMap.put(field, property);
+	public void register(String property, TriStateSortIcon field, QueryActionBlockChangeListener events) {
+		fieldsMap.put(property, field);
 		field.setDirection(newSort.getDirection(property));
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
@@ -41,16 +41,17 @@ public class SortFieldsProcessor {
 	}
 
 	public void refreshSorting() {
-		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
-			TriStateSortIcon field = entry.getKey();
-			String property = entry.getValue();
+		for (Map.Entry<String, TriStateSortIcon> entry : fieldsMap.entrySet()) {
+			String property = entry.getKey();
+			TriStateSortIcon field = entry.getValue();
 
 			Direction newVal = newSort.getDirection(property);
 			Direction origVal = originalSort.getDirection(property);
 			Direction defVal = defaultSort.getDirection(property);
 
 			SortHighlightColor sortHighlightColor = Objects.equals(newVal, origVal)
-				? (Objects.equals(origVal, defVal) ? SvgIcon.SortHighlightColor.DEFAULT : SvgIcon.SortHighlightColor.CUSTOM)
+				? (Objects.equals(origVal, defVal) ? SvgIcon.SortHighlightColor.DEFAULT
+				: SvgIcon.SortHighlightColor.CUSTOM)
 				: SvgIcon.SortHighlightColor.CHANGED;
 
 			field.setVisualColor(sortHighlightColor);
@@ -69,9 +70,9 @@ public class SortFieldsProcessor {
 		originalSort.copyFrom(defaultSort);
 		newSort.copyFrom(defaultSort);
 
-		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
-			TriStateSortIcon field = entry.getKey();
-			String property = entry.getValue();
+		for (Map.Entry<String, TriStateSortIcon> entry : fieldsMap.entrySet()) {
+			String property = entry.getKey();
+			TriStateSortIcon field = entry.getValue();
 			field.setDirection(newSort.getDirection(property));
 		}
 		refreshSorting();
