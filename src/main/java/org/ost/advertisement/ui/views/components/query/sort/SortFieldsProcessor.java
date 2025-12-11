@@ -9,7 +9,9 @@ import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.SvgIcon;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
+import org.ost.advertisement.ui.views.components.SvgIcon.SortHighlightColor;
 import org.springframework.data.domain.Sort.Direction;
 
 public class SortFieldsProcessor {
@@ -39,7 +41,20 @@ public class SortFieldsProcessor {
 	}
 
 	public void refreshSorting() {
-		highlightChangedFields();
+		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
+			TriStateSortIcon field = entry.getKey();
+			String property = entry.getValue();
+
+			Direction newVal = newSort.getDirection(property);
+			Direction origVal = originalSort.getDirection(property);
+			Direction defVal = defaultSort.getDirection(property);
+
+			SortHighlightColor sortHighlightColor = Objects.equals(newVal, origVal)
+				? (Objects.equals(origVal, defVal) ? SvgIcon.SortHighlightColor.DEFAULT : SvgIcon.SortHighlightColor.CUSTOM)
+				: SvgIcon.SortHighlightColor.CHANGED;
+
+			field.setVisualColor(sortHighlightColor);
+		}
 	}
 
 	public boolean isSortingChanged() {
@@ -73,23 +88,6 @@ public class SortFieldsProcessor {
 				return label + " (" + direction + ")";
 			})
 			.toList();
-	}
-
-	protected void highlightChangedFields() {
-		for (Map.Entry<TriStateSortIcon, String> entry : fieldsMap.entrySet()) {
-			TriStateSortIcon field = entry.getKey();
-			String property = entry.getValue();
-
-			Direction newVal = newSort.getDirection(property);
-			Direction origVal = originalSort.getDirection(property);
-			Direction defVal = defaultSort.getDirection(property);
-
-			String color = Objects.equals(newVal, origVal)
-				? (Objects.equals(origVal, defVal) ? "gray" : "green")
-				: "orange";
-
-			field.setVisualColor(color);
-		}
 	}
 }
 

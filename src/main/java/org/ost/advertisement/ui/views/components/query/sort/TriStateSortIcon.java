@@ -10,6 +10,7 @@ import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
+import org.ost.advertisement.ui.views.components.SvgIcon.SortHighlightColor;
 import org.springframework.data.domain.Sort.Direction;
 
 public class TriStateSortIcon extends Span {
@@ -49,9 +50,9 @@ public class TriStateSortIcon extends Span {
 		switchIcon();
 	}
 
-	public void setVisualColor(String color) {
+	public void setVisualColor(SortHighlightColor sortHighlightColor) {
 		if (currentIcon != null) {
-			currentIcon.getStyle().set("color", color);
+			currentIcon.setColor(sortHighlightColor);
 		}
 	}
 
