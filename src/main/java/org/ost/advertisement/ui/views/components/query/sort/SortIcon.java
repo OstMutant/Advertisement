@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 public class SortIcon extends Span {
 
 	private final transient I18nService i18n;
-	private final SvgIcon currentIcon = new SvgIcon(fromDirection(null).getPath());
+	private final SvgIcon icon = new SvgIcon(fromDirection(null).getPath());
 
 	private Direction currentDirection = null;
 
@@ -30,7 +30,7 @@ public class SortIcon extends Span {
 
 		setTitle(i18n.get(SORT_ICON_TOOLTIP));
 		getStyle().set("cursor", "pointer");
-		add(currentIcon);
+		add(icon);
 		addClickListener(e -> {
 			setDirection(fromDirection(currentDirection).next().getDirection());
 			fireEvent(new SortDirectionChangedEvent(this, currentDirection));
@@ -45,13 +45,13 @@ public class SortIcon extends Span {
 
 	private void switchIcon() {
 		SortIconState state = fromDirection(currentDirection);
-		currentIcon.loadSvg(state.getPath());
-		currentIcon.setTitle(i18n.get(state.getTooltipKey()));
+		icon.loadSvg(state.getPath());
+		icon.setTitle(i18n.get(state.getTooltipKey()));
 	}
 
 	public void setColor(SortHighlightColor sortHighlightColor) {
 		Objects.requireNonNull(sortHighlightColor);
-		currentIcon.setColor(sortHighlightColor.getCssColor());
+		icon.setColor(sortHighlightColor.getCssColor());
 	}
 
 	public void addDirectionChangedListener(ComponentEventListener<SortDirectionChangedEvent> listener) {

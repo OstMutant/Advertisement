@@ -14,35 +14,35 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.query.filter.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.filter.meta.FilterFieldMeta;
 import org.ost.advertisement.ui.views.components.query.filter.meta.ValidationPredicates;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementFilterMeta {
 
-	public static final FilterField<String, AdvertisementFilterDto, String> TITLE =
-		FilterField.of(title, AdvertisementFilterDto::getTitle,
+	public static final FilterFieldMeta<String, AdvertisementFilterDto, String> TITLE =
+		FilterFieldMeta.of(title, AdvertisementFilterDto::getTitle,
 			(dto, v) -> dto.setTitle(v == null || v.isBlank() ? null : v));
 
 	private static final BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> createdValid =
 		ValidationPredicates.range(createdAtStart, createdAtEnd);
 
-	public static final FilterField<LocalDate, AdvertisementFilterDto, Instant> CREATED_AT_START =
-		FilterField.of(createdAtStart, AdvertisementFilterDto::getCreatedAtStart,
+	public static final FilterFieldMeta<LocalDate, AdvertisementFilterDto, Instant> CREATED_AT_START =
+		FilterFieldMeta.of(createdAtStart, AdvertisementFilterDto::getCreatedAtStart,
 			(dto, v) -> dto.setCreatedAtStart(toInstant(v)), createdValid);
 
-	public static final FilterField<LocalDate, AdvertisementFilterDto, Instant> CREATED_AT_END =
-		FilterField.of(createdAtEnd, AdvertisementFilterDto::getCreatedAtEnd,
+	public static final FilterFieldMeta<LocalDate, AdvertisementFilterDto, Instant> CREATED_AT_END =
+		FilterFieldMeta.of(createdAtEnd, AdvertisementFilterDto::getCreatedAtEnd,
 			(dto, v) -> dto.setCreatedAtEnd(toInstant(v)), createdValid);
 
 	private static final BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> updatedValid =
 		ValidationPredicates.range(updatedAtStart, updatedAtEnd);
 
-	public static final FilterField<LocalDate, AdvertisementFilterDto, Instant> UPDATED_AT_START =
-		FilterField.of(updatedAtStart, AdvertisementFilterDto::getUpdatedAtStart,
+	public static final FilterFieldMeta<LocalDate, AdvertisementFilterDto, Instant> UPDATED_AT_START =
+		FilterFieldMeta.of(updatedAtStart, AdvertisementFilterDto::getUpdatedAtStart,
 			(dto, v) -> dto.setUpdatedAtStart(toInstant(v)), updatedValid);
 
-	public static final FilterField<LocalDate, AdvertisementFilterDto, Instant> UPDATED_AT_END =
-		FilterField.of(updatedAtEnd, AdvertisementFilterDto::getUpdatedAtEnd,
+	public static final FilterFieldMeta<LocalDate, AdvertisementFilterDto, Instant> UPDATED_AT_END =
+		FilterFieldMeta.of(updatedAtEnd, AdvertisementFilterDto::getUpdatedAtEnd,
 			(dto, v) -> dto.setUpdatedAtEnd(toInstant(v)), updatedValid);
 }

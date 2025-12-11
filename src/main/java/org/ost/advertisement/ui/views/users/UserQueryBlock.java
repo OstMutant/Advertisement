@@ -112,15 +112,15 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 		sortProcessor.register(User.Fields.createdAt, createdSortIcon, queryActionBlock);
 		sortProcessor.register(User.Fields.updatedAt, updatedSortIcon, queryActionBlock);
 
-		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, queryActionBlock);
-		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, queryActionBlock);
-		filterProcessor.register(nameField, UserFilterMeta.NAME, queryActionBlock);
-		filterProcessor.register(emailField, UserFilterMeta.EMAIL, queryActionBlock);
-		filterProcessor.register(roleCombo, UserFilterMeta.ROLE, queryActionBlock);
-		filterProcessor.register(createdStart, UserFilterMeta.CREATED_AT_START, queryActionBlock);
-		filterProcessor.register(createdEnd, UserFilterMeta.CREATED_AT_END, queryActionBlock);
-		filterProcessor.register(updatedStart, UserFilterMeta.UPDATED_AT_START, queryActionBlock);
-		filterProcessor.register(updatedEnd, UserFilterMeta.UPDATED_AT_END, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.ID_MIN, idMin, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.ID_MAX, idMax, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.NAME, nameField, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.EMAIL, emailField, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.ROLE, roleCombo, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.CREATED_AT_START, createdStart, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.CREATED_AT_END, createdEnd, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.UPDATED_AT_START, updatedStart, queryActionBlock);
+		filterProcessor.register(UserFilterMeta.UPDATED_AT_END, updatedEnd, queryActionBlock);
 	}
 
 	public Component getIdFilter() {

@@ -11,7 +11,7 @@ import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
-import org.ost.advertisement.ui.views.components.query.filter.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.filter.meta.FilterFieldMeta;
 
 public class FilterProcessor<F> {
 
@@ -26,7 +26,7 @@ public class FilterProcessor<F> {
 	@Getter
 	private final F newFilter;
 
-	private final Map<AbstractField<?, ?>, FilterField<?, F, ?>> fieldsMap = new LinkedHashMap<>();
+	private final Map<FilterFieldMeta<?, F, ?>, AbstractField<?, ?>> fieldsMap = new LinkedHashMap<>();
 
 	public FilterProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
 						   F defaultFilter) {
@@ -37,10 +37,9 @@ public class FilterProcessor<F> {
 		this.newFilter = filterMapper.copy(defaultFilter);
 	}
 
-	public <I, C extends AbstractField<?, I>, R> void register(C field,
-															   FilterField<I, F, R> meta,
+	public <I, C extends AbstractField<?, I>, R> void register(FilterFieldMeta<I, F, R> meta, C field,
 															   QueryActionBlockHandler queryActionBlockHandler) {
-		fieldsMap.put(field, meta);
+		fieldsMap.put(meta, field);
 		field.addValueChangeListener(e -> {
 			meta.setter().accept(newFilter, e.getValue());
 			queryActionBlockHandler.updateDirtyState(isFilterChanged());
@@ -57,7 +56,7 @@ public class FilterProcessor<F> {
 	}
 
 	public void clearFilter() {
-		fieldsMap.keySet().forEach(AbstractField::clear);
+		fieldsMap.values().forEach(AbstractField::clear);
 		filterMapper.update(newFilter, defaultFilter);
 		filterMapper.update(originalFilter, defaultFilter);
 	}
@@ -71,20 +70,22 @@ public class FilterProcessor<F> {
 	}
 
 	public List<String> getActiveFilterDescriptions() {
-		return fieldsMap.values().stream()
-			.filter(filterField -> filterField.hasValue(newFilter))
-			.map(filterField -> filterField.name() + ": " + filterField.getValueAsString(newFilter))
+		return fieldsMap.keySet().stream()
+			.filter(filterFieldMeta -> filterFieldMeta.hasValue(newFilter))
+			.map(filterFieldMeta -> filterFieldMeta.name() + ": " + filterFieldMeta.getValueAsString(newFilter))
 			.toList();
 	}
 
 	private void highlightChangedFields() {
-		for (Map.Entry<AbstractField<?, ?>, FilterField<?, F, ?>> entry : fieldsMap.entrySet()) {
+		for (Map.Entry<FilterFieldMeta<?, F, ?>, AbstractField<?, ?>> entry : fieldsMap.entrySet()) {
+			AbstractField<?, ?> field = entry.getValue();
+			FilterFieldMeta<?, F, ?> filterFieldMeta = entry.getKey();
 			highlight(
-				entry.getKey(),
-				entry.getValue().getter().apply(newFilter),
-				entry.getValue().getter().apply(originalFilter),
-				entry.getValue().getter().apply(defaultFilter),
-				entry.getValue().validation().test(validationService, newFilter)
+				field,
+				filterFieldMeta.getter().apply(newFilter),
+				filterFieldMeta.getter().apply(originalFilter),
+				filterFieldMeta.getter().apply(defaultFilter),
+				filterFieldMeta.validation().test(validationService, newFilter)
 			);
 		}
 	}
