@@ -1,9 +1,7 @@
 package org.ost.advertisement.ui.views.components;
 
 import com.vaadin.flow.component.html.Span;
-import java.util.Objects;
 import org.ost.advertisement.ui.utils.SvgUtils;
-import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortHighlightColor;
 
 public class SvgIcon extends Span {
 

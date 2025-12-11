@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components.query.sort;
 
 import static org.ost.advertisement.constants.I18nKey.SORT_ICON_TOOLTIP;
-import static org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortIconState.fromDirection;
+import static org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortIconState.fromDirection;
 
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
@@ -14,14 +14,14 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
 import org.springframework.data.domain.Sort.Direction;
 
-public class TriStateSortIcon extends Span {
+public class SortIcon extends Span {
 
 	private final transient I18nService i18n;
 	private final SvgIcon currentIcon = new SvgIcon(fromDirection(null).getPath());
 
 	private Direction currentDirection = null;
 
-	public TriStateSortIcon(I18nService i18n) {
+	public SortIcon(I18nService i18n) {
 		this.i18n = i18n;
 
 		setTitle(i18n.get(SORT_ICON_TOOLTIP));
@@ -55,11 +55,11 @@ public class TriStateSortIcon extends Span {
 	}
 
 	@Getter
-	public static class SortDirectionChangedEvent extends ComponentEvent<TriStateSortIcon> {
+	public static class SortDirectionChangedEvent extends ComponentEvent<SortIcon> {
 
 		private final Direction direction;
 
-		public SortDirectionChangedEvent(TriStateSortIcon source, Direction direction) {
+		public SortDirectionChangedEvent(SortIcon source, Direction direction) {
 			super(source, false);
 			this.direction = direction;
 		}

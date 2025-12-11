@@ -30,7 +30,7 @@ import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 
 @SpringComponent
 @UIScope
@@ -43,9 +43,9 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 	@Getter
 	private final SortFieldsProcessor sortProcessor;
 
-	private final TriStateSortIcon titleSortIcon;
-	private final TriStateSortIcon createdSortIcon;
-	private final TriStateSortIcon updatedSortIcon;
+	private final SortIcon titleSortIcon;
+	private final SortIcon createdSortIcon;
+	private final SortIcon updatedSortIcon;
 
 	private final TextField titleField;
 	private final DatePicker createdStart;
@@ -65,9 +65,9 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
 		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
 
-		this.titleSortIcon = new TriStateSortIcon(i18n);
-		this.createdSortIcon = new TriStateSortIcon(i18n);
-		this.updatedSortIcon = new TriStateSortIcon(i18n);
+		this.titleSortIcon = new SortIcon(i18n);
+		this.createdSortIcon = new SortIcon(i18n);
+		this.updatedSortIcon = new SortIcon(i18n);
 
 		this.titleField = contentFactory.createFullTextField(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER);
 		this.createdStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_START);

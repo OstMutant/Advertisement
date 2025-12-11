@@ -41,12 +41,12 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 
 	public void update(FilterFieldsProcessor<?> filterProcessor, SortFieldsProcessor sortProcessor) {
 		List<String> filters = filterProcessor.getActiveFilterDescriptions();
-		List<String> sorts = sortProcessor.getSortDescriptions(i18n, sortLabelProvider);
 
 		filterInfo.setText(filters.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_FILTERS_NONE)
 			: i18n.get(I18nKey.QUERY_STATUS_FILTERS_PREFIX) + " " + String.join(", ", filters));
 
+		List<String> sorts = sortProcessor.getSortDescriptions(i18n, sortLabelProvider);
 		sortInfo.setText(sorts.isEmpty()
 			? i18n.get(I18nKey.QUERY_STATUS_SORT_NONE)
 			: i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + " " + String.join(", ", sorts));

@@ -35,7 +35,7 @@ import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProce
 import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
 import org.springframework.data.domain.Sort;
 
@@ -64,17 +64,17 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 	private final DatePicker updatedEnd;
 
 	@Getter
-	private final TriStateSortIcon idSortIcon;
+	private final SortIcon idSortIcon;
 	@Getter
-	private final TriStateSortIcon nameSortIcon;
+	private final SortIcon nameSortIcon;
 	@Getter
-	private final TriStateSortIcon emailSortIcon;
+	private final SortIcon emailSortIcon;
 	@Getter
-	private final TriStateSortIcon roleSortIcon;
+	private final SortIcon roleSortIcon;
 	@Getter
-	private final TriStateSortIcon createdSortIcon;
+	private final SortIcon createdSortIcon;
 	@Getter
-	private final TriStateSortIcon updatedSortIcon;
+	private final SortIcon updatedSortIcon;
 
 	public UserQueryBlock(UserFilterMapper filterMapper, ValidationService<UserFilterDto> validation,
 						  I18nService i18n, QueryActionBlock queryActionBlock) {
@@ -95,12 +95,12 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 		this.updatedStart = createDatePicker(i18n.get(USER_FILTER_UPDATED_START));
 		this.updatedEnd = createDatePicker(i18n.get(USER_FILTER_UPDATED_END));
 
-		this.idSortIcon = new TriStateSortIcon(i18n);
-		this.nameSortIcon = new TriStateSortIcon(i18n);
-		this.emailSortIcon = new TriStateSortIcon(i18n);
-		this.roleSortIcon = new TriStateSortIcon(i18n);
-		this.createdSortIcon = new TriStateSortIcon(i18n);
-		this.updatedSortIcon = new TriStateSortIcon(i18n);
+		this.idSortIcon = new SortIcon(i18n);
+		this.nameSortIcon = new SortIcon(i18n);
+		this.emailSortIcon = new SortIcon(i18n);
+		this.roleSortIcon = new SortIcon(i18n);
+		this.createdSortIcon = new SortIcon(i18n);
+		this.updatedSortIcon = new SortIcon(i18n);
 	}
 
 	@PostConstruct

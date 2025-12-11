@@ -9,7 +9,7 @@ import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortHighlightColor;
+import org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortHighlightColor;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlockHandler;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -21,7 +21,7 @@ public class SortFieldsProcessor {
 	@Getter
 	protected final CustomSort newSort;
 
-	private final Map<String, TriStateSortIcon> fieldsMap = new LinkedHashMap<>();
+	private final Map<String, SortIcon> fieldsMap = new LinkedHashMap<>();
 
 	public SortFieldsProcessor(CustomSort defaultSort) {
 		this.defaultSort = defaultSort;
@@ -29,7 +29,7 @@ public class SortFieldsProcessor {
 		this.newSort = defaultSort.copy();
 	}
 
-	public void register(String property, TriStateSortIcon field, QueryActionBlockHandler queryActionBlockHandler) {
+	public void register(String property, SortIcon field, QueryActionBlockHandler queryActionBlockHandler) {
 		fieldsMap.put(property, field);
 		field.setDirection(newSort.getDirection(property));
 		field.addDirectionChangedListener(e -> {
@@ -41,9 +41,9 @@ public class SortFieldsProcessor {
 	}
 
 	public void refreshItemsColor() {
-		for (Map.Entry<String, TriStateSortIcon> entry : fieldsMap.entrySet()) {
+		for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
 			String property = entry.getKey();
-			TriStateSortIcon field = entry.getValue();
+			SortIcon field = entry.getValue();
 			field.setColor(refreshColor(property));
 		}
 	}
@@ -73,9 +73,9 @@ public class SortFieldsProcessor {
 		originalSort.copyFrom(defaultSort);
 		newSort.copyFrom(defaultSort);
 
-		for (Map.Entry<String, TriStateSortIcon> entry : fieldsMap.entrySet()) {
+		for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
 			String property = entry.getKey();
-			TriStateSortIcon field = entry.getValue();
+			SortIcon field = entry.getValue();
 			field.setDirection(newSort.getDirection(property));
 			field.setColor(refreshColor(property));
 		}
