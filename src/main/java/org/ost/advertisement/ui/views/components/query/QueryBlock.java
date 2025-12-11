@@ -11,20 +11,21 @@ public interface QueryBlock<T> {
 
 	QueryActionBlock getQueryActionBlock();
 
-	default void eventProcessor(Runnable onApply) {
-
+	default void addEventListener(Runnable onApply) {
 		QueryActionBlock queryActionBlock = getQueryActionBlock();
 		FilterFieldsProcessor<T> filterProcessor = getFilterProcessor();
 		SortFieldsProcessor sortProcessor = getSortProcessor();
 
 		Runnable combined = () -> {
-			onApply.run();
+			if (onApply != null) {
+				onApply.run();
+			}
 			filterProcessor.refreshItemsFilter();
 			sortProcessor.refreshItemsColor();
-			queryActionBlock.setChanged(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
+			queryActionBlock.updateDirtyState(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
 		};
 
-		queryActionBlock.eventProcessor(() -> {
+		queryActionBlock.addEventListener(() -> {
 			if (!filterProcessor.validate()) {
 				return;
 			}

@@ -9,12 +9,14 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.ost.advertisement.services.I18nService;
 import org.springframework.context.annotation.Scope;
 
 @org.springframework.stereotype.Component
 @Scope("prototype")
-public class QueryActionBlock implements QueryActionBlockChangeListener {
+public class QueryActionBlock implements QueryActionBlockHandler {
 
 	private final Button applyButton;
 	private final Button clearButton;
@@ -24,18 +26,15 @@ public class QueryActionBlock implements QueryActionBlockChangeListener {
 		clearButton = createSvgActionButton("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
 	}
 
-	public void eventProcessor(Runnable onApply, Runnable onClear) {
+	public void addEventListener(Runnable onApply, Runnable onClear) {
 		applyButton.addClickListener(e -> onApply.run());
 		clearButton.addClickListener(e -> onClear.run());
 	}
 
 	@Override
-	public void setChanged(boolean changed) {
-		if (changed) {
-			applyButton.getStyle().set("border-color", "orange");
-		} else {
-			applyButton.getStyle().set("border-color", "transparent");
-		}
+	public void updateDirtyState(boolean dirty) {
+		applyButton.getStyle().set("border-color",
+			dirty ? DirtyHighlightColor.DIRTY.getCssColor() : DirtyHighlightColor.CLEAN.getCssColor());
 	}
 
 	public Component getComponent() {
@@ -43,6 +42,15 @@ public class QueryActionBlock implements QueryActionBlockChangeListener {
 		layout.setSpacing(false);
 		layout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 		return layout;
+	}
+
+	@AllArgsConstructor
+	@Getter
+	public enum DirtyHighlightColor {
+		CLEAN("transparent"),
+		DIRTY("orange");
+
+		private final String cssColor;
 	}
 }
 

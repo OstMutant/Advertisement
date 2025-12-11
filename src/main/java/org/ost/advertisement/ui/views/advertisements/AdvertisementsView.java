@@ -50,7 +50,7 @@ public class AdvertisementsView extends VerticalLayout {
 		addAdvertisementButton.addClickListener(
 			e -> this.upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
 
-		statusQueryBlock.getQueryBlock().eventProcessor(() -> {
+		statusQueryBlock.getQueryBlock().addEventListener(() -> {
 			paginationBar.setTotalCount(0);
 			refreshAdvertisements();
 		});

@@ -10,7 +10,7 @@ import java.util.Map;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlockHandler;
 import org.ost.advertisement.ui.views.components.query.filters.meta.FilterField;
 
 public class FilterFieldsProcessor<F> {
@@ -39,11 +39,11 @@ public class FilterFieldsProcessor<F> {
 
 	public <I, C extends AbstractField<?, I>, R> void register(C field,
 															   FilterField<I, F, R> meta,
-															   QueryActionBlockChangeListener events) {
+															   QueryActionBlockHandler queryActionBlockHandler) {
 		fieldsMap.put(field, meta);
 		field.addValueChangeListener(e -> {
 			meta.setter().accept(newFilter, e.getValue());
-			events.setChanged(isFilterChanged());
+			queryActionBlockHandler.updateDirtyState(isFilterChanged());
 			refreshItemsFilter();
 		});
 	}

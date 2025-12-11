@@ -10,7 +10,7 @@ import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortHighlightColor;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
+import org.ost.advertisement.ui.views.components.query.QueryActionBlockHandler;
 import org.springframework.data.domain.Sort.Direction;
 
 public class SortFieldsProcessor {
@@ -29,12 +29,12 @@ public class SortFieldsProcessor {
 		this.newSort = defaultSort.copy();
 	}
 
-	public void register(String property, TriStateSortIcon field, QueryActionBlockChangeListener events) {
+	public void register(String property, TriStateSortIcon field, QueryActionBlockHandler queryActionBlockHandler) {
 		fieldsMap.put(property, field);
 		field.setDirection(newSort.getDirection(property));
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
-			events.setChanged(isSortingChanged());
+			queryActionBlockHandler.updateDirtyState(isSortingChanged());
 			field.setColor(refreshColor(property));
 		});
 		field.setColor(refreshColor(property));
