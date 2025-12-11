@@ -1,14 +1,14 @@
 package org.ost.advertisement.ui.views.components;
 
 import com.vaadin.flow.component.html.Span;
-import lombok.Getter;
+import java.util.Objects;
 import org.ost.advertisement.ui.utils.SvgUtils;
+import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortHighlightColor;
 
 public class SvgIcon extends Span {
 
 	public SvgIcon(String resourcePath) {
-		String svg = SvgUtils.loadSvg(resourcePath);
-		getElement().setProperty("innerHTML", svg);
+		loadSvg(resourcePath);
 		getStyle().set("width", "1em");
 		getStyle().set("height", "1em");
 		getStyle().set("display", "inline-block");
@@ -16,21 +16,14 @@ public class SvgIcon extends Span {
 		getStyle().set("line-height", "1");
 	}
 
-	public void setColor(SortHighlightColor sortHighlightColor) {
-		this.getStyle().set("color", sortHighlightColor.getCssColor());
+	public void loadSvg(String resourcePath) {
+		String svg = SvgUtils.loadSvg(resourcePath);
+		getElement().setProperty("innerHTML", svg);
 	}
 
-	@Getter
-	public enum SortHighlightColor {
-		DEFAULT("gray"),
-		CHANGED("orange"),
-		CUSTOM("green");
-
-		private final String cssColor;
-
-		SortHighlightColor(String cssColor) {
-			this.cssColor = cssColor;
-		}
+	public void setColor(String color) {
+		this.getStyle().set("color", color);
 	}
+
 }
 

@@ -111,7 +111,6 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 		sortProcessor.register(User.Fields.role, roleSortIcon, queryActionBlock);
 		sortProcessor.register(User.Fields.createdAt, createdSortIcon, queryActionBlock);
 		sortProcessor.register(User.Fields.updatedAt, updatedSortIcon, queryActionBlock);
-		sortProcessor.refreshSorting();
 
 		filterProcessor.register(idMin, UserFilterMeta.ID_MIN, queryActionBlock);
 		filterProcessor.register(idMax, UserFilterMeta.ID_MAX, queryActionBlock);

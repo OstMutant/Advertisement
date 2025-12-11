@@ -89,7 +89,6 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 		sortProcessor.register(AdvertisementInfoDto.Fields.title, titleSortIcon, queryActionBlock);
 		sortProcessor.register(AdvertisementInfoDto.Fields.createdAt, createdSortIcon, queryActionBlock);
 		sortProcessor.register(AdvertisementInfoDto.Fields.updatedAt, updatedSortIcon, queryActionBlock);
-		sortProcessor.refreshSorting();
 
 		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, queryActionBlock);
 		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, queryActionBlock);

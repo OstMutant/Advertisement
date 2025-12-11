@@ -19,8 +19,8 @@ public interface QueryBlock<T> {
 
 		Runnable combined = () -> {
 			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
+			filterProcessor.refreshItemsFilter();
+			sortProcessor.refreshItemsColor();
 			queryActionBlock.setChanged(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
 		};
 

@@ -9,8 +9,7 @@ import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.SvgIcon;
-import org.ost.advertisement.ui.views.components.SvgIcon.SortHighlightColor;
+import org.ost.advertisement.ui.views.components.query.sort.TriStateSortIcon.SortHighlightColor;
 import org.ost.advertisement.ui.views.components.query.QueryActionBlockChangeListener;
 import org.springframework.data.domain.Sort.Direction;
 
@@ -36,26 +35,30 @@ public class SortFieldsProcessor {
 		field.addDirectionChangedListener(e -> {
 			newSort.updateSort(property, e.getDirection());
 			events.setChanged(isSortingChanged());
-			refreshSorting();
+			field.setColor(refreshColor(property));
 		});
+		field.setColor(refreshColor(property));
 	}
 
-	public void refreshSorting() {
+	public void refreshItemsColor() {
 		for (Map.Entry<String, TriStateSortIcon> entry : fieldsMap.entrySet()) {
 			String property = entry.getKey();
 			TriStateSortIcon field = entry.getValue();
-
-			Direction newVal = newSort.getDirection(property);
-			Direction origVal = originalSort.getDirection(property);
-			Direction defVal = defaultSort.getDirection(property);
-
-			SortHighlightColor sortHighlightColor = Objects.equals(newVal, origVal)
-				? (Objects.equals(origVal, defVal) ? SvgIcon.SortHighlightColor.DEFAULT
-				: SvgIcon.SortHighlightColor.CUSTOM)
-				: SvgIcon.SortHighlightColor.CHANGED;
-
-			field.setVisualColor(sortHighlightColor);
+			field.setColor(refreshColor(property));
 		}
+	}
+
+	private SortHighlightColor refreshColor(String property) {
+		Direction newVal = newSort.getDirection(property);
+		Direction origVal = originalSort.getDirection(property);
+		Direction defVal = defaultSort.getDirection(property);
+
+		if (Objects.equals(newVal, origVal)) {
+			return Objects.equals(origVal, defVal)
+				? SortHighlightColor.DEFAULT
+				: SortHighlightColor.CUSTOM;
+		}
+		return SortHighlightColor.CHANGED;
 	}
 
 	public boolean isSortingChanged() {
@@ -74,8 +77,8 @@ public class SortFieldsProcessor {
 			String property = entry.getKey();
 			TriStateSortIcon field = entry.getValue();
 			field.setDirection(newSort.getDirection(property));
+			field.setColor(refreshColor(property));
 		}
-		refreshSorting();
 	}
 
 	public List<String> getSortDescriptions(I18nService i18n, UnaryOperator<String> labelProvider) {

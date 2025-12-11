@@ -44,11 +44,11 @@ public class FilterFieldsProcessor<F> {
 		field.addValueChangeListener(e -> {
 			meta.setter().accept(newFilter, e.getValue());
 			events.setChanged(isFilterChanged());
-			refreshFilter();
+			refreshItemsFilter();
 		});
 	}
 
-	public void refreshFilter() {
+	public void refreshItemsFilter() {
 		highlightChangedFields();
 	}
 
