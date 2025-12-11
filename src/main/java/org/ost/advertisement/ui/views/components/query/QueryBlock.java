@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.components.query;
 
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.filters.FilterFieldsProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.SortFieldsProcessor;
 

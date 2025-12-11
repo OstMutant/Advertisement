@@ -10,7 +10,7 @@ import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortHighlightColor;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlockHandler;
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
 import org.springframework.data.domain.Sort.Direction;
 
 public class SortFieldsProcessor {

@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.query;
+package org.ost.advertisement.ui.views.components.query.action;
 
 
 @FunctionalInterface

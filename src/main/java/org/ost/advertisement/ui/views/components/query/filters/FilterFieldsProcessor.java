@@ -10,7 +10,7 @@ import java.util.Map;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlockHandler;
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
 import org.ost.advertisement.ui.views.components.query.filters.meta.FilterField;
 
 public class FilterFieldsProcessor<F> {
