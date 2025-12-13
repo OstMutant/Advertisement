@@ -20,7 +20,7 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
 	public QueryActionBlock(QueryActionApplyButton applyButton, QueryActionClearButton clearButton) {
 		this.applyButton = applyButton;
 		this.clearButton = clearButton;
-		applyView();
+		initLayout();
 	}
 
 	public void addEventListener(Runnable onApply, Runnable onClear) {
@@ -43,7 +43,7 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
 		applyButton.setDirty(dirty);
 	}
 
-	private void applyView() {
+	private void initLayout() {
 		add(applyButton, clearButton);
 		setSpacing(false);
 		setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);

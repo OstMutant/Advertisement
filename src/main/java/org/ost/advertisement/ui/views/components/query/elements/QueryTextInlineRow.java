@@ -18,10 +18,14 @@ public class QueryTextInlineRow extends HorizontalLayout {
 	@Builder
 	public static class Parameters {
 
-		@NonNull I18nService i18n;
-		@NonNull I18nKey labelI18nKey;
-		@NonNull SortIcon sortIcon;
-		@NonNull TextField filterField;
+		@NonNull
+		I18nService i18n;
+		@NonNull
+		I18nKey labelI18nKey;
+		@NonNull
+		SortIcon sortIcon;
+		@NonNull
+		TextField filterField;
 	}
 
 	private final SortIcon sortIcon;

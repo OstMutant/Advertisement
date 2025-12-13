@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 @Getter
 public class AdvertisementQueryStatusBar extends QueryStatusBar<AdvertisementFilterDto> {
 
-	private final AdvertisementQueryBlock queryBlock;
+	private final transient AdvertisementQueryBlock queryBlock;
 
 	public AdvertisementQueryStatusBar(I18nService i18n, AdvertisementQueryBlock queryBlock) {
 		super(i18n, queryBlock, queryBlock, AdvertisementSortMeta.labelProvider(i18n));
