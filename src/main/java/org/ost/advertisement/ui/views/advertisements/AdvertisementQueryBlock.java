@@ -74,7 +74,7 @@ public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDt
 				createdEnd),
 			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
 				updatedEnd),
-			this.queryActionBlock.getComponent());
+			this.queryActionBlock);
 
 		sortProcessor.register(AdvertisementInfoDto.Fields.title, advertisementQueryTitleRow.getSortIcon(),
 			queryActionBlock);
