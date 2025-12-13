@@ -17,10 +17,14 @@ public class QueryActionButton extends Button {
 	@Builder
 	public static class Parameters {
 
-		@NonNull I18nService i18n;
-		@NonNull String svgPath;
-		@NonNull I18nKey tooltipKey;
-		@NonNull ButtonVariant variant;
+		@NonNull
+		I18nService i18n;
+		@NonNull
+		String svgPath;
+		@NonNull
+		I18nKey tooltipKey;
+		@NonNull
+		ButtonVariant variant;
 	}
 
 	protected QueryActionButton(@NonNull Parameters parameters) {

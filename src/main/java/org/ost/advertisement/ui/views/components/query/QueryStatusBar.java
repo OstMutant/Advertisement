@@ -67,10 +67,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 	}
 
 	public void toggleVisibility() {
-		var layout = queryBlockLayout.getLayout();
-		boolean nowVisible = !layout.isVisible();
-		layout.setVisible(nowVisible);
-		setToggleIconState(nowVisible);
+		setToggleIconState(queryBlockLayout.toggleVisibility());
 	}
 
 	private void setToggleIconState(boolean isOpen) {

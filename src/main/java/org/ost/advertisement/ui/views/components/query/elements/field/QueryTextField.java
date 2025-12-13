@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.query.elements;
+package org.ost.advertisement.ui.views.components.query.elements.field;
 
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;

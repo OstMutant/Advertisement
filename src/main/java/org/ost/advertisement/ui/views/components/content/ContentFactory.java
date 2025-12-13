@@ -18,8 +18,6 @@ import org.ost.advertisement.services.I18nService;
 @AllArgsConstructor
 public class ContentFactory {
 
-	private final I18nService i18n;
-
 	public static NumberField createNumberField(String placeholder) {
 		NumberField field = new NumberField();
 		field.setWidth("100px");
@@ -68,11 +66,4 @@ public class ContentFactory {
 		return layout;
 	}
 
-	public TextField createFullTextField(I18nKey placeholderKey) {
-		return createFullTextField(i18n.get(placeholderKey));
-	}
-
-	public DatePicker createDatePicker(I18nKey placeholderKey) {
-		return createDatePicker(i18n.get(placeholderKey));
-	}
 }

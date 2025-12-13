@@ -59,7 +59,7 @@ public class AdvertisementsView extends VerticalLayout {
 
 		add(
 			queryStatusBar,
-			queryStatusBar.getQueryBlock().getLayout(),
+			queryStatusBar.getQueryBlock(),
 			addAdvertisementButton,
 			advertisementContainer,
 			paginationBar

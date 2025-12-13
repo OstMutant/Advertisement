@@ -4,8 +4,8 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_TITLE
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
 
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.elements.QueryTextField;
-import org.ost.advertisement.ui.views.components.query.elements.QueryTextInlineRow;
+import org.ost.advertisement.ui.views.components.query.elements.field.QueryTextField;
+import org.ost.advertisement.ui.views.components.query.elements.inline.QueryTextInlineRow;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
