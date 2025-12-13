@@ -21,7 +21,14 @@ public class QueryTextField extends TextField {
 		I18nKey placeholderKey;
 	}
 
+	private final transient Parameters parameters;
+
 	public QueryTextField(@NonNull Parameters parameters) {
+		this.parameters = parameters;
+		initLayout();
+	}
+
+	private void initLayout() {
 		setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
 		setClearButtonVisible(true);
 		setValueChangeMode(ValueChangeMode.EAGER);

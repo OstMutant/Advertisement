@@ -30,17 +30,23 @@ public class QueryTextInlineRow extends HorizontalLayout {
 
 	private final SortIcon sortIcon;
 	private final TextField filterField;
+	private final transient Parameters parameters;
 
 	public QueryTextInlineRow(@NonNull Parameters parameters) {
+		this.parameters = parameters;
 		this.sortIcon = parameters.getSortIcon();
 		this.filterField = parameters.getFilterField();
+		initLayout();
+	}
+
+	private void initLayout() {
 		HorizontalLayout labelAndSort = new HorizontalLayout(
 			new Span(parameters.getI18n().get(parameters.getLabelI18nKey())),
-			parameters.getSortIcon());
+			sortIcon);
 		labelAndSort.setAlignItems(Alignment.CENTER);
 		labelAndSort.setSpacing(true);
 
-		HorizontalLayout filters = new HorizontalLayout(parameters.getFilterField());
+		HorizontalLayout filters = new HorizontalLayout(filterField);
 		filters.setAlignItems(Alignment.END);
 		filters.setSpacing(true);
 
