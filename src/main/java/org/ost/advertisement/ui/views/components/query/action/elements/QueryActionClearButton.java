@@ -12,6 +12,11 @@ import org.springframework.stereotype.Component;
 public class QueryActionClearButton extends QueryActionButton {
 
 	public QueryActionClearButton(I18nService i18n) {
-		super("clear.svg", i18n.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
+		super(Parameters.builder()
+			.i18n(i18n)
+			.svgPath("clear.svg")
+			.tooltipKey(ACTIONS_CLEAR_TOOLTIP)
+			.variant(ButtonVariant.LUMO_TERTIARY)
+			.build());
 	}
 }

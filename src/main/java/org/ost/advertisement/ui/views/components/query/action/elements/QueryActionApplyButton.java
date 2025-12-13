@@ -12,7 +12,12 @@ import org.springframework.stereotype.Component;
 public class QueryActionApplyButton extends QueryActionButton {
 
 	public QueryActionApplyButton(I18nService i18n) {
-		super("apply.svg", i18n.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
+		super(Parameters.builder()
+			.i18n(i18n)
+			.svgPath("apply.svg")
+			.tooltipKey(ACTIONS_APPLY_TOOLTIP)
+			.variant(ButtonVariant.LUMO_PRIMARY)
+			.build());
 	}
 
 }
