@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.filters;
+package org.ost.advertisement.ui.views.components.query.filter;
 
 import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
@@ -10,10 +10,10 @@ import java.util.Map;
 import lombok.Getter;
 import org.ost.advertisement.mappers.filters.FilterMapper;
 import org.ost.advertisement.services.ValidationService;
-import org.ost.advertisement.ui.views.components.ActionStateChangeListener;
-import org.ost.advertisement.ui.views.components.filters.meta.FilterField;
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
+import org.ost.advertisement.ui.views.components.query.filter.meta.FilterFieldMeta;
 
-public class FilterFieldsProcessor<F> {
+public class FilterProcessor<F> {
 
 	private final FilterMapper<F> filterMapper;
 
@@ -26,10 +26,10 @@ public class FilterFieldsProcessor<F> {
 	@Getter
 	private final F newFilter;
 
-	private final Map<AbstractField<?, ?>, FilterField<?, F, ?>> fieldsMap = new LinkedHashMap<>();
+	private final Map<FilterFieldMeta<?, F, ?>, AbstractField<?, ?>> fieldsMap = new LinkedHashMap<>();
 
-	public FilterFieldsProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
-								 F defaultFilter) {
+	public FilterProcessor(FilterMapper<F> filterMapper, ValidationService<F> validationService,
+						   F defaultFilter) {
 		this.filterMapper = filterMapper;
 		this.validationService = validationService;
 		this.defaultFilter = defaultFilter;
@@ -37,18 +37,17 @@ public class FilterFieldsProcessor<F> {
 		this.newFilter = filterMapper.copy(defaultFilter);
 	}
 
-	public <I, C extends AbstractField<?, I>, R> void register(C field,
-															   FilterField<I, F, R> meta,
-															   ActionStateChangeListener events) {
-		fieldsMap.put(field, meta);
+	public <I, C extends AbstractField<?, I>, R> void register(FilterFieldMeta<I, F, R> meta, C field,
+															   QueryActionBlockHandler queryActionBlockHandler) {
+		fieldsMap.put(meta, field);
 		field.addValueChangeListener(e -> {
 			meta.setter().accept(newFilter, e.getValue());
-			events.setChanged(isFilterChanged());
-			refreshFilter();
+			queryActionBlockHandler.updateDirtyState(isFilterChanged());
+			refreshItemsFilter();
 		});
 	}
 
-	public void refreshFilter() {
+	public void refreshItemsFilter() {
 		highlightChangedFields();
 	}
 
@@ -57,7 +56,7 @@ public class FilterFieldsProcessor<F> {
 	}
 
 	public void clearFilter() {
-		fieldsMap.keySet().forEach(AbstractField::clear);
+		fieldsMap.values().forEach(AbstractField::clear);
 		filterMapper.update(newFilter, defaultFilter);
 		filterMapper.update(originalFilter, defaultFilter);
 	}
@@ -71,20 +70,22 @@ public class FilterFieldsProcessor<F> {
 	}
 
 	public List<String> getActiveFilterDescriptions() {
-		return fieldsMap.values().stream()
-			.filter(fFilterField -> fFilterField.hasValue(newFilter))
-			.map(fFilterField -> fFilterField.name() + ": " + fFilterField.getValueAsString(newFilter))
+		return fieldsMap.keySet().stream()
+			.filter(filterFieldMeta -> filterFieldMeta.hasValue(newFilter))
+			.map(filterFieldMeta -> filterFieldMeta.name() + ": " + filterFieldMeta.getValueAsString(newFilter))
 			.toList();
 	}
 
 	private void highlightChangedFields() {
-		for (Map.Entry<AbstractField<?, ?>, FilterField<?, F, ?>> entry : fieldsMap.entrySet()) {
+		for (Map.Entry<FilterFieldMeta<?, F, ?>, AbstractField<?, ?>> entry : fieldsMap.entrySet()) {
+			AbstractField<?, ?> field = entry.getValue();
+			FilterFieldMeta<?, F, ?> filterFieldMeta = entry.getKey();
 			highlight(
-				entry.getKey(),
-				entry.getValue().getter().apply(newFilter),
-				entry.getValue().getter().apply(originalFilter),
-				entry.getValue().getter().apply(defaultFilter),
-				entry.getValue().validation().test(validationService, newFilter)
+				field,
+				filterFieldMeta.getter().apply(newFilter),
+				filterFieldMeta.getter().apply(originalFilter),
+				filterFieldMeta.getter().apply(defaultFilter),
+				filterFieldMeta.validation().test(validationService, newFilter)
 			);
 		}
 	}

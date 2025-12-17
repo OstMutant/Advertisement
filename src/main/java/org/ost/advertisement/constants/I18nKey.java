@@ -108,8 +108,6 @@ public enum I18nKey {
 	ADVERTISEMENT_SORT_TITLE("advertisement.sort.title"),
 	ADVERTISEMENT_SORT_CREATED_AT("advertisement.sort.createdAt"),
 	ADVERTISEMENT_SORT_UPDATED_AT("advertisement.sort.updatedAt"),
-	SORT_DIRECTION_ASC("sort.direction.asc"),
-	SORT_DIRECTION_DESC("sort.direction.desc"),
 
 	// === Advertisement Sidebar ===
 	ADVERTISEMENT_SIDEBAR_BUTTON_ADD("advertisement.sidebar.button.add"),
@@ -130,8 +128,6 @@ public enum I18nKey {
 	// Unified Actions
 	ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
 	ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
-	// Sort actions
-	SORT_TOGGLE_TOOLTIP("sort.toggle.tooltip"),
 	// === Main Tabs ===
 	MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
 	MAIN_TAB_USERS("main.tab.users"),
@@ -145,7 +141,15 @@ public enum I18nKey {
 	QUERY_STATUS_FILTERS_PREFIX("query.status.filters.prefix"),
 	QUERY_STATUS_FILTERS_NONE("query.status.filters.none"),
 	QUERY_STATUS_SORT_PREFIX("query.status.sort.prefix"),
-	QUERY_STATUS_SORT_NONE("query.status.sort.none");
+	QUERY_STATUS_SORT_NONE("query.status.sort.none"),
+
+	// Sort actions
+	SORT_DIRECTION_ASC("sort.direction.asc"),
+	SORT_DIRECTION_DESC("sort.direction.desc"),
+	SORT_ICON_TOOLTIP("sort.icon.tooltip"),
+	SORT_ICON_ASC("sort.icon.asc"),
+	SORT_ICON_DESC("sort.icon.desc"),
+	SORT_ICON_NEUTRAL("sort.icon.neutral");
 
 	private final String key;
 

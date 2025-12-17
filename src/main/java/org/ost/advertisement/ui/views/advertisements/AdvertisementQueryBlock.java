@@ -1,99 +1,83 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_CREATED_END;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_CREATED_START;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDATED_END;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_FILTER_UPDATED_START;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_TITLE;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_UPDATED_AT;
-
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.datepicker.DatePicker;
-import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
-import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.advertisements.elements.AdvertisementQueryCreatedDateRow;
+import org.ost.advertisement.ui.views.advertisements.elements.AdvertisementQueryTitleRow;
+import org.ost.advertisement.ui.views.advertisements.elements.AdvertisementQueryUpdatedDateRow;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
-import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
-import org.ost.advertisement.ui.views.components.content.ContentFactory;
-import org.ost.advertisement.ui.views.components.content.QueryContentFactory;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.query.QueryActionBlock;
+import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementFilterProcessor;
+import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementSortProcessor;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.TriStateSortIcon;
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 
 @SpringComponent
 @UIScope
-public class AdvertisementQueryBlock implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
+@RequiredArgsConstructor
+public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>,
+	QueryBlockLayout {
 
 	@Getter
 	private final QueryActionBlock queryActionBlock;
 	@Getter
-	private final FilterFieldsProcessor<AdvertisementFilterDto> filterProcessor;
+	private final transient AdvertisementFilterProcessor filterProcessor;
 	@Getter
-	private final SortFieldsProcessor sortProcessor;
+	private final transient AdvertisementSortProcessor sortProcessor;
 
-	private final TriStateSortIcon titleSortIcon;
-	private final TriStateSortIcon createdSortIcon;
-	private final TriStateSortIcon updatedSortIcon;
-
-	private final TextField titleField;
-	private final DatePicker createdStart;
-	private final DatePicker createdEnd;
-	private final DatePicker updatedStart;
-	private final DatePicker updatedEnd;
-
-	@Getter
-	private final Component layout;
-
-	public AdvertisementQueryBlock(AdvertisementFilterMapper filterMapper,
-								   ValidationService<AdvertisementFilterDto> validation,
-								   ContentFactory contentFactory,
-								   QueryContentFactory queryContentFactory,
-								   QueryActionBlock queryActionBlock) {
-		this.queryActionBlock = queryActionBlock;
-		this.filterProcessor = new FilterFieldsProcessor<>(filterMapper, validation, AdvertisementFilterDto.empty());
-		this.sortProcessor = new SortFieldsProcessor(AdvertisementSortMeta.defaultSort());
-
-		this.titleSortIcon = new TriStateSortIcon();
-		this.createdSortIcon = new TriStateSortIcon();
-		this.updatedSortIcon = new TriStateSortIcon();
-
-		this.titleField = contentFactory.createFullTextField(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER);
-		this.createdStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_START);
-		this.createdEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_CREATED_END);
-		this.updatedStart = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_START);
-		this.updatedEnd = contentFactory.createDatePicker(ADVERTISEMENT_FILTER_UPDATED_END);
-
-		this.layout = queryContentFactory.buildQueryBlockLayout(
-			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_TITLE, titleSortIcon, titleField),
-			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_CREATED_AT, createdSortIcon, createdStart,
-				createdEnd),
-			queryContentFactory.createQueryBlockInlineRow(ADVERTISEMENT_SORT_UPDATED_AT, updatedSortIcon, updatedStart,
-				updatedEnd),
-			this.queryActionBlock.getComponent());
-	}
+	private final transient AdvertisementQueryTitleRow advertisementQueryTitleRow;
+	private final transient AdvertisementQueryCreatedDateRow advertisementQueryCreatedDateRow;
+	private final transient AdvertisementQueryUpdatedDateRow advertisementQueryUpdatedDateRow;
 
 	@PostConstruct
-	private void init() {
-		sortProcessor.register(titleSortIcon, AdvertisementInfoDto.Fields.title, queryActionBlock);
-		sortProcessor.register(createdSortIcon, AdvertisementInfoDto.Fields.createdAt, queryActionBlock);
-		sortProcessor.register(updatedSortIcon, AdvertisementInfoDto.Fields.updatedAt, queryActionBlock);
-		sortProcessor.refreshSorting();
+	private void initLayout() {
+		initLayout(advertisementQueryTitleRow, advertisementQueryCreatedDateRow, advertisementQueryUpdatedDateRow,
+			queryActionBlock);
 
-		filterProcessor.register(titleField, AdvertisementFilterMeta.TITLE, queryActionBlock);
-		filterProcessor.register(createdStart, AdvertisementFilterMeta.CREATED_AT_START, queryActionBlock);
-		filterProcessor.register(createdEnd, AdvertisementFilterMeta.CREATED_AT_END, queryActionBlock);
-		filterProcessor.register(updatedStart, AdvertisementFilterMeta.UPDATED_AT_START, queryActionBlock);
-		filterProcessor.register(updatedEnd, AdvertisementFilterMeta.UPDATED_AT_END, queryActionBlock);
+		sortProcessor.register(AdvertisementInfoDto.Fields.title, advertisementQueryTitleRow.getSortIcon(),
+			queryActionBlock);
+		sortProcessor.register(AdvertisementInfoDto.Fields.createdAt, advertisementQueryCreatedDateRow.getSortIcon(),
+			queryActionBlock);
+		sortProcessor.register(AdvertisementInfoDto.Fields.updatedAt, advertisementQueryUpdatedDateRow.getSortIcon(),
+			queryActionBlock);
+
+		filterProcessor.register(AdvertisementFilterMeta.TITLE, advertisementQueryTitleRow.getFilterField(),
+			queryActionBlock);
+		filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_START,
+			advertisementQueryCreatedDateRow.getStartDate(), queryActionBlock);
+		filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END, advertisementQueryCreatedDateRow.getEndDate(),
+			queryActionBlock);
+		filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_START,
+			advertisementQueryUpdatedDateRow.getStartDate(), queryActionBlock);
+		filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END, advertisementQueryUpdatedDateRow.getEndDate(),
+			queryActionBlock);
+	}
+
+	public void initLayout(Component... components) {
+		setPadding(false);
+		setSpacing(false);
+		setVisible(false);
+		getStyle()
+			.set("margin-top", "8px")
+			.set("padding", "8px")
+			.set("border", "1px solid #ddd")
+			.set("border-radius", "6px")
+			.set("background-color", "#fafafa")
+			.set("gap", "6px");
+		add(components);
+	}
+
+	@Override
+	public boolean toggleVisibility() {
+		boolean nowVisible = !this.isVisible();
+		setVisible(nowVisible);
+		return nowVisible;
 	}
 }
