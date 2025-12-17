@@ -4,7 +4,9 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.ui.views.advertisements.elements.AdvertisementQueryCreatedDateRow;
@@ -16,31 +18,26 @@ import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementSort
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
-import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 
 @SpringComponent
 @UIScope
+@RequiredArgsConstructor
 public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>,
 	QueryBlockLayout {
 
 	@Getter
 	private final QueryActionBlock queryActionBlock;
 	@Getter
-	private final transient FilterProcessor<AdvertisementFilterDto> filterProcessor;
+	private final transient AdvertisementFilterProcessor filterProcessor;
 	@Getter
-	private final transient SortProcessor sortProcessor;
+	private final transient AdvertisementSortProcessor sortProcessor;
 
-	public AdvertisementQueryBlock(AdvertisementFilterProcessor filterProcessor,
-								   AdvertisementSortProcessor sortProcessor,
-								   AdvertisementQueryTitleRow advertisementQueryTitleRow,
-								   AdvertisementQueryCreatedDateRow advertisementQueryCreatedDateRow,
-								   AdvertisementQueryUpdatedDateRow advertisementQueryUpdatedDateRow,
-								   QueryActionBlock queryActionBlock) {
-		this.queryActionBlock = queryActionBlock;
-		this.filterProcessor = filterProcessor;
-		this.sortProcessor = sortProcessor;
+	private final transient AdvertisementQueryTitleRow advertisementQueryTitleRow;
+	private final transient AdvertisementQueryCreatedDateRow advertisementQueryCreatedDateRow;
+	private final transient AdvertisementQueryUpdatedDateRow advertisementQueryUpdatedDateRow;
 
+	@PostConstruct
+	private void initLayout() {
 		initLayout(advertisementQueryTitleRow, advertisementQueryCreatedDateRow, advertisementQueryUpdatedDateRow,
 			queryActionBlock);
 

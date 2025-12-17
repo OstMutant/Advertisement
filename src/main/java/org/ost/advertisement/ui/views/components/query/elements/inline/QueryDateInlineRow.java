@@ -1,6 +1,7 @@
 package org.ost.advertisement.ui.views.components.query.elements.inline;
 
 import com.vaadin.flow.component.datepicker.DatePicker;
+import jakarta.annotation.PostConstruct;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NonNull;
@@ -33,9 +34,14 @@ public class QueryDateInlineRow extends QueryInlineRow {
 	private final DatePicker endDate;
 
 	public QueryDateInlineRow(@NonNull Parameters parameters) {
+		super(parameters.getI18n(), parameters.getLabelI18nKey());
 		sortIcon = parameters.getSortIcon();
 		startDate = parameters.getStartDate();
 		endDate = parameters.getEndDate();
-		initLayout(parameters.getI18n(), parameters.getLabelI18nKey(), sortIcon, startDate, endDate);
+	}
+
+	@PostConstruct
+	private void initLayout() {
+		initLayout(sortIcon, startDate, endDate);
 	}
 }

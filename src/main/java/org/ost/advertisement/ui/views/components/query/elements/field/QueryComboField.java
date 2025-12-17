@@ -1,12 +1,15 @@
 package org.ost.advertisement.ui.views.components.query.elements.field;
 
 import com.vaadin.flow.component.combobox.ComboBox;
+import jakarta.annotation.PostConstruct;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
+@RequiredArgsConstructor
 @SuppressWarnings("java:S110")
 public class QueryComboField<T> extends ComboBox<T> {
 
@@ -22,13 +25,9 @@ public class QueryComboField<T> extends ComboBox<T> {
 		T[] items;
 	}
 
-	private final transient Parameters<T> parameters;
+	private final transient @NonNull Parameters<T> parameters;
 
-	public QueryComboField(@NonNull Parameters<T> parameters) {
-		this.parameters = parameters;
-		initLayout();
-	}
-
+	@PostConstruct
 	private void initLayout() {
 		setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
 		setClearButtonVisible(true);

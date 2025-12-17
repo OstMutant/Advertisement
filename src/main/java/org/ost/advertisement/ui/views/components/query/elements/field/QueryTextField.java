@@ -2,12 +2,15 @@ package org.ost.advertisement.ui.views.components.query.elements.field;
 
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import jakarta.annotation.PostConstruct;
 import lombok.Builder;
 import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
+@RequiredArgsConstructor
 @SuppressWarnings("java:S110")
 public class QueryTextField extends TextField {
 
@@ -21,13 +24,9 @@ public class QueryTextField extends TextField {
 		I18nKey placeholderKey;
 	}
 
-	private final transient Parameters parameters;
+	private final transient @NonNull Parameters parameters;
 
-	public QueryTextField(@NonNull Parameters parameters) {
-		this.parameters = parameters;
-		initLayout();
-	}
-
+	@PostConstruct
 	private void initLayout() {
 		setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
 		setClearButtonVisible(true);
