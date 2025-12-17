@@ -10,6 +10,7 @@ import org.ost.advertisement.ui.views.components.query.elements.field.QueryCombo
 
 @SpringComponent
 @UIScope
+@SuppressWarnings("java:S110")
 public class UserQueryRoleField extends QueryComboField<Role> {
 
 	public UserQueryRoleField(I18nService i18n) {
