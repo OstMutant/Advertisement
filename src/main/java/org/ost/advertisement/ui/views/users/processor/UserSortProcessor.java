@@ -11,10 +11,10 @@ import org.springframework.data.domain.Sort;
 @Scope("prototype")
 public class UserSortProcessor extends SortProcessor {
 
-	public UserSortProcessor() {
-		super(new CustomSort(Sort.by(
-			Sort.Order.desc(User.Fields.updatedAt),
-			Sort.Order.desc(User.Fields.createdAt)
-		)));
-	}
+    public UserSortProcessor() {
+        super(new CustomSort(Sort.by(
+                Sort.Order.desc(User.Fields.updatedAt),
+                Sort.Order.desc(User.Fields.createdAt)
+        )));
+    }
 }

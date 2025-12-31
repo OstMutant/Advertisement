@@ -1,7 +1,6 @@
 package org.ost.advertisement.services;
 
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
@@ -15,34 +14,36 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Validated
 public class AdvertisementService {
 
-	private final AdvertisementRepository repository;
-	private final AccessEvaluator access;
+    private final AdvertisementRepository repository;
+    private final AccessEvaluator access;
 
-	public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
-		return repository.findByFilter(filter, PageRequest.of(page, size, sort));
-	}
+    public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort));
+    }
 
-	public int count(@Valid AdvertisementFilterDto filter) {
-		return repository.countByFilter(filter).intValue();
-	}
+    public int count(@Valid AdvertisementFilterDto filter) {
+        return repository.countByFilter(filter).intValue();
+    }
 
-	public void save(Advertisement ad) {
-		if (access.canNotEdit(ad)) {
-			throw new AccessDeniedException("You cannot edit this advertisement");
-		}
-		repository.save(ad);
-	}
+    public void save(Advertisement ad) {
+        if (access.canNotEdit(ad)) {
+            throw new AccessDeniedException("You cannot edit this advertisement");
+        }
+        repository.save(ad);
+    }
 
-	public void delete(EntityMarker ad) {
-		if (access.canNotDelete(ad)) {
-			throw new AccessDeniedException("You cannot delete this advertisement");
-		}
-		repository.deleteById(ad.getId());
-	}
+    public void delete(EntityMarker ad) {
+        if (access.canNotDelete(ad)) {
+            throw new AccessDeniedException("You cannot delete this advertisement");
+        }
+        repository.deleteById(ad.getId());
+    }
 
 }

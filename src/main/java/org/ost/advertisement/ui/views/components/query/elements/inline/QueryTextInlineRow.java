@@ -13,31 +13,31 @@ import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 @Getter
 public class QueryTextInlineRow extends QueryInlineRow {
 
-	@Value
-	@Builder
-	public static class Parameters {
+    @Value
+    @Builder
+    public static class Parameters {
 
-		@NonNull
-		I18nService i18n;
-		@NonNull
-		I18nKey labelI18nKey;
-		@NonNull
-		SortIcon sortIcon;
-		@NonNull
-		TextField filterField;
-	}
+        @NonNull
+        I18nService i18n;
+        @NonNull
+        I18nKey labelI18nKey;
+        @NonNull
+        SortIcon sortIcon;
+        @NonNull
+        TextField filterField;
+    }
 
-	private final SortIcon sortIcon;
-	private final TextField filterField;
+    private final SortIcon sortIcon;
+    private final TextField filterField;
 
-	public QueryTextInlineRow(@NonNull Parameters parameters) {
-		super(parameters.getI18n(), parameters.getLabelI18nKey());
-		sortIcon = parameters.getSortIcon();
-		filterField = parameters.getFilterField();
-	}
+    public QueryTextInlineRow(@NonNull Parameters parameters) {
+        super(parameters.getI18n(), parameters.getLabelI18nKey());
+        sortIcon = parameters.getSortIcon();
+        filterField = parameters.getFilterField();
+    }
 
-	@PostConstruct
-	private void initLayout() {
-		initLayout(sortIcon, filterField);
-	}
+    @PostConstruct
+    private void initLayout() {
+        initLayout(sortIcon, filterField);
+    }
 }

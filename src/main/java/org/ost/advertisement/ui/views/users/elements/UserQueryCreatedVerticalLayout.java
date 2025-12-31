@@ -14,11 +14,11 @@ import org.ost.advertisement.ui.views.components.query.elements.cell.QueryVertic
 @Getter
 public class UserQueryCreatedVerticalLayout extends QueryVerticalLayout {
 
-	private final UserQueryCreatedStartDatePickerField createdStart;
-	private final UserQueryCreatedEndDatePickerField createdEnd;
+    private final UserQueryCreatedStartDatePickerField createdStart;
+    private final UserQueryCreatedEndDatePickerField createdEnd;
 
-	@PostConstruct
-	protected void initLayout() {
-		super.initLayout(createdStart, createdEnd);
-	}
+    @PostConstruct
+    protected void initLayout() {
+        super.initLayout(createdStart, createdEnd);
+    }
 }

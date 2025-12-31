@@ -6,5 +6,5 @@ import java.sql.SQLException;
 @FunctionalInterface
 public interface SqlFieldReader<T> {
 
-	T apply(ResultSet rs, String alias) throws SQLException;
+    T apply(ResultSet rs, String alias) throws SQLException;
 }

@@ -14,23 +14,23 @@ import org.ost.advertisement.services.I18nService;
 @SuppressWarnings("java:S110")
 public class QueryNumberField extends NumberField {
 
-	@Value
-	@Builder
-	public static class Parameters {
+    @Value
+    @Builder
+    public static class Parameters {
 
-		@NonNull
-		I18nService i18n;
-		@NonNull
-		I18nKey placeholderKey;
-	}
+        @NonNull
+        I18nService i18n;
+        @NonNull
+        I18nKey placeholderKey;
+    }
 
-	private final transient @NonNull Parameters parameters;
+    private final transient @NonNull Parameters parameters;
 
-	@PostConstruct
-	private void initLayout() {
-		setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
-		setClearButtonVisible(true);
-		setValueChangeMode(ValueChangeMode.EAGER);
-		setWidth("100px");
-	}
+    @PostConstruct
+    private void initLayout() {
+        setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
+        setClearButtonVisible(true);
+        setValueChangeMode(ValueChangeMode.EAGER);
+        setWidth("100px");
+    }
 }

@@ -11,9 +11,9 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 public class AdvertisementFilterProcessor extends FilterProcessor<AdvertisementFilterDto> {
 
-	public AdvertisementFilterProcessor(
-		AdvertisementFilterMapper filterMapper,
-		ValidationService<AdvertisementFilterDto> validationService) {
-		super(filterMapper, validationService, AdvertisementFilterDto.empty());
-	}
+    public AdvertisementFilterProcessor(
+            AdvertisementFilterMapper filterMapper,
+            ValidationService<AdvertisementFilterDto> validationService) {
+        super(filterMapper, validationService, AdvertisementFilterDto.empty());
+    }
 }

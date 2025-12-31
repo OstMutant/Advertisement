@@ -13,35 +13,35 @@ import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 @Getter
 public class QueryDateInlineRow extends QueryInlineRow {
 
-	@Value
-	@Builder
-	public static class Parameters {
+    @Value
+    @Builder
+    public static class Parameters {
 
-		@NonNull
-		I18nService i18n;
-		@NonNull
-		I18nKey labelI18nKey;
-		@NonNull
-		SortIcon sortIcon;
-		@NonNull
-		DatePicker startDate;
-		@NonNull
-		DatePicker endDate;
-	}
+        @NonNull
+        I18nService i18n;
+        @NonNull
+        I18nKey labelI18nKey;
+        @NonNull
+        SortIcon sortIcon;
+        @NonNull
+        DatePicker startDate;
+        @NonNull
+        DatePicker endDate;
+    }
 
-	private final SortIcon sortIcon;
-	private final DatePicker startDate;
-	private final DatePicker endDate;
+    private final SortIcon sortIcon;
+    private final DatePicker startDate;
+    private final DatePicker endDate;
 
-	public QueryDateInlineRow(@NonNull Parameters parameters) {
-		super(parameters.getI18n(), parameters.getLabelI18nKey());
-		sortIcon = parameters.getSortIcon();
-		startDate = parameters.getStartDate();
-		endDate = parameters.getEndDate();
-	}
+    public QueryDateInlineRow(@NonNull Parameters parameters) {
+        super(parameters.getI18n(), parameters.getLabelI18nKey());
+        sortIcon = parameters.getSortIcon();
+        startDate = parameters.getStartDate();
+        endDate = parameters.getEndDate();
+    }
 
-	@PostConstruct
-	private void initLayout() {
-		initLayout(sortIcon, startDate, endDate);
-	}
+    @PostConstruct
+    private void initLayout() {
+        initLayout(sortIcon, startDate, endDate);
+    }
 }

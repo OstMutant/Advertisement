@@ -12,21 +12,21 @@ import org.ost.advertisement.services.I18nService;
 @RequiredArgsConstructor
 public class QueryDatePickerField extends DatePicker {
 
-	@Value
-	@Builder
-	public static class Parameters {
+    @Value
+    @Builder
+    public static class Parameters {
 
-		@NonNull
-		I18nService i18n;
-		@NonNull
-		I18nKey placeholderKey;
-	}
+        @NonNull
+        I18nService i18n;
+        @NonNull
+        I18nKey placeholderKey;
+    }
 
-	private final transient @NonNull Parameters parameters;
+    private final transient @NonNull Parameters parameters;
 
-	@PostConstruct
-	private void initLayout() {
-		setWidth("140px");
-		setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
-	}
+    @PostConstruct
+    private void initLayout() {
+        setWidth("140px");
+        setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
+    }
 }

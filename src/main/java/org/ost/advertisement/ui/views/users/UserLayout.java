@@ -11,27 +11,27 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 @Getter
 public class UserLayout extends VerticalLayout {
 
-	private final Grid<User> grid = new Grid<>(User.class, false);
-	private final PaginationBarModern paginationBar;
+    private final Grid<User> grid = new Grid<>(User.class, false);
+    private final PaginationBarModern paginationBar;
 
-	public UserLayout(I18nService i18n) {
-		this.paginationBar = new PaginationBarModern(i18n);
+    public UserLayout(I18nService i18n) {
+        this.paginationBar = new PaginationBarModern(i18n);
 
-		addClassName("user-list-layout");
-		setSizeFull();
-		setPadding(false);
-		setSpacing(false);
+        addClassName("user-list-layout");
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
 
-		grid.setSizeFull();
+        grid.setSizeFull();
 
-		Div gridWrapper = new Div(grid);
-		gridWrapper.setWidthFull();
-		gridWrapper.setHeight("100%");
-		gridWrapper.getStyle().set("overflow-x", "auto");
-		gridWrapper.getStyle().set("overflow-y", "auto");
-		gridWrapper.getStyle().set("flex-grow", "1");
+        Div gridWrapper = new Div(grid);
+        gridWrapper.setWidthFull();
+        gridWrapper.setHeight("100%");
+        gridWrapper.getStyle().set("overflow-x", "auto");
+        gridWrapper.getStyle().set("overflow-y", "auto");
+        gridWrapper.getStyle().set("flex-grow", "1");
 
-		setFlexGrow(1, gridWrapper);
-		add(gridWrapper, paginationBar);
-	}
+        setFlexGrow(1, gridWrapper);
+        add(gridWrapper, paginationBar);
+    }
 }

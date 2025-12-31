@@ -1,16 +1,11 @@
 package org.ost.advertisement.ui;
 
-import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_ADVERTISEMENTS;
-import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
-
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.Route;
-import java.util.HashMap;
-import java.util.Map;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
@@ -18,48 +13,54 @@ import org.ost.advertisement.ui.views.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.header.HeaderBar;
 import org.ost.advertisement.ui.views.users.UserView;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
+
 @Route("")
 public class MainView extends VerticalLayout {
 
-	public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
-					AccessEvaluator access, I18nService i18n) {
+    public MainView(HeaderBar headerBar, AdvertisementsView advertisementsView, UserView usersView,
+                    AccessEvaluator access, I18nService i18n) {
 
-		TimeZoneUtil.detectTimeZone();
+        TimeZoneUtil.detectTimeZone();
 
-		setSizeFull();
-		setPadding(false);
-		setSpacing(false);
-		setAlignItems(Alignment.STRETCH);
+        setSizeFull();
+        setPadding(false);
+        setSpacing(false);
+        setAlignItems(Alignment.STRETCH);
 
-		add(headerBar);
+        add(headerBar);
 
-		Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
-		Tabs tabs = new Tabs(advertisementTab);
-		tabs.setSelectedTab(advertisementTab);
-		add(tabs);
+        Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
+        Tabs tabs = new Tabs(advertisementTab);
+        tabs.setSelectedTab(advertisementTab);
+        add(tabs);
 
-		advertisementsView.setVisible(true);
+        advertisementsView.setVisible(true);
 
-		Map<Tab, Component> tabsToPages = new HashMap<>();
-		tabsToPages.put(advertisementTab, advertisementsView);
+        Map<Tab, Component> tabsToPages = new HashMap<>();
+        tabsToPages.put(advertisementTab, advertisementsView);
 
-		Div pages = new Div(advertisementsView);
-		pages.setSizeFull();
-		add(pages);
+        Div pages = new Div(advertisementsView);
+        pages.setSizeFull();
+        add(pages);
 
-		if (access.canView()) {
-			usersView.setVisible(false);
+        if (access.canView()) {
+            usersView.setVisible(false);
 
-			Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
-			tabs.add(usersTab);
-			tabsToPages.put(usersTab, usersView);
-			pages.add(usersView);
-		}
+            Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
+            tabs.add(usersTab);
+            tabsToPages.put(usersTab, usersView);
+            pages.add(usersView);
+        }
 
-		tabs.addSelectedChangeListener(event -> {
-			tabsToPages.values().forEach(page -> page.setVisible(false));
-			tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
-		});
-	}
+        tabs.addSelectedChangeListener(event -> {
+            tabsToPages.values().forEach(page -> page.setVisible(false));
+            tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
+        });
+    }
 }
 

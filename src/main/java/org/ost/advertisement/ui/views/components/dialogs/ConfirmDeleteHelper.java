@@ -10,27 +10,27 @@ import org.ost.advertisement.services.I18nService;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ConfirmDeleteHelper {
 
-	public static void showConfirm(I18nService i18n, String message, I18nKey confirmKey, I18nKey cancelKey,
-								   Runnable onConfirm) {
-		Dialog dialog = new Dialog();
+    public static void showConfirm(I18nService i18n, String message, I18nKey confirmKey, I18nKey cancelKey,
+                                   Runnable onConfirm) {
+        Dialog dialog = new Dialog();
 
-		Button confirmButton = DialogContentFactory.primaryButton(i18n, confirmKey);
-		confirmButton.addClickListener(event -> {
-			try {
-				onConfirm.run();
-			} finally {
-				dialog.close();
-			}
-		});
+        Button confirmButton = DialogContentFactory.primaryButton(i18n, confirmKey);
+        confirmButton.addClickListener(event -> {
+            try {
+                onConfirm.run();
+            } finally {
+                dialog.close();
+            }
+        });
 
-		Button cancelButton = DialogContentFactory.tertiaryButton(i18n, cancelKey);
-		cancelButton.addClickListener(e -> dialog.close());
+        Button cancelButton = DialogContentFactory.tertiaryButton(i18n, cancelKey);
+        cancelButton.addClickListener(e -> dialog.close());
 
-		DialogLayout layout = new DialogLayout();
-		layout.setHeader(message);
-		layout.addActions(confirmButton, cancelButton);
+        DialogLayout layout = new DialogLayout();
+        layout.setHeader(message);
+        layout.addActions(confirmButton, cancelButton);
 
-		dialog.add(layout.getLayout());
-		dialog.open();
-	}
+        dialog.add(layout.getLayout());
+        dialog.open();
+    }
 }

@@ -9,26 +9,26 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
 public class AdvertisementDescriptionDialog extends Dialog {
 
-	public AdvertisementDescriptionDialog(String title, String description) {
-		setWidth("600px");
-		setCloseOnEsc(true);
-		setCloseOnOutsideClick(true);
+    public AdvertisementDescriptionDialog(String title, String description) {
+        setWidth("600px");
+        setCloseOnEsc(true);
+        setCloseOnOutsideClick(true);
 
-		H3 heading = new H3(title);
-		Span content = new Span(description);
-		content.getStyle()
-			.set("white-space", "pre-wrap")
-			.set("line-height", "1.5")
-			.set("font-size", "0.95rem")
-			.set("color", "#444");
+        H3 heading = new H3(title);
+        Span content = new Span(description);
+        content.getStyle()
+                .set("white-space", "pre-wrap")
+                .set("line-height", "1.5")
+                .set("font-size", "0.95rem")
+                .set("color", "#444");
 
-		Button close = new Button("Close", e -> close());
-		close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        Button close = new Button("Close", e -> close());
+        close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
 
-		VerticalLayout layout = new VerticalLayout(heading, content, close);
-		layout.setPadding(true);
-		layout.setSpacing(true);
-		add(layout);
-	}
+        VerticalLayout layout = new VerticalLayout(heading, content, close);
+        layout.setPadding(true);
+        layout.setSpacing(true);
+        add(layout);
+    }
 }
 

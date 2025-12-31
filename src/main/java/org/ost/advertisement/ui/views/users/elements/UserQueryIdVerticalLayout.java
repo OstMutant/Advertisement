@@ -15,11 +15,11 @@ import org.ost.advertisement.ui.views.components.query.elements.cell.QueryVertic
 @SuppressWarnings("java:S2094")
 public class UserQueryIdVerticalLayout extends QueryVerticalLayout {
 
-	private final UserQueryIdMinField idMin;
-	private final UserQueryIdMaxField idMax;
+    private final UserQueryIdMinField idMin;
+    private final UserQueryIdMaxField idMax;
 
-	@PostConstruct
-	protected void initLayout() {
-		super.initLayout(idMin, idMax);
-	}
+    @PostConstruct
+    protected void initLayout() {
+        super.initLayout(idMin, idMax);
+    }
 }

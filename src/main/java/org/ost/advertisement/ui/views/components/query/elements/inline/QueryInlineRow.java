@@ -11,22 +11,22 @@ import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 @RequiredArgsConstructor
 public class QueryInlineRow extends HorizontalLayout {
 
-	private final I18nService i18n;
-	private final I18nKey labelI18nKey;
+    private final I18nService i18n;
+    private final I18nKey labelI18nKey;
 
-	protected void initLayout(SortIcon sortIcon, Component... filterFields) {
-		HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18n.get(labelI18nKey)), sortIcon);
-		labelAndSort.setAlignItems(Alignment.CENTER);
-		labelAndSort.setSpacing(true);
+    protected void initLayout(SortIcon sortIcon, Component... filterFields) {
+        HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18n.get(labelI18nKey)), sortIcon);
+        labelAndSort.setAlignItems(Alignment.CENTER);
+        labelAndSort.setSpacing(true);
 
-		HorizontalLayout filters = new HorizontalLayout(filterFields);
-		filters.setAlignItems(Alignment.END);
-		filters.setSpacing(true);
+        HorizontalLayout filters = new HorizontalLayout(filterFields);
+        filters.setAlignItems(Alignment.END);
+        filters.setSpacing(true);
 
-		add(labelAndSort, filters);
-		setWidthFull();
-		setAlignItems(Alignment.CENTER);
-		setSpacing(true);
-		getStyle().set("gap", "12px");
-	}
+        add(labelAndSort, filters);
+        setWidthFull();
+        setAlignItems(Alignment.CENTER);
+        setSpacing(true);
+        getStyle().set("gap", "12px");
+    }
 }

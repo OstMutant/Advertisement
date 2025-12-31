@@ -13,64 +13,64 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 public class LabeledField extends HorizontalLayout {
 
-	private final Span label = new Span();
-	private final Span value = new Span();
+    private final Span label = new Span();
+    private final Span value = new Span();
 
-	private LabeledField() {
-		add(label, value);
-		setAlignItems(Alignment.BASELINE);
-		setSpacing(true);
-	}
+    private LabeledField() {
+        add(label, value);
+        setAlignItems(Alignment.BASELINE);
+        setSpacing(true);
+    }
 
-	private void setLabel(String text) {
-		label.setText(text);
-	}
+    private void setLabel(String text) {
+        label.setText(text);
+    }
 
-	private void setValue(String text) {
-		value.setText(text);
-	}
+    private void setValue(String text) {
+        value.setText(text);
+    }
 
-	@SpringComponent
-	public static class Builder {
+    @SpringComponent
+    public static class Builder {
 
-		private final ObjectProvider<LabeledField> provider;
-		private final I18nService i18n;
+        private final ObjectProvider<LabeledField> provider;
+        private final I18nService i18n;
 
-		public Builder(I18nService i18n, ObjectProvider<LabeledField> provider) {
-			this.i18n = i18n;
-			this.provider = provider;
-		}
+        public Builder(I18nService i18n, ObjectProvider<LabeledField> provider) {
+            this.i18n = i18n;
+            this.provider = provider;
+        }
 
-		private I18nKey labelKey;
-		private String valueText;
-		private TailwindStyle[] styles;
+        private I18nKey labelKey;
+        private String valueText;
+        private TailwindStyle[] styles;
 
-		public Builder withLabel(I18nKey key) {
-			this.labelKey = key;
-			return this;
-		}
+        public Builder withLabel(I18nKey key) {
+            this.labelKey = key;
+            return this;
+        }
 
-		public Builder withValue(String text) {
-			this.valueText = text;
-			return this;
-		}
+        public Builder withValue(String text) {
+            this.valueText = text;
+            return this;
+        }
 
-		public Builder withStyles(TailwindStyle... styles) {
-			this.styles = styles;
-			return this;
-		}
+        public Builder withStyles(TailwindStyle... styles) {
+            this.styles = styles;
+            return this;
+        }
 
-		public LabeledField build() {
-			LabeledField field = provider.getObject();
-			if (styles != null) {
-				TailwindStyle.applyAll(field.label, styles);
-				TailwindStyle.applyAll(field.value, styles);
-			}
-			if (i18n != null) {
-				field.setLabel(i18n.get(labelKey));
-			}
-			field.setValue(valueText);
-			return field;
-		}
-	}
+        public LabeledField build() {
+            LabeledField field = provider.getObject();
+            if (styles != null) {
+                TailwindStyle.applyAll(field.label, styles);
+                TailwindStyle.applyAll(field.value, styles);
+            }
+            if (i18n != null) {
+                field.setLabel(i18n.get(labelKey));
+            }
+            field.setValue(valueText);
+            return field;
+        }
+    }
 }

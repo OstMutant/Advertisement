@@ -9,8 +9,8 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
 @EnableJdbcAuditing(auditorAwareRef = "auditorProvider")
 public class AuditingConfig {
 
-	@Bean
-	public AuditorAware<Long> auditorProvider() {
-		return new SecurityAuditorAware();
-	}
+    @Bean
+    public AuditorAware<Long> auditorProvider() {
+        return new SecurityAuditorAware();
+    }
 }

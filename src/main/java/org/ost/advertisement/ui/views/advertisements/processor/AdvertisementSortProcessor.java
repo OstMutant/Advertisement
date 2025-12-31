@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 public class AdvertisementSortProcessor extends SortProcessor {
 
-	public AdvertisementSortProcessor() {
-		super(AdvertisementSortMeta.defaultSort());
-	}
+    public AdvertisementSortProcessor() {
+        super(AdvertisementSortMeta.defaultSort());
+    }
 }

@@ -13,29 +13,29 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 public class SecurityConfig {
 
-	private static final String SERVLET_MAPPING_PATH = "/";
+    private static final String SERVLET_MAPPING_PATH = "/";
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-		http
-			.authorizeHttpRequests(auth -> auth
-				.requestMatchers(this::isVaadinInternalRequest).permitAll()
-				.anyRequest().permitAll()
-			)
-			.csrf(csrf -> csrf
-				.ignoringRequestMatchers(this::isVaadinInternalRequest)
-			)
-			.sessionManagement(session -> session
-				.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-			)
-			.httpBasic(Customizer.withDefaults())
-			.formLogin(AbstractHttpConfigurer::disable)
-			.logout(AbstractHttpConfigurer::disable);
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(this::isVaadinInternalRequest).permitAll()
+                        .anyRequest().permitAll()
+                )
+                .csrf(csrf -> csrf
+                        .ignoringRequestMatchers(this::isVaadinInternalRequest)
+                )
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+                )
+                .httpBasic(Customizer.withDefaults())
+                .formLogin(AbstractHttpConfigurer::disable)
+                .logout(AbstractHttpConfigurer::disable);
 
-		return http.build();
-	}
+        return http.build();
+    }
 
-	private boolean isVaadinInternalRequest(HttpServletRequest request) {
-		return HandlerHelper.isFrameworkInternalRequest(SERVLET_MAPPING_PATH, request);
-	}
+    private boolean isVaadinInternalRequest(HttpServletRequest request) {
+        return HandlerHelper.isFrameworkInternalRequest(SERVLET_MAPPING_PATH, request);
+    }
 }
