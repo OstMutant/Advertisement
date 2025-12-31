@@ -41,7 +41,7 @@ public class UserView extends UserLayout {
 
 		getPaginationBar().setPageChangeListener(event -> refreshGrid());
 
-		queryBlock.eventProcessor(() -> {
+		queryBlock.addEventListener(() -> {
 			getPaginationBar().setTotalCount(0);
 			refreshGrid();
 		});

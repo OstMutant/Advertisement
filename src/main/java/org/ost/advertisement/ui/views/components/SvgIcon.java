@@ -6,13 +6,22 @@ import org.ost.advertisement.ui.utils.SvgUtils;
 public class SvgIcon extends Span {
 
 	public SvgIcon(String resourcePath) {
-		String svg = SvgUtils.loadSvg(resourcePath);
-		getElement().setProperty("innerHTML", svg);
+		loadSvg(resourcePath);
 		getStyle().set("width", "1em");
 		getStyle().set("height", "1em");
 		getStyle().set("display", "inline-block");
 		getStyle().set("vertical-align", "middle");
 		getStyle().set("line-height", "1");
 	}
+
+	public void loadSvg(String resourcePath) {
+		String svg = SvgUtils.loadSvg(resourcePath);
+		getElement().setProperty("innerHTML", svg);
+	}
+
+	public void setColor(String color) {
+		this.getStyle().set("color", color);
+	}
+
 }
 

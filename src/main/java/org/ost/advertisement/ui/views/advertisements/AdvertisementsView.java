@@ -16,8 +16,8 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 
 @SpringComponent
 @UIScope
@@ -25,7 +25,7 @@ public class AdvertisementsView extends VerticalLayout {
 
 	private final transient AdvertisementService advertisementService;
 	private final transient I18nService i18n;
-	private final transient AdvertisementQueryStatusBlock statusQueryBlock;
+	private final transient AdvertisementQueryStatusBar queryStatusBar;
 	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
 	private final transient AdvertisementCardView.Builder cardBuilder;
 	private final FlexLayout advertisementContainer = getAdvertisementContainer();
@@ -33,12 +33,12 @@ public class AdvertisementsView extends VerticalLayout {
 	private final Button addAdvertisementButton;
 
 	public AdvertisementsView(AdvertisementService advertisementService,
-							  AdvertisementQueryStatusBlock statusQueryBlock,
+							  AdvertisementQueryStatusBar queryStatusBar,
 							  AdvertisementUpsertDialog.Builder upsertDialogBuilder,
 							  I18nService i18n,
 							  AdvertisementCardView.Builder cardBuilder) {
 		this.advertisementService = advertisementService;
-		this.statusQueryBlock = statusQueryBlock;
+		this.queryStatusBar = queryStatusBar;
 		this.upsertDialogBuilder = upsertDialogBuilder;
 		this.i18n = i18n;
 		this.cardBuilder = cardBuilder;
@@ -50,7 +50,7 @@ public class AdvertisementsView extends VerticalLayout {
 		addAdvertisementButton.addClickListener(
 			e -> this.upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
 
-		statusQueryBlock.getQueryBlock().eventProcessor(() -> {
+		queryStatusBar.getQueryBlock().addEventListener(() -> {
 			paginationBar.setTotalCount(0);
 			refreshAdvertisements();
 		});
@@ -58,8 +58,8 @@ public class AdvertisementsView extends VerticalLayout {
 		paginationBar.setPageChangeListener(e -> refreshAdvertisements());
 
 		add(
-			statusQueryBlock.getStatusBar(),
-			statusQueryBlock.getQueryBlock().getLayout(),
+			queryStatusBar,
+			queryStatusBar.getQueryBlock(),
 			addAdvertisementButton,
 			advertisementContainer,
 			paginationBar
@@ -85,20 +85,20 @@ public class AdvertisementsView extends VerticalLayout {
 	}
 
 	private void refreshAdvertisements() {
-		AdvertisementQueryBlock queryBlock = statusQueryBlock.getQueryBlock();
-		FilterFieldsProcessor<AdvertisementFilterDto> filterFieldsProcessor = queryBlock.getFilterProcessor();
-		SortFieldsProcessor sortFieldsProcessor = queryBlock.getSortProcessor();
+		AdvertisementQueryBlock queryBlock = queryStatusBar.getQueryBlock();
+		FilterProcessor<AdvertisementFilterDto> filterProcessor = queryBlock.getFilterProcessor();
+		SortProcessor sortProcessor = queryBlock.getSortProcessor();
 
 		int page = paginationBar.getCurrentPage();
 		int size = paginationBar.getPageSize();
 
-		AdvertisementFilterDto filter = filterFieldsProcessor.getOriginalFilter();
+		AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
 
 		List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
 			filter,
 			page,
 			size,
-			sortFieldsProcessor.getOriginalSort().getSort()
+			sortProcessor.getOriginalSort().getSort()
 		);
 
 		paginationBar.setTotalCount(advertisementService.count(filter));
@@ -106,6 +106,6 @@ public class AdvertisementsView extends VerticalLayout {
 		advertisementContainer.removeAll();
 		ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
 
-		statusQueryBlock.getStatusBar().update(filterFieldsProcessor, sortFieldsProcessor);
+		queryStatusBar.update(filterProcessor, sortProcessor);
 	}
 }

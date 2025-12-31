@@ -1,31 +1,32 @@
 package org.ost.advertisement.ui.views.components.query;
 
-import com.vaadin.flow.component.Component;
-import org.ost.advertisement.ui.views.components.filters.FilterFieldsProcessor;
-import org.ost.advertisement.ui.views.components.sort.SortFieldsProcessor;
+import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
+import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
 
 public interface QueryBlock<T> {
 
-	FilterFieldsProcessor<T> getFilterProcessor();
+	FilterProcessor<T> getFilterProcessor();
 
-	SortFieldsProcessor getSortProcessor();
+	SortProcessor getSortProcessor();
 
 	QueryActionBlock getQueryActionBlock();
 
-	default void eventProcessor(Runnable onApply) {
-
+	default void addEventListener(Runnable onApply) {
 		QueryActionBlock queryActionBlock = getQueryActionBlock();
-		FilterFieldsProcessor<T> filterProcessor = getFilterProcessor();
-		SortFieldsProcessor sortProcessor = getSortProcessor();
+		FilterProcessor<T> filterProcessor = getFilterProcessor();
+		SortProcessor sortProcessor = getSortProcessor();
 
 		Runnable combined = () -> {
-			onApply.run();
-			filterProcessor.refreshFilter();
-			sortProcessor.refreshSorting();
-			queryActionBlock.setChanged(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
+			if (onApply != null) {
+				onApply.run();
+			}
+			filterProcessor.refreshItemsFilter();
+			sortProcessor.refreshItemsColor();
+			queryActionBlock.updateDirtyState(filterProcessor.isFilterChanged() || sortProcessor.isSortingChanged());
 		};
 
-		queryActionBlock.eventProcessor(() -> {
+		queryActionBlock.addEventListener(() -> {
 			if (!filterProcessor.validate()) {
 				return;
 			}
