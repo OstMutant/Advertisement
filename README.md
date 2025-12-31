@@ -8,7 +8,7 @@ Advertisement Platform is an evolving backend system developed as an architectur
 The primary goal of this project is not feature completeness, but:
 - exploring architectural trade-offs,
 - experimenting with backend patterns,
-- demonstrating full control over data flow and system complexity.
+- demonstrating explicit control over data flow and system complexity.
 
 There is intentionally no fixed final product vision.  
 The project is designed to evolve as ideas, experiments, and architectural directions change.
@@ -17,38 +17,38 @@ The project is designed to evolve as ideas, experiments, and architectural direc
 
 ## Engineering Goals
 
-- Design a maintainable and extensible backend architecture
+- Design a maintainable and evolvable backend architecture
 - Avoid hidden framework behavior and implicit magic
 - Prefer explicit, type-safe, and transparent solutions
 - Explore alternative approaches to common backend problems
-- Demonstrate senior-level backend engineering mindset
+- Demonstrate a senior-level backend engineering mindset
 
 ---
 
 ## Architectural Philosophy
 
-Explicit over implicit:
+### Explicit over implicit
 - No ORM, no JPA
 - All SQL queries are written manually using Spring JDBC
-- No hidden query generation or side effects
+- No hidden query generation or implicit persistence behavior
 
-Controlled complexity:
-- Generic filtering built on composable FieldCondition<T> and FieldRelation<T>
-- Rule-based validation isolated from UI and services
-- Clear ownership of responsibilities across layers
+### Controlled complexity
+- Generic filtering built on composable `FieldCondition<T>` and `FieldRelation<T>`
+- Validation rules separated from UI and expressed explicitly
+- Clear responsibility boundaries, with some areas intentionally explored and evolving
 
-Immutable data model:
-- All DTOs are immutable
-- No shared mutable state
-- Predictable and safe data flow
+### Immutable data flow
+- DTOs are treated as immutable data carriers
+- No shared mutable state between layers
+- Predictable and traceable data transformations
 
-UI as an implementation detail:
+### UI as a thin adapter
 - Vaadin is used only for layout and interaction wiring
-- No business logic in UI components
-- Backend remains UI-agnostic and reusable
+- No business decision-making inside UI components
+- Backend logic remains reusable and UI-agnostic
 
-Declarative approach:
-- Validation rules are expressed declaratively
+### Declarative tendencies
+- Validation rules are expressed declaratively where possible
 - PDF layouts are described via DTOs and rendered using iText
 - Localization is centralized and strongly typed
 
@@ -57,50 +57,47 @@ Declarative approach:
 ## Project Structure
 
 src/
-- dto/  
-  Immutable data transfer objects
+- dto/        Data transfer objects
+- filter/     Generic filtering abstractions
+- repository/ Explicit SQL repositories (Spring JDBC)
+- service/    Business logic and validation orchestration
+- view/       Vaadin UI components (layout only)
+- config/     Application and security configuration
+- util/       Shared utilities
 
-- filter/  
-  Generic filtering logic (FieldCondition, FieldRelation)
-
-- repository/  
-  Explicit SQL repositories using Spring JDBC
-
-- service/  
-  Business logic and validation rules
-
-- view/  
-  Vaadin UI components (layout and interaction only)
-
-- config/  
-  Application and security configuration
-
-- util/  
-  Shared utilities and helpers
-
-The structure emphasizes clarity, separation of concerns, and evolvability.
+The structure emphasizes clarity, separation of concerns, and architectural evolvability.
 
 ---
 
 ## Key Technical Decisions
 
 Manual SQL  
-Full control over queries and predictable performance
+Full control over queries and predictable behavior
 
 No ORM  
-Avoid hidden behavior and implicit state
+Avoid implicit state, lifecycle complexity, and hidden side effects
 
-Immutable DTOs  
-Safer reasoning and fewer side effects
+Explicit filtering model  
+Composable query logic without ORM-driven abstractions
 
-Generic filtering  
-Reusable and composable query logic
-
-Rule-based validation  
-Testable and extensible validation rules
+Structured validation  
+Rule-oriented validation logic, isolated from UI concerns
 
 Centralized localization  
-Strongly typed UI text management
+Strongly typed and consistent UI text management
+
+---
+
+## Architectural Maturity
+
+This codebase intentionally contains areas that are not fully generalized or polished.
+
+Some solutions are deliberately explicit and verbose to:
+- expose architectural trade-offs,
+- support experimentation,
+- favor understandability over abstraction completeness.
+
+Refactoring and replacement of existing solutions is considered a natural part of the project’s evolution.
 
 ---
 
@@ -109,11 +106,11 @@ Strongly typed UI text management
 Actively evolving.
 
 This repository represents engineering thinking in progress:
-- architectural ideas may be revisited,
-- solutions may be refactored or replaced,
+- architectural decisions may be revisited,
+- implementations may be replaced,
 - experiments are expected and encouraged.
 
-Stability is secondary to learning, clarity, and architectural exploration.
+Stability and completeness are secondary to learning, clarity, and architectural exploration.
 
 ---
 
@@ -137,11 +134,11 @@ To populate test data, provide a data-test.xml changelog with full DTO coverage.
 
 ## Ideas and Future Exploration
 
-- Expand rule-based validation framework
-- Enhance generic filtering capabilities
+- Extend rule-based validation capabilities
+- Improve composability and readability of generic filtering
 - Add architectural decision records (ADR)
 - Introduce focused integration and contract tests
-- Explore alternative UI or API layers
+- Explore alternative API or UI adapters
 
 ---
 
