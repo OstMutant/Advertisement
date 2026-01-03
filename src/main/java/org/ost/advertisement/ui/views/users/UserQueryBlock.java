@@ -6,12 +6,12 @@ import jakarta.annotation.PostConstruct;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.advertisement.entities.User;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 import org.ost.advertisement.ui.views.users.elements.query.*;
 import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
+import org.ost.advertisement.ui.views.users.meta.UserSortMeta;
 import org.ost.advertisement.ui.views.users.processor.UserFilterProcessor;
 import org.ost.advertisement.ui.views.users.processor.UserSortProcessor;
 
@@ -43,12 +43,12 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
     @PostConstruct
     private void initLayout() {
-        sortProcessor.register(User.Fields.id, idSortIcon, queryActionBlock);
-        sortProcessor.register(User.Fields.name, nameSortIcon, queryActionBlock);
-        sortProcessor.register(User.Fields.email, emailSortIcon, queryActionBlock);
-        sortProcessor.register(User.Fields.role, roleSortIcon, queryActionBlock);
-        sortProcessor.register(User.Fields.createdAt, createdSortIcon, queryActionBlock);
-        sortProcessor.register(User.Fields.updatedAt, updatedSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.ID, idSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.NAME, nameSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.EMAIL, emailSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.ROLE, roleSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.CREATED_AT, createdSortIcon, queryActionBlock);
+        sortProcessor.register(UserSortMeta.UPDATED_AT, updatedSortIcon, queryActionBlock);
 
         filterProcessor.register(UserFilterMeta.ID_MIN, idFilter.getIdMin(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.ID_MAX, idFilter.getIdMax(), queryActionBlock);

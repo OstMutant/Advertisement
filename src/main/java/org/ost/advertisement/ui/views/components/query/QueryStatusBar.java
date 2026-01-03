@@ -8,11 +8,10 @@ import org.ost.advertisement.ui.views.components.query.elements.bar.FilterInfoSp
 import org.ost.advertisement.ui.views.components.query.elements.bar.SeparatorSpan;
 import org.ost.advertisement.ui.views.components.query.elements.bar.SortInfoSpan;
 import org.ost.advertisement.ui.views.components.query.elements.bar.ToggleIconSpan;
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 
 import java.util.List;
-import java.util.function.Function;
-import java.util.function.UnaryOperator;
+import java.util.function.BiFunction;
 
 public class QueryStatusBar<T> extends HorizontalLayout {
 
@@ -23,17 +22,14 @@ public class QueryStatusBar<T> extends HorizontalLayout {
 
     private final transient I18nService i18n;
     private final transient QueryBlockLayout queryBlockLayout;
-    private final transient UnaryOperator<String> sortLabelProvider;
     private final transient QueryBlock<T> queryBlock;
 
     public QueryStatusBar(I18nService i18n,
                           QueryBlock<T> queryBlock,
-                          QueryBlockLayout queryBlockLayout,
-                          UnaryOperator<String> sortLabelProvider) {
+                          QueryBlockLayout queryBlockLayout) {
         this.i18n = i18n;
         this.queryBlock = queryBlock;
         this.queryBlockLayout = queryBlockLayout;
-        this.sortLabelProvider = sortLabelProvider;
 
         applyStyles();
         add(toggleIcon, filterInfo, separator, sortInfo);
@@ -46,7 +42,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
         List<String> filters = queryBlock.getFilterProcessor().getActiveFilterDescriptions();
         filterInfo.setText(buildStatusText(filters, I18nKey.QUERY_STATUS_FILTERS_NONE, I18nKey.QUERY_STATUS_FILTERS_PREFIX));
 
-        List<String> sorts = queryBlock.getSortProcessor().getSortDescriptions(getSortDescriptionFunction(sortLabelProvider));
+        List<String> sorts = queryBlock.getSortProcessor().loopSortDescriptions(getSortDescriptionFunction());
         sortInfo.setText(buildStatusText(sorts, I18nKey.QUERY_STATUS_SORT_NONE, I18nKey.QUERY_STATUS_SORT_PREFIX));
 
         separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
@@ -56,14 +52,14 @@ public class QueryStatusBar<T> extends HorizontalLayout {
         return items.isEmpty() ? i18n.get(noneKey) : i18n.get(prefixKey) + " " + String.join(", ", items);
     }
 
-    private Function<Sort.Order, String> getSortDescriptionFunction(UnaryOperator<String> labelProvider) {
-        return order -> {
-            String label = labelProvider.apply(order.getProperty());
-            String direction = switch (order.getDirection()) {
-                case ASC -> i18n.get(I18nKey.SORT_DIRECTION_ASC);
-                case DESC -> i18n.get(I18nKey.SORT_DIRECTION_DESC);
+    private BiFunction<I18nKey, Direction, String> getSortDescriptionFunction() {
+        return (i18nKey, direction) -> {
+            String label = i18n.get(i18nKey);
+            String directionLabel = switch (direction) {
+                case Direction.ASC -> i18n.get(I18nKey.SORT_DIRECTION_ASC);
+                case Direction.DESC -> i18n.get(I18nKey.SORT_DIRECTION_DESC);
             };
-            return label + " (" + direction + ")";
+            return label + " (" + directionLabel + ")";
         };
     }
 

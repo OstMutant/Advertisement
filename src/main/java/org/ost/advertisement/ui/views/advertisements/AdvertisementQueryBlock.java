@@ -7,12 +7,12 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryCreatedDateRow;
 import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryTitleRow;
 import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryUpdatedDateRow;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
+import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementFilterProcessor;
 import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementSortProcessor;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
@@ -41,11 +41,11 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
         initLayout(advertisementQueryTitleRow, advertisementQueryCreatedDateRow, advertisementQueryUpdatedDateRow,
                 queryActionBlock);
 
-        sortProcessor.register(AdvertisementInfoDto.Fields.title, advertisementQueryTitleRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.TITLE, advertisementQueryTitleRow.getSortIcon(),
                 queryActionBlock);
-        sortProcessor.register(AdvertisementInfoDto.Fields.createdAt, advertisementQueryCreatedDateRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.CREATED_AT, advertisementQueryCreatedDateRow.getSortIcon(),
                 queryActionBlock);
-        sortProcessor.register(AdvertisementInfoDto.Fields.updatedAt, advertisementQueryUpdatedDateRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT, advertisementQueryUpdatedDateRow.getSortIcon(),
                 queryActionBlock);
 
         filterProcessor.register(AdvertisementFilterMeta.TITLE, advertisementQueryTitleRow.getFilterField(),

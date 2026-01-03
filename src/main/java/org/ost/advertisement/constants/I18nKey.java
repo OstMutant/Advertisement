@@ -86,6 +86,14 @@ public enum I18nKey {
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
 
+    // === Advertisement Sort ===
+    USER_SORT_ID("user.sort.id"),
+    USER_SORT_NAME("user.sort.name"),
+    USER_SORT_EMAIL("user.sort.email"),
+    USER_SORT_ROLE("user.sort.role"),
+    USER_SORT_CREATED("user.sort.createdAt"),
+    USER_SORT_UPDATED("user.sort.updatedAt"),
+
     // === Advertisement View ===
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT("advertisement.view.confirm.delete.text"),
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON("advertisement.view.confirm.delete.button"),

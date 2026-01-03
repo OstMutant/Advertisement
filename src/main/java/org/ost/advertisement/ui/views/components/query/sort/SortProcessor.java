@@ -1,17 +1,15 @@
 package org.ost.advertisement.ui.views.components.query.sort;
 
 import lombok.Getter;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlockHandler;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortHighlightColor;
+import org.ost.advertisement.ui.views.components.query.sort.meta.SortFieldMeta;
 import org.springframework.data.domain.Sort.Direction;
-import org.springframework.data.domain.Sort.Order;
 
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.function.Function;
+import java.util.*;
+import java.util.function.BiFunction;
 
 public class SortProcessor {
 
@@ -21,7 +19,7 @@ public class SortProcessor {
     @Getter
     protected final CustomSort newSort;
 
-    private final Map<String, SortIcon> fieldsMap = new LinkedHashMap<>();
+    private final Map<SortFieldMeta, SortIcon> fieldsMap = new LinkedHashMap<>();
 
     public SortProcessor(CustomSort defaultSort) {
         this.defaultSort = defaultSort;
@@ -29,20 +27,21 @@ public class SortProcessor {
         this.newSort = defaultSort.copy();
     }
 
-    public void register(String property, SortIcon field, QueryActionBlockHandler queryActionBlockHandler) {
-        fieldsMap.put(property, field);
-        field.setDirection(newSort.getDirection(property));
-        field.addDirectionChangedListener(e -> {
+    public void register(SortFieldMeta meta, SortIcon sortIcon, QueryActionBlockHandler queryActionBlockHandler) {
+        fieldsMap.put(meta, sortIcon);
+        String property = meta.property();
+        sortIcon.setDirection(newSort.getDirection(property));
+        sortIcon.addDirectionChangedListener(e -> {
             newSort.updateSort(property, e.getDirection());
             queryActionBlockHandler.updateDirtyState(isSortingChanged());
-            field.setColor(refreshColor(property));
+            sortIcon.setColor(refreshColor(property));
         });
-        field.setColor(refreshColor(property));
+        sortIcon.setColor(refreshColor(property));
     }
 
     public void refreshItemsColor() {
-        for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
-            refreshItemColor(entry.getKey(), entry.getValue());
+        for (Map.Entry<SortFieldMeta, SortIcon> entry : fieldsMap.entrySet()) {
+            refreshItemColor(entry.getKey().property(), entry.getValue());
         }
     }
 
@@ -58,22 +57,30 @@ public class SortProcessor {
         originalSort.copyFrom(defaultSort);
         newSort.copyFrom(defaultSort);
 
-        for (Map.Entry<String, SortIcon> entry : fieldsMap.entrySet()) {
-            updateItemDirectionAndRefreshColor(entry.getKey(), entry.getValue());
+        for (Map.Entry<SortFieldMeta, SortIcon> entry : fieldsMap.entrySet()) {
+            updateItemDirectionAndRefreshColor(entry.getKey().property(), entry.getValue());
         }
     }
 
-    public List<String> getSortDescriptions(Function<Order, String> transformer) {
-        return newSort.getSort().stream().map(transformer).toList();
+    public List<String> loopSortDescriptions(BiFunction<I18nKey, Direction, String> transformer) {
+        List<String> result = new ArrayList<>();
+        for (Map.Entry<SortFieldMeta, SortIcon> entry : fieldsMap.entrySet()) {
+            SortFieldMeta meta = entry.getKey();
+            Direction direction = newSort.getDirection(meta.property());
+            if (direction != null) {
+                result.add(transformer.apply(meta.i18nKey(), direction));
+            }
+        }
+        return result;
     }
 
-    private void updateItemDirectionAndRefreshColor(String property, SortIcon field) {
-        field.setDirection(newSort.getDirection(property));
-        refreshItemColor(property, field);
+    private void updateItemDirectionAndRefreshColor(String property, SortIcon sortIcon) {
+        sortIcon.setDirection(newSort.getDirection(property));
+        refreshItemColor(property, sortIcon);
     }
 
-    private void refreshItemColor(String property, SortIcon field) {
-        field.setColor(refreshColor(property));
+    private void refreshItemColor(String property, SortIcon sortIcon) {
+        sortIcon.setColor(refreshColor(property));
     }
 
     private SortHighlightColor refreshColor(String property) {
