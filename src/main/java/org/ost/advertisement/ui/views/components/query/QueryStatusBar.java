@@ -76,7 +76,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
     }
 
     private void initToggleIcon() {
-        toggleIcon.setText("▸");
+        setToggleIconState(false);
         toggleIcon.getStyle().set("margin-right", "8px").set("font-weight", "bold");
     }
 

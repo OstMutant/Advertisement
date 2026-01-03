@@ -10,7 +10,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
-import org.ost.advertisement.ui.views.users.elements.*;
+import org.ost.advertisement.ui.views.users.elements.query.*;
 import org.ost.advertisement.ui.views.users.meta.UserFilterMeta;
 import org.ost.advertisement.ui.views.users.processor.UserFilterProcessor;
 import org.ost.advertisement.ui.views.users.processor.UserSortProcessor;

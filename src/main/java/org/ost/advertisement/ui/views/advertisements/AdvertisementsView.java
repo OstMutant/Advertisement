@@ -25,13 +25,11 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTT
 public class AdvertisementsView extends VerticalLayout {
 
     private final transient AdvertisementService advertisementService;
-    private final transient I18nService i18n;
     private final transient AdvertisementQueryStatusBar queryStatusBar;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient AdvertisementCardView.Builder cardBuilder;
     private final FlexLayout advertisementContainer = getAdvertisementContainer();
     private final PaginationBarModern paginationBar;
-    private final Button addAdvertisementButton;
 
     public AdvertisementsView(AdvertisementService advertisementService,
                               AdvertisementQueryStatusBar queryStatusBar,
@@ -41,11 +39,10 @@ public class AdvertisementsView extends VerticalLayout {
         this.advertisementService = advertisementService;
         this.queryStatusBar = queryStatusBar;
         this.upsertDialogBuilder = upsertDialogBuilder;
-        this.i18n = i18n;
         this.cardBuilder = cardBuilder;
         this.paginationBar = new PaginationBarModern(i18n);
 
-        this.addAdvertisementButton = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        Button addAdvertisementButton = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
         addAdvertisementButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         addAdvertisementButton.getStyle().set("margin-top", "12px");
         addAdvertisementButton.addClickListener(

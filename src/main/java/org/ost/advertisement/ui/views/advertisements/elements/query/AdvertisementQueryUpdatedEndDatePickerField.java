@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.advertisements.elements;
+package org.ost.advertisement.ui.views.advertisements.elements.query;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;

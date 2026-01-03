@@ -11,7 +11,7 @@ import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 @RequiredArgsConstructor
 public class QueryInlineRow extends HorizontalLayout {
 
-    private final I18nService i18n;
+    private final transient I18nService i18n;
     private final I18nKey labelI18nKey;
 
     protected void initLayout(SortIcon sortIcon, Component... filterFields) {

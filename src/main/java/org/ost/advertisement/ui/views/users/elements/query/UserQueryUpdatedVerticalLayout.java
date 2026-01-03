@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.users.elements;
+package org.ost.advertisement.ui.views.users.elements.query;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -12,14 +12,13 @@ import org.ost.advertisement.ui.views.components.query.elements.cell.QueryVertic
 @UIScope
 @AllArgsConstructor
 @Getter
-@SuppressWarnings("java:S2094")
-public class UserQueryIdVerticalLayout extends QueryVerticalLayout {
+public class UserQueryUpdatedVerticalLayout extends QueryVerticalLayout {
 
-    private final UserQueryIdMinField idMin;
-    private final UserQueryIdMaxField idMax;
+    private final UserQueryUpdatedStartDatePickerField updatedStart;
+    private final UserQueryUpdatedEndDatePickerField updatedEnd;
 
     @PostConstruct
     protected void initLayout() {
-        super.initLayout(idMin, idMax);
+        super.initLayout(updatedStart, updatedEnd);
     }
 }
