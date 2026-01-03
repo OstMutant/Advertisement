@@ -1,13 +1,14 @@
 package org.ost.advertisement.ui.views.components.query;
 
 
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
-import org.springframework.data.domain.Sort.Order;
+import org.ost.advertisement.ui.views.components.query.elements.bar.FilterInfoSpan;
+import org.ost.advertisement.ui.views.components.query.elements.bar.SeparatorSpan;
+import org.ost.advertisement.ui.views.components.query.elements.bar.SortInfoSpan;
+import org.ost.advertisement.ui.views.components.query.elements.bar.ToggleIconSpan;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.function.Function;
@@ -15,48 +16,47 @@ import java.util.function.UnaryOperator;
 
 public class QueryStatusBar<T> extends HorizontalLayout {
 
-    private final Span filterInfo = new Span();
-    private final Span sortInfo = new Span();
-    private final Span separator = new Span("|");
-    private final Span toggleIcon = new Span();
+    private final FilterInfoSpan filterInfo = new FilterInfoSpan();
+    private final SortInfoSpan sortInfo = new SortInfoSpan();
+    private final SeparatorSpan separator = new SeparatorSpan();
+    private final ToggleIconSpan toggleIcon = new ToggleIconSpan();
 
     private final transient I18nService i18n;
     private final transient QueryBlockLayout queryBlockLayout;
     private final transient UnaryOperator<String> sortLabelProvider;
+    private final transient QueryBlock<T> queryBlock;
 
     public QueryStatusBar(I18nService i18n,
                           QueryBlock<T> queryBlock,
                           QueryBlockLayout queryBlockLayout,
                           UnaryOperator<String> sortLabelProvider) {
         this.i18n = i18n;
+        this.queryBlock = queryBlock;
         this.queryBlockLayout = queryBlockLayout;
         this.sortLabelProvider = sortLabelProvider;
 
         applyStyles();
-        initToggleIcon();
-
         add(toggleIcon, filterInfo, separator, sortInfo);
-        update(queryBlock.getFilterProcessor(), queryBlock.getSortProcessor());
+        update();
 
         getElement().addEventListener("click", e -> toggleVisibility());
     }
 
-    public void update(FilterProcessor<?> filterProcessor, SortProcessor sortProcessor) {
-        List<String> filters = filterProcessor.getActiveFilterDescriptions();
+    public void update() {
+        List<String> filters = queryBlock.getFilterProcessor().getActiveFilterDescriptions();
+        filterInfo.setText(buildStatusText(filters, I18nKey.QUERY_STATUS_FILTERS_NONE, I18nKey.QUERY_STATUS_FILTERS_PREFIX));
 
-        filterInfo.setText(filters.isEmpty()
-                ? i18n.get(I18nKey.QUERY_STATUS_FILTERS_NONE)
-                : i18n.get(I18nKey.QUERY_STATUS_FILTERS_PREFIX) + " " + String.join(", ", filters));
-
-        List<String> sorts = sortProcessor.getSortDescriptions(getSortDescriptionFunction(i18n, sortLabelProvider));
-        sortInfo.setText(sorts.isEmpty()
-                ? i18n.get(I18nKey.QUERY_STATUS_SORT_NONE)
-                : i18n.get(I18nKey.QUERY_STATUS_SORT_PREFIX) + " " + String.join(", ", sorts));
+        List<String> sorts = queryBlock.getSortProcessor().getSortDescriptions(getSortDescriptionFunction(sortLabelProvider));
+        sortInfo.setText(buildStatusText(sorts, I18nKey.QUERY_STATUS_SORT_NONE, I18nKey.QUERY_STATUS_SORT_PREFIX));
 
         separator.setVisible(!filters.isEmpty() || !sorts.isEmpty());
     }
 
-    private Function<Order, String> getSortDescriptionFunction(I18nService i18n, UnaryOperator<String> labelProvider) {
+    private String buildStatusText(List<String> items, I18nKey noneKey, I18nKey prefixKey) {
+        return items.isEmpty() ? i18n.get(noneKey) : i18n.get(prefixKey) + " " + String.join(", ", items);
+    }
+
+    private Function<Sort.Order, String> getSortDescriptionFunction(UnaryOperator<String> labelProvider) {
         return order -> {
             String label = labelProvider.apply(order.getProperty());
             String direction = switch (order.getDirection()) {
@@ -68,16 +68,7 @@ public class QueryStatusBar<T> extends HorizontalLayout {
     }
 
     public void toggleVisibility() {
-        setToggleIconState(queryBlockLayout.toggleVisibility());
-    }
-
-    private void setToggleIconState(boolean isOpen) {
-        toggleIcon.setText(isOpen ? "▾" : "▸");
-    }
-
-    private void initToggleIcon() {
-        setToggleIconState(false);
-        toggleIcon.getStyle().set("margin-right", "8px").set("font-weight", "bold");
+        toggleIcon.setOpen(queryBlockLayout.toggleVisibility());
     }
 
     private void applyStyles() {
@@ -96,10 +87,5 @@ public class QueryStatusBar<T> extends HorizontalLayout {
                 .set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)")
                 .set("flex-wrap", "wrap")
                 .set("cursor", "pointer");
-
-        filterInfo.getStyle().set("font-weight", "500");
-        sortInfo.getStyle().set("font-weight", "500");
-        separator.getStyle().set("margin", "0 8px").set("color", "#999");
     }
 }
-

@@ -104,6 +104,6 @@ public class AdvertisementsView extends VerticalLayout {
         advertisementContainer.removeAll();
         ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
 
-        queryStatusBar.update(filterProcessor, sortProcessor);
+        queryStatusBar.update();
     }
 }
