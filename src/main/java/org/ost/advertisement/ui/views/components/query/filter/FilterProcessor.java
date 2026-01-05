@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.ost.advertisement.ui.utils.FilterHighlighterUtil.highlight;
+import static org.ost.advertisement.ui.utils.HighlighterUtil.highlight;
 import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
 
 public class FilterProcessor<F> {

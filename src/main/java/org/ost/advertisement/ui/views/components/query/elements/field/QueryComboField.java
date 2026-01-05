@@ -9,6 +9,8 @@ import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
+import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
+
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
 public class QueryComboField<T> extends ComboBox<T> {
@@ -33,5 +35,6 @@ public class QueryComboField<T> extends ComboBox<T> {
         setClearButtonVisible(true);
         setWidth("100%");
         setItems(parameters.getItems());
+        setDefaultBorder(this);
     }
 }

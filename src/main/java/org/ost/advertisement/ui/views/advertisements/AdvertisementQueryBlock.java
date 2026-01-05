@@ -38,25 +38,35 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
 
     @PostConstruct
     private void initLayout() {
-        initLayout(advertisementQueryTitleRow, advertisementQueryCreatedDateRow, advertisementQueryUpdatedDateRow,
+        initLayout(advertisementQueryTitleRow,
+                advertisementQueryCreatedDateRow,
+                advertisementQueryUpdatedDateRow,
                 queryActionBlock);
 
-        sortProcessor.register(AdvertisementSortMeta.TITLE, advertisementQueryTitleRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.TITLE,
+                advertisementQueryTitleRow.getSortIcon(),
                 queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.CREATED_AT, advertisementQueryCreatedDateRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.CREATED_AT,
+                advertisementQueryCreatedDateRow.getSortIcon(),
                 queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT, advertisementQueryUpdatedDateRow.getSortIcon(),
+        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT,
+                advertisementQueryUpdatedDateRow.getSortIcon(),
                 queryActionBlock);
 
-        filterProcessor.register(AdvertisementFilterMeta.TITLE, advertisementQueryTitleRow.getFilterField(),
+        filterProcessor.register(AdvertisementFilterMeta.TITLE,
+                advertisementQueryTitleRow.getFilterField(),
                 queryActionBlock);
         filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_START,
-                advertisementQueryCreatedDateRow.getStartDate(), queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END, advertisementQueryCreatedDateRow.getEndDate(),
+                advertisementQueryCreatedDateRow.getStartDate(),
+                queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END,
+                advertisementQueryCreatedDateRow.getEndDate(),
                 queryActionBlock);
         filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_START,
-                advertisementQueryUpdatedDateRow.getStartDate(), queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END, advertisementQueryUpdatedDateRow.getEndDate(),
+                advertisementQueryUpdatedDateRow.getStartDate(),
+                queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END,
+                advertisementQueryUpdatedDateRow.getEndDate(),
                 queryActionBlock);
     }
 

@@ -9,6 +9,8 @@ import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
+import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
+
 @RequiredArgsConstructor
 public class QueryDatePickerField extends DatePicker {
 
@@ -26,7 +28,9 @@ public class QueryDatePickerField extends DatePicker {
 
     @PostConstruct
     private void initLayout() {
-        setWidth("140px");
         setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
+        setClearButtonVisible(true);
+        setWidth("140px");
+        setDefaultBorder(this);
     }
 }

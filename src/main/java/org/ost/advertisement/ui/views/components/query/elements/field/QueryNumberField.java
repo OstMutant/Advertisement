@@ -10,6 +10,8 @@ import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
+import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
+
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
 public class QueryNumberField extends NumberField {
@@ -32,5 +34,6 @@ public class QueryNumberField extends NumberField {
         setClearButtonVisible(true);
         setValueChangeMode(ValueChangeMode.EAGER);
         setWidth("100px");
+        setDefaultBorder(this);
     }
 }

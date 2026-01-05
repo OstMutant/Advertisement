@@ -9,6 +9,8 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.Objects;
 
+import static org.ost.advertisement.ui.utils.HighlighterUtil.setDirtyOrClean;
+
 @org.springframework.stereotype.Component
 @Scope("prototype")
 public class QueryActionBlock extends HorizontalLayout implements QueryActionBlockHandler {
@@ -41,7 +43,7 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
 
     @Override
     public void updateDirtyState(boolean dirty) {
-        applyButton.setDirty(dirty);
+        setDirtyOrClean(applyButton, dirty);
     }
 
     private void initLayout() {
