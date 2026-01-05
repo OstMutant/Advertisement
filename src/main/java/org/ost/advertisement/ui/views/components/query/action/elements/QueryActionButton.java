@@ -26,8 +26,7 @@ public class QueryActionButton extends Button {
 
     protected QueryActionButton(@NonNull Parameters parameters) {
         setText("");
-        getStyle().set("border", "3px solid " + HighlighterUtil.DirtyHighlightColor.CLEAN.getCssColor());
-        getStyle().set("border-radius", "4px");
+        HighlighterUtil.setDefaultBorder(this);
         setIcon(new SvgIcon("icons/" + parameters.getSvgPath()));
         getElement().setProperty("title", parameters.i18n.get(parameters.getTooltipKey()));
         addThemeVariants(parameters.getVariant(), ButtonVariant.LUMO_ICON);
