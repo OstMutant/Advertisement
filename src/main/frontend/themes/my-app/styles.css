@@ -1,0 +1,37 @@
+/* ------------------------------------- highlight */
+
+/* Base class for all highlighted inputs to prevent layout shifts */
+.highlight-clean,
+.highlight-dirty,
+.highlight-changed,
+.highlight-invalid {
+    box-sizing: border-box !important;
+    transition: outline 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    /* Uses Vaadin's system border radius */
+    border-radius: var(--lumo-border-radius-m);
+}
+
+/* State: Clean (Transparent outline to preserve spacing/padding) */
+.highlight-clean {
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+}
+
+/* State: Unsaved changes/Currently editing (Orange) */
+.highlight-dirty {
+    outline: 2px solid orange !important;
+    outline-offset: -2px;
+}
+
+/* State: Value changed relative to database/default (Blue) */
+.highlight-changed {
+    outline: 2px solid #0176ff !important;
+    outline-offset: -2px;
+}
+
+/* State: Validation error (Red) */
+.highlight-invalid {
+    outline: 2px solid red !important;
+    outline-offset: -2px;
+    background-color: rgba(255, 0, 0, 0.05) !important;
+}
