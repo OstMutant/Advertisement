@@ -31,11 +31,12 @@ public class QueryStatusBar<T> extends HorizontalLayout {
         this.queryBlock = queryBlock;
         this.queryBlockLayout = queryBlockLayout;
 
-        applyStyles();
+        addClassName("query-status-bar");
+
         add(toggleIcon, filterInfo, separator, sortInfo);
         update();
 
-        getElement().addEventListener("click", e -> toggleVisibility());
+        getElement().addEventListener("click", _ -> toggleVisibility());
     }
 
     public void update() {
@@ -67,21 +68,4 @@ public class QueryStatusBar<T> extends HorizontalLayout {
         toggleIcon.setOpen(queryBlockLayout.toggleVisibility());
     }
 
-    private void applyStyles() {
-        setWidthFull();
-        setSpacing(true);
-        setPadding(false);
-        setAlignItems(Alignment.BASELINE);
-
-        getStyle()
-                .set("font-size", "0.85rem")
-                .set("color", "#444")
-                .set("background-color", "#f9f9f9")
-                .set("border-radius", "6px")
-                .set("padding", "8px 12px")
-                .set("margin-bottom", "12px")
-                .set("box-shadow", "0 1px 3px rgba(0,0,0,0.05)")
-                .set("flex-wrap", "wrap")
-                .set("cursor", "pointer");
-    }
 }

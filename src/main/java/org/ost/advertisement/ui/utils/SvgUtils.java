@@ -1,9 +1,13 @@
 package org.ost.advertisement.ui.utils;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SvgUtils {
 
     public static String loadSvg(String resourcePath) {
@@ -12,7 +16,7 @@ public class SvgUtils {
                 return "<!-- SVG not found: " + resourcePath + " -->";
             }
             return new String(is.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
+        } catch (IOException _) {
             return "<!-- SVG load error: " + resourcePath + " -->";
         }
     }
