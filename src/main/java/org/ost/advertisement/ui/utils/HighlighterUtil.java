@@ -1,64 +1,63 @@
 package org.ost.advertisement.ui.utils;
 
 import com.vaadin.flow.component.Component;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-import static org.ost.advertisement.ui.utils.SupportUtil.hasChanged;
-
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class HighlighterUtil {
 
+    private static final String CLEAN = "highlight-clean";
+    private static final String DIRTY = "highlight-dirty";
+    private static final String CHANGED = "highlight-changed";
+    private static final String INVALID = "highlight-invalid";
+
     public static void setDefaultBorder(Component component) {
-        component.getStyle().set("border", "3px solid transparent")
-                .set("border-radius", "4px")
-                .set("padding", "0px");
+        resetHighlightClasses(component);
+        component.addClassName(CLEAN);
     }
 
     public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue) {
         highlight(component, newValue, originalValue, defaultValue, true);
     }
 
-    public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue,
-                                     boolean isValid) {
-        if (hasChanged(newValue, originalValue)) {
-            setDirtyOrInvalid(component, isValid);
+    public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue, boolean isValid) {
+        resetHighlightClasses(component);
+        if (SupportUtil.hasChanged(newValue, originalValue)) {
+            component.addClassName(isValid ? DIRTY : INVALID);
             return;
         }
-        if (hasChanged(originalValue, defaultValue)) {
-            setChanged(component);
+        if (SupportUtil.hasChanged(originalValue, defaultValue)) {
+            component.addClassName(CHANGED);
             return;
         }
-        setClean(component);
+        component.addClassName(CLEAN);
     }
 
     public static void setClean(Component component) {
-        setBorderColor(component, DirtyHighlightColor.CLEAN);
+        resetHighlightClasses(component);
+        component.addClassName(CLEAN);
     }
 
     public static void setChanged(Component component) {
-        setBorderColor(component, DirtyHighlightColor.CHANGED);
+        resetHighlightClasses(component);
+        component.addClassName(CHANGED);
     }
 
     public static void setDirtyOrInvalid(Component component, boolean isValid) {
-        setBorderColor(component, isValid ? DirtyHighlightColor.DIRTY : DirtyHighlightColor.INVALID);
+        resetHighlightClasses(component);
+        component.addClassName(isValid ? DIRTY : INVALID);
     }
 
     public static void setDirtyOrClean(Component component, boolean dirty) {
-        setBorderColor(component, dirty ? DirtyHighlightColor.DIRTY : DirtyHighlightColor.CLEAN);
+        resetHighlightClasses(component);
+        component.addClassName(dirty ? DIRTY : CLEAN);
     }
 
-    private static void setBorderColor(Component component, DirtyHighlightColor color) {
-        component.getStyle().set("border-color", color.getCssColor());
-    }
-
-    @AllArgsConstructor
-    @Getter
-    public enum DirtyHighlightColor {
-        CLEAN("transparent"),
-        DIRTY("orange"),
-        CHANGED("blue"),
-        INVALID("red");
-
-        private final String cssColor;
+    private static void resetHighlightClasses(Component component) {
+        component.removeClassName(CLEAN);
+        component.removeClassName(DIRTY);
+        component.removeClassName(CHANGED);
+        component.removeClassName(INVALID);
     }
 }

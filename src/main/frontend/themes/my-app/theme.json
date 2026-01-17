@@ -1,3 +1,6 @@
 {
-  "lumo": true
+  "theme": {
+    "name": "my-app",
+    "lumo": true
+  }
 }
