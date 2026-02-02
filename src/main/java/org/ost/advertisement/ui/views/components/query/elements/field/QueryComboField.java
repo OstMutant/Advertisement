@@ -31,9 +31,9 @@ public class QueryComboField<T> extends ComboBox<T> {
 
     @PostConstruct
     private void initLayout() {
+        addClassName("query-combo");
         setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
         setClearButtonVisible(true);
-        setWidth("100%");
         setItems(parameters.getItems());
         setDefaultBorder(this);
     }

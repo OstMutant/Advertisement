@@ -28,9 +28,9 @@ public class QueryDatePickerField extends DatePicker {
 
     @PostConstruct
     private void initLayout() {
+        addClassName("query-date");
         setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
         setClearButtonVisible(true);
-        setWidth("140px");
         setDefaultBorder(this);
     }
 }

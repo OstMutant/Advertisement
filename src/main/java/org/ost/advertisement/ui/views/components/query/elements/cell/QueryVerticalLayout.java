@@ -7,12 +7,8 @@ import lombok.NoArgsConstructor;
 
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class QueryVerticalLayout extends VerticalLayout {
-
     protected void initLayout(Component... filterFields) {
+        addClassName("query-vertical-layout");
         add(filterFields);
-        setPadding(false);
-        setSpacing(false);
-        setMargin(false);
-        getStyle().set("gap", "4px");
     }
 }

@@ -4,6 +4,7 @@ import com.vaadin.flow.component.html.Span;
 
 public class FilterInfoSpan extends Span {
     public FilterInfoSpan() {
-        getStyle().set("font-weight", "500");
+        addClassName("query-status-bar-filter-info");
     }
 }
+

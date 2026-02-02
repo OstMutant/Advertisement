@@ -19,7 +19,6 @@ public class QueryNumberField extends NumberField {
     @Value
     @Builder
     public static class Parameters {
-
         @NonNull
         I18nService i18n;
         @NonNull
@@ -30,10 +29,11 @@ public class QueryNumberField extends NumberField {
 
     @PostConstruct
     private void initLayout() {
+        addClassName("query-number");
         setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
         setClearButtonVisible(true);
         setValueChangeMode(ValueChangeMode.EAGER);
-        setWidth("100px");
         setDefaultBorder(this);
     }
 }
+

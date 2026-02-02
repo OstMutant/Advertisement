@@ -19,7 +19,6 @@ public class QueryTextField extends TextField {
     @Value
     @Builder
     public static class Parameters {
-
         @NonNull
         I18nService i18n;
         @NonNull
@@ -30,10 +29,11 @@ public class QueryTextField extends TextField {
 
     @PostConstruct
     private void initLayout() {
+        addClassName("query-text");
         setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
         setClearButtonVisible(true);
         setValueChangeMode(ValueChangeMode.EAGER);
-        setWidthFull();
         setDefaultBorder(this);
     }
 }
+

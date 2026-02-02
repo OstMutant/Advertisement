@@ -4,6 +4,6 @@ import com.vaadin.flow.component.html.Span;
 
 public class SortInfoSpan extends Span {
     public SortInfoSpan() {
-        getStyle().set("font-weight", "500");
+        addClassName("query-status-bar-sort-info");
     }
 }
