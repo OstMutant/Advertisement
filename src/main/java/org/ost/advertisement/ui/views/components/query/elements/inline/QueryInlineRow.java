@@ -10,23 +10,15 @@ import org.ost.advertisement.ui.views.components.query.sort.SortIcon;
 
 @RequiredArgsConstructor
 public class QueryInlineRow extends HorizontalLayout {
-
     private final transient I18nService i18n;
     private final I18nKey labelI18nKey;
 
     protected void initLayout(SortIcon sortIcon, Component... filterFields) {
         HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18n.get(labelI18nKey)), sortIcon);
-        labelAndSort.setAlignItems(Alignment.CENTER);
-        labelAndSort.setSpacing(true);
-
+        labelAndSort.addClassName("query-inline-label-sort");
         HorizontalLayout filters = new HorizontalLayout(filterFields);
-        filters.setAlignItems(Alignment.END);
-        filters.setSpacing(true);
-
+        filters.addClassName("query-inline-filters");
+        addClassName("query-inline-row");
         add(labelAndSort, filters);
-        setWidthFull();
-        setAlignItems(Alignment.CENTER);
-        setSpacing(true);
-        getStyle().set("gap", "12px");
     }
 }
