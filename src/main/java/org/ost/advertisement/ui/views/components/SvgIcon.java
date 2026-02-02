@@ -7,18 +7,14 @@ public class SvgIcon extends Span {
 
     public SvgIcon(String resourcePath) {
         addClassName("svg-icon");
-        loadSvg(resourcePath);
+        setSvg(resourcePath);
     }
 
-    public void loadSvg(String resourcePath) {
+    public void setSvg(String resourcePath) {
         String svg = SvgUtils.loadSvg(resourcePath);
         if (!svg.isBlank()) {
             getElement().setProperty("innerHTML", svg);
         }
-    }
-
-    public void setColor(String colorVar) {
-        getStyle().set("color", colorVar);
     }
 }
 

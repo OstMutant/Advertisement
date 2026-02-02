@@ -12,8 +12,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
-
+import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.SORT_ICON_TOOLTIP;
 import static org.ost.advertisement.ui.views.components.query.sort.SortIcon.SortIconState.fromDirection;
 
@@ -22,20 +21,16 @@ import static org.ost.advertisement.ui.views.components.query.sort.SortIcon.Sort
 public class SortIcon extends Span {
 
     private final transient I18nService i18n;
-    private final SvgIcon icon = new SvgIcon(fromDirection(null).getPath());
+    private final SvgIcon icon = new SvgIcon("");
 
     private Direction currentDirection = null;
 
     public SortIcon(I18nService i18n) {
         this.i18n = i18n;
-
+        addClassName("sort-icon");
         setTitle(i18n.get(SORT_ICON_TOOLTIP));
-        getStyle().set("cursor", "pointer");
         add(icon);
-        addClickListener(e -> {
-            setDirection(fromDirection(currentDirection).next().getDirection());
-            fireEvent(new SortDirectionChangedEvent(this, currentDirection));
-        });
+        addClickListener(e -> cycleDirection());
         switchIcon();
     }
 
@@ -44,15 +39,22 @@ public class SortIcon extends Span {
         switchIcon();
     }
 
+    private void cycleDirection() {
+        setDirection(fromDirection(currentDirection).next().getDirection());
+        fireEvent(new SortDirectionChangedEvent(this, currentDirection));
+    }
+
     private void switchIcon() {
         SortIconState state = fromDirection(currentDirection);
-        icon.loadSvg(state.getPath());
+        icon.setSvg(state.getPath());
         icon.setTitle(i18n.get(state.getTooltipKey()));
     }
 
     public void setColor(SortHighlightColor sortHighlightColor) {
-        Objects.requireNonNull(sortHighlightColor);
-        icon.setColor(sortHighlightColor.getCssColor());
+        icon.removeClassName(SortHighlightColor.DEFAULT.getCssClass());
+        icon.removeClassName(SortHighlightColor.CHANGED.getCssClass());
+        icon.removeClassName(SortHighlightColor.CUSTOM.getCssClass());
+        icon.addClassName(sortHighlightColor.getCssClass());
     }
 
     public void addDirectionChangedListener(ComponentEventListener<SortDirectionChangedEvent> listener) {
@@ -61,7 +63,6 @@ public class SortIcon extends Span {
 
     @Getter
     public static class SortDirectionChangedEvent extends ComponentEvent<SortIcon> {
-
         private final Direction direction;
 
         public SortDirectionChangedEvent(SortIcon source, Direction direction) {
@@ -73,11 +74,10 @@ public class SortIcon extends Span {
     @AllArgsConstructor
     @Getter
     public enum SortHighlightColor {
-        DEFAULT("gray"),
-        CHANGED("orange"),
-        CUSTOM("green");
-
-        private final String cssColor;
+        DEFAULT("default"),
+        CHANGED("changed"),
+        CUSTOM("custom");
+        private final String cssClass;
     }
 
     @AllArgsConstructor
@@ -92,13 +92,7 @@ public class SortIcon extends Span {
         private final I18nKey tooltipKey;
 
         public static SortIconState fromDirection(Direction dir) {
-            if (dir == null) {
-                return NEUTRAL;
-            }
-            return switch (dir) {
-                case ASC -> ASC;
-                case DESC -> DESC;
-            };
+            return ofNullable(dir).map(v -> v == Direction.ASC ? ASC : DESC).orElse(NEUTRAL);
         }
 
         public SortIconState next() {
