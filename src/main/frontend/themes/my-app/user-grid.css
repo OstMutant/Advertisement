@@ -1,0 +1,18 @@
+.user-grid-name {
+    font-weight: 500;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.user-grid-email {
+    font-size: 12px;
+    color: gray;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.user-grid-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--lumo-space-s);
+}

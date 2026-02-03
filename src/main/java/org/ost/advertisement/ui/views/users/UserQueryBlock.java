@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.users;
 
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -19,8 +20,7 @@ import org.ost.advertisement.ui.views.users.processor.UserSortProcessor;
 @UIScope
 @AllArgsConstructor
 @Getter
-public class UserQueryBlock implements QueryBlock<UserFilterDto> {
-
+public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFilterDto> {
 
     private final QueryActionBlock queryActionBlock;
     private final UserFilterProcessor filterProcessor;
@@ -43,13 +43,23 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
 
     @PostConstruct
     private void initLayout() {
+        addClassName("user-query-block");
+        setVisible(false);
+
+        registerSorts();
+        registerFilters();
+    }
+
+    private void registerSorts() {
         sortProcessor.register(UserSortMeta.ID, idSortIcon, queryActionBlock);
         sortProcessor.register(UserSortMeta.NAME, nameSortIcon, queryActionBlock);
         sortProcessor.register(UserSortMeta.EMAIL, emailSortIcon, queryActionBlock);
         sortProcessor.register(UserSortMeta.ROLE, roleSortIcon, queryActionBlock);
         sortProcessor.register(UserSortMeta.CREATED_AT, createdSortIcon, queryActionBlock);
         sortProcessor.register(UserSortMeta.UPDATED_AT, updatedSortIcon, queryActionBlock);
+    }
 
+    private void registerFilters() {
         filterProcessor.register(UserFilterMeta.ID_MIN, idFilter.getIdMin(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.ID_MAX, idFilter.getIdMax(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.NAME, nameField, queryActionBlock);
@@ -61,3 +71,4 @@ public class UserQueryBlock implements QueryBlock<UserFilterDto> {
         filterProcessor.register(UserFilterMeta.UPDATED_AT_END, updatedFilter.getUpdatedEnd(), queryActionBlock);
     }
 }
+

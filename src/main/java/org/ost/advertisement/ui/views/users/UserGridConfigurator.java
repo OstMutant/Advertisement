@@ -8,8 +8,6 @@ import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
-import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -39,11 +37,10 @@ public class UserGridConfigurator {
 
         var nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
                     Span nameSpan = new Span(user.getName());
-                    nameSpan.getStyle().set("font-weight", "500").set("white-space", "normal").set("overflow-wrap", "anywhere");
+                    nameSpan.addClassName("user-grid-name");
 
                     Span emailSpan = new Span(user.getEmail());
-                    emailSpan.getStyle().set("font-size", "12px").set("color", "gray").set("white-space", "normal")
-                            .set("overflow-wrap", "anywhere");
+                    emailSpan.addClassName("user-grid-email");
 
                     VerticalLayout layout = new VerticalLayout(nameSpan, emailSpan);
                     layout.setSpacing(false);
@@ -51,7 +48,7 @@ public class UserGridConfigurator {
                     layout.setMargin(false);
                     return layout;
                 }))
-                .setAutoWidth(false).setFlexGrow(1)
+                .setFlexGrow(1)
                 .setHeader(dualSortableHeader(
                         i18n.get(USER_VIEW_HEADER_NAME), queryBlock.getNameSortIcon(),
                         i18n.get(USER_VIEW_HEADER_EMAIL), queryBlock.getEmailSortIcon()
@@ -79,8 +76,7 @@ public class UserGridConfigurator {
                     delete.addClickListener(e -> onDelete.accept(user));
 
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
-                    layout.setSpacing(false);
-                    layout.setJustifyContentMode(JustifyContentMode.CENTER);
+                    layout.addClassName("user-grid-actions");
                     return layout;
                 }))
                 .setHeader(i18n.get(USER_VIEW_HEADER_ACTIONS))
@@ -105,7 +101,7 @@ public class UserGridConfigurator {
     private static Component sortableHeader(String label, Component sortIcon) {
         Span title = new Span(label);
         HorizontalLayout layout = new HorizontalLayout(title, sortIcon);
-        layout.setAlignItems(Alignment.CENTER);
+        layout.setAlignItems(HorizontalLayout.Alignment.CENTER);
         return layout;
     }
 
@@ -116,7 +112,7 @@ public class UserGridConfigurator {
                 new Span(" / "),
                 new Span(label2), sortIcon2
         );
-        layout.setAlignItems(Alignment.CENTER);
+        layout.setAlignItems(HorizontalLayout.Alignment.CENTER);
         return layout;
     }
 }
