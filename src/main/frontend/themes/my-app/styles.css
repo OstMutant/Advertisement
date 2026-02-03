@@ -1,6 +1,7 @@
 @import url("./highlight.css");
 @import url("./query-status-bar.css");
 @import url("./sort-icon.css");
+@import url("./advertisement-query-block.css");
 
 .svg-icon {
     width: 1em;

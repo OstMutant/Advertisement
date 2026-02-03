@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -22,8 +21,7 @@ import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>,
-        QueryBlockLayout {
+public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -38,56 +36,36 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
 
     @PostConstruct
     private void initLayout() {
-        initLayout(advertisementQueryTitleRow,
+        addClassName("advertisement-query-block");
+        setVisible(false);
+
+        add(advertisementQueryTitleRow,
                 advertisementQueryCreatedDateRow,
                 advertisementQueryUpdatedDateRow,
                 queryActionBlock);
 
-        sortProcessor.register(AdvertisementSortMeta.TITLE,
-                advertisementQueryTitleRow.getSortIcon(),
-                queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.CREATED_AT,
-                advertisementQueryCreatedDateRow.getSortIcon(),
-                queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT,
-                advertisementQueryUpdatedDateRow.getSortIcon(),
-                queryActionBlock);
-
-        filterProcessor.register(AdvertisementFilterMeta.TITLE,
-                advertisementQueryTitleRow.getFilterField(),
-                queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_START,
-                advertisementQueryCreatedDateRow.getStartDate(),
-                queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END,
-                advertisementQueryCreatedDateRow.getEndDate(),
-                queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_START,
-                advertisementQueryUpdatedDateRow.getStartDate(),
-                queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END,
-                advertisementQueryUpdatedDateRow.getEndDate(),
-                queryActionBlock);
+        registerSorts();
+        registerFilters();
     }
 
-    public void initLayout(Component... components) {
-        setPadding(false);
-        setSpacing(false);
-        setVisible(false);
-        getStyle()
-                .set("margin-top", "8px")
-                .set("padding", "8px")
-                .set("border", "1px solid #ddd")
-                .set("border-radius", "6px")
-                .set("background-color", "#fafafa")
-                .set("gap", "6px");
-        add(components);
+    private void registerSorts() {
+        sortProcessor.register(AdvertisementSortMeta.TITLE, advertisementQueryTitleRow.getSortIcon(), queryActionBlock);
+        sortProcessor.register(AdvertisementSortMeta.CREATED_AT, advertisementQueryCreatedDateRow.getSortIcon(), queryActionBlock);
+        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT, advertisementQueryUpdatedDateRow.getSortIcon(), queryActionBlock);
+    }
+
+    private void registerFilters() {
+        filterProcessor.register(AdvertisementFilterMeta.TITLE, advertisementQueryTitleRow.getFilterField(), queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_START, advertisementQueryCreatedDateRow.getStartDate(), queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END, advertisementQueryCreatedDateRow.getEndDate(), queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_START, advertisementQueryUpdatedDateRow.getStartDate(), queryActionBlock);
+        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END, advertisementQueryUpdatedDateRow.getEndDate(), queryActionBlock);
     }
 
     @Override
     public boolean toggleVisibility() {
-        boolean nowVisible = !this.isVisible();
-        setVisible(nowVisible);
-        return nowVisible;
+        setVisible(!isVisible());
+        return isVisible();
     }
 }
+
