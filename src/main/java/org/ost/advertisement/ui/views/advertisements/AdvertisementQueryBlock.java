@@ -7,9 +7,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryCreatedDateRow;
-import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryTitleRow;
-import org.ost.advertisement.ui.views.advertisements.elements.query.AdvertisementQueryUpdatedDateRow;
+import org.ost.advertisement.ui.views.advertisements.elements.query.rows.AdvertisementQueryCreatedDateRow;
+import org.ost.advertisement.ui.views.advertisements.elements.query.rows.AdvertisementQueryTitleRow;
+import org.ost.advertisement.ui.views.advertisements.elements.query.rows.AdvertisementQueryUpdatedDateRow;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementFilterMeta;
 import org.ost.advertisement.ui.views.advertisements.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.advertisements.processor.AdvertisementFilterProcessor;
@@ -24,8 +24,6 @@ import org.ost.advertisement.ui.views.components.query.action.QueryActionBlock;
 public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
 
     @Getter
-    private final QueryActionBlock queryActionBlock;
-    @Getter
     private final transient AdvertisementFilterProcessor filterProcessor;
     @Getter
     private final transient AdvertisementSortProcessor sortProcessor;
@@ -34,15 +32,15 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
     private final transient AdvertisementQueryCreatedDateRow advertisementQueryCreatedDateRow;
     private final transient AdvertisementQueryUpdatedDateRow advertisementQueryUpdatedDateRow;
 
+    @Getter
+    private final QueryActionBlock queryActionBlock;
+
     @PostConstruct
     private void initLayout() {
         addClassName("advertisement-query-block");
         setVisible(false);
 
-        add(advertisementQueryTitleRow,
-                advertisementQueryCreatedDateRow,
-                advertisementQueryUpdatedDateRow,
-                queryActionBlock);
+        add(advertisementQueryTitleRow, advertisementQueryCreatedDateRow, advertisementQueryUpdatedDateRow, queryActionBlock);
 
         registerSorts();
         registerFilters();

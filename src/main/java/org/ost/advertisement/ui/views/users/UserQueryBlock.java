@@ -22,7 +22,6 @@ import org.ost.advertisement.ui.views.users.processor.UserSortProcessor;
 @Getter
 public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFilterDto>, QueryBlockLayout {
 
-    private final QueryActionBlock queryActionBlock;
     private final transient UserFilterProcessor filterProcessor;
     private final transient UserSortProcessor sortProcessor;
 
@@ -34,13 +33,14 @@ public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFil
     private final UserQueryCreatedDateRow userQueryCreatedDateRow;
     private final UserQueryUpdatedDateRow userQueryUpdatedDateRow;
 
+    private final QueryActionBlock queryActionBlock;
+
     @PostConstruct
     private void initLayout() {
         addClassName("user-query-block");
         setVisible(false);
 
-        add(userQueryIdRow, userQueryNameRow, userQueryEmailRow, userQueryRoleRow, userQueryCreatedDateRow, userQueryUpdatedDateRow);
-        add(queryActionBlock);
+        add(userQueryIdRow, userQueryNameRow, userQueryEmailRow, userQueryRoleRow, userQueryCreatedDateRow, userQueryUpdatedDateRow, queryActionBlock);
 
         registerSorts();
         registerFilters();
