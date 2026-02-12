@@ -4,6 +4,7 @@
 @import url("./advertisement-query-block.css");
 @import url("./user-grid.css");
 @import url("./user-query-block.css");
+@import url("./tailwind-style.css");
 
 .svg-icon {
     width: 1em;

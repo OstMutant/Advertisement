@@ -5,7 +5,6 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.TailwindStyle;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -43,7 +42,7 @@ public class LabeledField extends HorizontalLayout {
 
         private I18nKey labelKey;
         private String valueText;
-        private TailwindStyle[] styles;
+        private String[] cssClasses;
 
         public Builder withLabel(I18nKey key) {
             this.labelKey = key;
@@ -55,16 +54,16 @@ public class LabeledField extends HorizontalLayout {
             return this;
         }
 
-        public Builder withStyles(TailwindStyle... styles) {
-            this.styles = styles;
+        public Builder withCssClasses(String... cssClasses) {
+            this.cssClasses = cssClasses;
             return this;
         }
 
         public LabeledField build() {
             LabeledField field = provider.getObject();
-            if (styles != null) {
-                TailwindStyle.applyAll(field.label, styles);
-                TailwindStyle.applyAll(field.value, styles);
+            if (cssClasses != null) {
+                field.label.addClassNames(cssClasses);
+                field.value.addClassNames(cssClasses);
             }
             if (i18n != null) {
                 field.setLabel(i18n.get(labelKey));

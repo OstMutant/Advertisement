@@ -21,8 +21,6 @@ import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
-import static org.ost.advertisement.ui.views.TailwindStyle.EMAIL_LABEL;
-import static org.ost.advertisement.ui.views.TailwindStyle.GRAY_LABEL;
 
 @SpringComponent
 @Scope("prototype")
@@ -64,15 +62,15 @@ public class AdvertisementUpsertDialog {
                 descriptionField,
                 labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_CREATED)
                         .withValue(formatInstant(dto.getCreatedAt()))
-                        .withStyles(GRAY_LABEL)
+                        .withCssClasses("base-label", "gray-label")
                         .build(),
                 labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_UPDATED)
                         .withValue(formatInstant(dto.getUpdatedAt()))
-                        .withStyles(GRAY_LABEL)
+                        .withCssClasses("base-label", "gray-label")
                         .build(),
                 labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_USER)
                         .withValue(String.valueOf(dto.getCreatedByUserId()))
-                        .withStyles(EMAIL_LABEL)
+                        .withCssClasses("base-label", "email-label")
                         .build()
         );
 

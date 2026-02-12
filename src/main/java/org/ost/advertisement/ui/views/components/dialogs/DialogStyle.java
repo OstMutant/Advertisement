@@ -10,15 +10,15 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.ui.views.TailwindStyle;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class DialogStyle {
 
     public static void apply(Dialog dialog, String titleText) {
-        dialog.setModal(true);
         dialog.setDraggable(false);
         dialog.setResizable(false);
+        dialog.setCloseOnOutsideClick(false);
+        dialog.setCloseOnEsc(true);
         dialog.setHeaderTitle(titleText);
     }
 
@@ -45,7 +45,7 @@ public class DialogStyle {
 
     public static Component wrapScrollable(Component inner) {
         Div scroll = new Div(inner);
-        TailwindStyle.SCROLL_CONTAINER.apply(scroll);
+        scroll.addClassName("scroll-container");
         return scroll;
     }
 }

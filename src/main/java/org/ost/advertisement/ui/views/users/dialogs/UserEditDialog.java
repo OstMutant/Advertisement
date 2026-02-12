@@ -25,8 +25,6 @@ import java.util.Objects;
 import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.*;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
-import static org.ost.advertisement.ui.views.TailwindStyle.EMAIL_LABEL;
-import static org.ost.advertisement.ui.views.TailwindStyle.GRAY_LABEL;
 
 @SpringComponent
 @Scope("prototype")
@@ -76,21 +74,21 @@ public class UserEditDialog {
         delegate.addContent(
                 labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_ID_LABEL)
                         .withValue(String.valueOf(user.getId()))
-                        .withStyles(EMAIL_LABEL)
+                        .withCssClasses("base-label", "email-label")
                         .build(),
                 labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_EMAIL_LABEL)
                         .withValue(ofNullable(user.getEmail()).orElse(""))
-                        .withStyles(EMAIL_LABEL)
+                        .withCssClasses("base-label", "email-label")
                         .build(),
                 nameField,
                 roleCombo,
                 labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_CREATED_LABEL)
                         .withValue(formatInstant(user.getCreatedAt()))
-                        .withStyles(GRAY_LABEL)
+                        .withCssClasses("base-label", "gray-label")
                         .build(),
                 labeledFieldBuilder.withLabel(USER_DIALOG_FIELD_UPDATED_LABEL)
                         .withValue(formatInstant(user.getUpdatedAt()))
-                        .withStyles(GRAY_LABEL)
+                        .withCssClasses("base-label", "gray-label")
                         .build()
         );
 
