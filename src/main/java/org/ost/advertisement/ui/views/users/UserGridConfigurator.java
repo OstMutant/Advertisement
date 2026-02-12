@@ -5,7 +5,6 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.grid.HeaderRow;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -18,6 +17,7 @@ import org.ost.advertisement.services.I18nService;
 
 import java.util.function.Consumer;
 
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -31,11 +31,11 @@ public class UserGridConfigurator {
 
         grid.setSizeFull();
 
-        var idColumn = grid.addColumn(User::getId)
+        grid.addColumn(User::getId)
                 .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
-                .setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ID), queryBlock.getIdSortIcon()));
+                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ID)));
 
-        var nameAndEmailColumn = grid.addColumn(new ComponentRenderer<>(user -> {
+        grid.addColumn(new ComponentRenderer<>(user -> {
                     Span nameSpan = new Span(user.getName());
                     nameSpan.addClassName("user-grid-name");
 
@@ -49,24 +49,21 @@ public class UserGridConfigurator {
                     return layout;
                 }))
                 .setFlexGrow(1)
-                .setHeader(dualSortableHeader(
-                        i18n.get(USER_VIEW_HEADER_NAME), queryBlock.getNameSortIcon(),
-                        i18n.get(USER_VIEW_HEADER_EMAIL), queryBlock.getEmailSortIcon()
-                ));
+                .setHeader(getDualHeader(i18n.get(USER_VIEW_HEADER_NAME), i18n.get(USER_VIEW_HEADER_EMAIL)));
 
-        var roleColumn = grid.addColumn(user -> user.getRole().name())
+        grid.addColumn(user -> user.getRole().name())
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_ROLE), queryBlock.getRoleSortIcon()));
+                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ROLE)));
 
-        var createdColumn = grid.addColumn(user -> user.getCreatedAt().toString())
+        grid.addColumn(user -> user.getCreatedAt().toString())
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_CREATED), queryBlock.getCreatedSortIcon()));
+                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_CREATED)));
 
-        var updatedColumn = grid.addColumn(user -> user.getUpdatedAt().toString())
+        grid.addColumn(user -> user.getUpdatedAt().toString())
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(sortableHeader(i18n.get(USER_VIEW_HEADER_UPDATED), queryBlock.getUpdatedSortIcon()));
+                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_UPDATED)));
 
-        var actionsColumn = grid.addColumn(new ComponentRenderer<>(user -> {
+        grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = new Button(VaadinIcon.EDIT.create());
                     edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
                     edit.addClickListener(e -> onEdit.accept(user));
@@ -83,36 +80,15 @@ public class UserGridConfigurator {
                 .setAutoWidth(true)
                 .setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
-        HeaderRow filterRow = grid.appendHeaderRow();
-        filterRow.getCell(idColumn).setComponent(queryBlock.getIdFilter());
-
-        VerticalLayout nameAndEmailLayout = new VerticalLayout(queryBlock.getNameField(), queryBlock.getEmailField());
-        nameAndEmailLayout.setSpacing(false);
-        nameAndEmailLayout.setPadding(false);
-        nameAndEmailLayout.setMargin(false);
-        filterRow.getCell(nameAndEmailColumn).setComponent(nameAndEmailLayout);
-
-        filterRow.getCell(roleColumn).setComponent(queryBlock.getRoleCombo());
-        filterRow.getCell(createdColumn).setComponent(queryBlock.getCreatedFilter());
-        filterRow.getCell(updatedColumn).setComponent(queryBlock.getUpdatedFilter());
-        filterRow.getCell(actionsColumn).setComponent(queryBlock.getQueryActionBlock());
     }
 
-    private static Component sortableHeader(String label, Component sortIcon) {
-        Span title = new Span(label);
-        HorizontalLayout layout = new HorizontalLayout(title, sortIcon);
-        layout.setAlignItems(HorizontalLayout.Alignment.CENTER);
-        return layout;
+    private static Component getHeader(String label) {
+        return new Span(label);
     }
 
-    private static Component dualSortableHeader(String label1, Component sortIcon1,
-                                                String label2, Component sortIcon2) {
-        HorizontalLayout layout = new HorizontalLayout(
-                new Span(label1), sortIcon1,
-                new Span(" / "),
-                new Span(label2), sortIcon2
-        );
-        layout.setAlignItems(HorizontalLayout.Alignment.CENTER);
+    private static Component getDualHeader(String label1, String label2) {
+        HorizontalLayout layout = new HorizontalLayout(new Span(label1), new Span(" / "), new Span(label2));
+        layout.setAlignItems(CENTER);
         return layout;
     }
 }

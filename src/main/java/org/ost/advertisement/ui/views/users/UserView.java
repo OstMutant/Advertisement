@@ -24,31 +24,34 @@ public class UserView extends UserLayout {
 
     private final transient UserService userService;
     private final transient I18nService i18n;
-    private final transient UserQueryBlock queryBlock;
+    private final transient UserQueryStatusBar queryStatusBar;
 
-    public UserView(UserQueryBlock queryBlock,
+    public UserView(UserQueryStatusBar queryStatusBar,
                     UserService userService,
                     I18nService i18n,
                     UserEditDialog.Builder editDialogBuilder) {
         super(i18n);
-        this.queryBlock = queryBlock;
+        this.queryStatusBar = queryStatusBar;
         this.userService = userService;
         this.i18n = i18n;
 
-        getPaginationBar().setPageChangeListener(event -> refreshGrid());
+        getPaginationBar().setPageChangeListener(_ -> refreshGrid());
 
-        queryBlock.addEventListener(() -> {
+        queryStatusBar.getQueryBlock().addEventListener(() -> {
             getPaginationBar().setTotalCount(0);
             refreshGrid();
         });
 
         UserGridConfigurator.configure(
                 getGrid(),
-                queryBlock,
+                queryStatusBar.getQueryBlock(),
                 i18n,
                 u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
                 this::confirmAndDelete
         );
+
+        addComponentAsFirst(queryStatusBar);
+        addComponentAtIndex(1, queryStatusBar.getQueryBlock());
 
         refreshGrid();
     }
@@ -57,8 +60,8 @@ public class UserView extends UserLayout {
         int page = getPaginationBar().getCurrentPage();
         int size = getPaginationBar().getPageSize();
 
-        UserFilterDto currentFilter = queryBlock.getFilterProcessor().getNewFilter();
-        var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
+        UserFilterDto currentFilter = queryStatusBar.getQueryBlock().getFilterProcessor().getNewFilter();
+        var sort = queryStatusBar.getQueryBlock().getSortProcessor().getOriginalSort().getSort();
 
         try {
             List<User> pageData = userService.getFiltered(currentFilter, page, size, sort);
@@ -70,6 +73,8 @@ public class UserView extends UserLayout {
             getGrid().setItems(List.of());
             getPaginationBar().setTotalCount(0);
         }
+
+        queryStatusBar.update();
     }
 
     private void confirmAndDelete(User user) {
@@ -103,3 +108,4 @@ public class UserView extends UserLayout {
         NotificationType.ERROR.show(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + message);
     }
 }
+
