@@ -22,14 +22,20 @@ import static org.ost.advertisement.constants.I18nKey.LOCALE_UKRAINIAN;
 @UIScope
 public class LocaleSelectorComponent extends HorizontalLayout {
 
+    private final transient UserService userService;
+    private final transient I18nService i18n;
+
     public LocaleSelectorComponent(UserService userService, I18nService i18n) {
+        this.userService = userService;
+        this.i18n = i18n;
+
         addClassName("locale-selector");
 
-        ComboBox<LocaleWrapper> localeSelect = createLocaleSelect(userService, i18n);
+        ComboBox<LocaleWrapper> localeSelect = initLocaleSelect();
         add(localeSelect);
     }
 
-    private ComboBox<LocaleWrapper> createLocaleSelect(UserService userService, I18nService i18n) {
+    private ComboBox<LocaleWrapper> initLocaleSelect() {
         ComboBox<LocaleWrapper> localeSelect = new ComboBox<>();
         localeSelect.addClassName("locale-combobox");
 
@@ -49,7 +55,10 @@ public class LocaleSelectorComponent extends HorizontalLayout {
         localeSelect.setValue(selected);
 
         localeSelect.addValueChangeListener(event -> {
-            Locale newLocale = event.getValue().locale();
+            LocaleWrapper newValue = event.getValue();
+            if (newValue == null) return;
+
+            Locale newLocale = newValue.locale();
             User currentUser = AuthUtil.getCurrentUser();
             if (currentUser != null) {
                 currentUser = currentUser.withLocale(newLocale);

@@ -20,36 +20,44 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @UIScope
 public class HeaderBar extends HorizontalLayout {
 
+    private final LocaleSelectorComponent localeSelectorComponent;
+    private final LoginDialog loginDialog;
+    private final LogoutDialog logoutDialog;
+    private final SignUpDialog signUpDialog;
+    private final transient I18nService i18n;
+
     public HeaderBar(LocaleSelectorComponent localeSelectorComponent,
                      LoginDialog loginDialog,
                      LogoutDialog logoutDialog,
                      SignUpDialog signUpDialog,
                      I18nService i18n) {
 
+        this.localeSelectorComponent = localeSelectorComponent;
+        this.loginDialog = loginDialog;
+        this.logoutDialog = logoutDialog;
+        this.signUpDialog = signUpDialog;
+        this.i18n = i18n;
+
         addClassName("header-bar");
 
-        VerticalLayout authBlock = createAuthBlock(localeSelectorComponent);
-        HorizontalLayout authRow = createUserInfoRow(loginDialog, logoutDialog, signUpDialog, i18n);
-
-        authBlock.add(authRow);
+        VerticalLayout authBlock = initAuthBlock();
         add(authBlock);
     }
 
-    private VerticalLayout createAuthBlock(LocaleSelectorComponent localeSelectorComponent) {
+    private VerticalLayout initAuthBlock() {
         VerticalLayout authBlock = new VerticalLayout();
         authBlock.addClassName("header-auth-block");
 
         HorizontalLayout localeRow = new HorizontalLayout(localeSelectorComponent);
         localeRow.addClassName("header-locale-row");
 
-        authBlock.add(localeRow);
+        HorizontalLayout userInfoRow = initUserInfoRow();
+
+        authBlock.add(localeRow, userInfoRow);
         return authBlock;
     }
 
-    private HorizontalLayout createUserInfoRow(LoginDialog loginDialog,
-                                               LogoutDialog logoutDialog,
-                                               SignUpDialog signUpDialog,
-                                               I18nService i18n) {
+    private HorizontalLayout initUserInfoRow() {
         HorizontalLayout authRow = new HorizontalLayout();
         authRow.addClassName("header-auth-row");
 
