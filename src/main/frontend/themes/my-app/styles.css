@@ -5,6 +5,7 @@
 @import url("./user-grid.css");
 @import url("./user-query-block.css");
 @import url("./tailwind-style.css");
+@import url("./main-view.css");
 
 .svg-icon {
     width: 1em;

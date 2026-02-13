@@ -28,15 +28,17 @@ public class MainView extends VerticalLayout {
         TimeZoneUtil.detectTimeZone();
 
         setSizeFull();
-        setPadding(false);
-        setSpacing(false);
-        setAlignItems(Alignment.STRETCH);
+        addClassName("main-view-root");
 
+        // header
         add(headerBar);
+        headerBar.addClassName("main-header");
 
+        // tabs
         Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
         Tabs tabs = new Tabs(advertisementTab);
         tabs.setSelectedTab(advertisementTab);
+        tabs.addClassName("main-tabs");
         add(tabs);
 
         advertisementsView.setVisible(true);
@@ -44,8 +46,10 @@ public class MainView extends VerticalLayout {
         Map<Tab, Component> tabsToPages = new HashMap<>();
         tabsToPages.put(advertisementTab, advertisementsView);
 
+        // pages container
         Div pages = new Div(advertisementsView);
         pages.setSizeFull();
+        pages.addClassName("main-pages");
         add(pages);
 
         if (access.canView()) {
@@ -63,4 +67,3 @@ public class MainView extends VerticalLayout {
         });
     }
 }
-
