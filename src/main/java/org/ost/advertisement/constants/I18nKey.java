@@ -157,7 +157,10 @@ public enum I18nKey {
     SORT_ICON_TOOLTIP("sort.icon.tooltip"),
     SORT_ICON_ASC("sort.icon.asc"),
     SORT_ICON_DESC("sort.icon.desc"),
-    SORT_ICON_NEUTRAL("sort.icon.neutral");
+    SORT_ICON_NEUTRAL("sort.icon.neutral"),
+
+    LOCALE_ENGLISH("locale.english"),
+    LOCALE_UKRAINIAN("locale.ukrainian");
 
     private final String key;
 

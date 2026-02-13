@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.header;
+package org.ost.advertisement.ui.views.header.dialogs;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;

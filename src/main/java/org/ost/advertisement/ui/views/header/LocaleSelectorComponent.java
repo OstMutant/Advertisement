@@ -8,38 +8,45 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.SessionUtil;
 
 import java.util.List;
 import java.util.Locale;
 
+import static org.ost.advertisement.constants.I18nKey.LOCALE_ENGLISH;
+import static org.ost.advertisement.constants.I18nKey.LOCALE_UKRAINIAN;
+
 @SpringComponent
 @UIScope
 public class LocaleSelectorComponent extends HorizontalLayout {
 
-    private static final List<LocaleWrapper> LOCALES = List.of(
-            new LocaleWrapper("English", Locale.of("en")),
-            new LocaleWrapper("Українська", Locale.of("uk"))
-    );
+    public LocaleSelectorComponent(UserService userService, I18nService i18n) {
+        addClassName("locale-selector");
 
-    public LocaleSelectorComponent(UserService userService) {
-        setSpacing(true);
-        setPadding(false);
-        setMargin(false);
+        ComboBox<LocaleWrapper> localeSelect = createLocaleSelect(userService, i18n);
+        add(localeSelect);
+    }
 
+    private ComboBox<LocaleWrapper> createLocaleSelect(UserService userService, I18nService i18n) {
         ComboBox<LocaleWrapper> localeSelect = new ComboBox<>();
-        localeSelect.setItems(LOCALES);
-        localeSelect.setItemLabelGenerator(LocaleWrapper::label);
-        localeSelect.setWidth("150px");
+        localeSelect.addClassName("locale-combobox");
 
-        LocaleWrapper selected = LOCALES.stream()
+        List<LocaleWrapper> locales = List.of(
+                new LocaleWrapper(i18n.get(LOCALE_ENGLISH), Locale.of("en")),
+                new LocaleWrapper(i18n.get(LOCALE_UKRAINIAN), Locale.of("uk"))
+        );
+
+        localeSelect.setItems(locales);
+        localeSelect.setItemLabelGenerator(LocaleWrapper::label);
+
+        LocaleWrapper selected = locales.stream()
                 .filter(wrapper -> wrapper.locale().getLanguage().equals(SessionUtil.getCurrentLocale().getLanguage()))
                 .findFirst()
-                .orElse(LOCALES.getFirst());
+                .orElse(locales.getFirst());
 
         localeSelect.setValue(selected);
-        add(localeSelect);
 
         localeSelect.addValueChangeListener(event -> {
             Locale newLocale = event.getValue().locale();
@@ -54,10 +61,11 @@ public class LocaleSelectorComponent extends HorizontalLayout {
             SessionUtil.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         });
+
+        return localeSelect;
     }
 
     private record LocaleWrapper(String label, Locale locale) {
-
         @NotNull
         @Override
         public String toString() {
