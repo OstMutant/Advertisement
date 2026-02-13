@@ -11,6 +11,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
+import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
 
 import java.util.List;
 import java.util.Set;

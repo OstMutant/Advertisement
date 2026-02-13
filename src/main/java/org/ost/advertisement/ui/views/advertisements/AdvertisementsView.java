@@ -11,9 +11,11 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
+import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryBlock;
+import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
 
 import java.util.List;
 
