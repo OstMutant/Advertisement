@@ -16,15 +16,17 @@ public class UserLayout extends VerticalLayout {
     public UserLayout(I18nService i18n) {
         this.paginationBar = new PaginationBarModern(i18n);
 
+        // CSS class names only; visual rules moved to CSS
         addClassName("user-list-layout");
-        setWidthFull();
-        setHeight(null);
-        setPadding(false);
-        setSpacing(false);
 
+        // keep width behavior in code or CSS (both ok)
+        setWidthFull();
+
+        grid.addClassName("user-grid");
         grid.setWidthFull();
         grid.setAllRowsVisible(true);
-        grid.setHeight(null);
+
+        paginationBar.addClassName("user-pagination");
 
         add(grid, paginationBar);
     }
