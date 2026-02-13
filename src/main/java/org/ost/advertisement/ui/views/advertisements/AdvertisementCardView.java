@@ -33,77 +33,61 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
-        getStyle()
-                .set("border", "1px solid #ccc")
-                .set("border-radius", "8px")
-                .set("padding", "16px")
-                .set("box-shadow", "2px 2px 6px rgba(0,0,0,0.05)")
-                .set("width", "100%")
-                .set("box-sizing", "border-box")
-                .set("display", "flex")
-                .set("flex-direction", "column")
-                .set("gap", "12px")
-                .set("flex", "1 1 300px")
-                .set("max-width", "400px");
 
+        H3 title = createTitle(ad);
+        Span description = createDescription(ad);
+        Button toggle = createToggle(ad);
+        VerticalLayout meta = createMeta(ad);
+        HorizontalLayout actions = createActions(ad, refreshAdvertisements);
+
+        add(title, description, toggle, meta, actions);
+        return this;
+    }
+
+    private H3 createTitle(AdvertisementInfoDto ad) {
         H3 title = new H3(ad.getTitle());
-        title.getStyle()
-                .set("font-size", "1.2rem")
-                .set("font-weight", "600")
-                .set("margin", "0")
-                .set("white-space", "nowrap")
-                .set("overflow", "hidden")
-                .set("text-overflow", "ellipsis");
+        title.addClassName("advertisement-title");
+        return title;
+    }
 
+    private Span createDescription(AdvertisementInfoDto ad) {
         Span description = new Span(ad.getDescription());
-        description.getStyle()
-                .set("display", "-webkit-box")
-                .set("overflow", "hidden")
-                .set("text-overflow", "ellipsis")
-                .set("word-break", "break-word")
-                .set("-webkit-line-clamp", "5")
-                .set("-webkit-box-orient", "vertical")
-                .set("white-space", "normal")
-                .set("font-size", "0.95rem")
-                .set("color", "#444")
-                .set("max-height", "6.5em")
-                .set("line-height", "1.3em");
+        description.addClassName("advertisement-description");
+        return description;
+    }
 
+    private Button createToggle(AdvertisementInfoDto ad) {
         Button toggle = new Button("Read more");
         toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        toggle.getStyle().set("padding", "0");
-        toggle.addClickListener(e -> new AdvertisementDescriptionDialog(ad.getTitle(), ad.getDescription()).open());
+        toggle.addClassName("advertisement-toggle");
+        toggle.addClickListener(_ -> new AdvertisementDescriptionDialog(ad.getTitle(), ad.getDescription()).open());
+        return toggle;
+    }
 
-        Span createdAt = new Span(
-                i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
-        Span updatedAt = new Span(
-                i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
+    private VerticalLayout createMeta(AdvertisementInfoDto ad) {
+        Span createdAt = new Span(i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
+        Span updatedAt = new Span(i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
         Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.getCreatedByUserId());
 
         VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
-        meta.getStyle()
-                .set("font-size", "0.85rem")
-                .set("color", "#666")
-                .set("gap", "4px")
-                .set("padding", "0")
-                .set("margin", "0");
+        meta.addClassName("advertisement-meta");
+        return meta;
+    }
 
+    private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
         edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        edit.addClickListener(e -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
+        edit.addClassName("advertisement-edit");
+        edit.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
 
         Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
         delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-        delete.addClickListener(e -> openConfirmDeleteDialog(ad, refreshAdvertisements));
+        delete.addClassName("advertisement-delete");
+        delete.addClickListener(_ -> openConfirmDeleteDialog(ad, refreshAdvertisements));
 
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
-        actions.getStyle()
-                .set("justify-content", "flex-end")
-                .set("gap", "8px");
-
-        add(title, description, toggle, meta, actions);
-
-        return this;
+        actions.addClassName("advertisement-actions");
+        return actions;
     }
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
@@ -129,7 +113,6 @@ public class AdvertisementCardView extends VerticalLayout {
     @SpringComponent
     @AllArgsConstructor
     public static class Builder {
-
         private final I18nService i18n;
         private final AdvertisementService advertisementService;
         private final AdvertisementUpsertDialog.Builder upsertDialogBuilder;
@@ -137,8 +120,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
         public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
             AdvertisementCardView cardView = cardProvider.getObject(i18n, advertisementService, upsertDialogBuilder);
-            cardView.setupContent(ad, refresh);
-            return cardView;
+            return cardView.setupContent(ad, refresh);
         }
     }
 }

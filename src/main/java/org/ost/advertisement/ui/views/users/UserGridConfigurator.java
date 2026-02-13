@@ -14,7 +14,6 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.users.query.elements.UserQueryBlock;
 
 import java.util.function.Consumer;
 
@@ -25,7 +24,6 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class UserGridConfigurator {
 
     public static void configure(Grid<User> grid,
-                                 UserQueryBlock queryBlock,
                                  I18nService i18n,
                                  Consumer<User> onEdit,
                                  Consumer<User> onDelete) {
@@ -67,11 +65,11 @@ public class UserGridConfigurator {
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = new Button(VaadinIcon.EDIT.create());
                     edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-                    edit.addClickListener(e -> onEdit.accept(user));
+                    edit.addClickListener(_ -> onEdit.accept(user));
 
                     Button delete = new Button(VaadinIcon.TRASH.create());
                     delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-                    delete.addClickListener(e -> onDelete.accept(user));
+                    delete.addClickListener(_ -> onDelete.accept(user));
 
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");

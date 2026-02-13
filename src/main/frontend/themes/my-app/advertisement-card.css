@@ -1,0 +1,53 @@
+.advertisement-card {
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 2px 2px 6px rgba(0,0,0,0.05);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 300px;
+  max-width: 400px;
+}
+
+.advertisement-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.advertisement-description {
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+  font-size: 0.95rem;
+  color: #444;
+  max-height: 6.5em;
+  line-height: 1.3em;
+}
+
+.advertisement-toggle {
+  padding: 0;
+}
+
+.advertisement-meta {
+  font-size: 0.85rem;
+  color: #666;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+}
+
+.advertisement-actions {
+  justify-content: flex-end;
+  gap: 8px;
+}

@@ -27,10 +27,10 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTT
 public class AdvertisementsView extends VerticalLayout {
 
     private final transient AdvertisementService advertisementService;
-    private final transient AdvertisementQueryStatusBar queryStatusBar;
+    private final AdvertisementQueryStatusBar queryStatusBar;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final FlexLayout advertisementContainer = getAdvertisementContainer();
+    private final FlexLayout advertisementContainer;
     private final PaginationBarModern paginationBar;
 
     public AdvertisementsView(AdvertisementService advertisementService,
@@ -43,45 +43,49 @@ public class AdvertisementsView extends VerticalLayout {
         this.upsertDialogBuilder = upsertDialogBuilder;
         this.cardBuilder = cardBuilder;
         this.paginationBar = new PaginationBarModern(i18n);
+        this.advertisementContainer = createAdvertisementContainer();
 
-        Button addAdvertisementButton = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
-        addAdvertisementButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addAdvertisementButton.getStyle().set("margin-top", "12px");
-        addAdvertisementButton.addClickListener(
-                e -> this.upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        Button addAdvertisementButton = createAddButton(i18n);
 
-        queryStatusBar.getQueryBlock().addEventListener(() -> {
-            paginationBar.setTotalCount(0);
-            refreshAdvertisements();
-        });
+        initQueryBar();
+        initPagination();
 
-        paginationBar.setPageChangeListener(e -> refreshAdvertisements());
+        addClassName("advertisements-view");
 
-        add(
-                queryStatusBar,
-                queryStatusBar.getQueryBlock(),
-                addAdvertisementButton,
-                advertisementContainer,
-                paginationBar
-        );
+        add(queryStatusBar, queryStatusBar.getQueryBlock(), addAdvertisementButton, advertisementContainer, paginationBar);
         setFlexGrow(1, advertisementContainer);
 
         setSizeFull();
-        setSpacing(false);
-        setPadding(true);
 
         refreshAdvertisements();
     }
 
-    private FlexLayout getAdvertisementContainer() {
+    private Button createAddButton(I18nService i18n) {
+        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        button.addClassName("add-advertisement-button");
+        button.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        return button;
+    }
+
+    private FlexLayout createAdvertisementContainer() {
         FlexLayout container = new FlexLayout();
         container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         container.setJustifyContentMode(START);
         container.setAlignItems(Alignment.START);
-        container.getStyle()
-                .set("gap", "16px")
-                .set("padding", "16px");
+        container.addClassName("advertisement-container");
         return container;
+    }
+
+    private void initQueryBar() {
+        queryStatusBar.getQueryBlock().addEventListener(() -> {
+            paginationBar.setTotalCount(0);
+            refreshAdvertisements();
+        });
+    }
+
+    private void initPagination() {
+        paginationBar.setPageChangeListener(_ -> refreshAdvertisements());
     }
 
     private void refreshAdvertisements() {
@@ -94,12 +98,7 @@ public class AdvertisementsView extends VerticalLayout {
 
         AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
 
-        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
-                filter,
-                page,
-                size,
-                sortProcessor.getOriginalSort().getSort()
-        );
+        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(filter, page, size, sortProcessor.getOriginalSort().getSort());
 
         paginationBar.setTotalCount(advertisementService.count(filter));
 
