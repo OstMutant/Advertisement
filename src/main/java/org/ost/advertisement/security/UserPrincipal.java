@@ -1,5 +1,6 @@
 package org.ost.advertisement.security;
 
+import org.jspecify.annotations.NonNull;
 import org.ost.advertisement.entities.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -12,7 +13,7 @@ import java.util.List;
 public record UserPrincipal(User user) implements UserDetails {
 
     @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
+    public @NonNull Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
     }
 
@@ -22,7 +23,7 @@ public record UserPrincipal(User user) implements UserDetails {
     }
 
     @Override
-    public String getUsername() {
+    public @NonNull String getUsername() {
         return user.getEmail();
     }
 

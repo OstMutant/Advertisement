@@ -26,8 +26,8 @@ public class AuthContextServiceImpl implements AuthContextService {
                 return Optional.empty();
             }
             Object principal = auth.getPrincipal();
-            if (principal instanceof UserPrincipal) {
-                return Optional.ofNullable(((UserPrincipal) principal).user());
+            if (principal instanceof UserPrincipal(User user)) {
+                return Optional.ofNullable(user);
             }
             return Optional.empty();
         } catch (Exception ex) {
@@ -46,12 +46,10 @@ public class AuthContextServiceImpl implements AuthContextService {
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
             UserPrincipal principal = new UserPrincipal(user);
 
-            Authentication newAuth;
-            if (currentAuth != null) {
-                newAuth = new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), currentAuth.getAuthorities());
-            } else {
-                newAuth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-            }
+            Authentication newAuth = (currentAuth != null)
+                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), currentAuth.getAuthorities())
+                    : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+
             SecurityContextHolder.getContext().setAuthentication(newAuth);
             log.debug("Updated security principal for user id={}", user.getId());
         } catch (Exception ex) {

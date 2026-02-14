@@ -1,0 +1,34 @@
+# Server connection settings
+server:
+  port: ${PORT:8080}
+
+# Spring Boot core settings
+spring:
+  profiles:
+    active: dev
+
+  # Database migration settings
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+
+  # Persistence settings
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: none
+
+# Monitoring and Management
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+# Logging configuration
+logging:
+  level:
+    root: info
+  pattern:
+    console: "%clr(%d{yy-MM-dd E HH:mm:ss.SSS}){blue} %clr(%-5p) %clr(${PID}){faint} %clr(---){faint} %clr([%-30thread]){cyan} %clr(%-40.40logger{0}){blue} %clr(:){red} %clr(%m){faint}%n"
