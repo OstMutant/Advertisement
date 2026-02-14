@@ -1,15 +1,18 @@
 package org.ost.advertisement.services;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
-import org.ost.advertisement.security.UserPrincipal;
 import org.ost.advertisement.security.PasswordEncoderUtil;
+import org.ost.advertisement.security.UserPrincipal;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -19,8 +22,9 @@ import java.util.Optional;
 public class AuthService {
 
     private final UserRepository userRepository;
-
     private final HttpServletRequest request;
+    private final HttpServletResponse response;
+    private final SecurityContextRepository securityContextRepository;
 
     public boolean login(String email, String rawPassword) {
         Optional<User> optionalUser = userRepository.findByEmail(email);
@@ -34,9 +38,14 @@ public class AuthService {
         }
 
         UserPrincipal principal = new UserPrincipal(user);
-        Authentication auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-        SecurityContextHolder.getContext().setAuthentication(auth);
-        request.getSession(true).setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                principal, null, principal.getAuthorities());
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(auth);
+        SecurityContextHolder.setContext(context);
+
+        securityContextRepository.saveContext(context, request, response);
         return true;
     }
 
@@ -44,9 +53,7 @@ public class AuthService {
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
         if (session != null) {
-            session.removeAttribute("SPRING_SECURITY_CONTEXT");
             session.invalidate();
         }
     }
-
 }
