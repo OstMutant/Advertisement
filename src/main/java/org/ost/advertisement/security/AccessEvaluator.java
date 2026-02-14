@@ -1,18 +1,23 @@
 package org.ost.advertisement.security;
 
-
-import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.utils.AuthUtil;
+import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
 @Component
-@RequiredArgsConstructor
 public class AccessEvaluator {
 
     private final RoleChecker roleChecker;
     private final OwnershipChecker ownershipChecker;
+    private final AuthContextService authContextService;
 
+    public AccessEvaluator(RoleChecker roleChecker,
+                           OwnershipChecker ownershipChecker,
+                           AuthContextService authContextService) {
+        this.roleChecker = roleChecker;
+        this.ownershipChecker = ownershipChecker;
+        this.authContextService = authContextService;
+    }
 
     public boolean canView() {
         User currentUser = getCurrentUser();
@@ -33,6 +38,6 @@ public class AccessEvaluator {
     }
 
     protected User getCurrentUser() {
-        return AuthUtil.getCurrentUser();
+        return authContextService.getCurrentUser().orElse(null);
     }
 }

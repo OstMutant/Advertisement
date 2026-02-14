@@ -7,10 +7,10 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.services.auth.AuthContextService;
 
 import java.util.List;
 import java.util.Locale;
@@ -24,10 +24,17 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 
     private final transient UserService userService;
     private final transient I18nService i18n;
+    private final transient SessionService sessionService;
+    private final transient AuthContextService authContextService;
 
-    public LocaleSelectorComponent(UserService userService, I18nService i18n) {
+    public LocaleSelectorComponent(UserService userService,
+                                   I18nService i18n,
+                                   SessionService sessionService,
+                                   AuthContextService authContextService) {
         this.userService = userService;
         this.i18n = i18n;
+        this.sessionService = sessionService;
+        this.authContextService = authContextService;
 
         addClassName("locale-selector");
 
@@ -47,8 +54,9 @@ public class LocaleSelectorComponent extends HorizontalLayout {
         localeSelect.setItems(locales);
         localeSelect.setItemLabelGenerator(LocaleWrapper::label);
 
+        Locale current = sessionService.getCurrentLocale();
         LocaleWrapper selected = locales.stream()
-                .filter(wrapper -> wrapper.locale().getLanguage().equals(SessionUtil.getCurrentLocale().getLanguage()))
+                .filter(wrapper -> wrapper.locale().getLanguage().equals(current.getLanguage()))
                 .findFirst()
                 .orElse(locales.getFirst());
 
@@ -59,15 +67,18 @@ public class LocaleSelectorComponent extends HorizontalLayout {
             if (newValue == null) return;
 
             Locale newLocale = newValue.locale();
-            User currentUser = AuthUtil.getCurrentUser();
+            User currentUser = authContextService.getCurrentUser().orElse(null);
             if (currentUser != null) {
-                currentUser = currentUser.withLocale(newLocale);
-                userService.save(currentUser);
-                AuthUtil.updateCurrentUser(currentUser);
+                User updated = currentUser.withLocale(newLocale);
+                userService.save(updated);
+                authContextService.updateCurrentUser(updated);
             } else {
-                UI.getCurrent().getSession().setLocale(newLocale);
+                UI ui = UI.getCurrent();
+                if (ui != null && ui.getSession() != null) {
+                    ui.getSession().setLocale(newLocale);
+                }
             }
-            SessionUtil.refreshCurrentLocale();
+            sessionService.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         });
 

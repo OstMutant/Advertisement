@@ -10,12 +10,17 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 @Getter
 public class UserLayout extends VerticalLayout {
 
-    private final Grid<User> grid = new Grid<>(User.class, false);
+    private final Grid<User> grid;
     private final PaginationBarModern paginationBar;
 
     public UserLayout(I18nService i18n) {
+        this.grid = new Grid<>(User.class, false);
         this.paginationBar = new PaginationBarModern(i18n);
 
+        initLayout();
+    }
+
+    private void initLayout() {
         // CSS class names only; visual rules moved to CSS
         addClassName("user-list-layout");
 

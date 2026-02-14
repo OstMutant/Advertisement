@@ -9,7 +9,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
@@ -20,19 +20,33 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @UIScope
 public class LoginDialog extends Dialog {
 
-    private final EmailField emailField;
-    private final PasswordField passwordField;
+    private final transient AuthService authService;
+    private final transient I18nService i18n;
+    private final transient SessionService sessionService;
 
-    public LoginDialog(AuthService authService, I18nService i18n) {
+    private EmailField emailField;
+    private PasswordField passwordField;
+
+    public LoginDialog(AuthService authService, I18nService i18n, SessionService sessionService) {
+        this.authService = authService;
+        this.i18n = i18n;
+        this.sessionService = sessionService;
+
         DialogStyle.apply(this, i18n.get(LOGIN_HEADER_TITLE));
+        initFields();
+        initLayout();
+    }
 
+    private void initFields() {
         emailField = DialogContentFactory.emailField(i18n, LOGIN_EMAIL_LABEL, LOGIN_EMAIL_LABEL, true);
         passwordField = DialogContentFactory.passwordField(i18n, LOGIN_PASSWORD_LABEL, LOGIN_PASSWORD_LABEL, true);
+    }
 
+    private void initLayout() {
         Button loginButton = DialogContentFactory.primaryButton(i18n, LOGIN_BUTTON_SUBMIT);
         Button cancelButton = DialogContentFactory.tertiaryButton(i18n, LOGIN_BUTTON_CANCEL);
 
-        loginButton.addClickListener(event -> handleLogin(authService, i18n));
+        loginButton.addClickListener(event -> handleLogin());
         cancelButton.addClickListener(event -> close());
 
         DialogLayout layout = new DialogLayout();
@@ -43,13 +57,13 @@ public class LoginDialog extends Dialog {
         add(layout.getLayout());
     }
 
-    private void handleLogin(AuthService authService, I18nService i18n) {
+    private void handleLogin() {
         boolean success = authService.login(emailField.getValue(), passwordField.getValue());
 
         if (success) {
             close();
             DialogContentFactory.showSuccess(i18n, LOGIN_SUCCESS);
-            SessionUtil.refreshCurrentLocale();
+            sessionService.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         } else {
             DialogContentFactory.showError(i18n, LOGIN_ERROR);

@@ -8,8 +8,8 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.utils.AuthUtil;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.header.dialogs.LoginDialog;
 import org.ost.advertisement.ui.views.header.dialogs.LogoutDialog;
 import org.ost.advertisement.ui.views.header.dialogs.SignUpDialog;
@@ -25,18 +25,21 @@ public class HeaderBar extends HorizontalLayout {
     private final LogoutDialog logoutDialog;
     private final SignUpDialog signUpDialog;
     private final transient I18nService i18n;
+    private final transient AuthContextService authContextService;
 
     public HeaderBar(LocaleSelectorComponent localeSelectorComponent,
                      LoginDialog loginDialog,
                      LogoutDialog logoutDialog,
                      SignUpDialog signUpDialog,
-                     I18nService i18n) {
+                     I18nService i18n,
+                     AuthContextService authContextService) {
 
         this.localeSelectorComponent = localeSelectorComponent;
         this.loginDialog = loginDialog;
         this.logoutDialog = logoutDialog;
         this.signUpDialog = signUpDialog;
         this.i18n = i18n;
+        this.authContextService = authContextService;
 
         addClassName("header-bar");
 
@@ -62,7 +65,7 @@ public class HeaderBar extends HorizontalLayout {
         authRow.addClassName("header-auth-row");
 
         Span userInfo = new Span();
-        User currentUser = AuthUtil.getCurrentUser();
+        User currentUser = authContextService.getCurrentUser().orElse(null);
 
         if (currentUser != null) {
             userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));

@@ -6,7 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.SessionUtil;
+import org.ost.advertisement.services.SessionService;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -14,16 +14,29 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @UIScope
 public class LogoutDialog extends ConfirmDialog {
 
-    public LogoutDialog(AuthService authService, I18nService i18n) {
+    private final transient AuthService authService;
+    private final transient I18nService i18n;
+    private final transient SessionService sessionService;
+
+    public LogoutDialog(AuthService authService, I18nService i18n, SessionService sessionService) {
+        this.authService = authService;
+        this.i18n = i18n;
+        this.sessionService = sessionService;
+
+        initDialog();
+    }
+
+    private void initDialog() {
         setText(i18n.get(LOGOUT_CONFIRM_TEXT));
-        setConfirmButton(i18n.get(LOGOUT_CONFIRM_YES), ed -> {
-            UI ui = UI.getCurrent();
-            authService.logout();
-            close();
-            SessionUtil.refreshCurrentLocale(ui);
-            ui.getPage().reload();
-        });
-        setCancelButton(i18n.get(LOGOUT_CONFIRM_CANCEL), ed -> this.close());
+        setConfirmButton(i18n.get(LOGOUT_CONFIRM_YES), event -> handleLogout());
+        setCancelButton(i18n.get(LOGOUT_CONFIRM_CANCEL), event -> close());
+    }
+
+    private void handleLogout() {
+        UI ui = UI.getCurrent();
+        authService.logout();
+        close();
+        sessionService.refreshCurrentLocale(ui);
+        ui.getPage().reload();
     }
 }
-

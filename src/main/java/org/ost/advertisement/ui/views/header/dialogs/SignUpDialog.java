@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.repository.user.UserRepository;
-import org.ost.advertisement.security.utils.PasswordEncoderUtil;
+import org.ost.advertisement.security.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
@@ -34,7 +34,7 @@ public class SignUpDialog extends Dialog {
     private final transient I18nService i18n;
 
     private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
-    private final SignUpDto dto = new SignUpDto();
+    private final transient SignUpDto dto = new SignUpDto();
 
     public SignUpDialog(UserRepository userRepository, I18nService i18n) {
         this.userRepository = userRepository;
