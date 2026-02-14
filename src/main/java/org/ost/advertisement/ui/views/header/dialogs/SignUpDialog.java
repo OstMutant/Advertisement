@@ -14,9 +14,9 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.PasswordEncoderUtil;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
@@ -30,14 +30,14 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @UIScope
 public class SignUpDialog extends Dialog {
 
-    private final transient UserRepository userRepository;
+    private final transient UserService userService;
     private final transient I18nService i18n;
 
     private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
     private final transient SignUpDto dto = new SignUpDto();
 
-    public SignUpDialog(UserRepository userRepository, I18nService i18n) {
-        this.userRepository = userRepository;
+    public SignUpDialog(UserService userService, I18nService i18n) {
+        this.userService = userService;
         this.i18n = i18n;
 
         DialogStyle.apply(this, i18n.get(SIGNUP_HEADER_TITLE));
@@ -72,14 +72,19 @@ public class SignUpDialog extends Dialog {
         binder.forField(emailField)
                 .withValidator(email -> EMAIL_PATTERN.matcher(email == null ? "" : email.trim()).matches(),
                         i18n.get(SIGNUP_ERROR_EMAIL_INVALID))
-                .withValidator(email -> email != null && userRepository.findByEmail(email.trim()).isEmpty(),
-                        i18n.get(SIGNUP_ERROR_EMAIL_EXISTS))
+                .withValidator(email -> {
+                    try {
+                        return email != null && userService.findByEmail(email.trim()).isEmpty();
+                    } catch (Exception e) {
+                        log.warn("Failed to check email uniqueness", e);
+                        return false;
+                    }
+                }, i18n.get(SIGNUP_ERROR_EMAIL_EXISTS))
                 .bind(SignUpDto::getEmail, SignUpDto::setEmail);
 
         binder.forField(passwordField)
                 .withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
                 .bind(SignUpDto::getPassword, SignUpDto::setPassword);
-
     }
 
     private void handleRegistration() {
@@ -93,7 +98,7 @@ public class SignUpDialog extends Dialog {
                     .role(Role.USER)
                     .build();
 
-            userRepository.save(newUser);
+            userService.register(newUser);
             NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
             close();
         } catch (ValidationException ex) {

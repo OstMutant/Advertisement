@@ -133,6 +133,10 @@ public enum I18nKey {
     ADVERTISEMENT_CARD_USER("advertisement.card.user"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
+
+    // === Advertisement Description Dialog ===
+    ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
+
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
     ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),

@@ -14,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
 
 import java.util.function.Consumer;
 
@@ -54,11 +55,11 @@ public class UserGridConfigurator {
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ROLE)));
 
-        grid.addColumn(user -> user.getCreatedAt().toString())
+        grid.addColumn(user -> TimeZoneUtil.formatInstant(user.getCreatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_CREATED)));
 
-        grid.addColumn(user -> user.getUpdatedAt().toString())
+        grid.addColumn(user -> TimeZoneUtil.formatInstant(user.getUpdatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_UPDATED)));
 
@@ -78,7 +79,6 @@ public class UserGridConfigurator {
                 .setHeader(i18n.get(USER_VIEW_HEADER_ACTIONS))
                 .setAutoWidth(true)
                 .setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
-
     }
 
     private static Component getHeader(String label) {

@@ -6,29 +6,47 @@ import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import org.ost.advertisement.services.I18nService;
+
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE;
 
 public class AdvertisementDescriptionDialog extends Dialog {
 
-    public AdvertisementDescriptionDialog(String title, String description) {
-        setWidth("600px");
-        setCloseOnEsc(true);
-        setCloseOnOutsideClick(true);
+    public AdvertisementDescriptionDialog(I18nService i18n, String title, String description) {
+        initDialog();
 
-        H3 heading = new H3(title);
-        Span content = new Span(description);
-        content.getStyle()
-                .set("white-space", "pre-wrap")
-                .set("line-height", "1.5")
-                .set("font-size", "0.95rem")
-                .set("color", "#444");
+        H3 heading = createHeading(title);
+        Span content = createContent(description);
+        Button closeButton = createCloseButton(i18n);
 
-        Button close = new Button("Close", e -> close());
-        close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        VerticalLayout layout = new VerticalLayout(heading, content, closeButton);
+        layout.addClassName("advertisement-description-layout");
 
-        VerticalLayout layout = new VerticalLayout(heading, content, close);
-        layout.setPadding(true);
-        layout.setSpacing(true);
         add(layout);
     }
-}
 
+    private void initDialog() {
+        setCloseOnEsc(true);
+        setCloseOnOutsideClick(true);
+        addClassName("advertisement-description-dialog");
+    }
+
+    private H3 createHeading(String title) {
+        H3 heading = new H3(title);
+        heading.addClassName("advertisement-description-heading");
+        return heading;
+    }
+
+    private Span createContent(String description) {
+        Span content = new Span(description);
+        content.addClassName("advertisement-description-content");
+        return content;
+    }
+
+    private Button createCloseButton(I18nService i18n) {
+        Button close = new Button(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE), e -> close());
+        close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        close.addClassName("advertisement-description-close");
+        return close;
+    }
+}

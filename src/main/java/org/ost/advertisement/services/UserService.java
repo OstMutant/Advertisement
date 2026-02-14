@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -45,4 +46,11 @@ public class UserService {
         repository.deleteById(targetUser.getId());
     }
 
+    public void register(User newUser) {
+        repository.save(newUser);
+    }
+
+    public Optional<User> findByEmail(String email) {
+        return repository.findByEmail(email);
+    }
 }

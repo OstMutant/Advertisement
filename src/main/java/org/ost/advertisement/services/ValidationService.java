@@ -15,12 +15,7 @@ public class ValidationService<T> {
     }
 
     public boolean isValidProperty(T obj, String property) {
-        return validator.validate(obj).stream()
-                .noneMatch(v -> v.getPropertyPath().toString().contains(property));
+        return validator.validateProperty(obj, property).isEmpty();
     }
-
-//	public boolean isValidProperty(T obj, String property) {
-//		return validator.validateProperty(obj, property).isEmpty();
-//	}
 
 }

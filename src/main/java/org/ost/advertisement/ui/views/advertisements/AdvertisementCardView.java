@@ -60,7 +60,7 @@ public class AdvertisementCardView extends VerticalLayout {
         Button toggle = new Button("Read more");
         toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         toggle.addClassName("advertisement-toggle");
-        toggle.addClickListener(_ -> new AdvertisementDescriptionDialog(ad.getTitle(), ad.getDescription()).open());
+        toggle.addClickListener(_ -> new AdvertisementDescriptionDialog(i18n, ad.getTitle(), ad.getDescription()).open());
         return toggle;
     }
 
