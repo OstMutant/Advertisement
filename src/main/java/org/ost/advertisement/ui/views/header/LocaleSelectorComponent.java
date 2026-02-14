@@ -37,9 +37,7 @@ public class LocaleSelectorComponent extends HorizontalLayout {
         this.authContextService = authContextService;
 
         addClassName("locale-selector");
-
-        ComboBox<LocaleWrapper> localeSelect = initLocaleSelect();
-        add(localeSelect);
+        add(initLocaleSelect());
     }
 
     private ComboBox<LocaleWrapper> initLocaleSelect() {
@@ -55,12 +53,10 @@ public class LocaleSelectorComponent extends HorizontalLayout {
         localeSelect.setItemLabelGenerator(LocaleWrapper::label);
 
         Locale current = sessionService.getCurrentLocale();
-        LocaleWrapper selected = locales.stream()
+        locales.stream()
                 .filter(wrapper -> wrapper.locale().getLanguage().equals(current.getLanguage()))
                 .findFirst()
-                .orElse(locales.getFirst());
-
-        localeSelect.setValue(selected);
+                .ifPresentOrElse(localeSelect::setValue, () -> localeSelect.setValue(locales.getFirst()));
 
         localeSelect.addValueChangeListener(event -> {
             LocaleWrapper newValue = event.getValue();
@@ -69,7 +65,7 @@ public class LocaleSelectorComponent extends HorizontalLayout {
             Locale newLocale = newValue.locale();
             User currentUser = authContextService.getCurrentUser().orElse(null);
             if (currentUser != null) {
-                User updated = currentUser.withLocale(newLocale);
+                User updated = currentUser.withLocale(newLocale.toLanguageTag());
                 userService.save(updated);
                 authContextService.updateCurrentUser(updated);
             } else {

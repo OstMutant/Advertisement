@@ -10,11 +10,8 @@ import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.entities.User;
-import org.ost.advertisement.security.PasswordEncoderUtil;
+import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
@@ -44,8 +41,7 @@ public class SignUpDialog extends Dialog {
 
         TextField nameField = DialogContentFactory.textField(i18n, SIGNUP_NAME_LABEL, SIGNUP_NAME_LABEL, 255, true);
         EmailField emailField = DialogContentFactory.emailField(i18n, SIGNUP_EMAIL_LABEL, SIGNUP_EMAIL_LABEL, true);
-        PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL,
-                SIGNUP_PASSWORD_LABEL, true);
+        PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL, SIGNUP_PASSWORD_LABEL, true);
 
         Button registerButton = DialogContentFactory.primaryButton(i18n, SIGNUP_BUTTON_SUBMIT);
         Button cancelButton = DialogContentFactory.tertiaryButton(i18n, SIGNUP_BUTTON_CANCEL);
@@ -90,27 +86,11 @@ public class SignUpDialog extends Dialog {
     private void handleRegistration() {
         try {
             binder.writeBean(dto);
-
-            User newUser = User.builder()
-                    .name(dto.getName().trim())
-                    .email(dto.getEmail().trim())
-                    .passwordHash(PasswordEncoderUtil.encode(dto.getPassword().trim()))
-                    .role(Role.USER)
-                    .build();
-
-            userService.register(newUser);
+            userService.register(dto);
             NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
             close();
         } catch (ValidationException ex) {
             log.warn("SignUp validation failed: {}", ex.getMessage());
         }
-    }
-
-    @Data
-    public static class SignUpDto {
-
-        private String name;
-        private String email;
-        private String password;
     }
 }

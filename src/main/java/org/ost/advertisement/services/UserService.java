@@ -2,14 +2,17 @@ package org.ost.advertisement.services;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.EntityMarker;
+import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.validation.annotation.Validated;
 
@@ -23,6 +26,7 @@ public class UserService {
 
     private final UserRepository repository;
     private final AccessEvaluator access;
+    private final PasswordEncoder passwordEncoder;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -46,7 +50,13 @@ public class UserService {
         repository.deleteById(targetUser.getId());
     }
 
-    public void register(User newUser) {
+    public void register(@Valid SignUpDto dto) {
+        User newUser = User.builder()
+                .name(dto.getName().trim())
+                .email(dto.getEmail().trim())
+                .passwordHash(passwordEncoder.encode(dto.getPassword().trim()))
+                .role(Role.USER)
+                .build();
         repository.save(newUser);
     }
 

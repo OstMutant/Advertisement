@@ -2,6 +2,7 @@ package org.ost.advertisement.entities;
 
 import lombok.Builder;
 import lombok.Value;
+import lombok.With;
 import lombok.experimental.FieldNameConstants;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
@@ -30,6 +31,7 @@ public class User implements EntityMarker {
     @LastModifiedDate
     Instant updatedAt;
 
+    @With
     String locale;
 
     @Override
@@ -39,12 +41,5 @@ public class User implements EntityMarker {
 
     public Locale getLocaleAsObject() {
         return locale != null ? Locale.forLanguageTag(locale) : Locale.getDefault();
-    }
-
-    public User withLocale(Locale newLocale) {
-        return new User(
-                id, name, email, passwordHash, role, createdAt, updatedAt,
-                newLocale != null ? newLocale.toLanguageTag() : null
-        );
     }
 }

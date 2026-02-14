@@ -24,7 +24,7 @@ public class UserFilterDto {
 
     @Size(max = 255, message = "Name must not exceed 255 characters")
     private String name;
-    @Size(max = 255, message = "Name must not exceed 255 characters")
+    @Size(max = 255, message = "Email must not exceed 255 characters")
     private String email;
     private Role role;
     private Instant createdAtStart;
