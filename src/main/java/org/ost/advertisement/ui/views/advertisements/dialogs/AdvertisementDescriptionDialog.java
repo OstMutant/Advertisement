@@ -3,7 +3,6 @@ package org.ost.advertisement.ui.views.advertisements.dialogs;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.services.I18nService;
@@ -13,28 +12,22 @@ import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DESCRIPTION_
 public class AdvertisementDescriptionDialog extends Dialog {
 
     public AdvertisementDescriptionDialog(I18nService i18n, String title, String description) {
-        initDialog();
+        initDialog(title);
 
-        H3 heading = createHeading(title);
         Span content = createContent(description);
         Button closeButton = createCloseButton(i18n);
 
-        VerticalLayout layout = new VerticalLayout(heading, content, closeButton);
+        VerticalLayout layout = new VerticalLayout(content, closeButton);
         layout.addClassName("advertisement-description-layout");
 
         add(layout);
     }
 
-    private void initDialog() {
+    private void initDialog(String title) {
+        setHeaderTitle(title);
         setCloseOnEsc(true);
         setCloseOnOutsideClick(true);
         addClassName("advertisement-description-dialog");
-    }
-
-    private H3 createHeading(String title) {
-        H3 heading = new H3(title);
-        heading.addClassName("advertisement-description-heading");
-        return heading;
     }
 
     private Span createContent(String description) {

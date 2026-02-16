@@ -4,7 +4,6 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -20,10 +19,6 @@ public class DialogStyle {
         dialog.setCloseOnOutsideClick(false);
         dialog.setCloseOnEsc(true);
         dialog.setHeaderTitle(titleText);
-    }
-
-    public static void applyTitle(H2 title) {
-        title.addClassName("dialog-title");
     }
 
     public static void applyFormLayout(FormLayout form) {
@@ -49,4 +44,3 @@ public class DialogStyle {
         return scroll;
     }
 }
-

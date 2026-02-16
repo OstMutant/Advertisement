@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.header.dialogs;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -49,9 +50,11 @@ public class LoginDialog extends Dialog {
         loginButton.addClickListener(event -> handleLogin());
         cancelButton.addClickListener(event -> close());
 
+        Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
+        welcome.addClassName("dialog-subtitle");
+
         DialogLayout layout = new DialogLayout();
-        layout.setHeader(i18n.get(LOGIN_WELCOME));
-        layout.addFormContent(emailField, passwordField);
+        layout.addFormContent(welcome, emailField, passwordField);
         layout.addActions(loginButton, cancelButton);
 
         add(layout.getLayout());

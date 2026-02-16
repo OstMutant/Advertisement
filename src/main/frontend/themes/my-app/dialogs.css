@@ -1,0 +1,73 @@
+/* ─── dialogs.css ──────────────────────────────────────────────────────────
+   Shared styles for all dialog windows.
+   Covers: form dialogs, advertisement description, confirm delete.
+   ───────────────────────────────────────────────────────────────────────── */
+
+/* Default size for form dialogs */
+vaadin-dialog-overlay::part(overlay) {
+    min-width: 360px;
+    max-width: 520px;
+    width: 90vw;
+}
+
+/* ── Login welcome subtitle ───────────────────────────────────────── */
+.dialog-subtitle {
+    margin: 0 0 var(--lumo-space-s);
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+}
+
+/* ── Scroll container for form content ───────────────────────────── */
+.scroll-container {
+    overflow-y: auto;
+    flex-grow: 1;
+    max-height: 60vh;
+    padding-right: var(--lumo-space-xs); /* space for the scrollbar */
+}
+
+/* ── LabeledField: read-only label/value pairs ────────────────────── */
+.base-label {
+    padding: var(--lumo-space-xs) var(--lumo-space-s);
+}
+
+.gray-label {
+    font-size: var(--lumo-font-size-s);
+    color: var(--lumo-secondary-text-color);
+}
+
+.email-label {
+    font-size: var(--lumo-font-size-m);
+    font-weight: 500;
+    color: var(--lumo-primary-color);
+}
+
+/* ── Confirm delete dialog ────────────────────────────────────────── */
+.dialog-confirm-text {
+    margin: var(--lumo-space-s) 0;
+    color: var(--lumo-body-text-color);
+    line-height: var(--lumo-line-height-m);
+}
+
+/* ── Advertisement description dialog ────────────────────────────── */
+.advertisement-description-dialog vaadin-dialog-overlay::part(overlay) {
+    max-width: 620px;
+}
+
+.advertisement-description-content {
+    white-space: pre-wrap;
+    line-height: var(--lumo-line-height-m);
+    font-size: var(--lumo-font-size-m);
+    color: var(--lumo-body-text-color);
+}
+
+.advertisement-description-close {
+    margin-top: var(--lumo-space-m);
+    align-self: flex-end;
+}
+
+.advertisement-description-layout {
+    padding: var(--lumo-space-m);
+    gap: var(--lumo-space-m);
+    display: flex;
+    flex-direction: column;
+}

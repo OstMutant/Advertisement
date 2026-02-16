@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
@@ -8,6 +9,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -37,16 +39,23 @@ public class AdvertisementUpsertDialog {
 
     private void configureDialog() {
         AdvertisementEditDto dto = delegate.getDto();
-        delegate.setTitle(
-                dto.getId() == null ? i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW) : i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
+        initTitle(dto);
+        initFormFields(dto);
+        initActions();
+    }
 
+    private void initTitle(AdvertisementEditDto dto) {
+        delegate.setTitle(dto.getId() == null
+                ? i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW)
+                : i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
+    }
+
+    private void initFormFields(AdvertisementEditDto dto) {
         TextField titleField = DialogContentFactory.textField(
-                i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true
-        );
+                i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true);
 
         TextArea descriptionField = DialogContentFactory.textArea(
-                i18n, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, 1000, true
-        );
+                i18n, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, 1000, true);
 
         delegate.getBinder().forField(titleField)
                 .asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED))
@@ -60,29 +69,30 @@ public class AdvertisementUpsertDialog {
         delegate.addContent(
                 titleField,
                 descriptionField,
-                labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_CREATED)
-                        .withValue(formatInstant(dto.getCreatedAt()))
-                        .withCssClasses("base-label", "gray-label")
-                        .build(),
-                labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_UPDATED)
-                        .withValue(formatInstant(dto.getUpdatedAt()))
-                        .withCssClasses("base-label", "gray-label")
-                        .build(),
-                labeledFieldBuilder.withLabel(ADVERTISEMENT_DIALOG_FIELD_USER)
-                        .withValue(String.valueOf(dto.getCreatedByUserId()))
-                        .withCssClasses("base-label", "email-label")
-                        .build()
+                metadataField(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatInstant(dto.getCreatedAt()), "gray-label"),
+                metadataField(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatInstant(dto.getUpdatedAt()), "gray-label"),
+                metadataField(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()), "email-label")
         );
+    }
 
+    private Component metadataField(I18nKey label, String value, String colorClass) {
+        return labeledFieldBuilder
+                .withLabel(label)
+                .withValue(value)
+                .withCssClasses("base-label", colorClass)
+                .build();
+    }
+
+    private void initActions() {
         Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
-        saveButton.addClickListener(event -> delegate.save(
+        saveButton.addClickListener(_ -> delegate.save(
                 ad -> advertisementService.save(mapper.toAdvertisement(ad)),
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
 
         Button cancelButton = DialogContentFactory.tertiaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_CANCEL);
-        cancelButton.addClickListener(event -> delegate.close());
+        cancelButton.addClickListener(_ -> delegate.close());
 
         delegate.addActions(saveButton, cancelButton);
     }
@@ -112,8 +122,8 @@ public class AdvertisementUpsertDialog {
                     .withDto(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto))
                     .withRefresh(refresh)
                     .build();
-            AdvertisementUpsertDialog dialog = dialogProvider.getObject(advertisementService, mapper,
-                    labeledFieldBuilder, i18n, delegate);
+            AdvertisementUpsertDialog dialog = dialogProvider.getObject(
+                    advertisementService, mapper, labeledFieldBuilder, i18n, delegate);
             dialog.configureDialog();
             return dialog;
         }
@@ -124,7 +134,7 @@ public class AdvertisementUpsertDialog {
 
         public AdvertisementUpsertDialog buildAndOpen(AdvertisementInfoDto dto, Runnable refresh) {
             AdvertisementUpsertDialog dialog = build(dto, refresh);
-            dialog.getDelegate().open();
+            dialog.open();
             return dialog;
         }
     }

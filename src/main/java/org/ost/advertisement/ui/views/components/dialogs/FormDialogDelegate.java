@@ -45,8 +45,9 @@ public class FormDialogDelegate<T> {
         }
     }
 
+    // Uses the native Vaadin dialog header bar instead of an H2 inside the body
     public void setTitle(String header) {
-        layout.setHeader(header);
+        dialog.setHeaderTitle(header);
     }
 
     public void addContent(Component... components) {
@@ -82,7 +83,6 @@ public class FormDialogDelegate<T> {
 
     @FunctionalInterface
     public interface Saver<T> {
-
         void save(T dto);
     }
 
@@ -117,12 +117,8 @@ public class FormDialogDelegate<T> {
         }
 
         public FormDialogDelegate<T> build() {
-            if (clazz == null) {
-                throw new IllegalStateException("Class<T> must be provided");
-            }
-            if (dto == null) {
-                throw new IllegalStateException("DTO must be provided");
-            }
+            if (clazz == null) throw new IllegalStateException("Class<T> must be provided");
+            if (dto == null) throw new IllegalStateException("DTO must be provided");
             return delegateProvider.getObject(clazz, i18n, dto, refresh);
         }
     }

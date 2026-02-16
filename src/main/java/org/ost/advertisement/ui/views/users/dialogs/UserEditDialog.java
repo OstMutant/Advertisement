@@ -52,6 +52,8 @@ public class UserEditDialog {
 
     private void configureDialog() {
         UserEditDto user = delegate.getDto();
+
+        // delegate.setTitle() calls dialog.setHeaderTitle() internally — shown in the native header bar
         delegate.setTitle(i18n.get(USER_DIALOG_TITLE));
 
         TextField nameField = DialogContentFactory.textField(
@@ -136,7 +138,8 @@ public class UserEditDialog {
                     .withRefresh(refresh)
                     .build();
 
-            UserEditDialog dialog = dialogProvider.getObject(userService, mapper, labeledFieldBuilder, i18n, delegate);
+            UserEditDialog dialog = dialogProvider.getObject(
+                    userService, mapper, labeledFieldBuilder, i18n, delegate);
             dialog.configureDialog();
             return dialog;
         }

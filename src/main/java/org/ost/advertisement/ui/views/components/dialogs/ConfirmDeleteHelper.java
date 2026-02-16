@@ -1,7 +1,9 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.html.Paragraph;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.constants.I18nKey;
@@ -10,11 +12,17 @@ import org.ost.advertisement.services.I18nService;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ConfirmDeleteHelper {
 
-    public static void showConfirm(I18nService i18n, String message, I18nKey confirmKey, I18nKey cancelKey,
+    public static void showConfirm(I18nService i18n, String message,
+                                   I18nKey confirmKey, I18nKey cancelKey,
                                    Runnable onConfirm) {
         Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(i18n.get(confirmKey));
+
+        Paragraph body = new Paragraph(message);
+        body.addClassName("dialog-confirm-text");
 
         Button confirmButton = DialogContentFactory.primaryButton(i18n, confirmKey);
+        confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(event -> {
             try {
                 onConfirm.run();
@@ -27,7 +35,7 @@ public final class ConfirmDeleteHelper {
         cancelButton.addClickListener(e -> dialog.close());
 
         DialogLayout layout = new DialogLayout();
-        layout.setHeader(message);
+        layout.addFormContent(body);
         layout.addActions(confirmButton, cancelButton);
 
         dialog.add(layout.getLayout());

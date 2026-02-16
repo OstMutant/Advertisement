@@ -50,7 +50,6 @@ public class SignUpDialog extends Dialog {
         registerButton.addClickListener(event -> handleRegistration());
 
         DialogLayout layout = new DialogLayout();
-        layout.setHeader(i18n.get(SIGNUP_HEADER_TITLE));
         layout.addFormContent(nameField, emailField, passwordField);
         layout.addActions(registerButton, cancelButton);
         add(layout.getLayout());

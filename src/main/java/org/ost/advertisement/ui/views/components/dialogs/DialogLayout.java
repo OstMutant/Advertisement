@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 
@@ -11,21 +10,15 @@ import static org.ost.advertisement.ui.views.components.dialogs.DialogStyle.wrap
 public class DialogLayout {
 
     private final VerticalLayout root = new VerticalLayout();
-    private final H2 title = new H2();
     private final FormLayout form = new FormLayout();
     private final HorizontalLayout actions = new HorizontalLayout();
 
     public DialogLayout() {
-        DialogStyle.applyTitle(title);
         DialogStyle.applyFormLayout(form);
         DialogStyle.applyActionsLayout(actions);
         DialogStyle.applyRootLayout(root);
 
-        root.add(title, wrapScrollable(form), actions);
-    }
-
-    public void setHeader(String titleText) {
-        title.setText(titleText);
+        root.add(wrapScrollable(form), actions);
     }
 
     public void addFormContent(Component... components) {
@@ -40,5 +33,3 @@ public class DialogLayout {
         return root;
     }
 }
-
-
