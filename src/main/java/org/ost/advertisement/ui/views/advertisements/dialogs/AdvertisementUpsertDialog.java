@@ -1,56 +1,58 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
-import com.vaadin.flow.component.Component;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
+import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementCreatedAtLabeledField;
+import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementCreatedByLabeledField;
+import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementUpdatedAtLabeledField;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
-import org.ost.advertisement.ui.views.components.dialogs.fields.LabeledField;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTextArea;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTextField;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
 @SpringComponent
 @Scope("prototype")
 @Slf4j
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AdvertisementUpsertDialog {
 
     private final AdvertisementService advertisementService;
     private final AdvertisementMapper mapper;
-    private final LabeledField.Builder labeledFieldBuilder;
     private final I18nService i18n;
-    @Getter
-    private final FormDialogDelegate<AdvertisementEditDto> delegate;
+    private final DialogAdvertisementCreatedAtLabeledField createdAtField;
+    private final DialogAdvertisementUpdatedAtLabeledField updatedAtField;
+    private final DialogAdvertisementCreatedByLabeledField createdByField;
 
-    private void configureDialog() {
-        AdvertisementEditDto dto = delegate.getDto();
-        initTitle(dto);
-        initFormFields(dto);
+    private FormDialogDelegate<AdvertisementEditDto> delegate;
+
+    private void configureDialog(FormDialogDelegate<AdvertisementEditDto> delegate) {
+        this.delegate = delegate;
+        initTitle();
+        initFormFields();
         initActions();
     }
 
-    private void initTitle(AdvertisementEditDto dto) {
+    private void initTitle() {
+        AdvertisementEditDto dto = delegate.getDto();
         delegate.setTitle(dto.getId() == null
                 ? i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW)
                 : i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
     }
 
-    private void initFormFields(AdvertisementEditDto dto) {
+    private void initFormFields() {
+        AdvertisementEditDto dto = delegate.getDto();
         DialogTextField titleField = new DialogTextField(DialogTextField.Parameters.builder()
                 .i18n(i18n)
                 .labelKey(ADVERTISEMENT_DIALOG_FIELD_TITLE)
@@ -76,21 +78,11 @@ public class AdvertisementUpsertDialog {
                 .asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
 
-        delegate.addContent(
-                titleField,
-                descriptionField,
-                metadataField(ADVERTISEMENT_DIALOG_FIELD_CREATED, formatInstant(dto.getCreatedAt()), "gray-label"),
-                metadataField(ADVERTISEMENT_DIALOG_FIELD_UPDATED, formatInstant(dto.getUpdatedAt()), "gray-label"),
-                metadataField(ADVERTISEMENT_DIALOG_FIELD_USER, String.valueOf(dto.getCreatedByUserId()), "email-label")
-        );
-    }
+        createdAtField.update(dto.getCreatedAt() != null ? dto.getCreatedAt().toString() : "");
+        updatedAtField.update(dto.getUpdatedAt() != null ? dto.getUpdatedAt().toString() : "");
+        createdByField.update(String.valueOf(dto.getCreatedByUserId()));
 
-    private Component metadataField(I18nKey label, String value, String colorClass) {
-        return labeledFieldBuilder
-                .withLabel(label)
-                .withValue(value)
-                .withCssClasses("base-label", colorClass)
-                .build();
+        delegate.addContent(titleField, descriptionField, createdAtField, updatedAtField, createdByField);
     }
 
     private void initActions() {
@@ -114,13 +106,10 @@ public class AdvertisementUpsertDialog {
     }
 
     @SpringComponent
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     public static class Builder {
 
-        private final AdvertisementService advertisementService;
         private final AdvertisementMapper mapper;
-        private final LabeledField.Builder labeledFieldBuilder;
-        private final I18nService i18n;
         private final FormDialogDelegate.Builder<AdvertisementEditDto> delegateBuilder;
         private final ObjectProvider<AdvertisementUpsertDialog> dialogProvider;
 
@@ -134,9 +123,9 @@ public class AdvertisementUpsertDialog {
                     .withDto(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto))
                     .withRefresh(refresh)
                     .build();
-            AdvertisementUpsertDialog dialog = dialogProvider.getObject(
-                    advertisementService, mapper, labeledFieldBuilder, i18n, delegate);
-            dialog.configureDialog();
+
+            AdvertisementUpsertDialog dialog = dialogProvider.getObject();
+            dialog.configureDialog(delegate);
             return dialog;
         }
 
