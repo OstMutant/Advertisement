@@ -3,10 +3,10 @@ package org.ost.advertisement.ui.views.users.query.elements.rows;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.elements.rows.QueryDateInlineRow;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
-import org.ost.advertisement.ui.views.users.query.elements.fields.UserQueryCreatedStartDatePickerField;
+import org.ost.advertisement.ui.views.components.query.elements.rows.QueryDateInlineRow;
 import org.ost.advertisement.ui.views.users.query.elements.fields.UserQueryCreatedEndDatePickerField;
+import org.ost.advertisement.ui.views.users.query.elements.fields.UserQueryCreatedStartDatePickerField;
 
 import static org.ost.advertisement.constants.I18nKey.USER_SORT_CREATED;
 

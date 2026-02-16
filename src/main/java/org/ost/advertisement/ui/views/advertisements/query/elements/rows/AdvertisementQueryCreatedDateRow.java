@@ -5,8 +5,8 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.query.elements.fields.AdvertisementQueryCreatedEndDatePickerField;
 import org.ost.advertisement.ui.views.advertisements.query.elements.fields.AdvertisementQueryCreatedStartDatePickerField;
-import org.ost.advertisement.ui.views.components.query.elements.rows.QueryDateInlineRow;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
+import org.ost.advertisement.ui.views.components.query.elements.rows.QueryDateInlineRow;
 
 import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SORT_CREATED_AT;
 

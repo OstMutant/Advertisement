@@ -1,14 +1,14 @@
 package org.ost.advertisement.ui.views.users.dialogs.fields;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.dialogs.fields.LabeledField;
+import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.USER_DIALOG_FIELD_ID_LABEL;
 
 @SpringComponent
-@UIScope
+@Scope("prototype")
 @SuppressWarnings("java:S110")
 public class DialogUserIdLabeledField extends LabeledField {
 

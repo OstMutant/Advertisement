@@ -10,11 +10,11 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;
-import org.ost.advertisement.ui.views.users.query.filter.meta.UserFilterMeta;
-import org.ost.advertisement.ui.views.users.query.sort.meta.UserSortMeta;
-import org.ost.advertisement.ui.views.users.query.filter.processor.UserFilterProcessor;
-import org.ost.advertisement.ui.views.users.query.sort.processor.UserSortProcessor;
 import org.ost.advertisement.ui.views.users.query.elements.rows.*;
+import org.ost.advertisement.ui.views.users.query.filter.meta.UserFilterMeta;
+import org.ost.advertisement.ui.views.users.query.filter.processor.UserFilterProcessor;
+import org.ost.advertisement.ui.views.users.query.sort.meta.UserSortMeta;
+import org.ost.advertisement.ui.views.users.query.sort.processor.UserSortProcessor;
 
 @SpringComponent
 @UIScope

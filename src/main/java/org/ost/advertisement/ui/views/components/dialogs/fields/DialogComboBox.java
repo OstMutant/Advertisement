@@ -2,18 +2,18 @@ package org.ost.advertisement.ui.views.components.dialogs.fields;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Singular;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 
 @SpringComponent
-@UIScope
+@Scope("prototype")
 @SuppressWarnings("java:S110")
 public class DialogComboBox<T> extends ComboBox<T> {
 

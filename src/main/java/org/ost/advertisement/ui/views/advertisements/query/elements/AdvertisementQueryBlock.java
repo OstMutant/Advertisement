@@ -11,8 +11,8 @@ import org.ost.advertisement.ui.views.advertisements.query.elements.rows.Adverti
 import org.ost.advertisement.ui.views.advertisements.query.elements.rows.AdvertisementQueryTitleRow;
 import org.ost.advertisement.ui.views.advertisements.query.elements.rows.AdvertisementQueryUpdatedDateRow;
 import org.ost.advertisement.ui.views.advertisements.query.filter.meta.AdvertisementFilterMeta;
-import org.ost.advertisement.ui.views.advertisements.query.sort.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.advertisements.query.filter.processor.AdvertisementFilterProcessor;
+import org.ost.advertisement.ui.views.advertisements.query.sort.meta.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.advertisements.query.sort.processor.AdvertisementSortProcessor;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;

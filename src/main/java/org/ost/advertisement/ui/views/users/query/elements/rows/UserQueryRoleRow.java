@@ -4,8 +4,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
+import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
 import org.ost.advertisement.ui.views.users.query.elements.fields.UserQueryRoleField;
 
 import static org.ost.advertisement.constants.I18nKey.USER_SORT_ROLE;

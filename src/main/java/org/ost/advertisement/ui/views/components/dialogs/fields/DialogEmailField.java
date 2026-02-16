@@ -2,15 +2,15 @@ package org.ost.advertisement.ui.views.components.dialogs.fields;
 
 import com.vaadin.flow.component.textfield.EmailField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Builder;
 import lombok.NonNull;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.springframework.context.annotation.Scope;
 
 @SpringComponent
-@UIScope
+@Scope("prototype")
 @SuppressWarnings("java:S110")
 public class DialogEmailField extends EmailField {
 

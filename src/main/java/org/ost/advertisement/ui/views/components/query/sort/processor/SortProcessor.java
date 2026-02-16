@@ -3,9 +3,9 @@ package org.ost.advertisement.ui.views.components.query.sort.processor;
 import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
-import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlockHandler;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon.SortHighlightColor;
+import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlockHandler;
 import org.ost.advertisement.ui.views.components.query.sort.meta.SortFieldMeta;
 import org.springframework.data.domain.Sort.Direction;
 
