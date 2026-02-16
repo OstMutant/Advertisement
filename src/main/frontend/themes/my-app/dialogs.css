@@ -38,6 +38,28 @@ vaadin-dialog-overlay::part(overlay) {
     padding-right: var(--lumo-space-xs); /* space for the scrollbar */
 }
 
+/* ── Dialog field classes ─────────────────────────────────────────────
+   Width and size rules moved here from Java:
+   setWidthFull() → width: 100%
+   setHeight("120px") → height: 120px (TextArea)
+   setMinWidth/setMaxWidth → min/max-width (ComboBox)           */
+
+.dialog-text-field,
+.dialog-email-field,
+.dialog-password-field,
+.dialog-text-area {
+    width: 100%;
+}
+
+.dialog-text-area {
+    height: 120px;
+}
+
+.dialog-combo-box {
+    min-width: 110px;
+    max-width: 160px;
+}
+
 /* ── Login welcome subtitle ───────────────────────────────────────── */
 .dialog-subtitle {
     margin: 0 0 var(--lumo-space-s);

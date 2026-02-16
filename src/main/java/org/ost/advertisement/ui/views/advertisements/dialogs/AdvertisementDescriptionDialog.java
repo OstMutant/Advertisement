@@ -37,7 +37,7 @@ public class AdvertisementDescriptionDialog extends Dialog {
     }
 
     private Button createCloseButton(I18nService i18n) {
-        Button close = new Button(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE), e -> close());
+        Button close = new Button(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE), _ -> close());
         close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         close.addClassName("advertisement-description-close");
         return close;

@@ -1,9 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AllArgsConstructor;
@@ -15,9 +12,12 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
-import org.ost.advertisement.ui.views.components.dialogs.LabeledField;
+import org.ost.advertisement.ui.views.components.dialogs.fields.LabeledField;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTextArea;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTextField;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -51,11 +51,21 @@ public class AdvertisementUpsertDialog {
     }
 
     private void initFormFields(AdvertisementEditDto dto) {
-        TextField titleField = DialogContentFactory.textField(
-                i18n, ADVERTISEMENT_DIALOG_FIELD_TITLE, ADVERTISEMENT_DIALOG_FIELD_TITLE, 255, true);
+        DialogTextField titleField = new DialogTextField(DialogTextField.Parameters.builder()
+                .i18n(i18n)
+                .labelKey(ADVERTISEMENT_DIALOG_FIELD_TITLE)
+                .placeholderKey(ADVERTISEMENT_DIALOG_FIELD_TITLE)
+                .maxLength(255)
+                .required(true)
+                .build());
 
-        TextArea descriptionField = DialogContentFactory.textArea(
-                i18n, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION, 1000, true);
+        DialogTextArea descriptionField = new DialogTextArea(DialogTextArea.Parameters.builder()
+                .i18n(i18n)
+                .labelKey(ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION)
+                .placeholderKey(ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION)
+                .maxLength(1000)
+                .required(true)
+                .build());
 
         delegate.getBinder().forField(titleField)
                 .asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED))
@@ -84,14 +94,16 @@ public class AdvertisementUpsertDialog {
     }
 
     private void initActions() {
-        Button saveButton = DialogContentFactory.primaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_SAVE);
+        DialogPrimaryButton saveButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(ADVERTISEMENT_DIALOG_BUTTON_SAVE).build());
         saveButton.addClickListener(_ -> delegate.save(
                 ad -> advertisementService.save(mapper.toAdvertisement(ad)),
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
 
-        Button cancelButton = DialogContentFactory.tertiaryButton(i18n, ADVERTISEMENT_DIALOG_BUTTON_CANCEL);
+        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(ADVERTISEMENT_DIALOG_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> delegate.close());
 
         delegate.addActions(saveButton, cancelButton);

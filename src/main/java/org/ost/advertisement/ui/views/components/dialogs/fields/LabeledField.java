@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.dialogs;
+package org.ost.advertisement.ui.views.components.dialogs.fields;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;

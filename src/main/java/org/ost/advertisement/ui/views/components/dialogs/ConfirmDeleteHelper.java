@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Paragraph;
@@ -8,6 +7,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class ConfirmDeleteHelper {
@@ -21,9 +22,10 @@ public final class ConfirmDeleteHelper {
         Paragraph body = new Paragraph(message);
         body.addClassName("dialog-confirm-text");
 
-        Button confirmButton = DialogContentFactory.primaryButton(i18n, confirmKey);
+        DialogPrimaryButton confirmButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(confirmKey).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
-        confirmButton.addClickListener(event -> {
+        confirmButton.addClickListener(_ -> {
             try {
                 onConfirm.run();
             } finally {
@@ -31,8 +33,9 @@ public final class ConfirmDeleteHelper {
             }
         });
 
-        Button cancelButton = DialogContentFactory.tertiaryButton(i18n, cancelKey);
-        cancelButton.addClickListener(e -> dialog.close());
+        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(cancelKey).build());
+        cancelButton.addClickListener(_ -> dialog.close());
 
         DialogLayout layout = new DialogLayout();
         layout.addFormContent(body);

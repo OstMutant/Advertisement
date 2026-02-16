@@ -8,11 +8,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.NotificationType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
-
-import static org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory.showError;
-import static org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory.showSuccess;
 
 @Slf4j
 @SpringComponent
@@ -38,14 +36,11 @@ public class FormDialogDelegate<T> {
 
         if (refresh != null) {
             dialog.addOpenedChangeListener(event -> {
-                if (!event.isOpened()) {
-                    refresh.run();
-                }
+                if (!event.isOpened()) refresh.run();
             });
         }
     }
 
-    // Uses the native Vaadin dialog header bar instead of an H2 inside the body
     public void setTitle(String header) {
         dialog.setHeaderTitle(header);
     }
@@ -61,15 +56,15 @@ public class FormDialogDelegate<T> {
     public void save(Saver<T> saver, I18nKey successKey, I18nKey errorKey) {
         if (dto == null) {
             log.error("DTO is null, cannot save");
-            showError(i18n, errorKey, "DTO is not initialized");
+            NotificationType.ERROR.show(i18n.get(errorKey, "DTO is not initialized"));
             return;
         }
         if (binder.writeBeanIfValid(dto)) {
             saver.save(dto);
-            showSuccess(i18n, successKey);
+            NotificationType.SUCCESS.show(i18n.get(successKey));
             dialog.close();
         } else {
-            showError(i18n, errorKey, "Validation failed");
+            NotificationType.ERROR.show(i18n.get(errorKey, "Validation failed"));
         }
     }
 

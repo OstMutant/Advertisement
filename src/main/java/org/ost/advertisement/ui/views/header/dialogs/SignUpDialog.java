@@ -1,10 +1,6 @@
 package org.ost.advertisement.ui.views.header.dialogs;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.textfield.EmailField;
-import com.vaadin.flow.component.textfield.PasswordField;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
@@ -15,9 +11,13 @@ import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
-import org.ost.advertisement.ui.views.components.dialogs.DialogContentFactory;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
+import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
+import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpEmailField;
+import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpNameField;
+import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpPasswordField;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -30,34 +30,43 @@ public class SignUpDialog extends Dialog {
     private final transient UserService userService;
     private final transient I18nService i18n;
 
+    private final SignUpNameField nameField;
+    private final SignUpEmailField emailField;
+    private final SignUpPasswordField passwordField;
+
     private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
     private final transient SignUpDto dto = new SignUpDto();
 
-    public SignUpDialog(UserService userService, I18nService i18n) {
+    public SignUpDialog(UserService userService,
+                        I18nService i18n,
+                        SignUpNameField nameField,
+                        SignUpEmailField emailField,
+                        SignUpPasswordField passwordField) {
         this.userService = userService;
         this.i18n = i18n;
+        this.nameField = nameField;
+        this.emailField = emailField;
+        this.passwordField = passwordField;
 
         DialogStyle.apply(this, i18n.get(SIGNUP_HEADER_TITLE));
 
-        TextField nameField = DialogContentFactory.textField(i18n, SIGNUP_NAME_LABEL, SIGNUP_NAME_LABEL, 255, true);
-        EmailField emailField = DialogContentFactory.emailField(i18n, SIGNUP_EMAIL_LABEL, SIGNUP_EMAIL_LABEL, true);
-        PasswordField passwordField = DialogContentFactory.passwordField(i18n, SIGNUP_PASSWORD_LABEL, SIGNUP_PASSWORD_LABEL, true);
+        DialogPrimaryButton registerButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
+        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(SIGNUP_BUTTON_CANCEL).build());
 
-        Button registerButton = DialogContentFactory.primaryButton(i18n, SIGNUP_BUTTON_SUBMIT);
-        Button cancelButton = DialogContentFactory.tertiaryButton(i18n, SIGNUP_BUTTON_CANCEL);
-
-        cancelButton.addClickListener(e -> close());
-        registerButton.addClickListener(event -> handleRegistration());
+        cancelButton.addClickListener(_ -> close());
+        registerButton.addClickListener(_ -> handleRegistration());
 
         DialogLayout layout = new DialogLayout();
         layout.addFormContent(nameField, emailField, passwordField);
         layout.addActions(registerButton, cancelButton);
         add(layout.getLayout());
 
-        setupBinder(nameField, emailField, passwordField);
+        setupBinder();
     }
 
-    private void setupBinder(TextField nameField, EmailField emailField, PasswordField passwordField) {
+    private void setupBinder() {
         binder.setBean(dto);
 
         binder.forField(nameField)
