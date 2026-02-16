@@ -15,8 +15,10 @@ public class DialogLayout {
 
     public DialogLayout() {
         DialogStyle.applyFormLayout(form);
-        DialogStyle.applyActionsLayout(actions);
-        DialogStyle.applyRootLayout(root);
+
+        root.addClassName("dialog-root");
+        form.addClassName("dialog-form");
+        actions.addClassName("dialog-actions");
 
         root.add(wrapScrollable(form), actions);
     }

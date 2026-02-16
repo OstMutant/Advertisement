@@ -10,11 +10,24 @@ vaadin-dialog-overlay::part(overlay) {
     width: 90vw;
 }
 
-/* ── Login welcome subtitle ───────────────────────────────────────── */
-.dialog-subtitle {
-    margin: 0 0 var(--lumo-space-s);
-    color: var(--lumo-secondary-text-color);
-    font-size: var(--lumo-font-size-s);
+/* ── DialogLayout structural classes ─────────────────────────────────
+   Previously set via Java: setPadding, setSpacing, setHeight,
+   setJustifyContentMode(END), setWidthFull. Moved here as pure CSS.   */
+
+.dialog-root {
+    padding: var(--lumo-space-m);
+    gap: 0;
+    height: 100%;
+}
+
+.dialog-form {
+    width: 100%;
+}
+
+.dialog-actions {
+    width: 100%;
+    justify-content: flex-end;
+    gap: var(--lumo-space-s);
 }
 
 /* ── Scroll container for form content ───────────────────────────── */
@@ -23,6 +36,13 @@ vaadin-dialog-overlay::part(overlay) {
     flex-grow: 1;
     max-height: 60vh;
     padding-right: var(--lumo-space-xs); /* space for the scrollbar */
+}
+
+/* ── Login welcome subtitle ───────────────────────────────────────── */
+.dialog-subtitle {
+    margin: 0 0 var(--lumo-space-s);
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
 }
 
 /* ── LabeledField: read-only label/value pairs ────────────────────── */
