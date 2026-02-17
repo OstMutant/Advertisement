@@ -1,16 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_BUTTON_DELETE;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_BUTTON_EDIT;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_CREATED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_UPDATED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_CARD_USER;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETED;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR;
-
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.H3;
@@ -31,123 +20,107 @@ import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
+import static org.ost.advertisement.constants.I18nKey.*;
+
 @SpringComponent
 @Scope("prototype")
 @AllArgsConstructor
 public class AdvertisementCardView extends VerticalLayout {
 
-	private final transient I18nService i18n;
-	private final transient AdvertisementService advertisementService;
-	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+    private final transient I18nService i18n;
+    private final transient AdvertisementService advertisementService;
+    private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
 
-	private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
-		addClassName("advertisement-card");
-		getStyle()
-			.set("border", "1px solid #ccc")
-			.set("border-radius", "8px")
-			.set("padding", "16px")
-			.set("box-shadow", "2px 2px 6px rgba(0,0,0,0.05)")
-			.set("width", "100%")
-			.set("box-sizing", "border-box")
-			.set("display", "flex")
-			.set("flex-direction", "column")
-			.set("gap", "12px")
-			.set("flex", "1 1 300px")
-			.set("max-width", "400px");
+    private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+        addClassName("advertisement-card");
 
-		H3 title = new H3(ad.getTitle());
-		title.getStyle()
-			.set("font-size", "1.2rem")
-			.set("font-weight", "600")
-			.set("margin", "0")
-			.set("white-space", "nowrap")
-			.set("overflow", "hidden")
-			.set("text-overflow", "ellipsis");
+        H3 title = createTitle(ad);
+        Span description = createDescription(ad);
+        Button toggle = createToggle(ad);
+        VerticalLayout meta = createMeta(ad);
+        HorizontalLayout actions = createActions(ad, refreshAdvertisements);
 
-		Span description = new Span(ad.getDescription());
-		description.getStyle()
-			.set("display", "-webkit-box")
-			.set("overflow", "hidden")
-			.set("text-overflow", "ellipsis")
-			.set("word-break", "break-word")
-			.set("-webkit-line-clamp", "5")
-			.set("-webkit-box-orient", "vertical")
-			.set("white-space", "normal")
-			.set("font-size", "0.95rem")
-			.set("color", "#444")
-			.set("max-height", "6.5em")
-			.set("line-height", "1.3em");
+        add(title, description, toggle, meta, actions);
+        return this;
+    }
 
-		Button toggle = new Button("Read more");
-		toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-		toggle.getStyle().set("padding", "0");
-		toggle.addClickListener(e -> new AdvertisementDescriptionDialog(ad.getTitle(), ad.getDescription()).open());
+    private H3 createTitle(AdvertisementInfoDto ad) {
+        H3 title = new H3(ad.getTitle());
+        title.addClassName("advertisement-title");
+        return title;
+    }
 
-		Span createdAt = new Span(
-			i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
-		Span updatedAt = new Span(
-			i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
-		Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.getCreatedByUserId());
+    private Span createDescription(AdvertisementInfoDto ad) {
+        Span description = new Span(ad.getDescription());
+        description.addClassName("advertisement-description");
+        return description;
+    }
 
-		VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
-		meta.getStyle()
-			.set("font-size", "0.85rem")
-			.set("color", "#666")
-			.set("gap", "4px")
-			.set("padding", "0")
-			.set("margin", "0");
+    private Button createToggle(AdvertisementInfoDto ad) {
+        Button toggle = new Button("Read more");
+        toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        toggle.addClassName("advertisement-toggle");
+        toggle.addClickListener(_ -> new AdvertisementDescriptionDialog(i18n, ad.getTitle(), ad.getDescription()).open());
+        return toggle;
+    }
 
-		Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
-		edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-		edit.addClickListener(e -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
+    private VerticalLayout createMeta(AdvertisementInfoDto ad) {
+        Span createdAt = new Span(i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
+        Span updatedAt = new Span(i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
+        Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.getCreatedByUserId());
 
-		Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
-		delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-		delete.addClickListener(e -> openConfirmDeleteDialog(ad, refreshAdvertisements));
+        VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
+        meta.addClassName("advertisement-meta");
+        return meta;
+    }
 
-		HorizontalLayout actions = new HorizontalLayout(edit, delete);
-		actions.getStyle()
-			.set("justify-content", "flex-end")
-			.set("gap", "8px");
+    private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+        Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
+        edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        edit.addClassName("advertisement-edit");
+        edit.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
 
-		add(title, description, toggle, meta, actions);
+        Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
+        delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+        delete.addClassName("advertisement-delete");
+        delete.addClickListener(_ -> openConfirmDeleteDialog(ad, refreshAdvertisements));
 
-		return this;
-	}
+        HorizontalLayout actions = new HorizontalLayout(edit, delete);
+        actions.addClassName("advertisement-actions");
+        return actions;
+    }
 
-	private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
-		ConfirmDeleteHelper.showConfirm(
-			i18n,
-			i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
-			ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
-			ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
-			() -> {
-				try {
-					advertisementService.delete(ad);
-					NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
-					refreshAdvertisements.run();
-				} catch (Exception ex) {
-					NotificationType.ERROR.show(
-						i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
-					);
-				}
-			}
-		);
-	}
+    private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+        ConfirmDeleteHelper.showConfirm(
+                i18n,
+                i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
+                ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
+                ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
+                () -> {
+                    try {
+                        advertisementService.delete(ad);
+                        NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
+                        refreshAdvertisements.run();
+                    } catch (Exception ex) {
+                        NotificationType.ERROR.show(
+                                i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
+                        );
+                    }
+                }
+        );
+    }
 
-	@SpringComponent
-	@AllArgsConstructor
-	public static class Builder {
+    @SpringComponent
+    @AllArgsConstructor
+    public static class Builder {
+        private final I18nService i18n;
+        private final AdvertisementService advertisementService;
+        private final AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+        private final ObjectProvider<AdvertisementCardView> cardProvider;
 
-		private final I18nService i18n;
-		private final AdvertisementService advertisementService;
-		private final AdvertisementUpsertDialog.Builder upsertDialogBuilder;
-		private final ObjectProvider<AdvertisementCardView> cardProvider;
-
-		public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
-			AdvertisementCardView cardView = cardProvider.getObject(i18n, advertisementService, upsertDialogBuilder);
-			cardView.setupContent(ad, refresh);
-			return cardView;
-		}
-	}
+        public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
+            AdvertisementCardView cardView = cardProvider.getObject(i18n, advertisementService, upsertDialogBuilder);
+            return cardView.setupContent(ad, refresh);
+        }
+    }
 }

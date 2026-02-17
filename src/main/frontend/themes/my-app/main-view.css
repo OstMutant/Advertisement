@@ -1,0 +1,71 @@
+/* main-view.css */
+
+/* Mirror the original Java layout calls:
+   - setSizeFull() on the root and pages -> width:100%; height:100%;
+   - setPadding(false) -> padding:0;
+   - setSpacing(false) -> gap:0;
+   - setAlignItems(Alignment.STRETCH) -> align-items: stretch;
+   - pages.setSizeFull() -> width:100%; height:100%;
+   Keep overflow visible so the document/page scrolls as before. */
+
+/* Ensure the document root does not force unexpected constraints */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Main view root: corresponds to the VerticalLayout with setSizeFull(), setPadding(false), setSpacing(false), setAlignItems(STRETCH) */
+.main-view-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 0;          /* setPadding(false) */
+  gap: 0;              /* setSpacing(false) */
+  align-items: stretch;/* setAlignItems(Alignment.STRETCH) */
+  box-sizing: border-box;
+  overflow: visible;   /* allow page/document scrolling */
+}
+
+/* Header area: placed at top, sized by content (matches default Vaadin behavior) */
+.main-header {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Tabs container: sits under header, sized by content */
+.main-tabs {
+  flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Pages wrapper: corresponds to pages.setSizeFull() */
+.main-pages {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: visible;   /* do not create an inner scroll area; let the whole page scroll */
+}
+
+/* Each page inside pages wrapper: fill width, natural height (do not force 100% height if content taller) */
+.main-pages > * {
+  width: 100%;
+  display: block;
+  box-sizing: border-box;
+}
+
+/* Hide inactive pages (covers Vaadin hidden conventions) */
+.main-pages > *[hidden],
+.main-pages > *.vaadin-hidden {
+  display: none !important;
+}
+
+/* Small responsive tweak for narrow screens (keeps original look) */
+@media (max-width: 600px) {
+  .main-tabs {
+    margin: 0.25rem 0;
+  }
+}

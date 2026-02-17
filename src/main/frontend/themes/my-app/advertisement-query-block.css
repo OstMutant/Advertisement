@@ -1,0 +1,8 @@
+.advertisement-query-block {
+    margin-top: 8px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background-color: #fafafa;
+    gap: 6px;
+}

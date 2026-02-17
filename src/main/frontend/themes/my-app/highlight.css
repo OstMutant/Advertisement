@@ -1,0 +1,49 @@
+/* ------------------------------------- highlight */
+
+.highlight-clean,
+.highlight-dirty,
+.highlight-changed,
+.highlight-invalid {
+    box-sizing: border-box !important;
+    transition: outline 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.highlight-clean {
+    outline: 2px solid transparent;
+    outline-offset: -2px;
+}
+
+.highlight-dirty {
+    outline: 2px solid orange !important;
+    outline-offset: -2px;
+}
+
+.highlight-changed {
+    outline: 2px solid #0176ff !important;
+    outline-offset: -2px;
+}
+
+.highlight-invalid {
+    outline: 2px solid red !important;
+    outline-offset: -2px;
+    background-color: rgba(255, 0, 0, 0.05) !important;
+}
+
+/* ── QueryDateTimeField: suppress inner picker outlines ──────────────
+   The outer CustomField wrapper carries the highlight class and shows
+   ONE ring around the whole field. Inner DatePicker / TimePicker each
+   have highlight-clean; we suppress their individual outlines so only
+   the outer ring is visible.                                          */
+
+.highlight-dirty   .query-datetime-date,
+.highlight-dirty   .query-datetime-time,
+.highlight-changed .query-datetime-date,
+.highlight-changed .query-datetime-time,
+.highlight-invalid .query-datetime-date,
+.highlight-invalid .query-datetime-time,
+.highlight-clean   .query-datetime-date,
+.highlight-clean   .query-datetime-time {
+    outline: none !important;
+    background-color: transparent !important;
+}

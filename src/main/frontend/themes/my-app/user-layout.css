@@ -1,0 +1,23 @@
+/* user-layout.css */
+
+.user-list-layout {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+  gap: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.user-grid {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 12px;
+}
+
+.user-pagination {
+  margin-top: 0.5rem;
+  align-self: stretch;
+  box-sizing: border-box;
+}

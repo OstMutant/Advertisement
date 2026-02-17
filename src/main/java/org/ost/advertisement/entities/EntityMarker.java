@@ -4,5 +4,5 @@ import org.ost.advertisement.security.UserIdMarker;
 
 public interface EntityMarker extends UserIdMarker {
 
-	Long getId();
+    Long getId();
 }

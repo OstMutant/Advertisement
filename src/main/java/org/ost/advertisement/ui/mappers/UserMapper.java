@@ -8,9 +8,9 @@ import org.ost.advertisement.ui.dto.UserEditDto;
 @Mapper(componentModel = "spring")
 public interface UserMapper {
 
-	@Mapping(target = "updatedAt", ignore = true)
-	User toUser(UserEditDto dto);
+    @Mapping(target = "updatedAt", ignore = true)
+    User toUser(UserEditDto dto);
 
-	UserEditDto toUserEdit(User dto);
+    UserEditDto toUserEdit(User dto);
 
 }

@@ -11,17 +11,20 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Repeatable(ValidRange.List.class)
 public @interface ValidRange {
-	String message() default "Invalid range: start must be less than or equal to end";
-	Class<?>[] groups() default {};
-	Class<? extends Payload>[] payload() default {};
+    String message() default "Invalid range: start must be less than or equal to end";
 
-	String start();
-	String end();
+    Class<?>[] groups() default {};
 
-	@Documented
-	@Target(ElementType.TYPE)
-	@Retention(RetentionPolicy.RUNTIME)
-	public @interface List {
-		ValidRange[] value();
-	}
+    Class<? extends Payload>[] payload() default {};
+
+    String start();
+
+    String end();
+
+    @Documented
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    public @interface List {
+        ValidRange[] value();
+    }
 }

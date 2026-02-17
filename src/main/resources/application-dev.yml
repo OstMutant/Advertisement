@@ -1,0 +1,10 @@
+# Database connection for development (Local)
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/experiments
+    username: experiments_user
+    password: experiments_user_password
+
+# Vaadin framework settings
+vaadin:
+  productionMode: false

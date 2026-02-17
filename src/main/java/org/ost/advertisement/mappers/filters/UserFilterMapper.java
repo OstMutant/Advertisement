@@ -7,7 +7,7 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 @Mapper(componentModel = "spring")
 public interface UserFilterMapper extends FilterMapper<UserFilterDto> {
 
-	void update(@MappingTarget UserFilterDto target, UserFilterDto source);
+    void update(@MappingTarget UserFilterDto target, UserFilterDto source);
 
-	UserFilterDto copy(UserFilterDto source);
+    UserFilterDto copy(UserFilterDto source);
 }

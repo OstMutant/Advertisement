@@ -1,0 +1,21 @@
+@import url("./highlight.css");
+@import url("./dialogs.css");
+@import url("./query-status-bar.css");
+@import url("./sort-icon.css");
+@import url("./advertisement-query-block.css");
+@import url("./advertisements-view.css");
+@import url("./advertisement-card.css");
+@import url("./user-grid.css");
+@import url("./user-query-block.css");
+@import url("./user-layout.css");
+@import url("./main-view.css");
+@import url("./locale-selector.css");
+@import url("./header-bar.css");
+
+.svg-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: middle;
+    line-height: 1;
+}

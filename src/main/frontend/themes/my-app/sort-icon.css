@@ -1,0 +1,15 @@
+.sort-icon {
+    cursor: pointer;
+}
+
+.svg-icon.default {
+    color: gray;
+}
+
+.svg-icon.changed {
+    color: orange;
+}
+
+.svg-icon.custom {
+    color: green;
+}

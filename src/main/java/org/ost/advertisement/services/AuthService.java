@@ -1,51 +1,48 @@
 package org.ost.advertisement.services;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.user.UserRepository;
-import org.ost.advertisement.security.UserPrincipal;
-import org.ost.advertisement.security.utils.PasswordEncoderUtil;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-	private final UserRepository userRepository;
+    private final AuthenticationManager authenticationManager;
+    private final SecurityContextRepository securityContextRepository;
+    private final HttpServletRequest request;
+    private final HttpServletResponse response;
 
-	private final HttpServletRequest request;
+    public boolean login(String email, String rawPassword) {
+        try {
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(email, rawPassword));
 
-	public boolean login(String email, String rawPassword) {
-		Optional<User> optionalUser = userRepository.findByEmail(email);
-		if (optionalUser.isEmpty()) {
-			return false;
-		}
+            SecurityContext context = SecurityContextHolder.createEmptyContext();
+            context.setAuthentication(auth);
+            SecurityContextHolder.setContext(context);
+            securityContextRepository.saveContext(context, request, response);
+            return true;
 
-		User user = optionalUser.get();
-		if (!PasswordEncoderUtil.matches(rawPassword, user.getPasswordHash())) {
-			return false;
-		}
+        } catch (BadCredentialsException _) {
+            return false;
+        }
+    }
 
-		UserPrincipal principal = new UserPrincipal(user);
-		Authentication auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-		SecurityContextHolder.getContext().setAuthentication(auth);
-		request.getSession(true).setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
-		return true;
-	}
-
-	public void logout() {
-		SecurityContextHolder.clearContext();
-		HttpSession session = request.getSession(false);
-		if (session != null) {
-			session.removeAttribute("SPRING_SECURITY_CONTEXT");
-			session.invalidate();
-		}
-	}
-
+    public void logout() {
+        SecurityContextHolder.clearContext();
+        HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+    }
 }

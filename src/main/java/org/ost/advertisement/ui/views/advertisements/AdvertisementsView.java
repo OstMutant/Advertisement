@@ -1,111 +1,110 @@
 package org.ost.advertisement.ui.views.advertisements;
 
-import static com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
-
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import java.util.List;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
+import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryBlock;
+import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.query.filter.FilterProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.SortProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
+
+import java.util.List;
+
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
 
 @SpringComponent
 @UIScope
 public class AdvertisementsView extends VerticalLayout {
 
-	private final transient AdvertisementService advertisementService;
-	private final transient I18nService i18n;
-	private final transient AdvertisementQueryStatusBar queryStatusBar;
-	private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
-	private final transient AdvertisementCardView.Builder cardBuilder;
-	private final FlexLayout advertisementContainer = getAdvertisementContainer();
-	private final PaginationBarModern paginationBar;
-	private final Button addAdvertisementButton;
+    private final transient AdvertisementService advertisementService;
+    private final AdvertisementQueryStatusBar queryStatusBar;
+    private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+    private final transient AdvertisementCardView.Builder cardBuilder;
+    private final FlexLayout advertisementContainer;
+    private final PaginationBarModern paginationBar;
 
-	public AdvertisementsView(AdvertisementService advertisementService,
-							  AdvertisementQueryStatusBar queryStatusBar,
-							  AdvertisementUpsertDialog.Builder upsertDialogBuilder,
-							  I18nService i18n,
-							  AdvertisementCardView.Builder cardBuilder) {
-		this.advertisementService = advertisementService;
-		this.queryStatusBar = queryStatusBar;
-		this.upsertDialogBuilder = upsertDialogBuilder;
-		this.i18n = i18n;
-		this.cardBuilder = cardBuilder;
-		this.paginationBar = new PaginationBarModern(i18n);
+    public AdvertisementsView(AdvertisementService advertisementService,
+                              AdvertisementQueryStatusBar queryStatusBar,
+                              AdvertisementUpsertDialog.Builder upsertDialogBuilder,
+                              I18nService i18n,
+                              AdvertisementCardView.Builder cardBuilder) {
+        this.advertisementService = advertisementService;
+        this.queryStatusBar = queryStatusBar;
+        this.upsertDialogBuilder = upsertDialogBuilder;
+        this.cardBuilder = cardBuilder;
+        this.paginationBar = new PaginationBarModern(i18n);
+        this.advertisementContainer = createAdvertisementContainer();
 
-		this.addAdvertisementButton = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
-		addAdvertisementButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-		addAdvertisementButton.getStyle().set("margin-top", "12px");
-		addAdvertisementButton.addClickListener(
-			e -> this.upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        Button addAdvertisementButton = createAddButton(i18n);
 
-		queryStatusBar.getQueryBlock().addEventListener(() -> {
-			paginationBar.setTotalCount(0);
-			refreshAdvertisements();
-		});
+        initQueryBar();
+        initPagination();
 
-		paginationBar.setPageChangeListener(e -> refreshAdvertisements());
+        addClassName("advertisements-view");
 
-		add(
-			queryStatusBar,
-			queryStatusBar.getQueryBlock(),
-			addAdvertisementButton,
-			advertisementContainer,
-			paginationBar
-		);
-		setFlexGrow(1, advertisementContainer);
+        add(queryStatusBar, queryStatusBar.getQueryBlock(), addAdvertisementButton, advertisementContainer, paginationBar);
+        setFlexGrow(1, advertisementContainer);
 
-		setSizeFull();
-		setSpacing(false);
-		setPadding(true);
+        setSizeFull();
 
-		refreshAdvertisements();
-	}
+        refreshAdvertisements();
+    }
 
-	private FlexLayout getAdvertisementContainer() {
-		FlexLayout container = new FlexLayout();
-		container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-		container.setJustifyContentMode(START);
-		container.setAlignItems(Alignment.START);
-		container.getStyle()
-			.set("gap", "16px")
-			.set("padding", "16px");
-		return container;
-	}
+    private Button createAddButton(I18nService i18n) {
+        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        button.addClassName("add-advertisement-button");
+        button.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        return button;
+    }
 
-	private void refreshAdvertisements() {
-		AdvertisementQueryBlock queryBlock = queryStatusBar.getQueryBlock();
-		FilterProcessor<AdvertisementFilterDto> filterProcessor = queryBlock.getFilterProcessor();
-		SortProcessor sortProcessor = queryBlock.getSortProcessor();
+    private FlexLayout createAdvertisementContainer() {
+        FlexLayout container = new FlexLayout();
+        container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        container.setJustifyContentMode(START);
+        container.setAlignItems(Alignment.START);
+        container.addClassName("advertisement-container");
+        return container;
+    }
 
-		int page = paginationBar.getCurrentPage();
-		int size = paginationBar.getPageSize();
+    private void initQueryBar() {
+        queryStatusBar.getQueryBlock().addEventListener(() -> {
+            paginationBar.setTotalCount(0);
+            refreshAdvertisements();
+        });
+    }
 
-		AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
+    private void initPagination() {
+        paginationBar.setPageChangeListener(_ -> refreshAdvertisements());
+    }
 
-		List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
-			filter,
-			page,
-			size,
-			sortProcessor.getOriginalSort().getSort()
-		);
+    private void refreshAdvertisements() {
+        AdvertisementQueryBlock queryBlock = queryStatusBar.getQueryBlock();
+        FilterProcessor<AdvertisementFilterDto> filterProcessor = queryBlock.getFilterProcessor();
+        SortProcessor sortProcessor = queryBlock.getSortProcessor();
 
-		paginationBar.setTotalCount(advertisementService.count(filter));
+        int page = paginationBar.getCurrentPage();
+        int size = paginationBar.getPageSize();
 
-		advertisementContainer.removeAll();
-		ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
+        AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
 
-		queryStatusBar.update(filterProcessor, sortProcessor);
-	}
+        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(filter, page, size, sortProcessor.getOriginalSort().getSort());
+
+        paginationBar.setTotalCount(advertisementService.count(filter));
+
+        advertisementContainer.removeAll();
+        ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
+
+        queryStatusBar.update();
+    }
 }

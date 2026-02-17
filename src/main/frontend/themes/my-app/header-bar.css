@@ -1,0 +1,33 @@
+.header-bar {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.header-auth-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+.header-locale-row {
+  justify-content: flex-end;
+}
+
+.header-auth-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-login-button,
+.header-signup-button,
+.header-logout-button {
+  font-size: 0.9rem;
+}

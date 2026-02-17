@@ -1,12 +1,9 @@
 package org.ost.advertisement.ui.dto;
 
-import java.time.Instant;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.ost.advertisement.entities.Role;
+
+import java.time.Instant;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -15,17 +12,17 @@ import org.ost.advertisement.entities.Role;
 @Setter
 public class UserEditDto {
 
-	private Long id;
+    private Long id;
 
-	private String name;
-	private String email;
-	private String passwordHash;
+    private String name;
+    private String email;
+    private String passwordHash;
 
-	private Role role;
+    private Role role;
 
-	private Instant createdAt;
-	private Instant updatedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
 
-	private String locale;
+    private String locale;
 
 }
