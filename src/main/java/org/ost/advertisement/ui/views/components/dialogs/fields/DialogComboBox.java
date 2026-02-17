@@ -8,6 +8,8 @@ import lombok.Singular;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.i18n.I18nLabelParams;
+import org.ost.advertisement.ui.utils.i18n.I18nPlaceholderParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -17,20 +19,16 @@ import java.util.List;
 @SuppressWarnings("java:S110")
 public class DialogComboBox<T> extends ComboBox<T> {
 
-    @Value
-    @Builder
-    public static class Parameters<T> {
-        @NonNull
-        I18nService i18n;
-        @NonNull
-        I18nKey labelKey;
-        @Singular
-        List<T> items;
+    @Value @Builder
+    public static class Parameters<T> implements I18nLabelParams {
+        @NonNull I18nService i18n;
+        @NonNull I18nKey labelKey;
+        @Singular List<T> items;
         boolean required;
     }
 
     public DialogComboBox(Parameters<T> p) {
-        setLabel(p.getI18n().get(p.getLabelKey()));
+        setLabel(p.label());
         setItems(p.getItems());
         setRequired(p.isRequired());
         setAllowCustomValue(false);

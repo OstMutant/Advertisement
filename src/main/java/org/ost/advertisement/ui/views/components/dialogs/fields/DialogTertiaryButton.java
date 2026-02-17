@@ -8,6 +8,7 @@ import lombok.NonNull;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.i18n.I18nLabelParams;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -15,17 +16,14 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class DialogTertiaryButton extends Button {
 
-    @Value
-    @Builder
-    public static class Parameters {
-        @NonNull
-        I18nService i18n;
-        @NonNull
-        I18nKey labelKey;
+    @Value @Builder
+    public static class Parameters implements I18nLabelParams {
+        @NonNull I18nService i18n;
+        @NonNull I18nKey labelKey;
     }
 
     public DialogTertiaryButton(Parameters p) {
-        super(p.getI18n().get(p.getLabelKey()));
+        super(p.label());
         addThemeVariants(ButtonVariant.LUMO_TERTIARY);
     }
 }

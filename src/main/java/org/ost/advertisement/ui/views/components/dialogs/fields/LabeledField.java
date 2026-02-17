@@ -8,14 +8,14 @@ import lombok.Singular;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.i18n.I18nLabelParams;
 
 import java.util.List;
 
 public class LabeledField extends HorizontalLayout {
 
-    @Value
-    @Builder
-    public static class Parameters {
+    @Value @Builder
+    public static class Parameters implements I18nLabelParams {
         @NonNull I18nService i18n;
         @NonNull I18nKey labelKey;
         @Singular List<String> cssClasses;
@@ -24,9 +24,9 @@ public class LabeledField extends HorizontalLayout {
     private final Span valueSpan = new Span();
 
     protected LabeledField(@NonNull Parameters p) {
-        String[] css = p.getCssClasses().toArray(new String[0]);
+        String[] css = p.getCssClasses().toArray(String[]::new);
 
-        Span labelSpan = new Span(p.getI18n().get(p.getLabelKey()));
+        Span labelSpan = new Span(p.label());
         labelSpan.addClassNames(css);
         valueSpan.addClassNames(css);
 
