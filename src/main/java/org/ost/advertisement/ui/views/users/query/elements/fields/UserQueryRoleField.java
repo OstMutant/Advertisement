@@ -4,14 +4,14 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.components.query.elements.fields.QueryComboField;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryMultiSelectComboField;
 
 import static org.ost.advertisement.constants.I18nKey.USER_FILTER_ROLE_ANY;
 
 @SpringComponent
 @UIScope
 @SuppressWarnings("java:S110")
-public class UserQueryRoleField extends QueryComboField<Role> {
+public class UserQueryRoleField extends QueryMultiSelectComboField<Role> {
 
     public UserQueryRoleField(I18nService i18n) {
         super(Parameters.<Role>builder()

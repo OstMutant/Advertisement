@@ -45,6 +45,12 @@
     max-width: 200px;
 }
 
+/* MultiSelectComboBox — wider to show selected role chips */
+.query-multi-combo {
+    min-width: 200px;
+    max-width: 400px;
+}
+
 .query-number {
     width: 100px;
 }

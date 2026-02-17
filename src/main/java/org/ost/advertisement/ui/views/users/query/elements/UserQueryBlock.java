@@ -60,7 +60,7 @@ public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFil
         filterProcessor.register(UserFilterMeta.ID_MAX, userQueryIdRow.getMaxField(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.NAME, userQueryNameRow.getFilterField(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.EMAIL, userQueryEmailRow.getFilterField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ROLE, userQueryRoleRow.getRoleField(), queryActionBlock);
+        filterProcessor.register(UserFilterMeta.ROLES, userQueryRoleRow.getRoleField(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.CREATED_AT_START, userQueryCreatedDateRow.getStartDate(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.CREATED_AT_END, userQueryCreatedDateRow.getEndDate(), queryActionBlock);
         filterProcessor.register(UserFilterMeta.UPDATED_AT_START, userQueryUpdatedDateRow.getStartDate(), queryActionBlock);
@@ -73,4 +73,3 @@ public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFil
         return isVisible();
     }
 }
-

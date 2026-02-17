@@ -10,6 +10,7 @@ import org.ost.advertisement.ui.views.components.query.filter.meta.ValidationPre
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.function.BiPredicate;
 
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.*;
@@ -40,8 +41,9 @@ public class UserFilterMeta {
     public static final FilterFieldMeta<String, UserFilterDto, String> EMAIL =
             FilterFieldMeta.of(email, UserFilterDto::getEmail, (dto, v) -> dto.setEmail(v == null || v.isBlank() ? null : v));
 
-    public static final FilterFieldMeta<Role, UserFilterDto, Role> ROLE =
-            FilterFieldMeta.of(role, UserFilterDto::getRole, UserFilterDto::setRole);
+    public static final FilterFieldMeta<Set<Role>, UserFilterDto, Set<Role>> ROLES =
+            FilterFieldMeta.of(roles, UserFilterDto::getRoles,
+                    (dto, v) -> dto.setRoles(v == null || v.isEmpty() ? null : v));
 
     public static final FilterFieldMeta<LocalDateTime, UserFilterDto, Instant> CREATED_AT_START =
             FilterFieldMeta.of(createdAtStart, UserFilterDto::getCreatedAtStart,
