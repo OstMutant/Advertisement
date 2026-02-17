@@ -18,7 +18,7 @@ public class UserQueryUpdatedEndDateField extends QueryDateTimeField {
                 .i18n(i18n)
                 .datePlaceholderKey(USER_FILTER_DATE_UPDATED_END)
                 .timePlaceholderKey(USER_FILTER_TIME_UPDATED_END)
-                .isStart(false)
+                .isEnd(true)
                 .build());
     }
 }

@@ -1,23 +1,21 @@
 /* user-layout.css */
 
-/* Root layout for the user list view */
 .user-list-layout {
   width: 100%;
   box-sizing: border-box;
-  padding: 0;
+  padding: 1rem;
   gap: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
 }
 
-/* Grid styling */
 .user-grid {
   width: 100%;
   box-sizing: border-box;
+  margin-top: 12px;
 }
 
-/* Pagination bar styling */
 .user-pagination {
   margin-top: 0.5rem;
   align-self: stretch;

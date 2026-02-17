@@ -14,49 +14,86 @@
     cursor: pointer;
 }
 
+/* ── Label + sort icon column ─────────────────────────────────────────
+   Wide enough for longest label ("Електронна пошта ↕").              */
+.query-inline-label-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--lumo-space-s);
+    min-width: 140px;
+    flex-shrink: 0;
+}
+
+/* ── Filters container ─────────────────────────────────────────────── */
+.query-inline-filters {
+    display: flex;
+    align-items: end;
+    gap: var(--lumo-space-s);
+}
+
+/* ── Individual field widths ────────────────────────────────────────── */
+
+/* text/email — capped to match ~2 datetime pickers side by side */
+.query-text {
+    min-width: 200px;
+    max-width: 530px;
+    width: 530px;
+}
+
 .query-combo {
-    width: 100%;
-}
-
-.query-date {
-    width: 140px;
-}
-
-/* DateTimePicker = date part + time part side by side */
-.query-datetime {
-    width: 280px;
+    min-width: 130px;
+    max-width: 200px;
 }
 
 .query-number {
     width: 100px;
 }
 
-.query-text {
-    width: 100%;
+/* Outer CustomField wrapper */
+.query-datetime {
+    flex-shrink: 0;
 }
 
-/* Filter info text */
+/* Inner layout inside QueryDateTimeField */
+.query-datetime-layout {
+    display: flex;
+    gap: var(--lumo-space-s);
+    padding: 0;
+    margin: 0;
+}
+
+/* Date part — wider (dd.mm.yyyy) */
+.query-datetime-date {
+    width: 145px;
+    flex-shrink: 0;
+}
+
+/* Time part — narrower (hh:mm) */
+.query-datetime-time {
+    width: 100px;
+    flex-shrink: 0;
+}
+
+/* ── Status bar elements ───────────────────────────────────────────── */
 .query-status-bar-filter-info {
     font-weight: 500;
 }
 
-/* Sort info text */
 .query-status-bar-sort-info {
     font-weight: 500;
 }
 
-/* Separator between items */
 .query-status-bar-separator {
     margin: 0 8px;
     color: #999;
 }
 
-/* Toggle icon */
 .query-status-bar-toggle-icon {
     margin-right: 8px;
     font-weight: bold;
 }
 
+/* ── Block layout ──────────────────────────────────────────────────── */
 .query-vertical-layout {
     padding: 0;
     margin: 0;
@@ -68,16 +105,4 @@
     display: flex;
     align-items: center;
     gap: 12px;
-}
-
-.query-inline-label-sort {
-    display: flex;
-    align-items: center;
-    gap: var(--lumo-space-s);
-}
-
-.query-inline-filters {
-    display: flex;
-    align-items: end;
-    gap: var(--lumo-space-s);
 }

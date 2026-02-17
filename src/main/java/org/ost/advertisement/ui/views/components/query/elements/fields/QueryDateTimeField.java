@@ -21,13 +21,10 @@ public class QueryDateTimeField extends CustomField<LocalDateTime> {
     @Value
     @Builder
     public static class Parameters {
-        @NonNull
-        I18nService i18n;
-        @NonNull
-        I18nKey datePlaceholderKey;
-        @NonNull
-        I18nKey timePlaceholderKey;
-        boolean isStart;
+        @NonNull I18nService i18n;
+        @NonNull I18nKey datePlaceholderKey;
+        @NonNull I18nKey timePlaceholderKey;
+        boolean isEnd;
     }
 
     private final DatePicker datePicker = new DatePicker();
@@ -43,28 +40,30 @@ public class QueryDateTimeField extends CustomField<LocalDateTime> {
         datePicker.setClearButtonVisible(true);
         timePicker.setClearButtonVisible(true);
 
+        datePicker.addClassName("query-datetime-date");
+        timePicker.addClassName("query-datetime-time");
+
         setDefaultBorder(datePicker);
         setDefaultBorder(timePicker);
 
         HorizontalLayout layout = new HorizontalLayout(datePicker, timePicker);
         layout.setAlignItems(Alignment.BASELINE);
+        layout.addClassName("query-datetime-layout");
 
         add(layout);
     }
 
     @Override
     protected LocalDateTime generateModelValue() {
-        ZoneId zoneId = ZoneId.of(TimeZoneUtil.getClientTimeZoneId());
-
         LocalDate date = datePicker.getValue();
         LocalTime time = timePicker.getValue();
 
         if (date == null && time != null) {
-            date = LocalDate.now(zoneId);
+            date = LocalDate.now(ZoneId.of(TimeZoneUtil.getClientTimeZoneId()));
         }
 
         if (time == null && date != null) {
-            time = parameters.isStart ? LocalTime.MIN : LocalTime.MAX;
+            time = parameters.isEnd ? LocalTime.MAX : LocalTime.MIN;
         }
 
         if (date == null) {

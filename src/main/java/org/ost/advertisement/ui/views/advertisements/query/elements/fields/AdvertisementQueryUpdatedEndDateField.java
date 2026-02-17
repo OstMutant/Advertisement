@@ -18,7 +18,7 @@ public class AdvertisementQueryUpdatedEndDateField extends QueryDateTimeField {
                 .i18n(i18n)
                 .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
                 .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END)
-                .isStart(false)
+                .isEnd(true)
                 .build());
     }
 }
