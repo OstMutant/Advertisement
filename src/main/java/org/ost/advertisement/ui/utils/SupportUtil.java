@@ -13,10 +13,13 @@ public class SupportUtil {
     }
 
     public static <T> boolean hasChanged(T current, T previous) {
-        return !hasNotChanged(current, previous);
+        return !Objects.equals(current, previous);
     }
 
-    public static <T> boolean hasNotChanged(T current, T previous) {
-        return Objects.equals(current, previous);
+    /**
+     * Returns null if the string is null or blank, otherwise returns the trimmed string.
+     */
+    public static String nullIfBlank(String value) {
+        return (value == null || value.isBlank()) ? null : value.trim();
     }
 }

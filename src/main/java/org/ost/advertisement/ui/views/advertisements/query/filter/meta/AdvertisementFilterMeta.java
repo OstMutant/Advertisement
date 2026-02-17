@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 import java.util.function.BiPredicate;
 
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.*;
+import static org.ost.advertisement.ui.utils.SupportUtil.nullIfBlank;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -19,7 +20,7 @@ public class AdvertisementFilterMeta {
 
     public static final FilterFieldMeta<String, AdvertisementFilterDto, String> TITLE =
             FilterFieldMeta.of(title, AdvertisementFilterDto::getTitle,
-                    (dto, v) -> dto.setTitle(v == null || v.isBlank() ? null : v));
+                    (dto, v) -> dto.setTitle(nullIfBlank(v)));
 
     private static final BiPredicate<ValidationService<AdvertisementFilterDto>, AdvertisementFilterDto> createdValid =
             ValidationPredicates.range(createdAtStart, createdAtEnd);

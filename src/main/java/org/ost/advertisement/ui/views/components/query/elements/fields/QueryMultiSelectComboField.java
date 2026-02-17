@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.i18n.I18nPlaceholderParams;
 
 import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
 
@@ -17,8 +18,7 @@ public class QueryMultiSelectComboField<T> extends MultiSelectComboBox<T> {
 
     @Value
     @Builder
-    public static class Parameters<T> {
-
+    public static class Parameters<T> implements I18nPlaceholderParams {
         @NonNull I18nService i18n;
         @NonNull I18nKey placeholderKey;
         @NonNull T[] items;
@@ -29,7 +29,7 @@ public class QueryMultiSelectComboField<T> extends MultiSelectComboBox<T> {
     @PostConstruct
     private void initLayout() {
         addClassName("query-multi-combo");
-        setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
+        setPlaceholder(parameters.placeholder());
         setItems(parameters.getItems());
         setDefaultBorder(this);
     }

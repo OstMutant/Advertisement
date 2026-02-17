@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.*;
+import static org.ost.advertisement.ui.utils.SupportUtil.nullIfBlank;
 import static org.ost.advertisement.ui.utils.SupportUtil.toLong;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.toInstant;
 
@@ -36,10 +37,10 @@ public class UserFilterMeta {
             FilterFieldMeta.of(endId, UserFilterDto::getEndId, (dto, v) -> dto.setEndId(toLong(v)), idValid);
 
     public static final FilterFieldMeta<String, UserFilterDto, String> NAME =
-            FilterFieldMeta.of(name, UserFilterDto::getName, (dto, v) -> dto.setName(v == null || v.isBlank() ? null : v));
+            FilterFieldMeta.of(name, UserFilterDto::getName, (dto, v) -> dto.setName(nullIfBlank(v)));
 
     public static final FilterFieldMeta<String, UserFilterDto, String> EMAIL =
-            FilterFieldMeta.of(email, UserFilterDto::getEmail, (dto, v) -> dto.setEmail(v == null || v.isBlank() ? null : v));
+            FilterFieldMeta.of(email, UserFilterDto::getEmail, (dto, v) -> dto.setEmail(nullIfBlank(v)));
 
     public static final FilterFieldMeta<Set<Role>, UserFilterDto, Set<Role>> ROLES =
             FilterFieldMeta.of(roles, UserFilterDto::getRoles,
