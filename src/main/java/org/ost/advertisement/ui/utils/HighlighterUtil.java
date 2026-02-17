@@ -23,8 +23,17 @@ public class HighlighterUtil {
 
     public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue, boolean isValid) {
         resetHighlightClasses(component);
+
+        // Cross-field validation (e.g. start > end): mark any participating
+        // field red as long as it has a non-default value, even if it hasn't
+        // changed in this edit session.
+        if (!isValid && SupportUtil.hasChanged(newValue, defaultValue)) {
+            component.addClassName(INVALID);
+            return;
+        }
+
         if (SupportUtil.hasChanged(newValue, originalValue)) {
-            component.addClassName(isValid ? DIRTY : INVALID);
+            component.addClassName(DIRTY);
             return;
         }
         if (SupportUtil.hasChanged(originalValue, defaultValue)) {
