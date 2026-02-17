@@ -22,10 +22,7 @@ public class TimeZoneUtil {
 
     public static String getClientTimeZoneId() {
         String timeZoneId = (String) VaadinSession.getCurrent().getAttribute("clientTimeZoneId");
-        if (timeZoneId == null) {
-            return ZoneId.systemDefault().getId();
-        }
-        return timeZoneId;
+        return timeZoneId != null ? timeZoneId : ZoneId.systemDefault().getId();
     }
 
     public static String formatInstant(Instant instant) {
@@ -33,10 +30,7 @@ public class TimeZoneUtil {
     }
 
     public static String formatInstant(Instant instant, String valueIfNull) {
-        if (instant == null) {
-            return valueIfNull;
-        }
-
+        if (instant == null) return valueIfNull;
         LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of(getClientTimeZoneId()));
         return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
@@ -45,4 +39,7 @@ public class TimeZoneUtil {
         return date != null ? date.atStartOfDay(ZoneId.of(getClientTimeZoneId())).toInstant() : null;
     }
 
+    public static Instant toInstant(LocalDateTime dateTime) {
+        return dateTime != null ? dateTime.atZone(ZoneId.of(getClientTimeZoneId())).toInstant() : null;
+    }
 }

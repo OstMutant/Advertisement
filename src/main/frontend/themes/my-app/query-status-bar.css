@@ -22,6 +22,11 @@
     width: 140px;
 }
 
+/* DateTimePicker = date part + time part side by side */
+.query-datetime {
+    width: 280px;
+}
+
 .query-number {
     width: 100px;
 }
@@ -76,5 +81,3 @@
     align-items: end;
     gap: var(--lumo-space-s);
 }
-
-

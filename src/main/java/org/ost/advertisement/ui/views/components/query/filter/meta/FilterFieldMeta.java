@@ -2,10 +2,13 @@ package org.ost.advertisement.ui.views.components.query.filter.meta;
 
 import org.ost.advertisement.services.ValidationService;
 
+import java.time.Instant;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
 public record FilterFieldMeta<I, F, R>(
         String name,
@@ -35,6 +38,9 @@ public record FilterFieldMeta<I, F, R>(
 
     public String getValueAsString(F filter) {
         R value = getter().apply(filter);
+        if (value instanceof Instant i) {
+            return formatInstant(i);
+        }
         return value == null ? "" : value.toString();
     }
 

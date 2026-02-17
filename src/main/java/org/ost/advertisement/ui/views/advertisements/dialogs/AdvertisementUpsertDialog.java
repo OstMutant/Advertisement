@@ -15,6 +15,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
 
 @SpringComponent
 @Scope("prototype")
@@ -65,8 +66,8 @@ public class AdvertisementUpsertDialog {
 
     private void updateMetadata() {
         AdvertisementEditDto dto = delegate.getDto();
-        createdAtField.update(dto.getCreatedAt() != null ? dto.getCreatedAt().toString() : "");
-        updatedAtField.update(dto.getUpdatedAt() != null ? dto.getUpdatedAt().toString() : "");
+        createdAtField.update(formatInstant(dto.getCreatedAt()));
+        updatedAtField.update(formatInstant(dto.getUpdatedAt()));
         createdByField.update(String.valueOf(dto.getCreatedByUserId()));
     }
 

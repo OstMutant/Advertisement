@@ -9,7 +9,7 @@ import org.ost.advertisement.ui.views.components.query.filter.meta.FilterFieldMe
 import org.ost.advertisement.ui.views.components.query.filter.meta.ValidationPredicates;
 
 import java.time.Instant;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.function.BiPredicate;
 
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.*;
@@ -43,19 +43,19 @@ public class UserFilterMeta {
     public static final FilterFieldMeta<Role, UserFilterDto, Role> ROLE =
             FilterFieldMeta.of(role, UserFilterDto::getRole, UserFilterDto::setRole);
 
-    public static final FilterFieldMeta<LocalDate, UserFilterDto, Instant> CREATED_AT_START =
+    public static final FilterFieldMeta<LocalDateTime, UserFilterDto, Instant> CREATED_AT_START =
             FilterFieldMeta.of(createdAtStart, UserFilterDto::getCreatedAtStart,
                     (dto, v) -> dto.setCreatedAtStart(toInstant(v)), createdValid);
 
-    public static final FilterFieldMeta<LocalDate, UserFilterDto, Instant> CREATED_AT_END =
+    public static final FilterFieldMeta<LocalDateTime, UserFilterDto, Instant> CREATED_AT_END =
             FilterFieldMeta.of(createdAtEnd, UserFilterDto::getCreatedAtEnd,
                     (dto, v) -> dto.setCreatedAtEnd(toInstant(v)), createdValid);
 
-    public static final FilterFieldMeta<LocalDate, UserFilterDto, Instant> UPDATED_AT_START =
+    public static final FilterFieldMeta<LocalDateTime, UserFilterDto, Instant> UPDATED_AT_START =
             FilterFieldMeta.of(updatedAtStart, UserFilterDto::getUpdatedAtStart,
                     (dto, v) -> dto.setUpdatedAtStart(toInstant(v)), updatedValid);
 
-    public static final FilterFieldMeta<LocalDate, UserFilterDto, Instant> UPDATED_AT_END =
+    public static final FilterFieldMeta<LocalDateTime, UserFilterDto, Instant> UPDATED_AT_END =
             FilterFieldMeta.of(updatedAtEnd, UserFilterDto::getUpdatedAtEnd,
                     (dto, v) -> dto.setUpdatedAtEnd(toInstant(v)), updatedValid);
 }

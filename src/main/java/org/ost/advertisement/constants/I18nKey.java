@@ -107,10 +107,14 @@ public enum I18nKey {
     USER_FILTER_NAME_PLACEHOLDER("user.filter.name.placeholder"),
     USER_FILTER_EMAIL_PLACEHOLDER("user.filter.email.placeholder"),
     USER_FILTER_ROLE_ANY("user.filter.role.any"),
-    USER_FILTER_CREATED_START("user.filter.created.start"),
-    USER_FILTER_CREATED_END("user.filter.created.end"),
-    USER_FILTER_UPDATED_START("user.filter.updated.start"),
-    USER_FILTER_UPDATED_END("user.filter.updated.end"),
+    USER_FILTER_DATE_CREATED_START("user.filter.date.created.start"),
+    USER_FILTER_DATE_CREATED_END("user.filter.date.created.end"),
+    USER_FILTER_DATE_UPDATED_START("user.filter.date.updated.start"),
+    USER_FILTER_DATE_UPDATED_END("user.filter.date.updated.end"),
+    USER_FILTER_TIME_CREATED_START("user.filter.time.created.start"),
+    USER_FILTER_TIME_CREATED_END("user.filter.time.created.end"),
+    USER_FILTER_TIME_UPDATED_START("user.filter.time.updated.start"),
+    USER_FILTER_TIME_UPDATED_END("user.filter.time.updated.end"),
 
     // === Advertisement Sort ===
     ADVERTISEMENT_SORT_TITLE("advertisement.sort.title"),
@@ -122,10 +126,14 @@ public enum I18nKey {
 
     // === Advertisement Filter ===
     ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER("advertisement.filter.title.placeholder"),
-    ADVERTISEMENT_FILTER_CREATED_START("advertisement.filter.created.start"),
-    ADVERTISEMENT_FILTER_CREATED_END("advertisement.filter.created.end"),
-    ADVERTISEMENT_FILTER_UPDATED_START("advertisement.filter.updated.start"),
-    ADVERTISEMENT_FILTER_UPDATED_END("advertisement.filter.updated.end"),
+    ADVERTISEMENT_FILTER_DATE_CREATED_START("advertisement.filter.date.created.start"),
+    ADVERTISEMENT_FILTER_DATE_CREATED_END("advertisement.filter.date.created.end"),
+    ADVERTISEMENT_FILTER_DATE_UPDATED_START("advertisement.filter.date.updated.start"),
+    ADVERTISEMENT_FILTER_DATE_UPDATED_END("advertisement.filter.date.updated.end"),
+    ADVERTISEMENT_FILTER_TIME_CREATED_START("advertisement.filter.time.created.start"),
+    ADVERTISEMENT_FILTER_TIME_CREATED_END("advertisement.filter.time.created.end"),
+    ADVERTISEMENT_FILTER_TIME_UPDATED_START("advertisement.filter.time.updated.start"),
+    ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
