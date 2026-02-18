@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TimeZoneUtil {
@@ -33,6 +34,25 @@ public class TimeZoneUtil {
         if (instant == null) return valueIfNull;
         LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of(getClientTimeZoneId()));
         return dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+    }
+
+    public static String formatInstantHuman(Instant instant) {
+        return formatInstantHuman(instant, "N/A");
+    }
+
+    public static String formatInstantHuman(Instant instant, String valueIfNull) {
+        if (instant == null) return valueIfNull;
+        LocalDateTime dateTime = LocalDateTime.ofInstant(instant, ZoneId.of(getClientTimeZoneId()));
+        Locale locale = getClientLocale();
+        return dateTime.format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm").withLocale(locale));
+    }
+
+    private static Locale getClientLocale() {
+        VaadinSession session = VaadinSession.getCurrent();
+        if (session != null && session.getLocale() != null) {
+            return session.getLocale();
+        }
+        return Locale.getDefault();
     }
 
     public static Instant toInstant(LocalDate date) {

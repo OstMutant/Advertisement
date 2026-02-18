@@ -16,7 +16,8 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-  align-items: flex-start;
+/* stretch — all cards in the same row have equal height */
+  align-items: stretch;
   gap: 16px;
   padding: 16px;
   box-sizing: border-box;

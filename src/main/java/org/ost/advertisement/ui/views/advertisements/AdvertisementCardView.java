@@ -34,14 +34,22 @@ public class AdvertisementCardView extends VerticalLayout {
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
 
+        getElement().addEventListener("click", _ -> openDescriptionDialog(ad));
+
         H3 title = createTitle(ad);
         Span description = createDescription(ad);
-        Button toggle = createToggle(ad);
-        VerticalLayout meta = createMeta(ad);
+        Span meta = createMeta(ad);
         HorizontalLayout actions = createActions(ad, refreshAdvertisements);
 
-        add(title, description, toggle, meta, actions);
+        Span spacer = new Span();
+        setFlexGrow(1, spacer);
+
+        add(title, description, spacer, meta, actions);
         return this;
+    }
+
+    private void openDescriptionDialog(AdvertisementInfoDto ad) {
+        new AdvertisementDescriptionDialog(i18n, ad.getTitle(), ad.getDescription()).open();
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -56,34 +64,29 @@ public class AdvertisementCardView extends VerticalLayout {
         return description;
     }
 
-    private Button createToggle(AdvertisementInfoDto ad) {
-        Button toggle = new Button("Read more");
-        toggle.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        toggle.addClassName("advertisement-toggle");
-        toggle.addClickListener(_ -> new AdvertisementDescriptionDialog(i18n, ad.getTitle(), ad.getDescription()).open());
-        return toggle;
-    }
+    private Span createMeta(AdvertisementInfoDto ad) {
+        String userName = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
+        String updatedAt = TimeZoneUtil.formatInstantHuman(ad.getUpdatedAt());
 
-    private VerticalLayout createMeta(AdvertisementInfoDto ad) {
-        Span createdAt = new Span(i18n.get(ADVERTISEMENT_CARD_CREATED) + " " + TimeZoneUtil.formatInstant(ad.getCreatedAt()));
-        Span updatedAt = new Span(i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + TimeZoneUtil.formatInstant(ad.getUpdatedAt()));
-        Span userId = new Span(i18n.get(ADVERTISEMENT_CARD_USER) + " " + ad.getCreatedByUserId());
-
-        VerticalLayout meta = new VerticalLayout(createdAt, updatedAt, userId);
+        Span meta = new Span(userName + " · " + i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + updatedAt);
         meta.addClassName("advertisement-meta");
         return meta;
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
-        Button edit = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), VaadinIcon.EDIT.create());
-        edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        Button edit = new Button(VaadinIcon.EDIT.create());
+        edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_SMALL);
         edit.addClassName("advertisement-edit");
+        edit.getElement().setAttribute("title", i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT));
         edit.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements));
+        edit.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
-        Button delete = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE), VaadinIcon.TRASH.create());
-        delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
+        Button delete = new Button(VaadinIcon.TRASH.create());
+        delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_ERROR);
         delete.addClassName("advertisement-delete");
+        delete.getElement().setAttribute("title", i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE));
         delete.addClickListener(_ -> openConfirmDeleteDialog(ad, refreshAdvertisements));
+        delete.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
         actions.addClassName("advertisement-actions");

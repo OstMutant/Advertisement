@@ -136,9 +136,8 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
 
     // === Advertisement Card ===
-    ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
-    ADVERTISEMENT_CARD_USER("advertisement.card.user"),
+    ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
 
