@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.i18n.I18nPlaceholderParams;
 
 import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
 
@@ -16,13 +17,10 @@ import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
 @SuppressWarnings("java:S110")
 public class QueryNumberField extends NumberField {
 
-    @Value
-    @Builder
-    public static class Parameters {
-        @NonNull
-        I18nService i18n;
-        @NonNull
-        I18nKey placeholderKey;
+    @Value @Builder
+    public static class Parameters implements I18nPlaceholderParams {
+        @NonNull I18nService i18n;
+        @NonNull I18nKey placeholderKey;
     }
 
     private final transient @NonNull Parameters parameters;
@@ -30,7 +28,7 @@ public class QueryNumberField extends NumberField {
     @PostConstruct
     private void initLayout() {
         addClassName("query-number");
-        setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
+        setPlaceholder(parameters.placeholder());
         setClearButtonVisible(true);
         setValueChangeMode(ValueChangeMode.EAGER);
         setDefaultBorder(this);
