@@ -34,10 +34,8 @@ public class AdvertisementCardView extends VerticalLayout {
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
 
-        // Mouse click
         getElement().addEventListener("click", _ -> openDescriptionDialog(ad));
 
-        // Keyboard navigation: Tab focus + Enter/Space to open
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> openDescriptionDialog(ad))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
@@ -73,7 +71,6 @@ public class AdvertisementCardView extends VerticalLayout {
     private Span createMeta(AdvertisementInfoDto ad) {
         String userName = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
 
-        // Show "Created" when the ad was never edited, "Updated" otherwise
         boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
         String dateLabel = neverEdited
                 ? i18n.get(ADVERTISEMENT_CARD_CREATED)
@@ -84,7 +81,6 @@ public class AdvertisementCardView extends VerticalLayout {
 
         Span authorSpan = new Span(userName);
         authorSpan.addClassName("advertisement-meta-author");
-        // Show email on hover if available
         if (ad.getCreatedByUserEmail() != null) {
             authorSpan.getElement().setAttribute("title", ad.getCreatedByUserEmail());
         }

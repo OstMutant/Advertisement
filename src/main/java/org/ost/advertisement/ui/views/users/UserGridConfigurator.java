@@ -26,12 +26,13 @@ public class UserGridConfigurator {
 
     public static void configure(Grid<User> grid,
                                  I18nService i18n,
+                                 Consumer<User> onView,
                                  Consumer<User> onEdit,
                                  Consumer<User> onDelete) {
 
         grid.setSizeFull();
 
-        grid.addItemClickListener(e -> onEdit.accept(e.getItem()));
+        grid.addItemClickListener(e -> onView.accept(e.getItem()));
 
         grid.addColumn(User::getId)
                 .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
@@ -69,12 +70,18 @@ public class UserGridConfigurator {
                     Button edit = new Button(VaadinIcon.EDIT.create());
                     edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
                     edit.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_EDIT));
-                    edit.addClickListener(e -> e.getSource().getUI().ifPresent(_ -> onEdit.accept(user)));
+                    edit.addClickListener(e -> {
+                        e.getSource().getUI().ifPresent(_ -> onEdit.accept(user));
+                        e.getSource().getElement().executeJs("event.stopPropagation()");
+                    });
 
                     Button delete = new Button(VaadinIcon.TRASH.create());
                     delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
                     delete.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_DELETE));
-                    delete.addClickListener(e -> e.getSource().getUI().ifPresent(_ -> onDelete.accept(user)));
+                    delete.addClickListener(e -> {
+                        e.getSource().getUI().ifPresent(_ -> onDelete.accept(user));
+                        e.getSource().getElement().executeJs("event.stopPropagation()");
+                    });
 
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");

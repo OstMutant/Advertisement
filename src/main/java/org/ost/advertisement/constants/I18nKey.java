@@ -89,6 +89,16 @@ public enum I18nKey {
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
 
+    // UserViewDialog
+    USER_VIEW_DIALOG_TITLE("user.view.dialog.title"),
+    USER_VIEW_DIALOG_FIELD_ID("user.view.dialog.field.id"),
+    USER_VIEW_DIALOG_FIELD_NAME("user.view.dialog.field.name"),
+    USER_VIEW_DIALOG_FIELD_EMAIL("user.view.dialog.field.email"),
+    USER_VIEW_DIALOG_FIELD_ROLE("user.view.dialog.field.role"),
+    USER_VIEW_DIALOG_FIELD_CREATED("user.view.dialog.field.created"),
+    USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
+    USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
+
     // === Advertisement Sort ===
     USER_SORT_ID("user.sort.id"),
     USER_SORT_NAME("user.sort.name"),

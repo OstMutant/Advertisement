@@ -11,6 +11,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
+import org.ost.advertisement.ui.views.users.dialogs.UserViewDialog;
 import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,9 +67,20 @@ public class UserView extends UserLayout {
         UserGridConfigurator.configure(
                 getGrid(),
                 i18n,
+                this::openViewDialog,
                 u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
                 this::confirmAndDelete
         );
+    }
+
+    private void openViewDialog(User user) {
+        UserViewDialog dialog = new UserViewDialog(i18n, user);
+        dialog.addOpenedChangeListener(event -> {
+            if (!event.isOpened()) {
+                getElement().executeJs("document.activeElement.blur()");
+            }
+        });
+        dialog.open();
     }
 
     private void refreshGrid() {
