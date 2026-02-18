@@ -16,9 +16,57 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-start;
-/* stretch — all cards in the same row have equal height */
+  /* stretch — all cards in the same row have equal height */
   align-items: stretch;
   gap: 16px;
   padding: 16px;
   box-sizing: border-box;
+}
+
+/* Empty state */
+.empty-state {
+  width: 100%;
+  padding: 48px 16px;
+  gap: 8px;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--lumo-contrast-30pct);
+}
+
+.empty-state-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--lumo-contrast-60pct);
+}
+
+.empty-state-hint {
+  font-size: 0.875rem;
+  color: var(--lumo-contrast-40pct);
+}
+
+/* Empty state */
+.empty-state {
+  width: 100%;
+  padding: 48px 16px;
+  gap: 8px;
+}
+
+.empty-state-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--lumo-contrast-30pct);
+}
+
+.empty-state-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--lumo-contrast-60pct);
+}
+
+.empty-state-hint {
+  font-size: 0.875rem;
+  color: var(--lumo-contrast-40pct);
 }

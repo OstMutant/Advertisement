@@ -34,7 +34,13 @@ public class AdvertisementCardView extends VerticalLayout {
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
 
+        // Mouse click
         getElement().addEventListener("click", _ -> openDescriptionDialog(ad));
+
+        // Keyboard navigation: Tab focus + Enter/Space to open
+        getElement().setAttribute("tabindex", "0");
+        getElement().addEventListener("keydown", _ -> openDescriptionDialog(ad))
+                .setFilter("event.key === 'Enter' || event.key === ' '");
 
         H3 title = createTitle(ad);
         Span description = createDescription(ad);
@@ -49,7 +55,7 @@ public class AdvertisementCardView extends VerticalLayout {
     }
 
     private void openDescriptionDialog(AdvertisementInfoDto ad) {
-        new AdvertisementDescriptionDialog(i18n, ad.getTitle(), ad.getDescription()).open();
+        new AdvertisementDescriptionDialog(i18n, ad).open();
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -66,9 +72,30 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private Span createMeta(AdvertisementInfoDto ad) {
         String userName = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
-        String updatedAt = TimeZoneUtil.formatInstantHuman(ad.getUpdatedAt());
 
-        Span meta = new Span(userName + " · " + i18n.get(ADVERTISEMENT_CARD_UPDATED) + " " + updatedAt);
+        // Show "Created" when the ad was never edited, "Updated" otherwise
+        boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
+        String dateLabel = neverEdited
+                ? i18n.get(ADVERTISEMENT_CARD_CREATED)
+                : i18n.get(ADVERTISEMENT_CARD_UPDATED);
+        String dateValue = TimeZoneUtil.formatInstantHuman(
+                neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt()
+        );
+
+        Span authorSpan = new Span(userName);
+        authorSpan.addClassName("advertisement-meta-author");
+        // Show email on hover if available
+        if (ad.getCreatedByUserEmail() != null) {
+            authorSpan.getElement().setAttribute("title", ad.getCreatedByUserEmail());
+        }
+
+        Span separator = new Span(" · ");
+        separator.addClassName("advertisement-meta-separator");
+
+        Span dateSpan = new Span(dateLabel + " " + dateValue);
+        dateSpan.addClassName("advertisement-meta-date");
+
+        Span meta = new Span(authorSpan, separator, dateSpan);
         meta.addClassName("advertisement-meta");
         return meta;
     }

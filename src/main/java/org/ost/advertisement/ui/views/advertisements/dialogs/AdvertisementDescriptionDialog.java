@@ -5,19 +5,22 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.utils.TimeZoneUtil;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 public class AdvertisementDescriptionDialog extends Dialog {
 
-    public AdvertisementDescriptionDialog(I18nService i18n, String title, String description) {
-        initDialog(title);
+    public AdvertisementDescriptionDialog(I18nService i18n, AdvertisementInfoDto ad) {
+        initDialog(ad.getTitle());
 
-        Span content = createContent(description);
+        Span content = createContent(ad.getDescription());
+        Span meta = createMeta(i18n, ad);
         Button closeButton = createCloseButton(i18n);
 
-        VerticalLayout layout = new VerticalLayout(content, closeButton);
+        VerticalLayout layout = new VerticalLayout(content, meta, closeButton);
         layout.addClassName("advertisement-description-layout");
 
         add(layout);
@@ -34,6 +37,22 @@ public class AdvertisementDescriptionDialog extends Dialog {
         Span content = new Span(description);
         content.addClassName("advertisement-description-content");
         return content;
+    }
+
+    private Span createMeta(I18nService i18n, AdvertisementInfoDto ad) {
+        String author = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
+        String created = TimeZoneUtil.formatInstantHuman(ad.getCreatedAt());
+
+        boolean wasEdited = ad.getUpdatedAt() != null && !ad.getUpdatedAt().equals(ad.getCreatedAt());
+        String datePart = wasEdited
+                ? i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED) + " " + created
+                  + "  ·  " + i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_UPDATED) + " "
+                  + TimeZoneUtil.formatInstantHuman(ad.getUpdatedAt())
+                : i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED) + " " + created;
+
+        Span meta = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_AUTHOR) + " " + author + "  ·  " + datePart);
+        meta.addClassName("advertisement-description-meta");
+        return meta;
     }
 
     private Button createCloseButton(I18nService i18n) {

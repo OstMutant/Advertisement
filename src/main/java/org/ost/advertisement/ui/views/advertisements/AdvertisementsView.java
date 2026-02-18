@@ -2,6 +2,8 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -20,7 +22,7 @@ import org.ost.advertisement.ui.views.components.query.sort.processor.SortProces
 import java.util.List;
 
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START;
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_SIDEBAR_BUTTON_ADD;
+import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -30,6 +32,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final AdvertisementQueryStatusBar queryStatusBar;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient AdvertisementCardView.Builder cardBuilder;
+    private final transient I18nService i18n;
     private final FlexLayout advertisementContainer;
     private final PaginationBarModern paginationBar;
 
@@ -42,6 +45,7 @@ public class AdvertisementsView extends VerticalLayout {
         this.queryStatusBar = queryStatusBar;
         this.upsertDialogBuilder = upsertDialogBuilder;
         this.cardBuilder = cardBuilder;
+        this.i18n = i18n;
         this.paginationBar = new PaginationBarModern(i18n);
         this.advertisementContainer = createAdvertisementContainer();
 
@@ -72,7 +76,7 @@ public class AdvertisementsView extends VerticalLayout {
         FlexLayout container = new FlexLayout();
         container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         container.setJustifyContentMode(START);
-        container.setAlignItems(Alignment.START);
+        container.setAlignItems(Alignment.STRETCH);
         container.addClassName("advertisement-container");
         return container;
     }
@@ -103,8 +107,28 @@ public class AdvertisementsView extends VerticalLayout {
         paginationBar.setTotalCount(advertisementService.count(filter));
 
         advertisementContainer.removeAll();
-        ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
+        if (ads.isEmpty()) {
+            advertisementContainer.add(createEmptyState());
+        } else {
+            ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
+        }
 
         queryStatusBar.update();
+    }
+
+    private VerticalLayout createEmptyState() {
+        com.vaadin.flow.component.icon.Icon icon = VaadinIcon.CLIPBOARD_TEXT.create();
+        icon.addClassName("empty-state-icon");
+
+        Span title = new Span(i18n.get(ADVERTISEMENT_EMPTY_TITLE));
+        title.addClassName("empty-state-title");
+
+        Span hint = new Span(i18n.get(ADVERTISEMENT_EMPTY_HINT));
+        hint.addClassName("empty-state-hint");
+
+        VerticalLayout emptyState = new VerticalLayout(icon, title, hint);
+        emptyState.addClassName("empty-state");
+        emptyState.setAlignItems(Alignment.CENTER);
+        return emptyState;
     }
 }

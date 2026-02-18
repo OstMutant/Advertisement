@@ -136,6 +136,7 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
 
     // === Advertisement Card ===
+    ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
     ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
@@ -143,6 +144,13 @@ public enum I18nKey {
 
     // === Advertisement Description Dialog ===
     ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
+    ADVERTISEMENT_DESCRIPTION_DIALOG_AUTHOR("advertisement.description.dialog.author"),
+    ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED("advertisement.description.dialog.created"),
+    ADVERTISEMENT_DESCRIPTION_DIALOG_UPDATED("advertisement.description.dialog.updated"),
+
+    // === Advertisement Empty State ===
+    ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
+    ADVERTISEMENT_EMPTY_HINT("advertisement.empty.hint"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
