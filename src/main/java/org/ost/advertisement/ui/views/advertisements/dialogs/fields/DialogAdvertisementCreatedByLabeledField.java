@@ -5,7 +5,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.dialogs.fields.LabeledField;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_USER;
+import static org.ost.advertisement.constants.I18nKey.ADVERTISEMENT_DIALOG_FIELD_AUTHOR;
 
 @SpringComponent
 @Scope("prototype")
@@ -15,7 +15,7 @@ public class DialogAdvertisementCreatedByLabeledField extends LabeledField {
     public DialogAdvertisementCreatedByLabeledField(I18nService i18n) {
         super(Parameters.builder()
                 .i18n(i18n)
-                .labelKey(ADVERTISEMENT_DIALOG_FIELD_USER)
+                .labelKey(ADVERTISEMENT_DIALOG_FIELD_AUTHOR)
                 .cssClass("base-label")
                 .cssClass("email-label")
                 .build());

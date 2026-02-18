@@ -18,7 +18,7 @@ import java.util.Objects;
 
 import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.*;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstant;
+import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstantHuman;
 
 @SpringComponent
 @Scope("prototype")
@@ -68,12 +68,12 @@ public class UserEditDialog {
         UserEditDto user = delegate.getDto();
         idField.update(String.valueOf(user.getId()));
         emailField.update(ofNullable(user.getEmail()).orElse(""));
-        createdAtField.update(formatInstant(user.getCreatedAt()));
-        updatedAtField.update(formatInstant(user.getUpdatedAt()));
+        createdAtField.update(formatInstantHuman(user.getCreatedAt()));
+        updatedAtField.update(formatInstantHuman(user.getUpdatedAt()));
     }
 
     private void addContent() {
-        delegate.addContent(idField, emailField, nameField, roleCombo, createdAtField, updatedAtField);
+        delegate.addContent(nameField, roleCombo, emailField, idField, createdAtField, updatedAtField);
     }
 
     private void addActions() {

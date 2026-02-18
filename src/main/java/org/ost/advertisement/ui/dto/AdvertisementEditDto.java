@@ -20,5 +20,6 @@ public class AdvertisementEditDto {
     private Instant updatedAt;
 
     private Long createdByUserId;
+    private String createdByUserName;
     private Long lastModifiedByUserId;
 }

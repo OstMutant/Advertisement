@@ -31,6 +31,8 @@ public class UserGridConfigurator {
 
         grid.setSizeFull();
 
+        grid.addItemClickListener(e -> onEdit.accept(e.getItem()));
+
         grid.addColumn(User::getId)
                 .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ID)));
@@ -55,22 +57,24 @@ public class UserGridConfigurator {
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ROLE)));
 
-        grid.addColumn(user -> TimeZoneUtil.formatInstant(user.getCreatedAt()))
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getCreatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_CREATED)));
 
-        grid.addColumn(user -> TimeZoneUtil.formatInstant(user.getUpdatedAt()))
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = new Button(VaadinIcon.EDIT.create());
                     edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-                    edit.addClickListener(_ -> onEdit.accept(user));
+                    edit.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_EDIT));
+                    edit.addClickListener(e -> e.getSource().getUI().ifPresent(_ -> onEdit.accept(user)));
 
                     Button delete = new Button(VaadinIcon.TRASH.create());
                     delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-                    delete.addClickListener(_ -> onDelete.accept(user));
+                    delete.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_DELETE));
+                    delete.addClickListener(e -> e.getSource().getUI().ifPresent(_ -> onDelete.accept(user)));
 
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");

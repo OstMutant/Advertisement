@@ -17,7 +17,7 @@ public final class ConfirmDeleteHelper {
                                    I18nKey confirmKey, I18nKey cancelKey,
                                    Runnable onConfirm) {
         Dialog dialog = new Dialog();
-        dialog.setHeaderTitle(i18n.get(confirmKey));
+        dialog.setHeaderTitle(i18n.get(I18nKey.USER_VIEW_CONFIRM_DELETE_TITLE));
 
         Paragraph body = new Paragraph(message);
         body.addClassName("dialog-confirm-text");
