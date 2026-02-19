@@ -20,3 +20,10 @@
     vertical-align: middle;
     line-height: 1;
 }
+
+/* ── Cursor: pointer on all interactive elements ───────────────────────── */
+
+/* Vaadin buttons (light DOM host — cursor успадковується в shadow DOM) */
+vaadin-button {
+    cursor: pointer;
+}
