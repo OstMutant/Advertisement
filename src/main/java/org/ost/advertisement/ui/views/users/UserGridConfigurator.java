@@ -2,11 +2,9 @@ package org.ost.advertisement.ui.views.users;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.grid.ColumnTextAlign;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
@@ -15,6 +13,8 @@ import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
+import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
 
 import java.util.function.Consumer;
 
@@ -26,6 +26,8 @@ public class UserGridConfigurator {
 
     public static void configure(Grid<User> grid,
                                  I18nService i18n,
+                                 EditActionButton.Builder editButtonBuilder,
+                                 DeleteActionButton.Builder deleteButtonBuilder,
                                  Consumer<User> onView,
                                  Consumer<User> onEdit,
                                  Consumer<User> onDelete) {
@@ -67,21 +69,19 @@ public class UserGridConfigurator {
                 .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Button edit = new Button(VaadinIcon.EDIT.create());
-                    edit.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-                    edit.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_EDIT));
-                    edit.addClickListener(e -> {
-                        e.getSource().getUI().ifPresent(_ -> onEdit.accept(user));
-                        e.getSource().getElement().executeJs("event.stopPropagation()");
-                    });
+                    Button edit = editButtonBuilder.build(
+                            EditActionButton.Config.builder()
+                                    .tooltip(i18n.get(USER_VIEW_BUTTON_EDIT))
+                                    .onClick(() -> onEdit.accept(user))
+                                    .build()
+                    );
 
-                    Button delete = new Button(VaadinIcon.TRASH.create());
-                    delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
-                    delete.getElement().setAttribute("title", i18n.get(USER_VIEW_BUTTON_DELETE));
-                    delete.addClickListener(e -> {
-                        e.getSource().getUI().ifPresent(_ -> onDelete.accept(user));
-                        e.getSource().getElement().executeJs("event.stopPropagation()");
-                    });
+                    Button delete = deleteButtonBuilder.build(
+                            DeleteActionButton.Config.builder()
+                                    .tooltip(i18n.get(USER_VIEW_BUTTON_DELETE))
+                                    .onClick(() -> onDelete.accept(user))
+                                    .build()
+                    );
 
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");

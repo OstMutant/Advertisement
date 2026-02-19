@@ -9,6 +9,8 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
+import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
 import org.ost.advertisement.ui.views.users.dialogs.UserViewDialog;
@@ -32,15 +34,21 @@ public class UserView extends UserLayout {
     private final transient UserService userService;
     private final transient I18nService i18n;
     private final UserQueryStatusBar queryStatusBar;
+    private final EditActionButton.Builder editButtonBuilder;
+    private final DeleteActionButton.Builder deleteButtonBuilder;
 
     public UserView(UserQueryStatusBar queryStatusBar,
                     UserService userService,
                     I18nService i18n,
-                    UserEditDialog.Builder editDialogBuilder) {
+                    UserEditDialog.Builder editDialogBuilder,
+                    EditActionButton.Builder editButtonBuilder,
+                    DeleteActionButton.Builder deleteButtonBuilder) {
         super(i18n);
         this.queryStatusBar = queryStatusBar;
         this.userService = userService;
         this.i18n = i18n;
+        this.editButtonBuilder = editButtonBuilder;
+        this.deleteButtonBuilder = deleteButtonBuilder;
 
         initPagination();
         initQueryBar();
@@ -67,6 +75,8 @@ public class UserView extends UserLayout {
         UserGridConfigurator.configure(
                 getGrid(),
                 i18n,
+                editButtonBuilder,
+                deleteButtonBuilder,
                 this::openViewDialog,
                 u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
                 this::confirmAndDelete
