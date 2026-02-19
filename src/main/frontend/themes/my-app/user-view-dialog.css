@@ -1,19 +1,26 @@
 /* user-view-dialog.css */
 
 .user-view-dialog {
-    min-width: 400px;
-    max-width: 600px;
+    width: 480px;
+}
+
+.user-view-dialog vaadin-dialog-overlay::part(content) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .user-view-dialog-layout {
     padding: var(--lumo-space-m);
-    gap: var(--lumo-space-l);
+    gap: var(--lumo-space-m);
+    display: flex;
+    flex-direction: column;
 }
 
 .user-view-content {
     display: flex;
     flex-direction: column;
-    gap: var(--lumo-space-m);
+    gap: var(--lumo-space-s);
 }
 
 .user-view-field {
@@ -33,9 +40,4 @@
 .user-view-field-value {
     color: var(--lumo-body-text-color);
     word-break: break-word;
-}
-
-.user-view-dialog-close {
-    align-self: flex-end;
-    margin-top: var(--lumo-space-s);
 }

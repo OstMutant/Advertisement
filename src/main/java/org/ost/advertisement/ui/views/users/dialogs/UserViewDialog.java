@@ -20,11 +20,12 @@ public class UserViewDialog extends Dialog {
         VerticalLayout content = createContent(i18n, user);
         Button closeButton = createCloseButton(i18n);
 
-        VerticalLayout layout = new VerticalLayout(content, closeButton);
+        VerticalLayout layout = new VerticalLayout(content);
         layout.addClassName("user-view-dialog-layout");
         layout.setPadding(false);
 
         add(layout);
+        getFooter().add(closeButton);
     }
 
     private void initDialog(I18nService i18n, User user) {
@@ -72,7 +73,6 @@ public class UserViewDialog extends Dialog {
         Button close = new Button(i18n.get(USER_VIEW_DIALOG_CLOSE), _ -> close());
         close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         close.addClassName("user-view-dialog-close");
-        close.focus();
         return close;
     }
 }

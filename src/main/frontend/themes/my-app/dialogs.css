@@ -96,7 +96,30 @@ vaadin-dialog-overlay::part(overlay) {
 
 /* ── Advertisement description dialog ────────────────────────────── */
 .advertisement-description-dialog vaadin-dialog-overlay::part(overlay) {
-    max-width: 620px;
+    width: 620px;
+    height: 70vh;
+}
+
+.advertisement-description-dialog vaadin-dialog-overlay::part(content) {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+}
+
+.advertisement-description-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+    padding: var(--lumo-space-m);
+    gap: var(--lumo-space-m);
+}
+
+.advertisement-description-body {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: var(--lumo-space-xs);
 }
 
 .advertisement-description-content {
@@ -106,14 +129,10 @@ vaadin-dialog-overlay::part(overlay) {
     color: var(--lumo-body-text-color);
 }
 
-.advertisement-description-close {
-    margin-top: var(--lumo-space-m);
-    align-self: flex-end;
-}
-
-.advertisement-description-layout {
-    padding: var(--lumo-space-m);
-    gap: var(--lumo-space-m);
-    display: flex;
-    flex-direction: column;
+.advertisement-description-meta {
+    flex-shrink: 0;
+    font-size: var(--lumo-font-size-s);
+    color: var(--lumo-secondary-text-color);
+    padding-top: var(--lumo-space-s);
+    border-top: 1px solid var(--lumo-contrast-10pct);
 }

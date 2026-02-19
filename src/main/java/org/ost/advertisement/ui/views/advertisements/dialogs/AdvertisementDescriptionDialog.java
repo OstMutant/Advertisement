@@ -20,10 +20,16 @@ public class AdvertisementDescriptionDialog extends Dialog {
         Span meta = createMeta(i18n, ad);
         Button closeButton = createCloseButton(i18n);
 
-        VerticalLayout layout = new VerticalLayout(content, meta, closeButton);
+        VerticalLayout body = new VerticalLayout(content);
+        body.addClassName("advertisement-description-body");
+        body.setPadding(false);
+        body.setSpacing(false);
+
+        VerticalLayout layout = new VerticalLayout(body, meta);
         layout.addClassName("advertisement-description-layout");
 
         add(layout);
+        getFooter().add(closeButton);
     }
 
     private void initDialog(String title) {
