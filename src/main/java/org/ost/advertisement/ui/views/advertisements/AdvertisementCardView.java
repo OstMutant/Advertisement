@@ -9,6 +9,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -24,7 +25,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class AdvertisementCardView extends VerticalLayout {
 
     private final transient I18nService i18n;
@@ -137,16 +138,12 @@ public class AdvertisementCardView extends VerticalLayout {
     }
 
     @SpringComponent
-    @AllArgsConstructor
+    @RequiredArgsConstructor
     public static class Builder {
-        private final I18nService i18n;
-        private final AdvertisementService advertisementService;
-        private final AdvertisementUpsertDialog.Builder upsertDialogBuilder;
         private final ObjectProvider<AdvertisementCardView> cardProvider;
 
         public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
-            AdvertisementCardView cardView = cardProvider.getObject(i18n, advertisementService, upsertDialogBuilder);
-            return cardView.setupContent(ad, refresh);
+            return cardProvider.getObject().setupContent(ad, refresh);
         }
     }
 }

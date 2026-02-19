@@ -3,7 +3,6 @@ package org.ost.advertisement.ui.views.users.dialogs;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.dialog.Dialog;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -73,7 +72,7 @@ public class UserViewDialog extends Dialog {
         Button close = new Button(i18n.get(USER_VIEW_DIALOG_CLOSE), _ -> close());
         close.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         close.addClassName("user-view-dialog-close");
-        close.focus();  // Focus on close button to prevent field highlight
+        close.focus();
         return close;
     }
 }
