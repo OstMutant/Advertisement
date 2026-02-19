@@ -93,3 +93,12 @@
 .advertisement-card:focus-visible .advertisement-delete {
   opacity: 1;
 }
+
+.advertisement-actions vaadin-button:hover {
+    background-color: var(--lumo-contrast-5pct);
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.advertisement-actions vaadin-button[theme~="error"]:hover {
+    background-color: var(--lumo-error-color-10pct);
+}

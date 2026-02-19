@@ -87,18 +87,21 @@ public class UserGridConfigurator {
                     layout.addClassName("user-grid-actions");
                     return layout;
                 }))
-                .setHeader(i18n.get(USER_VIEW_HEADER_ACTIONS))
+                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ACTIONS)))
                 .setAutoWidth(true)
                 .setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
     }
 
     private static Component getHeader(String label) {
-        return new Span(label);
+        Span span = new Span(label);
+        span.addClassName("user-grid-header");
+        return span;
     }
 
     private static Component getDualHeader(String label1, String label2) {
         HorizontalLayout layout = new HorizontalLayout(new Span(label1), new Span(" / "), new Span(label2));
         layout.setAlignItems(CENTER);
+        layout.addClassName("user-grid-header");
         return layout;
     }
 }
