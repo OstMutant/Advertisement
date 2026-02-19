@@ -10,6 +10,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
+import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
@@ -33,6 +34,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient AdvertisementCardView.Builder cardBuilder;
     private final transient I18nService i18n;
+    private final transient AccessEvaluator access;
     private final FlexLayout advertisementContainer;
     private final PaginationBarModern paginationBar;
 
@@ -40,16 +42,18 @@ public class AdvertisementsView extends VerticalLayout {
                               AdvertisementQueryStatusBar queryStatusBar,
                               AdvertisementUpsertDialog.Builder upsertDialogBuilder,
                               I18nService i18n,
-                              AdvertisementCardView.Builder cardBuilder) {
+                              AdvertisementCardView.Builder cardBuilder,
+                              AccessEvaluator access) {
         this.advertisementService = advertisementService;
         this.queryStatusBar = queryStatusBar;
         this.upsertDialogBuilder = upsertDialogBuilder;
         this.cardBuilder = cardBuilder;
         this.i18n = i18n;
+        this.access = access;
         this.paginationBar = new PaginationBarModern(i18n);
         this.advertisementContainer = createAdvertisementContainer();
 
-        Button addAdvertisementButton = createAddButton(i18n);
+        Button addAdvertisementButton = createAddButton();
 
         initQueryBar();
         initPagination();
@@ -64,11 +68,12 @@ public class AdvertisementsView extends VerticalLayout {
         refreshAdvertisements();
     }
 
-    private Button createAddButton(I18nService i18n) {
+    private Button createAddButton() {
         Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
         button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        button.setVisible(access.isLoggedIn());
         return button;
     }
 

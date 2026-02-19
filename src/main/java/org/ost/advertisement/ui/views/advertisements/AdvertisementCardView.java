@@ -9,6 +9,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
@@ -33,6 +34,7 @@ public class AdvertisementCardView extends VerticalLayout {
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient EditActionButton.Builder editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
+    private final transient AccessEvaluator access;
 
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
@@ -100,6 +102,8 @@ public class AdvertisementCardView extends VerticalLayout {
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+        boolean canOperate = access.canOperate(ad);
+
         Button edit = editButtonBuilder.build(
                 EditActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
@@ -117,6 +121,9 @@ public class AdvertisementCardView extends VerticalLayout {
                         .cssClassName("advertisement-delete")
                         .build()
         );
+
+        edit.setVisible(canOperate);
+        delete.setVisible(canOperate);
 
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
         actions.addClassName("advertisement-actions");
