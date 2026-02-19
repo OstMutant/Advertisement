@@ -10,6 +10,13 @@ vaadin-dialog-overlay::part(overlay) {
     width: 90vw;
 }
 
+vaadin-dialog-overlay::part(footer) {
+    border-top: 1px solid var(--lumo-contrast-10pct);
+    background: var(--lumo-base-color);
+    padding-top: var(--lumo-space-s);
+    box-shadow: none;
+}
+
 /* ── DialogLayout structural classes ─────────────────────────────────
    Previously set via Java: setPadding, setSpacing, setHeight,
    setJustifyContentMode(END), setWidthFull. Moved here as pure CSS.   */
