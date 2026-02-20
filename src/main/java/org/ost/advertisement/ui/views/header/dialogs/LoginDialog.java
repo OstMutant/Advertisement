@@ -41,27 +41,31 @@ public class LoginDialog extends BaseDialog {
     @PostConstruct
     protected void init() {
         super.init();
-
         setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
+        addContent();
+        addActions();
+    }
 
-        DialogPrimaryButton loginButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
-        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
-
-        loginButton.addClickListener(_ -> handleLogin());
-        cancelButton.addClickListener(_ -> close());
-
+    private void addContent() {
         Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
         welcome.addClassName("dialog-subtitle");
-
         layout.addFormContent(welcome, emailField, passwordField);
+    }
+
+    private void addActions() {
+        DialogPrimaryButton loginButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
+        loginButton.addClickListener(_ -> handleLogin());
+
+        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
+                .i18n(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
+        cancelButton.addClickListener(_ -> close());
+
         layout.addActions(loginButton, cancelButton);
     }
 
     private void handleLogin() {
         boolean success = authService.login(emailField.getValue(), passwordField.getValue());
-
         if (success) {
             close();
             NotificationType.SUCCESS.show(i18n.get(LOGIN_SUCCESS));
