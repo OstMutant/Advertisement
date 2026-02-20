@@ -4,10 +4,7 @@
 
 /* Global overlay settings */
 vaadin-dialog-overlay::part(overlay) {
-    width: 500px;
     max-width: 95vw;
-    height: auto;
-    max-height: 90vh;
     display: flex;
     flex-direction: column;
 }
@@ -54,17 +51,26 @@ vaadin-dialog-overlay::part(footer) {
     min-height: 0;
 }
 
-/* ── Advertisement Edit (advertisement-edit) ────────────────────────────── */
+.dialog-meta {
+    flex-shrink: 0;
+    padding: 0 var(--lumo-space-m) var(--lumo-space-s);
+}
 
-vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area {
+/* ── Advertisement Upsert (create + edit) ──────────────────────────────── */
+
+vaadin-dialog-overlay[theme~="advertisement-upsert"]::part(overlay) {
+    width: 500px;
+    height: 85vh;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area {
     flex: 1 1 auto;
-    min-height: 150px;
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area::part(input-field) {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area::part(input-field) {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -72,18 +78,18 @@ vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area::part(input
     overflow: hidden;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area [slot="textarea"] {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area [slot="textarea"] {
     overflow-y: auto !important;
     height: 100%;
     resize: none;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area textarea {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area textarea {
     overflow-y: auto !important;
     resize: none;
 }
 
-/* ── Advertisement Description View (advertisement-description) ─────────── */
+/* ── Advertisement Description View ────────────────────────────────────── */
 
 .advertisement-description-layout {
     display: flex;

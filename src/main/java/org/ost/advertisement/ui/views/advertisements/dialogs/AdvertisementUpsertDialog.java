@@ -36,7 +36,7 @@ public class AdvertisementUpsertDialog {
 
     private void configureDialog(FormDialogDelegate<AdvertisementEditDto> delegate) {
         this.delegate = delegate;
-        delegate.addDialogThemeName(isNew() ? "advertisement-create" : "advertisement-edit");
+        delegate.addDialogThemeName("advertisement-upsert");
         setTitle();
         bindFields();
         addContent();
