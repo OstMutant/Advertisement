@@ -1,145 +1,125 @@
 /* ─── dialogs.css ──────────────────────────────────────────────────────────
-   Shared styles for all dialog windows.
-   Covers: form dialogs, advertisement description, confirm delete.
+   Final version: scrolling ISOLATED strictly to the description text area.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Default size for form dialogs */
+/* Global overlay settings */
 vaadin-dialog-overlay::part(overlay) {
-    min-width: 360px;
-    max-width: 520px;
-    width: 90vw;
+    width: 500px;
+    max-width: 95vw;
+    height: auto;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+vaadin-dialog-overlay::part(content) {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 vaadin-dialog-overlay::part(footer) {
     border-top: 1px solid var(--lumo-contrast-10pct);
     background: var(--lumo-base-color);
-    padding-top: var(--lumo-space-s);
-    box-shadow: none;
+    padding: var(--lumo-space-s) var(--lumo-space-m);
 }
 
-/* ── DialogLayout structural classes ─────────────────────────────────
-   Previously set via Java: setPadding, setSpacing, setHeight,
-   setJustifyContentMode(END), setWidthFull. Moved here as pure CSS.   */
+/* ── Structure ──────────────────────────────────────────────────────────── */
 
 .dialog-root {
-    padding: var(--lumo-space-m);
-    gap: 0;
+    display: flex;
+    flex-direction: column;
     height: 100%;
+    max-height: inherit;
+    padding: 0;
+    min-height: 0;
+}
+
+.scroll-container {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    padding: var(--lumo-space-m);
+    overflow: hidden;
+    min-height: 0;
 }
 
 .dialog-form {
     width: 100%;
-}
-
-.dialog-actions {
-    width: 100%;
-    justify-content: flex-end;
-    gap: var(--lumo-space-s);
-}
-
-/* ── Scroll container for form content ───────────────────────────── */
-.scroll-container {
-    overflow-y: auto;
-    flex-grow: 1;
-    max-height: 60vh;
-    padding-right: var(--lumo-space-xs); /* space for the scrollbar */
-}
-
-/* ── Dialog field classes ─────────────────────────────────────────────
-   Width and size rules moved here from Java:
-   setWidthFull() → width: 100%
-   setHeight("120px") → height: 120px (TextArea)
-   setMinWidth/setMaxWidth → min/max-width (ComboBox)           */
-
-.dialog-text-field,
-.dialog-email-field,
-.dialog-password-field,
-.dialog-text-area {
-    width: 100%;
-}
-
-.dialog-text-area {
-    height: 120px;
-}
-
-.labeled-field {
-    gap: var(--lumo-space-s);
-}
-
-.dialog-combo-box {
-    min-width: 110px;
-    max-width: 160px;
-}
-
-/* ── Login welcome subtitle ───────────────────────────────────────── */
-.dialog-subtitle {
-    margin: 0 0 var(--lumo-space-s);
-    color: var(--lumo-secondary-text-color);
-    font-size: var(--lumo-font-size-s);
-}
-
-/* ── LabeledField: read-only label/value pairs ────────────────────── */
-.base-label {
-    padding: var(--lumo-space-xs) var(--lumo-space-s);
-}
-
-.gray-label {
-    font-size: var(--lumo-font-size-s);
-    color: var(--lumo-secondary-text-color);
-}
-
-.email-label {
-    font-size: var(--lumo-font-size-m);
-    font-weight: 500;
-    color: var(--lumo-primary-color);
-}
-
-/* ── Confirm delete dialog ────────────────────────────────────────── */
-.dialog-confirm-text {
-    margin: var(--lumo-space-s) 0;
-    color: var(--lumo-body-text-color);
-    line-height: var(--lumo-line-height-m);
-}
-
-/* ── Advertisement description dialog ────────────────────────────── */
-.advertisement-description-dialog vaadin-dialog-overlay::part(overlay) {
-    width: 620px;
-    height: 70vh;
-}
-
-.advertisement-description-dialog vaadin-dialog-overlay::part(content) {
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    height: 100%;
+    gap: var(--lumo-space-m);
+    flex: 1 1 auto;
+    min-height: 0;
 }
+
+/* ── Advertisement Edit (advertisement-edit) ────────────────────────────── */
+
+vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area {
+    flex: 1 1 auto;
+    min-height: 150px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area::part(input-field) {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area [slot="textarea"] {
+    overflow-y: auto !important;
+    height: 100%;
+    resize: none;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-edit"] .dialog-text-area textarea {
+    overflow-y: auto !important;
+    resize: none;
+}
+
+/* ── Advertisement Description View (advertisement-description) ─────────── */
 
 .advertisement-description-layout {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    overflow: hidden;
     padding: var(--lumo-space-m);
     gap: var(--lumo-space-m);
+    height: 100%;
+    min-height: 0;
 }
 
 .advertisement-description-body {
-    flex: 1;
+    flex: 1 1 auto;
     overflow-y: auto;
-    padding-right: var(--lumo-space-xs);
+    min-height: 100px;
 }
 
 .advertisement-description-content {
+    display: block;
     white-space: pre-wrap;
-    line-height: var(--lumo-line-height-m);
-    font-size: var(--lumo-font-size-m);
-    color: var(--lumo-body-text-color);
+    word-break: break-word;
 }
 
 .advertisement-description-meta {
-    flex-shrink: 0;
-    font-size: var(--lumo-font-size-s);
-    color: var(--lumo-secondary-text-color);
+    flex: 0 0 auto;
     padding-top: var(--lumo-space-s);
-    border-top: 1px solid var(--lumo-contrast-10pct);
+    border-top: 1px solid var(--lumo-contrast-5pct);
+}
+
+/* ── Utilities ──────────────────────────────────────────────────────────── */
+
+.field-dirty {
+    background-color: rgba(255, 165, 0, 0.05);
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.field-invalid {
+    background-color: rgba(255, 0, 0, 0.05);
+    border-radius: var(--lumo-border-radius-m);
 }

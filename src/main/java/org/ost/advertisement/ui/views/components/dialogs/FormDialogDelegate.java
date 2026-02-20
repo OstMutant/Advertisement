@@ -45,6 +45,10 @@ public class FormDialogDelegate<T> {
         dialog.setHeaderTitle(header);
     }
 
+    public void addDialogThemeName(String themeName) {
+        dialog.addThemeName(themeName);
+    }
+
     public void addContent(Component... components) {
         layout.addFormContent(components);
     }

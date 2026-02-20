@@ -7,7 +7,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.views.advertisements.AdvertisementMetaFactory;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -17,7 +17,9 @@ public class AdvertisementDescriptionDialog extends Dialog {
         initDialog(ad.getTitle());
 
         Span content = createContent(ad.getDescription());
-        Span meta = createMeta(i18n, ad);
+        Span meta = AdvertisementMetaFactory.create(i18n, ad.getCreatedByUserName(), ad.getCreatedAt(), ad.getUpdatedAt());
+        meta.addClassName("advertisement-description-meta");
+
         Button closeButton = createCloseButton(i18n);
 
         VerticalLayout body = new VerticalLayout(content);
@@ -36,29 +38,13 @@ public class AdvertisementDescriptionDialog extends Dialog {
         setHeaderTitle(title);
         setCloseOnEsc(true);
         setCloseOnOutsideClick(true);
-        addClassName("advertisement-description-dialog");
+        addThemeName("advertisement-description");
     }
 
     private Span createContent(String description) {
         Span content = new Span(description);
         content.addClassName("advertisement-description-content");
         return content;
-    }
-
-    private Span createMeta(I18nService i18n, AdvertisementInfoDto ad) {
-        String author = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
-        String created = TimeZoneUtil.formatInstantHuman(ad.getCreatedAt());
-
-        boolean wasEdited = ad.getUpdatedAt() != null && !ad.getUpdatedAt().equals(ad.getCreatedAt());
-        String datePart = wasEdited
-                ? i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED) + " " + created
-                  + "  ·  " + i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_UPDATED) + " "
-                  + TimeZoneUtil.formatInstantHuman(ad.getUpdatedAt())
-                : i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED) + " " + created;
-
-        Span meta = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_AUTHOR) + " " + author + "  ·  " + datePart);
-        meta.addClassName("advertisement-description-meta");
-        return meta;
     }
 
     private Button createCloseButton(I18nService i18n) {

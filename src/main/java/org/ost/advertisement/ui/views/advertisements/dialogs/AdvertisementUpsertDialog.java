@@ -9,13 +9,13 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
+import org.ost.advertisement.ui.views.advertisements.AdvertisementMetaFactory;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.*;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
-import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstantHuman;
 
 @SpringComponent
 @Scope("prototype")
@@ -27,9 +27,6 @@ public class AdvertisementUpsertDialog {
     private final AdvertisementMapper mapper;
     private final I18nService i18n;
 
-    private final DialogAdvertisementCreatedAtLabeledField createdAtField;
-    private final DialogAdvertisementUpdatedAtLabeledField updatedAtField;
-    private final DialogAdvertisementCreatedByLabeledField createdByField;
     private final DialogAdvertisementTitleTextField titleField;
     private final DialogAdvertisementDescriptionTextArea descriptionField;
     private final DialogAdvertisementSaveButton saveButton;
@@ -39,16 +36,15 @@ public class AdvertisementUpsertDialog {
 
     private void configureDialog(FormDialogDelegate<AdvertisementEditDto> delegate) {
         this.delegate = delegate;
+        delegate.addDialogThemeName(isNew() ? "advertisement-create" : "advertisement-edit");
         setTitle();
         bindFields();
-        updateMetadata();
         addContent();
         addActions();
     }
 
     private void setTitle() {
-        AdvertisementEditDto dto = delegate.getDto();
-        delegate.setTitle(dto.getId() == null
+        delegate.setTitle(isNew()
                 ? i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW)
                 : i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT));
     }
@@ -64,16 +60,17 @@ public class AdvertisementUpsertDialog {
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
     }
 
-    private void updateMetadata() {
-        AdvertisementEditDto dto = delegate.getDto();
-        createdAtField.update(formatInstantHuman(dto.getCreatedAt()));
-        updatedAtField.update(formatInstantHuman(dto.getUpdatedAt()));
-        String author = dto.getCreatedByUserName() != null ? dto.getCreatedByUserName() : "—";
-        createdByField.update(author);
-    }
-
     private void addContent() {
-        delegate.addContent(titleField, descriptionField, createdAtField, updatedAtField, createdByField);
+        if (isNew()) {
+            delegate.addContent(titleField, descriptionField);
+        } else {
+            AdvertisementEditDto dto = delegate.getDto();
+            delegate.addContent(
+                    titleField,
+                    descriptionField,
+                    AdvertisementMetaFactory.create(i18n, dto.getCreatedByUserName(), dto.getCreatedAt(), dto.getUpdatedAt())
+            );
+        }
     }
 
     private void addActions() {
@@ -86,6 +83,10 @@ public class AdvertisementUpsertDialog {
         cancelButton.addClickListener(_ -> delegate.close());
 
         delegate.addActions(saveButton, cancelButton);
+    }
+
+    private boolean isNew() {
+        return delegate.getDto().getId() == null;
     }
 
     public void open() {

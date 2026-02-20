@@ -20,5 +20,6 @@ public class DialogAdvertisementDescriptionTextArea extends DialogTextArea {
                 .maxLength(1000)
                 .required(true)
                 .build());
+        setMaxRows(15);
     }
 }
