@@ -1,50 +1,49 @@
 package org.ost.advertisement.ui.views.header.dialogs;
 
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.ost.advertisement.ui.views.header.dialogs.fields.LoginEmailField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.LoginPasswordField;
+import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
+@Slf4j
 @SpringComponent
-@UIScope
-public class LoginDialog extends Dialog {
+@Scope("prototype")
+@RequiredArgsConstructor
+public class LoginDialog extends BaseDialog {
 
     private final transient AuthService authService;
+    @Getter
     private final transient I18nService i18n;
     private final transient SessionService sessionService;
 
     private final LoginEmailField emailField;
     private final LoginPasswordField passwordField;
+    @Getter
+    private final DialogLayout layout;
 
-    public LoginDialog(AuthService authService,
-                       I18nService i18n,
-                       SessionService sessionService,
-                       LoginEmailField emailField,
-                       LoginPasswordField passwordField) {
-        this.authService = authService;
-        this.i18n = i18n;
-        this.sessionService = sessionService;
-        this.emailField = emailField;
-        this.passwordField = passwordField;
+    @Override
+    @PostConstruct
+    protected void init() {
+        super.init();
 
-        DialogStyle.apply(this, i18n.get(LOGIN_HEADER_TITLE));
-        initLayout();
-    }
+        setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
 
-    private void initLayout() {
         DialogPrimaryButton loginButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
                 .i18n(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
         DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
@@ -56,10 +55,8 @@ public class LoginDialog extends Dialog {
         Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
         welcome.addClassName("dialog-subtitle");
 
-        DialogLayout layout = new DialogLayout();
         layout.addFormContent(welcome, emailField, passwordField);
         layout.addActions(loginButton, cancelButton);
-        add(layout.getLayout());
     }
 
     private void handleLogin() {

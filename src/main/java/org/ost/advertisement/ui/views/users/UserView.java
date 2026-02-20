@@ -1,22 +1,26 @@
 package org.ost.advertisement.ui.views.users;
 
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
 import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
 import org.ost.advertisement.ui.views.users.dialogs.UserViewDialog;
 import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
@@ -25,30 +29,38 @@ import java.util.stream.Collectors;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
+@Slf4j
 @SpringComponent
 @UIScope
-public class UserView extends UserLayout {
-
-    private static final Logger log = LoggerFactory.getLogger(UserView.class);
+@RequiredArgsConstructor
+public class UserView extends VerticalLayout {
 
     private final transient UserService userService;
     private final transient I18nService i18n;
     private final UserQueryStatusBar queryStatusBar;
     private final transient EditActionButton.Builder editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
+    private final transient UserEditDialog.Builder editDialogBuilder;
+    private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
 
-    public UserView(UserQueryStatusBar queryStatusBar,
-                    UserService userService,
-                    I18nService i18n,
-                    UserEditDialog.Builder editDialogBuilder,
-                    EditActionButton.Builder editButtonBuilder,
-                    DeleteActionButton.Builder deleteButtonBuilder) {
-        super(i18n);
-        this.queryStatusBar = queryStatusBar;
-        this.userService = userService;
-        this.i18n = i18n;
-        this.editButtonBuilder = editButtonBuilder;
-        this.deleteButtonBuilder = deleteButtonBuilder;
+    private Grid<User> grid;
+    private PaginationBarModern paginationBar;
+
+    @PostConstruct
+    protected void init() {
+        addClassName("user-list-layout");
+
+        setWidthFull();
+
+        grid = new Grid<>(User.class, false);
+        grid.addClassName("user-grid");
+        grid.setWidthFull();
+        grid.setAllRowsVisible(true);
+
+        paginationBar = new PaginationBarModern(i18n);
+        paginationBar.addClassName("user-pagination");
+
+        add(grid, paginationBar);
 
         initPagination();
         initQueryBar();
@@ -61,19 +73,19 @@ public class UserView extends UserLayout {
     }
 
     private void initPagination() {
-        getPaginationBar().setPageChangeListener(_ -> refreshGrid());
+        paginationBar.setPageChangeListener(_ -> refreshGrid());
     }
 
     private void initQueryBar() {
         queryStatusBar.getQueryBlock().addEventListener(() -> {
-            getPaginationBar().setTotalCount(0);
+            paginationBar.setTotalCount(0);
             refreshGrid();
         });
     }
 
     private void initGrid(UserEditDialog.Builder editDialogBuilder) {
         UserGridConfigurator.configure(
-                getGrid(),
+                grid,
                 i18n,
                 editButtonBuilder,
                 deleteButtonBuilder,
@@ -94,8 +106,8 @@ public class UserView extends UserLayout {
     }
 
     private void refreshGrid() {
-        int page = getPaginationBar().getCurrentPage();
-        int size = getPaginationBar().getPageSize();
+        int page = paginationBar.getCurrentPage();
+        int size = paginationBar.getPageSize();
 
         UserFilterDto currentFilter = queryStatusBar.getQueryBlock().getFilterProcessor().getNewFilter();
         var sort = queryStatusBar.getQueryBlock().getSortProcessor().getOriginalSort().getSort();
@@ -103,26 +115,25 @@ public class UserView extends UserLayout {
         try {
             List<User> pageData = userService.getFiltered(currentFilter, page, size, sort);
             int totalCount = userService.count(currentFilter);
-            getPaginationBar().setTotalCount(totalCount);
-            getGrid().setItems(pageData != null ? pageData : Collections.emptyList());
+            paginationBar.setTotalCount(totalCount);
+            grid.setItems(pageData != null ? pageData : Collections.emptyList());
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching users: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
-            getGrid().setItems(Collections.emptyList());
-            getPaginationBar().setTotalCount(0);
+            grid.setItems(Collections.emptyList());
+            paginationBar.setTotalCount(0);
         } catch (Exception ex) {
             log.error("Unexpected error while refreshing user grid", ex);
             NotificationType.ERROR.show(i18n.get(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage()));
-            getGrid().setItems(Collections.emptyList());
-            getPaginationBar().setTotalCount(0);
+            grid.setItems(Collections.emptyList());
+            paginationBar.setTotalCount(0);
         } finally {
             queryStatusBar.update();
         }
     }
 
     private void confirmAndDelete(User user) {
-        ConfirmDeleteHelper.showConfirm(
-                i18n,
+        confirmDeleteDialogBuilder.build(
                 i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()),
                 USER_VIEW_CONFIRM_DELETE_BUTTON,
                 USER_VIEW_CONFIRM_CANCEL_BUTTON,
@@ -131,14 +142,14 @@ public class UserView extends UserLayout {
                         userService.delete(user);
                         NotificationType.SUCCESS.show(i18n.get(USER_VIEW_NOTIFICATION_DELETED));
                         refreshGrid();
-                    } catch (Exception ex) {
-                        log.error("Error deleting user id={}", user.getId(), ex);
+                    } catch (Exception e) {
+                        log.error("Error deleting user id={}", user.getId(), e);
                         NotificationType.ERROR.show(
-                                i18n.get(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
+                                i18n.get(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage())
                         );
                     }
                 }
-        );
+        ).open();
     }
 
     private void showValidationErrors(ConstraintViolationException ex) {

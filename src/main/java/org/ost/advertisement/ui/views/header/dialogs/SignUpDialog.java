@@ -1,54 +1,55 @@
 package org.ost.advertisement.ui.views.header.dialogs;
 
-import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.utils.NotificationType;
+import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.dialogs.DialogStyle;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpEmailField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpNameField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpPasswordField;
+import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @Slf4j
 @SpringComponent
-@UIScope
-public class SignUpDialog extends Dialog {
+@Scope("prototype")
+@RequiredArgsConstructor
+public class SignUpDialog extends BaseDialog {
 
     private final transient UserService userService;
+    @Getter
     private final transient I18nService i18n;
 
     private final SignUpNameField nameField;
     private final SignUpEmailField emailField;
     private final SignUpPasswordField passwordField;
 
+    @Getter
+    private final DialogLayout layout;
+
     private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
     private final transient SignUpDto dto = new SignUpDto();
 
-    public SignUpDialog(UserService userService,
-                        I18nService i18n,
-                        SignUpNameField nameField,
-                        SignUpEmailField emailField,
-                        SignUpPasswordField passwordField) {
-        this.userService = userService;
-        this.i18n = i18n;
-        this.nameField = nameField;
-        this.emailField = emailField;
-        this.passwordField = passwordField;
+    @Override
+    @PostConstruct
+    protected void init() {
+        super.init();
 
-        DialogStyle.apply(this, i18n.get(SIGNUP_HEADER_TITLE));
+        setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
 
         DialogPrimaryButton registerButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
                 .i18n(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
@@ -58,10 +59,8 @@ public class SignUpDialog extends Dialog {
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());
 
-        DialogLayout layout = new DialogLayout();
         layout.addFormContent(nameField, emailField, passwordField);
         layout.addActions(registerButton, cancelButton);
-        add(layout.getLayout());
 
         setupBinder();
     }

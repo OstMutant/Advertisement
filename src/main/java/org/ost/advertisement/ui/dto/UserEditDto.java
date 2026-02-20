@@ -10,7 +10,7 @@ import java.time.Instant;
 @Builder
 @Getter
 @Setter
-public class UserEditDto {
+public class UserEditDto implements EditDto {
 
     private Long id;
 

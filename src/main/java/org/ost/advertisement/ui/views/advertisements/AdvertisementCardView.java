@@ -18,7 +18,7 @@ import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescri
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteHelper;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -28,13 +28,13 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardView extends VerticalLayout {
-
     private final transient I18nService i18n;
     private final transient AdvertisementService advertisementService;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient EditActionButton.Builder editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
     private final transient AccessEvaluator access;
+    private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
 
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         addClassName("advertisement-card");
@@ -131,8 +131,7 @@ public class AdvertisementCardView extends VerticalLayout {
     }
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
-        ConfirmDeleteHelper.showConfirm(
-                i18n,
+        confirmDeleteDialogBuilder.build(
                 i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
                 ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
                 ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
@@ -147,7 +146,7 @@ public class AdvertisementCardView extends VerticalLayout {
                         );
                     }
                 }
-        );
+        ).open();
     }
 
     @SpringComponent

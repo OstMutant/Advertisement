@@ -2,6 +2,8 @@ package org.ost.advertisement.ui.views.users.dialogs;
 
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.User;
@@ -9,7 +11,9 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
-import org.ost.advertisement.ui.views.components.dialogs.FormDialogDelegate;
+import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
+import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
+import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.users.dialogs.fields.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -20,15 +24,17 @@ import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.*;
 import static org.ost.advertisement.ui.utils.TimeZoneUtil.formatInstantHuman;
 
+@Slf4j
 @SpringComponent
 @Scope("prototype")
-@Slf4j
 @RequiredArgsConstructor
-public class UserEditDialog {
+public class UserEditDialog extends BaseDialog {
 
-    private final UserService userService;
-    private final UserMapper mapper;
-    private final I18nService i18n;
+    private final transient UserService userService;
+    private final transient UserMapper mapper;
+    @Getter
+    private final transient I18nService i18n;
+
     private final DialogUserIdLabeledField idField;
     private final DialogUserEmailLabeledField emailField;
     private final DialogUserCreatedAtLabeledField createdAtField;
@@ -38,34 +44,43 @@ public class UserEditDialog {
     private final DialogUserSaveButton saveButton;
     private final DialogUserCancelButton cancelButton;
 
-    private FormDialogDelegate<UserEditDto> delegate;
+    @Getter
+    private final transient DialogLayout layout;
+    @Getter
+    private transient FormDialogBinder<UserEditDto> binder;
 
-    private void configureDialog(FormDialogDelegate<UserEditDto> delegate) {
-        this.delegate = delegate;
-        setTitle();
+    @Override
+    @PostConstruct
+    public void init() {
+        super.init();
+    }
+
+    private void configure(FormDialogBinder<UserEditDto> binder) {
+        this.binder = binder;
         bindFields();
+        setTitle();
         updateMetadata();
         addContent();
         addActions();
     }
 
-    private void setTitle() {
-        delegate.setTitle(i18n.get(USER_DIALOG_TITLE));
-    }
-
     private void bindFields() {
-        delegate.getBinder().forField(nameField)
+        binder.getBinder().forField(nameField)
                 .asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
                 .withValidator(new StringLengthValidator(i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
                 .bind(UserEditDto::getName, UserEditDto::setName);
 
-        delegate.getBinder().forField(roleCombo)
+        binder.getBinder().forField(roleCombo)
                 .asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
                 .bind(UserEditDto::getRole, UserEditDto::setRole);
     }
 
+    private void setTitle() {
+        setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
+    }
+
     private void updateMetadata() {
-        UserEditDto user = delegate.getConfig().getDto();
+        UserEditDto user = binder.getDto();
         idField.update(String.valueOf(user.getId()));
         emailField.update(ofNullable(user.getEmail()).orElse(""));
         createdAtField.update(formatInstantHuman(user.getCreatedAt()));
@@ -73,23 +88,19 @@ public class UserEditDialog {
     }
 
     private void addContent() {
-        delegate.addContent(nameField, roleCombo, emailField, idField, createdAtField, updatedAtField);
+        layout.addFormContent(nameField, roleCombo, emailField, idField, createdAtField, updatedAtField);
     }
 
     private void addActions() {
-        saveButton.addClickListener(_ -> delegate.save(
-                u -> userService.save(mapper.toUser(u)),
+        saveButton.addClickListener(_ -> savedNotifier(
+                binder.save(u -> userService.save(mapper.toUser(u))),
                 USER_DIALOG_NOTIFICATION_SUCCESS,
                 USER_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
 
-        cancelButton.addClickListener(_ -> delegate.close());
+        cancelButton.addClickListener(_ -> close());
 
-        delegate.addActions(saveButton, cancelButton);
-    }
-
-    public void open() {
-        delegate.open();
+        layout.addActions(saveButton, cancelButton);
     }
 
     @SpringComponent
@@ -97,27 +108,25 @@ public class UserEditDialog {
     public static class Builder {
 
         private final UserMapper mapper;
-        private final FormDialogDelegate.Builder<UserEditDto> delegateBuilder;
+        private final FormDialogBinder.Builder<UserEditDto> dialogBinderBuilder;
         private final ObjectProvider<UserEditDialog> dialogProvider;
 
-        public UserEditDialog build(User user, Runnable refresh) {
-            FormDialogDelegate<UserEditDto> delegate = createDelegate(user, refresh);
+        public void buildAndOpen(User user, Runnable refresh) {
+            build(user, refresh).open();
+        }
+
+        private UserEditDialog build(User user, Runnable refresh) {
             UserEditDialog dialog = dialogProvider.getObject();
-            dialog.configureDialog(delegate);
+            dialog.applyRefresh(refresh);
+            dialog.configure(createBinder(user));
             return dialog;
         }
 
-        public UserEditDialog buildAndOpen(User user, Runnable refresh) {
-            UserEditDialog dialog = build(user, refresh);
-            dialog.open();
-            return dialog;
-        }
-
-        private FormDialogDelegate<UserEditDto> createDelegate(User user, Runnable refresh) {
-            return delegateBuilder.build(FormDialogDelegate.Config.<UserEditDto>builder()
+        private FormDialogBinder<UserEditDto> createBinder(User user) {
+            UserEditDto editDto = mapper.toUserEdit(Objects.requireNonNull(user));
+            return dialogBinderBuilder.build(FormDialogBinder.Config.<UserEditDto>builder()
                     .clazz(UserEditDto.class)
-                    .dto(mapper.toUserEdit(Objects.requireNonNull(user)))
-                    .refresh(refresh)
+                    .dto(editDto)
                     .build());
         }
     }
