@@ -8,6 +8,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
+import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.AdvertisementMetaFactory;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.*;
@@ -64,7 +65,7 @@ public class AdvertisementUpsertDialog {
         if (isNew()) {
             delegate.addContent(titleField, descriptionField);
         } else {
-            AdvertisementEditDto dto = delegate.getDto();
+            AdvertisementEditDto dto = delegate.getConfig().getDto();
             delegate.addContent(
                     titleField,
                     descriptionField,
@@ -86,7 +87,7 @@ public class AdvertisementUpsertDialog {
     }
 
     private boolean isNew() {
-        return delegate.getDto().getId() == null;
+        return delegate.getConfig().getDto().getId() == null;
     }
 
     public void open() {
@@ -123,11 +124,11 @@ public class AdvertisementUpsertDialog {
         }
 
         private FormDialogDelegate<AdvertisementEditDto> createDelegate(AdvertisementInfoDto dto, Runnable refresh) {
-            return delegateBuilder
-                    .withClass(AdvertisementEditDto.class)
-                    .withDto(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto))
-                    .withRefresh(refresh)
-                    .build();
+            return delegateBuilder.build(FormDialogDelegate.Config.<AdvertisementEditDto>builder()
+                    .clazz(AdvertisementEditDto.class)
+                    .dto(dto == null ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(dto))
+                    .refresh(refresh)
+                    .build());
         }
     }
 }

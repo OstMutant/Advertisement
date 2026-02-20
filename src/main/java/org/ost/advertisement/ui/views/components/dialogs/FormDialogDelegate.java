@@ -4,7 +4,8 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
+import lombok.*;
+import lombok.experimental.Accessors;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
@@ -15,30 +16,42 @@ import org.springframework.context.annotation.Scope;
 @Slf4j
 @SpringComponent
 @Scope("prototype")
+@RequiredArgsConstructor
 public class FormDialogDelegate<T> {
+
+    @Value
+    @lombok.Builder
+    public static class Config<T> {
+        @NonNull Class<T> clazz;
+        @NonNull T dto;
+        Runnable refresh;
+    }
 
     private final I18nService i18n;
     private final DialogLayout layout = new DialogLayout();
     private final Dialog dialog = new Dialog();
-    @Getter
-    private final T dto;
-    @Getter
-    private final Binder<T> binder;
 
-    public FormDialogDelegate(Class<T> clazz, I18nService i18n, T dto, Runnable refresh) {
-        this.i18n = i18n;
-        this.dto = dto;
-        this.binder = new Binder<>(clazz);
-        this.binder.setBean(dto);
+    @Getter
+    private Config<T> config;
+
+    @Getter
+    private Binder<T> binder;
+
+    private FormDialogDelegate<T> setupDialog(Config<T> config) {
+        this.config = config;
+        this.binder = new Binder<>(config.getClazz());
+        this.binder.setBean(config.getDto());
 
         DialogStyle.apply(dialog, "");
         dialog.add(layout.getLayout());
 
+        Runnable refresh = config.getRefresh();
         if (refresh != null) {
             dialog.addOpenedChangeListener(event -> {
                 if (!event.isOpened()) refresh.run();
             });
         }
+        return this;
     }
 
     public void setTitle(String header) {
@@ -58,11 +71,7 @@ public class FormDialogDelegate<T> {
     }
 
     public void save(Saver<T> saver, I18nKey successKey, I18nKey errorKey) {
-        if (dto == null) {
-            log.error("DTO is null, cannot save");
-            NotificationType.ERROR.show(i18n.get(errorKey, "DTO is not initialized"));
-            return;
-        }
+        T dto = config.getDto();
         if (binder.writeBeanIfValid(dto)) {
             saver.save(dto);
             NotificationType.SUCCESS.show(i18n.get(successKey));
@@ -86,39 +95,13 @@ public class FormDialogDelegate<T> {
     }
 
     @SpringComponent
+    @RequiredArgsConstructor
     public static class Builder<T> {
+        private final ObjectProvider<FormDialogDelegate<T>> provider;
 
-        private final I18nService i18n;
-        private final ObjectProvider<FormDialogDelegate<T>> delegateProvider;
-
-        private Class<T> clazz;
-        private T dto;
-        private Runnable refresh;
-
-        public Builder(I18nService i18n, ObjectProvider<FormDialogDelegate<T>> delegateProvider) {
-            this.i18n = i18n;
-            this.delegateProvider = delegateProvider;
-        }
-
-        public Builder<T> withClass(Class<T> clazz) {
-            this.clazz = clazz;
-            return this;
-        }
-
-        public Builder<T> withDto(T dto) {
-            this.dto = dto;
-            return this;
-        }
-
-        public Builder<T> withRefresh(Runnable refresh) {
-            this.refresh = refresh;
-            return this;
-        }
-
-        public FormDialogDelegate<T> build() {
-            if (clazz == null) throw new IllegalStateException("Class<T> must be provided");
-            if (dto == null) throw new IllegalStateException("DTO must be provided");
-            return delegateProvider.getObject(clazz, i18n, dto, refresh);
+        public FormDialogDelegate<T> build(FormDialogDelegate.Config<T> config) {
+            return provider.getObject().setupDialog(config);
         }
     }
+
 }

@@ -65,7 +65,7 @@ public class UserEditDialog {
     }
 
     private void updateMetadata() {
-        UserEditDto user = delegate.getDto();
+        UserEditDto user = delegate.getConfig().getDto();
         idField.update(String.valueOf(user.getId()));
         emailField.update(ofNullable(user.getEmail()).orElse(""));
         createdAtField.update(formatInstantHuman(user.getCreatedAt()));
@@ -114,11 +114,11 @@ public class UserEditDialog {
         }
 
         private FormDialogDelegate<UserEditDto> createDelegate(User user, Runnable refresh) {
-            return delegateBuilder
-                    .withClass(UserEditDto.class)
-                    .withDto(mapper.toUserEdit(Objects.requireNonNull(user)))
-                    .withRefresh(refresh)
-                    .build();
+            return delegateBuilder.build(FormDialogDelegate.Config.<UserEditDto>builder()
+                    .clazz(UserEditDto.class)
+                    .dto(mapper.toUserEdit(Objects.requireNonNull(user)))
+                    .refresh(refresh)
+                    .build());
         }
     }
 }

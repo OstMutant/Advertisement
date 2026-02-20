@@ -18,13 +18,4 @@ public class DialogStyle {
         dialog.setHeaderTitle(titleText);
     }
 
-    public static void applyFormLayout(FormLayout form) {
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-    }
-
-    public static Component wrapScrollable(Component inner) {
-        Div scroll = new Div(inner);
-        scroll.addClassName("scroll-container");
-        return scroll;
-    }
 }

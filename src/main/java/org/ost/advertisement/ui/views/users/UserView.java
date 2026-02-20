@@ -34,8 +34,8 @@ public class UserView extends UserLayout {
     private final transient UserService userService;
     private final transient I18nService i18n;
     private final UserQueryStatusBar queryStatusBar;
-    private final EditActionButton.Builder editButtonBuilder;
-    private final DeleteActionButton.Builder deleteButtonBuilder;
+    private final transient EditActionButton.Builder editButtonBuilder;
+    private final transient DeleteActionButton.Builder deleteButtonBuilder;
 
     public UserView(UserQueryStatusBar queryStatusBar,
                     UserService userService,
