@@ -48,9 +48,22 @@ public class SignUpDialog extends BaseDialog {
     @PostConstruct
     protected void init() {
         super.init();
+        addThemeName("signup-dialog");
+        setTitle();
+        addContent();
+        addActions();
+        bindFields();
+    }
 
+    private void setTitle() {
         setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
+    }
 
+    private void addContent() {
+        layout.addFormContent(nameField, emailField, passwordField);
+    }
+
+    private void addActions() {
         DialogPrimaryButton registerButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
                 .i18n(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
         DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
@@ -59,13 +72,10 @@ public class SignUpDialog extends BaseDialog {
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());
 
-        layout.addFormContent(nameField, emailField, passwordField);
         layout.addActions(registerButton, cancelButton);
-
-        setupBinder();
     }
 
-    private void setupBinder() {
+    private void bindFields() {
         binder.setBean(dto);
 
         binder.forField(nameField)
@@ -98,6 +108,7 @@ public class SignUpDialog extends BaseDialog {
             close();
         } catch (ValidationException ex) {
             log.warn("SignUp validation failed: {}", ex.getMessage());
+            NotificationType.ERROR.show(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT));
         }
     }
 }

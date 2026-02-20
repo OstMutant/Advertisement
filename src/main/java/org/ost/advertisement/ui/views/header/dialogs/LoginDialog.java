@@ -41,9 +41,13 @@ public class LoginDialog extends BaseDialog {
     @PostConstruct
     protected void init() {
         super.init();
-        setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
+        setTitle();
         addContent();
         addActions();
+    }
+
+    private void setTitle() {
+        setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
     }
 
     private void addContent() {
