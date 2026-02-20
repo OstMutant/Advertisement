@@ -19,6 +19,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor
 public final class ConfirmDeleteDialog extends BaseDialog {
+
     @Getter
     private final transient I18nService i18n;
     @Getter
@@ -30,10 +31,12 @@ public final class ConfirmDeleteDialog extends BaseDialog {
         super.init();
     }
 
-    public ConfirmDeleteDialog showConfirm(String message,
-                                           I18nKey confirmKey, I18nKey cancelKey,
+    public ConfirmDeleteDialog showConfirm(I18nKey titleKey,
+                                           String message,
+                                           I18nKey confirmKey,
+                                           I18nKey cancelKey,
                                            Runnable onConfirm) {
-        setHeaderTitle(i18n.get(I18nKey.USER_VIEW_CONFIRM_DELETE_TITLE));
+        setHeaderTitle(i18n.get(titleKey));
 
         Paragraph body = new Paragraph(message);
         body.addClassName("dialog-confirm-text");
@@ -53,11 +56,9 @@ public final class ConfirmDeleteDialog extends BaseDialog {
                 .i18n(i18n).labelKey(cancelKey).build());
         cancelButton.addClickListener(_ -> close());
 
-
         layout.addFormContent(body);
         layout.addActions(confirmButton, cancelButton);
 
-        add(layout);
         return this;
     }
 
@@ -66,10 +67,12 @@ public final class ConfirmDeleteDialog extends BaseDialog {
     public static class Builder {
         private final ObjectProvider<ConfirmDeleteDialog> provider;
 
-        public ConfirmDeleteDialog build(String message,
-                                         I18nKey confirmKey, I18nKey cancelKey,
+        public ConfirmDeleteDialog build(I18nKey titleKey,
+                                         String message,
+                                         I18nKey confirmKey,
+                                         I18nKey cancelKey,
                                          Runnable onConfirm) {
-            return provider.getObject().showConfirm(message, confirmKey, cancelKey, onConfirm);
+            return provider.getObject().showConfirm(titleKey, message, confirmKey, cancelKey, onConfirm);
         }
     }
 }

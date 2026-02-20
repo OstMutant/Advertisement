@@ -134,6 +134,7 @@ public class UserView extends VerticalLayout {
 
     private void confirmAndDelete(User user) {
         confirmDeleteDialogBuilder.build(
+                USER_VIEW_CONFIRM_DELETE_TITLE,
                 i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()),
                 USER_VIEW_CONFIRM_DELETE_BUTTON,
                 USER_VIEW_CONFIRM_CANCEL_BUTTON,

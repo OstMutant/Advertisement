@@ -19,20 +19,18 @@ public class AdvertisementCardMetaPanel extends Span {
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull
-        String authorName;
-        @NonNull
+        @NonNull String authorName;
         String authorEmail;
-        @NonNull
-        String dateLabel;
-        @NonNull
-        Instant date;
+        @NonNull String dateLabel;
+        @NonNull Instant date;
     }
 
     private AdvertisementCardMetaPanel configure(Parameters p) {
         Span authorSpan = new Span(p.getAuthorName());
         authorSpan.addClassName("advertisement-meta-author");
-        authorSpan.getElement().setAttribute("title", p.getAuthorEmail());
+        if (p.getAuthorEmail() != null) {
+            authorSpan.getElement().setAttribute("title", p.getAuthorEmail());
+        }
 
         Span separator = new Span(" · ");
         separator.addClassName("advertisement-meta-separator");

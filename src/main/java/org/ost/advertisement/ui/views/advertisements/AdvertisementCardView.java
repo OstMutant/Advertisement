@@ -28,6 +28,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardView extends VerticalLayout {
+
     private final transient I18nService i18n;
     private final transient AdvertisementService advertisementService;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
@@ -57,7 +58,6 @@ public class AdvertisementCardView extends VerticalLayout {
         add(title, description, spacer, createAdvertisementCardMetaPanel(ad), actions);
         return this;
     }
-
 
     private AdvertisementCardMetaPanel createAdvertisementCardMetaPanel(AdvertisementInfoDto ad) {
         boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
@@ -116,6 +116,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
         confirmDeleteDialogBuilder.build(
+                USER_VIEW_CONFIRM_DELETE_TITLE,
                 i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
                 ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
                 ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
