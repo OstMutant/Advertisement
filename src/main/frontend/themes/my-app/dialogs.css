@@ -112,6 +112,10 @@ vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area textarea 
     word-break: break-word;
 }
 
+.advertisement-meta {
+    flex-wrap: wrap;
+}
+
 .advertisement-description-meta {
     flex: 0 0 auto;
     padding-top: var(--lumo-space-s);

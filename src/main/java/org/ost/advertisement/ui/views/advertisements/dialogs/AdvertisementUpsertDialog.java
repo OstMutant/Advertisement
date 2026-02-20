@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements.dialogs;
 
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
@@ -12,9 +11,9 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.advertisements.AdvertisementMetaFactory;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementCancelButton;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementDescriptionTextArea;
+import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementSaveButton;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementTitleTextField;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
@@ -38,6 +37,7 @@ public class AdvertisementUpsertDialog extends BaseDialog {
 
     private final DialogAdvertisementTitleTextField titleField;
     private final DialogAdvertisementDescriptionTextArea descriptionField;
+    private final transient DialogAdvertisementMetaPanel.Builder metaPanelBuilder;
     private final DialogAdvertisementSaveButton saveButton;
     private final DialogAdvertisementCancelButton cancelButton;
 
@@ -83,8 +83,12 @@ public class AdvertisementUpsertDialog extends BaseDialog {
             layout.addFormContent(titleField, descriptionField);
         } else {
             AdvertisementEditDto dto = binder.getDto();
-            Span meta = AdvertisementMetaFactory.create(i18n, dto.getCreatedByUserName(), dto.getCreatedAt(), dto.getUpdatedAt());
-            layout.addFormContent(titleField, descriptionField, meta);
+            layout.addFormContent(titleField, descriptionField,
+                    metaPanelBuilder.build(DialogAdvertisementMetaPanel.Parameters.builder()
+                            .authorName(dto.getCreatedByUserName())
+                            .createdAt(dto.getCreatedAt())
+                            .updatedAt(dto.getUpdatedAt())
+                            .build()));
         }
     }
 
@@ -117,8 +121,7 @@ public class AdvertisementUpsertDialog extends BaseDialog {
         }
 
         public void buildAndOpen(AdvertisementInfoDto dto, Runnable refresh) {
-            AdvertisementUpsertDialog dialog = build(dto, refresh);
-            dialog.open();
+            build(dto, refresh).open();
         }
 
         private AdvertisementUpsertDialog build(AdvertisementInfoDto dto, Runnable refresh) {

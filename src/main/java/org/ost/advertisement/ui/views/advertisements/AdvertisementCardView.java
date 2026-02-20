@@ -13,7 +13,7 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.NotificationType;
-import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
@@ -31,6 +31,8 @@ public class AdvertisementCardView extends VerticalLayout {
     private final transient I18nService i18n;
     private final transient AdvertisementService advertisementService;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+    private final transient AdvertisementDescriptionDialog.Builder descriptionDialogBuilder;
+    private final transient AdvertisementCardMetaPanel.Builder metaPanelBuilder;
     private final transient EditActionButton.Builder editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
     private final transient AccessEvaluator access;
@@ -47,18 +49,28 @@ public class AdvertisementCardView extends VerticalLayout {
 
         H3 title = createTitle(ad);
         Span description = createDescription(ad);
-        Span meta = createMeta(ad);
         HorizontalLayout actions = createActions(ad, refreshAdvertisements);
 
         Span spacer = new Span();
         setFlexGrow(1, spacer);
 
-        add(title, description, spacer, meta, actions);
+        add(title, description, spacer, createAdvertisementCardMetaPanel(ad), actions);
         return this;
     }
 
+
+    private AdvertisementCardMetaPanel createAdvertisementCardMetaPanel(AdvertisementInfoDto ad) {
+        boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
+        return metaPanelBuilder.build(AdvertisementCardMetaPanel.Parameters.builder()
+                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                .authorEmail(ad.getCreatedByUserEmail())
+                .dateLabel(neverEdited ? i18n.get(ADVERTISEMENT_CARD_CREATED) : i18n.get(ADVERTISEMENT_CARD_UPDATED))
+                .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
+                .build());
+    }
+
     private void openDescriptionDialog(AdvertisementInfoDto ad) {
-        new AdvertisementDescriptionDialog(i18n, ad).open();
+        descriptionDialogBuilder.build(ad).open();
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -71,34 +83,6 @@ public class AdvertisementCardView extends VerticalLayout {
         Span description = new Span(ad.getDescription());
         description.addClassName("advertisement-description");
         return description;
-    }
-
-    private Span createMeta(AdvertisementInfoDto ad) {
-        String userName = ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—";
-
-        boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
-        String dateLabel = neverEdited
-                ? i18n.get(ADVERTISEMENT_CARD_CREATED)
-                : i18n.get(ADVERTISEMENT_CARD_UPDATED);
-        String dateValue = TimeZoneUtil.formatInstantHuman(
-                neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt()
-        );
-
-        Span authorSpan = new Span(userName);
-        authorSpan.addClassName("advertisement-meta-author");
-        if (ad.getCreatedByUserEmail() != null) {
-            authorSpan.getElement().setAttribute("title", ad.getCreatedByUserEmail());
-        }
-
-        Span separator = new Span(" · ");
-        separator.addClassName("advertisement-meta-separator");
-
-        Span dateSpan = new Span(dateLabel + " " + dateValue);
-        dateSpan.addClassName("advertisement-meta-date");
-
-        Span meta = new Span(authorSpan, separator, dateSpan);
-        meta.addClassName("advertisement-meta");
-        return meta;
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
