@@ -1,10 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -115,21 +116,14 @@ public class AdvertisementDetailPanel extends VerticalLayout {
         }
     }
 
-    // ── EMPTY mode ────────────────────────────────────────────────────────────
+    // ── EMPTY mode (Collapses the panel) ──────────────────────────────────────
 
     private void showEmpty() {
         mode = Mode.EMPTY;
         binder = null;
         removeAll();
-
-        Span hint = new Span(i18n.get(ADVERTISEMENT_DETAIL_EMPTY));
-        hint.addClassName("detail-empty-hint");
-
-        VerticalLayout emptyLayout = new VerticalLayout(hint);
-        emptyLayout.setSizeFull();
-        emptyLayout.setAlignItems(Alignment.CENTER);
-        emptyLayout.setJustifyContentMode(JustifyContentMode.CENTER);
-        add(emptyLayout);
+        // Hiding the panel forces the SplitLayout to give 100% width to the left pane
+        setVisible(false);
     }
 
     // ── READ mode ─────────────────────────────────────────────────────────────
@@ -139,14 +133,31 @@ public class AdvertisementDetailPanel extends VerticalLayout {
         binder = null;
         removeAll();
 
+        // Ensure panel is visible (expands the SplitLayout)
+        setVisible(true);
+
+        // 1. Title
         H2 title = new H2(ad.getTitle());
         title.addClassName("detail-read-title");
+        title.getStyle().set("margin-top", "0"); // Align nicely with top edge
 
+        // 2. Close Button (Cross icon)
+        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> clear());
+        closeBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        closeBtn.addClassName("detail-close-button");
+
+        // 3. Header wrapper (Relative positioning container for absolute close button)
+        HorizontalLayout header = new HorizontalLayout(title, closeBtn);
+        header.setWidthFull();
+        header.addClassName("detail-read-header");
+
+        // 4. Description
         Div description = new Div();
         description.addClassName("detail-read-description");
         description.setText(ad.getDescription());
 
-        VerticalLayout content = new VerticalLayout(title, description);
+        // 5. Main content wrapper
+        VerticalLayout content = new VerticalLayout(header, description);
         content.addClassName("detail-read-content");
         content.setPadding(true);
         content.setSpacing(true);
@@ -197,6 +208,9 @@ public class AdvertisementDetailPanel extends VerticalLayout {
     private void showEdit(AdvertisementInfoDto ad) {
         mode = Mode.EDIT;
         removeAll();
+
+        // Ensure panel is visible (expands the SplitLayout)
+        setVisible(true);
 
         DialogAdvertisementTitleTextField titleField = titleFieldProvider.getObject();
         DialogAdvertisementDescriptionTextArea descriptionField = descriptionFieldProvider.getObject();

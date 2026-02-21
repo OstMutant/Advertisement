@@ -61,7 +61,7 @@ public class AdvertisementsView extends VerticalLayout {
 
         SplitLayout split = new SplitLayout(buildLeftPane(), detailPanel);
         split.setSizeFull();
-        split.setSplitterPosition(60);
+        split.setSplitterPosition(60); // Remembers this ratio when detail panel is opened
         add(split);
         setFlexGrow(1, split);
 
@@ -76,7 +76,7 @@ public class AdvertisementsView extends VerticalLayout {
     public void setVisible(boolean visible) {
         super.setVisible(visible);
         if (visible) {
-            detailPanel.clear();
+            detailPanel.clear(); // Collapses right pane
             refreshAdvertisements();
         }
     }
@@ -95,8 +95,7 @@ public class AdvertisementsView extends VerticalLayout {
         );
         left.addClassName("advertisements-left-pane");
         left.setSizeFull();
-        left.setPadding(false);
-        left.setSpacing(false);
+        // Preserving default padding and spacing for native VerticalLayout behavior
         left.setFlexGrow(1, advertisementContainer);
         return left;
     }

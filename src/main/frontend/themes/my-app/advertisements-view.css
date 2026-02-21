@@ -8,6 +8,10 @@
   box-sizing: border-box;
 }
 
+.advertisements-left-pane {
+  min-width: 0;
+}
+
 .add-advertisement-button {
   margin-top: 12px;
 }
@@ -45,4 +49,19 @@
 .empty-state-hint {
   font-size: 0.875rem;
   color: var(--lumo-contrast-40pct);
+}
+
+/* ─── Detail Panel Header & Close Button (Absolute Positioning) ─── */
+
+.detail-read-header {
+  position: relative;     /* Container for absolute positioning */
+  padding-right: 40px;    /* Leave space so long title text doesn't overlap the X */
+  box-sizing: border-box;
+}
+
+.detail-close-button {
+  position: absolute;     /* Pinned strictly to the top right */
+  top: 0;
+  right: 0;
+  margin: 0;
 }
