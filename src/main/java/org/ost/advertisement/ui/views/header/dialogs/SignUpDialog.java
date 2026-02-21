@@ -50,8 +50,8 @@ public class SignUpDialog extends BaseDialog {
         addThemeName("signup-dialog");
         setTitle();
         addContent();
-        addActions();
         bindFields();
+        addActions();
     }
 
     private void setTitle() {
@@ -71,7 +71,7 @@ public class SignUpDialog extends BaseDialog {
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());
 
-        layout.addActions(registerButton, cancelButton);
+        getFooter().add(registerButton, cancelButton);
     }
 
     private void bindFields() {

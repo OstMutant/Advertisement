@@ -97,10 +97,9 @@ public class UserEditDialog extends BaseDialog {
                 USER_DIALOG_NOTIFICATION_SUCCESS,
                 USER_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
-
         cancelButton.addClickListener(_ -> close());
 
-        layout.addActions(saveButton, cancelButton);
+        getFooter().add(saveButton, cancelButton);
     }
 
     @SpringComponent

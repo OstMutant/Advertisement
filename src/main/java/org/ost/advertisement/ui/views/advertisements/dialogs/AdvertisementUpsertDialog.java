@@ -98,10 +98,9 @@ public class AdvertisementUpsertDialog extends BaseDialog {
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS,
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
-
         cancelButton.addClickListener(_ -> close());
 
-        layout.addActions(saveButton, cancelButton);
+        getFooter().add(saveButton, cancelButton);
     }
 
     private boolean isNew() {

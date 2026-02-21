@@ -40,6 +40,7 @@ public final class ConfirmDeleteDialog extends BaseDialog {
 
         Paragraph body = new Paragraph(message);
         body.addClassName("dialog-confirm-text");
+        layout.addFormContent(body);
 
         DialogPrimaryButton confirmButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
                 .i18n(i18n).labelKey(confirmKey).build());
@@ -56,9 +57,7 @@ public final class ConfirmDeleteDialog extends BaseDialog {
                 .i18n(i18n).labelKey(cancelKey).build());
         cancelButton.addClickListener(_ -> close());
 
-        layout.addFormContent(body);
-        layout.addActions(confirmButton, cancelButton);
-
+        getFooter().add(confirmButton, cancelButton);
         return this;
     }
 

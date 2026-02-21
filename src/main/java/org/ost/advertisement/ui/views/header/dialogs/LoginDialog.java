@@ -65,7 +65,7 @@ public class LoginDialog extends BaseDialog {
                 .i18n(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
-        layout.addActions(loginButton, cancelButton);
+        getFooter().add(loginButton, cancelButton);
     }
 
     private void handleLogin() {
