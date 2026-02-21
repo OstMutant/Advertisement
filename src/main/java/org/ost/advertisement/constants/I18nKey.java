@@ -54,14 +54,11 @@ public enum I18nKey {
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
     USER_DIALOG_BUTTON_CANCEL("user.dialog.button.cancel"),
 
-    // === Advertisement Dialog ===
+    // === Advertisement Dialog (fields/validation reused by detail panel) ===
     ADVERTISEMENT_DIALOG_TITLE_NEW("advertisement.dialog.title.new"),
     ADVERTISEMENT_DIALOG_TITLE_EDIT("advertisement.dialog.title.edit"),
     ADVERTISEMENT_DIALOG_FIELD_TITLE("advertisement.dialog.field.title"),
     ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION("advertisement.dialog.field.description"),
-    ADVERTISEMENT_DIALOG_FIELD_CREATED("advertisement.dialog.field.created"),
-    ADVERTISEMENT_DIALOG_FIELD_UPDATED("advertisement.dialog.field.updated"),
-    ADVERTISEMENT_DIALOG_FIELD_AUTHOR("advertisement.dialog.field.author"),  // #1: was USER, now shows name
     ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED("advertisement.dialog.validation.title.required"),
     ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH("advertisement.dialog.validation.title.length"),
     ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED("advertisement.dialog.validation.description.required"),
@@ -99,7 +96,7 @@ public enum I18nKey {
     USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
     USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
 
-    // === Advertisement Sort ===
+    // === User Sort ===
     USER_SORT_ID("user.sort.id"),
     USER_SORT_NAME("user.sort.name"),
     USER_SORT_EMAIL("user.sort.email"),
@@ -155,11 +152,18 @@ public enum I18nKey {
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
 
-    // === Advertisement Description Dialog ===
+    // === Advertisement Description Dialog (keys reused in detail panel) ===
     ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
     ADVERTISEMENT_DESCRIPTION_DIALOG_AUTHOR("advertisement.description.dialog.author"),
     ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED("advertisement.description.dialog.created"),
     ADVERTISEMENT_DESCRIPTION_DIALOG_UPDATED("advertisement.description.dialog.updated"),
+
+    // === Advertisement Detail Panel ===
+    ADVERTISEMENT_DETAIL_EMPTY("advertisement.detail.empty"),
+    ADVERTISEMENT_DETAIL_UNSAVED_TITLE("advertisement.detail.unsaved.title"),
+    ADVERTISEMENT_DETAIL_UNSAVED_MESSAGE("advertisement.detail.unsaved.message"),
+    ADVERTISEMENT_DETAIL_UNSAVED_DISCARD("advertisement.detail.unsaved.discard"),
+    ADVERTISEMENT_DETAIL_UNSAVED_STAY("advertisement.detail.unsaved.stay"),
 
     // === Advertisement Empty State ===
     ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
@@ -168,9 +172,11 @@ public enum I18nKey {
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
     ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
+
     // === Main Tabs ===
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),
+
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),
     PAGINATION_PREV("pagination.prev"),
@@ -204,4 +210,3 @@ public enum I18nKey {
         return key;
     }
 }
-
