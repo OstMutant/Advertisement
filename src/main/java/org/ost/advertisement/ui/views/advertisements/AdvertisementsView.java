@@ -62,6 +62,7 @@ public class AdvertisementsView extends VerticalLayout {
         SplitLayout split = new SplitLayout(buildLeftPane(), detailPanel);
         split.setSizeFull();
         split.setSplitterPosition(60); // Remembers this ratio when detail panel is opened
+        split.addClassName("advertisements-split");
         add(split);
         setFlexGrow(1, split);
 
@@ -94,8 +95,6 @@ public class AdvertisementsView extends VerticalLayout {
                 paginationBar
         );
         left.addClassName("advertisements-left-pane");
-        left.setSizeFull();
-        // Preserving default padding and spacing for native VerticalLayout behavior
         left.setFlexGrow(1, advertisementContainer);
         return left;
     }

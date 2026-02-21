@@ -3,13 +3,23 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: 0;
   gap: 0;
   box-sizing: border-box;
 }
 
 .advertisements-left-pane {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+  gap: 0;
   min-width: 0;
+}
+
+/* Left pane cannot shrink below 1/3 — prevents sidebar from covering too much */
+.advertisements-split > [slot="primary"] {
+  min-width: 33.333%;
+  overflow-y: auto;
 }
 
 .add-advertisement-button {
