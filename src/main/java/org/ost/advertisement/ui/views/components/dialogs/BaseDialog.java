@@ -29,6 +29,7 @@ public abstract class BaseDialog extends Dialog {
 
     protected void savedNotifier(boolean isSaved, I18nKey successKey, I18nKey errorKey) {
         if (isSaved) {
+            close();
             NotificationType.SUCCESS.show(getI18n().get(successKey));
         } else {
             NotificationType.ERROR.show(getI18n().get(errorKey, "Validation failed"));

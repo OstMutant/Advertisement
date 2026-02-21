@@ -1,7 +1,6 @@
 package org.ost.advertisement.ui.views.header.dialogs;
 
 import com.vaadin.flow.data.binder.Binder;
-import com.vaadin.flow.data.binder.ValidationException;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
@@ -101,14 +100,17 @@ public class SignUpDialog extends BaseDialog {
     }
 
     private void handleRegistration() {
+        if (!binder.validate().isOk()) {
+            return;
+        }
         try {
             binder.writeBean(dto);
             userService.register(dto);
             NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
             close();
-        } catch (ValidationException ex) {
-            log.warn("SignUp validation failed: {}", ex.getMessage());
-            NotificationType.ERROR.show(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT));
+        } catch (Exception ex) {
+            log.error("Registration failed unexpectedly", ex);
+            NotificationType.ERROR.show(i18n.get(SIGNUP_ERROR_EMAIL_EXISTS));
         }
     }
 }

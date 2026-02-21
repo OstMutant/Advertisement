@@ -2,8 +2,7 @@ package org.ost.advertisement.ui.views.advertisements.dialogs;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -32,22 +31,30 @@ public class AdvertisementDescriptionDialog extends BaseDialog {
     @Override
     @PostConstruct
     protected void init() {
-        setCloseOnEsc(true);
+        super.init();
+        // Description dialog is read-only — allow closing by clicking outside
         setCloseOnOutsideClick(true);
         addThemeName("advertisement-description");
     }
 
     private AdvertisementDescriptionDialog configure(AdvertisementInfoDto ad) {
         setHeaderTitle(ad.getTitle());
+        addContent(ad);
+        addMeta(ad);
+        addActions();
+        return this;
+    }
 
-        Span content = new Span(ad.getDescription());
-        content.addClassName("advertisement-description-content");
-
-        VerticalLayout body = new VerticalLayout(content);
+    private void addContent(AdvertisementInfoDto ad) {
+        // Plain Div — no Vaadin padding/margin/spacing defaults
+        Div body = new Div();
         body.addClassName("advertisement-description-body");
-        body.setPadding(false);
-        body.setSpacing(false);
+        body.setText(ad.getDescription());
 
+        layout.addScrollContent(body);
+    }
+
+    private void addMeta(AdvertisementInfoDto ad) {
         DialogAdvertisementMetaPanel meta = metaPanelBuilder.build(
                 DialogAdvertisementMetaPanel.Parameters.builder()
                         .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
@@ -56,16 +63,15 @@ public class AdvertisementDescriptionDialog extends BaseDialog {
                         .build());
         meta.addClassName("advertisement-description-meta");
 
-        VerticalLayout container = new VerticalLayout(body, meta);
-        container.addClassName("advertisement-description-layout");
-        add(container);
+        // Pinned above the footer, does not scroll with content
+        layout.addBottomContent(meta);
+    }
 
+    private void addActions() {
         Button closeButton = new Button(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE), _ -> close());
         closeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         closeButton.addClassName("advertisement-description-close");
         getFooter().add(closeButton);
-
-        return this;
     }
 
     @SpringComponent

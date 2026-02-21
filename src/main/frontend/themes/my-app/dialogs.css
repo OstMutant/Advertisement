@@ -1,8 +1,8 @@
 /* ─── dialogs.css ──────────────────────────────────────────────────────────
-   Final version: scrolling ISOLATED strictly to the description text area.
+   Scrolling is isolated strictly to the description body area.
    ───────────────────────────────────────────────────────────────────────── */
 
-/* Global overlay settings */
+/* Global overlay defaults */
 vaadin-dialog-overlay::part(overlay) {
     max-width: 95vw;
     display: flex;
@@ -22,7 +22,7 @@ vaadin-dialog-overlay::part(footer) {
     padding: var(--lumo-space-s) var(--lumo-space-m);
 }
 
-/* ── Structure ──────────────────────────────────────────────────────────── */
+/* ── Layout structure ───────────────────────────────────────────────────── */
 
 .dialog-root {
     display: flex;
@@ -51,12 +51,16 @@ vaadin-dialog-overlay::part(footer) {
     min-height: 0;
 }
 
+.dialog-bottom {
+    flex-shrink: 0;
+}
+
 .dialog-meta {
     flex-shrink: 0;
     padding: 0 var(--lumo-space-m) var(--lumo-space-s);
 }
 
-/* ── Advertisement Upsert (create + edit) ──────────────────────────────── */
+/* ── Advertisement upsert (create + edit) ──────────────────────────────── */
 
 vaadin-dialog-overlay[theme~="advertisement-upsert"]::part(overlay) {
     width: 500px;
@@ -89,37 +93,48 @@ vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area textarea 
     resize: none;
 }
 
-/* ── Advertisement Description View ────────────────────────────────────── */
+/* ── Advertisement description (read-only view) ─────────────────────────── */
 
-.advertisement-description-layout {
+vaadin-dialog-overlay[theme~="advertisement-description"]::part(overlay) {
+    width: 90vw;
+    max-width: 90vw;
+    height: 90vh;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-description"] .dialog-root {
+    padding: 0 !important;
+    margin: 0 !important;
+    align-items: stretch !important;
+}
+
+vaadin-dialog-overlay[theme~="advertisement-description"] .scroll-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    padding: var(--lumo-space-m);
-    gap: var(--lumo-space-m);
-    height: 100%;
-    min-height: 0;
 }
 
 .advertisement-description-body {
     flex: 1 1 auto;
+    min-height: 0;
+    overflow-x: hidden;
     overflow-y: auto;
-    min-height: 100px;
-}
-
-.advertisement-description-content {
-    display: block;
+    padding: var(--lumo-space-m);
     white-space: pre-wrap;
     word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.6;
+}
+
+.advertisement-description-meta {
+    padding: var(--lumo-space-s) var(--lumo-space-m);
+    border-top: 1px solid var(--lumo-contrast-5pct);
 }
 
 .advertisement-meta {
     flex-wrap: wrap;
-}
-
-.advertisement-description-meta {
-    flex: 0 0 auto;
-    padding-top: var(--lumo-space-s);
-    border-top: 1px solid var(--lumo-contrast-5pct);
 }
 
 /* ── Utilities ──────────────────────────────────────────────────────────── */
