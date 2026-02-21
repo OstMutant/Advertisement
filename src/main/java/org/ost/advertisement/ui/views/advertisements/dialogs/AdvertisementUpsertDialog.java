@@ -11,6 +11,7 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementCancelButton;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementDescriptionTextArea;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementMetaPanel;
@@ -34,6 +35,8 @@ public class AdvertisementUpsertDialog extends BaseDialog {
     private final transient AdvertisementMapper mapper;
     @Getter
     private final transient I18nService i18n;
+    @Getter
+    private final transient NotificationService notificationService;
 
     private final DialogAdvertisementTitleTextField titleField;
     private final DialogAdvertisementDescriptionTextArea descriptionField;
@@ -99,7 +102,6 @@ public class AdvertisementUpsertDialog extends BaseDialog {
                 ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
         cancelButton.addClickListener(_ -> close());
-
         getFooter().add(saveButton, cancelButton);
     }
 

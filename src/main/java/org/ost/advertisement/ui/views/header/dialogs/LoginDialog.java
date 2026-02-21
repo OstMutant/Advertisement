@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
@@ -30,6 +31,8 @@ public class LoginDialog extends BaseDialog {
     private final transient AuthService authService;
     @Getter
     private final transient I18nService i18n;
+    @Getter
+    private final transient NotificationService notificationService;
     private final transient SessionService sessionService;
 
     private final LoginEmailField emailField;
@@ -72,11 +75,11 @@ public class LoginDialog extends BaseDialog {
         boolean success = authService.login(emailField.getValue(), passwordField.getValue());
         if (success) {
             close();
-            NotificationType.SUCCESS.show(i18n.get(LOGIN_SUCCESS));
+            notificationService.show(NotificationType.SUCCESS, LOGIN_SUCCESS);
             sessionService.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         } else {
-            NotificationType.ERROR.show(i18n.get(LOGIN_ERROR));
+            notificationService.show(NotificationType.ERROR, LOGIN_ERROR);
         }
     }
 }

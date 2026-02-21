@@ -11,6 +11,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
@@ -34,6 +35,8 @@ public class UserEditDialog extends BaseDialog {
     private final transient UserMapper mapper;
     @Getter
     private final transient I18nService i18n;
+    @Getter
+    private final transient NotificationService notificationService;
 
     private final DialogUserIdLabeledField idField;
     private final DialogUserEmailLabeledField emailField;
@@ -98,7 +101,6 @@ public class UserEditDialog extends BaseDialog {
                 USER_DIALOG_NOTIFICATION_SAVE_ERROR
         ));
         cancelButton.addClickListener(_ -> close());
-
         getFooter().add(saveButton, cancelButton);
     }
 

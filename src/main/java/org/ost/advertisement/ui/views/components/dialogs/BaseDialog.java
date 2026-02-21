@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.components.dialogs;
 import com.vaadin.flow.component.dialog.Dialog;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.NotificationType;
 
 public abstract class BaseDialog extends Dialog {
@@ -10,6 +11,8 @@ public abstract class BaseDialog extends Dialog {
     public abstract DialogLayout getLayout();
 
     public abstract I18nService getI18n();
+
+    public abstract NotificationService getNotificationService();
 
     protected void init() {
         setDraggable(false);
@@ -30,9 +33,9 @@ public abstract class BaseDialog extends Dialog {
     protected void savedNotifier(boolean isSaved, I18nKey successKey, I18nKey errorKey) {
         if (isSaved) {
             close();
-            NotificationType.SUCCESS.show(getI18n().get(successKey));
+            getNotificationService().show(NotificationType.SUCCESS, successKey);
         } else {
-            NotificationType.ERROR.show(getI18n().get(errorKey, "Validation failed"));
+            getNotificationService().show(NotificationType.ERROR, errorKey, "Validation failed");
         }
     }
 }

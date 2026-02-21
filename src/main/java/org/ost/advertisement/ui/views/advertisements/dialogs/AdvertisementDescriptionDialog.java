@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
@@ -27,6 +28,8 @@ public class AdvertisementDescriptionDialog extends BaseDialog {
     @Getter
     private final transient DialogLayout layout;
     private final transient DialogAdvertisementMetaPanel.Builder metaPanelBuilder;
+    @Getter
+    private final transient NotificationService notificationService;
 
     @Override
     @PostConstruct

@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
@@ -32,6 +33,8 @@ public class SignUpDialog extends BaseDialog {
     private final transient UserService userService;
     @Getter
     private final transient I18nService i18n;
+    @Getter
+    private final transient NotificationService notificationService;
 
     private final SignUpNameField nameField;
     private final SignUpEmailField emailField;
@@ -106,11 +109,11 @@ public class SignUpDialog extends BaseDialog {
         try {
             binder.writeBean(dto);
             userService.register(dto);
-            NotificationType.SUCCESS.show(i18n.get(SIGNUP_SUCCESS));
+            notificationService.show(NotificationType.SUCCESS, SIGNUP_SUCCESS);
             close();
         } catch (Exception ex) {
             log.error("Registration failed unexpectedly", ex);
-            NotificationType.ERROR.show(i18n.get(SIGNUP_ERROR_EMAIL_EXISTS));
+            notificationService.show(NotificationType.ERROR, SIGNUP_ERROR_EMAIL_EXISTS);
         }
     }
 }

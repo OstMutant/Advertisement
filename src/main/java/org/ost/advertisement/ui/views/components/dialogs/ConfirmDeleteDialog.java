@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
 import org.springframework.beans.factory.ObjectProvider;
@@ -24,6 +25,8 @@ public final class ConfirmDeleteDialog extends BaseDialog {
     private final transient I18nService i18n;
     @Getter
     private final transient DialogLayout layout;
+    @Getter
+    private final transient NotificationService notificationService;
 
     @Override
     @PostConstruct

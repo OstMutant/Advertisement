@@ -12,6 +12,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
@@ -30,6 +31,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class AdvertisementCardView extends VerticalLayout {
 
     private final transient I18nService i18n;
+    private final transient NotificationService notificationService;
     private final transient AdvertisementService advertisementService;
     private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
     private final transient AdvertisementDescriptionDialog.Builder descriptionDialogBuilder;
@@ -43,19 +45,14 @@ public class AdvertisementCardView extends VerticalLayout {
         addClassName("advertisement-card");
 
         getElement().addEventListener("click", _ -> openDescriptionDialog(ad));
-
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> openDescriptionDialog(ad))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
-        H3 title = createTitle(ad);
-        Span description = createDescription(ad);
-        HorizontalLayout actions = createActions(ad, refreshAdvertisements);
-
         Span spacer = new Span();
         setFlexGrow(1, spacer);
 
-        add(title, description, spacer, createAdvertisementCardMetaPanel(ad), actions);
+        add(createTitle(ad), createDescription(ad), spacer, createAdvertisementCardMetaPanel(ad), createActions(ad, refreshAdvertisements));
         return this;
     }
 
@@ -123,12 +120,10 @@ public class AdvertisementCardView extends VerticalLayout {
                 () -> {
                     try {
                         advertisementService.delete(ad);
-                        NotificationType.SUCCESS.show(i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED));
+                        notificationService.show(NotificationType.SUCCESS, ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                         refreshAdvertisements.run();
                     } catch (Exception ex) {
-                        NotificationType.ERROR.show(
-                                i18n.get(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage())
-                        );
+                        notificationService.show(NotificationType.ERROR, ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
                     }
                 }
         ).open();
