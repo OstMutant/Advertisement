@@ -124,7 +124,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
         confirmDeleteDialogBuilder.build(
-                USER_VIEW_CONFIRM_DELETE_TITLE,
+                ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE,
                 i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
                 ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
                 ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,

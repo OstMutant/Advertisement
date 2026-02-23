@@ -108,6 +108,7 @@ public enum I18nKey {
     USER_SORT_UPDATED("user.sort.updatedAt"),
 
     // === Advertisement View ===
+    ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE("advertisement.view.confirm.delete.title"),
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT("advertisement.view.confirm.delete.text"),
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON("advertisement.view.confirm.delete.button"),
     ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON("advertisement.view.confirm.cancel.button"),
