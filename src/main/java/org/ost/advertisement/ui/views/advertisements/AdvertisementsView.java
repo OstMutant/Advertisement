@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
@@ -13,7 +14,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
+import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryBlock;
 import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
@@ -29,40 +30,41 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @UIScope
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService advertisementService;
-    private final AdvertisementQueryStatusBar queryStatusBar;
-    private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
+    private final transient AdvertisementService      advertisementService;
+    private final transient AdvertisementOverlay      overlay;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService i18n;
-    private final transient AccessEvaluator access;
-    private final FlexLayout advertisementContainer;
-    private final PaginationBarModern paginationBar;
+    private final transient I18nService               i18n;
+    private final transient AccessEvaluator           access;
+
+    private final AdvertisementQueryStatusBar queryStatusBar;
+    private final FlexLayout                 advertisementContainer;
+    private final PaginationBarModern        paginationBar;
 
     public AdvertisementsView(AdvertisementService advertisementService,
                               AdvertisementQueryStatusBar queryStatusBar,
-                              AdvertisementUpsertDialog.Builder upsertDialogBuilder,
-                              I18nService i18n,
+                              AdvertisementOverlay overlay,
                               AdvertisementCardView.Builder cardBuilder,
+                              I18nService i18n,
                               AccessEvaluator access) {
-        this.advertisementService = advertisementService;
-        this.queryStatusBar = queryStatusBar;
-        this.upsertDialogBuilder = upsertDialogBuilder;
-        this.cardBuilder = cardBuilder;
-        this.i18n = i18n;
-        this.access = access;
-        this.paginationBar = new PaginationBarModern(i18n);
+        this.advertisementService   = advertisementService;
+        this.queryStatusBar         = queryStatusBar;
+        this.overlay                = overlay;
+        this.cardBuilder            = cardBuilder;
+        this.i18n                   = i18n;
+        this.access                 = access;
+        this.paginationBar          = new PaginationBarModern(i18n);
         this.advertisementContainer = createAdvertisementContainer();
-
-        Button addAdvertisementButton = createAddButton();
 
         initQueryBar();
         initPagination();
 
         addClassName("advertisements-view");
 
-        add(queryStatusBar, queryStatusBar.getQueryBlock(), addAdvertisementButton, advertisementContainer, paginationBar);
-        setFlexGrow(1, advertisementContainer);
+        // overlay is position:fixed — does not affect layout flow
+        add(queryStatusBar, queryStatusBar.getQueryBlock(), createAddButton(),
+                advertisementContainer, paginationBar, overlay);
 
+        setFlexGrow(1, advertisementContainer);
         setSizeFull();
 
         refreshAdvertisements();
@@ -72,7 +74,7 @@ public class AdvertisementsView extends VerticalLayout {
         Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
         button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         button.addClassName("add-advertisement-button");
-        button.addClickListener(_ -> upsertDialogBuilder.buildAndOpen(this::refreshAdvertisements));
+        button.addClickListener(_ -> overlay.openForCreate(this::refreshAdvertisements));
         button.setVisible(access.isLoggedIn());
         return button;
     }
@@ -107,7 +109,8 @@ public class AdvertisementsView extends VerticalLayout {
 
         AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
 
-        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(filter, page, size, sortProcessor.getOriginalSort().getSort());
+        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
+                filter, page, size, sortProcessor.getOriginalSort().getSort());
 
         paginationBar.setTotalCount(advertisementService.count(filter));
 
@@ -115,7 +118,9 @@ public class AdvertisementsView extends VerticalLayout {
         if (ads.isEmpty()) {
             advertisementContainer.add(createEmptyState());
         } else {
-            ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
+            // pass this::refreshAdvertisements so overlay can trigger a list refresh after save/delete
+            ads.forEach(ad -> advertisementContainer.add(
+                    cardBuilder.build(ad, overlay, this::refreshAdvertisements)));
         }
 
         queryStatusBar.update();

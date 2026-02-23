@@ -15,8 +15,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaPanel;
-import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementDescriptionDialog;
-import org.ost.advertisement.ui.views.advertisements.dialogs.AdvertisementUpsertDialog;
+import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
@@ -30,44 +29,36 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardView extends VerticalLayout {
 
-    private final transient I18nService i18n;
-    private final transient NotificationService notificationService;
-    private final transient AdvertisementService advertisementService;
-    private final transient AdvertisementUpsertDialog.Builder upsertDialogBuilder;
-    private final transient AdvertisementDescriptionDialog.Builder descriptionDialogBuilder;
+    private final transient I18nService                       i18n;
+    private final transient NotificationService               notificationService;
+    private final transient AdvertisementService              advertisementService;
     private final transient AdvertisementCardMetaPanel.Builder metaPanelBuilder;
-    private final transient EditActionButton.Builder editButtonBuilder;
-    private final transient DeleteActionButton.Builder deleteButtonBuilder;
-    private final transient AccessEvaluator access;
-    private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
+    private final transient EditActionButton.Builder          editButtonBuilder;
+    private final transient DeleteActionButton.Builder        deleteButtonBuilder;
+    private final transient AccessEvaluator                   access;
+    private final transient ConfirmDeleteDialog.Builder       confirmDeleteDialogBuilder;
 
-    private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+    private AdvertisementCardView setupContent(AdvertisementInfoDto ad,
+                                               AdvertisementOverlay overlay,
+                                               Runnable onChanged) {
         addClassName("advertisement-card");
 
-        getElement().addEventListener("click", _ -> openDescriptionDialog(ad));
+        // onChanged is forwarded so that editing from the VIEW mode of the overlay also refreshes the list
+        getElement().addEventListener("click", _ -> overlay.openForView(ad, onChanged));
         getElement().setAttribute("tabindex", "0");
-        getElement().addEventListener("keydown", _ -> openDescriptionDialog(ad))
+        getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
         Span spacer = new Span();
         setFlexGrow(1, spacer);
 
-        add(createTitle(ad), createDescription(ad), spacer, createAdvertisementCardMetaPanel(ad), createActions(ad, refreshAdvertisements));
+        add(createTitle(ad),
+                createDescription(ad),
+                spacer,
+                createMetaPanel(ad),
+                createActions(ad, overlay, onChanged));
+
         return this;
-    }
-
-    private AdvertisementCardMetaPanel createAdvertisementCardMetaPanel(AdvertisementInfoDto ad) {
-        boolean neverEdited = ad.getUpdatedAt() == null || ad.getUpdatedAt().equals(ad.getCreatedAt());
-        return metaPanelBuilder.build(AdvertisementCardMetaPanel.Parameters.builder()
-                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                .authorEmail(ad.getCreatedByUserEmail())
-                .dateLabel(neverEdited ? i18n.get(ADVERTISEMENT_CARD_CREATED) : i18n.get(ADVERTISEMENT_CARD_UPDATED))
-                .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
-                .build());
-    }
-
-    private void openDescriptionDialog(AdvertisementInfoDto ad) {
-        descriptionDialogBuilder.build(ad).open();
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -82,13 +73,29 @@ public class AdvertisementCardView extends VerticalLayout {
         return description;
     }
 
-    private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+    private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
+        boolean neverEdited = ad.getUpdatedAt() == null
+                || ad.getUpdatedAt().equals(ad.getCreatedAt());
+
+        return metaPanelBuilder.build(AdvertisementCardMetaPanel.Parameters.builder()
+                .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                .authorEmail(ad.getCreatedByUserEmail())
+                .dateLabel(neverEdited
+                        ? i18n.get(ADVERTISEMENT_CARD_CREATED)
+                        : i18n.get(ADVERTISEMENT_CARD_UPDATED))
+                .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
+                .build());
+    }
+
+    private HorizontalLayout createActions(AdvertisementInfoDto ad,
+                                           AdvertisementOverlay overlay,
+                                           Runnable onChanged) {
         boolean canOperate = access.canOperate(ad);
 
         Button edit = editButtonBuilder.build(
                 EditActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
-                        .onClick(() -> upsertDialogBuilder.buildAndOpen(ad, refreshAdvertisements))
+                        .onClick(() -> overlay.openForEdit(ad, onChanged))
                         .small(true)
                         .cssClassName("advertisement-edit")
                         .build()
@@ -97,7 +104,7 @@ public class AdvertisementCardView extends VerticalLayout {
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
-                        .onClick(() -> openConfirmDeleteDialog(ad, refreshAdvertisements))
+                        .onClick(() -> openConfirmDeleteDialog(ad, onChanged))
                         .small(true)
                         .cssClassName("advertisement-delete")
                         .build()
@@ -106,12 +113,16 @@ public class AdvertisementCardView extends VerticalLayout {
         edit.setVisible(canOperate);
         delete.setVisible(canOperate);
 
+        // prevent action buttons from bubbling up and triggering openForView
+        edit.getElement().addEventListener("click", e -> {}).addEventData("event.stopPropagation()");
+        delete.getElement().addEventListener("click", e -> {}).addEventData("event.stopPropagation()");
+
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
         actions.addClassName("advertisement-actions");
         return actions;
     }
 
-    private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable refreshAdvertisements) {
+    private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
         confirmDeleteDialogBuilder.build(
                 USER_VIEW_CONFIRM_DELETE_TITLE,
                 i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
@@ -120,10 +131,12 @@ public class AdvertisementCardView extends VerticalLayout {
                 () -> {
                     try {
                         advertisementService.delete(ad);
-                        notificationService.show(NotificationType.SUCCESS, ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
-                        refreshAdvertisements.run();
+                        notificationService.show(NotificationType.SUCCESS,
+                                ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
+                        onChanged.run();
                     } catch (Exception ex) {
-                        notificationService.show(NotificationType.ERROR, ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+                        notificationService.show(NotificationType.ERROR,
+                                ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
                     }
                 }
         ).open();
@@ -132,10 +145,13 @@ public class AdvertisementCardView extends VerticalLayout {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
+
         private final ObjectProvider<AdvertisementCardView> cardProvider;
 
-        public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable refresh) {
-            return cardProvider.getObject().setupContent(ad, refresh);
+        public AdvertisementCardView build(AdvertisementInfoDto ad,
+                                           AdvertisementOverlay overlay,
+                                           Runnable onChanged) {
+            return cardProvider.getObject().setupContent(ad, overlay, onChanged);
         }
     }
 }

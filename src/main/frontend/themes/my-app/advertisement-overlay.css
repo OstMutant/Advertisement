@@ -1,0 +1,152 @@
+/* ------------------------------------------------------------------ overlay */
+
+.advertisement-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: var(--lumo-base-color);
+    display: none;
+}
+
+.advertisement-overlay.overlay--visible {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ------------------------------------------------------------------- inner */
+
+.overlay__inner {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 var(--lumo-space-m);
+    box-sizing: border-box;
+}
+
+/* ------------------------------------------------------------------- header */
+
+.overlay__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--lumo-space-m) 0;
+    border-bottom: 1px solid var(--lumo-contrast-10pct);
+    flex-shrink: 0;
+    gap: var(--lumo-space-s);
+}
+
+.overlay__header-actions {
+    display: flex;
+    gap: var(--lumo-space-s);
+    flex-shrink: 0;
+}
+
+/* ---------------------------------------------------------------- breadcrumb */
+
+.overlay__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.overlay__breadcrumb-back {
+    color: var(--lumo-primary-color);
+    font-size: var(--lumo-font-size-s);
+    white-space: nowrap;
+    padding: 0;
+    cursor: pointer;
+}
+
+.overlay__breadcrumb-back:hover {
+    text-decoration: underline;
+}
+
+.overlay__breadcrumb-sep:has(+ [hidden]) { display: none; }
+
+.overlay__breadcrumb-sep {
+    color: var(--lumo-secondary-text-color);
+    font-size: var(--lumo-font-size-s);
+    user-select: none;
+    padding: 0 2px;
+}
+
+.overlay__breadcrumb-current {
+    font-size: var(--lumo-font-size-s);
+    font-weight: 600;
+    color: var(--lumo-body-text-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ content */
+
+.overlay__content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--lumo-space-l) 0 var(--lumo-space-xl);
+    display: flex;
+    flex-direction: column;
+    gap: var(--lumo-space-l);
+}
+
+/* ----------------------------------------------------------------- view body */
+
+.overlay__view-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lumo-space-m);
+}
+
+.overlay__view-title {
+    font-size: var(--lumo-font-size-l);
+    font-weight: 600;
+    color: var(--lumo-body-text-color);
+}
+
+.overlay__view-description {
+    font-size: var(--lumo-font-size-m);
+    color: var(--lumo-body-text-color);
+    line-height: 1.7;
+    white-space: pre-wrap;
+}
+
+/* ----------------------------------------------------------------- meta container */
+/* Hosts a DialogAdvertisementMetaPanel — override card-specific styles */
+
+.overlay__meta-container .advertisement-meta {
+    margin-top: 0;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    font-size: var(--lumo-font-size-s);
+    color: var(--lumo-secondary-text-color);
+    flex-wrap: wrap;
+}
+
+/* ----------------------------------------------------------------- edit body */
+
+.overlay__edit-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lumo-space-m);
+}
+
+.overlay__edit-body vaadin-text-field,
+.overlay__edit-body vaadin-text-area {
+    width: 100%;
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 600px) {
+    .overlay__inner {
+        padding: 0 var(--lumo-space-s);
+    }
+}
