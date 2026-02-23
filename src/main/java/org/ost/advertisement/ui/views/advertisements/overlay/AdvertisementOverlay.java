@@ -1,15 +1,11 @@
 package org.ost.advertisement.ui.views.advertisements.overlay;
 
-import com.vaadin.flow.component.Key;
-import com.vaadin.flow.component.ShortcutRegistration;
-import com.vaadin.flow.component.Shortcuts;
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -27,6 +23,8 @@ import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdver
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
+import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -44,7 +42,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-public class AdvertisementOverlay extends Div {
+public class AdvertisementOverlay extends BaseOverlay {
 
     private enum Mode { VIEW, EDIT, CREATE }
 
@@ -65,24 +63,18 @@ public class AdvertisementOverlay extends Div {
     private final OverlayAdvertisementSaveButton          saveButton;
     private final OverlayAdvertisementCancelButton        cancelButton;
 
+    @Getter
+    private final OverlayLayout layout;
+
     private Mode                 currentMode;
     private AdvertisementInfoDto currentAd;
     private Runnable             onSavedCallback;
-    private ShortcutRegistration escShortcut;
 
     // true when EDIT was entered via the Edit button inside VIEW mode
     private boolean enteredEditFromView = false;
-    private boolean initialized         = false;
 
     private H2   viewTitle;
     private Span viewDescription;
-    private Div  viewBody;
-
-    // container is fixed in the DOM; its child is replaced on each open
-    private Div metaContainer;
-    private Div editBody;
-
-    private Span breadcrumbCurrent;
 
     private FormDialogBinder<AdvertisementEditDto> formBinder;
 
@@ -128,67 +120,89 @@ public class AdvertisementOverlay extends Div {
     }
 
     // -------------------------------------------------------------------------
-    // Layout
+    // BaseOverlay contract
     // -------------------------------------------------------------------------
 
-    private void ensureInitialized() {
-        if (initialized) return;
-        initialized = true;
-        buildLayout();
-    }
-
-    private void buildLayout() {
+    @Override
+    protected void buildContent(OverlayLayout l) {
         addClassName("advertisement-overlay");
 
-        // -- breadcrumb -------------------------------------------------------
         breadcrumbButton.addClickListener(_ -> closeToList());
+        l.setBreadcrumbButton(breadcrumbButton);
 
-        Span breadcrumbSep = new Span("›");
-        breadcrumbSep.addClassName("overlay__breadcrumb-sep");
-
-        breadcrumbCurrent = new Span();
-        breadcrumbCurrent.addClassName("overlay__breadcrumb-current");
-
-        Div breadcrumb = new Div(breadcrumbButton, breadcrumbSep, breadcrumbCurrent);
-        breadcrumb.addClassName("overlay__breadcrumb");
-
-        // -- header actions ---------------------------------------------------
         editButton.addClickListener(_   -> switchToEdit());
         closeButton.addClickListener(_  -> closeToList());
         saveButton.addClickListener(_   -> handleSave());
         cancelButton.addClickListener(_ -> handleCancel());
+        l.addHeaderActions(editButton, closeButton, saveButton, cancelButton);
 
-        Div headerActions = new Div(editButton, closeButton, saveButton, cancelButton);
-        headerActions.addClassName("overlay__header-actions");
-
-        Div header = new Div(breadcrumb, headerActions);
-        header.addClassName("overlay__header");
-
-        // -- view body --------------------------------------------------------
         viewTitle       = new H2();   viewTitle.addClassName("overlay__view-title");
         viewDescription = new Span(); viewDescription.addClassName("overlay__view-description");
+        l.addViewContent(viewTitle, viewDescription);
 
-        viewBody = new Div(viewTitle, viewDescription);
-        viewBody.addClassName("overlay__view-body");
-
-        // -- meta container (VIEW + EDIT, hidden in CREATE) -------------------
-        metaContainer = new Div();
-        metaContainer.addClassName("overlay__meta-container");
-
-        // -- edit/create body -------------------------------------------------
         titleField.setWidthFull();
         descriptionField.setWidthFull();
+        l.addEditContent(titleField, descriptionField);
+    }
 
-        editBody = new Div(titleField, descriptionField);
-        editBody.addClassName("overlay__edit-body");
+    @Override
+    protected void onEsc() {
+        handleCancel();
+    }
 
-        Div content = new Div(viewBody, editBody, metaContainer);
-        content.addClassName("overlay__content");
+    // -------------------------------------------------------------------------
+    // Mode switching
+    // -------------------------------------------------------------------------
 
-        Div inner = new Div(header, content);
-        inner.addClassName("overlay__inner");
+    private void switchTo(Mode mode) {
+        boolean isView   = mode == Mode.VIEW;
+        boolean isEdit   = mode == Mode.EDIT;
+        boolean isCreate = mode == Mode.CREATE;
 
-        add(inner);
+        layout.getViewBody().setVisible(isView);
+        layout.getEditBody().setVisible(isEdit || isCreate);
+        layout.getMetaContainer().setVisible(isView || isEdit);
+
+        editButton.setVisible(isView && currentAd != null && access.canOperate(currentAd));
+        closeButton.setVisible(isView);
+        saveButton.setVisible(isEdit || isCreate);
+        cancelButton.setVisible(isEdit || isCreate);
+
+        layout.getBreadcrumbCurrent().setText(switch (mode) {
+            case VIEW   -> "";
+            case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
+            case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
+        });
+        layout.getBreadcrumbCurrent().setVisible(mode != Mode.VIEW);
+    }
+
+    // Entered EDIT from within VIEW — cancel must return to VIEW, not close
+    private void switchToEdit() {
+        if (currentAd == null) return;
+        currentMode         = Mode.EDIT;
+        enteredEditFromView = true;
+        rebuildFormBinder(mapper.toAdvertisementEdit(currentAd));
+        switchTo(Mode.EDIT);
+    }
+
+    // -------------------------------------------------------------------------
+    // Actions
+    // -------------------------------------------------------------------------
+
+    private void populateView(AdvertisementInfoDto ad) {
+        viewTitle.setText(ad.getTitle());
+        viewDescription.setText(ad.getDescription());
+    }
+
+    private void rebuildMeta(AdvertisementInfoDto ad) {
+        layout.getMetaContainer().removeAll();
+        layout.getMetaContainer().add(metaPanelBuilder.build(
+                OverlayAdvertisementMetaPanel.Parameters.builder()
+                        .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                        .createdAt(ad.getCreatedAt())
+                        .updatedAt(ad.getUpdatedAt())
+                        .build()
+        ));
     }
 
     private void rebuildFormBinder(AdvertisementEditDto dto) {
@@ -211,99 +225,6 @@ public class AdvertisementOverlay extends Div {
         formBinder.getBinder().forField(descriptionField)
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
-    }
-
-    // -------------------------------------------------------------------------
-    // Mode switching
-    // -------------------------------------------------------------------------
-
-    private void switchTo(Mode mode) {
-        boolean isView   = mode == Mode.VIEW;
-        boolean isEdit   = mode == Mode.EDIT;
-        boolean isCreate = mode == Mode.CREATE;
-
-        viewBody.setVisible(isView);
-        editBody.setVisible(isEdit || isCreate);
-        metaContainer.setVisible(isView || isEdit);
-
-        editButton.setVisible(isView && currentAd != null && access.canOperate(currentAd));
-        closeButton.setVisible(isView);
-        saveButton.setVisible(isEdit || isCreate);
-        cancelButton.setVisible(isEdit || isCreate);
-
-        breadcrumbCurrent.setText(switch (mode) {
-            case VIEW   -> "";
-            case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
-            case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
-        });
-        breadcrumbCurrent.setVisible(mode != Mode.VIEW);
-    }
-
-    // Entered EDIT from within VIEW — cancel must return to VIEW, not close
-    private void switchToEdit() {
-        if (currentAd == null) return;
-        currentMode         = Mode.EDIT;
-        enteredEditFromView = true;
-        rebuildFormBinder(mapper.toAdvertisementEdit(currentAd));
-        switchTo(Mode.EDIT);
-    }
-
-    // -------------------------------------------------------------------------
-    // Open / close
-    // -------------------------------------------------------------------------
-
-    private void open() {
-        UI.getCurrent().getPage().executeJs(
-                "var el = $0;" +
-                        "var y  = Math.round(window.scrollY);" +
-                        "el.dataset.savedScroll       = y;" +
-                        "document.body.style.position = 'fixed';" +
-                        "document.body.style.top      = '-' + y + 'px';" +
-                        "document.body.style.width    = '100%';",
-                getElement()
-        );
-        addClassName("overlay--visible");
-        escShortcut = Shortcuts.addShortcutListener(UI.getCurrent(), this::handleCancel, Key.ESCAPE);
-    }
-
-    private void closeToList() {
-        removeClassName("overlay--visible");
-        unregisterEsc();
-        UI.getCurrent().getPage().executeJs(
-                "var y = parseInt($0.dataset.savedScroll || '0', 10);" +
-                        "document.body.style.position = '';" +
-                        "document.body.style.top      = '';" +
-                        "document.body.style.width    = '';" +
-                        "window.scrollTo(0, y);",
-                getElement()
-        );
-    }
-
-    private void unregisterEsc() {
-        if (escShortcut != null) {
-            escShortcut.remove();
-            escShortcut = null;
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Actions
-    // -------------------------------------------------------------------------
-
-    private void populateView(AdvertisementInfoDto ad) {
-        viewTitle.setText(ad.getTitle());
-        viewDescription.setText(ad.getDescription());
-    }
-
-    private void rebuildMeta(AdvertisementInfoDto ad) {
-        metaContainer.removeAll();
-        metaContainer.add(metaPanelBuilder.build(
-                OverlayAdvertisementMetaPanel.Parameters.builder()
-                        .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                        .createdAt(ad.getCreatedAt())
-                        .updatedAt(ad.getUpdatedAt())
-                        .build()
-        ));
     }
 
     private void handleSave() {
