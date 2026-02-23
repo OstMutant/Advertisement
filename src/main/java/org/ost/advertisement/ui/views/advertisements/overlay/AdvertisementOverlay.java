@@ -33,7 +33,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
  * Full-viewport overlay (position:fixed). Pure Divs — no Vaadin layout components.
  *
  * Header actions per mode:
- *   VIEW   — [Edit]  [Back]
+ *   VIEW   — [Edit]  [Close]
  *   EDIT   — [Save]  [Cancel]
  *   CREATE — [Save]  [Cancel]
  *
@@ -50,11 +50,11 @@ public class AdvertisementOverlay extends Div {
 
     private enum Mode { VIEW, EDIT, CREATE }
 
-    private final transient AdvertisementService               advertisementService;
-    private final transient AdvertisementMapper                mapper;
-    private final transient I18nService                        i18n;
-    private final transient NotificationService                notification;
-    private final transient AccessEvaluator                    access;
+    private final transient AdvertisementService                 advertisementService;
+    private final transient AdvertisementMapper                  mapper;
+    private final transient I18nService                          i18n;
+    private final transient NotificationService                  notification;
+    private final transient AccessEvaluator                      access;
     private final transient DialogAdvertisementMetaPanel.Builder metaPanelBuilder;
 
     private Mode                 currentMode;
@@ -71,7 +71,7 @@ public class AdvertisementOverlay extends Div {
     private Span   breadcrumbCurrent;
 
     private Button editButton;
-    private Button backButton;
+    private Button closeButton;
     private Button saveButton;
     private Button cancelButton;
 
@@ -159,17 +159,17 @@ public class AdvertisementOverlay extends Div {
 
         // -- header actions --
         editButton   = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT),     _ -> switchToEdit());
-        backButton   = new Button(VaadinIcon.CLOSE.create(),                _ -> closeToList());
+        closeButton  = new Button(VaadinIcon.CLOSE.create(),                     _ -> closeToList());
         saveButton   = new Button(i18n.get(ADVERTISEMENT_DIALOG_BUTTON_SAVE),   _ -> handleSave());
         cancelButton = new Button(i18n.get(ADVERTISEMENT_DIALOG_BUTTON_CANCEL), _ -> handleCancel());
 
         editButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        backButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
-        backButton.getElement().setAttribute("title", i18n.get(MAIN_TAB_ADVERTISEMENTS));
+        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        closeButton.getElement().setAttribute("title", i18n.get(MAIN_TAB_ADVERTISEMENTS));
         saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        Div headerActions = new Div(editButton, backButton, saveButton, cancelButton);
+        Div headerActions = new Div(editButton, closeButton, saveButton, cancelButton);
         headerActions.addClassName("overlay__header-actions");
 
         Div header = new Div(breadcrumb, headerActions);
@@ -235,7 +235,7 @@ public class AdvertisementOverlay extends Div {
         metaContainer.setVisible(isView || isEdit);
 
         editButton.setVisible(isView && currentAd != null && access.canOperate(currentAd));
-        backButton.setVisible(isView);
+        closeButton.setVisible(isView);
         saveButton.setVisible(isEdit || isCreate);
         cancelButton.setVisible(isEdit || isCreate);
 
