@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.advertisements.dialogs.fields;
+package org.ost.advertisement.ui.views.advertisements.overlay.fields;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -18,7 +18,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class DialogAdvertisementMetaPanel extends HorizontalLayout {
+public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
 
     private final transient I18nService i18n;
 
@@ -32,12 +32,12 @@ public class DialogAdvertisementMetaPanel extends HorizontalLayout {
         Instant updatedAt;
     }
 
-    private DialogAdvertisementMetaPanel configure(Parameters p) {
+    private OverlayAdvertisementMetaPanel configure(Parameters p) {
 
-        Span authorSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_AUTHOR) + " " + p.getAuthorName());
+        Span authorSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR) + " " + p.getAuthorName());
         authorSpan.addClassName("advertisement-meta-author");
 
-        Span createdSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_CREATED) + " " + TimeZoneUtil.formatInstantHuman(p.getCreatedAt()));
+        Span createdSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_OVERLAY_CREATED) + " " + TimeZoneUtil.formatInstantHuman(p.getCreatedAt()));
         createdSpan.addClassName("advertisement-meta-date");
 
         addClassName("advertisement-meta");
@@ -46,7 +46,7 @@ public class DialogAdvertisementMetaPanel extends HorizontalLayout {
         boolean wasEdited = p.getUpdatedAt() != null && !p.getUpdatedAt().equals(p.getCreatedAt());
         if (wasEdited) {
             Span sep2 = separator();
-            Span updatedSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_DIALOG_UPDATED) + " " + TimeZoneUtil.formatInstantHuman(p.getUpdatedAt()));
+            Span updatedSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_OVERLAY_UPDATED) + " " + TimeZoneUtil.formatInstantHuman(p.getUpdatedAt()));
             updatedSpan.addClassName("advertisement-meta-date");
             add(authorSpan, sep1, createdSpan, sep2, updatedSpan);
         } else {
@@ -65,9 +65,9 @@ public class DialogAdvertisementMetaPanel extends HorizontalLayout {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<DialogAdvertisementMetaPanel> provider;
+        private final ObjectProvider<OverlayAdvertisementMetaPanel> provider;
 
-        public DialogAdvertisementMetaPanel build(Parameters p) {
+        public OverlayAdvertisementMetaPanel build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }

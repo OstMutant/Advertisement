@@ -10,8 +10,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.textfield.TextArea;
-import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -24,7 +22,11 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementMetaPanel;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementDescriptionTextArea;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -35,8 +37,8 @@ import static org.ost.advertisement.constants.I18nKey.*;
  *   EDIT   — [Save]  [Cancel]
  *   CREATE — [Save]  [Cancel]
  * Cancel / ESC behavior depends on how EDIT was entered:
- *   - card Edit button  → cancel closes overlay (returns to card list)
- *   - Edit button inside VIEW → cancel returns to VIEW mode
+ *   - card Edit button    → cancel closes overlay (returns to card list)
+ *   - Edit button in VIEW → cancel returns to VIEW mode
  * On save: refresh callback runs first, then overlay closes.
  */
 @SpringComponent
@@ -46,12 +48,18 @@ public class AdvertisementOverlay extends Div {
 
     private enum Mode { VIEW, EDIT, CREATE }
 
-    private final transient AdvertisementService                 advertisementService;
-    private final transient AdvertisementMapper                  mapper;
-    private final transient I18nService                          i18n;
-    private final transient NotificationService                  notification;
-    private final transient AccessEvaluator                      access;
-    private final transient DialogAdvertisementMetaPanel.Builder metaPanelBuilder;
+    private final transient AdvertisementService                  advertisementService;
+    private final transient AdvertisementMapper                   mapper;
+    private final transient I18nService                           i18n;
+    private final transient NotificationService                   notification;
+    private final transient AccessEvaluator                       access;
+    private final transient OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
+
+    // injected field components — labels/placeholders/validation configured in their constructors
+    private final OverlayAdvertisementTitleTextField      titleField;
+    private final OverlayAdvertisementDescriptionTextArea descriptionField;
+    private final OverlayAdvertisementSaveButton          saveButton;
+    private final OverlayAdvertisementCancelButton        cancelButton;
 
     private Mode                 currentMode;
     private AdvertisementInfoDto currentAd;
@@ -60,16 +68,12 @@ public class AdvertisementOverlay extends Div {
 
     // true when EDIT was entered via the Edit button inside VIEW mode
     private boolean enteredEditFromView = false;
-
-    private boolean initialized = false;
+    private boolean initialized         = false;
 
     private Button breadcrumbBack;
     private Span   breadcrumbCurrent;
-
     private Button editButton;
     private Button closeButton;
-    private Button saveButton;
-    private Button cancelButton;
 
     private H2   viewTitle;
     private Span viewDescription;
@@ -77,10 +81,7 @@ public class AdvertisementOverlay extends Div {
 
     // container is fixed in the DOM; its child is replaced on each open
     private Div metaContainer;
-
-    private TextField titleField;
-    private TextArea  descriptionField;
-    private Div       editBody;
+    private Div editBody;
 
     private Binder<AdvertisementEditDto> binder;
 
@@ -139,7 +140,7 @@ public class AdvertisementOverlay extends Div {
     private void buildLayout() {
         addClassName("advertisement-overlay");
 
-        // -- breadcrumb --
+        // -- breadcrumb -------------------------------------------------------
         breadcrumbBack = new Button(i18n.get(MAIN_TAB_ADVERTISEMENTS), _ -> closeToList());
         breadcrumbBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         breadcrumbBack.addClassName("overlay__breadcrumb-back");
@@ -153,17 +154,16 @@ public class AdvertisementOverlay extends Div {
         Div breadcrumb = new Div(breadcrumbBack, breadcrumbSep, breadcrumbCurrent);
         breadcrumb.addClassName("overlay__breadcrumb");
 
-        // -- header actions --
-        editButton   = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT),     _ -> switchToEdit());
-        closeButton  = new Button(VaadinIcon.CLOSE.create(),                     _ -> closeToList());
-        saveButton   = new Button(i18n.get(ADVERTISEMENT_DIALOG_BUTTON_SAVE),   _ -> handleSave());
-        cancelButton = new Button(i18n.get(ADVERTISEMENT_DIALOG_BUTTON_CANCEL), _ -> handleCancel());
+        // -- header actions ---------------------------------------------------
+        editButton  = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), _ -> switchToEdit());
+        closeButton = new Button(VaadinIcon.CLOSE.create(),                  _ -> closeToList());
 
         editButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
         closeButton.getElement().setAttribute("title", i18n.get(MAIN_TAB_ADVERTISEMENTS));
-        saveButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        cancelButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+
+        saveButton.addClickListener(_   -> handleSave());
+        cancelButton.addClickListener(_ -> handleCancel());
 
         Div headerActions = new Div(editButton, closeButton, saveButton, cancelButton);
         headerActions.addClassName("overlay__header-actions");
@@ -171,24 +171,20 @@ public class AdvertisementOverlay extends Div {
         Div header = new Div(breadcrumb, headerActions);
         header.addClassName("overlay__header");
 
-        // -- view body (VIEW only) --
+        // -- view body --------------------------------------------------------
         viewTitle       = new H2();   viewTitle.addClassName("overlay__view-title");
         viewDescription = new Span(); viewDescription.addClassName("overlay__view-description");
 
         viewBody = new Div(viewTitle, viewDescription);
         viewBody.addClassName("overlay__view-body");
 
-        // -- meta container (VIEW + EDIT, not CREATE) --
+        // -- meta container (VIEW + EDIT, hidden in CREATE) -------------------
         metaContainer = new Div();
         metaContainer.addClassName("overlay__meta-container");
 
-        // -- edit/create body --
-        titleField = new TextField();
+        // -- edit/create body -------------------------------------------------
         titleField.setWidthFull();
-
-        descriptionField = new TextArea();
         descriptionField.setWidthFull();
-        descriptionField.setMinHeight("12em");
 
         editBody = new Div(titleField, descriptionField);
         editBody.addClassName("overlay__edit-body");
@@ -206,13 +202,13 @@ public class AdvertisementOverlay extends Div {
         binder = new Binder<>(AdvertisementEditDto.class);
 
         binder.forField(titleField)
-                .asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED))
+                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
                 .withValidator(new StringLengthValidator(
-                        i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH), 1, 255))
+                        i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
                 .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
 
         binder.forField(descriptionField)
-                .asRequired(i18n.get(ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED))
+                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
     }
 
@@ -227,7 +223,6 @@ public class AdvertisementOverlay extends Div {
 
         viewBody.setVisible(isView);
         editBody.setVisible(isEdit || isCreate);
-        // meta is read-only context — shown in VIEW and EDIT, hidden in CREATE
         metaContainer.setVisible(isView || isEdit);
 
         editButton.setVisible(isView && currentAd != null && access.canOperate(currentAd));
@@ -235,16 +230,12 @@ public class AdvertisementOverlay extends Div {
         saveButton.setVisible(isEdit || isCreate);
         cancelButton.setVisible(isEdit || isCreate);
 
-        // hide separator "›" in VIEW mode — there is no second breadcrumb label
         breadcrumbCurrent.setText(switch (mode) {
             case VIEW   -> "";
-            case EDIT   -> i18n.get(ADVERTISEMENT_DIALOG_TITLE_EDIT);
-            case CREATE -> i18n.get(ADVERTISEMENT_DIALOG_TITLE_NEW);
+            case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
+            case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
         breadcrumbCurrent.setVisible(mode != Mode.VIEW);
-
-        titleField.setLabel(i18n.get(ADVERTISEMENT_DIALOG_FIELD_TITLE));
-        descriptionField.setLabel(i18n.get(ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION));
     }
 
     // Entered EDIT from within VIEW — cancel must return to VIEW, not close
@@ -306,7 +297,7 @@ public class AdvertisementOverlay extends Div {
     private void rebuildMeta(AdvertisementInfoDto ad) {
         metaContainer.removeAll();
         metaContainer.add(metaPanelBuilder.build(
-                DialogAdvertisementMetaPanel.Parameters.builder()
+                OverlayAdvertisementMetaPanel.Parameters.builder()
                         .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                         .createdAt(ad.getCreatedAt())
                         .updatedAt(ad.getUpdatedAt())
@@ -316,29 +307,26 @@ public class AdvertisementOverlay extends Div {
 
     private void handleSave() {
         if (!binder.validate().isOk()) {
-            notification.error(ADVERTISEMENT_DIALOG_NOTIFICATION_VALIDATION_FAILED);
+            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
             return;
         }
         try {
             advertisementService.save(mapper.toAdvertisement(binder.getBean()));
-            notification.success(ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS);
-            // refresh the card list before closing so it's ready when overlay disappears
+            notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
             if (onSavedCallback != null) onSavedCallback.run();
             closeToList();
         } catch (Exception e) {
-            notification.error(ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR);
+            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
         }
     }
 
     private void handleCancel() {
         if (currentMode == Mode.EDIT && enteredEditFromView) {
-            // came from VIEW inside the overlay — go back to VIEW
             currentMode         = Mode.VIEW;
             enteredEditFromView = false;
             switchTo(Mode.VIEW);
             populateView(currentAd);
         } else {
-            // came from card Edit button or CREATE — close entirely
             closeToList();
         }
     }
