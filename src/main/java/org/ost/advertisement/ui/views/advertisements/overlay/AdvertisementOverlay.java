@@ -4,13 +4,9 @@ import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.ShortcutRegistration;
 import com.vaadin.flow.component.Shortcuts;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -22,11 +18,15 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.services.NotificationService;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementBreadcrumbButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCloseButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementDescriptionTextArea;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementEditButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
+import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -48,16 +48,20 @@ public class AdvertisementOverlay extends Div {
 
     private enum Mode { VIEW, EDIT, CREATE }
 
-    private final transient AdvertisementService                  advertisementService;
-    private final transient AdvertisementMapper                   mapper;
-    private final transient I18nService                           i18n;
-    private final transient NotificationService                   notification;
-    private final transient AccessEvaluator                       access;
-    private final transient OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
+    private final transient AdvertisementService                           advertisementService;
+    private final transient AdvertisementMapper                            mapper;
+    private final transient I18nService                                    i18n;
+    private final transient NotificationService                            notification;
+    private final transient AccessEvaluator                                access;
+    private final transient OverlayAdvertisementMetaPanel.Builder          metaPanelBuilder;
+    private final transient FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
 
     // injected field components — labels/placeholders/validation configured in their constructors
     private final OverlayAdvertisementTitleTextField      titleField;
     private final OverlayAdvertisementDescriptionTextArea descriptionField;
+    private final OverlayAdvertisementBreadcrumbButton    breadcrumbButton;
+    private final OverlayAdvertisementEditButton          editButton;
+    private final OverlayAdvertisementCloseButton         closeButton;
     private final OverlayAdvertisementSaveButton          saveButton;
     private final OverlayAdvertisementCancelButton        cancelButton;
 
@@ -70,11 +74,6 @@ public class AdvertisementOverlay extends Div {
     private boolean enteredEditFromView = false;
     private boolean initialized         = false;
 
-    private Button breadcrumbBack;
-    private Span   breadcrumbCurrent;
-    private Button editButton;
-    private Button closeButton;
-
     private H2   viewTitle;
     private Span viewDescription;
     private Div  viewBody;
@@ -83,7 +82,9 @@ public class AdvertisementOverlay extends Div {
     private Div metaContainer;
     private Div editBody;
 
-    private Binder<AdvertisementEditDto> binder;
+    private Span breadcrumbCurrent;
+
+    private FormDialogBinder<AdvertisementEditDto> formBinder;
 
     // -------------------------------------------------------------------------
     // Public API
@@ -108,7 +109,7 @@ public class AdvertisementOverlay extends Div {
         currentMode         = Mode.CREATE;
         onSavedCallback     = onSaved;
         enteredEditFromView = false;
-        binder.setBean(new AdvertisementEditDto());
+        rebuildFormBinder(new AdvertisementEditDto());
         switchTo(Mode.CREATE);
         open();
     }
@@ -121,7 +122,7 @@ public class AdvertisementOverlay extends Div {
         onSavedCallback     = onSaved;
         enteredEditFromView = false;
         rebuildMeta(ad);
-        binder.setBean(mapper.toAdvertisementEdit(ad));
+        rebuildFormBinder(mapper.toAdvertisementEdit(ad));
         switchTo(Mode.EDIT);
         open();
     }
@@ -134,16 +135,13 @@ public class AdvertisementOverlay extends Div {
         if (initialized) return;
         initialized = true;
         buildLayout();
-        buildBinder();
     }
 
     private void buildLayout() {
         addClassName("advertisement-overlay");
 
         // -- breadcrumb -------------------------------------------------------
-        breadcrumbBack = new Button(i18n.get(MAIN_TAB_ADVERTISEMENTS), _ -> closeToList());
-        breadcrumbBack.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        breadcrumbBack.addClassName("overlay__breadcrumb-back");
+        breadcrumbButton.addClickListener(_ -> closeToList());
 
         Span breadcrumbSep = new Span("›");
         breadcrumbSep.addClassName("overlay__breadcrumb-sep");
@@ -151,17 +149,12 @@ public class AdvertisementOverlay extends Div {
         breadcrumbCurrent = new Span();
         breadcrumbCurrent.addClassName("overlay__breadcrumb-current");
 
-        Div breadcrumb = new Div(breadcrumbBack, breadcrumbSep, breadcrumbCurrent);
+        Div breadcrumb = new Div(breadcrumbButton, breadcrumbSep, breadcrumbCurrent);
         breadcrumb.addClassName("overlay__breadcrumb");
 
         // -- header actions ---------------------------------------------------
-        editButton  = new Button(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT), _ -> switchToEdit());
-        closeButton = new Button(VaadinIcon.CLOSE.create(),                  _ -> closeToList());
-
-        editButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
-        closeButton.getElement().setAttribute("title", i18n.get(MAIN_TAB_ADVERTISEMENTS));
-
+        editButton.addClickListener(_   -> switchToEdit());
+        closeButton.addClickListener(_  -> closeToList());
         saveButton.addClickListener(_   -> handleSave());
         cancelButton.addClickListener(_ -> handleCancel());
 
@@ -198,16 +191,24 @@ public class AdvertisementOverlay extends Div {
         add(inner);
     }
 
-    private void buildBinder() {
-        binder = new Binder<>(AdvertisementEditDto.class);
+    private void rebuildFormBinder(AdvertisementEditDto dto) {
+        formBinder = binderBuilder.build(
+                FormDialogBinder.Config.<AdvertisementEditDto>builder()
+                        .clazz(AdvertisementEditDto.class)
+                        .dto(dto)
+                        .build()
+        );
+        bindFields();
+    }
 
-        binder.forField(titleField)
+    private void bindFields() {
+        formBinder.getBinder().forField(titleField)
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
                 .withValidator(new StringLengthValidator(
                         i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
                 .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
 
-        binder.forField(descriptionField)
+        formBinder.getBinder().forField(descriptionField)
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
     }
@@ -243,7 +244,7 @@ public class AdvertisementOverlay extends Div {
         if (currentAd == null) return;
         currentMode         = Mode.EDIT;
         enteredEditFromView = true;
-        binder.setBean(mapper.toAdvertisementEdit(currentAd));
+        rebuildFormBinder(mapper.toAdvertisementEdit(currentAd));
         switchTo(Mode.EDIT);
     }
 
@@ -306,17 +307,15 @@ public class AdvertisementOverlay extends Div {
     }
 
     private void handleSave() {
-        if (!binder.validate().isOk()) {
-            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
-            return;
-        }
-        try {
-            advertisementService.save(mapper.toAdvertisement(binder.getBean()));
+        boolean saved = formBinder.save(dto ->
+                advertisementService.save(mapper.toAdvertisement(dto))
+        );
+        if (saved) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
             if (onSavedCallback != null) onSavedCallback.run();
             closeToList();
-        } catch (Exception e) {
-            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
+        } else {
+            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
         }
     }
 

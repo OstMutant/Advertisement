@@ -2,10 +2,8 @@ package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.ui.dto.EditDto;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,7 +12,7 @@ import org.springframework.context.annotation.Scope;
 @Slf4j
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class FormDialogBinder<T extends EditDto> {
 
     @Value
@@ -58,6 +56,7 @@ public class FormDialogBinder<T extends EditDto> {
     }
 
     @SpringComponent
+    @Scope("prototype")
     @RequiredArgsConstructor
     public static class Builder<T extends EditDto> {
         private final ObjectProvider<FormDialogBinder<T>> provider;
