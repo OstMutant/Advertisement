@@ -131,12 +131,10 @@ public class AdvertisementCardView extends VerticalLayout {
                 () -> {
                     try {
                         advertisementService.delete(ad);
-                        notificationService.show(NotificationType.SUCCESS,
-                                ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
+                        notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                         onChanged.run();
                     } catch (Exception ex) {
-                        notificationService.show(NotificationType.ERROR,
-                                ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+                        notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
                     }
                 }
         ).open();

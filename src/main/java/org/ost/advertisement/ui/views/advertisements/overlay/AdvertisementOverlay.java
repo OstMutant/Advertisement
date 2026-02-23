@@ -7,9 +7,9 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.textfield.TextArea;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.binder.Binder;
@@ -24,23 +24,19 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.advertisements.dialogs.fields.DialogAdvertisementMetaPanel;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
 /**
  * Full-viewport overlay (position:fixed). Pure Divs — no Vaadin layout components.
- *
  * Header actions per mode:
  *   VIEW   — [Edit]  [Close]
  *   EDIT   — [Save]  [Cancel]
  *   CREATE — [Save]  [Cancel]
- *
  * Cancel / ESC behavior depends on how EDIT was entered:
  *   - card Edit button  → cancel closes overlay (returns to card list)
  *   - Edit button inside VIEW → cancel returns to VIEW mode
- *
  * On save: refresh callback runs first, then overlay closes.
  */
 @SpringComponent
@@ -320,20 +316,17 @@ public class AdvertisementOverlay extends Div {
 
     private void handleSave() {
         if (!binder.validate().isOk()) {
-            notification.show(NotificationType.ERROR,
-                    i18n.get(ADVERTISEMENT_DIALOG_NOTIFICATION_VALIDATION_FAILED));
+            notification.error(ADVERTISEMENT_DIALOG_NOTIFICATION_VALIDATION_FAILED);
             return;
         }
         try {
             advertisementService.save(mapper.toAdvertisement(binder.getBean()));
-            notification.show(NotificationType.SUCCESS,
-                    i18n.get(ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS));
+            notification.success(ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS);
             // refresh the card list before closing so it's ready when overlay disappears
             if (onSavedCallback != null) onSavedCallback.run();
             closeToList();
         } catch (Exception e) {
-            notification.show(NotificationType.ERROR,
-                    i18n.get(ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR));
+            notification.error(ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR);
         }
     }
 

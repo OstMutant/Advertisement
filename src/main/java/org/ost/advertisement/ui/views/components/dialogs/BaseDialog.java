@@ -4,7 +4,6 @@ import com.vaadin.flow.component.dialog.Dialog;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.utils.NotificationType;
 
 public abstract class BaseDialog extends Dialog {
 
@@ -33,9 +32,9 @@ public abstract class BaseDialog extends Dialog {
     protected void savedNotifier(boolean isSaved, I18nKey successKey, I18nKey errorKey) {
         if (isSaved) {
             close();
-            getNotificationService().show(NotificationType.SUCCESS, successKey);
+            getNotificationService().success(successKey);
         } else {
-            getNotificationService().show(NotificationType.ERROR, errorKey, "Validation failed");
+            getNotificationService().error(errorKey, "Validation failed");
         }
     }
 }

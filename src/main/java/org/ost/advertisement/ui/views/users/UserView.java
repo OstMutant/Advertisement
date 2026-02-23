@@ -125,7 +125,7 @@ public class UserView extends VerticalLayout {
             paginationBar.setTotalCount(0);
         } catch (Exception ex) {
             log.error("Unexpected error while refreshing user grid", ex);
-            notificationService.show(NotificationType.ERROR, USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+            notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
             grid.setItems(Collections.emptyList());
             paginationBar.setTotalCount(0);
         } finally {
@@ -142,11 +142,11 @@ public class UserView extends VerticalLayout {
                 () -> {
                     try {
                         userService.delete(user);
-                        notificationService.show(NotificationType.SUCCESS, USER_VIEW_NOTIFICATION_DELETED);
+                        notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                         refreshGrid();
                     } catch (Exception e) {
                         log.error("Error deleting user id={}", user.getId(), e);
-                        notificationService.show(NotificationType.ERROR, USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
+                        notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                     }
                 }
         ).open();
@@ -159,6 +159,6 @@ public class UserView extends VerticalLayout {
                 .distinct()
                 .sorted()
                 .collect(Collectors.joining("\n"));
-        notificationService.show(NotificationType.ERROR, i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + message);
+        notificationService.error(i18n.get(USER_VIEW_NOTIFICATION_VALIDATION_FAILED) + "\n" + message);
     }
 }

@@ -11,7 +11,6 @@ import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
@@ -75,11 +74,11 @@ public class LoginDialog extends BaseDialog {
         boolean success = authService.login(emailField.getValue(), passwordField.getValue());
         if (success) {
             close();
-            notificationService.show(NotificationType.SUCCESS, LOGIN_SUCCESS);
+            notificationService.success(LOGIN_SUCCESS);
             sessionService.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         } else {
-            notificationService.show(NotificationType.ERROR, LOGIN_ERROR);
+            notificationService.error(LOGIN_ERROR);
         }
     }
 }

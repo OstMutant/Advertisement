@@ -21,11 +21,33 @@ public class NotificationService {
 
     private final I18nService i18n;
 
-    public void show(NotificationType type, I18nKey key, Object... args) {
+    /**
+     * Convenience method for success notifications
+     */
+    public void success(I18nKey key, Object... args) {
+        show(NotificationType.SUCCESS, key, args);
+    }
+
+    public void success(String message) {
+        show(NotificationType.SUCCESS, message);
+    }
+
+    /**
+     * Convenience method for error notifications
+     */
+    public void error(I18nKey key, Object... args) {
+        show(NotificationType.ERROR, key, args);
+    }
+
+    public void error(String message) {
+        show(NotificationType.ERROR, message);
+    }
+
+    private void show(NotificationType type, I18nKey key, Object... args) {
         show(type, i18n.get(key, args));
     }
 
-    public void show(NotificationType type, String message) {
+    private void show(NotificationType type, String message) {
         UI ui = UI.getCurrent();
         if (ui != null) {
             ui.access(() -> buildAndOpen(type, message));
@@ -35,11 +57,20 @@ public class NotificationService {
     }
 
     private void buildAndOpen(NotificationType type, String message) {
+        Notification notification = createNotification(type, message);
+        notification.open();
+    }
+
+    private Notification createNotification(NotificationType type, String message) {
         Notification notification = new Notification();
         notification.setDuration(type.getDuration());
         notification.addThemeVariants(type.getVariant());
         notification.setPosition(Notification.Position.TOP_END);
+        notification.add(createLayout(type, message, notification));
+        return notification;
+    }
 
+    private HorizontalLayout createLayout(NotificationType type, String message, Notification notification) {
         Icon icon = new Icon("lumo", type.getIconName());
         icon.addClassName("notification-icon");
 
@@ -52,8 +83,6 @@ public class NotificationService {
         HorizontalLayout layout = new HorizontalLayout(icon, text, closeButton);
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
         layout.addClassName("notification-layout");
-
-        notification.add(layout);
-        notification.open();
+        return layout;
     }
 }
