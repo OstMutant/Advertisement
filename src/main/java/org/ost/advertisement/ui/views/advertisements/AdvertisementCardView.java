@@ -13,7 +13,6 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
@@ -29,21 +28,23 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardView extends VerticalLayout {
 
-    private final transient I18nService                       i18n;
-    private final transient NotificationService               notificationService;
-    private final transient AdvertisementService              advertisementService;
+    private static final String CLICK_EVENT = "click";
+
+    private final transient I18nService                        i18n;
+    private final transient NotificationService                notificationService;
+    private final transient AdvertisementService               advertisementService;
     private final transient AdvertisementCardMetaPanel.Builder metaPanelBuilder;
-    private final transient EditActionButton.Builder          editButtonBuilder;
-    private final transient DeleteActionButton.Builder        deleteButtonBuilder;
-    private final transient AccessEvaluator                   access;
-    private final transient ConfirmDeleteDialog.Builder       confirmDeleteDialogBuilder;
+    private final transient EditActionButton.Builder           editButtonBuilder;
+    private final transient DeleteActionButton.Builder         deleteButtonBuilder;
+    private final transient AccessEvaluator                    access;
+    private final transient ConfirmDeleteDialog.Builder        confirmDeleteDialogBuilder;
 
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad,
                                                AdvertisementOverlay overlay,
                                                Runnable onChanged) {
         addClassName("advertisement-card");
 
-        getElement().addEventListener("click", _ -> overlay.openForView(ad, onChanged));
+        getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
@@ -91,6 +92,18 @@ public class AdvertisementCardView extends VerticalLayout {
                                            Runnable onChanged) {
         boolean canOperate = access.canOperate(ad);
 
+        Button edit   = createEditButton(ad, overlay, onChanged, canOperate);
+        Button delete = createDeleteButton(ad, onChanged, canOperate);
+
+        HorizontalLayout actions = new HorizontalLayout(edit, delete);
+        actions.addClassName("advertisement-actions");
+        return actions;
+    }
+
+    private Button createEditButton(AdvertisementInfoDto ad,
+                                    AdvertisementOverlay overlay,
+                                    Runnable onChanged,
+                                    boolean visible) {
         Button edit = editButtonBuilder.build(
                 EditActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
@@ -99,9 +112,14 @@ public class AdvertisementCardView extends VerticalLayout {
                         .cssClassName("advertisement-edit")
                         .build()
         );
-        edit.setVisible(canOperate);
-        edit.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+        edit.setVisible(visible);
+        edit.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData("event.stopPropagation()");
+        return edit;
+    }
 
+    private Button createDeleteButton(AdvertisementInfoDto ad,
+                                      Runnable onChanged,
+                                      boolean visible) {
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
@@ -110,12 +128,9 @@ public class AdvertisementCardView extends VerticalLayout {
                         .cssClassName("advertisement-delete")
                         .build()
         );
-        delete.setVisible(canOperate);
-        delete.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
-
-        HorizontalLayout actions = new HorizontalLayout(edit, delete);
-        actions.addClassName("advertisement-actions");
-        return actions;
+        delete.setVisible(visible);
+        delete.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData("event.stopPropagation()");
+        return delete;
     }
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
