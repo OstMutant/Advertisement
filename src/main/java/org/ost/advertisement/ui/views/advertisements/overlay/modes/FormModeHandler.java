@@ -8,7 +8,6 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.overlay.Mode;
-import org.ost.advertisement.ui.views.advertisements.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlayMetaHelper;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;

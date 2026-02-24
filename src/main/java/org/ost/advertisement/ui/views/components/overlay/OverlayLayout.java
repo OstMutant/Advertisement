@@ -12,58 +12,89 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 public class OverlayLayout extends Div {
 
-    // exposed for visibility management (Variant B — caller sets visible directly)
-    @Getter private Div  viewBody;
-    @Getter private Div  editBody;
-    @Getter private Div  metaContainer;
-    @Getter private Span breadcrumbCurrent;
+    @Getter
+    private final Div viewBody = createViewBody();
+    @Getter
+    private final Div editBody = createEditBody();
+    @Getter
+    private final Div metaContainer = createMetaContainer();
+    @Getter
+    private final Span breadcrumbCurrent = createBreadcrumbCurrent();
 
-    private Div breadcrumbSlot;
-    private Div headerActions;
+    private final Div breadcrumbSlot = createBreadcrumbSlot();
+    private final Div headerActions = createHeaderActions();
 
     @PostConstruct
     private void init() {
-        // OverlayLayout itself carries overlay__inner to preserve the flex chain:
-        // .advertisement-overlay (flex column) → .overlay__inner (flex:1, min-height:0) → ...
         addClassName("overlay__inner");
 
-        // -- breadcrumb -------------------------------------------------------
-        breadcrumbSlot = new Div();
-        breadcrumbSlot.addClassName("overlay__breadcrumb-back-slot");
-
-        Span breadcrumbSep = new Span("›");
-        breadcrumbSep.addClassName("overlay__breadcrumb-sep");
-
-        breadcrumbCurrent = new Span();
-        breadcrumbCurrent.addClassName("overlay__breadcrumb-current");
-
-        Div breadcrumb = new Div(breadcrumbSlot, breadcrumbSep, breadcrumbCurrent);
-        breadcrumb.addClassName("overlay__breadcrumb");
-
-        // -- header actions ---------------------------------------------------
-        headerActions = new Div();
-        headerActions.addClassName("overlay__header-actions");
-
-        Div header = new Div(breadcrumb, headerActions);
-        header.addClassName("overlay__header");
-
-        // -- view body --------------------------------------------------------
-        viewBody = new Div();
-        viewBody.addClassName("overlay__view-body");
-
-        // -- edit/create body -------------------------------------------------
-        editBody = new Div();
-        editBody.addClassName("overlay__edit-body");
-
-        // -- meta container (VIEW + EDIT, hidden in CREATE) -------------------
-        metaContainer = new Div();
-        metaContainer.addClassName("overlay__meta-container");
-
-        Div content = new Div(viewBody, editBody, metaContainer);
-        content.addClassName("overlay__content");
+        Div breadcrumb = createBreadcrumb();
+        Div header = createHeader(breadcrumb);
+        Div content = createContent();
 
         add(header, content);
     }
+
+    // --- factory methods ----------------------------------------------------
+
+    private Div createBreadcrumbSlot() {
+        Div slot = new Div();
+        slot.addClassName("overlay__breadcrumb-back-slot");
+        return slot;
+    }
+
+    private Span createBreadcrumbCurrent() {
+        Span current = new Span();
+        current.addClassName("overlay__breadcrumb-current");
+        return current;
+    }
+
+    private Div createHeaderActions() {
+        Div actions = new Div();
+        actions.addClassName("overlay__header-actions");
+        return actions;
+    }
+
+    private Div createViewBody() {
+        Div body = new Div();
+        body.addClassName("overlay__view-body");
+        return body;
+    }
+
+    private Div createEditBody() {
+        Div body = new Div();
+        body.addClassName("overlay__edit-body");
+        return body;
+    }
+
+    private Div createMetaContainer() {
+        Div meta = new Div();
+        meta.addClassName("overlay__meta-container");
+        return meta;
+    }
+
+    private Div createBreadcrumb() {
+        Span breadcrumbSep = new Span("›");
+        breadcrumbSep.addClassName("overlay__breadcrumb-sep");
+
+        Div breadcrumb = new Div(breadcrumbSlot, breadcrumbSep, breadcrumbCurrent);
+        breadcrumb.addClassName("overlay__breadcrumb");
+        return breadcrumb;
+    }
+
+    private Div createHeader(Div breadcrumb) {
+        Div header = new Div(breadcrumb, headerActions);
+        header.addClassName("overlay__header");
+        return header;
+    }
+
+    private Div createContent() {
+        Div content = new Div(viewBody, editBody, metaContainer);
+        content.addClassName("overlay__content");
+        return content;
+    }
+
+    // --- public API ---------------------------------------------------------
 
     public void setBreadcrumbButton(Component button) {
         breadcrumbSlot.add(button);

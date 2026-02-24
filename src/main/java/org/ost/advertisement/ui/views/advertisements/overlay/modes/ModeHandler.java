@@ -1,5 +1,6 @@
-package org.ost.advertisement.ui.views.advertisements.overlay;
+package org.ost.advertisement.ui.views.advertisements.overlay.modes;
 
+import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 
 // Each handler owns its header buttons and body content for a specific mode.

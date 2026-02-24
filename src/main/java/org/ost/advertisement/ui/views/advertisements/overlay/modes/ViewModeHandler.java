@@ -6,7 +6,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.ui.views.advertisements.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlayMetaHelper;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCloseButton;
