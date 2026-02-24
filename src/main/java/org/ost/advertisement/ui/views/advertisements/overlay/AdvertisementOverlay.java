@@ -1,122 +1,68 @@
 package org.ost.advertisement.ui.views.advertisements.overlay;
 
-import com.vaadin.flow.component.html.H2;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.dto.AdvertisementEditDto;
-import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementBreadcrumbButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCloseButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementDescriptionTextArea;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementEditButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
-import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.FormModeHandler;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.ViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
 /**
- * Full-viewport overlay (position:fixed). Pure Divs — no Vaadin layout components.
- * Header actions per mode:
- *   VIEW   — [Edit]  [Close]
- *   EDIT   — [Save]  [Cancel]
- *   CREATE — [Save]  [Cancel]
- * Cancel / ESC behavior depends on how EDIT was entered:
- *   - card Edit button    → cancel closes overlay (returns to card list)
- *   - Edit button in VIEW → cancel returns to VIEW mode
- * On save: refresh callback runs first, then overlay closes.
+ * Full-viewport overlay (position:fixed).
+ * Delegates all mode-specific rendering to ModeHandler implementations:
+ *   VIEW   → ViewModeHandler
+ *   EDIT   → FormModeHandler
+ *   CREATE → FormModeHandler
+ * To add a new mode: implement ModeHandler, register it in buildContent().
  */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class AdvertisementOverlay extends BaseOverlay {
 
-    private enum Mode { VIEW, EDIT, CREATE }
+    private final transient I18nService         i18n;
+    private final transient NotificationService notification;
 
-    private final transient AdvertisementService                           advertisementService;
-    private final transient AdvertisementMapper                            mapper;
-    private final transient I18nService                                    i18n;
-    private final transient NotificationService                            notification;
-    private final transient AccessEvaluator                                access;
-    private final transient OverlayAdvertisementMetaPanel.Builder          metaPanelBuilder;
-    private final transient FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
+    private final transient ViewModeHandler viewModeHandler;
+    private final transient FormModeHandler formModeHandler;
 
-    // injected field components — labels/placeholders/validation configured in their constructors
-    private final OverlayAdvertisementTitleTextField      titleField;
-    private final OverlayAdvertisementDescriptionTextArea descriptionField;
-    private final OverlayAdvertisementBreadcrumbButton    breadcrumbButton;
-    private final OverlayAdvertisementEditButton          editButton;
-    private final OverlayAdvertisementCloseButton         closeButton;
-    private final OverlayAdvertisementSaveButton          saveButton;
-    private final OverlayAdvertisementCancelButton        cancelButton;
+    private final OverlayAdvertisementBreadcrumbButton breadcrumbButton;
 
     @Getter
     private final OverlayLayout layout;
 
-    private Mode                 currentMode;
-    private AdvertisementInfoDto currentAd;
-    private Runnable             onSavedCallback;
-
-    // true when EDIT was entered via the Edit button inside VIEW mode
-    private boolean enteredEditFromView = false;
-
-    private H2   viewTitle;
-    private Span viewDescription;
-
-    private FormDialogBinder<AdvertisementEditDto> formBinder;
+    private final AtomicReference<OverlaySession> session  = new AtomicReference<>();
+    private final Map<Mode, ModeHandler>          handlers = new EnumMap<>(Mode.class);
 
     // -------------------------------------------------------------------------
     // Public API
     // -------------------------------------------------------------------------
 
-    // onChanged is stored so that editing from VIEW mode also triggers a refresh on save
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
-        currentAd           = ad;
-        currentMode         = Mode.VIEW;
-        onSavedCallback     = onChanged;
-        enteredEditFromView = false;
-        populateView(ad);
-        rebuildMeta(ad);
-        switchTo(Mode.VIEW);
-        open();
+        open(OverlaySession.forView(ad, onChanged));
     }
 
     public void openForCreate(Runnable onSaved) {
         ensureInitialized();
-        currentAd           = null;
-        currentMode         = Mode.CREATE;
-        onSavedCallback     = onSaved;
-        enteredEditFromView = false;
-        rebuildFormBinder(new AdvertisementEditDto());
-        switchTo(Mode.CREATE);
-        open();
+        open(OverlaySession.forCreate(onSaved));
     }
 
-    // Opened directly from the card Edit button — cancel should close overlay entirely
     public void openForEdit(AdvertisementInfoDto ad, Runnable onSaved) {
         ensureInitialized();
-        currentAd           = ad;
-        currentMode         = Mode.EDIT;
-        onSavedCallback     = onSaved;
-        enteredEditFromView = false;
-        rebuildMeta(ad);
-        rebuildFormBinder(mapper.toAdvertisementEdit(ad));
-        switchTo(Mode.EDIT);
-        open();
+        open(OverlaySession.forEdit(ad, onSaved));
     }
 
     // -------------------------------------------------------------------------
@@ -126,23 +72,19 @@ public class AdvertisementOverlay extends BaseOverlay {
     @Override
     protected void buildContent(OverlayLayout l) {
         addClassName("advertisement-overlay");
-
         breadcrumbButton.addClickListener(_ -> closeToList());
         l.setBreadcrumbButton(breadcrumbButton);
 
-        editButton.addClickListener(_   -> switchToEdit());
-        closeButton.addClickListener(_  -> closeToList());
-        saveButton.addClickListener(_   -> handleSave());
-        cancelButton.addClickListener(_ -> handleCancel());
-        l.addHeaderActions(editButton, closeButton, saveButton, cancelButton);
+        viewModeHandler.configure(l, this::switchToEdit, this::closeToList);
+        formModeHandler.configure(l, this::handleSave,   this::handleCancel);
 
-        viewTitle       = new H2();   viewTitle.addClassName("overlay__view-title");
-        viewDescription = new Span(); viewDescription.addClassName("overlay__view-description");
-        l.addViewContent(viewTitle, viewDescription);
+        handlers.put(Mode.VIEW,   viewModeHandler);
+        handlers.put(Mode.EDIT,   formModeHandler);
+        handlers.put(Mode.CREATE, formModeHandler);
 
-        titleField.setWidthFull();
-        descriptionField.setWidthFull();
-        l.addEditContent(titleField, descriptionField);
+        // init order determines DOM order inside headerActions and body containers
+        viewModeHandler.init();
+        formModeHandler.init();
     }
 
     @Override
@@ -154,86 +96,44 @@ public class AdvertisementOverlay extends BaseOverlay {
     // Mode switching
     // -------------------------------------------------------------------------
 
-    private void switchTo(Mode mode) {
-        boolean isView   = mode == Mode.VIEW;
-        boolean isEdit   = mode == Mode.EDIT;
-        boolean isCreate = mode == Mode.CREATE;
+    private void open(OverlaySession s) {
+        session.set(s);
+        switchTo(s);
+        open();
+    }
 
-        layout.getViewBody().setVisible(isView);
-        layout.getEditBody().setVisible(isEdit || isCreate);
-        layout.getMetaContainer().setVisible(isView || isEdit);
+    private void switchTo(OverlaySession s) {
+        ModeHandler active = handlers.get(s.mode());
+        handlers.values().stream().distinct()
+                .filter(h -> h != active)
+                .forEach(ModeHandler::deactivate);
+        active.activate(s);
 
-        editButton.setVisible(isView && currentAd != null && access.canOperate(currentAd));
-        closeButton.setVisible(isView);
-        saveButton.setVisible(isEdit || isCreate);
-        cancelButton.setVisible(isEdit || isCreate);
-
-        layout.getBreadcrumbCurrent().setText(switch (mode) {
+        layout.getBreadcrumbCurrent().setText(switch (s.mode()) {
             case VIEW   -> "";
             case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
             case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
-        layout.getBreadcrumbCurrent().setVisible(mode != Mode.VIEW);
+        layout.getBreadcrumbCurrent().setVisible(s.mode() != Mode.VIEW);
     }
 
-    // Entered EDIT from within VIEW — cancel must return to VIEW, not close
+    // Entered EDIT from within VIEW — cancel must return to VIEW, not close.
     private void switchToEdit() {
-        if (currentAd == null) return;
-        currentMode         = Mode.EDIT;
-        enteredEditFromView = true;
-        rebuildFormBinder(mapper.toAdvertisementEdit(currentAd));
-        switchTo(Mode.EDIT);
+        if (session.get().ad() == null) return;
+        OverlaySession next = session.get().toEdit();
+        session.set(next);
+        switchTo(next);
     }
 
     // -------------------------------------------------------------------------
     // Actions
     // -------------------------------------------------------------------------
 
-    private void populateView(AdvertisementInfoDto ad) {
-        viewTitle.setText(ad.getTitle());
-        viewDescription.setText(ad.getDescription());
-    }
-
-    private void rebuildMeta(AdvertisementInfoDto ad) {
-        layout.getMetaContainer().removeAll();
-        layout.getMetaContainer().add(metaPanelBuilder.build(
-                OverlayAdvertisementMetaPanel.Parameters.builder()
-                        .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                        .createdAt(ad.getCreatedAt())
-                        .updatedAt(ad.getUpdatedAt())
-                        .build()
-        ));
-    }
-
-    private void rebuildFormBinder(AdvertisementEditDto dto) {
-        formBinder = binderBuilder.build(
-                FormDialogBinder.Config.<AdvertisementEditDto>builder()
-                        .clazz(AdvertisementEditDto.class)
-                        .dto(dto)
-                        .build()
-        );
-        bindFields();
-    }
-
-    private void bindFields() {
-        formBinder.getBinder().forField(titleField)
-                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
-                .withValidator(new StringLengthValidator(
-                        i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
-                .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
-
-        formBinder.getBinder().forField(descriptionField)
-                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
-                .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
-    }
-
     private void handleSave() {
-        boolean saved = formBinder.save(dto ->
-                advertisementService.save(mapper.toAdvertisement(dto))
-        );
-        if (saved) {
+        if (formModeHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-            if (onSavedCallback != null) onSavedCallback.run();
+            OverlaySession s = session.get();
+            if (s.onSaved() != null) s.onSaved().run();
             closeToList();
         } else {
             notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
@@ -241,11 +141,11 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void handleCancel() {
-        if (currentMode == Mode.EDIT && enteredEditFromView) {
-            currentMode         = Mode.VIEW;
-            enteredEditFromView = false;
-            switchTo(Mode.VIEW);
-            populateView(currentAd);
+        OverlaySession s = session.get();
+        if (s.mode() == Mode.EDIT && s.enteredFromView()) {
+            OverlaySession prev = s.toView();
+            session.set(prev);
+            switchTo(prev);
         } else {
             closeToList();
         }
