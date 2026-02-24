@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements.overlay.modes;
 
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
@@ -21,8 +22,6 @@ import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
-// Handles both EDIT and CREATE — they share form fields and action buttons.
-// The only difference: CREATE hides meta and initializes the binder with an empty DTO.
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -39,12 +38,13 @@ public class FormModeHandler implements ModeHandler {
     private final OverlayAdvertisementSaveButton          saveButton;
     private final OverlayAdvertisementCancelButton        cancelButton;
 
+    private final Div metaContainer = new Div();
+
     private FormDialogBinder<AdvertisementEditDto> binder;
     private OverlayLayout layout;
     private Runnable      onSave;
     private Runnable      onCancel;
 
-    // primary = onSave, secondary = onCancel
     @Override
     public void configure(OverlayLayout layout, Runnable primary, Runnable secondary) {
         this.layout   = layout;
@@ -56,7 +56,9 @@ public class FormModeHandler implements ModeHandler {
     public void init() {
         titleField.setWidthFull();
         descriptionField.setWidthFull();
-        layout.addEditContent(titleField, descriptionField);
+        metaContainer.addClassName("overlay__meta-container");
+
+        layout.addContent(titleField, descriptionField, metaContainer);
 
         layout.addHeaderActions(saveButton, cancelButton);
         saveButton.addClickListener(_   -> onSave.run());
@@ -72,18 +74,20 @@ public class FormModeHandler implements ModeHandler {
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(s.ad());
         rebuildBinder(dto);
-        if (!isCreate) OverlayMetaHelper.rebuild(layout, metaPanelBuilder, s.ad());
+        if (!isCreate) OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, s.ad());
 
-        layout.getEditBody().setVisible(true);
-        layout.getMetaContainer().setVisible(!isCreate);
+        titleField.setVisible(true);
+        descriptionField.setVisible(true);
+        metaContainer.setVisible(!isCreate);
         saveButton.setVisible(true);
         cancelButton.setVisible(true);
     }
 
     @Override
     public void deactivate() {
-        layout.getEditBody().setVisible(false);
-        layout.getMetaContainer().setVisible(false);
+        titleField.setVisible(false);
+        descriptionField.setVisible(false);
+        metaContainer.setVisible(false);
         saveButton.setVisible(false);
         cancelButton.setVisible(false);
     }

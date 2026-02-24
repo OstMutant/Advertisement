@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.advertisements.overlay.modes;
 
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -24,14 +25,14 @@ public class ViewModeHandler implements ModeHandler {
     private final OverlayAdvertisementEditButton        editButton;
     private final OverlayAdvertisementCloseButton       closeButton;
 
-    private final H2   title       = new H2();
-    private final Span description = new Span();
+    private final H2   title         = new H2();
+    private final Span description   = new Span();
+    private final Div  metaContainer = new Div();
 
     private OverlayLayout layout;
     private Runnable      onEdit;
     private Runnable      onClose;
 
-    // primary = onEdit, secondary = onClose
     @Override
     public void configure(OverlayLayout layout, Runnable primary, Runnable secondary) {
         this.layout  = layout;
@@ -43,7 +44,9 @@ public class ViewModeHandler implements ModeHandler {
     public void init() {
         title.addClassName("overlay__view-title");
         description.addClassName("overlay__view-description");
-        layout.addViewContent(title, description);
+        metaContainer.addClassName("overlay__meta-container");
+
+        layout.addContent(title, description, metaContainer);
 
         layout.addHeaderActions(editButton, closeButton);
         editButton.addClickListener(_  -> onEdit.run());
@@ -57,18 +60,20 @@ public class ViewModeHandler implements ModeHandler {
         AdvertisementInfoDto ad = s.ad();
         title.setText(ad.getTitle());
         description.setText(ad.getDescription());
-        OverlayMetaHelper.rebuild(layout, metaPanelBuilder, ad);
+        OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, ad);
 
-        layout.getViewBody().setVisible(true);
-        layout.getMetaContainer().setVisible(true);
+        title.setVisible(true);
+        description.setVisible(true);
+        metaContainer.setVisible(true);
         editButton.setVisible(access.canOperate(ad));
         closeButton.setVisible(true);
     }
 
     @Override
     public void deactivate() {
-        layout.getViewBody().setVisible(false);
-        layout.getMetaContainer().setVisible(false);
+        title.setVisible(false);
+        description.setVisible(false);
+        metaContainer.setVisible(false);
         editButton.setVisible(false);
         closeButton.setVisible(false);
     }

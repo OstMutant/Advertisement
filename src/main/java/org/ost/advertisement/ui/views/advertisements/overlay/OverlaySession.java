@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.advertisements.overlay;
 
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 
-// Immutable per-open context; replaced atomically on each open/transition.
 public record OverlaySession(
         Mode mode,
         AdvertisementInfoDto ad,   // null for CREATE
