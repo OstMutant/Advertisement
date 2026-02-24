@@ -4,15 +4,23 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.ost.advertisement.services.I18nService;
+import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
+@SpringComponent
+@Scope("prototype")
 public class PaginationBarModern extends HorizontalLayout {
+    @Getter
+    private final int pageSize = 25;
+
+    private final transient I18nService i18n;
 
     private final Button firstButton;
     private final Button prevButton;
@@ -22,14 +30,10 @@ public class PaginationBarModern extends HorizontalLayout {
 
     @Getter
     private int currentPage = 0;
-    @Getter
-    private final int pageSize = 25;
     private int totalCount = 0;
 
     @Setter
-    private Consumer<PaginationEvent> pageChangeListener;
-
-    private final I18nService i18n;
+    private transient Consumer<PaginationEvent> pageChangeListener;
 
     public PaginationBarModern(I18nService i18n) {
         this.i18n = i18n;
@@ -41,23 +45,23 @@ public class PaginationBarModern extends HorizontalLayout {
         nextButton = new Button(i18n.get(PAGINATION_NEXT));
         lastButton = new Button(i18n.get(PAGINATION_LAST));
 
-        firstButton.addClickListener(e -> {
+        firstButton.addClickListener(_ -> {
             currentPage = 0;
             triggerCallback();
         });
-        prevButton.addClickListener(e -> {
+        prevButton.addClickListener(_ -> {
             if (currentPage > 0) {
                 currentPage--;
                 triggerCallback();
             }
         });
-        nextButton.addClickListener(e -> {
+        nextButton.addClickListener(_ -> {
             if (currentPage < getTotalPages() - 1) {
                 currentPage++;
                 triggerCallback();
             }
         });
-        lastButton.addClickListener(e -> {
+        lastButton.addClickListener(_ -> {
             currentPage = getTotalPages() - 1;
             triggerCallback();
         });

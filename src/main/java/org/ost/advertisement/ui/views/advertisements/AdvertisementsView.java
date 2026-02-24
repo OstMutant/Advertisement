@@ -2,12 +2,13 @@ package org.ost.advertisement.ui.views.advertisements;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -16,6 +17,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryBlock;
 import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
+import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
@@ -27,41 +29,32 @@ import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
 @UIScope
+@RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService      advertisementService;
-    private final transient AdvertisementOverlay      overlay;
+    private final transient AdvertisementService advertisementService;
+    private final transient AdvertisementOverlay overlay;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService               i18n;
-    private final transient AccessEvaluator           access;
+    private final transient I18nService i18n;
+    private final transient AccessEvaluator access;
 
     private final AdvertisementQueryStatusBar queryStatusBar;
-    private final FlexLayout                 advertisementContainer;
-    private final PaginationBarModern        paginationBar;
+    private final FlexLayout advertisementContainer = new FlexLayout();
+    private final PaginationBarModern paginationBar;
+    private final transient EmptyStateView.Builder emptyStateBuilder;
+    private final Button addButton = new Button();
 
-    public AdvertisementsView(AdvertisementService advertisementService,
-                              AdvertisementQueryStatusBar queryStatusBar,
-                              AdvertisementOverlay overlay,
-                              AdvertisementCardView.Builder cardBuilder,
-                              I18nService i18n,
-                              AccessEvaluator access) {
-        this.advertisementService   = advertisementService;
-        this.queryStatusBar         = queryStatusBar;
-        this.overlay                = overlay;
-        this.cardBuilder            = cardBuilder;
-        this.i18n                   = i18n;
-        this.access                 = access;
-        this.paginationBar          = new PaginationBarModern(i18n);
-        this.advertisementContainer = createAdvertisementContainer();
+    @PostConstruct
+    public void init() {
 
+        initAdvertisementContainer();
         initQueryBar();
         initPagination();
+        initAddButton();
 
         addClassName("advertisements-view");
 
-        // overlay is position:fixed — does not affect layout flow
-        add(queryStatusBar, queryStatusBar.getQueryBlock(), createAddButton(),
-                advertisementContainer, paginationBar, overlay);
+        add(queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar, overlay);
 
         setFlexGrow(1, advertisementContainer);
         setSizeFull();
@@ -69,22 +62,19 @@ public class AdvertisementsView extends VerticalLayout {
         refreshAdvertisements();
     }
 
-    private Button createAddButton() {
-        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
-        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        button.addClassName("add-advertisement-button");
-        button.addClickListener(_ -> overlay.openForCreate(this::refreshAdvertisements));
-        button.setVisible(access.isLoggedIn());
-        return button;
+    private void initAddButton() {
+        addButton.setText(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addButton.addClassName("add-advertisement-button");
+        addButton.addClickListener(_ -> overlay.openForCreate(this::refreshAdvertisements));
+        addButton.setVisible(access.isLoggedIn());
     }
 
-    private FlexLayout createAdvertisementContainer() {
-        FlexLayout container = new FlexLayout();
-        container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-        container.setJustifyContentMode(START);
-        container.setAlignItems(Alignment.STRETCH);
-        container.addClassName("advertisement-container");
-        return container;
+    private void initAdvertisementContainer() {
+        advertisementContainer.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        advertisementContainer.setJustifyContentMode(START);
+        advertisementContainer.setAlignItems(Alignment.STRETCH);
+        advertisementContainer.addClassName("advertisement-container");
     }
 
     private void initQueryBar() {
@@ -117,7 +107,6 @@ public class AdvertisementsView extends VerticalLayout {
         if (ads.isEmpty()) {
             advertisementContainer.add(createEmptyState());
         } else {
-            // pass this::refreshAdvertisements so overlay can trigger a list refresh after save/delete
             ads.forEach(ad -> advertisementContainer.add(
                     cardBuilder.build(ad, overlay, this::refreshAdvertisements)));
         }
@@ -126,18 +115,10 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private VerticalLayout createEmptyState() {
-        com.vaadin.flow.component.icon.Icon icon = VaadinIcon.CLIPBOARD_TEXT.create();
-        icon.addClassName("empty-state-icon");
-
-        Span title = new Span(i18n.get(ADVERTISEMENT_EMPTY_TITLE));
-        title.addClassName("empty-state-title");
-
-        Span hint = new Span(i18n.get(ADVERTISEMENT_EMPTY_HINT));
-        hint.addClassName("empty-state-hint");
-
-        VerticalLayout emptyState = new VerticalLayout(icon, title, hint);
-        emptyState.addClassName("empty-state");
-        emptyState.setAlignItems(Alignment.CENTER);
-        return emptyState;
+        return emptyStateBuilder.build(EmptyStateView.Parameters.builder()
+                .icon(VaadinIcon.CLIPBOARD_TEXT)
+                .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
+                .hint(i18n.get(ADVERTISEMENT_EMPTY_HINT))
+                .build());
     }
 }
