@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.advertisements.card;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -13,7 +14,7 @@ import java.time.Instant;
 
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardMetaPanel extends Span {
 
     @Value

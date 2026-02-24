@@ -43,7 +43,6 @@ public class AdvertisementCardView extends VerticalLayout {
                                                Runnable onChanged) {
         addClassName("advertisement-card");
 
-        // onChanged is forwarded so that editing from the VIEW mode of the overlay also refreshes the list
         getElement().addEventListener("click", _ -> overlay.openForView(ad, onChanged));
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
@@ -100,6 +99,8 @@ public class AdvertisementCardView extends VerticalLayout {
                         .cssClassName("advertisement-edit")
                         .build()
         );
+        edit.setVisible(canOperate);
+        edit.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Config.builder()
@@ -109,13 +110,8 @@ public class AdvertisementCardView extends VerticalLayout {
                         .cssClassName("advertisement-delete")
                         .build()
         );
-
-        edit.setVisible(canOperate);
         delete.setVisible(canOperate);
-
-        // prevent action buttons from bubbling up and triggering openForView
-        edit.getElement().addEventListener("click", e -> {}).addEventData("event.stopPropagation()");
-        delete.getElement().addEventListener("click", e -> {}).addEventData("event.stopPropagation()");
+        delete.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
         actions.addClassName("advertisement-actions");
