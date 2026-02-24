@@ -38,10 +38,9 @@ public class AdvertisementCardView extends VerticalLayout {
     private final transient DeleteActionButton.Builder         deleteButtonBuilder;
     private final transient AccessEvaluator                    access;
     private final transient ConfirmDeleteDialog.Builder        confirmDeleteDialogBuilder;
+    private final transient AdvertisementOverlay               overlay;
 
-    private AdvertisementCardView setupContent(AdvertisementInfoDto ad,
-                                               AdvertisementOverlay overlay,
-                                               Runnable onChanged) {
+    private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable onChanged) {
         addClassName("advertisement-card");
 
         getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
@@ -56,7 +55,7 @@ public class AdvertisementCardView extends VerticalLayout {
                 createDescription(ad),
                 spacer,
                 createMetaPanel(ad),
-                createActions(ad, overlay, onChanged));
+                createActions(ad, onChanged));
 
         return this;
     }
@@ -87,12 +86,10 @@ public class AdvertisementCardView extends VerticalLayout {
                 .build());
     }
 
-    private HorizontalLayout createActions(AdvertisementInfoDto ad,
-                                           AdvertisementOverlay overlay,
-                                           Runnable onChanged) {
+    private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable onChanged) {
         boolean canOperate = access.canOperate(ad);
 
-        Button edit   = createEditButton(ad, overlay, onChanged, canOperate);
+        Button edit   = createEditButton(ad, onChanged, canOperate);
         Button delete = createDeleteButton(ad, onChanged, canOperate);
 
         HorizontalLayout actions = new HorizontalLayout(edit, delete);
@@ -100,10 +97,7 @@ public class AdvertisementCardView extends VerticalLayout {
         return actions;
     }
 
-    private Button createEditButton(AdvertisementInfoDto ad,
-                                    AdvertisementOverlay overlay,
-                                    Runnable onChanged,
-                                    boolean visible) {
+    private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button edit = editButtonBuilder.build(
                 EditActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
@@ -157,10 +151,8 @@ public class AdvertisementCardView extends VerticalLayout {
 
         private final ObjectProvider<AdvertisementCardView> cardProvider;
 
-        public AdvertisementCardView build(AdvertisementInfoDto ad,
-                                           AdvertisementOverlay overlay,
-                                           Runnable onChanged) {
-            return cardProvider.getObject().setupContent(ad, overlay, onChanged);
+        public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable onChanged) {
+            return cardProvider.getObject().setupContent(ad, onChanged);
         }
     }
 }

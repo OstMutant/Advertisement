@@ -107,8 +107,7 @@ public class AdvertisementsView extends VerticalLayout {
         if (ads.isEmpty()) {
             advertisementContainer.add(createEmptyState());
         } else {
-            ads.forEach(ad -> advertisementContainer.add(
-                    cardBuilder.build(ad, overlay, this::refreshAdvertisements)));
+            ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(ad, this::refreshAdvertisements)));
         }
 
         queryStatusBar.update();
