@@ -1,7 +1,6 @@
 package org.ost.advertisement.ui.views.users.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
@@ -16,10 +15,9 @@ import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayComboBox;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayIconButton;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextField;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTertiaryButton;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayPrimaryButton;
+import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTertiaryButton;
+import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextField;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
