@@ -7,6 +7,6 @@ public interface I18nPlaceholderParams extends I18nParams{
     I18nKey getPlaceholderKey();
 
     default String placeholder() {
-        return getI18n().get(getPlaceholderKey());
+        return getI18nService().get(getPlaceholderKey());
     }
 }

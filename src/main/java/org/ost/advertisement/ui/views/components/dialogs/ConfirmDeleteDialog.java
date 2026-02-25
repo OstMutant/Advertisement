@@ -46,7 +46,7 @@ public final class ConfirmDeleteDialog extends BaseDialog {
         layout.addFormContent(body);
 
         DialogPrimaryButton confirmButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(confirmKey).build());
+                .i18nService(i18n).labelKey(confirmKey).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
             try {
@@ -57,7 +57,7 @@ public final class ConfirmDeleteDialog extends BaseDialog {
         });
 
         DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(cancelKey).build());
+                .i18nService(i18n).labelKey(cancelKey).build());
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(confirmButton, cancelButton);

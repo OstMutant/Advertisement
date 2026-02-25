@@ -14,7 +14,7 @@ public class UserQueryIdMinField extends QueryNumberField {
 
     public UserQueryIdMinField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .placeholderKey(USER_FILTER_ID_MIN)
                 .build());
     }

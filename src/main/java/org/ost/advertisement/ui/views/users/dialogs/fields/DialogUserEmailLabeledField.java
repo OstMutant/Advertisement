@@ -14,7 +14,7 @@ public class DialogUserEmailLabeledField extends LabeledField {
 
     public DialogUserEmailLabeledField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(USER_DIALOG_FIELD_EMAIL_LABEL)
                 .cssClass("base-label")
                 .cssClass("email-label")

@@ -20,7 +20,7 @@ public class QueryTextField extends TextField {
     @Value
     @Builder
     public static class Parameters implements I18nPlaceholderParams {
-        @NonNull I18nService i18n;
+        @NonNull I18nService i18nService;
         @NonNull I18nKey placeholderKey;
     }
 

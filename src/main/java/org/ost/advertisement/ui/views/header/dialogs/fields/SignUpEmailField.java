@@ -14,7 +14,7 @@ public class SignUpEmailField extends DialogEmailField {
 
     public SignUpEmailField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(SIGNUP_EMAIL_LABEL)
                 .placeholderKey(SIGNUP_EMAIL_LABEL)
                 .required(true)

@@ -7,6 +7,6 @@ public interface I18nLabelParams extends I18nParams {
     I18nKey getLabelKey();
 
     default String label() {
-        return getI18n().get(getLabelKey());
+        return getI18nService().get(getLabelKey());
     }
 }

@@ -18,7 +18,7 @@ public class DialogTextArea extends TextArea {
 
     @Value @Builder
     public static class Parameters implements I18nLabelParams, I18nPlaceholderParams {
-        @NonNull I18nService i18n;
+        @NonNull I18nService i18nService;
         @NonNull I18nKey labelKey;
         @NonNull I18nKey placeholderKey;
         int maxLength;

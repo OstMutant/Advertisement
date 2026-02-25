@@ -15,7 +15,7 @@ public class OverlayAdvertisementCloseButton extends DialogIconButton {
 
     public OverlayAdvertisementCloseButton(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(MAIN_TAB_ADVERTISEMENTS)
                 .icon(VaadinIcon.CLOSE.create())
                 .build());

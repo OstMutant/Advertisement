@@ -16,7 +16,7 @@ public class LabeledField extends HorizontalLayout {
 
     @Value @Builder
     public static class Parameters implements I18nLabelParams {
-        @NonNull I18nService i18n;
+        @NonNull I18nService i18nService;
         @NonNull I18nKey labelKey;
         @Singular List<String> cssClasses;
     }

@@ -14,7 +14,7 @@ public class SignUpNameField extends DialogTextField {
 
     public SignUpNameField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(SIGNUP_NAME_LABEL)
                 .placeholderKey(SIGNUP_NAME_LABEL)
                 .maxLength(255)

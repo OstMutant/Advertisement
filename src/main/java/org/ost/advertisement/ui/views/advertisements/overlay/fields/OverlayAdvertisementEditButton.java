@@ -14,7 +14,7 @@ public class OverlayAdvertisementEditButton extends DialogPrimaryButton {
 
     public OverlayAdvertisementEditButton(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
                 .build());
     }

@@ -14,7 +14,7 @@ public class UserQueryEmailField extends QueryTextField {
 
     public UserQueryEmailField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .placeholderKey(USER_FILTER_EMAIL_PLACEHOLDER)
                 .build());
     }

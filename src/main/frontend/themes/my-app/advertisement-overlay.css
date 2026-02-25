@@ -150,3 +150,7 @@
         padding: 0 var(--lumo-space-s);
     }
 }
+
+.overlay__description-text-area {
+    min-height: 12em;
+}

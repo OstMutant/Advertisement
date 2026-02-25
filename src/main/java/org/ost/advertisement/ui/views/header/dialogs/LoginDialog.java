@@ -60,11 +60,11 @@ public class LoginDialog extends BaseDialog {
 
     private void addActions() {
         DialogPrimaryButton loginButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
+                .i18nService(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
         DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
+                .i18nService(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(loginButton, cancelButton);

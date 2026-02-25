@@ -13,7 +13,7 @@ public class UserQueryIdMaxField extends QueryNumberField {
 
     public UserQueryIdMaxField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .placeholderKey(USER_FILTER_ID_MAX)
                 .build());
     }

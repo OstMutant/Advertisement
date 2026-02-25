@@ -14,7 +14,7 @@ public class UserQueryNameField extends QueryTextField {
 
     public UserQueryNameField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .placeholderKey(USER_FILTER_NAME_PLACEHOLDER)
                 .build());
     }

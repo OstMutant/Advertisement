@@ -15,7 +15,7 @@ public class UserQueryRoleField extends QueryMultiSelectComboField<Role> {
 
     public UserQueryRoleField(I18nService i18n) {
         super(Parameters.<Role>builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .placeholderKey(USER_FILTER_ROLE_ANY)
                 .items(Role.values())
                 .build());

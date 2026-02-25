@@ -14,7 +14,7 @@ public class DialogUserUpdatedAtLabeledField extends LabeledField {
 
     public DialogUserUpdatedAtLabeledField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(USER_DIALOG_FIELD_UPDATED_LABEL)
                 .cssClass("base-label")
                 .cssClass("gray-label")

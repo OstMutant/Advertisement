@@ -14,7 +14,7 @@ public class LoginPasswordField extends DialogPasswordField {
 
     public LoginPasswordField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(LOGIN_PASSWORD_LABEL)
                 .placeholderKey(LOGIN_PASSWORD_LABEL)
                 .required(true)

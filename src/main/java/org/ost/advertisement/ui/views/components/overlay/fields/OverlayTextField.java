@@ -1,7 +1,6 @@
 package org.ost.advertisement.ui.views.components.overlay.fields;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
@@ -14,7 +13,8 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class OverlayBreadcrumbBackButton extends Button implements Configurable<OverlayBreadcrumbBackButton, OverlayBreadcrumbBackButton.Parameters>, I18nParams {
+public class OverlayTextField extends TextField implements Configurable<OverlayTextField, OverlayTextField.Parameters>, I18nParams {
+
     @Getter
     private final transient I18nService i18nService;
 
@@ -23,14 +23,20 @@ public class OverlayBreadcrumbBackButton extends Button implements Configurable<
     public static class Parameters {
         @NonNull
         I18nKey labelKey;
+        @NonNull
+        I18nKey placeholderKey;
+        int maxLength;
+        boolean required;
     }
 
-
     @Override
-    public OverlayBreadcrumbBackButton configure(Parameters params) {
-        setText(getValue(params.getLabelKey()));
-        addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
-        addClassName("overlay__breadcrumb-back");
+    public OverlayTextField configure(Parameters p) {
+        setLabel(getValue(p.getLabelKey()));
+        setPlaceholder(getValue(p.getPlaceholderKey()));
+        if (p.getMaxLength() > 0) setMaxLength(p.getMaxLength());
+        setRequired(p.isRequired());
+        addClassName("overlay-text-field");
+        setWidthFull();
         return this;
     }
 }

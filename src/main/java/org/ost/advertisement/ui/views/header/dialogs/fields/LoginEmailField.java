@@ -14,7 +14,7 @@ public class LoginEmailField extends DialogEmailField {
 
     public LoginEmailField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(LOGIN_EMAIL_LABEL)
                 .placeholderKey(LOGIN_EMAIL_LABEL)
                 .required(true)

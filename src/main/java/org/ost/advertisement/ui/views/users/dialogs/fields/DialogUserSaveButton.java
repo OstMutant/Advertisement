@@ -14,7 +14,7 @@ public class DialogUserSaveButton extends DialogPrimaryButton {
 
     public DialogUserSaveButton(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(USER_DIALOG_BUTTON_SAVE)
                 .build());
     }

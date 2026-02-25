@@ -14,7 +14,7 @@ public class SignUpPasswordField extends DialogPasswordField {
 
     public SignUpPasswordField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(SIGNUP_PASSWORD_LABEL)
                 .placeholderKey(SIGNUP_PASSWORD_LABEL)
                 .required(true)

@@ -66,9 +66,9 @@ public class SignUpDialog extends BaseDialog {
 
     private void addActions() {
         DialogPrimaryButton registerButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
+                .i18nService(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
         DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18n(i18n).labelKey(SIGNUP_BUTTON_CANCEL).build());
+                .i18nService(i18n).labelKey(SIGNUP_BUTTON_CANCEL).build());
 
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());

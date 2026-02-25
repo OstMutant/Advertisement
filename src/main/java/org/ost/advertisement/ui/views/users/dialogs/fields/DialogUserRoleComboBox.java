@@ -17,7 +17,7 @@ public class DialogUserRoleComboBox extends DialogComboBox<Role> {
 
     public DialogUserRoleComboBox(I18nService i18n) {
         super(Parameters.<Role>builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(USER_DIALOG_FIELD_ROLE_LABEL)
                 .items(Arrays.asList(Role.values()))
                 .required(true)

@@ -19,7 +19,7 @@ public class QueryMultiSelectComboField<T> extends MultiSelectComboBox<T> {
     @Value
     @Builder
     public static class Parameters<T> implements I18nPlaceholderParams {
-        @NonNull I18nService i18n;
+        @NonNull I18nService i18nService;
         @NonNull I18nKey placeholderKey;
         @NonNull T[] items;
     }

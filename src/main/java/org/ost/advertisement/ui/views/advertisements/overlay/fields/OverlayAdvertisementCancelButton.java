@@ -14,7 +14,7 @@ public class OverlayAdvertisementCancelButton extends DialogTertiaryButton {
 
     public OverlayAdvertisementCancelButton(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
     }

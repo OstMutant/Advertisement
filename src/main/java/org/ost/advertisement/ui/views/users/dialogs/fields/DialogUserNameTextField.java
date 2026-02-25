@@ -15,7 +15,7 @@ public class DialogUserNameTextField extends DialogTextField {
 
     public DialogUserNameTextField(I18nService i18n) {
         super(Parameters.builder()
-                .i18n(i18n)
+                .i18nService(i18n)
                 .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
                 .placeholderKey(USER_DIALOG_FIELD_NAME_PLACEHOLDER)
                 .maxLength(255)
