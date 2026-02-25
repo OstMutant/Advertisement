@@ -11,17 +11,14 @@ public abstract class BaseOverlay extends Div {
     private ShortcutRegistration escShortcut;
     private boolean              initialized = false;
 
-    protected abstract OverlayLayout getLayout();
-
-    protected abstract void buildContent(OverlayLayout layout);
+    protected abstract void buildContent();
 
     protected abstract void onEsc();
 
     protected void ensureInitialized() {
         if (initialized) return;
         initialized = true;
-        buildContent(getLayout());
-        add(getLayout());
+        buildContent();
     }
 
     protected void open() {

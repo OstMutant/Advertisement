@@ -18,6 +18,7 @@ import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdver
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -27,76 +28,67 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class FormModeHandler implements ModeHandler {
 
-    private final AdvertisementService                           advertisementService;
-    private final AdvertisementMapper                            mapper;
-    private final I18nService                                    i18n;
-    private final FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
-    private final OverlayAdvertisementMetaPanel.Builder          metaPanelBuilder;
-
-    private final OverlayAdvertisementTitleTextField      titleField;
-    private final OverlayAdvertisementDescriptionTextArea descriptionField;
-    private final OverlayAdvertisementSaveButton          saveButton;
-    private final OverlayAdvertisementCancelButton        cancelButton;
-
-    private final Div metaContainer = new Div();
+    private final AdvertisementService                                    advertisementService;
+    private final AdvertisementMapper                                     mapper;
+    private final I18nService                                             i18n;
+    private final FormDialogBinder.Builder<AdvertisementEditDto>          binderBuilder;
+    private final OverlayAdvertisementMetaPanel.Builder                   metaPanelBuilder;
+    private final ObjectProvider<OverlayAdvertisementTitleTextField>      titleFieldProvider;
+    private final ObjectProvider<OverlayAdvertisementDescriptionTextArea> descriptionFieldProvider;
+    private final ObjectProvider<OverlayAdvertisementSaveButton>          saveButtonProvider;
+    private final ObjectProvider<OverlayAdvertisementCancelButton>        cancelButtonProvider;
 
     private FormDialogBinder<AdvertisementEditDto> binder;
-    private OverlayLayout layout;
-    private Runnable      onSave;
-    private Runnable      onCancel;
+    private Runnable onSave;
+    private Runnable onCancel;
 
     @Override
-    public void configure(OverlayLayout layout, Runnable primary, Runnable secondary) {
-        this.layout   = layout;
+    public void setCallbacks(Runnable primary, Runnable secondary) {
         this.onSave   = primary;
         this.onCancel = secondary;
     }
 
     @Override
-    public void init() {
-        titleField.setWidthFull();
-        descriptionField.setWidthFull();
-        metaContainer.addClassName("overlay__meta-container");
-
-        layout.addContent(titleField, descriptionField, metaContainer);
-
-        layout.addHeaderActions(saveButton, cancelButton);
-        saveButton.addClickListener(_   -> onSave.run());
-        cancelButton.addClickListener(_ -> onCancel.run());
-
-        deactivate();
-    }
-
-    @Override
-    public void activate(OverlaySession s) {
+    public void activate(OverlaySession s, OverlayLayout layout) {
         boolean isCreate = s.mode() == Mode.CREATE;
+
+        OverlayAdvertisementTitleTextField      titleField       = titleFieldProvider.getObject();
+        OverlayAdvertisementDescriptionTextArea descriptionField = descriptionFieldProvider.getObject();
+
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(s.ad());
-        rebuildBinder(dto);
-        if (!isCreate) OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, s.ad());
+        rebuildBinder(dto, titleField, descriptionField);
 
-        titleField.setVisible(true);
-        descriptionField.setVisible(true);
-        metaContainer.setVisible(!isCreate);
-        saveButton.setVisible(true);
-        cancelButton.setVisible(true);
+        Div content;
+        if (isCreate) {
+            content = new Div(titleField, descriptionField);
+        } else {
+            Div metaContainer = new Div();
+            metaContainer.addClassName("overlay__meta-container");
+            OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, s.ad());
+            content = new Div(titleField, descriptionField, metaContainer);
+        }
+
+        OverlayAdvertisementSaveButton   saveButton   = saveButtonProvider.getObject();
+        OverlayAdvertisementCancelButton cancelButton = cancelButtonProvider.getObject();
+        saveButton.addClickListener(_   -> onSave.run());
+        cancelButton.addClickListener(_ -> onCancel.run());
+
+        layout.setContent(content);
+        layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 
     @Override
-    public void deactivate() {
-        titleField.setVisible(false);
-        descriptionField.setVisible(false);
-        metaContainer.setVisible(false);
-        saveButton.setVisible(false);
-        cancelButton.setVisible(false);
-    }
+    public void deactivate() {}
 
     public boolean save() {
         return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
     }
 
-    private void rebuildBinder(AdvertisementEditDto dto) {
+    private void rebuildBinder(AdvertisementEditDto dto,
+                               OverlayAdvertisementTitleTextField titleField,
+                               OverlayAdvertisementDescriptionTextArea descriptionField) {
         binder = binderBuilder.build(
                 FormDialogBinder.Config.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)

@@ -4,22 +4,10 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 
 public record OverlaySession(
         Mode mode,
-        AdvertisementInfoDto ad,   // null for CREATE
+        AdvertisementInfoDto ad,
         Runnable onSaved,
         boolean enteredFromView
 ) {
-    static OverlaySession forView(AdvertisementInfoDto ad, Runnable onSaved) {
-        return new OverlaySession(Mode.VIEW, ad, onSaved, false);
-    }
-
-    static OverlaySession forCreate(Runnable onSaved) {
-        return new OverlaySession(Mode.CREATE, null, onSaved, false);
-    }
-
-    static OverlaySession forEdit(AdvertisementInfoDto ad, Runnable onSaved) {
-        return new OverlaySession(Mode.EDIT, ad, onSaved, false);
-    }
-
     OverlaySession toView() {
         return new OverlaySession(Mode.VIEW, ad, onSaved, false);
     }

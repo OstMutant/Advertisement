@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.advertisements.overlay;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
@@ -13,6 +12,7 @@ import org.ost.advertisement.ui.views.advertisements.overlay.modes.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.ViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.EnumMap;
 import java.util.Map;
@@ -20,72 +20,48 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
-/**
- * Full-viewport overlay (position:fixed).
- * Delegates all mode-specific rendering to ModeHandler implementations:
- *   VIEW   → ViewModeHandler
- *   EDIT   → FormModeHandler
- *   CREATE → FormModeHandler
- * To add a new mode: implement ModeHandler, register it in buildContent().
- */
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class AdvertisementOverlay extends BaseOverlay {
 
-    private final transient I18nService         i18n;
-    private final transient NotificationService notification;
-
-    private final transient ViewModeHandler viewModeHandler;
-    private final transient FormModeHandler formModeHandler;
+    private final transient I18nService                  i18n;
+    private final transient NotificationService          notification;
+    private final transient ViewModeHandler              viewModeHandler;
+    private final transient FormModeHandler              formModeHandler;
+    private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayAdvertisementBreadcrumbButton breadcrumbButton;
-
-    @Getter
-    private final OverlayLayout layout;
 
     private final AtomicReference<OverlaySession> session  = new AtomicReference<>();
     private final Map<Mode, ModeHandler>          handlers = new EnumMap<>(Mode.class);
 
-    // -------------------------------------------------------------------------
-    // Public API
-    // -------------------------------------------------------------------------
+    private OverlayLayout layout;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
-        open(OverlaySession.forView(ad, onChanged));
+        open(new OverlaySession(Mode.VIEW, ad, onChanged, false));
     }
 
     public void openForCreate(Runnable onSaved) {
         ensureInitialized();
-        open(OverlaySession.forCreate(onSaved));
+        open(new OverlaySession(Mode.CREATE, null, onSaved, false));
     }
 
     public void openForEdit(AdvertisementInfoDto ad, Runnable onSaved) {
         ensureInitialized();
-        open(OverlaySession.forEdit(ad, onSaved));
+        open(new OverlaySession(Mode.EDIT, ad, onSaved, false));
     }
 
-    // -------------------------------------------------------------------------
-    // BaseOverlay contract
-    // -------------------------------------------------------------------------
-
     @Override
-    protected void buildContent(OverlayLayout l) {
+    protected void buildContent() {
         addClassName("advertisement-overlay");
-        breadcrumbButton.addClickListener(_ -> closeToList());
-        l.setBreadcrumbButton(breadcrumbButton);
-
-        viewModeHandler.configure(l, this::switchToEdit, this::closeToList);
-        formModeHandler.configure(l, this::handleSave,   this::handleCancel);
+        viewModeHandler.setCallbacks(this::switchToEdit, this::closeToList);
+        formModeHandler.setCallbacks(this::handleSave,   this::handleCancel);
 
         handlers.put(Mode.VIEW,   viewModeHandler);
         handlers.put(Mode.EDIT,   formModeHandler);
         handlers.put(Mode.CREATE, formModeHandler);
-
-        // init order determines DOM order inside headerActions and body containers
-        viewModeHandler.init();
-        formModeHandler.init();
     }
 
     @Override
@@ -93,13 +69,13 @@ public class AdvertisementOverlay extends BaseOverlay {
         handleCancel();
     }
 
-    // -------------------------------------------------------------------------
-    // Mode switching
-    // -------------------------------------------------------------------------
-
     private void open(OverlaySession s) {
+        if (layout != null) layout.removeFromParent();
+        layout = layoutProvider.getObject();
+        layout.setBreadcrumbButton(breadcrumbButton);
         session.set(s);
         switchTo(s);
+        add(layout);
         open();
     }
 
@@ -108,7 +84,7 @@ public class AdvertisementOverlay extends BaseOverlay {
         handlers.values().stream().distinct()
                 .filter(h -> h != active)
                 .forEach(ModeHandler::deactivate);
-        active.activate(s);
+        active.activate(s, layout);
 
         layout.getBreadcrumbCurrent().setText(switch (s.mode()) {
             case VIEW   -> "";
@@ -116,19 +92,15 @@ public class AdvertisementOverlay extends BaseOverlay {
             case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
         layout.getBreadcrumbCurrent().setVisible(s.mode() != Mode.VIEW);
+        layout.setBreadcrumbButton(breadcrumbButton);
     }
 
-    // Entered EDIT from within VIEW — cancel must return to VIEW, not close.
     private void switchToEdit() {
         if (session.get().ad() == null) return;
         OverlaySession next = session.get().toEdit();
         session.set(next);
         switchTo(next);
     }
-
-    // -------------------------------------------------------------------------
-    // Actions
-    // -------------------------------------------------------------------------
 
     private void handleSave() {
         if (formModeHandler.save()) {

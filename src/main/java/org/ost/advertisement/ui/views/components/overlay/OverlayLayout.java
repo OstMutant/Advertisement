@@ -14,11 +14,10 @@ public class OverlayLayout extends Div {
 
     @Getter
     private final Span breadcrumbCurrent = new Span();
-    @Getter
-    private final Div  body              = new Div();
 
     private final Div breadcrumbSlot = new Div();
     private final Div headerActions  = new Div();
+    private final Div body           = new Div();
 
     @PostConstruct
     private void init() {
@@ -45,11 +44,13 @@ public class OverlayLayout extends Div {
         breadcrumbSlot.add(button);
     }
 
-    public void addHeaderActions(Component... components) {
-        headerActions.add(components);
+    public void setHeaderActions(Div actions) {
+        headerActions.removeAll();
+        headerActions.add(actions);
     }
 
-    public void addContent(Component... components) {
-        body.add(components);
+    public void setContent(Div content) {
+        body.removeAll();
+        body.add(content);
     }
 }

@@ -13,6 +13,7 @@ import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdver
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementEditButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -20,61 +21,44 @@ import org.springframework.context.annotation.Scope;
 @RequiredArgsConstructor
 public class ViewModeHandler implements ModeHandler {
 
-    private final AccessEvaluator                       access;
-    private final OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
-    private final OverlayAdvertisementEditButton        editButton;
-    private final OverlayAdvertisementCloseButton       closeButton;
+    private final AccessEvaluator                                 access;
+    private final OverlayAdvertisementMetaPanel.Builder           metaPanelBuilder;
+    private final ObjectProvider<OverlayAdvertisementEditButton>  editButtonProvider;
+    private final ObjectProvider<OverlayAdvertisementCloseButton> closeButtonProvider;
 
-    private final H2   title         = new H2();
-    private final Span description   = new Span();
-    private final Div  metaContainer = new Div();
-
-    private OverlayLayout layout;
-    private Runnable      onEdit;
-    private Runnable      onClose;
+    private Runnable onEdit;
+    private Runnable onClose;
 
     @Override
-    public void configure(OverlayLayout layout, Runnable primary, Runnable secondary) {
-        this.layout  = layout;
+    public void setCallbacks(Runnable primary, Runnable secondary) {
         this.onEdit  = primary;
         this.onClose = secondary;
     }
 
     @Override
-    public void init() {
-        title.addClassName("overlay__view-title");
-        description.addClassName("overlay__view-description");
-        metaContainer.addClassName("overlay__meta-container");
-
-        layout.addContent(title, description, metaContainer);
-
-        layout.addHeaderActions(editButton, closeButton);
-        editButton.addClickListener(_  -> onEdit.run());
-        closeButton.addClickListener(_ -> onClose.run());
-
-        deactivate();
-    }
-
-    @Override
-    public void activate(OverlaySession s) {
+    public void activate(OverlaySession s, OverlayLayout layout) {
         AdvertisementInfoDto ad = s.ad();
-        title.setText(ad.getTitle());
-        description.setText(ad.getDescription());
+
+        H2 title = new H2(ad.getTitle());
+        title.addClassName("overlay__view-title");
+
+        Span description = new Span(ad.getDescription());
+        description.addClassName("overlay__view-description");
+
+        Div metaContainer = new Div();
+        metaContainer.addClassName("overlay__meta-container");
         OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, ad);
 
-        title.setVisible(true);
-        description.setVisible(true);
-        metaContainer.setVisible(true);
+        OverlayAdvertisementEditButton  editButton  = editButtonProvider.getObject();
+        OverlayAdvertisementCloseButton closeButton = closeButtonProvider.getObject();
+        editButton.addClickListener(_  -> onEdit.run());
+        closeButton.addClickListener(_ -> onClose.run());
         editButton.setVisible(access.canOperate(ad));
-        closeButton.setVisible(true);
+
+        layout.setContent(new Div(title, description, metaContainer));
+        layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
     @Override
-    public void deactivate() {
-        title.setVisible(false);
-        description.setVisible(false);
-        metaContainer.setVisible(false);
-        editButton.setVisible(false);
-        closeButton.setVisible(false);
-    }
+    public void deactivate() {}
 }
