@@ -59,6 +59,4 @@ public class ViewModeHandler implements ModeHandler {
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
-    @Override
-    public void deactivate() {}
 }

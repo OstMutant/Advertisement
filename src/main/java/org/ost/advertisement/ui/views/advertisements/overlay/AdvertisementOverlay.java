@@ -80,11 +80,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void switchTo(OverlaySession s) {
-        ModeHandler active = handlers.get(s.mode());
-        handlers.values().stream().distinct()
-                .filter(h -> h != active)
-                .forEach(ModeHandler::deactivate);
-        active.activate(s, layout);
+        handlers.get(s.mode()).activate(s, layout);
 
         layout.getBreadcrumbCurrent().setText(switch (s.mode()) {
             case VIEW   -> "";

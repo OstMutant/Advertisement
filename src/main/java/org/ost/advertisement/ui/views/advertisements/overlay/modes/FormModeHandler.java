@@ -79,9 +79,6 @@ public class FormModeHandler implements ModeHandler {
         layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 
-    @Override
-    public void deactivate() {}
-
     public boolean save() {
         return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
     }
