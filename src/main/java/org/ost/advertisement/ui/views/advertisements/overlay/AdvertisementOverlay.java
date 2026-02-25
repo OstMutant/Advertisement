@@ -7,12 +7,12 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementBreadcrumbButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.FormModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.ViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -23,7 +23,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SuppressWarnings("java:S110")
 public class AdvertisementOverlay extends BaseOverlay {
 
-    private enum Mode { VIEW, EDIT, CREATE }
+    private enum Mode {VIEW, EDIT, CREATE}
 
     private record OverlaySession(
             Mode mode,
@@ -40,16 +40,16 @@ public class AdvertisementOverlay extends BaseOverlay {
         }
     }
 
-    private final transient I18nService                   i18n;
-    private final transient NotificationService           notification;
-    private final transient ViewModeHandler.Builder       viewModeHandlerBuilder;
-    private final transient FormModeHandler.Builder       formModeHandlerBuilder;
+    private final transient I18nService i18n;
+    private final transient NotificationService notification;
+    private final transient ViewModeHandler.Builder viewModeHandlerBuilder;
+    private final transient FormModeHandler.Builder formModeHandlerBuilder;
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
-    private final OverlayAdvertisementBreadcrumbButton breadcrumbButton;
+    private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
-    private transient OverlaySession  session;
-    private OverlayLayout             layout;
+    private transient OverlaySession session;
+    private OverlayLayout layout;
     private transient FormModeHandler currentFormHandler;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
@@ -70,7 +70,10 @@ public class AdvertisementOverlay extends BaseOverlay {
     @Override
     protected void buildContent() {
         addClassName("advertisement-overlay");
-        breadcrumbButton.addClickListener(_ -> closeToList());
+        breadcrumbBackButton.configure(OverlayBreadcrumbBackButton.Parameters.builder()
+                        .labelKey(MAIN_TAB_ADVERTISEMENTS)
+                        .build()).
+                addClickListener(_ -> closeToList());
     }
 
     @Override
@@ -81,7 +84,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     private void openSession(OverlaySession s) {
         if (layout != null) layout.removeFromParent();
         layout = layoutProvider.getObject();
-        layout.setBreadcrumbButton(breadcrumbButton);
+        layout.setBreadcrumbButton(breadcrumbBackButton);
         session = s;
         switchTo();
         add(layout);
@@ -110,8 +113,8 @@ public class AdvertisementOverlay extends BaseOverlay {
         handler.activate(layout);
 
         layout.getBreadcrumbCurrent().setText(switch (session.mode()) {
-            case VIEW   -> "";
-            case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
+            case VIEW -> "";
+            case EDIT -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
             case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
         layout.getBreadcrumbCurrent().setVisible(session.mode() != Mode.VIEW);
