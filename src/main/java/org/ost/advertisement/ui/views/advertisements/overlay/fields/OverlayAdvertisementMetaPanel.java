@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.advertisements.overlay.fields;
 
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -33,13 +32,14 @@ public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
     }
 
     private OverlayAdvertisementMetaPanel configure(Parameters p) {
+        addClassName("overlay__meta-container");
+        addClassName("advertisement-meta");
+
         Span authorSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR) + " " + p.getAuthorName());
         authorSpan.addClassName("advertisement-meta-author");
 
         Span createdSpan = new Span(i18n.get(ADVERTISEMENT_DESCRIPTION_OVERLAY_CREATED) + " " + TimeZoneUtil.formatInstantHuman(p.getCreatedAt()));
         createdSpan.addClassName("advertisement-meta-date");
-
-        addClassName("advertisement-meta");
 
         boolean wasEdited = p.getUpdatedAt() != null && !p.getUpdatedAt().equals(p.getCreatedAt());
         if (wasEdited) {
@@ -64,17 +64,14 @@ public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
     public static class Builder {
         private final ObjectProvider<OverlayAdvertisementMetaPanel> provider;
 
-        public Div build(AdvertisementInfoDto ad) {
-            Div container = new Div();
-            container.addClassName("overlay__meta-container");
-            container.add(provider.getObject().configure(
+        public OverlayAdvertisementMetaPanel build(AdvertisementInfoDto ad) {
+            return provider.getObject().configure(
                     Parameters.builder()
                             .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                             .createdAt(ad.getCreatedAt())
                             .updatedAt(ad.getUpdatedAt())
                             .build()
-            ));
-            return container;
+            );
         }
     }
 }

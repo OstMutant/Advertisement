@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.advertisements.overlay;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
@@ -27,7 +28,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     private record OverlaySession(
             Mode mode,
             AdvertisementInfoDto ad,
-            Runnable onSaved,
+            @NonNull Runnable onSaved,
             boolean enteredFromView
     ) {
         OverlaySession toView() {
@@ -53,17 +54,17 @@ public class AdvertisementOverlay extends BaseOverlay {
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
-        open(new OverlaySession(Mode.VIEW, ad, onChanged, false));
+        openSession(new OverlaySession(Mode.VIEW, ad, onChanged, false));
     }
 
     public void openForCreate(Runnable onSaved) {
         ensureInitialized();
-        open(new OverlaySession(Mode.CREATE, null, onSaved, false));
+        openSession(new OverlaySession(Mode.CREATE, null, onSaved, false));
     }
 
     public void openForEdit(AdvertisementInfoDto ad, Runnable onSaved) {
         ensureInitialized();
-        open(new OverlaySession(Mode.EDIT, ad, onSaved, false));
+        openSession(new OverlaySession(Mode.EDIT, ad, onSaved, false));
     }
 
     @Override
@@ -77,36 +78,28 @@ public class AdvertisementOverlay extends BaseOverlay {
         handleCancel();
     }
 
-    private void open(OverlaySession s) {
+    private void openSession(OverlaySession s) {
         if (layout != null) layout.removeFromParent();
         layout = layoutProvider.getObject();
         layout.setBreadcrumbButton(breadcrumbButton);
         session = s;
-        switchTo(s);
+        switchTo();
         add(layout);
         open();
     }
 
-    private void switchTo(OverlaySession s) {
-        ModeHandler handler = switch (s.mode()) {
+    private void switchTo() {
+        ModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
                     ViewModeHandler.Parameters.builder()
-                            .ad(s.ad())
+                            .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
                             .build());
-            case EDIT -> {
+            case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerBuilder.build(
                         FormModeHandler.Parameters.builder()
-                                .ad(s.ad())
-                                .onSave(this::handleSave)
-                                .onCancel(this::handleCancel)
-                                .build());
-                yield currentFormHandler;
-            }
-            case CREATE -> {
-                currentFormHandler = formModeHandlerBuilder.build(
-                        FormModeHandler.Parameters.builder()
+                                .ad(session.ad())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
                                 .build());
@@ -116,24 +109,24 @@ public class AdvertisementOverlay extends BaseOverlay {
 
         handler.activate(layout);
 
-        layout.getBreadcrumbCurrent().setText(switch (s.mode()) {
+        layout.getBreadcrumbCurrent().setText(switch (session.mode()) {
             case VIEW   -> "";
             case EDIT   -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_EDIT);
             case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
-        layout.getBreadcrumbCurrent().setVisible(s.mode() != Mode.VIEW);
+        layout.getBreadcrumbCurrent().setVisible(session.mode() != Mode.VIEW);
     }
 
     private void switchToEdit() {
         if (session.ad() == null) return;
         session = session.toEdit();
-        switchTo(session);
+        switchTo();
     }
 
     private void handleSave() {
         if (currentFormHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-            if (session.onSaved() != null) session.onSaved().run();
+            session.onSaved().run();
             closeToList();
         } else {
             notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
@@ -143,7 +136,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     private void handleCancel() {
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
-            switchTo(session);
+            switchTo();
         } else {
             closeToList();
         }
