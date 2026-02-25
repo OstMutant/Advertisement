@@ -9,13 +9,8 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.overlay.Mode;
-import org.ost.advertisement.ui.views.advertisements.overlay.OverlayMetaHelper;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementDescriptionTextArea;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.*;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
@@ -55,18 +50,14 @@ public class FormModeHandler implements ModeHandler {
         OverlayAdvertisementTitleTextField      titleField       = titleFieldProvider.getObject();
         OverlayAdvertisementDescriptionTextArea descriptionField = descriptionFieldProvider.getObject();
 
-        AdvertisementEditDto dto = isCreate
-                ? new AdvertisementEditDto()
-                : mapper.toAdvertisementEdit(s.ad());
+        AdvertisementEditDto dto = isCreate ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(s.ad());
         rebuildBinder(dto, titleField, descriptionField);
 
         Div content;
         if (isCreate) {
             content = new Div(titleField, descriptionField);
         } else {
-            Div metaContainer = new Div();
-            metaContainer.addClassName("overlay__meta-container");
-            OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, s.ad());
+            Div metaContainer = metaPanelBuilder.build(s.ad());
             content = new Div(titleField, descriptionField, metaContainer);
         }
 

@@ -7,7 +7,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.ui.views.advertisements.overlay.OverlayMetaHelper;
 import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCloseButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementEditButton;
@@ -45,9 +44,7 @@ public class ViewModeHandler implements ModeHandler {
         Span description = new Span(ad.getDescription());
         description.addClassName("overlay__view-description");
 
-        Div metaContainer = new Div();
-        metaContainer.addClassName("overlay__meta-container");
-        OverlayMetaHelper.rebuild(metaContainer, metaPanelBuilder, ad);
+        Div metaContainer = metaPanelBuilder.build(s.ad());
 
         OverlayAdvertisementEditButton  editButton  = editButtonProvider.getObject();
         OverlayAdvertisementCloseButton closeButton = closeButtonProvider.getObject();
