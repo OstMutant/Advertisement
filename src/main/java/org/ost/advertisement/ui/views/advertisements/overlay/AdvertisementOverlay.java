@@ -14,14 +14,30 @@ import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
+@SuppressWarnings("java:S110")
 public class AdvertisementOverlay extends BaseOverlay {
+
+    private enum Mode { VIEW, EDIT, CREATE }
+
+    private record OverlaySession(
+            Mode mode,
+            AdvertisementInfoDto ad,
+            Runnable onSaved,
+            boolean enteredFromView
+    ) {
+        OverlaySession toView() {
+            return new OverlaySession(Mode.VIEW, ad, onSaved, false);
+        }
+
+        OverlaySession toEdit() {
+            return new OverlaySession(Mode.EDIT, ad, onSaved, true);
+        }
+    }
 
     private final transient I18nService                   i18n;
     private final transient NotificationService           notification;
@@ -31,10 +47,9 @@ public class AdvertisementOverlay extends BaseOverlay {
 
     private final OverlayAdvertisementBreadcrumbButton breadcrumbButton;
 
-    private final AtomicReference<OverlaySession> session = new AtomicReference<>();
-
-    private OverlayLayout        layout;
-    private FormModeHandler      currentFormHandler;
+    private transient OverlaySession  session;
+    private OverlayLayout             layout;
+    private transient FormModeHandler currentFormHandler;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
@@ -66,7 +81,7 @@ public class AdvertisementOverlay extends BaseOverlay {
         if (layout != null) layout.removeFromParent();
         layout = layoutProvider.getObject();
         layout.setBreadcrumbButton(breadcrumbButton);
-        session.set(s);
+        session = s;
         switchTo(s);
         add(layout);
         open();
@@ -110,17 +125,15 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void switchToEdit() {
-        if (session.get().ad() == null) return;
-        OverlaySession next = session.get().toEdit();
-        session.set(next);
-        switchTo(next);
+        if (session.ad() == null) return;
+        session = session.toEdit();
+        switchTo(session);
     }
 
     private void handleSave() {
         if (currentFormHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-            OverlaySession s = session.get();
-            if (s.onSaved() != null) s.onSaved().run();
+            if (session.onSaved() != null) session.onSaved().run();
             closeToList();
         } else {
             notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
@@ -128,11 +141,9 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void handleCancel() {
-        OverlaySession s = session.get();
-        if (s.mode() == Mode.EDIT && s.enteredFromView()) {
-            OverlaySession prev = s.toView();
-            session.set(prev);
-            switchTo(prev);
+        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
+            session = session.toView();
+            switchTo(session);
         } else {
             closeToList();
         }
