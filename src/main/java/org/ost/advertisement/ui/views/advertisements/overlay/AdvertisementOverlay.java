@@ -14,8 +14,6 @@ import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -25,18 +23,18 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementOverlay extends BaseOverlay {
 
-    private final transient I18nService                  i18n;
-    private final transient NotificationService          notification;
-    private final transient ViewModeHandler              viewModeHandler;
-    private final transient FormModeHandler              formModeHandler;
+    private final transient I18nService                   i18n;
+    private final transient NotificationService           notification;
+    private final transient ViewModeHandler.Builder       viewModeHandlerBuilder;
+    private final transient FormModeHandler.Builder       formModeHandlerBuilder;
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayAdvertisementBreadcrumbButton breadcrumbButton;
 
-    private final AtomicReference<OverlaySession> session  = new AtomicReference<>();
-    private final Map<Mode, ModeHandler>          handlers = new EnumMap<>(Mode.class);
+    private final AtomicReference<OverlaySession> session = new AtomicReference<>();
 
-    private OverlayLayout layout;
+    private OverlayLayout        layout;
+    private FormModeHandler      currentFormHandler;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
@@ -56,12 +54,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     @Override
     protected void buildContent() {
         addClassName("advertisement-overlay");
-        viewModeHandler.setCallbacks(this::switchToEdit, this::closeToList);
-        formModeHandler.setCallbacks(this::handleSave,   this::handleCancel);
-
-        handlers.put(Mode.VIEW,   viewModeHandler);
-        handlers.put(Mode.EDIT,   formModeHandler);
-        handlers.put(Mode.CREATE, formModeHandler);
+        breadcrumbButton.addClickListener(_ -> closeToList());
     }
 
     @Override
@@ -80,7 +73,33 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void switchTo(OverlaySession s) {
-        handlers.get(s.mode()).activate(s, layout);
+        ModeHandler handler = switch (s.mode()) {
+            case VIEW -> viewModeHandlerBuilder.build(
+                    ViewModeHandler.Parameters.builder()
+                            .ad(s.ad())
+                            .onEdit(this::switchToEdit)
+                            .onClose(this::closeToList)
+                            .build());
+            case EDIT -> {
+                currentFormHandler = formModeHandlerBuilder.build(
+                        FormModeHandler.Parameters.builder()
+                                .ad(s.ad())
+                                .onSave(this::handleSave)
+                                .onCancel(this::handleCancel)
+                                .build());
+                yield currentFormHandler;
+            }
+            case CREATE -> {
+                currentFormHandler = formModeHandlerBuilder.build(
+                        FormModeHandler.Parameters.builder()
+                                .onSave(this::handleSave)
+                                .onCancel(this::handleCancel)
+                                .build());
+                yield currentFormHandler;
+            }
+        };
+
+        handler.activate(layout);
 
         layout.getBreadcrumbCurrent().setText(switch (s.mode()) {
             case VIEW   -> "";
@@ -88,7 +107,6 @@ public class AdvertisementOverlay extends BaseOverlay {
             case CREATE -> i18n.get(ADVERTISEMENT_OVERLAY_TITLE_NEW);
         });
         layout.getBreadcrumbCurrent().setVisible(s.mode() != Mode.VIEW);
-        layout.setBreadcrumbButton(breadcrumbButton);
     }
 
     private void switchToEdit() {
@@ -99,7 +117,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void handleSave() {
-        if (formModeHandler.save()) {
+        if (currentFormHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
             OverlaySession s = session.get();
             if (s.onSaved() != null) s.onSaved().run();

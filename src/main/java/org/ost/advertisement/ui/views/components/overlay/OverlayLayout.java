@@ -41,6 +41,7 @@ public class OverlayLayout extends Div {
     }
 
     public void setBreadcrumbButton(Component button) {
+        breadcrumbSlot.removeAll();
         breadcrumbSlot.add(button);
     }
 

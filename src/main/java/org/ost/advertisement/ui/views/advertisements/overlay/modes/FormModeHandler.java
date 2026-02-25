@@ -3,14 +3,19 @@ package org.ost.advertisement.ui.views.advertisements.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Value;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.advertisements.overlay.Mode;
-import org.ost.advertisement.ui.views.advertisements.overlay.OverlaySession;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.*;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementDescriptionTextArea;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
+import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementTitleTextField;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
@@ -33,38 +38,42 @@ public class FormModeHandler implements ModeHandler {
     private final ObjectProvider<OverlayAdvertisementSaveButton>          saveButtonProvider;
     private final ObjectProvider<OverlayAdvertisementCancelButton>        cancelButtonProvider;
 
+    private Parameters                             params;
     private FormDialogBinder<AdvertisementEditDto> binder;
-    private Runnable onSave;
-    private Runnable onCancel;
 
-    @Override
-    public void setCallbacks(Runnable primary, Runnable secondary) {
-        this.onSave   = primary;
-        this.onCancel = secondary;
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        AdvertisementInfoDto ad;        // null for CREATE
+        @NonNull Runnable    onSave;
+        @NonNull Runnable    onCancel;
+    }
+
+    private FormModeHandler configure(Parameters p) {
+        this.params = p;
+        return this;
     }
 
     @Override
-    public void activate(OverlaySession s, OverlayLayout layout) {
-        boolean isCreate = s.mode() == Mode.CREATE;
+    public void activate(OverlayLayout layout) {
+        boolean isCreate = params.getAd() == null;
 
         OverlayAdvertisementTitleTextField      titleField       = titleFieldProvider.getObject();
         OverlayAdvertisementDescriptionTextArea descriptionField = descriptionFieldProvider.getObject();
 
-        AdvertisementEditDto dto = isCreate ? new AdvertisementEditDto() : mapper.toAdvertisementEdit(s.ad());
-        rebuildBinder(dto, titleField, descriptionField);
+        AdvertisementEditDto dto = isCreate
+                ? new AdvertisementEditDto()
+                : mapper.toAdvertisementEdit(params.getAd());
+        buildBinder(dto, titleField, descriptionField);
 
-        Div content;
-        if (isCreate) {
-            content = new Div(titleField, descriptionField);
-        } else {
-            Div metaContainer = metaPanelBuilder.build(s.ad());
-            content = new Div(titleField, descriptionField, metaContainer);
-        }
+        Div content = isCreate
+                ? new Div(titleField, descriptionField)
+                : new Div(titleField, descriptionField, metaPanelBuilder.build(params.getAd()));
 
         OverlayAdvertisementSaveButton   saveButton   = saveButtonProvider.getObject();
         OverlayAdvertisementCancelButton cancelButton = cancelButtonProvider.getObject();
-        saveButton.addClickListener(_   -> onSave.run());
-        cancelButton.addClickListener(_ -> onCancel.run());
+        saveButton.addClickListener(_   -> params.getOnSave().run());
+        cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         layout.setContent(content);
         layout.setHeaderActions(new Div(saveButton, cancelButton));
@@ -74,9 +83,9 @@ public class FormModeHandler implements ModeHandler {
         return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
     }
 
-    private void rebuildBinder(AdvertisementEditDto dto,
-                               OverlayAdvertisementTitleTextField titleField,
-                               OverlayAdvertisementDescriptionTextArea descriptionField) {
+    private void buildBinder(AdvertisementEditDto dto,
+                             OverlayAdvertisementTitleTextField titleField,
+                             OverlayAdvertisementDescriptionTextArea descriptionField) {
         binder = binderBuilder.build(
                 FormDialogBinder.Config.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)
@@ -91,5 +100,15 @@ public class FormModeHandler implements ModeHandler {
         binder.getBinder().forField(descriptionField)
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder {
+        private final ObjectProvider<FormModeHandler> provider;
+
+        public FormModeHandler build(Parameters p) {
+            return provider.getObject().configure(p);
+        }
     }
 }
