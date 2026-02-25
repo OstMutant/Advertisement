@@ -11,11 +11,11 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementCancelButton;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementSaveButton;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.components.overlay.fields.OverlayPrimaryButton;
+import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTertiaryButton;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextArea;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextField;
 import org.springframework.beans.factory.ObjectProvider;
@@ -35,8 +35,8 @@ public class FormModeHandler implements ModeHandler {
     private final OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
     private final OverlayTextField titleField;
     private final OverlayTextArea descriptionField;
-    private final ObjectProvider<OverlayAdvertisementSaveButton> saveButtonProvider;
-    private final ObjectProvider<OverlayAdvertisementCancelButton> cancelButtonProvider;
+    private final ObjectProvider<OverlayPrimaryButton> saveButtonProvider;
+    private final ObjectProvider<OverlayTertiaryButton> cancelButtonProvider;
 
     private Parameters params;
     private FormDialogBinder<AdvertisementEditDto> binder;
@@ -44,11 +44,9 @@ public class FormModeHandler implements ModeHandler {
     @Value
     @lombok.Builder
     public static class Parameters {
-        AdvertisementInfoDto ad;        // null for CREATE
-        @NonNull
-        Runnable onSave;
-        @NonNull
-        Runnable onCancel;
+        AdvertisementInfoDto ad;
+        @NonNull Runnable onSave;
+        @NonNull Runnable onCancel;
     }
 
     private FormModeHandler configure(Parameters p) {
@@ -73,6 +71,7 @@ public class FormModeHandler implements ModeHandler {
                 .maxLength(1000)
                 .required(true)
                 .build());
+        descriptionField.addClassName("overlay__description-text-area");
 
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
@@ -83,8 +82,14 @@ public class FormModeHandler implements ModeHandler {
                 ? new Div(titleField, descriptionField)
                 : new Div(titleField, descriptionField, metaPanelBuilder.build(params.getAd()));
 
-        OverlayAdvertisementSaveButton saveButton = saveButtonProvider.getObject();
-        OverlayAdvertisementCancelButton cancelButton = cancelButtonProvider.getObject();
+        OverlayPrimaryButton saveButton = saveButtonProvider.getObject().configure(
+                OverlayPrimaryButton.Parameters.builder()
+                        .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
+                        .build());
+        OverlayTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                OverlayTertiaryButton.Parameters.builder()
+                        .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
+                        .build());
         saveButton.addClickListener(_ -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 

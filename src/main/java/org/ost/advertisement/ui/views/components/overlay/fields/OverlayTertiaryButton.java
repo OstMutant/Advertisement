@@ -1,6 +1,7 @@
 package org.ost.advertisement.ui.views.components.overlay.fields;
 
-import com.vaadin.flow.component.textfield.TextArea;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
@@ -13,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class OverlayTextArea extends TextArea implements Configurable<OverlayTextArea, OverlayTextArea.Parameters>, I18nParams {
+public class OverlayTertiaryButton extends Button implements Configurable<OverlayTertiaryButton, OverlayTertiaryButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -21,22 +22,13 @@ public class OverlayTextArea extends TextArea implements Configurable<OverlayTex
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull
-        I18nKey labelKey;
-        @NonNull
-        I18nKey placeholderKey;
-        int maxLength;
-        boolean required;
+        @NonNull I18nKey labelKey;
     }
 
     @Override
-    public OverlayTextArea configure(Parameters p) {
-        setLabel(getValue(p.getLabelKey()));
-        setPlaceholder(getValue(p.getPlaceholderKey()));
-        if (p.getMaxLength() > 0) setMaxLength(p.getMaxLength());
-        setRequired(p.isRequired());
-        setWidthFull();
-        addClassName("overlay-text-area");
+    public OverlayTertiaryButton configure(Parameters p) {
+        setText(getValue(p.getLabelKey()));
+        addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         return this;
     }
 }
