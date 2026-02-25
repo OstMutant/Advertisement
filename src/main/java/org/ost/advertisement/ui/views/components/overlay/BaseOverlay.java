@@ -18,6 +18,7 @@ public abstract class BaseOverlay extends Div {
     protected void ensureInitialized() {
         if (initialized) return;
         initialized = true;
+        addClassName("base-overlay");
         buildContent();
     }
 

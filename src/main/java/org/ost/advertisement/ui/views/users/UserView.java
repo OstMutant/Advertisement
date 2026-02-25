@@ -14,13 +14,11 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.utils.NotificationType;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
-import org.ost.advertisement.ui.views.users.dialogs.UserEditDialog;
-import org.ost.advertisement.ui.views.users.dialogs.UserViewDialog;
+import org.ost.advertisement.ui.views.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
 
 import java.util.Collections;
@@ -36,16 +34,16 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService userService;
-    private final transient I18nService i18n;
-    private final transient NotificationService notificationService;
-    private final UserQueryStatusBar queryStatusBar;
-    private final transient EditActionButton.Builder editButtonBuilder;
+    private final transient UserService               userService;
+    private final transient I18nService               i18n;
+    private final transient NotificationService       notificationService;
+    private final UserQueryStatusBar                  queryStatusBar;
+    private final transient EditActionButton.Builder  editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
-    private final transient UserEditDialog.Builder editDialogBuilder;
+    private final UserOverlay                         overlay;
     private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
 
-    private Grid<User> grid;
+    private Grid<User>         grid;
     private PaginationBarModern paginationBar;
 
     @PostConstruct
@@ -61,11 +59,11 @@ public class UserView extends VerticalLayout {
         paginationBar = new PaginationBarModern(i18n);
         paginationBar.addClassName("user-pagination");
 
-        add(grid, paginationBar);
+        add(grid, paginationBar, overlay); // ← додати overlay
 
         initPagination();
         initQueryBar();
-        initGrid(editDialogBuilder);
+        initGrid();
 
         addComponentAsFirst(queryStatusBar);
         addComponentAtIndex(1, queryStatusBar.getQueryBlock());
@@ -84,26 +82,16 @@ public class UserView extends VerticalLayout {
         });
     }
 
-    private void initGrid(UserEditDialog.Builder editDialogBuilder) {
+    private void initGrid() {
         UserGridConfigurator.configure(
                 grid,
                 i18n,
                 editButtonBuilder,
                 deleteButtonBuilder,
-                this::openViewDialog,
-                u -> editDialogBuilder.buildAndOpen(u, this::refreshGrid),
+                u -> overlay.openForView(u, this::refreshGrid),
+                u -> overlay.openForEdit(u, this::refreshGrid),
                 this::confirmAndDelete
         );
-    }
-
-    private void openViewDialog(User user) {
-        UserViewDialog dialog = new UserViewDialog(i18n, user);
-        dialog.addOpenedChangeListener(event -> {
-            if (!event.isOpened()) {
-                getElement().executeJs("document.activeElement.blur()");
-            }
-        });
-        dialog.open();
     }
 
     private void refreshGrid() {
