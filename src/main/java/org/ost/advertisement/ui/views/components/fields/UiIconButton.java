@@ -1,5 +1,8 @@
 package org.ost.advertisement.ui.views.components.fields;
 
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
@@ -10,10 +13,9 @@ import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class TextField extends com.vaadin.flow.component.textfield.TextField
-        implements Configurable<TextField, TextField.Parameters>, I18nParams {
+public class UiIconButton extends Button implements Configurable<UiIconButton, UiIconButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -22,19 +24,15 @@ public class TextField extends com.vaadin.flow.component.textfield.TextField
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey labelKey;
-        @NonNull I18nKey placeholderKey;
-        int              maxLength;
-        boolean          required;
+        @NonNull Icon    icon;
     }
 
     @Override
-    public TextField configure(Parameters p) {
-        setLabel(getValue(p.getLabelKey()));
-        setPlaceholder(getValue(p.getPlaceholderKey()));
-        if (p.getMaxLength() > 0) setMaxLength(p.getMaxLength());
-        setRequired(p.isRequired());
-        setWidthFull();
-        addClassName("text-field");
+    public UiIconButton configure(Parameters p) {
+        setIcon(p.getIcon());
+        getElement().setAttribute("title", getValue(p.getLabelKey()));
+        addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        addClassName("icon-button");
         return this;
     }
 }

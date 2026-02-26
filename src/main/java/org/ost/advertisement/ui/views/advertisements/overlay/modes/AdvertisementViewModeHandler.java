@@ -11,8 +11,8 @@ import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.components.fields.IconButton;
-import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.UiIconButton;
+import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,8 +27,8 @@ public class AdvertisementViewModeHandler implements ModeHandler {
 
     private final AccessEvaluator                       access;
     private final OverlayAdvertisementMetaPanel         metaPanel;
-    private final ObjectProvider<PrimaryButton>         editButtonProvider;
-    private final ObjectProvider<IconButton>            closeButtonProvider;
+    private final ObjectProvider<UiPrimaryButton>         editButtonProvider;
+    private final ObjectProvider<UiIconButton>            closeButtonProvider;
 
     private Parameters params;
 
@@ -53,12 +53,12 @@ public class AdvertisementViewModeHandler implements ModeHandler {
         Span description = new Span(params.getAd().getDescription());
         description.addClassName("overlay__view-description");
 
-        PrimaryButton editButton = editButtonProvider.getObject().configure(
-                PrimaryButton.Parameters.builder()
+        UiPrimaryButton editButton = editButtonProvider.getObject().configure(
+                UiPrimaryButton.Parameters.builder()
                         .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
                         .build());
-        IconButton closeButton = closeButtonProvider.getObject().configure(
-                IconButton.Parameters.builder()
+        UiIconButton closeButton = closeButtonProvider.getObject().configure(
+                UiIconButton.Parameters.builder()
                         .labelKey(MAIN_TAB_ADVERTISEMENTS)
                         .icon(VaadinIcon.CLOSE.create())
                         .build());

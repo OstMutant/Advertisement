@@ -13,10 +13,10 @@ import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
-import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
-import org.ost.advertisement.ui.views.header.dialogs.fields.LoginEmailField;
-import org.ost.advertisement.ui.views.header.dialogs.fields.LoginPasswordField;
+import org.ost.advertisement.ui.views.components.fields.UiEmailField;
+import org.ost.advertisement.ui.views.components.fields.UiPasswordField;
+import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -28,24 +28,39 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class LoginDialog extends BaseDialog {
 
-    private final transient AuthService    authService;
+    private final transient AuthService         authService;
     @Getter
-    private final transient I18nService    i18n;
+    private final transient I18nService         i18n;
     @Getter
     private final transient NotificationService notificationService;
-    private final transient SessionService sessionService;
+    private final transient SessionService      sessionService;
 
-    private final LoginEmailField              emailField;
-    private final LoginPasswordField           passwordField;
     @Getter
-    private final DialogLayout                 layout;
-    private final ObjectProvider<PrimaryButton>  loginButtonProvider;
-    private final ObjectProvider<TertiaryButton> cancelButtonProvider;
+    private final DialogLayout                  layout;
+    private final transient ObjectProvider<UiEmailField>    emailFieldProvider;
+    private final transient ObjectProvider<UiPasswordField> passwordFieldProvider;
+    private final transient ObjectProvider<UiPrimaryButton>  loginButtonProvider;
+    private final transient ObjectProvider<UiTertiaryButton> cancelButtonProvider;
+
+    private UiEmailField uiEmailField;
+    private UiPasswordField uiPasswordField;
 
     @Override
     @PostConstruct
     protected void init() {
         super.init();
+        uiEmailField = emailFieldProvider.getObject().configure(
+                UiEmailField.Parameters.builder()
+                        .labelKey(LOGIN_EMAIL_LABEL)
+                        .placeholderKey(LOGIN_EMAIL_LABEL)
+                        .required(true)
+                        .build());
+        uiPasswordField = passwordFieldProvider.getObject().configure(
+                UiPasswordField.Parameters.builder()
+                        .labelKey(LOGIN_PASSWORD_LABEL)
+                        .placeholderKey(LOGIN_PASSWORD_LABEL)
+                        .required(true)
+                        .build());
         setTitle();
         addContent();
         addActions();
@@ -58,23 +73,23 @@ public class LoginDialog extends BaseDialog {
     private void addContent() {
         Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
         welcome.addClassName("dialog-subtitle");
-        layout.addFormContent(welcome, emailField, passwordField);
+        layout.addFormContent(welcome, uiEmailField, uiPasswordField);
     }
 
     private void addActions() {
-        PrimaryButton loginButton = loginButtonProvider.getObject().configure(
-                PrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
+        UiPrimaryButton loginButton = loginButtonProvider.getObject().configure(
+                UiPrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
-        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
-                TertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
+        UiTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                UiTertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(loginButton, cancelButton);
     }
 
     private void handleLogin() {
-        boolean success = authService.login(emailField.getValue(), passwordField.getValue());
+        boolean success = authService.login(uiEmailField.getValue(), uiPasswordField.getValue());
         if (success) {
             close();
             notificationService.success(LOGIN_SUCCESS);

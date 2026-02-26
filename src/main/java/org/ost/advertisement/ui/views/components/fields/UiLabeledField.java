@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class LabeledField extends HorizontalLayout implements Configurable<LabeledField, LabeledField.Parameters>, I18nParams {
+public class UiLabeledField extends HorizontalLayout implements Configurable<UiLabeledField, UiLabeledField.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -29,7 +29,7 @@ public class LabeledField extends HorizontalLayout implements Configurable<Label
     private Span valueSpan;
 
     @Override
-    public LabeledField configure(Parameters p) {
+    public UiLabeledField configure(Parameters p) {
         Span labelSpan = new Span(getValue(p.getLabelKey()) + ":");
         labelSpan.addClassName("labeled-field__label");
 

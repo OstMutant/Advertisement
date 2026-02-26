@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.components.fields;
 
+import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
@@ -12,8 +13,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 @SuppressWarnings("java:S110")
-public class EmailField extends com.vaadin.flow.component.textfield.EmailField
-        implements Configurable<EmailField, EmailField.Parameters>, I18nParams {
+public class UiTextField extends TextField implements Configurable<UiTextField, UiTextField.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -21,18 +21,22 @@ public class EmailField extends com.vaadin.flow.component.textfield.EmailField
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull I18nKey labelKey;
-        @NonNull I18nKey placeholderKey;
-        boolean          required;
+        @NonNull
+        I18nKey labelKey;
+        @NonNull
+        I18nKey placeholderKey;
+        int maxLength;
+        boolean required;
     }
 
     @Override
-    public EmailField configure(Parameters p) {
+    public UiTextField configure(Parameters p) {
         setLabel(getValue(p.getLabelKey()));
         setPlaceholder(getValue(p.getPlaceholderKey()));
+        if (p.getMaxLength() > 0) setMaxLength(p.getMaxLength());
         setRequired(p.isRequired());
         setWidthFull();
-        addClassName("email-field");
+        addClassName("text-field");
         return this;
     }
 }

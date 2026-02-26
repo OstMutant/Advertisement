@@ -9,9 +9,9 @@ import lombok.Value;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.views.components.fields.IconButton;
-import org.ost.advertisement.ui.views.components.fields.LabeledField;
-import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.UiIconButton;
+import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
+import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
@@ -25,9 +25,9 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class UserViewModeHandler implements ModeHandler {
 
     private final AccessEvaluator               access;
-    private final ObjectProvider<LabeledField>  labeledFieldProvider;
-    private final ObjectProvider<PrimaryButton> editButtonProvider;
-    private final ObjectProvider<IconButton>    closeButtonProvider;
+    private final ObjectProvider<UiLabeledField>  labeledFieldProvider;
+    private final ObjectProvider<UiPrimaryButton> editButtonProvider;
+    private final ObjectProvider<UiIconButton>    closeButtonProvider;
 
     private Parameters params;
 
@@ -47,17 +47,17 @@ public class UserViewModeHandler implements ModeHandler {
     public void activate(OverlayLayout layout) {
         User user = params.getUser();
 
-        LabeledField idField      = field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId()));
-        LabeledField nameField    = field(USER_DIALOG_FIELD_NAME_LABEL,     user.getName());
-        LabeledField emailField   = field(USER_DIALOG_FIELD_EMAIL_LABEL,    user.getEmail());
-        LabeledField roleField    = field(USER_DIALOG_FIELD_ROLE_LABEL,     user.getRole().name());
-        LabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
-        LabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
+        UiLabeledField idField      = field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId()));
+        UiLabeledField nameField    = field(USER_DIALOG_FIELD_NAME_LABEL,     user.getName());
+        UiLabeledField emailField   = field(USER_DIALOG_FIELD_EMAIL_LABEL,    user.getEmail());
+        UiLabeledField roleField    = field(USER_DIALOG_FIELD_ROLE_LABEL,     user.getRole().name());
+        UiLabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
+        UiLabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
 
-        PrimaryButton editButton = editButtonProvider.getObject().configure(
-                PrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
-        IconButton closeButton = closeButtonProvider.getObject().configure(
-                IconButton.Parameters.builder()
+        UiPrimaryButton editButton = editButtonProvider.getObject().configure(
+                UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
+        UiIconButton closeButton = closeButtonProvider.getObject().configure(
+                UiIconButton.Parameters.builder()
                         .labelKey(MAIN_TAB_USERS)
                         .icon(VaadinIcon.CLOSE.create())
                         .build());
@@ -70,9 +70,9 @@ public class UserViewModeHandler implements ModeHandler {
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
-    private LabeledField field(org.ost.advertisement.constants.I18nKey labelKey, String value) {
+    private UiLabeledField field(org.ost.advertisement.constants.I18nKey labelKey, String value) {
         return labeledFieldProvider.getObject().configure(
-                LabeledField.Parameters.builder()
+                UiLabeledField.Parameters.builder()
                         .labelKey(labelKey)
                         .value(value)
                         .build());

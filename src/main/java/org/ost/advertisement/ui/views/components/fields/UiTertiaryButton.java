@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class PrimaryButton extends Button implements Configurable<PrimaryButton, PrimaryButton.Parameters>, I18nParams {
+public class UiTertiaryButton extends Button implements Configurable<UiTertiaryButton, UiTertiaryButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -26,10 +26,10 @@ public class PrimaryButton extends Button implements Configurable<PrimaryButton,
     }
 
     @Override
-    public PrimaryButton configure(Parameters p) {
+    public UiTertiaryButton configure(Parameters p) {
         setText(getValue(p.getLabelKey()));
-        addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addClassName("primary-button");
+        addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        addClassName("tertiary-button");
         return this;
     }
 }

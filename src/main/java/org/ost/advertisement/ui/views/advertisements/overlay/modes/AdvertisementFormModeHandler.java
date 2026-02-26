@@ -13,14 +13,13 @@ import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
-import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
-import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
-import org.ost.advertisement.ui.views.components.fields.TextArea;
-import org.ost.advertisement.ui.views.components.fields.TextField;
+import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.UiTextArea;
+import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -35,12 +34,10 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     private final I18nService                                       i18n;
     private final FormDialogBinder.Builder<AdvertisementEditDto>    binderBuilder;
     private final OverlayAdvertisementMetaPanel                     metaPanel;
-    @Qualifier("textField")
-    private final TextField                                         titleField;
-    @Qualifier("textArea")
-    private final TextArea                                          descriptionField;
-    private final PrimaryButton                                     saveButton;
-    private final TertiaryButton                                    cancelButton;
+    private final UiTextField titleField;
+    private final UiTextArea descriptionField;
+    private final UiPrimaryButton saveButton;
+    private final UiTertiaryButton cancelButton;
 
     private Parameters params;
     private FormDialogBinder<AdvertisementEditDto> binder;
@@ -62,14 +59,14 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     public void activate(OverlayLayout layout) {
         boolean isCreate = params.getAd() == null;
 
-        titleField.configure(TextField.Parameters.builder()
+        titleField.configure(UiTextField.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
                 .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
                 .maxLength(255)
                 .required(true)
                 .build());
 
-        descriptionField.configure(TextArea.Parameters.builder()
+        descriptionField.configure(UiTextArea.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
                 .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
                 .maxLength(1000)
@@ -87,10 +84,10 @@ public class AdvertisementFormModeHandler implements ModeHandler {
                 : new Div(titleField, descriptionField,
                           metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
 
-        saveButton.configure(PrimaryButton.Parameters.builder()
+        saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
                 .build());
-        cancelButton.configure(TertiaryButton.Parameters.builder()
+        cancelButton.configure(UiTertiaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
 

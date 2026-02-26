@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.components.fields;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
@@ -15,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class IconButton extends Button implements Configurable<IconButton, IconButton.Parameters>, I18nParams {
+public class UiPrimaryButton extends Button implements Configurable<UiPrimaryButton, UiPrimaryButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -24,15 +23,13 @@ public class IconButton extends Button implements Configurable<IconButton, IconB
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey labelKey;
-        @NonNull Icon    icon;
     }
 
     @Override
-    public IconButton configure(Parameters p) {
-        setIcon(p.getIcon());
-        getElement().setAttribute("title", getValue(p.getLabelKey()));
-        addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
-        addClassName("icon-button");
+    public UiPrimaryButton configure(Parameters p) {
+        setText(getValue(p.getLabelKey()));
+        addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addClassName("primary-button");
         return this;
     }
 }

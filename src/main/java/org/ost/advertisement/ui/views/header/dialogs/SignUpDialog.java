@@ -13,11 +13,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
-import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
-import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpEmailField;
-import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpNameField;
-import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpPasswordField;
+import org.ost.advertisement.ui.views.components.fields.*;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -36,23 +32,47 @@ public class SignUpDialog extends BaseDialog {
     @Getter
     private final transient NotificationService notificationService;
 
-    private final SignUpNameField     nameField;
-    private final SignUpEmailField    emailField;
-    private final SignUpPasswordField passwordField;
-
     @Getter
     private final DialogLayout layout;
-    private final ObjectProvider<PrimaryButton>  registerButtonProvider;
-    private final ObjectProvider<TertiaryButton> cancelButtonProvider;
+    private final transient ObjectProvider<UiTextField> nameFieldProvider;
+    private final transient ObjectProvider<UiEmailField> emailFieldProvider;
+    private final transient ObjectProvider<UiPasswordField> passwordFieldProvider;
+    private final transient ObjectProvider<UiPrimaryButton> registerButtonProvider;
+    private final transient ObjectProvider<UiTertiaryButton> cancelButtonProvider;
 
-    private final Binder<SignUpDto>    binder = new Binder<>(SignUpDto.class);
-    private final transient SignUpDto  dto    = new SignUpDto();
+    private UiTextField nameField;
+    private UiEmailField uiEmailField;
+    private UiPasswordField uiPasswordField;
+
+    private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
+    private final transient SignUpDto dto = new SignUpDto();
 
     @Override
     @PostConstruct
     protected void init() {
         super.init();
         addThemeName("signup-dialog");
+
+        nameField = nameFieldProvider.getObject().configure(
+                UiTextField.Parameters.builder()
+                        .labelKey(SIGNUP_NAME_LABEL)
+                        .placeholderKey(SIGNUP_NAME_LABEL)
+                        .maxLength(255)
+                        .required(true)
+                        .build());
+        uiEmailField = emailFieldProvider.getObject().configure(
+                UiEmailField.Parameters.builder()
+                        .labelKey(SIGNUP_EMAIL_LABEL)
+                        .placeholderKey(SIGNUP_EMAIL_LABEL)
+                        .required(true)
+                        .build());
+        uiPasswordField = passwordFieldProvider.getObject().configure(
+                UiPasswordField.Parameters.builder()
+                        .labelKey(SIGNUP_PASSWORD_LABEL)
+                        .placeholderKey(SIGNUP_PASSWORD_LABEL)
+                        .required(true)
+                        .build());
+
         setTitle();
         addContent();
         bindFields();
@@ -64,14 +84,14 @@ public class SignUpDialog extends BaseDialog {
     }
 
     private void addContent() {
-        layout.addFormContent(nameField, emailField, passwordField);
+        layout.addFormContent(nameField, uiEmailField, uiPasswordField);
     }
 
     private void addActions() {
-        PrimaryButton registerButton = registerButtonProvider.getObject().configure(
-                PrimaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_SUBMIT).build());
-        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
-                TertiaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_CANCEL).build());
+        UiPrimaryButton registerButton = registerButtonProvider.getObject().configure(
+                UiPrimaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_SUBMIT).build());
+        UiTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                UiTertiaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_CANCEL).build());
 
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());
@@ -86,7 +106,7 @@ public class SignUpDialog extends BaseDialog {
                 .withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_NAME_REQUIRED), 1, 255))
                 .bind(SignUpDto::getName, SignUpDto::setName);
 
-        binder.forField(emailField)
+        binder.forField(uiEmailField)
                 .withValidator(email -> EMAIL_PATTERN.matcher(email == null ? "" : email.trim()).matches(),
                         i18n.get(SIGNUP_ERROR_EMAIL_INVALID))
                 .withValidator(email -> {
@@ -99,7 +119,7 @@ public class SignUpDialog extends BaseDialog {
                 }, i18n.get(SIGNUP_ERROR_EMAIL_EXISTS))
                 .bind(SignUpDto::getEmail, SignUpDto::setEmail);
 
-        binder.forField(passwordField)
+        binder.forField(uiPasswordField)
                 .withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
                 .bind(SignUpDto::getPassword, SignUpDto::setPassword);
     }
