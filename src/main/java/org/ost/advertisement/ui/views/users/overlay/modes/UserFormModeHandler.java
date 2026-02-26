@@ -30,14 +30,14 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserFormModeHandler {
 
-    private final UserService                              userService;
-    private final UserMapper                               mapper;
-    private final I18nService                              i18n;
-    private final FormDialogBinder.Builder<UserEditDto>    binderBuilder;
-    private final OverlayTextField                         nameField;
-    private final OverlayComboBox<Role>                    roleComboBox;
-    private final ObjectProvider<OverlayPrimaryButton>     saveButtonProvider;
-    private final ObjectProvider<OverlayTertiaryButton>    cancelButtonProvider;
+    private final UserService                           userService;
+    private final UserMapper                            mapper;
+    private final I18nService                           i18n;
+    private final FormDialogBinder.Builder<UserEditDto> binderBuilder;
+    private final OverlayTextField                      nameField;
+    private final OverlayComboBox<Role>                 roleComboBox;
+    private final OverlayPrimaryButton                  saveButton;
+    private final OverlayTertiaryButton                 cancelButton;
 
     private Parameters params;
     private FormDialogBinder<UserEditDto> binder;
@@ -72,14 +72,12 @@ public class UserFormModeHandler {
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
 
-        OverlayPrimaryButton saveButton = saveButtonProvider.getObject().configure(
-                OverlayPrimaryButton.Parameters.builder()
-                        .labelKey(USER_DIALOG_BUTTON_SAVE)
-                        .build());
-        OverlayTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
-                OverlayTertiaryButton.Parameters.builder()
-                        .labelKey(USER_DIALOG_BUTTON_CANCEL)
-                        .build());
+        saveButton.configure(OverlayPrimaryButton.Parameters.builder()
+                .labelKey(USER_DIALOG_BUTTON_SAVE)
+                .build());
+        cancelButton.configure(OverlayTertiaryButton.Parameters.builder()
+                .labelKey(USER_DIALOG_BUTTON_CANCEL)
+                .build());
 
         saveButton.addClickListener(_  -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());

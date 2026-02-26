@@ -24,38 +24,39 @@ public class UserOverlay extends BaseOverlay {
     private enum Mode { VIEW, EDIT }
 
     private record OverlaySession(
-            Mode             mode,
-            @NonNull User    user,
-            @NonNull Runnable onSaved
+            Mode              mode,
+            @NonNull User     user,
+            @NonNull Runnable onSaved,
+            boolean           enteredFromView
     ) {
         OverlaySession toEdit() {
-            return new OverlaySession(Mode.EDIT, user, onSaved);
+            return new OverlaySession(Mode.EDIT, user, onSaved, true);
         }
 
         OverlaySession toView() {
-            return new OverlaySession(Mode.VIEW, user, onSaved);
+            return new OverlaySession(Mode.VIEW, user, onSaved, false);
         }
     }
 
-    private final NotificationService              notification;
-    private final UserViewModeHandler.Builder      viewModeHandlerBuilder;
-    private final UserFormModeHandler.Builder      formModeHandlerBuilder;
-    private final ObjectProvider<OverlayLayout>    layoutProvider;
+    private final NotificationService           notification;
+    private final UserViewModeHandler.Builder   viewModeHandlerBuilder;
+    private final UserFormModeHandler.Builder   formModeHandlerBuilder;
+    private final ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
-    private OverlaySession           session;
-    private OverlayLayout            layout;
-    private UserFormModeHandler      currentFormHandler;
+    private OverlaySession      session;
+    private OverlayLayout       layout;
+    private UserFormModeHandler currentFormHandler;
 
     public void openForView(User user, Runnable onChanged) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.VIEW, user, onChanged));
+        openSession(new OverlaySession(Mode.VIEW, user, onChanged, false));
     }
 
     public void openForEdit(User user, Runnable onSaved) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.EDIT, user, onSaved));
+        openSession(new OverlaySession(Mode.EDIT, user, onSaved, false));
     }
 
     @Override
@@ -85,11 +86,11 @@ public class UserOverlay extends BaseOverlay {
     private void switchTo() {
         switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
-                    UserViewModeHandler.Parameters.builder()
-                            .user(session.user())
-                            .onEdit(this::switchToEdit)
-                            .onClose(this::closeToList)
-                            .build())
+                            UserViewModeHandler.Parameters.builder()
+                                    .user(session.user())
+                                    .onEdit(this::switchToEdit)
+                                    .onClose(this::closeToList)
+                                    .build())
                     .activate(layout);
             case EDIT -> {
                 currentFormHandler = formModeHandlerBuilder.build(
@@ -122,7 +123,11 @@ public class UserOverlay extends BaseOverlay {
     }
 
     private void handleCancel() {
-        session = session.toView();
-        switchTo();
+        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
+            session = session.toView();
+            switchTo();
+        } else {
+            closeToList();
+        }
     }
 }
