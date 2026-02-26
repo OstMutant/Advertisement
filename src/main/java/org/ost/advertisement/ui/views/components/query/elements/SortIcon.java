@@ -5,9 +5,11 @@ import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.html.Span;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.SvgIcon;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
@@ -101,6 +103,16 @@ public class SortIcon extends Span {
                 case ASC -> DESC;
                 case DESC -> NEUTRAL;
             };
+        }
+    }
+
+    @Component
+    @RequiredArgsConstructor
+    public static class Builder {
+        private final ObjectProvider<SortIcon> provider;
+
+        public SortIcon build() {
+            return provider.getObject();
         }
     }
 }

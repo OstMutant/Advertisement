@@ -4,34 +4,41 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilterDto;
+import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;
+import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;
-import org.ost.advertisement.ui.views.users.query.elements.rows.*;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryMultiSelectComboField;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryNumberField;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryTextField;
+import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
 import org.ost.advertisement.ui.views.users.query.filter.meta.UserFilterMeta;
 import org.ost.advertisement.ui.views.users.query.filter.processor.UserFilterProcessor;
 import org.ost.advertisement.ui.views.users.query.sort.meta.UserSortMeta;
 import org.ost.advertisement.ui.views.users.query.sort.processor.UserSortProcessor;
 
+import static org.ost.advertisement.constants.I18nKey.*;
+
 @SpringComponent
 @UIScope
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Getter
 public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFilterDto>, QueryBlockLayout {
 
     private final transient UserFilterProcessor filterProcessor;
-    private final transient UserSortProcessor sortProcessor;
+    private final transient UserSortProcessor   sortProcessor;
 
-    private final UserQueryNameRow userQueryNameRow;
-    private final UserQueryEmailRow userQueryEmailRow;
-    private final UserQueryRoleRow userQueryRoleRow;
-
-    private final UserQueryIdRow userQueryIdRow;
-    private final UserQueryCreatedDateRow userQueryCreatedDateRow;
-    private final UserQueryUpdatedDateRow userQueryUpdatedDateRow;
+    private final QueryTextField.Builder                   textFieldBuilder;
+    private final QueryNumberField.Builder                 numberFieldBuilder;
+    private final QueryDateTimeField.Builder               dateTimeFieldBuilder;
+    private final QueryMultiSelectComboField.Builder<Role> multiComboBuilder;
+    private final QueryInlineRow.Builder                   rowBuilder;
+    private final SortIcon.Builder                         sortIconBuilder;
 
     private final QueryActionBlock queryActionBlock;
 
@@ -40,31 +47,80 @@ public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFil
         addClassName("user-query-block");
         setVisible(false);
 
-        add(userQueryIdRow, userQueryNameRow, userQueryEmailRow, userQueryRoleRow, userQueryCreatedDateRow, userQueryUpdatedDateRow, queryActionBlock);
+        // Id row
+        QueryNumberField idMinField = numberFieldBuilder.build(QueryNumberField.Parameters.builder()
+                .placeholderKey(USER_FILTER_ID_MIN).build());
+        QueryNumberField idMaxField = numberFieldBuilder.build(QueryNumberField.Parameters.builder()
+                .placeholderKey(USER_FILTER_ID_MAX).build());
+        SortIcon idSort = sortIconBuilder.build();
+        QueryInlineRow idRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_ID).sortIcon(idSort)
+                .filterField(idMinField).filterField(idMaxField).build());
 
-        registerSorts();
-        registerFilters();
-    }
+        // Name row
+        QueryTextField nameField = textFieldBuilder.build(QueryTextField.Parameters.builder()
+                .placeholderKey(USER_FILTER_NAME_PLACEHOLDER).build());
+        SortIcon nameSort = sortIconBuilder.build();
+        QueryInlineRow nameRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
 
-    private void registerSorts() {
-        sortProcessor.register(UserSortMeta.ID, userQueryIdRow.getSortIcon(), queryActionBlock);
-        sortProcessor.register(UserSortMeta.NAME, userQueryNameRow.getSortIcon(), queryActionBlock);
-        sortProcessor.register(UserSortMeta.EMAIL, userQueryEmailRow.getSortIcon(), queryActionBlock);
-        sortProcessor.register(UserSortMeta.ROLE, userQueryRoleRow.getSortIcon(), queryActionBlock);
-        sortProcessor.register(UserSortMeta.CREATED_AT, userQueryCreatedDateRow.getSortIcon(), queryActionBlock);
-        sortProcessor.register(UserSortMeta.UPDATED_AT, userQueryUpdatedDateRow.getSortIcon(), queryActionBlock);
-    }
+        // Email row
+        QueryTextField emailField = textFieldBuilder.build(QueryTextField.Parameters.builder()
+                .placeholderKey(USER_FILTER_EMAIL_PLACEHOLDER).build());
+        SortIcon emailSort = sortIconBuilder.build();
+        QueryInlineRow emailRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
 
-    private void registerFilters() {
-        filterProcessor.register(UserFilterMeta.ID_MIN, userQueryIdRow.getMinField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ID_MAX, userQueryIdRow.getMaxField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.NAME, userQueryNameRow.getFilterField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.EMAIL, userQueryEmailRow.getFilterField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ROLES, userQueryRoleRow.getRoleField(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_START, userQueryCreatedDateRow.getStartDate(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_END, userQueryCreatedDateRow.getEndDate(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_START, userQueryUpdatedDateRow.getStartDate(), queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_END, userQueryUpdatedDateRow.getEndDate(), queryActionBlock);
+        // Role row
+        QueryMultiSelectComboField<Role> roleField = multiComboBuilder.build(
+                QueryMultiSelectComboField.Parameters.<Role>builder()
+                        .placeholderKey(USER_FILTER_ROLE_ANY).items(Role.values()).build());
+        SortIcon roleSort = sortIconBuilder.build();
+        QueryInlineRow roleRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
+
+        // Created date row
+        QueryDateTimeField createdStart = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
+                .datePlaceholderKey(USER_FILTER_DATE_CREATED_START)
+                .timePlaceholderKey(USER_FILTER_TIME_CREATED_START).build());
+        QueryDateTimeField createdEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
+                .datePlaceholderKey(USER_FILTER_DATE_CREATED_END)
+                .timePlaceholderKey(USER_FILTER_TIME_CREATED_END).isEnd(true).build());
+        SortIcon createdSort = sortIconBuilder.build();
+        QueryInlineRow createdRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_CREATED).sortIcon(createdSort)
+                .filterField(createdStart).filterField(createdEnd).build());
+
+        // Updated date row
+        QueryDateTimeField updatedStart = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
+                .datePlaceholderKey(USER_FILTER_DATE_UPDATED_START)
+                .timePlaceholderKey(USER_FILTER_TIME_UPDATED_START).build());
+        QueryDateTimeField updatedEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
+                .datePlaceholderKey(USER_FILTER_DATE_UPDATED_END)
+                .timePlaceholderKey(USER_FILTER_TIME_UPDATED_END).isEnd(true).build());
+        SortIcon updatedSort = sortIconBuilder.build();
+        QueryInlineRow updatedRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
+                .labelI18nKey(USER_SORT_UPDATED).sortIcon(updatedSort)
+                .filterField(updatedStart).filterField(updatedEnd).build());
+
+        add(idRow, nameRow, emailRow, roleRow, createdRow, updatedRow, queryActionBlock);
+
+        sortProcessor.register(UserSortMeta.ID,         idSort,      queryActionBlock);
+        sortProcessor.register(UserSortMeta.NAME,       nameSort,    queryActionBlock);
+        sortProcessor.register(UserSortMeta.EMAIL,      emailSort,   queryActionBlock);
+        sortProcessor.register(UserSortMeta.ROLE,       roleSort,    queryActionBlock);
+        sortProcessor.register(UserSortMeta.CREATED_AT, createdSort, queryActionBlock);
+        sortProcessor.register(UserSortMeta.UPDATED_AT, updatedSort, queryActionBlock);
+
+        filterProcessor.register(UserFilterMeta.ID_MIN,           idMinField,   queryActionBlock);
+        filterProcessor.register(UserFilterMeta.ID_MAX,           idMaxField,   queryActionBlock);
+        filterProcessor.register(UserFilterMeta.NAME,             nameField,    queryActionBlock);
+        filterProcessor.register(UserFilterMeta.EMAIL,            emailField,   queryActionBlock);
+        filterProcessor.register(UserFilterMeta.ROLES,            roleField,    queryActionBlock);
+        filterProcessor.register(UserFilterMeta.CREATED_AT_START, createdStart, queryActionBlock);
+        filterProcessor.register(UserFilterMeta.CREATED_AT_END,   createdEnd,   queryActionBlock);
+        filterProcessor.register(UserFilterMeta.UPDATED_AT_START, updatedStart, queryActionBlock);
+        filterProcessor.register(UserFilterMeta.UPDATED_AT_END,   updatedEnd,   queryActionBlock);
     }
 
     @Override

@@ -1,37 +1,48 @@
 package org.ost.advertisement.ui.views.components.query.elements.fields;
 
 import com.vaadin.flow.component.combobox.ComboBox;
-import jakarta.annotation.PostConstruct;
-import lombok.Builder;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.utils.i18n.I18nPlaceholderParams;
+import org.ost.advertisement.ui.utils.builder.Configurable;
+import org.ost.advertisement.ui.utils.builder.ComponentBuilder;
+import org.ost.advertisement.ui.utils.i18n.I18nParams;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
 
-@RequiredArgsConstructor
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class QueryComboField<T> extends ComboBox<T> {
+public class QueryComboField<T> extends ComboBox<T> implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, I18nParams {
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Value
-    @Builder
-    public static class Parameters<T> implements I18nPlaceholderParams {
-        @NonNull I18nService i18nService;
+    @lombok.Builder
+    public static class Parameters<T> {
         @NonNull I18nKey placeholderKey;
-        @NonNull T[] items;
+        @NonNull T[]     items;
     }
 
-    private final transient @NonNull Parameters<T> parameters;
-
-    @PostConstruct
-    private void initLayout() {
+    @Override
+    public QueryComboField<T> configure(Parameters<T> p) {
         addClassName("query-combo");
-        setPlaceholder(parameters.placeholder());
+        setPlaceholder(getValue(p.getPlaceholderKey()));
         setClearButtonVisible(true);
-        setItems(parameters.items);
+        setItems(p.getItems());
         setDefaultBorder(this);
+        return this;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
+        @Getter
+        private final ObjectProvider<QueryComboField<T>> provider;
     }
 }
