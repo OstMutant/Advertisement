@@ -25,10 +25,10 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementViewModeHandler implements ModeHandler {
 
-    private final AccessEvaluator                       access;
-    private final OverlayAdvertisementMetaPanel         metaPanel;
-    private final ObjectProvider<UiPrimaryButton>         editButtonProvider;
-    private final ObjectProvider<UiIconButton>            closeButtonProvider;
+    private final AccessEvaluator               access;
+    private final OverlayAdvertisementMetaPanel metaPanel;
+    private final UiPrimaryButton               editButton;
+    private final UiIconButton                  closeButton;
 
     private Parameters params;
 
@@ -53,15 +53,13 @@ public class AdvertisementViewModeHandler implements ModeHandler {
         Span description = new Span(params.getAd().getDescription());
         description.addClassName("overlay__view-description");
 
-        UiPrimaryButton editButton = editButtonProvider.getObject().configure(
-                UiPrimaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
-                        .build());
-        UiIconButton closeButton = closeButtonProvider.getObject().configure(
-                UiIconButton.Parameters.builder()
-                        .labelKey(MAIN_TAB_ADVERTISEMENTS)
-                        .icon(VaadinIcon.CLOSE.create())
-                        .build());
+        editButton.configure(UiPrimaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
+                .build());
+        closeButton.configure(UiIconButton.Parameters.builder()
+                .labelKey(MAIN_TAB_ADVERTISEMENTS)
+                .icon(VaadinIcon.CLOSE.create())
+                .build());
 
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
