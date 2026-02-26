@@ -6,6 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
@@ -24,10 +25,10 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserViewModeHandler implements ModeHandler {
 
-    private final AccessEvaluator               access;
-    private final ObjectProvider<UiLabeledField>  labeledFieldProvider;
-    private final ObjectProvider<UiPrimaryButton> editButtonProvider;
-    private final ObjectProvider<UiIconButton>    closeButtonProvider;
+    private final AccessEvaluator          access;
+    private final UiLabeledField.Builder   labeledFieldBuilder;
+    private final UiPrimaryButton.Builder  editButtonBuilder;
+    private final UiIconButton.Builder     closeButtonBuilder;
 
     private Parameters params;
 
@@ -44,19 +45,20 @@ public class UserViewModeHandler implements ModeHandler {
         return this;
     }
 
+    @Override
     public void activate(OverlayLayout layout) {
         User user = params.getUser();
 
-        UiLabeledField idField      = field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId()));
-        UiLabeledField nameField    = field(USER_DIALOG_FIELD_NAME_LABEL,     user.getName());
-        UiLabeledField emailField   = field(USER_DIALOG_FIELD_EMAIL_LABEL,    user.getEmail());
-        UiLabeledField roleField    = field(USER_DIALOG_FIELD_ROLE_LABEL,     user.getRole().name());
-        UiLabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
-        UiLabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
+        UiLabeledField idField      = field(USER_DIALOG_FIELD_ID_LABEL,     String.valueOf(user.getId()));
+        UiLabeledField nameField    = field(USER_DIALOG_FIELD_NAME_LABEL,    user.getName());
+        UiLabeledField emailField   = field(USER_DIALOG_FIELD_EMAIL_LABEL,   user.getEmail());
+        UiLabeledField roleField    = field(USER_DIALOG_FIELD_ROLE_LABEL,    user.getRole().name());
+        UiLabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL, TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
+        UiLabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL, TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
 
-        UiPrimaryButton editButton = editButtonProvider.getObject().configure(
+        UiPrimaryButton editButton = editButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
-        UiIconButton closeButton = closeButtonProvider.getObject().configure(
+        UiIconButton closeButton = closeButtonBuilder.build(
                 UiIconButton.Parameters.builder()
                         .labelKey(MAIN_TAB_USERS)
                         .icon(VaadinIcon.CLOSE.create())
@@ -70,8 +72,8 @@ public class UserViewModeHandler implements ModeHandler {
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
-    private UiLabeledField field(org.ost.advertisement.constants.I18nKey labelKey, String value) {
-        return labeledFieldProvider.getObject().configure(
+    private UiLabeledField field(I18nKey labelKey, String value) {
+        return labeledFieldBuilder.build(
                 UiLabeledField.Parameters.builder()
                         .labelKey(labelKey)
                         .value(value)

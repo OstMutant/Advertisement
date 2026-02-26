@@ -27,13 +27,13 @@ public final class ConfirmDeleteDialog extends BaseDialog
         implements Configurable<ConfirmDeleteDialog, ConfirmDeleteDialog.Parameters> {
 
     @Getter
-    private final transient I18nService i18n;
+    private final transient I18nService         i18n;
     @Getter
-    private final transient DialogLayout layout;
+    private final transient DialogLayout        layout;
     @Getter
     private final transient NotificationService notificationService;
-    private final ObjectProvider<UiPrimaryButton>  confirmButtonProvider;
-    private final ObjectProvider<UiTertiaryButton> cancelButtonProvider;
+    private final UiPrimaryButton.Builder       confirmButtonBuilder;
+    private final UiTertiaryButton.Builder      cancelButtonBuilder;
 
     @Value
     @lombok.Builder
@@ -59,7 +59,7 @@ public final class ConfirmDeleteDialog extends BaseDialog
         body.addClassName("dialog-confirm-text");
         layout.addFormContent(body);
 
-        UiPrimaryButton confirmButton = confirmButtonProvider.getObject().configure(
+        UiPrimaryButton confirmButton = confirmButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
@@ -70,7 +70,7 @@ public final class ConfirmDeleteDialog extends BaseDialog
             }
         });
 
-        UiTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+        UiTertiaryButton cancelButton = cancelButtonBuilder.build(
                 UiTertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
         cancelButton.addClickListener(_ -> close());
 

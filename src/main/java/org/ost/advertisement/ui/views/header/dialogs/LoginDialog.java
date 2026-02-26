@@ -17,7 +17,6 @@ import org.ost.advertisement.ui.views.components.fields.UiEmailField;
 import org.ost.advertisement.ui.views.components.fields.UiPasswordField;
 import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -36,26 +35,26 @@ public class LoginDialog extends BaseDialog {
     private final transient SessionService      sessionService;
 
     @Getter
-    private final DialogLayout                  layout;
-    private final transient ObjectProvider<UiEmailField>    emailFieldProvider;
-    private final transient ObjectProvider<UiPasswordField> passwordFieldProvider;
-    private final transient ObjectProvider<UiPrimaryButton>  loginButtonProvider;
-    private final transient ObjectProvider<UiTertiaryButton> cancelButtonProvider;
+    private final DialogLayout             layout;
+    private final UiEmailField.Builder     emailFieldBuilder;
+    private final UiPasswordField.Builder  passwordFieldBuilder;
+    private final UiPrimaryButton.Builder  loginButtonBuilder;
+    private final UiTertiaryButton.Builder cancelButtonBuilder;
 
-    private UiEmailField uiEmailField;
-    private UiPasswordField uiPasswordField;
+    private UiEmailField    emailField;
+    private UiPasswordField passwordField;
 
     @Override
     @PostConstruct
     protected void init() {
         super.init();
-        uiEmailField = emailFieldProvider.getObject().configure(
+        emailField = emailFieldBuilder.build(
                 UiEmailField.Parameters.builder()
                         .labelKey(LOGIN_EMAIL_LABEL)
                         .placeholderKey(LOGIN_EMAIL_LABEL)
                         .required(true)
                         .build());
-        uiPasswordField = passwordFieldProvider.getObject().configure(
+        passwordField = passwordFieldBuilder.build(
                 UiPasswordField.Parameters.builder()
                         .labelKey(LOGIN_PASSWORD_LABEL)
                         .placeholderKey(LOGIN_PASSWORD_LABEL)
@@ -73,15 +72,15 @@ public class LoginDialog extends BaseDialog {
     private void addContent() {
         Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
         welcome.addClassName("dialog-subtitle");
-        layout.addFormContent(welcome, uiEmailField, uiPasswordField);
+        layout.addFormContent(welcome, emailField, passwordField);
     }
 
     private void addActions() {
-        UiPrimaryButton loginButton = loginButtonProvider.getObject().configure(
+        UiPrimaryButton loginButton = loginButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
-        UiTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+        UiTertiaryButton cancelButton = cancelButtonBuilder.build(
                 UiTertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
@@ -89,7 +88,7 @@ public class LoginDialog extends BaseDialog {
     }
 
     private void handleLogin() {
-        boolean success = authService.login(uiEmailField.getValue(), uiPasswordField.getValue());
+        boolean success = authService.login(emailField.getValue(), passwordField.getValue());
         if (success) {
             close();
             notificationService.success(LOGIN_SUCCESS);

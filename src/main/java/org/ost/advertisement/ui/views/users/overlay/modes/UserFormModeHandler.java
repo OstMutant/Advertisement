@@ -35,10 +35,10 @@ public class UserFormModeHandler implements ModeHandler {
     private final UserMapper                            mapper;
     private final I18nService                           i18n;
     private final FormDialogBinder.Builder<UserEditDto> binderBuilder;
-    private final UiTextField nameField;
-    private final UiComboBox<Role> roleUiComboBox;
-    private final ObjectProvider<UiPrimaryButton>         saveButtonProvider;
-    private final ObjectProvider<UiTertiaryButton>        cancelButtonProvider;
+    private final UiTextField                           nameField;
+    private final UiComboBox<Role>                      roleComboBox;
+    private final UiPrimaryButton.Builder               saveButtonBuilder;
+    private final UiTertiaryButton.Builder              cancelButtonBuilder;
 
     private Parameters params;
     private FormDialogBinder<UserEditDto> binder;
@@ -56,6 +56,7 @@ public class UserFormModeHandler implements ModeHandler {
         return this;
     }
 
+    @Override
     public void activate(OverlayLayout layout) {
         nameField.configure(UiTextField.Parameters.builder()
                 .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
@@ -64,7 +65,7 @@ public class UserFormModeHandler implements ModeHandler {
                 .required(true)
                 .build());
 
-        roleUiComboBox.configure(UiComboBox.Parameters.<Role>builder()
+        roleComboBox.configure(UiComboBox.Parameters.<Role>builder()
                 .labelKey(USER_DIALOG_FIELD_ROLE_LABEL)
                 .items(Arrays.asList(Role.values()))
                 .required(true)
@@ -73,15 +74,15 @@ public class UserFormModeHandler implements ModeHandler {
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
 
-        UiPrimaryButton saveButton = saveButtonProvider.getObject().configure(
+        UiPrimaryButton saveButton = saveButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_DIALOG_BUTTON_SAVE).build());
-        UiTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+        UiTertiaryButton cancelButton = cancelButtonBuilder.build(
                 UiTertiaryButton.Parameters.builder().labelKey(USER_DIALOG_BUTTON_CANCEL).build());
 
         saveButton.addClickListener(_  -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
-        layout.setContent(new Div(nameField, roleUiComboBox));
+        layout.setContent(new Div(nameField, roleComboBox));
         layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 
@@ -101,7 +102,7 @@ public class UserFormModeHandler implements ModeHandler {
                 .withValidator(new StringLengthValidator(
                         i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
                 .bind(UserEditDto::getName, UserEditDto::setName);
-        binder.getBinder().forField(roleUiComboBox)
+        binder.getBinder().forField(roleComboBox)
                 .asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
                 .bind(UserEditDto::getRole, UserEditDto::setRole);
     }
