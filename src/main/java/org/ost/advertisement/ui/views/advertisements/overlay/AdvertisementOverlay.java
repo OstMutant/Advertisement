@@ -8,7 +8,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementFormModeHandler;
-import org.ost.advertisement.ui.views.advertisements.overlay.modes.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;

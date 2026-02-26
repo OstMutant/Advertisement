@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
+import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.users.overlay.modes.UserFormModeHandler;
@@ -21,13 +22,13 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SuppressWarnings("java:S110")
 public class UserOverlay extends BaseOverlay {
 
-    private enum Mode { VIEW, EDIT }
+    private enum Mode {VIEW, EDIT}
 
     private record OverlaySession(
-            Mode              mode,
-            @NonNull User     user,
+            Mode mode,
+            @NonNull User user,
             @NonNull Runnable onSaved,
-            boolean           enteredFromView
+            boolean enteredFromView
     ) {
         OverlaySession toEdit() {
             return new OverlaySession(Mode.EDIT, user, onSaved, true);
@@ -38,16 +39,16 @@ public class UserOverlay extends BaseOverlay {
         }
     }
 
-    private final NotificationService           notification;
-    private final UserViewModeHandler.Builder   viewModeHandlerBuilder;
-    private final UserFormModeHandler.Builder   formModeHandlerBuilder;
-    private final ObjectProvider<OverlayLayout> layoutProvider;
+    private final transient NotificationService notification;
+    private final transient UserViewModeHandler.Builder viewModeHandlerBuilder;
+    private final transient UserFormModeHandler.Builder formModeHandlerBuilder;
+    private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
-    private OverlaySession      session;
-    private OverlayLayout       layout;
-    private UserFormModeHandler currentFormHandler;
+    private transient OverlaySession session;
+    private OverlayLayout layout;
+    private transient UserFormModeHandler currentFormHandler;
 
     public void openForView(User user, Runnable onChanged) {
         ensureInitialized();
@@ -84,14 +85,13 @@ public class UserOverlay extends BaseOverlay {
     }
 
     private void switchTo() {
-        switch (session.mode()) {
+        ModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
-                            UserViewModeHandler.Parameters.builder()
-                                    .user(session.user())
-                                    .onEdit(this::switchToEdit)
-                                    .onClose(this::closeToList)
-                                    .build())
-                    .activate(layout);
+                    UserViewModeHandler.Parameters.builder()
+                            .user(session.user())
+                            .onEdit(this::switchToEdit)
+                            .onClose(this::closeToList)
+                            .build());
             case EDIT -> {
                 currentFormHandler = formModeHandlerBuilder.build(
                         UserFormModeHandler.Parameters.builder()
@@ -99,9 +99,12 @@ public class UserOverlay extends BaseOverlay {
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
                                 .build());
-                currentFormHandler.activate(layout);
+                yield currentFormHandler;
             }
-        }
+        };
+
+        handler.activate(layout);
+
         layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT
                 ? session.user().getName() : "");
         layout.getBreadcrumbCurrent().setVisible(session.mode() == Mode.EDIT);

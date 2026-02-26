@@ -9,6 +9,7 @@ import lombok.Value;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayIconButton;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayLabeledField;
@@ -21,12 +22,12 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserViewModeHandler {
+public class UserViewModeHandler implements ModeHandler {
 
-    private final AccessEvaluator                      access;
-    private final ObjectProvider<OverlayLabeledField>  labeledFieldProvider;
-    private final OverlayPrimaryButton                 editButton;
-    private final OverlayIconButton                    closeButton;
+    private final AccessEvaluator                     access;
+    private final ObjectProvider<OverlayLabeledField> labeledFieldProvider;
+    private final OverlayPrimaryButton                editButton;
+    private final OverlayIconButton                   closeButton;
 
     private Parameters params;
 
@@ -43,6 +44,7 @@ public class UserViewModeHandler {
         return this;
     }
 
+    @Override
     public void activate(OverlayLayout layout) {
         User user = params.getUser();
 

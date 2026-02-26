@@ -13,6 +13,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayComboBox;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayPrimaryButton;
@@ -28,7 +29,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserFormModeHandler {
+public class UserFormModeHandler implements ModeHandler {
 
     private final UserService                           userService;
     private final UserMapper                            mapper;
@@ -55,6 +56,7 @@ public class UserFormModeHandler {
         return this;
     }
 
+    @Override
     public void activate(OverlayLayout layout) {
         nameField.configure(OverlayTextField.Parameters.builder()
                 .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
