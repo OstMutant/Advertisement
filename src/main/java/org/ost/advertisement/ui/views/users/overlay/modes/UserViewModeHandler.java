@@ -23,10 +23,10 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserViewModeHandler {
 
-    private final AccessEvaluator                          access;
-    private final ObjectProvider<OverlayLabeledField>      labeledFieldProvider;
-    private final ObjectProvider<OverlayPrimaryButton>     editButtonProvider;
-    private final ObjectProvider<OverlayIconButton>        closeButtonProvider;
+    private final AccessEvaluator                      access;
+    private final ObjectProvider<OverlayLabeledField>  labeledFieldProvider;
+    private final OverlayPrimaryButton                 editButton;
+    private final OverlayIconButton                    closeButton;
 
     private Parameters params;
 
@@ -53,15 +53,13 @@ public class UserViewModeHandler {
         OverlayLabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
         OverlayLabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
 
-        OverlayPrimaryButton editButton = editButtonProvider.getObject().configure(
-                OverlayPrimaryButton.Parameters.builder()
-                        .labelKey(USER_VIEW_BUTTON_EDIT)
-                        .build());
-        OverlayIconButton closeButton = closeButtonProvider.getObject().configure(
-                OverlayIconButton.Parameters.builder()
-                        .labelKey(MAIN_TAB_USERS)
-                        .icon(VaadinIcon.CLOSE.create())
-                        .build());
+        editButton.configure(OverlayPrimaryButton.Parameters.builder()
+                .labelKey(USER_VIEW_BUTTON_EDIT)
+                .build());
+        closeButton.configure(OverlayIconButton.Parameters.builder()
+                .labelKey(MAIN_TAB_USERS)
+                .icon(VaadinIcon.CLOSE.create())
+                .build());
 
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
