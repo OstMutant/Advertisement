@@ -7,9 +7,9 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.views.advertisements.overlay.modes.FormModeHandler;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementFormModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.ModeHandler;
-import org.ost.advertisement.ui.views.advertisements.overlay.modes.ViewModeHandler;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
@@ -42,15 +42,15 @@ public class AdvertisementOverlay extends BaseOverlay {
 
     private final transient I18nService i18n;
     private final transient NotificationService notification;
-    private final transient ViewModeHandler.Builder viewModeHandlerBuilder;
-    private final transient FormModeHandler.Builder formModeHandlerBuilder;
+    private final transient AdvertisementViewModeHandler.Builder viewModeHandlerBuilder;
+    private final transient AdvertisementFormModeHandler.Builder formModeHandlerBuilder;
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
     private transient OverlaySession session;
     private OverlayLayout layout;
-    private transient FormModeHandler currentFormHandler;
+    private transient AdvertisementFormModeHandler currentFormHandler;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
@@ -94,14 +94,14 @@ public class AdvertisementOverlay extends BaseOverlay {
     private void switchTo() {
         ModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
-                    ViewModeHandler.Parameters.builder()
+                    AdvertisementViewModeHandler.Parameters.builder()
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
                             .build());
             case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerBuilder.build(
-                        FormModeHandler.Parameters.builder()
+                        AdvertisementFormModeHandler.Parameters.builder()
                                 .ad(session.ad())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)

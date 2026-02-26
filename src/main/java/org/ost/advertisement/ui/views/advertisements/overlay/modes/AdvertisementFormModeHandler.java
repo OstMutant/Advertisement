@@ -26,7 +26,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class FormModeHandler implements ModeHandler {
+public class AdvertisementFormModeHandler implements ModeHandler {
 
     private final AdvertisementService advertisementService;
     private final AdvertisementMapper mapper;
@@ -49,7 +49,7 @@ public class FormModeHandler implements ModeHandler {
         @NonNull Runnable onCancel;
     }
 
-    private FormModeHandler configure(Parameters p) {
+    private AdvertisementFormModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -122,9 +122,9 @@ public class FormModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<FormModeHandler> provider;
+        private final ObjectProvider<AdvertisementFormModeHandler> provider;
 
-        public FormModeHandler build(Parameters p) {
+        public AdvertisementFormModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }

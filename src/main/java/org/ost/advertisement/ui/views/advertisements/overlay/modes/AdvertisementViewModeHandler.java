@@ -22,7 +22,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ViewModeHandler implements ModeHandler {
+public class AdvertisementViewModeHandler implements ModeHandler {
 
     private final AccessEvaluator access;
     private final OverlayAdvertisementMetaPanel metaPanel;
@@ -39,7 +39,7 @@ public class ViewModeHandler implements ModeHandler {
         @NonNull Runnable             onClose;
     }
 
-    private ViewModeHandler configure(Parameters p) {
+    private AdvertisementViewModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -71,9 +71,9 @@ public class ViewModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<ViewModeHandler> provider;
+        private final ObjectProvider<AdvertisementViewModeHandler> provider;
 
-        public ViewModeHandler build(Parameters p) {
+        public AdvertisementViewModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }
