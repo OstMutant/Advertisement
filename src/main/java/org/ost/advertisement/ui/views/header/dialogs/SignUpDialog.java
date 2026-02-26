@@ -37,11 +37,11 @@ public class SignUpDialog extends BaseDialog {
 
     @Getter
     private final DialogLayout              layout;
-    private final UiTextField.Builder       nameFieldBuilder;
-    private final UiEmailField.Builder      emailFieldBuilder;
-    private final UiPasswordField.Builder   passwordFieldBuilder;
-    private final UiPrimaryButton.Builder   registerButtonBuilder;
-    private final UiTertiaryButton.Builder  cancelButtonBuilder;
+    private final transient UiTextField.Builder       nameFieldBuilder;
+    private final transient UiEmailField.Builder      emailFieldBuilder;
+    private final transient UiPasswordField.Builder   passwordFieldBuilder;
+    private final transient UiPrimaryButton.Builder   registerButtonBuilder;
+    private final transient UiTertiaryButton.Builder  cancelButtonBuilder;
 
     private UiTextField     nameField;
     private UiEmailField    emailField;

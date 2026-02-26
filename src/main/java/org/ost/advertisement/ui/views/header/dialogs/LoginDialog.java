@@ -36,10 +36,10 @@ public class LoginDialog extends BaseDialog {
 
     @Getter
     private final DialogLayout             layout;
-    private final UiEmailField.Builder     emailFieldBuilder;
-    private final UiPasswordField.Builder  passwordFieldBuilder;
-    private final UiPrimaryButton.Builder  loginButtonBuilder;
-    private final UiTertiaryButton.Builder cancelButtonBuilder;
+    private final transient UiEmailField.Builder     emailFieldBuilder;
+    private final transient UiPasswordField.Builder  passwordFieldBuilder;
+    private final transient UiPrimaryButton.Builder  loginButtonBuilder;
+    private final transient UiTertiaryButton.Builder cancelButtonBuilder;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
