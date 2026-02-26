@@ -13,13 +13,14 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.fields.ComboBox;
+import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.TextField;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayComboBox;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayPrimaryButton;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTertiaryButton;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextField;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
@@ -35,10 +36,12 @@ public class UserFormModeHandler implements ModeHandler {
     private final UserMapper                            mapper;
     private final I18nService                           i18n;
     private final FormDialogBinder.Builder<UserEditDto> binderBuilder;
-    private final OverlayTextField                      nameField;
-    private final OverlayComboBox<Role>                 roleComboBox;
-    private final OverlayPrimaryButton                  saveButton;
-    private final OverlayTertiaryButton                 cancelButton;
+    @Qualifier("textField")
+    private final TextField                             nameField;
+    @Qualifier("comboBox")
+    private final ComboBox<Role>                        roleComboBox;
+    private final ObjectProvider<PrimaryButton>         saveButtonProvider;
+    private final ObjectProvider<TertiaryButton>        cancelButtonProvider;
 
     private Parameters params;
     private FormDialogBinder<UserEditDto> binder;
@@ -56,16 +59,15 @@ public class UserFormModeHandler implements ModeHandler {
         return this;
     }
 
-    @Override
     public void activate(OverlayLayout layout) {
-        nameField.configure(OverlayTextField.Parameters.builder()
+        nameField.configure(TextField.Parameters.builder()
                 .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
                 .placeholderKey(USER_DIALOG_FIELD_NAME_PLACEHOLDER)
                 .maxLength(255)
                 .required(true)
                 .build());
 
-        roleComboBox.configure(OverlayComboBox.Parameters.<Role>builder()
+        roleComboBox.configure(ComboBox.Parameters.<Role>builder()
                 .labelKey(USER_DIALOG_FIELD_ROLE_LABEL)
                 .items(Arrays.asList(Role.values()))
                 .required(true)
@@ -74,12 +76,10 @@ public class UserFormModeHandler implements ModeHandler {
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
 
-        saveButton.configure(OverlayPrimaryButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_SAVE)
-                .build());
-        cancelButton.configure(OverlayTertiaryButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_CANCEL)
-                .build());
+        PrimaryButton saveButton = saveButtonProvider.getObject().configure(
+                PrimaryButton.Parameters.builder().labelKey(USER_DIALOG_BUTTON_SAVE).build());
+        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                TertiaryButton.Parameters.builder().labelKey(USER_DIALOG_BUTTON_CANCEL).build());
 
         saveButton.addClickListener(_  -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());

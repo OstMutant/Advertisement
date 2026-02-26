@@ -14,8 +14,8 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.utils.builder.Configurable;
 import org.ost.advertisement.ui.utils.builder.ComponentBuilder;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -32,6 +32,8 @@ public final class ConfirmDeleteDialog extends BaseDialog
     private final transient DialogLayout layout;
     @Getter
     private final transient NotificationService notificationService;
+    private final ObjectProvider<PrimaryButton>  confirmButtonProvider;
+    private final ObjectProvider<TertiaryButton> cancelButtonProvider;
 
     @Value
     @lombok.Builder
@@ -57,8 +59,8 @@ public final class ConfirmDeleteDialog extends BaseDialog
         body.addClassName("dialog-confirm-text");
         layout.addFormContent(body);
 
-        DialogPrimaryButton confirmButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(p.getConfirmKey()).build());
+        PrimaryButton confirmButton = confirmButtonProvider.getObject().configure(
+                PrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
             try {
@@ -68,8 +70,8 @@ public final class ConfirmDeleteDialog extends BaseDialog
             }
         });
 
-        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(p.getCancelKey()).build());
+        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                TertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(confirmButton, cancelButton);

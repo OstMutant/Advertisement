@@ -13,10 +13,11 @@ import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
 import org.ost.advertisement.ui.views.header.dialogs.fields.LoginEmailField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.LoginPasswordField;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -27,17 +28,19 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class LoginDialog extends BaseDialog {
 
-    private final transient AuthService authService;
+    private final transient AuthService    authService;
     @Getter
-    private final transient I18nService i18n;
+    private final transient I18nService    i18n;
     @Getter
     private final transient NotificationService notificationService;
     private final transient SessionService sessionService;
 
-    private final LoginEmailField emailField;
-    private final LoginPasswordField passwordField;
+    private final LoginEmailField              emailField;
+    private final LoginPasswordField           passwordField;
     @Getter
-    private final DialogLayout layout;
+    private final DialogLayout                 layout;
+    private final ObjectProvider<PrimaryButton>  loginButtonProvider;
+    private final ObjectProvider<TertiaryButton> cancelButtonProvider;
 
     @Override
     @PostConstruct
@@ -59,12 +62,12 @@ public class LoginDialog extends BaseDialog {
     }
 
     private void addActions() {
-        DialogPrimaryButton loginButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(LOGIN_BUTTON_SUBMIT).build());
+        PrimaryButton loginButton = loginButtonProvider.getObject().configure(
+                PrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
-        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(LOGIN_BUTTON_CANCEL).build());
+        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                TertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(loginButton, cancelButton);

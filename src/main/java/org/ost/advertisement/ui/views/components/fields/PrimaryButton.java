@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.overlay.fields;
+package org.ost.advertisement.ui.views.components.fields;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class OverlayTertiaryButton extends Button implements Configurable<OverlayTertiaryButton, OverlayTertiaryButton.Parameters>, I18nParams {
+public class PrimaryButton extends Button implements Configurable<PrimaryButton, PrimaryButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -26,9 +26,10 @@ public class OverlayTertiaryButton extends Button implements Configurable<Overla
     }
 
     @Override
-    public OverlayTertiaryButton configure(Parameters p) {
+    public PrimaryButton configure(Parameters p) {
         setText(getValue(p.getLabelKey()));
-        addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        addClassName("primary-button");
         return this;
     }
 }

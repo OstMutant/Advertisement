@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.overlay.fields;
+package org.ost.advertisement.ui.views.components.fields;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -14,7 +14,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class OverlayLabeledField extends HorizontalLayout implements Configurable<OverlayLabeledField, OverlayLabeledField.Parameters>, I18nParams {
+public class LabeledField extends HorizontalLayout implements Configurable<LabeledField, LabeledField.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -29,16 +29,16 @@ public class OverlayLabeledField extends HorizontalLayout implements Configurabl
     private Span valueSpan;
 
     @Override
-    public OverlayLabeledField configure(Parameters p) {
+    public LabeledField configure(Parameters p) {
         Span labelSpan = new Span(getValue(p.getLabelKey()) + ":");
-        labelSpan.addClassName("overlay-labeled-field__label");
+        labelSpan.addClassName("labeled-field__label");
 
         valueSpan = new Span(p.getValue() != null ? p.getValue() : "");
-        valueSpan.addClassName("overlay-labeled-field__value");
+        valueSpan.addClassName("labeled-field__value");
 
         add(labelSpan, valueSpan);
         setAlignItems(Alignment.BASELINE);
-        addClassName("overlay-labeled-field");
+        addClassName("labeled-field");
         return this;
     }
 

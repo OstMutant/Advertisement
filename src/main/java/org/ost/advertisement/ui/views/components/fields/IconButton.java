@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.overlay.fields;
+package org.ost.advertisement.ui.views.components.fields;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Scope;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class OverlayIconButton extends Button implements Configurable<OverlayIconButton, OverlayIconButton.Parameters>, I18nParams {
+public class IconButton extends Button implements Configurable<IconButton, IconButton.Parameters>, I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
@@ -28,10 +28,11 @@ public class OverlayIconButton extends Button implements Configurable<OverlayIco
     }
 
     @Override
-    public OverlayIconButton configure(Parameters p) {
+    public IconButton configure(Parameters p) {
         setIcon(p.getIcon());
         getElement().setAttribute("title", getValue(p.getLabelKey()));
         addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        addClassName("icon-button");
         return this;
     }
 }

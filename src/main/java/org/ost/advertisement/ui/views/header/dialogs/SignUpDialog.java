@@ -13,11 +13,12 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogPrimaryButton;
-import org.ost.advertisement.ui.views.components.dialogs.fields.DialogTertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpEmailField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpNameField;
 import org.ost.advertisement.ui.views.header.dialogs.fields.SignUpPasswordField;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.Constants.EMAIL_PATTERN;
@@ -35,15 +36,17 @@ public class SignUpDialog extends BaseDialog {
     @Getter
     private final transient NotificationService notificationService;
 
-    private final SignUpNameField nameField;
-    private final SignUpEmailField emailField;
+    private final SignUpNameField     nameField;
+    private final SignUpEmailField    emailField;
     private final SignUpPasswordField passwordField;
 
     @Getter
     private final DialogLayout layout;
+    private final ObjectProvider<PrimaryButton>  registerButtonProvider;
+    private final ObjectProvider<TertiaryButton> cancelButtonProvider;
 
-    private final Binder<SignUpDto> binder = new Binder<>(SignUpDto.class);
-    private final transient SignUpDto dto = new SignUpDto();
+    private final Binder<SignUpDto>    binder = new Binder<>(SignUpDto.class);
+    private final transient SignUpDto  dto    = new SignUpDto();
 
     @Override
     @PostConstruct
@@ -65,10 +68,10 @@ public class SignUpDialog extends BaseDialog {
     }
 
     private void addActions() {
-        DialogPrimaryButton registerButton = new DialogPrimaryButton(DialogPrimaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(SIGNUP_BUTTON_SUBMIT).build());
-        DialogTertiaryButton cancelButton = new DialogTertiaryButton(DialogTertiaryButton.Parameters.builder()
-                .i18nService(i18n).labelKey(SIGNUP_BUTTON_CANCEL).build());
+        PrimaryButton registerButton = registerButtonProvider.getObject().configure(
+                PrimaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_SUBMIT).build());
+        TertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
+                TertiaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_CANCEL).build());
 
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());

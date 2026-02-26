@@ -13,13 +13,14 @@ import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.fields.PrimaryButton;
+import org.ost.advertisement.ui.views.components.fields.TertiaryButton;
+import org.ost.advertisement.ui.views.components.fields.TextArea;
+import org.ost.advertisement.ui.views.components.fields.TextField;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayPrimaryButton;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTertiaryButton;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextArea;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayTextField;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -29,15 +30,17 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementFormModeHandler implements ModeHandler {
 
-    private final AdvertisementService advertisementService;
-    private final AdvertisementMapper mapper;
-    private final I18nService i18n;
-    private final FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
-    private final OverlayAdvertisementMetaPanel metaPanel;
-    private final OverlayTextField titleField;
-    private final OverlayTextArea descriptionField;
-    private final OverlayPrimaryButton saveButton;
-    private final OverlayTertiaryButton cancelButton;
+    private final AdvertisementService                              advertisementService;
+    private final AdvertisementMapper                               mapper;
+    private final I18nService                                       i18n;
+    private final FormDialogBinder.Builder<AdvertisementEditDto>    binderBuilder;
+    private final OverlayAdvertisementMetaPanel                     metaPanel;
+    @Qualifier("textField")
+    private final TextField                                         titleField;
+    @Qualifier("textArea")
+    private final TextArea                                          descriptionField;
+    private final PrimaryButton                                     saveButton;
+    private final TertiaryButton                                    cancelButton;
 
     private Parameters params;
     private FormDialogBinder<AdvertisementEditDto> binder;
@@ -46,8 +49,8 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     @lombok.Builder
     public static class Parameters {
         AdvertisementInfoDto ad;
-        @NonNull Runnable onSave;
-        @NonNull Runnable onCancel;
+        @NonNull Runnable    onSave;
+        @NonNull Runnable    onCancel;
     }
 
     private AdvertisementFormModeHandler configure(Parameters p) {
@@ -59,14 +62,14 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     public void activate(OverlayLayout layout) {
         boolean isCreate = params.getAd() == null;
 
-        titleField.configure(OverlayTextField.Parameters.builder()
+        titleField.configure(TextField.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
                 .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
                 .maxLength(255)
                 .required(true)
                 .build());
 
-        descriptionField.configure(OverlayTextArea.Parameters.builder()
+        descriptionField.configure(TextArea.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
                 .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
                 .maxLength(1000)
@@ -77,20 +80,21 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(params.getAd());
-        buildBinder(dto, titleField, descriptionField);
+        buildBinder(dto);
 
         Div content = isCreate
                 ? new Div(titleField, descriptionField)
-                : new Div(titleField, descriptionField, metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+                : new Div(titleField, descriptionField,
+                          metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
 
-        saveButton.configure(OverlayPrimaryButton.Parameters.builder()
+        saveButton.configure(PrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
                 .build());
-        cancelButton.configure(OverlayTertiaryButton.Parameters.builder()
+        cancelButton.configure(TertiaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
 
-        saveButton.addClickListener(_ -> params.getOnSave().run());
+        saveButton.addClickListener(_  -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         layout.setContent(content);
@@ -101,9 +105,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
     }
 
-    private void buildBinder(AdvertisementEditDto dto,
-                             OverlayTextField titleField,
-                             OverlayTextArea descriptionField) {
+    private void buildBinder(AdvertisementEditDto dto) {
         binder = binderBuilder.build(
                 FormDialogBinder.Config.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)

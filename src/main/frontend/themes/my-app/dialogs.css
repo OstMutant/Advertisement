@@ -1,3 +1,4 @@
+}===== src\main\frontend\themes\my-app\dialogs.css ===== 
 /* ─── dialogs.css ──────────────────────────────────────────────────────────
    Scrolling is isolated strictly to the description body area.
    ───────────────────────────────────────────────────────────────────────── */
@@ -67,14 +68,14 @@ vaadin-dialog-overlay[theme~="advertisement-upsert"]::part(overlay) {
     height: 85vh;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
     min-height: 0;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area::part(input-field) {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area::part(input-field) {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
@@ -82,13 +83,13 @@ vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area::part(inp
     overflow: hidden;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area [slot="textarea"] {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area [slot="textarea"] {
     overflow-y: auto !important;
     height: 100%;
     resize: none;
 }
 
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .dialog-text-area textarea {
+vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area textarea {
     overflow-y: auto !important;
     resize: none;
 }
@@ -147,4 +148,42 @@ vaadin-dialog-overlay[theme~="advertisement-description"] .scroll-container {
 .field-invalid {
     background-color: rgba(255, 0, 0, 0.05);
     border-radius: var(--lumo-border-radius-m);
+}===== src\main\frontend\themes\my-app\header-bar.css ===== 
+.header-bar {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  box-sizing: border-box;
 }
+
+.header-auth-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+.header-locale-row {
+  justify-content: flex-end;
+}
+
+.header-auth-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.header-login-button,
+.header-signup-button,
+.header-logout-button {
+  font-size: 0.9rem;
+}
+===== src\main\frontend\themes\my-app\highlight.css ===== 
+/* ------------------------------------- highlight */
+
+.highlight-clean,
+.highlight-dirty,
