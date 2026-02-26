@@ -25,9 +25,9 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class ViewModeHandler implements ModeHandler {
 
     private final AccessEvaluator access;
-    private final OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
-    private final ObjectProvider<OverlayPrimaryButton> editButtonProvider;
-    private final ObjectProvider<OverlayIconButton> closeButtonProvider;
+    private final OverlayAdvertisementMetaPanel metaPanel;
+    private final OverlayPrimaryButton editButton;
+    private final OverlayIconButton closeButton;
 
     private Parameters params;
 
@@ -52,20 +52,19 @@ public class ViewModeHandler implements ModeHandler {
         Span description = new Span(params.getAd().getDescription());
         description.addClassName("overlay__view-description");
 
-        OverlayPrimaryButton editButton = editButtonProvider.getObject().configure(
-                OverlayPrimaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
-                        .build());
-        OverlayIconButton closeButton = closeButtonProvider.getObject().configure(
-                OverlayIconButton.Parameters.builder()
-                        .labelKey(MAIN_TAB_ADVERTISEMENTS)
-                        .icon(VaadinIcon.CLOSE.create())
-                        .build());
+        editButton.configure(OverlayPrimaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
+                .build());
+        closeButton.configure(OverlayIconButton.Parameters.builder()
+                .labelKey(MAIN_TAB_ADVERTISEMENTS)
+                .icon(VaadinIcon.CLOSE.create())
+                .build());
+
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd()));
 
-        layout.setContent(new Div(title, description, metaPanelBuilder.build(params.getAd())));
+        layout.setContent(new Div(title, description, metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))));
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 

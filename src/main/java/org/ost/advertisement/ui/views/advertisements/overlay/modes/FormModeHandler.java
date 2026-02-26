@@ -32,11 +32,11 @@ public class FormModeHandler implements ModeHandler {
     private final AdvertisementMapper mapper;
     private final I18nService i18n;
     private final FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
-    private final OverlayAdvertisementMetaPanel.Builder metaPanelBuilder;
+    private final OverlayAdvertisementMetaPanel metaPanel;
     private final OverlayTextField titleField;
     private final OverlayTextArea descriptionField;
-    private final ObjectProvider<OverlayPrimaryButton> saveButtonProvider;
-    private final ObjectProvider<OverlayTertiaryButton> cancelButtonProvider;
+    private final OverlayPrimaryButton saveButton;
+    private final OverlayTertiaryButton cancelButton;
 
     private Parameters params;
     private FormDialogBinder<AdvertisementEditDto> binder;
@@ -80,16 +80,15 @@ public class FormModeHandler implements ModeHandler {
 
         Div content = isCreate
                 ? new Div(titleField, descriptionField)
-                : new Div(titleField, descriptionField, metaPanelBuilder.build(params.getAd()));
+                : new Div(titleField, descriptionField, metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
 
-        OverlayPrimaryButton saveButton = saveButtonProvider.getObject().configure(
-                OverlayPrimaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
-                        .build());
-        OverlayTertiaryButton cancelButton = cancelButtonProvider.getObject().configure(
-                OverlayTertiaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
-                        .build());
+        saveButton.configure(OverlayPrimaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
+                .build());
+        cancelButton.configure(OverlayTertiaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
+                .build());
+
         saveButton.addClickListener(_ -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 

@@ -9,7 +9,7 @@ import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.advertisement.ui.utils.builder.Configurable;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -19,7 +19,8 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
+public class OverlayAdvertisementMetaPanel extends HorizontalLayout
+        implements Configurable<OverlayAdvertisementMetaPanel, OverlayAdvertisementMetaPanel.Parameters> {
 
     private final transient I18nService i18n;
 
@@ -29,9 +30,18 @@ public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
         @NonNull String  authorName;
         @NonNull Instant createdAt;
         Instant          updatedAt;
+
+        public static Parameters from(AdvertisementInfoDto ad) {
+            return Parameters.builder()
+                    .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
+                    .createdAt(ad.getCreatedAt())
+                    .updatedAt(ad.getUpdatedAt())
+                    .build();
+        }
     }
 
-    private OverlayAdvertisementMetaPanel configure(Parameters p) {
+    @Override
+    public OverlayAdvertisementMetaPanel configure(Parameters p) {
         addClassName("overlay__meta-container");
         addClassName("advertisement-meta");
 
@@ -57,21 +67,5 @@ public class OverlayAdvertisementMetaPanel extends HorizontalLayout {
         Span sep = new Span(" · ");
         sep.addClassName("advertisement-meta-separator");
         return sep;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<OverlayAdvertisementMetaPanel> provider;
-
-        public OverlayAdvertisementMetaPanel build(AdvertisementInfoDto ad) {
-            return provider.getObject().configure(
-                    Parameters.builder()
-                            .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
-                            .createdAt(ad.getCreatedAt())
-                            .updatedAt(ad.getUpdatedAt())
-                            .build()
-            );
-        }
     }
 }
