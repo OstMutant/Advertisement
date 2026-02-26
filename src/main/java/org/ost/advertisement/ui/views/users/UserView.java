@@ -34,16 +34,16 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService               userService;
-    private final transient I18nService               i18n;
-    private final transient NotificationService       notificationService;
-    private final UserQueryStatusBar                  queryStatusBar;
-    private final transient EditActionButton.Builder  editButtonBuilder;
+    private final transient UserService                userService;
+    private final transient I18nService                i18n;
+    private final transient NotificationService        notificationService;
+    private final UserQueryStatusBar                   queryStatusBar;
+    private final transient EditActionButton.Builder   editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
-    private final UserOverlay                         overlay;
+    private final UserOverlay                          overlay;
     private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
 
-    private Grid<User>         grid;
+    private Grid<User>          grid;
     private PaginationBarModern paginationBar;
 
     @PostConstruct
@@ -59,7 +59,7 @@ public class UserView extends VerticalLayout {
         paginationBar = new PaginationBarModern(i18n);
         paginationBar.addClassName("user-pagination");
 
-        add(grid, paginationBar, overlay); // ← додати overlay
+        add(grid, paginationBar, overlay);
 
         initPagination();
         initQueryBar();
@@ -123,20 +123,22 @@ public class UserView extends VerticalLayout {
 
     private void confirmAndDelete(User user) {
         confirmDeleteDialogBuilder.build(
-                USER_VIEW_CONFIRM_DELETE_TITLE,
-                i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()),
-                USER_VIEW_CONFIRM_DELETE_BUTTON,
-                USER_VIEW_CONFIRM_CANCEL_BUTTON,
-                () -> {
-                    try {
-                        userService.delete(user);
-                        notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
-                        refreshGrid();
-                    } catch (Exception e) {
-                        log.error("Error deleting user id={}", user.getId(), e);
-                        notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
-                    }
-                }
+                ConfirmDeleteDialog.Parameters.builder()
+                        .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
+                        .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()))
+                        .confirmKey(USER_VIEW_CONFIRM_DELETE_BUTTON)
+                        .cancelKey(USER_VIEW_CONFIRM_CANCEL_BUTTON)
+                        .onConfirm(() -> {
+                            try {
+                                userService.delete(user);
+                                notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
+                                refreshGrid();
+                            } catch (Exception e) {
+                                log.error("Error deleting user id={}", user.getId(), e);
+                                notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
+                            }
+                        })
+                        .build()
         ).open();
     }
 

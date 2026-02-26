@@ -111,9 +111,7 @@ public class AdvertisementCardView extends VerticalLayout {
         return edit;
     }
 
-    private Button createDeleteButton(AdvertisementInfoDto ad,
-                                      Runnable onChanged,
-                                      boolean visible) {
+    private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Config.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
@@ -129,26 +127,27 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
         confirmDeleteDialogBuilder.build(
-                ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE,
-                i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
-                ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON,
-                ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON,
-                () -> {
-                    try {
-                        advertisementService.delete(ad);
-                        notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
-                        onChanged.run();
-                    } catch (Exception ex) {
-                        notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
-                    }
-                }
+                ConfirmDeleteDialog.Parameters.builder()
+                        .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
+                        .message(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
+                        .confirmKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON)
+                        .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
+                        .onConfirm(() -> {
+                            try {
+                                advertisementService.delete(ad);
+                                notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
+                                onChanged.run();
+                            } catch (Exception ex) {
+                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+                            }
+                        })
+                        .build()
         ).open();
     }
 
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-
         private final ObjectProvider<AdvertisementCardView> cardProvider;
 
         public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable onChanged) {
