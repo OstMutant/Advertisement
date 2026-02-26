@@ -2,11 +2,10 @@ package org.ost.advertisement.ui.views.advertisements.card;
 
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.AccessLevel;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import lombok.*;
 import org.ost.advertisement.ui.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.utils.builder.ComponentBuilder;
+import org.ost.advertisement.ui.utils.builder.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -15,18 +14,23 @@ import java.time.Instant;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class AdvertisementCardMetaPanel extends Span {
+public class AdvertisementCardMetaPanel extends Span
+        implements Configurable<AdvertisementCardMetaPanel, AdvertisementCardMetaPanel.Parameters> {
 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull String authorName;
+        @NonNull
+        String authorName;
         String authorEmail;
-        @NonNull String dateLabel;
-        @NonNull Instant date;
+        @NonNull
+        String dateLabel;
+        @NonNull
+        Instant date;
     }
 
-    private AdvertisementCardMetaPanel configure(Parameters p) {
+    @Override
+    public AdvertisementCardMetaPanel configure(Parameters p) {
         Span authorSpan = new Span(p.getAuthorName());
         authorSpan.addClassName("advertisement-meta-author");
         if (p.getAuthorEmail() != null) {
@@ -46,11 +50,8 @@ public class AdvertisementCardMetaPanel extends Span {
 
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder {
+    public static class Builder extends ComponentBuilder<AdvertisementCardMetaPanel, Parameters> {
+        @Getter
         private final ObjectProvider<AdvertisementCardMetaPanel> provider;
-
-        public AdvertisementCardMetaPanel build(Parameters p) {
-            return provider.getObject().configure(p);
-        }
     }
 }
