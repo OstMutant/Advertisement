@@ -70,14 +70,14 @@ public class UserGridConfigurator {
 
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = editButtonBuilder.build(
-                            EditActionButton.Config.builder()
+                            EditActionButton.Parameters.builder()
                                     .tooltip(i18n.get(USER_VIEW_BUTTON_EDIT))
                                     .onClick(() -> onEdit.accept(user))
                                     .build()
                     );
 
                     Button delete = deleteButtonBuilder.build(
-                            DeleteActionButton.Config.builder()
+                            DeleteActionButton.Parameters.builder()
                                     .tooltip(i18n.get(USER_VIEW_BUTTON_DELETE))
                                     .onClick(() -> onDelete.accept(user))
                                     .build()

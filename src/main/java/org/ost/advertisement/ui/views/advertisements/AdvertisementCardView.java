@@ -99,7 +99,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button edit = editButtonBuilder.build(
-                EditActionButton.Config.builder()
+                EditActionButton.Parameters.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
                         .onClick(() -> overlay.openForEdit(ad, onChanged))
                         .small(true)
@@ -113,7 +113,7 @@ public class AdvertisementCardView extends VerticalLayout {
 
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button delete = deleteButtonBuilder.build(
-                DeleteActionButton.Config.builder()
+                DeleteActionButton.Parameters.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
                         .onClick(() -> openConfirmDeleteDialog(ad, onChanged))
                         .small(true)
