@@ -1,9 +1,4 @@
-}===== src\main\frontend\themes\my-app\dialogs.css ===== 
-/* ─── dialogs.css ──────────────────────────────────────────────────────────
-   Scrolling is isolated strictly to the description body area.
-   ───────────────────────────────────────────────────────────────────────── */
-
-/* Global overlay defaults */
+/* General settings for Vaadin dialog overlays */
 vaadin-dialog-overlay::part(overlay) {
     max-width: 95vw;
     display: flex;
@@ -23,8 +18,7 @@ vaadin-dialog-overlay::part(footer) {
     padding: var(--lumo-space-s) var(--lumo-space-m);
 }
 
-/* ── Layout structure ───────────────────────────────────────────────────── */
-
+/* Root layout inside the dialog */
 .dialog-root {
     display: flex;
     flex-direction: column;
@@ -34,6 +28,7 @@ vaadin-dialog-overlay::part(footer) {
     min-height: 0;
 }
 
+/* Scrollable area for long forms */
 .scroll-container {
     flex: 1 1 auto;
     display: flex;
@@ -42,148 +37,3 @@ vaadin-dialog-overlay::part(footer) {
     overflow: hidden;
     min-height: 0;
 }
-
-.dialog-form {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: var(--lumo-space-m);
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-.dialog-bottom {
-    flex-shrink: 0;
-}
-
-.dialog-meta {
-    flex-shrink: 0;
-    padding: 0 var(--lumo-space-m) var(--lumo-space-s);
-}
-
-/* ── Advertisement upsert (create + edit) ──────────────────────────────── */
-
-vaadin-dialog-overlay[theme~="advertisement-upsert"]::part(overlay) {
-    width: 500px;
-    height: 85vh;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area::part(input-field) {
-    flex: 1 1 auto;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    overflow: hidden;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area [slot="textarea"] {
-    overflow-y: auto !important;
-    height: 100%;
-    resize: none;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-upsert"] .text-area textarea {
-    overflow-y: auto !important;
-    resize: none;
-}
-
-/* ── Advertisement description (read-only view) ─────────────────────────── */
-
-vaadin-dialog-overlay[theme~="advertisement-description"]::part(overlay) {
-    width: 90vw;
-    max-width: 90vw;
-    height: 90vh;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-description"] .dialog-root {
-    padding: 0 !important;
-    margin: 0 !important;
-    align-items: stretch !important;
-}
-
-vaadin-dialog-overlay[theme~="advertisement-description"] .scroll-container {
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 100% !important;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.advertisement-description-body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-    padding: var(--lumo-space-m);
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-    line-height: 1.6;
-}
-
-.advertisement-description-meta {
-    padding: var(--lumo-space-s) var(--lumo-space-m);
-    border-top: 1px solid var(--lumo-contrast-5pct);
-}
-
-.advertisement-meta {
-    flex-wrap: wrap;
-}
-
-/* ── Utilities ──────────────────────────────────────────────────────────── */
-
-.field-dirty {
-    background-color: rgba(255, 165, 0, 0.05);
-    border-radius: var(--lumo-border-radius-m);
-}
-
-.field-invalid {
-    background-color: rgba(255, 0, 0, 0.05);
-    border-radius: var(--lumo-border-radius-m);
-}===== src\main\frontend\themes\my-app\header-bar.css ===== 
-.header-bar {
-  width: 100%;
-  padding: 0.5rem 1rem;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  box-sizing: border-box;
-}
-
-.header-auth-block {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0;
-  margin: 0;
-}
-
-.header-locale-row {
-  justify-content: flex-end;
-}
-
-.header-auth-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.header-login-button,
-.header-signup-button,
-.header-logout-button {
-  font-size: 0.9rem;
-}
-===== src\main\frontend\themes\my-app\highlight.css ===== 
-/* ------------------------------------- highlight */
-
-.highlight-clean,
-.highlight-dirty,
