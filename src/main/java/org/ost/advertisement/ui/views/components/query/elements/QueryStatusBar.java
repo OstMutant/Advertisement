@@ -4,6 +4,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import lombok.Getter;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.springframework.data.domain.Sort.Direction;
@@ -19,15 +20,12 @@ public class QueryStatusBar<T> extends VerticalLayout {
     private final Span toggleIcon = spanWithText("▸", "query-status-bar-toggle-icon");
 
     private final transient I18nService      i18n;
-    private final transient QueryBlockLayout queryBlockLayout;
-    private final transient QueryBlock<T>    queryBlock;
+    @Getter
+    private final transient QueryBlock<T> queryBlock;
 
-    public QueryStatusBar(I18nService i18n,
-                          QueryBlock<T> queryBlock,
-                          QueryBlockLayout queryBlockLayout) {
+    public QueryStatusBar(I18nService i18n, QueryBlock<T> queryBlock) {
         this.i18n             = i18n;
-        this.queryBlock       = queryBlock;
-        this.queryBlockLayout = queryBlockLayout;
+        this.queryBlock = queryBlock;
 
         addClassName("query-status-bar");
         setPadding(false);
@@ -54,7 +52,7 @@ public class QueryStatusBar<T> extends VerticalLayout {
     }
 
     public void toggleVisibility() {
-        boolean open = queryBlockLayout.toggleVisibility();
+        boolean open = queryBlock.toggleVisibility();
         toggleIcon.setText(open ? "▾" : "▸");
     }
 

@@ -1,6 +1,5 @@
-package org.ost.advertisement.ui.views.users.query.elements;
+package org.ost.advertisement.ui.views.users.query;
 
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -9,7 +8,6 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
-import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
@@ -19,8 +17,6 @@ import org.ost.advertisement.ui.views.components.query.elements.fields.QueryText
 import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
 import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
-import org.ost.advertisement.ui.views.users.query.UserFilterMeta;
-import org.ost.advertisement.ui.views.users.query.UserSortMeta;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -28,7 +24,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFilterDto>, QueryBlockLayout {
+public class UserQueryBlock extends QueryBlock<UserFilterDto> {
 
     @Getter
     private final transient FilterProcessor<UserFilterDto> filterProcessor;
@@ -127,9 +123,4 @@ public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFil
         filterProcessor.register(UserFilterMeta.UPDATED_AT_END,   updatedEnd,   queryActionBlock);
     }
 
-    @Override
-    public boolean toggleVisibility() {
-        setVisible(!isVisible());
-        return isVisible();
-    }
 }

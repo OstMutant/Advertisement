@@ -1,16 +1,12 @@
-package org.ost.advertisement.ui.views.advertisements.query.elements;
+package org.ost.advertisement.ui.views.advertisements.query;
 
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.ui.views.advertisements.query.AdvertisementFilterMeta;
-import org.ost.advertisement.ui.views.advertisements.query.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
-import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
@@ -25,7 +21,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
+public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> {
 
     @Getter
     private final transient FilterProcessor<AdvertisementFilterDto> filterProcessor;
@@ -90,9 +86,4 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
         filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END,   updatedEnd,   queryActionBlock);
     }
 
-    @Override
-    public boolean toggleVisibility() {
-        setVisible(!isVisible());
-        return isVisible();
-    }
 }

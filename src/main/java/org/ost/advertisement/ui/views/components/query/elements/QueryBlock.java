@@ -1,18 +1,19 @@
 package org.ost.advertisement.ui.views.components.query.elements;
 
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;
 import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
 
-public interface QueryBlock<T> {
+public abstract class QueryBlock<T> extends VerticalLayout {
 
-    FilterProcessor<T> getFilterProcessor();
+    public abstract FilterProcessor<T> getFilterProcessor();
 
-    SortProcessor getSortProcessor();
+    public abstract SortProcessor getSortProcessor();
 
-    QueryActionBlock getQueryActionBlock();
+    public abstract QueryActionBlock getQueryActionBlock();
 
-    default void addEventListener(Runnable onApply) {
+    public void addEventListener(Runnable onApply) {
         QueryActionBlock queryActionBlock = getQueryActionBlock();
         FilterProcessor<T> filterProcessor = getFilterProcessor();
         SortProcessor sortProcessor = getSortProcessor();
@@ -38,5 +39,10 @@ public interface QueryBlock<T> {
             sortProcessor.clearSorting();
             combined.run();
         });
+    }
+
+    public boolean toggleVisibility() {
+        setVisible(!isVisible());
+        return isVisible();
     }
 }

@@ -6,19 +6,23 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.mappers.filters.UserFilterMapper;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.query.elements.QueryStatusBar;
 import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
 @Configuration
 @RequiredArgsConstructor
-public class UserQueryProcessorConfig {
+public class UserQueryConfig {
 
     private final UserFilterMapper filterMapper;
     private final ValidationService<UserFilterDto> validationService;
+    private final I18nService i18nService;
 
     @Bean
     @UIScope
@@ -33,5 +37,11 @@ public class UserQueryProcessorConfig {
                 Sort.Order.desc(User.Fields.updatedAt),
                 Sort.Order.desc(User.Fields.createdAt)
         )));
+    }
+
+    @Bean
+    @Scope("prototype")
+    public QueryStatusBar<UserFilterDto> userQueryStatusBar(UserQueryBlock queryBlock) {
+        return new QueryStatusBar<>(i18nService, queryBlock);
     }
 }

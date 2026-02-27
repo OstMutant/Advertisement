@@ -15,10 +15,10 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
-import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryBlock;
-import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
+import org.ost.advertisement.ui.views.components.query.elements.QueryStatusBar;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -37,7 +37,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient AccessEvaluator             access;
     private final transient EmptyStateView.Builder      emptyStateBuilder;
 
-    private final AdvertisementQueryStatusBar queryStatusBar;
+    private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBarModern         paginationBar;
 
     private FlexLayout advertisementContainer;
@@ -82,7 +82,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private void refresh() {
-        AdvertisementQueryBlock   queryBlock = queryStatusBar.getQueryBlock();
+        QueryBlock<AdvertisementFilterDto> queryBlock = queryStatusBar.getQueryBlock();
         AdvertisementFilterDto    filter     = queryBlock.getFilterProcessor().getOriginalFilter();
         Sort                      sort       = queryBlock.getSortProcessor().getOriginalSort().getSort();
 

@@ -16,8 +16,8 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.advertisement.ui.views.components.query.elements.QueryStatusBar;
 import org.ost.advertisement.ui.views.users.overlay.UserOverlay;
-import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
 
 import java.util.Collections;
 import java.util.List;
@@ -35,7 +35,7 @@ public class UserView extends VerticalLayout {
     private final transient UserService                    userService;
     private final transient I18nService                    i18n;
     private final transient NotificationService            notificationService;
-    private final UserQueryStatusBar                       queryStatusBar;
+    private final QueryStatusBar<UserFilterDto>            queryStatusBar;
     private final transient UserGridConfigurator.Builder   gridConfiguratorBuilder;
     private final UserOverlay                              overlay;
     private final transient ConfirmActionDialog.Builder    confirmActionDialogBuilder;

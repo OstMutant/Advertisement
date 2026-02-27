@@ -6,19 +6,23 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.query.elements.QueryStatusBar;
 import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
 import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
 @Configuration
 @RequiredArgsConstructor
-public class AdvertisementQueryProcessorConfig {
+public class AdvertisementQueryConfig {
 
     private final AdvertisementFilterMapper filterMapper;
     private final ValidationService<AdvertisementFilterDto> validationService;
+    private final I18nService i18nService;
 
     @Bean
     @UIScope
@@ -33,5 +37,11 @@ public class AdvertisementQueryProcessorConfig {
                 Sort.Order.desc(AdvertisementInfoDto.Fields.updatedAt),
                 Sort.Order.desc(AdvertisementInfoDto.Fields.createdAt)
         )));
+    }
+
+    @Bean
+    @Scope("prototype")
+    public QueryStatusBar<AdvertisementFilterDto> advertisementQueryStatusBar(AdvertisementQueryBlock queryBlock) {
+        return new QueryStatusBar<>(i18nService, queryBlock);
     }
 }
