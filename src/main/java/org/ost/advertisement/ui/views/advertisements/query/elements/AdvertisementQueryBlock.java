@@ -31,10 +31,10 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
     @Getter
     private final transient AdvertisementSortProcessor   sortProcessor;
 
-    private final QueryTextField.Builder     textFieldBuilder;
-    private final QueryDateTimeField.Builder dateTimeFieldBuilder;
-    private final QueryInlineRow.Builder     rowBuilder;
-    private final SortIcon.Builder           sortIconBuilder;
+    private final transient QueryTextField.Builder     textFieldBuilder;
+    private final transient QueryDateTimeField.Builder dateTimeFieldBuilder;
+    private final transient QueryInlineRow.Builder     rowBuilder;
+    private final transient SortIcon.Builder           sortIconBuilder;
 
     @Getter
     private final QueryActionBlock queryActionBlock;

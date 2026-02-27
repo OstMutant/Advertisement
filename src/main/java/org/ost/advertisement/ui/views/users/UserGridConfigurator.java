@@ -39,9 +39,9 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         @NonNull Consumer<User> onDelete;
     }
 
-    private final transient I18nService               i18n;
-    private final transient EditActionButton.Builder  editButtonBuilder;
-    private final transient DeleteActionButton.Builder deleteButtonBuilder;
+    private final I18nService               i18n;
+    private final EditActionButton.Builder  editButtonBuilder;
+    private final DeleteActionButton.Builder deleteButtonBuilder;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {

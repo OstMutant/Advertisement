@@ -9,7 +9,7 @@ import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.utils.builder.Configurable;
 import org.ost.advertisement.ui.utils.builder.ComponentBuilder;
-import org.ost.advertisement.ui.utils.i18n.I18nParams;
+import org.ost.advertisement.ui.utils.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

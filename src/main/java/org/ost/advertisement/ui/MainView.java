@@ -61,7 +61,7 @@ public class MainView extends VerticalLayout {
             pages.add(usersView);
         }
 
-        tabs.addSelectedChangeListener(event -> {
+        tabs.addSelectedChangeListener(_ -> {
             tabsToPages.values().forEach(page -> page.setVisible(false));
             tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
         });

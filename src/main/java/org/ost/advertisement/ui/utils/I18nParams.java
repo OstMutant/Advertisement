@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.utils.i18n;
+package org.ost.advertisement.ui.utils;
 
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
