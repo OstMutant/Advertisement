@@ -15,8 +15,6 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
-import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
@@ -34,14 +32,13 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService                userService;
-    private final transient I18nService                i18n;
-    private final transient NotificationService        notificationService;
-    private final UserQueryStatusBar                   queryStatusBar;
-    private final transient EditActionButton.Builder   editButtonBuilder;
-    private final transient DeleteActionButton.Builder deleteButtonBuilder;
-    private final UserOverlay                          overlay;
-    private final transient ConfirmActionDialog.Builder confirmActionDialogBuilder;
+    private final transient UserService                    userService;
+    private final transient I18nService                    i18n;
+    private final transient NotificationService            notificationService;
+    private final UserQueryStatusBar                       queryStatusBar;
+    private final transient UserGridConfigurator.Builder   gridConfiguratorBuilder;
+    private final UserOverlay                              overlay;
+    private final transient ConfirmActionDialog.Builder    confirmActionDialogBuilder;
 
     private Grid<User>          grid;
     private PaginationBarModern paginationBar;
@@ -83,14 +80,13 @@ public class UserView extends VerticalLayout {
     }
 
     private void initGrid() {
-        UserGridConfigurator.configure(
-                grid,
-                i18n,
-                editButtonBuilder,
-                deleteButtonBuilder,
-                u -> overlay.openForView(u, this::refreshGrid),
-                u -> overlay.openForEdit(u, this::refreshGrid),
-                this::confirmAndDelete
+        gridConfiguratorBuilder.build(
+                UserGridConfigurator.Parameters.builder()
+                        .grid(grid)
+                        .onView(u -> overlay.openForView(u, this::refreshGrid))
+                        .onEdit(u -> overlay.openForEdit(u, this::refreshGrid))
+                        .onDelete(this::confirmAndDelete)
+                        .build()
         );
     }
 

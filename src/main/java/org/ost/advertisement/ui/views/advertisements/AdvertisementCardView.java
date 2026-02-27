@@ -6,13 +6,14 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
+import org.ost.advertisement.ui.utils.builder.Configurable;
+import org.ost.advertisement.ui.utils.builder.ComponentBuilder;
 import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
@@ -26,9 +27,17 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class AdvertisementCardView extends VerticalLayout {
+public class AdvertisementCardView extends VerticalLayout
+        implements Configurable<AdvertisementCardView, AdvertisementCardView.Parameters> {
 
     private static final String CLICK_EVENT = "click";
+
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        @NonNull AdvertisementInfoDto ad;
+        @NonNull Runnable             onChanged;
+    }
 
     private final transient I18nService                        i18n;
     private final transient NotificationService                notificationService;
@@ -37,10 +46,14 @@ public class AdvertisementCardView extends VerticalLayout {
     private final transient EditActionButton.Builder           editButtonBuilder;
     private final transient DeleteActionButton.Builder         deleteButtonBuilder;
     private final transient AccessEvaluator                    access;
-    private final transient ConfirmActionDialog.Builder confirmActionDialogBuilder;
+    private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
 
-    private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable onChanged) {
+    @Override
+    public AdvertisementCardView configure(Parameters p) {
+        AdvertisementInfoDto ad        = p.getAd();
+        Runnable             onChanged = p.getOnChanged();
+
         addClassName("advertisement-card");
 
         getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
@@ -147,11 +160,8 @@ public class AdvertisementCardView extends VerticalLayout {
 
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<AdvertisementCardView> cardProvider;
-
-        public AdvertisementCardView build(AdvertisementInfoDto ad, Runnable onChanged) {
-            return cardProvider.getObject().setupContent(ad, onChanged);
-        }
+    public static class Builder extends ComponentBuilder<AdvertisementCardView, Parameters> {
+        @Getter
+        private final ObjectProvider<AdvertisementCardView> provider;
     }
 }
