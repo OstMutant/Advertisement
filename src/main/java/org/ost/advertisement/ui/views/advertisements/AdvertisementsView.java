@@ -19,12 +19,10 @@ import org.ost.advertisement.ui.views.advertisements.query.elements.Advertisemen
 import org.ost.advertisement.ui.views.advertisements.query.elements.AdvertisementQueryStatusBar;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
-import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
-import static com.vaadin.flow.component.orderedlayout.FlexComponent.JustifyContentMode.START;
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
@@ -32,88 +30,84 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService advertisementService;
-    private final transient AdvertisementOverlay overlay;
+    private final transient AdvertisementService        advertisementService;
+    private final transient AdvertisementOverlay        overlay;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService i18n;
-    private final transient AccessEvaluator access;
+    private final transient I18nService                 i18n;
+    private final transient AccessEvaluator             access;
+    private final transient EmptyStateView.Builder      emptyStateBuilder;
 
     private final AdvertisementQueryStatusBar queryStatusBar;
-    private final FlexLayout advertisementContainer = new FlexLayout();
-    private final PaginationBarModern paginationBar;
-    private final transient EmptyStateView.Builder emptyStateBuilder;
-    private final Button addButton = new Button();
+    private final PaginationBarModern         paginationBar;
+
+    private FlexLayout advertisementContainer;
 
     @PostConstruct
     public void init() {
-
-        initAdvertisementContainer();
-        initQueryBar();
-        initPagination();
-        initAddButton();
+        advertisementContainer = buildAdvertisementContainer();
+        Button addButton = buildAddButton();
 
         addClassName("advertisements-view");
+        setSizeFull();
+        setFlexGrow(1, advertisementContainer);
 
         add(queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar, overlay);
 
-        setFlexGrow(1, advertisementContainer);
-        setSizeFull();
-
-        refreshAdvertisements();
-    }
-
-    private void initAddButton() {
-        addButton.setText(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
-        addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addButton.addClassName("add-advertisement-button");
-        addButton.addClickListener(_ -> overlay.openForCreate(this::refreshAdvertisements));
-        addButton.setVisible(access.isLoggedIn());
-    }
-
-    private void initAdvertisementContainer() {
-        advertisementContainer.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-        advertisementContainer.setJustifyContentMode(START);
-        advertisementContainer.setAlignItems(Alignment.STRETCH);
-        advertisementContainer.addClassName("advertisement-container");
-    }
-
-    private void initQueryBar() {
         queryStatusBar.getQueryBlock().addEventListener(() -> {
             paginationBar.setTotalCount(0);
-            refreshAdvertisements();
+            refresh();
         });
+
+        paginationBar.setPageChangeListener(_ -> refresh());
+
+        refresh();
     }
 
-    private void initPagination() {
-        paginationBar.setPageChangeListener(_ -> refreshAdvertisements());
+    private FlexLayout buildAdvertisementContainer() {
+        FlexLayout container = new FlexLayout();
+        container.setFlexWrap(FlexLayout.FlexWrap.WRAP);
+        container.setJustifyContentMode(JustifyContentMode.START);
+        container.setAlignItems(Alignment.STRETCH);
+        container.addClassName("advertisement-container");
+        return container;
     }
 
-    private void refreshAdvertisements() {
-        AdvertisementQueryBlock queryBlock = queryStatusBar.getQueryBlock();
-        FilterProcessor<AdvertisementFilterDto> filterProcessor = queryBlock.getFilterProcessor();
-        SortProcessor sortProcessor = queryBlock.getSortProcessor();
+    private Button buildAddButton() {
+        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        button.addClassName("add-advertisement-button");
+        button.addClickListener(_ -> overlay.openForCreate(this::refresh));
+        button.setVisible(access.isLoggedIn());
+        return button;
+    }
 
-        int page = paginationBar.getCurrentPage();
-        int size = paginationBar.getPageSize();
+    private void refresh() {
+        AdvertisementQueryBlock   queryBlock = queryStatusBar.getQueryBlock();
+        AdvertisementFilterDto    filter     = queryBlock.getFilterProcessor().getOriginalFilter();
+        Sort                      sort       = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
-        AdvertisementFilterDto filter = filterProcessor.getOriginalFilter();
-
-        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
-                filter, page, size, sortProcessor.getOriginalSort().getSort());
+        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
 
         paginationBar.setTotalCount(advertisementService.count(filter));
 
         advertisementContainer.removeAll();
+
         if (ads.isEmpty()) {
-            advertisementContainer.add(createEmptyState());
+            advertisementContainer.add(buildEmptyState());
         } else {
-            ads.forEach(ad -> advertisementContainer.add(cardBuilder.build(AdvertisementCardView.Parameters.builder().ad(ad).onChanged(this::refreshAdvertisements).build())));
+            ads.stream()
+                    .map(ad -> cardBuilder.build(
+                            AdvertisementCardView.Parameters.builder()
+                                    .ad(ad)
+                                    .onChanged(this::refresh)
+                                    .build()))
+                    .forEach(advertisementContainer::add);
         }
 
         queryStatusBar.update();
     }
 
-    private VerticalLayout createEmptyState() {
+    private EmptyStateView buildEmptyState() {
         return emptyStateBuilder.build(EmptyStateView.Parameters.builder()
                 .icon(VaadinIcon.CLIPBOARD_TEXT)
                 .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
