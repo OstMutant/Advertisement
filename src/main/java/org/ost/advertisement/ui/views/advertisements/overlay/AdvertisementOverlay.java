@@ -7,10 +7,10 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementFormModeHandler;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
-import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementViewModeHandler;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
@@ -43,16 +43,16 @@ public class AdvertisementOverlay extends BaseOverlay {
 
     private final transient I18nService                         i18n;
     private final transient NotificationService                 notification;
-    private final transient AdvertisementViewModeHandler.Builder viewModeHandlerBuilder;
-    private final transient AdvertisementFormModeHandler.Builder formModeHandlerBuilder;
-    private final transient ConfirmDeleteDialog.Builder          confirmDiscardBuilder;
+    private final transient AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
+    private final transient AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
+    private final transient ConfirmActionDialog.Builder          confirmDiscardBuilder;
     private final transient ObjectProvider<OverlayLayout>        layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
     private transient OverlaySession session;
     private OverlayLayout layout;
-    private transient AdvertisementFormModeHandler currentFormHandler;
+    private transient AdvertisementFormOverlayModeHandler currentFormHandler;
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
@@ -94,16 +94,16 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void switchTo() {
-        ModeHandler handler = switch (session.mode()) {
+        OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
-                    AdvertisementViewModeHandler.Parameters.builder()
+                    AdvertisementViewOverlayModeHandler.Parameters.builder()
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
                             .build());
             case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerBuilder.build(
-                        AdvertisementFormModeHandler.Parameters.builder()
+                        AdvertisementFormOverlayModeHandler.Parameters.builder()
                                 .ad(session.ad())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
@@ -141,7 +141,7 @@ public class AdvertisementOverlay extends BaseOverlay {
     private void handleCancel() {
         if (currentFormHandler != null && currentFormHandler.hasChanges()) {
             confirmDiscardBuilder.build(
-                    ConfirmDeleteDialog.Parameters.builder()
+                    ConfirmActionDialog.Parameters.builder()
                             .titleKey(OVERLAY_UNSAVED_TITLE)
                             .message(i18n.get(OVERLAY_UNSAVED_TEXT))
                             .confirmKey(OVERLAY_UNSAVED_CONFIRM)

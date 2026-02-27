@@ -17,7 +17,7 @@ import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.users.query.elements.UserQueryStatusBar;
 
@@ -41,7 +41,7 @@ public class UserView extends VerticalLayout {
     private final transient EditActionButton.Builder   editButtonBuilder;
     private final transient DeleteActionButton.Builder deleteButtonBuilder;
     private final UserOverlay                          overlay;
-    private final transient ConfirmDeleteDialog.Builder confirmDeleteDialogBuilder;
+    private final transient ConfirmActionDialog.Builder confirmActionDialogBuilder;
 
     private Grid<User>          grid;
     private PaginationBarModern paginationBar;
@@ -122,8 +122,8 @@ public class UserView extends VerticalLayout {
     }
 
     private void confirmAndDelete(User user) {
-        confirmDeleteDialogBuilder.build(
-                ConfirmDeleteDialog.Parameters.builder()
+        confirmActionDialogBuilder.build(
+                ConfirmActionDialog.Parameters.builder()
                         .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
                         .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()))
                         .confirmKey(USER_VIEW_CONFIRM_DELETE_BUTTON)

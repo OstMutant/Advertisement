@@ -12,12 +12,12 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextArea;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -27,12 +27,12 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementFormModeHandler implements ModeHandler {
+public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler {
 
     private final AdvertisementService                           advertisementService;
     private final AdvertisementMapper                            mapper;
     private final I18nService                                    i18n;
-    private final FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
+    private final OverlayFormBinder.Builder<AdvertisementEditDto> binderBuilder;
     private final OverlayAdvertisementMetaPanel                  metaPanel;
     private final UiTextField                                    titleField;
     private final UiTextArea                                     descriptionField;
@@ -40,7 +40,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     private final UiTertiaryButton                               cancelButton;
 
     private Parameters params;
-    private FormDialogBinder<AdvertisementEditDto> binder;
+    private OverlayFormBinder<AdvertisementEditDto> binder;
 
     @Value
     @lombok.Builder
@@ -50,7 +50,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         @NonNull Runnable    onCancel;
     }
 
-    private AdvertisementFormModeHandler configure(Parameters p) {
+    private AdvertisementFormOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -108,7 +108,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
 
     private void buildBinder(AdvertisementEditDto dto) {
         binder = binderBuilder.build(
-                FormDialogBinder.Config.<AdvertisementEditDto>builder()
+                OverlayFormBinder.Config.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)
                         .dto(dto)
                         .build()
@@ -127,9 +127,9 @@ public class AdvertisementFormModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<AdvertisementFormModeHandler> provider;
+        private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
 
-        public AdvertisementFormModeHandler build(Parameters p) {
+        public AdvertisementFormOverlayModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }

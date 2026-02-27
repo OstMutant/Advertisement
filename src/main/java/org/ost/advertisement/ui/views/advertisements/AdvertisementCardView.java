@@ -17,7 +17,7 @@ import org.ost.advertisement.ui.views.advertisements.card.AdvertisementCardMetaP
 import org.ost.advertisement.ui.views.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.EditActionButton;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -37,7 +37,7 @@ public class AdvertisementCardView extends VerticalLayout {
     private final transient EditActionButton.Builder           editButtonBuilder;
     private final transient DeleteActionButton.Builder         deleteButtonBuilder;
     private final transient AccessEvaluator                    access;
-    private final transient ConfirmDeleteDialog.Builder        confirmDeleteDialogBuilder;
+    private final transient ConfirmActionDialog.Builder confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
 
     private AdvertisementCardView setupContent(AdvertisementInfoDto ad, Runnable onChanged) {
@@ -126,8 +126,8 @@ public class AdvertisementCardView extends VerticalLayout {
     }
 
     private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
-        confirmDeleteDialogBuilder.build(
-                ConfirmDeleteDialog.Parameters.builder()
+        confirmActionDialogBuilder.build(
+                ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
                         .message(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
                         .confirmKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON)

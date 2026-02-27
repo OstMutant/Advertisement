@@ -12,12 +12,12 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
-import org.ost.advertisement.ui.views.components.dialogs.FormDialogBinder;
+import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.fields.UiComboBox;
 import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -29,19 +29,19 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserFormModeHandler implements ModeHandler {
+public class UserFormOverlayModeHandler implements OverlayModeHandler {
 
     private final UserService                           userService;
     private final UserMapper                            mapper;
     private final I18nService                           i18n;
-    private final FormDialogBinder.Builder<UserEditDto> binderBuilder;
+    private final OverlayFormBinder.Builder<UserEditDto> binderBuilder;
     private final UiTextField                           nameField;
     private final UiComboBox<Role>                      roleComboBox;
     private final UiPrimaryButton.Builder               saveButtonBuilder;
     private final UiTertiaryButton.Builder              cancelButtonBuilder;
 
     private Parameters params;
-    private FormDialogBinder<UserEditDto> binder;
+    private OverlayFormBinder<UserEditDto> binder;
 
     @Value
     @lombok.Builder
@@ -51,7 +51,7 @@ public class UserFormModeHandler implements ModeHandler {
         @NonNull Runnable onCancel;
     }
 
-    private UserFormModeHandler configure(Parameters p) {
+    private UserFormOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -96,7 +96,7 @@ public class UserFormModeHandler implements ModeHandler {
 
     private void buildBinder(UserEditDto dto) {
         binder = binderBuilder.build(
-                FormDialogBinder.Config.<UserEditDto>builder()
+                OverlayFormBinder.Config.<UserEditDto>builder()
                         .clazz(UserEditDto.class)
                         .dto(dto)
                         .build()
@@ -115,9 +115,9 @@ public class UserFormModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<UserFormModeHandler> provider;
+        private final ObjectProvider<UserFormOverlayModeHandler> provider;
 
-        public UserFormModeHandler build(Parameters p) {
+        public UserFormOverlayModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }

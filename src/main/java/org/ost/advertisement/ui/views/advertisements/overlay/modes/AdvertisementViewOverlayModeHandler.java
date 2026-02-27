@@ -13,7 +13,7 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.views.advertisements.overlay.fields.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.fields.UiIconButton;
 import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -23,7 +23,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementViewModeHandler implements ModeHandler {
+public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler {
 
     private final AccessEvaluator               access;
     private final OverlayAdvertisementMetaPanel metaPanel;
@@ -40,7 +40,7 @@ public class AdvertisementViewModeHandler implements ModeHandler {
         @NonNull Runnable             onClose;
     }
 
-    private AdvertisementViewModeHandler configure(Parameters p) {
+    private AdvertisementViewOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -73,9 +73,9 @@ public class AdvertisementViewModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<AdvertisementViewModeHandler> provider;
+        private final ObjectProvider<AdvertisementViewOverlayModeHandler> provider;
 
-        public AdvertisementViewModeHandler build(Parameters p) {
+        public AdvertisementViewOverlayModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }

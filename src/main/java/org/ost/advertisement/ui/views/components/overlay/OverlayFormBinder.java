@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.dialogs;
+package org.ost.advertisement.ui.views.components.overlay;
 
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Scope;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class FormDialogBinder<T extends EditDto> {
+public class OverlayFormBinder<T extends EditDto> {
 
     @Value
     @lombok.Builder
@@ -30,7 +30,7 @@ public class FormDialogBinder<T extends EditDto> {
         return config.getDto();
     }
 
-    private FormDialogBinder<T> setup(Config<T> config) {
+    private OverlayFormBinder<T> setup(Config<T> config) {
         this.config = config;
         this.binder = new Binder<>(config.getClazz());
         return this;
@@ -63,9 +63,9 @@ public class FormDialogBinder<T extends EditDto> {
     @Scope("prototype")
     @RequiredArgsConstructor
     public static class Builder<T extends EditDto> {
-        private final ObjectProvider<FormDialogBinder<T>> provider;
+        private final ObjectProvider<OverlayFormBinder<T>> provider;
 
-        public FormDialogBinder<T> build(FormDialogBinder.Config<T> config) {
+        public OverlayFormBinder<T> build(OverlayFormBinder.Config<T> config) {
             return provider.getObject().setup(config);
         }
     }

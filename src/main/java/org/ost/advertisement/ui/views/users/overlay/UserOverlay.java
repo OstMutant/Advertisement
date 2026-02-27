@@ -7,13 +7,13 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
-import org.ost.advertisement.ui.views.users.overlay.modes.UserFormModeHandler;
-import org.ost.advertisement.ui.views.users.overlay.modes.UserViewModeHandler;
+import org.ost.advertisement.ui.views.users.overlay.modes.UserFormOverlayModeHandler;
+import org.ost.advertisement.ui.views.users.overlay.modes.UserViewOverlayModeHandler;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.ost.advertisement.constants.I18nKey.*;
@@ -43,16 +43,16 @@ public class UserOverlay extends BaseOverlay {
 
     private final transient I18nService                  i18n;
     private final transient NotificationService          notification;
-    private final transient UserViewModeHandler.Builder  viewModeHandlerBuilder;
-    private final transient UserFormModeHandler.Builder  formModeHandlerBuilder;
-    private final transient ConfirmDeleteDialog.Builder  confirmDiscardBuilder;
+    private final transient UserViewOverlayModeHandler.Builder  viewModeHandlerBuilder;
+    private final transient UserFormOverlayModeHandler.Builder  formModeHandlerBuilder;
+    private final transient ConfirmActionDialog.Builder  confirmDiscardBuilder;
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
     private transient OverlaySession session;
     private OverlayLayout layout;
-    private transient UserFormModeHandler currentFormHandler;
+    private transient UserFormOverlayModeHandler currentFormHandler;
 
     public void openForView(User user, Runnable onChanged) {
         ensureInitialized();
@@ -89,16 +89,16 @@ public class UserOverlay extends BaseOverlay {
     }
 
     private void switchTo() {
-        ModeHandler handler = switch (session.mode()) {
+        OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
-                    UserViewModeHandler.Parameters.builder()
+                    UserViewOverlayModeHandler.Parameters.builder()
                             .user(session.user())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
                             .build());
             case EDIT -> {
                 currentFormHandler = formModeHandlerBuilder.build(
-                        UserFormModeHandler.Parameters.builder()
+                        UserFormOverlayModeHandler.Parameters.builder()
                                 .user(session.user())
                                 .onSave(this::handleSave)
                                 .onCancel(this::handleCancel)
@@ -132,7 +132,7 @@ public class UserOverlay extends BaseOverlay {
     private void handleCancel() {
         if (currentFormHandler != null && currentFormHandler.hasChanges()) {
             confirmDiscardBuilder.build(
-                    ConfirmDeleteDialog.Parameters.builder()
+                    ConfirmActionDialog.Parameters.builder()
                             .titleKey(OVERLAY_UNSAVED_TITLE)
                             .message(i18n.get(OVERLAY_UNSAVED_TEXT))
                             .confirmKey(OVERLAY_UNSAVED_CONFIRM)

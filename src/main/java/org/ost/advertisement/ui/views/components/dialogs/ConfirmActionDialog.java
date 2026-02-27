@@ -23,8 +23,8 @@ import org.springframework.context.annotation.Scope;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public final class ConfirmDeleteDialog extends BaseDialog
-        implements Configurable<ConfirmDeleteDialog, ConfirmDeleteDialog.Parameters> {
+public final class ConfirmActionDialog extends BaseDialog
+        implements Configurable<ConfirmActionDialog, ConfirmActionDialog.Parameters> {
 
     @Getter
     private final transient I18nService         i18n;
@@ -32,8 +32,8 @@ public final class ConfirmDeleteDialog extends BaseDialog
     private final transient DialogLayout        layout;
     @Getter
     private final transient NotificationService notificationService;
-    private final UiPrimaryButton.Builder       confirmButtonBuilder;
-    private final UiTertiaryButton.Builder      cancelButtonBuilder;
+    private final transient UiPrimaryButton.Builder       confirmButtonBuilder;
+    private final transient UiTertiaryButton.Builder      cancelButtonBuilder;
 
     @Value
     @lombok.Builder
@@ -52,7 +52,7 @@ public final class ConfirmDeleteDialog extends BaseDialog
     }
 
     @Override
-    public ConfirmDeleteDialog configure(Parameters p) {
+    public ConfirmActionDialog configure(Parameters p) {
         setHeaderTitle(i18n.get(p.getTitleKey()));
 
         Paragraph body = new Paragraph(p.getMessage());
@@ -80,8 +80,8 @@ public final class ConfirmDeleteDialog extends BaseDialog
 
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<ConfirmDeleteDialog, Parameters> {
+    public static class Builder extends ComponentBuilder<ConfirmActionDialog, Parameters> {
         @Getter
-        private final ObjectProvider<ConfirmDeleteDialog> provider;
+        private final ObjectProvider<ConfirmActionDialog> provider;
     }
 }

@@ -13,7 +13,7 @@ import org.ost.advertisement.ui.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.components.fields.UiIconButton;
 import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
 import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
-import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -23,7 +23,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserViewModeHandler implements ModeHandler {
+public class UserViewOverlayModeHandler implements OverlayModeHandler {
 
     private final AccessEvaluator          access;
     private final UiLabeledField.Builder   labeledFieldBuilder;
@@ -40,7 +40,7 @@ public class UserViewModeHandler implements ModeHandler {
         @NonNull Runnable onClose;
     }
 
-    private UserViewModeHandler configure(Parameters p) {
+    private UserViewOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -83,9 +83,9 @@ public class UserViewModeHandler implements ModeHandler {
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder {
-        private final ObjectProvider<UserViewModeHandler> provider;
+        private final ObjectProvider<UserViewOverlayModeHandler> provider;
 
-        public UserViewModeHandler build(Parameters p) {
+        public UserViewOverlayModeHandler build(Parameters p) {
             return provider.getObject().configure(p);
         }
     }
