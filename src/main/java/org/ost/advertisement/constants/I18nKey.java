@@ -193,7 +193,13 @@ public enum I18nKey {
     SORT_ICON_NEUTRAL("sort.icon.neutral"),
 
     LOCALE_ENGLISH("locale.english"),
-    LOCALE_UKRAINIAN("locale.ukrainian");
+    LOCALE_UKRAINIAN("locale.ukrainian"),
+
+    // === Overlay Dirty Guard ===
+    OVERLAY_UNSAVED_TITLE("overlay.unsaved.title"),
+    OVERLAY_UNSAVED_TEXT("overlay.unsaved.text"),
+    OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
+    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel");
 
     private final String key;
 
@@ -205,4 +211,3 @@ public enum I18nKey {
         return key;
     }
 }
-

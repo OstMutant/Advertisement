@@ -90,6 +90,10 @@ public class UserFormModeHandler implements ModeHandler {
         return binder.save(dto -> userService.save(mapper.toUser(dto)));
     }
 
+    public boolean hasChanges() {
+        return binder != null && binder.hasChanges();
+    }
+
     private void buildBinder(UserEditDto dto) {
         binder = binderBuilder.build(
                 FormDialogBinder.Config.<UserEditDto>builder()
@@ -105,6 +109,7 @@ public class UserFormModeHandler implements ModeHandler {
         binder.getBinder().forField(roleComboBox)
                 .asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
                 .bind(UserEditDto::getRole, UserEditDto::setRole);
+        binder.readInitialValues();
     }
 
     @SpringComponent

@@ -8,6 +8,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.services.NotificationService;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementFormModeHandler;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmDeleteDialog;
 import org.ost.advertisement.ui.views.components.overlay.ModeHandler;
 import org.ost.advertisement.ui.views.advertisements.overlay.modes.AdvertisementViewModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
@@ -40,11 +41,12 @@ public class AdvertisementOverlay extends BaseOverlay {
         }
     }
 
-    private final transient I18nService i18n;
-    private final transient NotificationService notification;
+    private final transient I18nService                         i18n;
+    private final transient NotificationService                 notification;
     private final transient AdvertisementViewModeHandler.Builder viewModeHandlerBuilder;
     private final transient AdvertisementFormModeHandler.Builder formModeHandlerBuilder;
-    private final transient ObjectProvider<OverlayLayout> layoutProvider;
+    private final transient ConfirmDeleteDialog.Builder          confirmDiscardBuilder;
+    private final transient ObjectProvider<OverlayLayout>        layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
@@ -137,6 +139,22 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void handleCancel() {
+        if (currentFormHandler != null && currentFormHandler.hasChanges()) {
+            confirmDiscardBuilder.build(
+                    ConfirmDeleteDialog.Parameters.builder()
+                            .titleKey(OVERLAY_UNSAVED_TITLE)
+                            .message(i18n.get(OVERLAY_UNSAVED_TEXT))
+                            .confirmKey(OVERLAY_UNSAVED_CONFIRM)
+                            .cancelKey(OVERLAY_UNSAVED_CANCEL)
+                            .onConfirm(this::doCancel)
+                            .build()
+            ).open();
+        } else {
+            doCancel();
+        }
+    }
+
+    private void doCancel() {
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
             switchTo();

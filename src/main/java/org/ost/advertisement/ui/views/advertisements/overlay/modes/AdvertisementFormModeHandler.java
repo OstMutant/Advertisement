@@ -29,15 +29,15 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementFormModeHandler implements ModeHandler {
 
-    private final AdvertisementService                              advertisementService;
-    private final AdvertisementMapper                               mapper;
-    private final I18nService                                       i18n;
-    private final FormDialogBinder.Builder<AdvertisementEditDto>    binderBuilder;
-    private final OverlayAdvertisementMetaPanel                     metaPanel;
-    private final UiTextField titleField;
-    private final UiTextArea descriptionField;
-    private final UiPrimaryButton saveButton;
-    private final UiTertiaryButton cancelButton;
+    private final AdvertisementService                           advertisementService;
+    private final AdvertisementMapper                            mapper;
+    private final I18nService                                    i18n;
+    private final FormDialogBinder.Builder<AdvertisementEditDto> binderBuilder;
+    private final OverlayAdvertisementMetaPanel                  metaPanel;
+    private final UiTextField                                    titleField;
+    private final UiTextArea                                     descriptionField;
+    private final UiPrimaryButton                                saveButton;
+    private final UiTertiaryButton                               cancelButton;
 
     private Parameters params;
     private FormDialogBinder<AdvertisementEditDto> binder;
@@ -82,7 +82,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         Div content = isCreate
                 ? new Div(titleField, descriptionField)
                 : new Div(titleField, descriptionField,
-                          metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+                metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
 
         saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
@@ -102,6 +102,10 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
     }
 
+    public boolean hasChanges() {
+        return binder != null && binder.hasChanges();
+    }
+
     private void buildBinder(AdvertisementEditDto dto) {
         binder = binderBuilder.build(
                 FormDialogBinder.Config.<AdvertisementEditDto>builder()
@@ -117,6 +121,7 @@ public class AdvertisementFormModeHandler implements ModeHandler {
         binder.getBinder().forField(descriptionField)
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
+        binder.readInitialValues();
     }
 
     @SpringComponent

@@ -2,7 +2,6 @@ package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.ui.dto.EditDto;
@@ -18,10 +17,8 @@ public class FormDialogBinder<T extends EditDto> {
     @Value
     @lombok.Builder
     public static class Config<T> {
-        @NonNull
-        Class<T> clazz;
-        @NonNull
-        T dto;
+        @NonNull Class<T> clazz;
+        @NonNull T        dto;
     }
 
     private Config<T> config;
@@ -36,8 +33,15 @@ public class FormDialogBinder<T extends EditDto> {
     private FormDialogBinder<T> setup(Config<T> config) {
         this.config = config;
         this.binder = new Binder<>(config.getClazz());
-        this.binder.setBean(config.getDto());
         return this;
+    }
+
+    public void readInitialValues() {
+        binder.readBean(config.getDto());
+    }
+
+    public boolean hasChanges() {
+        return binder.hasChanges();
     }
 
     public boolean save(Saver<T> saver) {
@@ -65,5 +69,4 @@ public class FormDialogBinder<T extends EditDto> {
             return provider.getObject().setup(config);
         }
     }
-
 }
