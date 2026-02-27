@@ -17,29 +17,33 @@ import org.ost.advertisement.ui.views.components.query.elements.fields.QueryMult
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryNumberField;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryTextField;
 import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
-import org.ost.advertisement.ui.views.users.query.filter.meta.UserFilterMeta;
-import org.ost.advertisement.ui.views.users.query.filter.processor.UserFilterProcessor;
-import org.ost.advertisement.ui.views.users.query.sort.meta.UserSortMeta;
-import org.ost.advertisement.ui.views.users.query.sort.processor.UserSortProcessor;
+import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
+import org.ost.advertisement.ui.views.users.query.UserFilterMeta;
+import org.ost.advertisement.ui.views.users.query.UserSortMeta;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-@Getter
 public class UserQueryBlock extends VerticalLayout implements QueryBlock<UserFilterDto>, QueryBlockLayout {
 
-    private final transient UserFilterProcessor filterProcessor;
-    private final transient UserSortProcessor   sortProcessor;
+    @Getter
+    private final transient FilterProcessor<UserFilterDto> filterProcessor;
+    @Getter
+    @Qualifier("userSortProcessor")
+    private final transient SortProcessor                  sortProcessor;
 
-    private final QueryTextField.Builder                   textFieldBuilder;
-    private final QueryNumberField.Builder                 numberFieldBuilder;
-    private final QueryDateTimeField.Builder               dateTimeFieldBuilder;
-    private final QueryMultiSelectComboField.Builder<Role> multiComboBuilder;
-    private final QueryInlineRow.Builder                   rowBuilder;
-    private final SortIcon.Builder                         sortIconBuilder;
+    private final transient QueryTextField.Builder                   textFieldBuilder;
+    private final transient QueryNumberField.Builder                 numberFieldBuilder;
+    private final transient QueryDateTimeField.Builder               dateTimeFieldBuilder;
+    private final transient QueryMultiSelectComboField.Builder<Role> multiComboBuilder;
+    private final transient QueryInlineRow.Builder                   rowBuilder;
+    private final transient SortIcon.Builder                         sortIconBuilder;
 
+    @Getter
     private final QueryActionBlock queryActionBlock;
 
     @PostConstruct

@@ -7,10 +7,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.ui.views.advertisements.query.filter.meta.AdvertisementFilterMeta;
-import org.ost.advertisement.ui.views.advertisements.query.filter.processor.AdvertisementFilterProcessor;
-import org.ost.advertisement.ui.views.advertisements.query.sort.meta.AdvertisementSortMeta;
-import org.ost.advertisement.ui.views.advertisements.query.sort.processor.AdvertisementSortProcessor;
+import org.ost.advertisement.ui.views.advertisements.query.AdvertisementFilterMeta;
+import org.ost.advertisement.ui.views.advertisements.query.AdvertisementSortMeta;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.QueryBlockLayout;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
@@ -18,6 +16,9 @@ import org.ost.advertisement.ui.views.components.query.elements.action.QueryActi
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryTextField;
 import org.ost.advertisement.ui.views.components.query.elements.rows.QueryInlineRow;
+import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -27,9 +28,10 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class AdvertisementQueryBlock extends VerticalLayout implements QueryBlock<AdvertisementFilterDto>, QueryBlockLayout {
 
     @Getter
-    private final transient AdvertisementFilterProcessor filterProcessor;
+    private final transient FilterProcessor<AdvertisementFilterDto> filterProcessor;
     @Getter
-    private final transient AdvertisementSortProcessor   sortProcessor;
+    @Qualifier("advertisementSortProcessor")
+    private final transient SortProcessor                           sortProcessor;
 
     private final transient QueryTextField.Builder     textFieldBuilder;
     private final transient QueryDateTimeField.Builder dateTimeFieldBuilder;
@@ -94,4 +96,3 @@ public class AdvertisementQueryBlock extends VerticalLayout implements QueryBloc
         return isVisible();
     }
 }
-

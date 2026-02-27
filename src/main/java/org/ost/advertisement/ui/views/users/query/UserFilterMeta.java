@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.users.query.filter.meta;
+package org.ost.advertisement.ui.views.users.query;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

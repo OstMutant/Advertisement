@@ -1,0 +1,37 @@
+package org.ost.advertisement.ui.views.advertisements.query;
+
+import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
+import org.ost.advertisement.dto.sort.CustomSort;
+import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
+import org.ost.advertisement.services.ValidationService;
+import org.ost.advertisement.ui.views.components.query.filter.processor.FilterProcessor;
+import org.ost.advertisement.ui.views.components.query.sort.processor.SortProcessor;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.Sort;
+
+@Configuration
+@RequiredArgsConstructor
+public class AdvertisementQueryProcessorConfig {
+
+    private final AdvertisementFilterMapper filterMapper;
+    private final ValidationService<AdvertisementFilterDto> validationService;
+
+    @Bean
+    @UIScope
+    public FilterProcessor<AdvertisementFilterDto> advertisementFilterProcessor() {
+        return new FilterProcessor<>(filterMapper, validationService, AdvertisementFilterDto.empty());
+    }
+
+    @Bean("advertisementSortProcessor")
+    @UIScope
+    public SortProcessor advertisementSortProcessor() {
+        return new SortProcessor(new CustomSort(Sort.by(
+                Sort.Order.desc(AdvertisementInfoDto.Fields.updatedAt),
+                Sort.Order.desc(AdvertisementInfoDto.Fields.createdAt)
+        )));
+    }
+}
