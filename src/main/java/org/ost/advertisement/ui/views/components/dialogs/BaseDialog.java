@@ -3,7 +3,7 @@ package org.ost.advertisement.ui.views.components.dialogs;
 import com.vaadin.flow.component.dialog.Dialog;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.services.NotificationService;
+import org.ost.advertisement.ui.views.services.NotificationService;
 
 public abstract class BaseDialog extends Dialog {
 

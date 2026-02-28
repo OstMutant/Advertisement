@@ -10,17 +10,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.services.NotificationService;
+import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.fields.UiEmailField;
 import org.ost.advertisement.ui.views.components.fields.UiPasswordField;
-import org.ost.advertisement.ui.views.components.fields.UiPrimaryButton;
-import org.ost.advertisement.ui.views.components.fields.UiTertiaryButton;
+import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
+import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.Constants.EMAIL_PATTERN;
+import static org.ost.advertisement.constants.Constants.EMAIL_PATTERN;
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @Slf4j

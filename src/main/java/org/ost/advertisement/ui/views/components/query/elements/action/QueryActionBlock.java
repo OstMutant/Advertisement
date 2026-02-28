@@ -13,7 +13,7 @@ import java.util.Objects;
 
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
 import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
-import static org.ost.advertisement.ui.utils.HighlighterUtil.setDirtyOrClean;
+import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDirtyOrClean;
 
 @SpringComponent
 @Scope("prototype")
