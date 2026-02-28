@@ -5,6 +5,7 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
@@ -12,20 +13,22 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class EmptyStateView extends VerticalLayout implements Configurable<EmptyStateView, EmptyStateView.Parameters> {
+public class EmptyStateView extends VerticalLayout
+        implements Configurable<EmptyStateView, EmptyStateView.Parameters>, Initialization<EmptyStateView> {
 
     @Value
     @lombok.Builder
     public static class Parameters {
         @NonNull VaadinIcon icon;
-        @NonNull String title;
-        @NonNull String hint;
+        @NonNull String     title;
+        @NonNull String     hint;
     }
 
     @SpringComponent
@@ -33,6 +36,14 @@ public class EmptyStateView extends VerticalLayout implements Configurable<Empty
     public static class Builder extends ComponentBuilder<EmptyStateView, Parameters> {
         @Getter
         private final ObjectProvider<EmptyStateView> provider;
+    }
+
+    @Override
+    @PostConstruct
+    public EmptyStateView init() {
+        addClassName("empty-state");
+        setAlignItems(Alignment.CENTER);
+        return this;
     }
 
     @Override
@@ -46,8 +57,6 @@ public class EmptyStateView extends VerticalLayout implements Configurable<Empty
         Span hint = new Span(p.getHint());
         hint.addClassName("empty-state-hint");
 
-        addClassName("empty-state");
-        setAlignItems(Alignment.CENTER);
         add(icon, title, hint);
         return this;
     }
