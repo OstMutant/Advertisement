@@ -17,9 +17,6 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiTextArea extends TextArea implements Configurable<UiTextArea, UiTextArea.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -28,6 +25,16 @@ public class UiTextArea extends TextArea implements Configurable<UiTextArea, UiT
         int              maxLength;
         boolean          required;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiTextArea, Parameters> {
+        @Getter
+        private final ObjectProvider<UiTextArea> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiTextArea configure(Parameters p) {
@@ -40,10 +47,4 @@ public class UiTextArea extends TextArea implements Configurable<UiTextArea, UiT
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiTextArea, Parameters> {
-        @Getter
-        private final ObjectProvider<UiTextArea> provider;
-    }
 }

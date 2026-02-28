@@ -25,6 +25,21 @@ import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDefaultBor
 @SuppressWarnings("java:S110")
 public class QueryDateTimeField extends CustomField<LocalDateTime> implements Configurable<QueryDateTimeField, QueryDateTimeField.Parameters>, I18nParams {
 
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        @NonNull I18nKey datePlaceholderKey;
+        @NonNull I18nKey timePlaceholderKey;
+        boolean          isEnd;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<QueryDateTimeField, Parameters> {
+        @Getter
+        private final ObjectProvider<QueryDateTimeField> provider;
+    }
+
     @Getter
     private final transient I18nService i18nService;
 
@@ -35,14 +50,6 @@ public class QueryDateTimeField extends CustomField<LocalDateTime> implements Co
 
     public QueryDateTimeField(I18nService i18nService) {
         this.i18nService = i18nService;
-    }
-
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull I18nKey datePlaceholderKey;
-        @NonNull I18nKey timePlaceholderKey;
-        boolean          isEnd;
     }
 
     @Override
@@ -98,12 +105,5 @@ public class QueryDateTimeField extends CustomField<LocalDateTime> implements Co
             datePicker.setValue(ldt.toLocalDate());
             timePicker.setValue(ldt.toLocalTime());
         }
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryDateTimeField, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryDateTimeField> provider;
     }
 }

@@ -17,9 +17,6 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiPasswordField extends PasswordField implements Configurable<UiPasswordField, UiPasswordField.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -27,6 +24,16 @@ public class UiPasswordField extends PasswordField implements Configurable<UiPas
         @NonNull I18nKey placeholderKey;
         boolean          required;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiPasswordField, Parameters> {
+        @Getter
+        private final ObjectProvider<UiPasswordField> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiPasswordField configure(Parameters p) {
@@ -38,10 +45,4 @@ public class UiPasswordField extends PasswordField implements Configurable<UiPas
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiPasswordField, Parameters> {
-        @Getter
-        private final ObjectProvider<UiPasswordField> provider;
-    }
 }

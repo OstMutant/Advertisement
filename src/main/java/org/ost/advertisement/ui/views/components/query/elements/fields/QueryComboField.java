@@ -19,15 +19,22 @@ import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDefaultBor
 @SuppressWarnings("java:S110")
 public class QueryComboField<T> extends ComboBox<T> implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters<T> {
         @NonNull I18nKey placeholderKey;
         @NonNull T[]     items;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
+        @Getter
+        private final ObjectProvider<QueryComboField<T>> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public QueryComboField<T> configure(Parameters<T> p) {
@@ -39,10 +46,4 @@ public class QueryComboField<T> extends ComboBox<T> implements Configurable<Quer
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<QueryComboField<T>> provider;
-    }
 }

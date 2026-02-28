@@ -108,7 +108,7 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
 
     private void buildBinder(UserEditDto dto) {
         binder = binderBuilder.build(
-                OverlayFormBinder.Config.<UserEditDto>builder()
+                OverlayFormBinder.Parameters.<UserEditDto>builder()
                         .clazz(UserEditDto.class)
                         .dto(dto)
                         .build()

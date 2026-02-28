@@ -18,14 +18,21 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiPrimaryButton extends Button implements Configurable<UiPrimaryButton, UiPrimaryButton.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey labelKey;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiPrimaryButton, Parameters> {
+        @Getter
+        private final ObjectProvider<UiPrimaryButton> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiPrimaryButton configure(Parameters p) {
@@ -35,10 +42,4 @@ public class UiPrimaryButton extends Button implements Configurable<UiPrimaryBut
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiPrimaryButton, Parameters> {
-        @Getter
-        private final ObjectProvider<UiPrimaryButton> provider;
-    }
 }

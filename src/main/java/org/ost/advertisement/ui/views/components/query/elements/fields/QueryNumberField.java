@@ -20,14 +20,21 @@ import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDefaultBor
 @SuppressWarnings("java:S110")
 public class QueryNumberField extends NumberField implements Configurable<QueryNumberField, QueryNumberField.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey placeholderKey;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<QueryNumberField, Parameters> {
+        @Getter
+        private final ObjectProvider<QueryNumberField> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public QueryNumberField configure(Parameters p) {
@@ -39,11 +46,4 @@ public class QueryNumberField extends NumberField implements Configurable<QueryN
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryNumberField, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryNumberField> provider;
-    }
 }
-

@@ -17,9 +17,6 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiTextField extends TextField implements Configurable<UiTextField, UiTextField.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -28,6 +25,16 @@ public class UiTextField extends TextField implements Configurable<UiTextField, 
         int              maxLength;
         boolean          required;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiTextField, Parameters> {
+        @Getter
+        private final ObjectProvider<UiTextField> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiTextField configure(Parameters p) {
@@ -40,10 +47,4 @@ public class UiTextField extends TextField implements Configurable<UiTextField, 
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiTextField, Parameters> {
-        @Getter
-        private final ObjectProvider<UiTextField> provider;
-    }
 }

@@ -15,8 +15,6 @@ import org.springframework.context.annotation.Scope;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
 public class OverlayBreadcrumbBackButton extends Button implements Configurable<OverlayBreadcrumbBackButton, OverlayBreadcrumbBackButton.Parameters>, I18nParams {
-    @Getter
-    private final transient I18nService i18nService;
 
     @Value
     @lombok.Builder
@@ -25,6 +23,8 @@ public class OverlayBreadcrumbBackButton extends Button implements Configurable<
         I18nKey labelKey;
     }
 
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public OverlayBreadcrumbBackButton configure(Parameters params) {

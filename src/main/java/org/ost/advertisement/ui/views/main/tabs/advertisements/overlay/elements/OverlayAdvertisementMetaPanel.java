@@ -22,8 +22,6 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class OverlayAdvertisementMetaPanel extends HorizontalLayout
         implements Configurable<OverlayAdvertisementMetaPanel, OverlayAdvertisementMetaPanel.Parameters> {
 
-    private final transient I18nService i18n;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -39,6 +37,8 @@ public class OverlayAdvertisementMetaPanel extends HorizontalLayout
                     .build();
         }
     }
+
+    private final transient I18nService i18n;
 
     @Override
     public OverlayAdvertisementMetaPanel configure(Parameters p) {

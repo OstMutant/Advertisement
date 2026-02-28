@@ -5,6 +5,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.ui.dto.EditDto;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -12,46 +14,14 @@ import org.springframework.context.annotation.Scope;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class OverlayFormBinder<T extends EditDto> {
+public class OverlayFormBinder<T extends EditDto>
+        implements Configurable<OverlayFormBinder<T>, OverlayFormBinder.Parameters<T>> {
 
     @Value
     @lombok.Builder
-    public static class Config<T> {
+    public static class Parameters<T> {
         @NonNull Class<T> clazz;
         @NonNull T        dto;
-    }
-
-    private Config<T> config;
-
-    @Getter
-    private Binder<T> binder;
-
-    public T getDto() {
-        return config.getDto();
-    }
-
-    private OverlayFormBinder<T> setup(Config<T> config) {
-        this.config = config;
-        this.binder = new Binder<>(config.getClazz());
-        return this;
-    }
-
-    public void readInitialValues() {
-        binder.readBean(config.getDto());
-    }
-
-    public boolean hasChanges() {
-        return binder.hasChanges();
-    }
-
-    public boolean save(Saver<T> saver) {
-        T dto = config.getDto();
-        if (binder.writeBeanIfValid(dto)) {
-            saver.save(dto);
-            return true;
-        } else {
-            return false;
-        }
     }
 
     @FunctionalInterface
@@ -62,11 +32,43 @@ public class OverlayFormBinder<T extends EditDto> {
     @SpringComponent
     @Scope("prototype")
     @RequiredArgsConstructor
-    public static class Builder<T extends EditDto> {
+    public static class Builder<T extends EditDto>
+            extends ComponentBuilder<OverlayFormBinder<T>, Parameters<T>> {
+        @Getter
         private final ObjectProvider<OverlayFormBinder<T>> provider;
+    }
 
-        public OverlayFormBinder<T> build(OverlayFormBinder.Config<T> config) {
-            return provider.getObject().setup(config);
+    private Parameters<T> params;
+
+    @Getter
+    private Binder<T> binder;
+
+    @Override
+    public OverlayFormBinder<T> configure(Parameters<T> p) {
+        this.params = p;
+        this.binder = new Binder<>(p.getClazz());
+        return this;
+    }
+
+    public T getDto() {
+        return params.getDto();
+    }
+
+    public void readInitialValues() {
+        binder.readBean(params.getDto());
+    }
+
+    public boolean hasChanges() {
+        return binder.hasChanges();
+    }
+
+    public boolean save(Saver<T> saver) {
+        T dto = params.getDto();
+        if (binder.writeBeanIfValid(dto)) {
+            saver.save(dto);
+            return true;
+        } else {
+            return false;
         }
     }
 }

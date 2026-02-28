@@ -20,8 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class QueryInlineRow extends HorizontalLayout implements Configurable<QueryInlineRow, QueryInlineRow.Parameters> {
 
-    private final transient I18nService i18n;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -29,6 +27,15 @@ public class QueryInlineRow extends HorizontalLayout implements Configurable<Que
         @NonNull  SortIcon         sortIcon;
         @Singular List<Component>  filterFields;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<QueryInlineRow, Parameters> {
+        @Getter
+        private final ObjectProvider<QueryInlineRow> provider;
+    }
+
+    private final transient I18nService i18n;
 
     @Override
     public QueryInlineRow configure(Parameters p) {
@@ -41,10 +48,4 @@ public class QueryInlineRow extends HorizontalLayout implements Configurable<Que
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryInlineRow, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryInlineRow> provider;
-    }
 }

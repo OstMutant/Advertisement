@@ -17,9 +17,6 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiEmailField extends EmailField implements Configurable<UiEmailField, UiEmailField.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -27,6 +24,16 @@ public class UiEmailField extends EmailField implements Configurable<UiEmailFiel
         @NonNull I18nKey placeholderKey;
         boolean          required;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiEmailField, Parameters> {
+        @Getter
+        private final ObjectProvider<UiEmailField> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiEmailField configure(Parameters p) {
@@ -38,10 +45,4 @@ public class UiEmailField extends EmailField implements Configurable<UiEmailFiel
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiEmailField, Parameters> {
-        @Getter
-        private final ObjectProvider<UiEmailField> provider;
-    }
 }

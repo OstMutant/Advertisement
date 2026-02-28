@@ -19,9 +19,6 @@ import java.util.List;
 @SuppressWarnings("java:S110")
 public class UiComboBox<T> extends ComboBox<T> implements Configurable<UiComboBox<T>, UiComboBox.Parameters<T>>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters<T> {
@@ -29,6 +26,16 @@ public class UiComboBox<T> extends ComboBox<T> implements Configurable<UiComboBo
         @NonNull List<T>  items;
         boolean           required;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder<T> extends ComponentBuilder<UiComboBox<T>, Parameters<T>> {
+        @Getter
+        private final ObjectProvider<UiComboBox<T>> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiComboBox<T> configure(Parameters<T> p) {
@@ -41,10 +48,4 @@ public class UiComboBox<T> extends ComboBox<T> implements Configurable<UiComboBo
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<UiComboBox<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<UiComboBox<T>> provider;
-    }
 }

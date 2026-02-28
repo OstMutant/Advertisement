@@ -120,7 +120,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
 
     private void buildBinder(AdvertisementEditDto dto) {
         binder = binderBuilder.build(
-                OverlayFormBinder.Config.<AdvertisementEditDto>builder()
+                OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)
                         .dto(dto)
                         .build()

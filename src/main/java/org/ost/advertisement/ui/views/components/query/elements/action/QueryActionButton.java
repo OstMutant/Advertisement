@@ -18,9 +18,6 @@ import org.springframework.context.annotation.Scope;
 public class QueryActionButton extends Button
         implements Configurable<QueryActionButton, QueryActionButton.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -28,6 +25,9 @@ public class QueryActionButton extends Button
         @NonNull I18nKey       tooltipKey;
         @NonNull ButtonVariant variant;
     }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     // -------------------------------------------------------------------------
 

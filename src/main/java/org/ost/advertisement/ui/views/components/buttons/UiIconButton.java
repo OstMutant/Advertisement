@@ -19,15 +19,22 @@ import org.springframework.context.annotation.Scope;
 @SuppressWarnings("java:S110")
 public class UiIconButton extends Button implements Configurable<UiIconButton, UiIconButton.Parameters>, I18nParams {
 
-    @Getter
-    private final transient I18nService i18nService;
-
     @Value
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey labelKey;
         @NonNull Icon    icon;
     }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UiIconButton, Parameters> {
+        @Getter
+        private final ObjectProvider<UiIconButton> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
 
     @Override
     public UiIconButton configure(Parameters p) {
@@ -38,10 +45,4 @@ public class UiIconButton extends Button implements Configurable<UiIconButton, U
         return this;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UiIconButton, Parameters> {
-        @Getter
-        private final ObjectProvider<UiIconButton> provider;
-    }
 }
