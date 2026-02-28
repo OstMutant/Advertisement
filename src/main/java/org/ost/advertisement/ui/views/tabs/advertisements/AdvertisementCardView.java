@@ -128,7 +128,7 @@ public class AdvertisementCardView extends VerticalLayout
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Parameters.builder()
                         .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
-                        .onClick(() -> openConfirmDeleteDialog(ad, onChanged))
+                        .onClick(() -> confirmAndDelete(ad, onChanged))
                         .small(true)
                         .cssClassName("advertisement-delete")
                         .build()
@@ -138,7 +138,7 @@ public class AdvertisementCardView extends VerticalLayout
         return delete;
     }
 
-    private void openConfirmDeleteDialog(AdvertisementInfoDto ad, Runnable onChanged) {
+    private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
         confirmActionDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
