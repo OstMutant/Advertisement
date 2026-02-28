@@ -7,6 +7,7 @@ import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.ui.views.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Objects;
@@ -18,16 +19,17 @@ import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDirtyOrCle
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class QueryActionBlock extends HorizontalLayout implements QueryActionBlockHandler {
+public class QueryActionBlock extends HorizontalLayout implements QueryActionBlockHandler, Initialization<QueryActionBlock> {
 
     private final QueryActionButton applyButton;
     private final QueryActionButton clearButton;
 
-    private Registration      applyButtonListener;
-    private Registration      clearButtonListener;
+    private Registration applyButtonListener;
+    private Registration clearButtonListener;
 
+    @Override
     @PostConstruct
-    private void initLayout() {
+    public QueryActionBlock init() {
         applyButton.configure(QueryActionButton.Parameters.builder()
                 .svgPath("apply.svg")
                 .tooltipKey(ACTIONS_APPLY_TOOLTIP)
@@ -43,6 +45,7 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
         add(applyButton, clearButton);
         setSpacing(false);
         setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+        return this;
     }
 
     public void addEventListener(Runnable onApply, Runnable onClear) {

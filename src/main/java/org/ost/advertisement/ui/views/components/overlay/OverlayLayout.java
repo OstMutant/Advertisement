@@ -6,11 +6,12 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
+import org.ost.advertisement.ui.views.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
-public class OverlayLayout extends Div {
+public class OverlayLayout extends Div implements Initialization<OverlayLayout> {
 
     @Getter
     private final Span breadcrumbCurrent = new Span();
@@ -19,8 +20,9 @@ public class OverlayLayout extends Div {
     private final Div headerActions  = new Div();
     private final Div body           = new Div();
 
+    @Override
     @PostConstruct
-    private void init() {
+    public OverlayLayout init() {
         addClassName("overlay__inner");
 
         breadcrumbSlot.addClassName("overlay__breadcrumb-back-slot");
@@ -38,6 +40,7 @@ public class OverlayLayout extends Div {
         header.addClassName("overlay__header");
 
         add(header, body);
+        return this;
     }
 
     public void setBreadcrumbButton(Component button) {
