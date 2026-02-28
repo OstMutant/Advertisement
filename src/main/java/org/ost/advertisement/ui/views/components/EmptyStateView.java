@@ -6,16 +6,19 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class EmptyStateView extends VerticalLayout {
+public class EmptyStateView extends VerticalLayout implements Configurable<EmptyStateView, EmptyStateView.Parameters> {
 
     @Value
     @lombok.Builder
@@ -25,7 +28,15 @@ public class EmptyStateView extends VerticalLayout {
         @NonNull String hint;
     }
 
-    private EmptyStateView configure(Parameters p) {
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<EmptyStateView, Parameters> {
+        @Getter
+        private final ObjectProvider<EmptyStateView> provider;
+    }
+
+    @Override
+    public EmptyStateView configure(Parameters p) {
         Icon icon = p.getIcon().create();
         icon.addClassName("empty-state-icon");
 
@@ -39,15 +50,5 @@ public class EmptyStateView extends VerticalLayout {
         setAlignItems(Alignment.CENTER);
         add(icon, title, hint);
         return this;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<EmptyStateView> provider;
-
-        public EmptyStateView build(Parameters p) {
-            return provider.getObject().configure(p);
-        }
     }
 }

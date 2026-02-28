@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.main.tabs.users.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -15,6 +16,8 @@ import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -23,14 +26,8 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserViewOverlayModeHandler implements OverlayModeHandler {
-
-    private final AccessEvaluator          access;
-    private final UiLabeledField.Builder   labeledFieldBuilder;
-    private final UiPrimaryButton.Builder  editButtonBuilder;
-    private final UiIconButton.Builder     closeButtonBuilder;
-
-    private Parameters params;
+public class UserViewOverlayModeHandler implements OverlayModeHandler,
+        Configurable<UserViewOverlayModeHandler, UserViewOverlayModeHandler.Parameters> {
 
     @Value
     @lombok.Builder
@@ -40,7 +37,22 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler {
         @NonNull Runnable onClose;
     }
 
-    private UserViewOverlayModeHandler configure(Parameters p) {
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UserViewOverlayModeHandler, Parameters> {
+        @Getter
+        private final ObjectProvider<UserViewOverlayModeHandler> provider;
+    }
+
+    private final AccessEvaluator          access;
+    private final UiLabeledField.Builder   labeledFieldBuilder;
+    private final UiPrimaryButton.Builder  editButtonBuilder;
+    private final UiIconButton.Builder     closeButtonBuilder;
+
+    private Parameters params;
+
+    @Override
+    public UserViewOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -78,15 +90,5 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler {
                         .labelKey(labelKey)
                         .value(value)
                         .build());
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<UserViewOverlayModeHandler> provider;
-
-        public UserViewOverlayModeHandler build(Parameters p) {
-            return provider.getObject().configure(p);
-        }
     }
 }

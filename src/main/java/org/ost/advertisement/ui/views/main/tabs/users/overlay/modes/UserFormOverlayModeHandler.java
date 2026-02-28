@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.main.tabs.users.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -19,6 +20,8 @@ import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -29,7 +32,23 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserFormOverlayModeHandler implements OverlayModeHandler {
+public class UserFormOverlayModeHandler implements OverlayModeHandler,
+        Configurable<UserFormOverlayModeHandler, UserFormOverlayModeHandler.Parameters> {
+
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        @NonNull User     user;
+        @NonNull Runnable onSave;
+        @NonNull Runnable onCancel;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UserFormOverlayModeHandler, Parameters> {
+        @Getter
+        private final ObjectProvider<UserFormOverlayModeHandler> provider;
+    }
 
     private final UserService                            userService;
     private final UserMapper                             mapper;
@@ -43,15 +62,8 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler {
     private Parameters params;
     private OverlayFormBinder<UserEditDto> binder;
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull User     user;
-        @NonNull Runnable onSave;
-        @NonNull Runnable onCancel;
-    }
-
-    private UserFormOverlayModeHandler configure(Parameters p) {
+    @Override
+    public UserFormOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -110,15 +122,5 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler {
                 .asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
                 .bind(UserEditDto::getRole, UserEditDto::setRole);
         binder.readInitialValues();
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<UserFormOverlayModeHandler> provider;
-
-        public UserFormOverlayModeHandler build(Parameters p) {
-            return provider.getObject().configure(p);
-        }
     }
 }

@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -19,6 +20,8 @@ import org.ost.advertisement.ui.views.components.fields.UiTextArea;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -27,7 +30,23 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler {
+public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
+        Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters> {
+
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        AdvertisementInfoDto ad;
+        @NonNull Runnable    onSave;
+        @NonNull Runnable    onCancel;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<AdvertisementFormOverlayModeHandler, Parameters> {
+        @Getter
+        private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
+    }
 
     private final AdvertisementService                           advertisementService;
     private final AdvertisementMapper                            mapper;
@@ -42,15 +61,8 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler {
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        AdvertisementInfoDto ad;
-        @NonNull Runnable    onSave;
-        @NonNull Runnable    onCancel;
-    }
-
-    private AdvertisementFormOverlayModeHandler configure(Parameters p) {
+    @Override
+    public AdvertisementFormOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
     }
@@ -122,15 +134,5 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler {
                 .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
         binder.readInitialValues();
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder {
-        private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
-
-        public AdvertisementFormOverlayModeHandler build(Parameters p) {
-            return provider.getObject().configure(p);
-        }
     }
 }

@@ -39,6 +39,13 @@ public class AdvertisementCardView extends VerticalLayout
         @NonNull Runnable             onChanged;
     }
 
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<AdvertisementCardView, Parameters> {
+        @Getter
+        private final ObjectProvider<AdvertisementCardView> provider;
+    }
+
     private final transient I18nService                        i18n;
     private final transient NotificationService                notificationService;
     private final transient AdvertisementService               advertisementService;
@@ -156,12 +163,5 @@ public class AdvertisementCardView extends VerticalLayout
                         })
                         .build()
         ).open();
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementCardView, Parameters> {
-        @Getter
-        private final ObjectProvider<AdvertisementCardView> provider;
     }
 }
