@@ -12,6 +12,8 @@ import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.rules.Initialization;
+import org.ost.advertisement.ui.views.rules.Provider;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
@@ -26,6 +28,19 @@ import static org.ost.advertisement.ui.views.components.query.elements.SortIcon.
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class SortIcon extends Span implements Initialization<SortIcon>, I18nParams {
+
+    @Component
+    @RequiredArgsConstructor
+    public static class Builder implements Provider<SortIcon> {
+        @Getter
+        private final ObjectProvider<SortIcon> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
+    private final SvgIcon icon;
+
+    private Direction currentDirection;
 
     @Getter
     public static class SortDirectionChangedEvent extends ComponentEvent<SortIcon> {
@@ -70,19 +85,13 @@ public class SortIcon extends Span implements Initialization<SortIcon>, I18nPara
         }
     }
 
-    @Getter
-    private final transient I18nService i18nService;
-    private final transient SvgIcon icon;
-    private Direction currentDirection;
-
     @Override
     @PostConstruct
     public SortIcon init() {
         addClassName("sort-icon");
         setTitle(getValue(SORT_ICON_TOOLTIP));
         add(icon);
-        addClickListener(e -> cycleDirection());
-        switchIcon();
+        addClickListener(_ -> cycleDirection());
         return this;
     }
 
@@ -104,8 +113,7 @@ public class SortIcon extends Span implements Initialization<SortIcon>, I18nPara
 
     public void setColor(SortHighlightColor sortHighlightColor) {
         icon.removeClassNames(Arrays.stream(SortHighlightColor.values())
-                .map(SortHighlightColor::getCssClass)
-                .toArray(String[]::new));
+                .map(SortHighlightColor::getCssClass).toArray(String[]::new));
         icon.addClassName(sortHighlightColor.getCssClass());
     }
 

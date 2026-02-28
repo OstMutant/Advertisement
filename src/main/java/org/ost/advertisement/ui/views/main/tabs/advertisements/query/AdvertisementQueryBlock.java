@@ -5,7 +5,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
@@ -33,7 +32,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
     private final transient QueryTextField.Builder     textFieldBuilder;
     private final transient QueryDateTimeField.Builder dateTimeFieldBuilder;
     private final transient QueryInlineRow.Builder     rowBuilder;
-    private final transient ObjectProvider<SortIcon>  sortIconProvider;
+    private final transient SortIcon.Builder           sortIconBuilder;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -46,7 +45,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         // Title row
         QueryTextField titleField = textFieldBuilder.build(QueryTextField.Parameters.builder()
                 .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
-        SortIcon titleSort = sortIconProvider.getObject();
+        SortIcon titleSort = sortIconBuilder.build();
         QueryInlineRow titleRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
                 .labelI18nKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
 
@@ -57,7 +56,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         QueryDateTimeField createdEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
                 .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_END)
                 .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = sortIconProvider.getObject();
+        SortIcon createdSort = sortIconBuilder.build();
         QueryInlineRow createdRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
                 .labelI18nKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
                 .filterField(createdStart).filterField(createdEnd).build());
@@ -69,7 +68,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         QueryDateTimeField updatedEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
                 .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
                 .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = sortIconProvider.getObject();
+        SortIcon updatedSort = sortIconBuilder.build();
         QueryInlineRow updatedRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
                 .labelI18nKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
                 .filterField(updatedStart).filterField(updatedEnd).build());

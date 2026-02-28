@@ -2,13 +2,11 @@ package org.ost.advertisement.ui.views.rules;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
 
 @RequiredArgsConstructor
-public abstract class ComponentBuilder<T extends Configurable<T, P>, P> {
-    protected abstract ObjectProvider<T> getProvider();
+public abstract class ComponentBuilder<T extends Configurable<T, P>, P> implements Provider<T> {
 
     public T build(@NonNull P params) {
-        return getProvider().getObject().configure(params);
+        return build().configure(params);
     }
 }
