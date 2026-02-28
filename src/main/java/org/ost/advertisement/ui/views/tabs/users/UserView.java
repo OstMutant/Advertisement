@@ -16,6 +16,7 @@ import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.tabs.users.overlay.UserOverlay;
 
@@ -94,8 +95,9 @@ public class UserView extends VerticalLayout {
         int page = paginationBar.getCurrentPage();
         int size = paginationBar.getPageSize();
 
-        UserFilterDto currentFilter = queryStatusBar.getQueryBlock().getFilterProcessor().getNewFilter();
-        var sort = queryStatusBar.getQueryBlock().getSortProcessor().getOriginalSort().getSort();
+        QueryBlock<UserFilterDto> queryBlock = queryStatusBar.getQueryBlock();
+        UserFilterDto currentFilter = queryBlock.getFilterProcessor().getNewFilter();
+        var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
             List<User> pageData = userService.getFiltered(currentFilter, page, size, sort);
