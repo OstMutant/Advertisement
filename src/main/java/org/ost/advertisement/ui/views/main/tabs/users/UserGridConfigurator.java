@@ -15,6 +15,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton;
 import org.springframework.beans.factory.ObjectProvider;
@@ -28,7 +29,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class UserGridConfigurator implements Configurable<UserGridConfigurator, UserGridConfigurator.Parameters> {
+public class UserGridConfigurator implements Configurable<UserGridConfigurator, UserGridConfigurator.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -39,7 +40,15 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         @NonNull Consumer<User> onDelete;
     }
 
-    private final I18nService               i18n;
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<UserGridConfigurator, Parameters> {
+        @Getter
+        private final ObjectProvider<UserGridConfigurator> provider;
+    }
+
+    @Getter
+    private final I18nService              i18nService;
     private final EditActionButton.Builder  editButtonBuilder;
     private final DeleteActionButton.Builder deleteButtonBuilder;
 
@@ -52,7 +61,7 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
 
         grid.addColumn(User::getId)
                 .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
-                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ID)));
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ID)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Span nameSpan = new Span(user.getName());
@@ -66,30 +75,30 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                     return layout;
                 }))
                 .setFlexGrow(1)
-                .setHeader(getDualHeader(i18n.get(USER_VIEW_HEADER_NAME), i18n.get(USER_VIEW_HEADER_EMAIL)));
+                .setHeader(getDualHeader(getValue(USER_VIEW_HEADER_NAME), getValue(USER_VIEW_HEADER_EMAIL)));
 
         grid.addColumn(user -> user.getRole().name())
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ROLE)));
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ROLE)));
 
         grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getCreatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_CREATED)));
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_CREATED)));
 
         grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
-                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_UPDATED)));
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
                     Button edit = editButtonBuilder.build(
                             EditActionButton.Parameters.builder()
-                                    .tooltip(i18n.get(USER_VIEW_BUTTON_EDIT))
+                                    .tooltip(getValue(USER_VIEW_BUTTON_EDIT))
                                     .onClick(() -> p.getOnEdit().accept(user))
                                     .build()
                     );
                     Button delete = deleteButtonBuilder.build(
                             DeleteActionButton.Parameters.builder()
-                                    .tooltip(i18n.get(USER_VIEW_BUTTON_DELETE))
+                                    .tooltip(getValue(USER_VIEW_BUTTON_DELETE))
                                     .onClick(() -> p.getOnDelete().accept(user))
                                     .build()
                     );
@@ -97,7 +106,7 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                     layout.addClassName("user-grid-actions");
                     return layout;
                 }))
-                .setHeader(getHeader(i18n.get(USER_VIEW_HEADER_ACTIONS)))
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ACTIONS)))
                 .setAutoWidth(true)
                 .setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
 
@@ -115,12 +124,5 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         layout.setAlignItems(CENTER);
         layout.addClassName("user-grid-header");
         return layout;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UserGridConfigurator, Parameters> {
-        @Getter
-        private final ObjectProvider<UserGridConfigurator> provider;
     }
 }

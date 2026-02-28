@@ -6,6 +6,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -14,6 +15,8 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.Initialization;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButton;
@@ -28,7 +31,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementCardView extends VerticalLayout
-        implements Configurable<AdvertisementCardView, AdvertisementCardView.Parameters> {
+        implements Configurable<AdvertisementCardView, AdvertisementCardView.Parameters>, I18nParams, Initialization<AdvertisementCardView> {
 
     private static final String CLICK_EVENT = "click";
 
@@ -46,7 +49,8 @@ public class AdvertisementCardView extends VerticalLayout
         private final ObjectProvider<AdvertisementCardView> provider;
     }
 
-    private final transient I18nService                        i18n;
+    @Getter
+    private final transient I18nService                        i18nService;
     private final transient NotificationService                notificationService;
     private final transient AdvertisementService               advertisementService;
     private final transient AdvertisementCardMetaPanel.Builder metaPanelBuilder;
@@ -57,11 +61,16 @@ public class AdvertisementCardView extends VerticalLayout
     private final transient AdvertisementOverlay               overlay;
 
     @Override
+    @PostConstruct
+    public AdvertisementCardView init() {
+        addClassName("advertisement-card");
+        return this;
+    }
+
+    @Override
     public AdvertisementCardView configure(Parameters p) {
         AdvertisementInfoDto ad        = p.getAd();
         Runnable             onChanged = p.getOnChanged();
-
-        addClassName("advertisement-card");
 
         getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
         getElement().setAttribute("tabindex", "0");
@@ -100,8 +109,8 @@ public class AdvertisementCardView extends VerticalLayout
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                 .authorEmail(ad.getCreatedByUserEmail())
                 .dateLabel(neverEdited
-                        ? i18n.get(ADVERTISEMENT_CARD_CREATED)
-                        : i18n.get(ADVERTISEMENT_CARD_UPDATED))
+                        ? getValue(ADVERTISEMENT_CARD_CREATED)
+                        : getValue(ADVERTISEMENT_CARD_UPDATED))
                 .date(neverEdited ? ad.getCreatedAt() : ad.getUpdatedAt())
                 .build());
     }
@@ -120,7 +129,7 @@ public class AdvertisementCardView extends VerticalLayout
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button edit = editButtonBuilder.build(
                 EditActionButton.Parameters.builder()
-                        .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_EDIT))
+                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT))
                         .onClick(() -> overlay.openForEdit(ad, onChanged))
                         .small(true)
                         .cssClassName("advertisement-edit")
@@ -134,7 +143,7 @@ public class AdvertisementCardView extends VerticalLayout
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
         Button delete = deleteButtonBuilder.build(
                 DeleteActionButton.Parameters.builder()
-                        .tooltip(i18n.get(ADVERTISEMENT_CARD_BUTTON_DELETE))
+                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE))
                         .onClick(() -> confirmAndDelete(ad, onChanged))
                         .small(true)
                         .cssClassName("advertisement-delete")
@@ -149,7 +158,7 @@ public class AdvertisementCardView extends VerticalLayout
         confirmActionDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(i18n.get(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
+                        .message(getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
                         .confirmKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON)
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {

@@ -4,12 +4,14 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.ui.views.services.NotificationService;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.fields.UiEmailField;
@@ -24,10 +26,11 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class LoginDialog extends BaseDialog {
+public class LoginDialog extends BaseDialog implements I18nParams {
 
     private final transient AuthService              authService;
-    private final transient I18nService              i18n;
+    @Getter
+    private final transient I18nService              i18nService;
     private final transient NotificationService      notificationService;
     private final transient SessionService           sessionService;
     private final           DialogLayout             layout;
@@ -61,11 +64,11 @@ public class LoginDialog extends BaseDialog {
     }
 
     private void setTitle() {
-        setHeaderTitle(i18n.get(USER_DIALOG_TITLE));
+        setHeaderTitle(getValue(USER_DIALOG_TITLE));
     }
 
     private void addContent() {
-        Paragraph welcome = new Paragraph(i18n.get(LOGIN_WELCOME));
+        Paragraph welcome = new Paragraph(getValue(LOGIN_WELCOME));
         welcome.addClassName("dialog-subtitle");
         layout.addFormContent(welcome, emailField, passwordField);
     }

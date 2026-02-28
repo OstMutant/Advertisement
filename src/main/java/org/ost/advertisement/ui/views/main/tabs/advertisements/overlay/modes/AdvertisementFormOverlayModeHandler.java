@@ -22,6 +22,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -31,7 +32,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor
 public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
-        Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters> {
+        Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -48,15 +49,16 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
     }
 
-    private final AdvertisementService                           advertisementService;
-    private final AdvertisementMapper                            mapper;
-    private final I18nService                                    i18n;
+    private final AdvertisementService                            advertisementService;
+    private final AdvertisementMapper                             mapper;
+    @Getter
+    private final I18nService                                     i18nService;
     private final OverlayFormBinder.Builder<AdvertisementEditDto> binderBuilder;
-    private final OverlayAdvertisementMetaPanel                  metaPanel;
-    private final UiTextField                                    titleField;
-    private final UiTextArea                                     descriptionField;
-    private final UiPrimaryButton                                saveButton;
-    private final UiTertiaryButton                               cancelButton;
+    private final OverlayAdvertisementMetaPanel                   metaPanel;
+    private final UiTextField                                     titleField;
+    private final UiTextArea                                      descriptionField;
+    private final UiPrimaryButton                                 saveButton;
+    private final UiTertiaryButton                                cancelButton;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
@@ -126,12 +128,12 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                         .build()
         );
         binder.getBinder().forField(titleField)
-                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
+                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
                 .withValidator(new StringLengthValidator(
-                        i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
+                        getValue(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
                 .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
         binder.getBinder().forField(descriptionField)
-                .asRequired(i18n.get(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
+                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
         binder.readInitialValues();
     }

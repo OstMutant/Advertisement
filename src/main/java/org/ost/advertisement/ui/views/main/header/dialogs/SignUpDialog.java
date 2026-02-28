@@ -4,12 +4,14 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.services.NotificationService;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.fields.UiEmailField;
@@ -26,10 +28,11 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class SignUpDialog extends BaseDialog {
+public class SignUpDialog extends BaseDialog implements I18nParams {
 
     private final transient UserService              userService;
-    private final transient I18nService              i18n;
+    @Getter
+    private final transient I18nService              i18nService;
     private final transient NotificationService      notificationService;
     private final           DialogLayout             layout;
     private final transient UiTextField.Builder      nameFieldBuilder;
@@ -78,7 +81,7 @@ public class SignUpDialog extends BaseDialog {
     }
 
     private void setTitle() {
-        setHeaderTitle(i18n.get(SIGNUP_HEADER_TITLE));
+        setHeaderTitle(getValue(SIGNUP_HEADER_TITLE));
     }
 
     private void addContent() {
@@ -101,12 +104,12 @@ public class SignUpDialog extends BaseDialog {
         binder.setBean(dto);
 
         binder.forField(nameField)
-                .withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_NAME_REQUIRED), 1, 255))
+                .withValidator(new StringLengthValidator(getValue(SIGNUP_ERROR_NAME_REQUIRED), 1, 255))
                 .bind(SignUpDto::getName, SignUpDto::setName);
 
         binder.forField(emailField)
                 .withValidator(email -> EMAIL_PATTERN.matcher(email == null ? "" : email.trim()).matches(),
-                        i18n.get(SIGNUP_ERROR_EMAIL_INVALID))
+                        getValue(SIGNUP_ERROR_EMAIL_INVALID))
                 .withValidator(email -> {
                     try {
                         return email != null && userService.findByEmail(email.trim()).isEmpty();
@@ -114,11 +117,11 @@ public class SignUpDialog extends BaseDialog {
                         log.warn("Failed to check email uniqueness", e);
                         return false;
                     }
-                }, i18n.get(SIGNUP_ERROR_EMAIL_EXISTS))
+                }, getValue(SIGNUP_ERROR_EMAIL_EXISTS))
                 .bind(SignUpDto::getEmail, SignUpDto::setEmail);
 
         binder.forField(passwordField)
-                .withValidator(new StringLengthValidator(i18n.get(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
+                .withValidator(new StringLengthValidator(getValue(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
                 .bind(SignUpDto::getPassword, SignUpDto::setPassword);
     }
 

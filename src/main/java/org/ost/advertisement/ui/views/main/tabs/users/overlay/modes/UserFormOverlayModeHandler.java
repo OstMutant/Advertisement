@@ -22,6 +22,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -33,7 +34,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor
 public class UserFormOverlayModeHandler implements OverlayModeHandler,
-        Configurable<UserFormOverlayModeHandler, UserFormOverlayModeHandler.Parameters> {
+        Configurable<UserFormOverlayModeHandler, UserFormOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -52,7 +53,8 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
 
     private final UserService                            userService;
     private final UserMapper                             mapper;
-    private final I18nService                            i18n;
+    @Getter
+    private final I18nService                            i18nService;
     private final OverlayFormBinder.Builder<UserEditDto> binderBuilder;
     private final UiTextField                            nameField;
     private final UiComboBox<Role>                       roleComboBox;
@@ -114,12 +116,12 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
                         .build()
         );
         binder.getBinder().forField(nameField)
-                .asRequired(i18n.get(USER_DIALOG_VALIDATION_NAME_REQUIRED))
+                .asRequired(getValue(USER_DIALOG_VALIDATION_NAME_REQUIRED))
                 .withValidator(new StringLengthValidator(
-                        i18n.get(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
+                        getValue(USER_DIALOG_VALIDATION_NAME_LENGTH), 1, 255))
                 .bind(UserEditDto::getName, UserEditDto::setName);
         binder.getBinder().forField(roleComboBox)
-                .asRequired(i18n.get(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
+                .asRequired(getValue(USER_DIALOG_VALIDATION_ROLE_REQUIRED))
                 .bind(UserEditDto::getRole, UserEditDto::setRole);
         binder.readInitialValues();
     }
