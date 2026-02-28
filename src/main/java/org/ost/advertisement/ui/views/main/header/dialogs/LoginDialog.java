@@ -41,8 +41,8 @@ public class LoginDialog extends BaseDialog {
 
     @Override
     @PostConstruct
-    protected void init() {
-        super.init(layout);
+    protected void buildLayout() {
+        super.buildLayout(layout);
         emailField = emailFieldBuilder.build(
                 UiEmailField.Parameters.builder()
                         .labelKey(LOGIN_EMAIL_LABEL)

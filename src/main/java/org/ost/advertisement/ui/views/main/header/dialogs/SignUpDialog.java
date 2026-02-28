@@ -47,8 +47,8 @@ public class SignUpDialog extends BaseDialog {
 
     @Override
     @PostConstruct
-    protected void init() {
-        super.init(layout);
+    protected void buildLayout() {
+        super.buildLayout(layout);
         addThemeName("signup-dialog");
 
         nameField = nameFieldBuilder.build(
