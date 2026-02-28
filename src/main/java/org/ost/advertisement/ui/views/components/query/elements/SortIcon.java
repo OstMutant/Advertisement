@@ -3,13 +3,20 @@ package org.ost.advertisement.ui.views.components.query.elements;
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.html.Span;
+import jakarta.annotation.PostConstruct;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
 
 import static java.util.Optional.ofNullable;
 import static org.ost.advertisement.constants.I18nKey.SORT_ICON_TOOLTIP;
@@ -17,7 +24,8 @@ import static org.ost.advertisement.ui.views.components.query.elements.SortIcon.
 
 @Component
 @Scope("prototype")
-public class SortIcon extends Span {
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+public class SortIcon extends Span implements Initialization<SortIcon>, I18nParams {
 
     @Getter
     public static class SortDirectionChangedEvent extends ComponentEvent<SortIcon> {
@@ -62,18 +70,20 @@ public class SortIcon extends Span {
         }
     }
 
-    private final transient I18nService i18n;
-    private final SvgIcon icon = new SvgIcon("");
+    @Getter
+    private final transient I18nService i18nService;
+    private final transient SvgIcon icon;
+    private Direction currentDirection;
 
-    private Direction currentDirection = null;
-
-    public SortIcon(I18nService i18n) {
-        this.i18n = i18n;
+    @Override
+    @PostConstruct
+    public SortIcon init() {
         addClassName("sort-icon");
-        setTitle(i18n.get(SORT_ICON_TOOLTIP));
+        setTitle(getValue(SORT_ICON_TOOLTIP));
         add(icon);
         addClickListener(e -> cycleDirection());
         switchIcon();
+        return this;
     }
 
     public void setDirection(Direction direction) {
@@ -89,13 +99,13 @@ public class SortIcon extends Span {
     private void switchIcon() {
         SortIconState state = fromDirection(currentDirection);
         icon.setSvg(state.getPath());
-        icon.setTitle(i18n.get(state.getTooltipKey()));
+        icon.setTitle(getValue(state.getTooltipKey()));
     }
 
     public void setColor(SortHighlightColor sortHighlightColor) {
-        icon.removeClassName(SortHighlightColor.DEFAULT.getCssClass());
-        icon.removeClassName(SortHighlightColor.CHANGED.getCssClass());
-        icon.removeClassName(SortHighlightColor.CUSTOM.getCssClass());
+        icon.removeClassNames(Arrays.stream(SortHighlightColor.values())
+                .map(SortHighlightColor::getCssClass)
+                .toArray(String[]::new));
         icon.addClassName(sortHighlightColor.getCssClass());
     }
 
