@@ -4,7 +4,6 @@ import com.vaadin.flow.data.binder.Binder;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
@@ -29,19 +28,15 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class SignUpDialog extends BaseDialog {
 
-    private final transient UserService         userService;
-    @Getter
-    private final transient I18nService         i18n;
-    @Getter
-    private final transient NotificationService notificationService;
-
-    @Getter
-    private final DialogLayout              layout;
-    private final transient UiTextField.Builder       nameFieldBuilder;
-    private final transient UiEmailField.Builder      emailFieldBuilder;
-    private final transient UiPasswordField.Builder   passwordFieldBuilder;
-    private final transient UiPrimaryButton.Builder   registerButtonBuilder;
-    private final transient UiTertiaryButton.Builder  cancelButtonBuilder;
+    private final transient UserService              userService;
+    private final transient I18nService              i18n;
+    private final transient NotificationService      notificationService;
+    private final           DialogLayout             layout;
+    private final transient UiTextField.Builder      nameFieldBuilder;
+    private final transient UiEmailField.Builder     emailFieldBuilder;
+    private final transient UiPasswordField.Builder  passwordFieldBuilder;
+    private final transient UiPrimaryButton.Builder  registerButtonBuilder;
+    private final transient UiTertiaryButton.Builder cancelButtonBuilder;
 
     private UiTextField     nameField;
     private UiEmailField    emailField;
@@ -53,7 +48,7 @@ public class SignUpDialog extends BaseDialog {
     @Override
     @PostConstruct
     protected void init() {
-        super.init();
+        super.init(layout);
         addThemeName("signup-dialog");
 
         nameField = nameFieldBuilder.build(

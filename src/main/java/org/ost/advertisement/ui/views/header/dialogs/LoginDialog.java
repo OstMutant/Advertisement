@@ -4,7 +4,6 @@ import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.AuthService;
@@ -27,15 +26,11 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class LoginDialog extends BaseDialog {
 
-    private final transient AuthService         authService;
-    @Getter
-    private final transient I18nService         i18n;
-    @Getter
-    private final transient NotificationService notificationService;
-    private final transient SessionService      sessionService;
-
-    @Getter
-    private final DialogLayout             layout;
+    private final transient AuthService              authService;
+    private final transient I18nService              i18n;
+    private final transient NotificationService      notificationService;
+    private final transient SessionService           sessionService;
+    private final           DialogLayout             layout;
     private final transient UiEmailField.Builder     emailFieldBuilder;
     private final transient UiPasswordField.Builder  passwordFieldBuilder;
     private final transient UiPrimaryButton.Builder  loginButtonBuilder;
@@ -47,7 +42,7 @@ public class LoginDialog extends BaseDialog {
     @Override
     @PostConstruct
     protected void init() {
-        super.init();
+        super.init(layout);
         emailField = emailFieldBuilder.build(
                 UiEmailField.Parameters.builder()
                         .labelKey(LOGIN_EMAIL_LABEL)

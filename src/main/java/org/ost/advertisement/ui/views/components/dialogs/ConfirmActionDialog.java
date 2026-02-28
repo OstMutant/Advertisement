@@ -11,7 +11,6 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.utils.builder.Configurable;
 import org.ost.advertisement.ui.views.utils.builder.ComponentBuilder;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -26,15 +25,6 @@ import org.springframework.context.annotation.Scope;
 public final class ConfirmActionDialog extends BaseDialog
         implements Configurable<ConfirmActionDialog, ConfirmActionDialog.Parameters> {
 
-    @Getter
-    private final transient I18nService         i18n;
-    @Getter
-    private final transient DialogLayout        layout;
-    @Getter
-    private final transient NotificationService notificationService;
-    private final transient UiPrimaryButton.Builder       confirmButtonBuilder;
-    private final transient UiTertiaryButton.Builder      cancelButtonBuilder;
-
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -45,10 +35,24 @@ public final class ConfirmActionDialog extends BaseDialog
         @NonNull Runnable onConfirm;
     }
 
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<ConfirmActionDialog, Parameters> {
+        @Getter
+        private final ObjectProvider<ConfirmActionDialog> provider;
+    }
+
+    // -------------------------------------------------------------------------
+
+    private final transient I18nService               i18n;
+    private final           DialogLayout              layout;
+    private final transient UiPrimaryButton.Builder  confirmButtonBuilder;
+    private final transient UiTertiaryButton.Builder cancelButtonBuilder;
+
     @Override
     @PostConstruct
     protected void init() {
-        super.init();
+        super.init(layout);
     }
 
     @Override
@@ -76,12 +80,5 @@ public final class ConfirmActionDialog extends BaseDialog
 
         getFooter().add(confirmButton, cancelButton);
         return this;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<ConfirmActionDialog, Parameters> {
-        @Getter
-        private final ObjectProvider<ConfirmActionDialog> provider;
     }
 }
