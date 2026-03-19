@@ -1,0 +1,26 @@
+version: '3.8'
+
+# Application service — production build verification.
+# Use together with docker-compose.db.yml before deploying to Render.
+#
+# Start: docker-compose -f docker-compose.db.yml -f docker-compose.app.yml up --build
+# Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.app.yml down
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: experiments
+      DB_USER: experiments_user
+      DB_PASSWORD: experiments_user_password
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy

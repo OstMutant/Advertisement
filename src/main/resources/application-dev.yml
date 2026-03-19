@@ -5,6 +5,10 @@ spring:
     username: experiments_user
     password: experiments_user_password
 
+  # Run only changesets tagged with "dev" context (includes test data)
+  liquibase:
+    contexts: dev
+
 # Vaadin framework settings
 vaadin:
   productionMode: false
