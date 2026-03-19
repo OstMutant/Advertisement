@@ -2,9 +2,12 @@ package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -14,6 +17,7 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
@@ -28,6 +32,9 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
+@Uses(DatePicker.class)
+@Uses(TimePicker.class)
+@Uses(QueryDateTimeField.class)
 public class AdvertisementsView extends VerticalLayout {
 
     private final transient AdvertisementService        advertisementService;

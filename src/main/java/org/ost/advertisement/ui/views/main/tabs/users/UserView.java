@@ -1,7 +1,10 @@
 package org.ost.advertisement.ui.views.main.tabs.users;
 
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -13,6 +16,7 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
@@ -31,6 +35,9 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
+@Uses(DatePicker.class)
+@Uses(TimePicker.class)
+@Uses(QueryDateTimeField.class)
 public class UserView extends VerticalLayout {
 
     private final transient UserService                    userService;
