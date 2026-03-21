@@ -3,8 +3,11 @@ version: '3.8'
 # Application service — production build verification.
 # Use together with docker-compose.db.yml before deploying to Render.
 #
+# Local DB:
 # Start: docker-compose -f docker-compose.db.yml -f docker-compose.app.yml up --build
 # Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.app.yml down -v
+# Neon DB:
+# docker-compose -f docker-compose.app.yml up --build (set DB_* env vars below)
 
 services:
   app:
@@ -19,6 +22,12 @@ services:
       DB_NAME: experiments
       DB_USER: experiments_user
       DB_PASSWORD: experiments_user_password
+      # Uncomment for Neon:
+      # DB_HOST: ep-late-flower-a43sj7qz-pooler.us-east-1.aws.neon.tech
+      # DB_NAME: neondb
+      # DB_USER: neondb_owner
+      # DB_PASSWORD: your_password
+      # DB_SSL_PARAMS: "?sslmode=require&channel_binding=require"
     ports:
       - "8080:8080"
     depends_on:

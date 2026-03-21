@@ -4,6 +4,8 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.SvgIcon;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
@@ -31,6 +33,8 @@ import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
 @Route("")
 @RequiredArgsConstructor
 @Uses(Notification.class)
+@Uses(Icon.class)
+@Uses(SvgIcon.class)
 @Uses(DatePicker.class)
 @Uses(TimePicker.class)
 @Uses(QueryDateTimeField.class)
