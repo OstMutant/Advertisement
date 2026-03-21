@@ -4,7 +4,7 @@ version: '3.8'
 # Use together with docker-compose.db.yml before deploying to Render.
 #
 # Start: docker-compose -f docker-compose.db.yml -f docker-compose.app.yml up --build
-# Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.app.yml down
+# Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.app.yml down -v
 
 services:
   app:
