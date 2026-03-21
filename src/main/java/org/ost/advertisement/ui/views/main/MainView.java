@@ -1,19 +1,26 @@
 package org.ost.advertisement.ui.views.main;
 
 import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
+import org.ost.advertisement.ui.views.components.query.elements.fields.QueryNumberField;
 import org.ost.advertisement.ui.views.main.header.HeaderBar;
+import org.ost.advertisement.ui.views.main.tabs.advertisements.AdvertisementsView;
 import org.ost.advertisement.ui.views.main.tabs.users.UserView;
+import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,13 +30,19 @@ import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
 
 @Route("")
 @RequiredArgsConstructor
+@Uses(Notification.class)
+@Uses(DatePicker.class)
+@Uses(TimePicker.class)
+@Uses(QueryDateTimeField.class)
+@Uses(NumberField.class)
+@Uses(QueryNumberField.class)
 public class MainView extends VerticalLayout {
 
-    private final transient HeaderBar          headerBar;
+    private final transient HeaderBar headerBar;
     private final transient AdvertisementsView advertisementsView;
-    private final transient UserView           usersView;
-    private final transient AccessEvaluator    access;
-    private final transient I18nService        i18n;
+    private final transient UserView usersView;
+    private final transient AccessEvaluator access;
+    private final transient I18nService i18n;
 
     @PostConstruct
     public void init() {
@@ -40,9 +53,9 @@ public class MainView extends VerticalLayout {
 
         Map<Tab, Component> tabsToPages = new HashMap<>();
 
-        Tab  advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
-        Tabs tabs             = buildTabs(advertisementTab);
-        Div  pages            = buildPages();
+        Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
+        Tabs tabs = buildTabs(advertisementTab);
+        Div pages = buildPages();
 
         tabsToPages.put(advertisementTab, advertisementsView);
 
