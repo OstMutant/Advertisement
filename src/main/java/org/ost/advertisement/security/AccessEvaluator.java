@@ -13,6 +13,10 @@ public class AccessEvaluator {
     private final OwnershipChecker ownershipChecker;
     private final AuthContextService authContextService;
 
+    public boolean isLoggedIn() {
+        return authContextService.getCurrentUser().isPresent();
+    }
+
     public boolean canView() {
         User currentUser = getCurrentUser();
         return roleChecker.isAdmin(currentUser) || roleChecker.isModerator(currentUser);
@@ -28,7 +32,9 @@ public class AccessEvaluator {
 
     public boolean canOperate(UserIdMarker target) {
         User currentUser = getCurrentUser();
-        return roleChecker.isAdmin(currentUser) || ownershipChecker.isOwner(currentUser, target);
+        return roleChecker.isAdmin(currentUser)
+                || roleChecker.isModerator(currentUser)
+                || ownershipChecker.isOwner(currentUser, target);
     }
 
     protected User getCurrentUser() {

@@ -54,22 +54,25 @@ public enum I18nKey {
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
     USER_DIALOG_BUTTON_CANCEL("user.dialog.button.cancel"),
 
-    // === Advertisement Dialog ===
-    ADVERTISEMENT_DIALOG_TITLE_NEW("advertisement.dialog.title.new"),
-    ADVERTISEMENT_DIALOG_TITLE_EDIT("advertisement.dialog.title.edit"),
-    ADVERTISEMENT_DIALOG_FIELD_TITLE("advertisement.dialog.field.title"),
-    ADVERTISEMENT_DIALOG_FIELD_DESCRIPTION("advertisement.dialog.field.description"),
-    ADVERTISEMENT_DIALOG_FIELD_CREATED("advertisement.dialog.field.created"),
-    ADVERTISEMENT_DIALOG_FIELD_UPDATED("advertisement.dialog.field.updated"),
-    ADVERTISEMENT_DIALOG_FIELD_USER("advertisement.dialog.field.user"),
-    ADVERTISEMENT_DIALOG_VALIDATION_TITLE_REQUIRED("advertisement.dialog.validation.title.required"),
-    ADVERTISEMENT_DIALOG_VALIDATION_TITLE_LENGTH("advertisement.dialog.validation.title.length"),
-    ADVERTISEMENT_DIALOG_VALIDATION_DESCRIPTION_REQUIRED("advertisement.dialog.validation.description.required"),
-    ADVERTISEMENT_DIALOG_NOTIFICATION_SUCCESS("advertisement.dialog.notification.success"),
-    ADVERTISEMENT_DIALOG_NOTIFICATION_VALIDATION_FAILED("advertisement.dialog.notification.validation.failed"),
-    ADVERTISEMENT_DIALOG_NOTIFICATION_SAVE_ERROR("advertisement.dialog.notification.save.error"),
-    ADVERTISEMENT_DIALOG_BUTTON_SAVE("advertisement.dialog.button.save"),
-    ADVERTISEMENT_DIALOG_BUTTON_CANCEL("advertisement.dialog.button.cancel"),
+    // === Advertisement Overlay ===
+    ADVERTISEMENT_OVERLAY_TITLE_NEW("advertisement.overlay.title.new"),
+    ADVERTISEMENT_OVERLAY_TITLE_EDIT("advertisement.overlay.title.edit"),
+    ADVERTISEMENT_OVERLAY_FIELD_CREATED("advertisement.overlay.field.created"),
+    ADVERTISEMENT_OVERLAY_FIELD_UPDATED("advertisement.overlay.field.updated"),
+    ADVERTISEMENT_OVERLAY_FIELD_AUTHOR("advertisement.overlay.field.author"),  // #1: was USER, now shows name
+    ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
+    ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
+    ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
+    ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
+    ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
+    ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
+    ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
+    ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
+    ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR("advertisement.description.overlay.author"),
+    ADVERTISEMENT_DESCRIPTION_OVERLAY_CREATED("advertisement.description.overlay.created"),
+    ADVERTISEMENT_DESCRIPTION_OVERLAY_UPDATED("advertisement.description.overlay.updated"),
 
     // === User View ===
     USER_VIEW_HEADER_ID("user.view.header.id"),
@@ -79,12 +82,25 @@ public enum I18nKey {
     USER_VIEW_HEADER_CREATED("user.view.header.created"),
     USER_VIEW_HEADER_UPDATED("user.view.header.updated"),
     USER_VIEW_HEADER_ACTIONS("user.view.header.actions"),
+    USER_VIEW_CONFIRM_DELETE_TITLE("user.view.confirm.delete.title"),
     USER_VIEW_CONFIRM_DELETE_TEXT("user.view.confirm.delete.text"),
+    USER_VIEW_BUTTON_EDIT("user.view.button.edit"),
+    USER_VIEW_BUTTON_DELETE("user.view.button.delete"),
     USER_VIEW_CONFIRM_DELETE_BUTTON("user.view.confirm.delete.button"),
     USER_VIEW_CONFIRM_CANCEL_BUTTON("user.view.confirm.cancel.button"),
     USER_VIEW_NOTIFICATION_DELETED("user.view.notification.deleted"),
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
+
+    // UserViewDialog
+    USER_VIEW_DIALOG_TITLE("user.view.dialog.title"),
+    USER_VIEW_DIALOG_FIELD_ID("user.view.dialog.field.id"),
+    USER_VIEW_DIALOG_FIELD_NAME("user.view.dialog.field.name"),
+    USER_VIEW_DIALOG_FIELD_EMAIL("user.view.dialog.field.email"),
+    USER_VIEW_DIALOG_FIELD_ROLE("user.view.dialog.field.role"),
+    USER_VIEW_DIALOG_FIELD_CREATED("user.view.dialog.field.created"),
+    USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
+    USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
 
     // === Advertisement Sort ===
     USER_SORT_ID("user.sort.id"),
@@ -95,6 +111,7 @@ public enum I18nKey {
     USER_SORT_UPDATED("user.sort.updatedAt"),
 
     // === Advertisement View ===
+    ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE("advertisement.view.confirm.delete.title"),
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT("advertisement.view.confirm.delete.text"),
     ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON("advertisement.view.confirm.delete.button"),
     ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON("advertisement.view.confirm.cancel.button"),
@@ -138,12 +155,16 @@ public enum I18nKey {
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
-    ADVERTISEMENT_CARD_USER("advertisement.card.user"),
+    ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
 
     // === Advertisement Description Dialog ===
     ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
+
+    // === Advertisement Empty State ===
+    ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
+    ADVERTISEMENT_EMPTY_HINT("advertisement.empty.hint"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
@@ -172,7 +193,13 @@ public enum I18nKey {
     SORT_ICON_NEUTRAL("sort.icon.neutral"),
 
     LOCALE_ENGLISH("locale.english"),
-    LOCALE_UKRAINIAN("locale.ukrainian");
+    LOCALE_UKRAINIAN("locale.ukrainian"),
+
+    // === Overlay Dirty Guard ===
+    OVERLAY_UNSAVED_TITLE("overlay.unsaved.title"),
+    OVERLAY_UNSAVED_TEXT("overlay.unsaved.text"),
+    OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
+    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel");
 
     private final String key;
 
@@ -184,4 +211,3 @@ public enum I18nKey {
         return key;
     }
 }
-

@@ -11,6 +11,7 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.validation.ValidRange;
 
 import java.time.Instant;
+import java.util.Set;
 
 @FieldNameConstants
 @Data
@@ -26,7 +27,7 @@ public class UserFilterDto {
     private String name;
     @Size(max = 255, message = "Email must not exceed 255 characters")
     private String email;
-    private Role role;
+    private Set<Role> roles;
     private Instant createdAtStart;
     private Instant createdAtEnd;
     private Instant updatedAtStart;
@@ -40,5 +41,4 @@ public class UserFilterDto {
     public static UserFilterDto empty() {
         return new UserFilterDto();
     }
-
 }

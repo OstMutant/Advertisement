@@ -1,3 +1,4 @@
+/* Main Entry Point for CSS imports */
 @import url("./highlight.css");
 @import url("./dialogs.css");
 @import url("./query-status-bar.css");
@@ -5,6 +6,7 @@
 @import url("./advertisement-query-block.css");
 @import url("./advertisements-view.css");
 @import url("./advertisement-card.css");
+@import url("./advertisement-overlay.css");
 @import url("./user-grid.css");
 @import url("./user-query-block.css");
 @import url("./user-layout.css");
@@ -12,10 +14,16 @@
 @import url("./locale-selector.css");
 @import url("./header-bar.css");
 
+/* Global utility classes */
 .svg-icon {
     width: 1em;
     height: 1em;
     display: inline-block;
     vertical-align: middle;
     line-height: 1;
+}
+
+/* Ensure all interactive buttons have a pointer cursor */
+vaadin-button {
+    cursor: pointer;
 }

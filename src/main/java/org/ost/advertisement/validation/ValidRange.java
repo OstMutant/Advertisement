@@ -24,7 +24,7 @@ public @interface ValidRange {
     @Documented
     @Target(ElementType.TYPE)
     @Retention(RetentionPolicy.RUNTIME)
-    public @interface List {
+    @interface List {
         ValidRange[] value();
     }
 }

@@ -16,3 +16,20 @@
     justify-content: center;
     gap: var(--lumo-space-s);
 }
+
+.user-grid vaadin-grid-cell-content {
+    cursor: pointer;
+}
+
+.user-grid vaadin-grid-cell-content:has(.user-grid-header) {
+    cursor: default;
+}
+
+.user-grid-actions vaadin-button:hover {
+    background-color: var(--lumo-contrast-5pct);
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.user-grid-actions vaadin-button[theme~="error"]:hover {
+    background-color: var(--lumo-error-color-10pct);
+}

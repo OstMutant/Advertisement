@@ -1,5 +1,4 @@
-/* ------------------------------------- highlight */
-
+/* Styling for field states: clean, modified (dirty), saved-but-different (changed), or invalid */
 .highlight-clean,
 .highlight-dirty,
 .highlight-changed,
@@ -30,20 +29,15 @@
     background-color: rgba(255, 0, 0, 0.05) !important;
 }
 
-/* ── QueryDateTimeField: suppress inner picker outlines ──────────────
-   The outer CustomField wrapper carries the highlight class and shows
-   ONE ring around the whole field. Inner DatePicker / TimePicker each
-   have highlight-clean; we suppress their individual outlines so only
-   the outer ring is visible.                                          */
-
-.highlight-dirty   .query-datetime-date,
-.highlight-dirty   .query-datetime-time,
+/* Suppress inner outlines for composite fields like QueryDateTimeField */
+.highlight-dirty .query-datetime-date,
+.highlight-dirty .query-datetime-time,
 .highlight-changed .query-datetime-date,
 .highlight-changed .query-datetime-time,
 .highlight-invalid .query-datetime-date,
 .highlight-invalid .query-datetime-time,
-.highlight-clean   .query-datetime-date,
-.highlight-clean   .query-datetime-time {
+.highlight-clean .query-datetime-date,
+.highlight-clean .query-datetime-time {
     outline: none !important;
     background-color: transparent !important;
 }

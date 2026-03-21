@@ -9,7 +9,7 @@ import java.time.Instant;
 @Builder
 @Getter
 @Setter
-public class AdvertisementEditDto {
+public class AdvertisementEditDto implements EditDto {
 
     private Long id;
 
@@ -20,5 +20,6 @@ public class AdvertisementEditDto {
     private Instant updatedAt;
 
     private Long createdByUserId;
+    private String createdByUserName;
     private Long lastModifiedByUserId;
 }

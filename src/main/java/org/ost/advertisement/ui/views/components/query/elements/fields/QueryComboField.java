@@ -1,40 +1,57 @@
 package org.ost.advertisement.ui.views.components.query.elements.fields;
 
 import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Builder;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
+import lombok.*;
 import org.ost.advertisement.constants.I18nKey;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.Initialization;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.ui.utils.HighlighterUtil.setDefaultBorder;
+import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDefaultBorder;
 
-@RequiredArgsConstructor
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
-public class QueryComboField<T> extends ComboBox<T> {
+public class QueryComboField<T> extends ComboBox<T>
+        implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, I18nParams, Initialization<QueryComboField<T>> {
 
     @Value
-    @Builder
+    @lombok.Builder
     public static class Parameters<T> {
-
-        @NonNull
-        I18nService i18n;
-        @NonNull
-        I18nKey placeholderKey;
-        @NonNull
-        T[] items;
+        @NonNull I18nKey placeholderKey;
+        @NonNull T[]     items;
     }
 
-    private final transient @NonNull Parameters<T> parameters;
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
+        @Getter
+        private final ObjectProvider<QueryComboField<T>> provider;
+    }
 
+    @Getter
+    private final transient I18nService i18nService;
+
+    @Override
     @PostConstruct
-    private void initLayout() {
+    public QueryComboField<T> init() {
         addClassName("query-combo");
-        setPlaceholder(parameters.getI18n().get(parameters.getPlaceholderKey()));
         setClearButtonVisible(true);
-        setItems(parameters.getItems());
         setDefaultBorder(this);
+        return this;
+    }
+
+    @Override
+    public QueryComboField<T> configure(Parameters<T> p) {
+        setPlaceholder(getValue(p.getPlaceholderKey()));
+        setItems(p.getItems());
+        return this;
     }
 }

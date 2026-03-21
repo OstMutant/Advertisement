@@ -51,11 +51,12 @@ public class UserService {
     }
 
     public void register(@Valid SignUpDto dto) {
+        boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()) == 0;
         User newUser = User.builder()
                 .name(dto.getName().trim())
                 .email(dto.getEmail().trim())
                 .passwordHash(passwordEncoder.encode(dto.getPassword().trim()))
-                .role(Role.USER)
+                .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         repository.save(newUser);
     }

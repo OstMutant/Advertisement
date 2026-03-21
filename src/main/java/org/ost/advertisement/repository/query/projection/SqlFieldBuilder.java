@@ -34,6 +34,6 @@ public class SqlFieldBuilder {
     }
 
     public static <T> SqlFieldDefinition<T> build(String sqlExpression, String alias, SqlFieldReader<T> extractor) {
-        return new SqlFieldDefinition<>(sqlExpression, alias, extractor);
+        return SqlFieldDefinition.<T>builder().sqlExpression(sqlExpression).alias(alias).extractor(extractor).build();
     }
 }

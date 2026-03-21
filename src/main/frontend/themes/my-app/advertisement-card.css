@@ -7,18 +7,34 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
   flex: 1 1 300px;
   max-width: 400px;
+
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.advertisement-card:hover {
+  box-shadow: 2px 4px 12px rgba(0,0,0,0.12);
+  border-color: #aaa;
+}
+
+/* Keyboard focus ring */
+.advertisement-card:focus-visible {
+  outline: 2px solid var(--lumo-primary-color);
+  outline-offset: 2px;
 }
 
 .advertisement-title {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  color: var(--lumo-body-text-color);
 }
 
 .advertisement-description {
@@ -26,28 +42,64 @@
   overflow: hidden;
   text-overflow: ellipsis;
   word-break: break-word;
-  -webkit-line-clamp: 5;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   white-space: normal;
-  font-size: 0.95rem;
-  color: #444;
-  max-height: 6.5em;
-  line-height: 1.3em;
-}
-
-.advertisement-toggle {
-  padding: 0;
+  font-size: 0.9rem;
+  color: #555;
+  line-height: 1.4em;
+  flex-grow: 1;
 }
 
 .advertisement-meta {
-  font-size: 0.85rem;
-  color: #666;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: auto;
+}
+
+/* Author name — slightly darker */
+.advertisement-meta-author {
+  color: #555;
+  font-weight: 500;
+}
+
+.advertisement-meta-separator {
+  color: #bbb;
+}
+
+/* Date label + value — lighter */
+.advertisement-meta-date {
+  color: #999;
+}
+
+/* Action buttons */
+.advertisement-actions {
+  justify-content: flex-end;
   gap: 4px;
   padding: 0;
   margin: 0;
 }
 
-.advertisement-actions {
-  justify-content: flex-end;
-  gap: 8px;
+.advertisement-edit,
+.advertisement-delete {
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+
+.advertisement-card:hover .advertisement-edit,
+.advertisement-card:hover .advertisement-delete,
+.advertisement-card:focus-visible .advertisement-edit,
+.advertisement-card:focus-visible .advertisement-delete {
+  opacity: 1;
+}
+
+.advertisement-actions vaadin-button:hover {
+    background-color: var(--lumo-contrast-5pct);
+    border-radius: var(--lumo-border-radius-m);
+}
+
+.advertisement-actions vaadin-button[theme~="error"]:hover {
+    background-color: var(--lumo-error-color-10pct);
 }

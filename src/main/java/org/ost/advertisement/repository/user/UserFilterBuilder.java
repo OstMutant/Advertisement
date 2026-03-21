@@ -16,8 +16,7 @@ public class UserFilterBuilder extends FilterBuilder<UserFilterDto> {
         relations.addAll(List.of(
                 of(name, NAME, (projection, value) -> like(projection, value.getName())),
                 of(email, EMAIL, (projection, value) -> like(projection, value.getEmail())),
-                of(role, ROLE,
-                        (projection, value) -> equalsTo(projection, value.getRole() != null ? value.getRole().name() : null)),
+                of(roles, ROLE, (projection, value) -> inSet(projection, value.getRoles())),
                 of(createdAtStart, CREATED_AT, (projection, value) -> after(projection, value.getCreatedAtStart())),
                 of(createdAtEnd, CREATED_AT, (projection, value) -> before(projection, value.getCreatedAtEnd())),
                 of(updatedAtStart, UPDATED_AT, (projection, value) -> after(projection, value.getUpdatedAtStart())),

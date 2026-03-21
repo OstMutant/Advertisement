@@ -1,0 +1,28 @@
+version: '3.8'
+
+# Local development — database only.
+# The application runs via IDE with the "dev" profile.
+#
+# Start: docker-compose -f docker-compose.db.yml up -d
+# Stop:  docker-compose -f docker-compose.db.yml down
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: experiments
+      POSTGRES_USER: experiments_user
+      POSTGRES_PASSWORD: experiments_user_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U experiments_user -d experiments"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

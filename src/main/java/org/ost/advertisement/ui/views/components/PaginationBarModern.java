@@ -4,15 +4,26 @@ import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
-public class PaginationBarModern extends HorizontalLayout {
+@SpringComponent
+@Scope("prototype")
+public class PaginationBarModern extends HorizontalLayout implements I18nParams {
+
+    @Getter
+    private final int pageSize = 25;
+
+    @Getter
+    private final transient I18nService i18nService;
 
     private final Button firstButton;
     private final Button prevButton;
@@ -22,42 +33,38 @@ public class PaginationBarModern extends HorizontalLayout {
 
     @Getter
     private int currentPage = 0;
-    @Getter
-    private final int pageSize = 25;
     private int totalCount = 0;
 
     @Setter
-    private Consumer<PaginationEvent> pageChangeListener;
+    private transient Consumer<PaginationEvent> pageChangeListener;
 
-    private final I18nService i18n;
-
-    public PaginationBarModern(I18nService i18n) {
-        this.i18n = i18n;
+    public PaginationBarModern(I18nService i18nService) {
+        this.i18nService = i18nService;
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
 
-        firstButton = new Button(i18n.get(PAGINATION_FIRST));
-        prevButton = new Button(i18n.get(PAGINATION_PREV));
-        nextButton = new Button(i18n.get(PAGINATION_NEXT));
-        lastButton = new Button(i18n.get(PAGINATION_LAST));
+        firstButton = new Button(getValue(PAGINATION_FIRST));
+        prevButton  = new Button(getValue(PAGINATION_PREV));
+        nextButton  = new Button(getValue(PAGINATION_NEXT));
+        lastButton  = new Button(getValue(PAGINATION_LAST));
 
-        firstButton.addClickListener(e -> {
+        firstButton.addClickListener(_ -> {
             currentPage = 0;
             triggerCallback();
         });
-        prevButton.addClickListener(e -> {
+        prevButton.addClickListener(_ -> {
             if (currentPage > 0) {
                 currentPage--;
                 triggerCallback();
             }
         });
-        nextButton.addClickListener(e -> {
+        nextButton.addClickListener(_ -> {
             if (currentPage < getTotalPages() - 1) {
                 currentPage++;
                 triggerCallback();
             }
         });
-        lastButton.addClickListener(e -> {
+        lastButton.addClickListener(_ -> {
             currentPage = getTotalPages() - 1;
             triggerCallback();
         });
@@ -85,7 +92,7 @@ public class PaginationBarModern extends HorizontalLayout {
 
     private void updateUI() {
         int totalPages = getTotalPages();
-        pageIndicator.setText(i18n.get(PAGINATION_INDICATOR, currentPage + 1, totalPages));
+        pageIndicator.setText(getValue(PAGINATION_INDICATOR, currentPage + 1, totalPages));
 
         firstButton.setEnabled(currentPage > 0);
         prevButton.setEnabled(currentPage > 0);
