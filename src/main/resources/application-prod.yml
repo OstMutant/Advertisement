@@ -1,7 +1,7 @@
 # Database connection for production (Cloud/Docker)
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}${DB_SSL_PARAMS:}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
 
