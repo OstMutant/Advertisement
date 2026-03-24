@@ -1,0 +1,47 @@
+version: '3.8'
+
+# Local development — MinIO (S3-compatible storage).
+# Emulates Cloudflare R2 for local development.
+#
+# Start: docker-compose -f docker-compose.minio.yml up -d
+# Stop:  docker-compose -f docker-compose.minio.yml down
+#
+# Console: http://localhost:9001
+# API:     http://localhost:9000
+# Login:   admin / admin12345
+
+services:
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: admin12345
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 admin admin12345;
+      mc mb --ignore-existing local/advertisement;
+      mc anonymous set public local/advertisement;
+      echo 'Bucket created successfully';
+      "
+    restart: on-failure
+
+volumes:
+  minio_data:

@@ -1,13 +1,14 @@
 version: '3.8'
 
 # Application service — production build verification.
-# Use together with docker-compose.db.yml before deploying to Render.
+# Use together with docker-compose.db.yml and docker-compose.minio.yml before deploying to Render.
 #
-# Local DB:
-# Start: docker-compose -f docker-compose.db.yml -f docker-compose.app.yml up --build
-# Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.app.yml down -v
-# Neon DB:
-# docker-compose -f docker-compose.app.yml up --build (set DB_* env vars below)
+# Local DB + MinIO:
+# Start: docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml up --build
+# Stop:  docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml down -v
+#
+# Neon DB + R2:
+# docker-compose -f docker-compose.app.yml up --build (set env vars below)
 
 services:
   app:
@@ -28,8 +29,21 @@ services:
       # DB_USER: neondb_owner
       # DB_PASSWORD: your_password
       # DB_SSL_PARAMS: "?sslmode=require&channel_binding=require"
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: advertisement
+      S3_ACCESS_KEY: admin
+      S3_SECRET_KEY: admin12345
+      S3_REGION: us-east-1
+      # Uncomment for R2:
+      # S3_ENDPOINT: https://<account-id>.r2.cloudflarestorage.com
+      # S3_BUCKET: advertisement
+      # S3_ACCESS_KEY: your_r2_access_key
+      # S3_SECRET_KEY: your_r2_secret_key
+      # S3_REGION: auto
     ports:
       - "8080:8080"
     depends_on:
       db:
+        condition: service_healthy
+      minio:
         condition: service_healthy
