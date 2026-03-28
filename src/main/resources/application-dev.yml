@@ -9,6 +9,15 @@ spring:
   liquibase:
     contexts: dev
 
+# S3-compatible storage (MinIO locally)
+storage:
+  s3:
+    endpoint: http://localhost:9000
+    region: us-east-1
+    access-key: admin
+    secret-key: admin12345
+    bucket: advertisement
+
 # Vaadin framework settings
 vaadin:
   productionMode: false
