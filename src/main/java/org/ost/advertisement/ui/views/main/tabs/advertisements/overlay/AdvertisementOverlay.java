@@ -6,6 +6,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.ui.mappers.AdvertisementMapper;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
@@ -39,14 +40,19 @@ public class AdvertisementOverlay extends BaseOverlay {
         OverlaySession toEdit() {
             return new OverlaySession(Mode.EDIT, ad, onSaved, true);
         }
+
+        OverlaySession toEditWith(AdvertisementInfoDto savedAd) {
+            return new OverlaySession(Mode.EDIT, savedAd, onSaved, false);
+        }
     }
 
-    private final transient I18nService                         i18n;
-    private final transient NotificationService                 notification;
-    private final transient AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
-    private final transient AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
-    private final transient ConfirmActionDialog.Builder          confirmDiscardBuilder;
-    private final transient ObjectProvider<OverlayLayout>        layoutProvider;
+    private final transient I18nService                                  i18n;
+    private final transient NotificationService                          notification;
+    private final transient AdvertisementMapper                          mapper;
+    private final transient AdvertisementViewOverlayModeHandler.Builder  viewModeHandlerBuilder;
+    private final transient AdvertisementFormOverlayModeHandler.Builder  formModeHandlerBuilder;
+    private final transient ConfirmActionDialog.Builder                  confirmDiscardBuilder;
+    private final transient ObjectProvider<OverlayLayout>                layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
@@ -131,8 +137,15 @@ public class AdvertisementOverlay extends BaseOverlay {
     private void handleSave() {
         if (currentFormHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-            session.onSaved().run();
-            closeToList();
+            session.onSaved().run(); 
+
+            if (session.mode() == Mode.CREATE) {
+                AdvertisementInfoDto savedDto = mapper.toInfoDto(currentFormHandler.getSavedAdvertisement());
+                session = session.toEditWith(savedDto);
+                switchTo();
+            } else {
+                closeToList();
+            }
         } else {
             notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
         }

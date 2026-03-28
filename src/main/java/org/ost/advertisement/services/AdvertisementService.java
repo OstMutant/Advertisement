@@ -32,11 +32,11 @@ public class AdvertisementService {
         return repository.countByFilter(filter).intValue();
     }
 
-    public void save(Advertisement ad) {
+    public Advertisement save(Advertisement ad) {
         if (access.canNotEdit(ad)) {
             throw new AccessDeniedException("You cannot edit this advertisement");
         }
-        repository.save(ad);
+        return repository.save(ad);
     }
 
     public void delete(EntityMarker ad) {
@@ -45,5 +45,4 @@ public class AdvertisementService {
         }
         repository.deleteById(ad.getId());
     }
-
 }
