@@ -13,6 +13,7 @@ spring:
 storage:
   s3:
     endpoint: ${S3_ENDPOINT}
+    public-url: ${S3_PUBLIC_URL}
     region: ${S3_REGION}
     access-key: ${S3_ACCESS_KEY}
     secret-key: ${S3_SECRET_KEY}

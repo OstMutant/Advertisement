@@ -21,8 +21,8 @@ public class StorageService {
     @Value("${storage.s3.bucket}")
     private String bucket;
 
-    @Value("${storage.s3.endpoint}")
-    private String endpoint;
+    @Value("${storage.s3.public-url}")
+    private String publicUrl;
 
     public String upload(String folder, String originalFilename, InputStream inputStream,
                          long contentLength, String contentType) {
@@ -69,12 +69,16 @@ public class StorageService {
     }
 
     private String buildUrl(String key) {
-        return endpoint + "/" + bucket + "/" + key;
+        String base = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
+        return base + key;
     }
 
     private String extractKey(String url) {
-        String prefix = endpoint + "/" + bucket + "/";
-        return url.startsWith(prefix) ? url.substring(prefix.length()) : url;
+        String prefix = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
+        if (url.startsWith(prefix)) {
+            return url.substring(prefix.length());
+        }
+        return url;
     }
 
     private String extractExtension(String filename) {
