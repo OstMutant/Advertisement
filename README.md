@@ -1,153 +1,137 @@
 # Advertisement Platform
-Backend Architecture Playground & Engineering Showcase
 
-## About the Project
-
-Advertisement Platform is an evolving backend system developed as an architecture playground and engineering showcase.
-
-The primary goal of this project is not feature completeness, but:
-- exploring architectural trade-offs,
-- experimenting with backend patterns,
-- demonstrating explicit control over data flow and system complexity.
-
-There is intentionally no fixed final product vision.  
-The project is designed to evolve as ideas, experiments, and architectural directions change.
+A personal backend project used as an architectural playground — for exploring trade-offs,
+experimenting with patterns, and developing engineering intuition.
 
 ---
 
-## Engineering Goals
+## About
 
-- Design a maintainable and evolvable backend architecture
-- Avoid hidden framework behavior and implicit magic
-- Prefer explicit, type-safe, and transparent solutions
-- Explore alternative approaches to common backend problems
-- Demonstrate a senior-level backend engineering mindset
+This is not a finished product. There is no fixed feature roadmap.
 
----
+The focus is on **how** things are built rather than **what** is built:
+- explicit control over data flow and SQL
+- composable abstractions without framework magic
+- clear responsibility boundaries between layers
 
-## Architectural Philosophy
-
-### Explicit over implicit
-- No ORM, no JPA
-- All SQL queries are written manually using Spring JDBC
-- No hidden query generation or implicit persistence behavior
-
-### Controlled complexity
-- Generic filtering built on composable `FieldCondition<T>` and `FieldRelation<T>`
-- Validation rules separated from UI and expressed explicitly
-- Clear responsibility boundaries, with some areas intentionally explored and evolving
-
-### Immutable data flow
-- DTOs are treated as immutable data carriers
-- No shared mutable state between layers
-- Predictable and traceable data transformations
-
-### UI as a thin adapter
-- Vaadin is used only for layout and interaction wiring
-- No business decision-making inside UI components
-- Backend logic remains reusable and UI-agnostic
-
-### Declarative tendencies
-- Validation rules are expressed declaratively where possible
-- PDF layouts are described via DTOs and rendered using iText
-- Localization is centralized and strongly typed
+The project evolves as ideas and architectural directions change.
 
 ---
 
-## Project Structure
+## Architectural Principles
 
-src/
-- dto/        Data transfer objects
-- filter/     Generic filtering abstractions
-- repository/ Explicit SQL repositories (Spring JDBC)
-- service/    Business logic and validation orchestration
-- view/       Vaadin UI components (layout only)
-- config/     Application and security configuration
-- util/       Shared utilities
+**Explicit over implicit**  
+No ORM, no JPA. All SQL is written manually via Spring JDBC.
+No hidden query generation or implicit persistence behavior.
 
-The structure emphasizes clarity, separation of concerns, and architectural evolvability.
+**Immutable data flow**  
+Entities and DTOs are immutable. No shared mutable state between layers.
+Data transformations are predictable and traceable.
+
+**UI as a thin adapter**  
+Vaadin handles layout and interaction wiring only.
+No business logic lives inside UI components.
+
+**Declarative where it matters**  
+Validation rules, localization keys, and filter definitions are expressed
+declaratively and kept strongly typed.
 
 ---
 
 ## Key Technical Decisions
 
-Manual SQL  
-Full control over queries and predictable behavior
-
-No ORM  
-Avoid implicit state, lifecycle complexity, and hidden side effects
-
-Explicit filtering model  
-Composable query logic without ORM-driven abstractions
-
-Structured validation  
-Rule-oriented validation logic, isolated from UI concerns
-
-Centralized localization  
-Strongly typed and consistent UI text management
+| Decision | Reason |
+|---|---|
+| Spring JDBC over JPA | Full control over queries, no hidden side effects |
+| Composable filter model | Type-safe, reusable query logic without ORM abstractions |
+| Immutable entities (`@Value` + `@Builder`) | Predictable state, no accidental mutation |
+| Enum-based i18n keys | Compile-time safety for localization strings |
+| Rule-oriented validation | Validation logic isolated from UI and service layers |
 
 ---
 
-## Architectural Maturity
+## Running Locally
 
-This codebase intentionally contains areas that are not fully generalized or polished.
+The project uses three separate Docker Compose files:
 
-Some solutions are deliberately explicit and verbose to:
-- expose architectural trade-offs,
-- support experimentation,
-- favor understandability over abstraction completeness.
+| File | Purpose |
+|---|---|
+| `docker-compose.db.yml` | PostgreSQL |
+| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Cloudflare R2) |
+| `docker-compose.app.yml` | Application (production build) |
 
-Refactoring and replacement of existing solutions is considered a natural part of the project’s evolution.
+### Option 1 — Dev mode (run from IDE)
+
+Start only the infrastructure:
+
+```bash
+docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
+```
+
+Then run the application from your IDE with the `dev` Spring profile active.  
+The `dev` profile connects to `localhost:5432` and `localhost:9000`, and loads test seed data via Liquibase.
+
+MinIO console: http://localhost:9001 — login: `admin` / `admin12345`  
+The `advertisement` bucket is created automatically on first start.
+
+Open the app: http://localhost:8080
+
+### Option 2 — Full Docker (local production simulation)
+
+Builds and runs everything in containers — useful for verifying the production build before deploying.
+
+```bash
+docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml up --build
+```
+
+To stop and remove volumes:
+
+```bash
+docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml down -v
+```
+
+### Option 3 — Cloud DB + R2 (Neon + Cloudflare R2)
+
+Use only the app compose file and override environment variables:
+
+```bash
+docker-compose -f docker-compose.app.yml up --build
+```
+
+Uncomment the Neon and R2 sections in `docker-compose.app.yml` and fill in your credentials before running.
 
 ---
 
-## Project Status
+## Running Without Docker
 
-Actively evolving.
-
-This repository represents engineering thinking in progress:
-- architectural decisions may be revisited,
-- implementations may be replaced,
-- experiments are expected and encouraged.
-
-Stability and completeness are secondary to learning, clarity, and architectural exploration.
-
----
-
-## Getting Started
-
-git clone https://github.com/OstMutant/Advertisement.git  
-cd Advertisement  
+```bash
+git clone https://github.com/OstMutant/Advertisement.git
+cd Advertisement
 ./mvnw spring-boot:run
+```
 
-Open: http://localhost:8080
-
----
-
-## Test Data
-
-Database schema and seed data are managed via Liquibase.
-
-To populate test data, provide a data-test.xml changelog with full DTO coverage.
+Requires a running PostgreSQL instance matching the `application-dev.yml` config,
+and a running MinIO instance (or any S3-compatible storage).
 
 ---
 
-## Ideas and Future Exploration
+## Status & Roadmap
 
+Actively evolving. Architectural decisions may be revisited, implementations replaced.
+
+Planned directions:
 - Extend rule-based validation capabilities
-- Improve composability and readability of generic filtering
+- Improve composability of the generic filtering layer
 - Add architectural decision records (ADR)
-- Introduce focused integration and contract tests
-- Explore alternative API or UI adapters
+- Introduce integration and contract tests
+- Explore alternative API adapters
 
 ---
 
-## Author’s Note
-
-This project reflects my approach to backend engineering.
+## Author's Note
 
 I value clarity over convenience.  
 I prefer explicitness over magic.  
-I design systems to be understood, not just used.
+I build systems to be understood, not just used.
 
-Architectural discussions and feedback are welcome.
+Feedback and architectural discussions are welcome.
