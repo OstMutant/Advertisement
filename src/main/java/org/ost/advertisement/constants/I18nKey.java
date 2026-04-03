@@ -59,7 +59,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_TITLE_EDIT("advertisement.overlay.title.edit"),
     ADVERTISEMENT_OVERLAY_FIELD_CREATED("advertisement.overlay.field.created"),
     ADVERTISEMENT_OVERLAY_FIELD_UPDATED("advertisement.overlay.field.updated"),
-    ADVERTISEMENT_OVERLAY_FIELD_AUTHOR("advertisement.overlay.field.author"),  // #1: was USER, now shows name
+    ADVERTISEMENT_OVERLAY_FIELD_AUTHOR("advertisement.overlay.field.author"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
@@ -102,7 +102,7 @@ public enum I18nKey {
     USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
     USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
 
-    // === Advertisement Sort ===
+    // === User Sort ===
     USER_SORT_ID("user.sort.id"),
     USER_SORT_NAME("user.sort.name"),
     USER_SORT_EMAIL("user.sort.email"),
@@ -166,12 +166,18 @@ public enum I18nKey {
     ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
     ADVERTISEMENT_EMPTY_HINT("advertisement.empty.hint"),
 
+    // === Attachment Gallery ===
+    ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
+    ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
+
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
     ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
+
     // === Main Tabs ===
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),
+
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),
     PAGINATION_PREV("pagination.prev"),

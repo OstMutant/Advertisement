@@ -11,11 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.AttachmentGallery;
+import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
@@ -48,6 +49,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
+    private final AttachmentGallery             gallery;
 
     private Parameters params;
 
@@ -65,6 +67,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         Span description = new Span(params.getAd().getDescription());
         description.addClassName("overlay__view-description");
 
+        gallery.configureForView(params.getAd());
+
         editButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
                 .build());
@@ -77,8 +81,15 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd()));
 
-        layout.setContent(new Div(title, description,
-                metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))));
+        Div viewBody = new Div(
+                title,
+                description,
+                gallery,
+                metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))
+        );
+        viewBody.addClassName("overlay__view-body");
+
+        layout.setContent(viewBody);
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 }

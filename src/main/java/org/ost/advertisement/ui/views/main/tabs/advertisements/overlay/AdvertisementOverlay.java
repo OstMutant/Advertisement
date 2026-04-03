@@ -41,12 +41,12 @@ public class AdvertisementOverlay extends BaseOverlay {
         }
     }
 
-    private final transient I18nService                         i18n;
-    private final transient NotificationService                 notification;
+    private final transient I18nService                                 i18n;
+    private final transient NotificationService                         notification;
     private final transient AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
     private final transient AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
-    private final transient ConfirmActionDialog.Builder          confirmDiscardBuilder;
-    private final transient ObjectProvider<OverlayLayout>        layoutProvider;
+    private final transient ConfirmActionDialog.Builder                 confirmDiscardBuilder;
+    private final transient ObjectProvider<OverlayLayout>               layoutProvider;
 
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
@@ -155,6 +155,10 @@ public class AdvertisementOverlay extends BaseOverlay {
     }
 
     private void doCancel() {
+        if (session.mode() == Mode.CREATE && currentFormHandler != null) {
+            currentFormHandler.discard();
+        }
+
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
             switchTo();

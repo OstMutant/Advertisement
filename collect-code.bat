@@ -48,6 +48,7 @@ for /R src\main\resources %%f in (*) do (
 for %%f in (
   docker-compose.app.yml
   docker-compose.db.yml
+  docker-compose.minio.yml
   Dockerfile
   lombok.config
   mvn.bat
@@ -77,6 +78,8 @@ echo docker-compose.app.yml present:
 if exist docker-compose.app.yml (echo YES) else (echo NO)
 echo docker-compose.db.yml present:
 if exist docker-compose.db.yml (echo YES) else (echo NO)
+echo docker-compose.minio.yml present:
+if exist docker-compose.minio.yml (echo YES) else (echo NO)
 echo Dockerfile present:
 if exist Dockerfile (echo YES) else (echo NO)
 echo lombok.config present:

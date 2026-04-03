@@ -8,23 +8,27 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
 import org.ost.advertisement.ui.mappers.AdvertisementMapper;
-import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextArea;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
-import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
-import org.ost.advertisement.ui.views.rules.Configurable;
+import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.AttachmentGallery;
+import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
+
+import java.util.UUID;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -59,9 +63,12 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
+    private final AttachmentGallery                               gallery;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
+    @Getter
+    private Advertisement savedAdvertisement;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -93,10 +100,20 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
 
-        Div content = isCreate
-                ? new Div(titleField, descriptionField)
-                : new Div(titleField, descriptionField,
-                metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+        Div content;
+        if (isCreate) {
+            String tempSessionId = UUID.randomUUID().toString();
+            gallery.configureForCreate(tempSessionId);
+            content = new Div(titleField, descriptionField, gallery);
+        } else {
+            gallery.configureForEdit(params.getAd());
+            content = new Div(
+                    titleField,
+                    descriptionField,
+                    gallery,
+                    metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))
+            );
+        }
 
         saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
@@ -113,7 +130,14 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     }
 
     public boolean save() {
-        return binder.save(dto -> advertisementService.save(mapper.toAdvertisement(dto)));
+        return binder.save(dto -> {
+            this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
+            gallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+        });
+    }
+
+    public void discard() {
+        gallery.discardTempUploads();
     }
 
     public boolean hasChanges() {
