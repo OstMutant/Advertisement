@@ -15,6 +15,13 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentService {
 
+    public record TempAttachment(
+            String tempUrl,
+            String filename,
+            String contentType,
+            long   size
+    ) {}
+
     private final AdvertisementAttachmentRepository repository;
     private final StorageService storageService;
     private final AccessEvaluator access;
@@ -52,12 +59,40 @@ public class AttachmentService {
         });
     }
 
-    public void deleteAllByAdvertisementId(UserIdMarker target, Long advertisementId) {
-        if (access.canNotDelete(target)) {
-            throw new AccessDeniedException("You cannot delete attachments of this advertisement");
+    public TempAttachment uploadTemp(String tempSessionId,
+                                     String filename, InputStream inputStream,
+                                     long contentLength, String contentType) {
+        String tempUrl = storageService.upload(
+                "advertisements/temp/" + tempSessionId,
+                filename, inputStream, contentLength, contentType);
+
+        return new TempAttachment(tempUrl, filename, contentType, contentLength);
+    }
+
+    public void commitTempUploads(UserIdMarker target, Long advertisementId,
+                                  List<TempAttachment> temps) {
+        if (temps.isEmpty()) return;
+        if (access.canNotEdit(target)) {
+            throw new AccessDeniedException("You cannot add attachments to this advertisement");
         }
-        repository.findByAdvertisementId(advertisementId).forEach(attachment ->
-                storageService.delete(attachment.getUrl()));
-        repository.deleteByAdvertisementId(advertisementId);
+
+        for (TempAttachment temp : temps) {
+            String finalUrl = storageService.move(
+                    temp.tempUrl(),
+                    "advertisements/" + advertisementId,
+                    temp.filename());
+
+            repository.save(AdvertisementAttachment.builder()
+                    .advertisementId(advertisementId)
+                    .url(finalUrl)
+                    .filename(temp.filename())
+                    .contentType(temp.contentType())
+                    .size(temp.size())
+                    .build());
+        }
+    }
+
+    public void discardTempUploads(List<TempAttachment> temps) {
+        temps.forEach(t -> storageService.delete(t.tempUrl()));
     }
 }

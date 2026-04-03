@@ -15,10 +15,13 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.AdvertisementAttachment;
 import org.ost.advertisement.services.AttachmentService;
+import org.ost.advertisement.services.AttachmentService.TempAttachment;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.ost.advertisement.constants.I18nKey.ATTACHMENT_GALLERY_EMPTY;
@@ -39,6 +42,9 @@ public class AttachmentGallery extends Div implements I18nParams {
     private boolean          editMode;
     private transient AdvertisementInfoDto ad;
 
+    private final List<TempAttachment> tempUploads = new ArrayList<>();
+    private String tempSessionId;
+
     @PostConstruct
     private void init() {
         addClassName("attachment-gallery");
@@ -56,24 +62,47 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(title, thumbnailsRow, emptyState);
     }
 
-    /** View mode — read-only thumbnails; click opens lightbox. */
     public void configureForView(AdvertisementInfoDto ad) {
         this.ad       = ad;
         this.editMode = false;
         refresh();
     }
 
-    /** Edit / create mode — thumbnails with delete overlay + upload button. */
     public void configureForEdit(AdvertisementInfoDto ad) {
-        this.ad       = ad;
-        this.editMode = true;
+        this.ad          = ad;
+        this.editMode    = true;
+        this.tempSessionId = null;
+        tempUploads.clear();
         removeUploadIfPresent();
         refresh();
         uploadButton = buildUploadButton();
         add(uploadButton);
     }
 
-    // ---------------------------------------------------------------- private
+    public void configureForCreate(String tempSessionId) {
+        this.ad            = null;
+        this.editMode      = true;
+        this.tempSessionId = tempSessionId;
+        tempUploads.clear();
+        removeUploadIfPresent();
+        thumbnailsRow.removeAll();
+        showEmpty();
+        uploadButton = buildUploadButton();
+        add(uploadButton);
+    }
+
+    public void commitTempUploads(AdvertisementInfoDto savedAd) {
+        if (tempUploads.isEmpty()) return;
+        attachmentService.commitTempUploads(savedAd, savedAd.getId(), tempUploads);
+        tempUploads.clear();
+    }
+
+
+    public void discardTempUploads() {
+        if (tempUploads.isEmpty()) return;
+        attachmentService.discardTempUploads(tempUploads);
+        tempUploads.clear();
+    }
 
     private void refresh() {
         thumbnailsRow.removeAll();
@@ -110,15 +139,9 @@ public class AttachmentGallery extends Div implements I18nParams {
             Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
                 attachmentService.delete(ad, attachment.getId());
                 wrapper.removeFromParent();
-                if (thumbnailsRow.getComponentCount() == 0) {
-                    showEmpty();
-                }
+                if (thumbnailsRow.getComponentCount() == 0) showEmpty();
             });
-            deleteBtn.addThemeVariants(
-                    ButtonVariant.LUMO_TERTIARY,
-                    ButtonVariant.LUMO_ERROR,
-                    ButtonVariant.LUMO_ICON);
-            deleteBtn.addClassName("attachment-gallery__delete-btn");
+            styleDeleteBtn(deleteBtn);
             wrapper.add(img, deleteBtn);
         } else {
             img.addClickListener(_ -> openLightbox(attachment.getUrl(), attachment.getFilename()));
@@ -128,19 +151,50 @@ public class AttachmentGallery extends Div implements I18nParams {
         return wrapper;
     }
 
+    private Div buildTempThumbnail(TempAttachment temp) {
+        Div wrapper = new Div();
+        wrapper.addClassName("attachment-gallery__item");
+
+        Image img = new Image(temp.tempUrl(), temp.filename());
+        img.addClassName("attachment-gallery__image");
+
+        Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
+            attachmentService.discardTempUploads(List.of(temp));
+            tempUploads.remove(temp);
+            wrapper.removeFromParent();
+            if (thumbnailsRow.getComponentCount() == 0) showEmpty();
+        });
+        styleDeleteBtn(deleteBtn);
+
+        wrapper.add(img, deleteBtn);
+        return wrapper;
+    }
+
     private Upload buildUploadButton() {
         Upload upload = new Upload(UploadHandler.inMemory((metadata, bytes) -> {
-            if (ad == null) return; // upload blocked until ad is saved (handled by caller)
-            AdvertisementAttachment saved = attachmentService.upload(
-                    ad,
-                    ad.getId(),
-                    metadata.fileName(),
-                    new java.io.ByteArrayInputStream(bytes),
-                    bytes.length,
-                    metadata.contentType()
-            );
-            hideEmpty();
-            thumbnailsRow.add(buildThumbnail(saved));
+            if (tempSessionId != null) {
+                TempAttachment temp = attachmentService.uploadTemp(
+                        tempSessionId,
+                        metadata.fileName(),
+                        new ByteArrayInputStream(bytes),
+                        bytes.length,
+                        metadata.contentType()
+                );
+                tempUploads.add(temp);
+                hideEmpty();
+                thumbnailsRow.add(buildTempThumbnail(temp));
+            } else {
+                AdvertisementAttachment saved = attachmentService.upload(
+                        ad,
+                        ad.getId(),
+                        metadata.fileName(),
+                        new ByteArrayInputStream(bytes),
+                        bytes.length,
+                        metadata.contentType()
+                );
+                hideEmpty();
+                thumbnailsRow.add(buildThumbnail(saved));
+            }
         }));
         upload.addClassName("attachment-gallery__upload");
         upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif");
@@ -154,6 +208,14 @@ public class AttachmentGallery extends Div implements I18nParams {
             uploadButton.removeFromParent();
             uploadButton = null;
         }
+    }
+
+    private static void styleDeleteBtn(Button btn) {
+        btn.addThemeVariants(
+                ButtonVariant.LUMO_TERTIARY,
+                ButtonVariant.LUMO_ERROR,
+                ButtonVariant.LUMO_ICON);
+        btn.addClassName("attachment-gallery__delete-btn");
     }
 
     private void openLightbox(String url, String filename) {

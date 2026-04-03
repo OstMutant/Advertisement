@@ -11,5 +11,4 @@ public interface AdvertisementAttachmentRepository extends CrudRepository<Advert
 
     List<AdvertisementAttachment> findByAdvertisementId(Long advertisementId);
 
-    void deleteByAdvertisementId(Long advertisementId);
 }

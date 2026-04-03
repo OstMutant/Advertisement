@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
@@ -38,6 +39,25 @@ public class StorageService {
         );
 
         return buildUrl(key);
+    }
+
+    public String move(String fromUrl, String toFolder, String originalFilename) {
+        String fromKey = extractKey(fromUrl);
+        String toKey   = toFolder + "/" + UUID.randomUUID() + extractExtension(originalFilename);
+
+        s3Client.copyObject(CopyObjectRequest.builder()
+                .sourceBucket(bucket)
+                .sourceKey(fromKey)
+                .destinationBucket(bucket)
+                .destinationKey(toKey)
+                .build());
+
+        s3Client.deleteObject(DeleteObjectRequest.builder()
+                .bucket(bucket)
+                .key(fromKey)
+                .build());
+
+        return buildUrl(toKey);
     }
 
     public void delete(String url) {

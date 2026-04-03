@@ -28,6 +28,8 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
+import java.util.UUID;
+
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
@@ -40,10 +42,8 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     @lombok.Builder
     public static class Parameters {
         AdvertisementInfoDto ad;
-        @NonNull
-        Runnable onSave;
-        @NonNull
-        Runnable onCancel;
+        @NonNull Runnable    onSave;
+        @NonNull Runnable    onCancel;
     }
 
     @SpringComponent
@@ -53,17 +53,17 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
     }
 
-    private final AdvertisementService advertisementService;
-    private final AdvertisementMapper mapper;
+    private final AdvertisementService                            advertisementService;
+    private final AdvertisementMapper                             mapper;
     @Getter
-    private final I18nService i18nService;
+    private final I18nService                                     i18nService;
     private final OverlayFormBinder.Builder<AdvertisementEditDto> binderBuilder;
-    private final OverlayAdvertisementMetaPanel metaPanel;
-    private final UiTextField titleField;
-    private final UiTextArea descriptionField;
-    private final UiPrimaryButton saveButton;
-    private final UiTertiaryButton cancelButton;
-    private final AttachmentGallery gallery;
+    private final OverlayAdvertisementMetaPanel                   metaPanel;
+    private final UiTextField                                     titleField;
+    private final UiTextArea                                      descriptionField;
+    private final UiPrimaryButton                                 saveButton;
+    private final UiTertiaryButton                                cancelButton;
+    private final AttachmentGallery                               gallery;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
@@ -102,7 +102,9 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
 
         Div content;
         if (isCreate) {
-            content = new Div(titleField, descriptionField);
+            String tempSessionId = UUID.randomUUID().toString();
+            gallery.configureForCreate(tempSessionId);
+            content = new Div(titleField, descriptionField, gallery);
         } else {
             gallery.configureForEdit(params.getAd());
             content = new Div(
@@ -120,7 +122,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
 
-        saveButton.addClickListener(_ -> params.getOnSave().run());
+        saveButton.addClickListener(_  -> params.getOnSave().run());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         layout.setContent(content);
@@ -128,7 +130,14 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     }
 
     public boolean save() {
-        return binder.save(dto -> this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto)));
+        return binder.save(dto -> {
+            this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
+            gallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+        });
+    }
+
+    public void discard() {
+        gallery.discardTempUploads();
     }
 
     public boolean hasChanges() {
