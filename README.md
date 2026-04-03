@@ -50,6 +50,17 @@ declaratively and kept strongly typed.
 
 ---
 
+## Deployment
+
+| Service | Role |
+|---|---|
+| [Render](https://render.com) | Application hosting |
+| [Neon](https://neon.tech) | Serverless PostgreSQL |
+| [Supabase Storage](https://supabase.com/storage) | S3-compatible file storage |
+| [UptimeRobot](https://uptimerobot.com) | Keeps the free-tier instance alive |
+
+---
+
 ## Running Locally
 
 The project uses three separate Docker Compose files:
@@ -57,7 +68,7 @@ The project uses three separate Docker Compose files:
 | File | Purpose |
 |---|---|
 | `docker-compose.db.yml` | PostgreSQL |
-| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Cloudflare R2) |
+| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
 | `docker-compose.app.yml` | Application (production build) |
 
 ### Option 1 — Dev mode (run from IDE)
@@ -78,7 +89,7 @@ Open the app: http://localhost:8080
 
 ### Option 2 — Full Docker (local production simulation)
 
-Builds and runs everything in containers — useful for verifying the production build before deploying.
+Builds and runs everything in containers — useful for verifying the production build before deploying to Render.
 
 ```bash
 docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml up --build
@@ -89,16 +100,6 @@ To stop and remove volumes:
 ```bash
 docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml down -v
 ```
-
-### Option 3 — Cloud DB + R2 (Neon + Cloudflare R2)
-
-Use only the app compose file and override environment variables:
-
-```bash
-docker-compose -f docker-compose.app.yml up --build
-```
-
-Uncomment the Neon and R2 sections in `docker-compose.app.yml` and fill in your credentials before running.
 
 ---
 
