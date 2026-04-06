@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.ost</groupId>
+        <artifactId>advertisement-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>sql-engine</artifactId>
+    <packaging>jar</packaging>
+    <name>SQL Engine</name>
+    <description>
+        Lightweight SQL query-building library for Spring JDBC.
+        Provides typed projections, declarative filter bindings, and
+        a generic RepositoryCustom base class — framework-agnostic,
+        no Spring Boot autoconfiguration included.
+    </description>
+
+    <dependencies>
+
+        <!-- Spring Data JDBC — brings NamedParameterJdbcTemplate,
+             RowMapper, MapSqlParameterSource, Sort, Pageable          -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jdbc</artifactId>
+        </dependency>
+
+        <!-- Apache Commons Lang — StringUtils used in SqlQueryBuilder
+             and SqlProjection                                          -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- Lombok — @Builder, @Getter, @NoArgsConstructor, @NonNull  -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+</project>
