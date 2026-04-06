@@ -2,7 +2,7 @@ package org.ost.advertisement.repository.advertisement;
 
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.repository.RepositoryCustom;
+import org.ost.sqlengine.RepositoryCustom;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 

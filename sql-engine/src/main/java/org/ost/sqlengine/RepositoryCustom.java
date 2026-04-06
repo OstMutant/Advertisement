@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository;
+package org.ost.sqlengine;
 
 import org.ost.sqlengine.exec.RepositoryExecutor;
 import org.ost.sqlengine.exec.SqlQueryBuilder;

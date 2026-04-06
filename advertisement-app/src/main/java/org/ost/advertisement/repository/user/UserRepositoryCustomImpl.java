@@ -2,7 +2,7 @@ package org.ost.advertisement.repository.user;
 
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.repository.RepositoryCustom;
+import org.ost.sqlengine.RepositoryCustom;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
