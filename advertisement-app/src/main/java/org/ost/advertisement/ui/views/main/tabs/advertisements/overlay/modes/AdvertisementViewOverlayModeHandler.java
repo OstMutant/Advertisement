@@ -49,7 +49,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final AttachmentGallery             gallery;
+    private final ObjectProvider<AttachmentGallery> galleryProvider;
 
     private Parameters params;
 
@@ -67,8 +67,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         Span description = new Span(params.getAd().getDescription());
         description.addClassName("overlay__view-description");
 
-        gallery.configureForView(params.getAd());
-
         editButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
                 .build());
@@ -81,12 +79,14 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd()));
 
-        Div viewBody = new Div(
-                title,
-                description,
-                gallery,
-                metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))
-        );
+        Div viewBody = new Div(title, description);
+
+        galleryProvider.ifAvailable(gallery -> {
+            gallery.configureForView(params.getAd());
+            viewBody.add(gallery);
+        });
+
+        viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
 
         layout.setContent(viewBody);

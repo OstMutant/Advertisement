@@ -5,7 +5,6 @@
          https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <!-- ── Inherit Spring Boot BOM + plugin defaults ── -->
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -22,9 +21,10 @@
     <modules>
         <module>sql-engine</module>
         <module>advertisement-app</module>
+        <module>storage-api</module>
+        <module>storage-s3-spring-boot-starter</module>
     </modules>
 
-    <!-- ── Shared properties ── -->
     <properties>
         <java.version>25</java.version>
         <vaadin.version>25.0.4</vaadin.version>
@@ -34,10 +34,8 @@
         <jetbrains-annotations.version>24.1.0</jetbrains-annotations.version>
     </properties>
 
-    <!-- ── Shared dependency management (versions only, no actual deps) ── -->
     <dependencyManagement>
         <dependencies>
-            <!-- Vaadin BOM -->
             <dependency>
                 <groupId>com.vaadin</groupId>
                 <artifactId>vaadin-bom</artifactId>
@@ -45,17 +43,24 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
-            <!-- sql-engine (child modules can pull it by groupId/artifactId only) -->
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>sql-engine</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>storage-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>storage-s3-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
-    <!-- ── Shared build config: compiler + annotation processors ── -->
     <build>
         <pluginManagement>
             <plugins>
@@ -85,17 +90,7 @@
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
-
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.0.0-M5</version>
-                    <configuration>
-                        <skipTests>false</skipTests>
-                    </configuration>
-                </plugin>
             </plugins>
         </pluginManagement>
     </build>
-
 </project>

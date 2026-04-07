@@ -18,15 +18,19 @@
     <description>Advertisement Platform — Vaadin + Spring Boot application</description>
 
     <dependencies>
-
-        <!-- ── sql-engine (local module) ── -->
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>sql-engine</artifactId>
-            <!-- version managed by parent dependencyManagement -->
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>storage-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>storage-s3-spring-boot-starter</artifactId>
         </dependency>
 
-        <!-- ── Spring Boot ── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
@@ -52,7 +56,6 @@
             <artifactId>spring-boot-liquibase</artifactId>
         </dependency>
 
-        <!-- ── Vaadin ── -->
         <dependency>
             <groupId>com.vaadin</groupId>
             <artifactId>vaadin-spring-boot-starter</artifactId>
@@ -65,20 +68,17 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- ── Database ── -->
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- ── Lombok ── -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
         </dependency>
 
-        <!-- ── MapStruct ── -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
@@ -91,14 +91,6 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- ── AWS S3 SDK (MinIO / Cloudflare R2) ── -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>s3</artifactId>
-            <version>${aws-s3-sdk.version}</version>
-        </dependency>
-
-        <!-- ── JetBrains annotations (compile-time only) ── -->
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
@@ -106,13 +98,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- ── Test ── -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
-
     </dependencies>
 
     <build>
@@ -136,5 +126,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

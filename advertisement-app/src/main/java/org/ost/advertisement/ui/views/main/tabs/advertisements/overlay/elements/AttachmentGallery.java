@@ -18,6 +18,7 @@ import org.ost.advertisement.services.AttachmentService;
 import org.ost.advertisement.services.AttachmentService.TempAttachment;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.storage.api.ConditionalOnStorageEnabled;
 import org.springframework.context.annotation.Scope;
 
 import java.io.ByteArrayInputStream;
@@ -30,16 +31,17 @@ import static org.ost.advertisement.constants.I18nKey.ATTACHMENT_GALLERY_TITLE;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
+@ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div implements I18nParams {
 
     private final transient AttachmentService attachmentService;
     @Getter
-    private final transient I18nService       i18nService;
+    private final transient I18nService i18nService;
 
-    private Div              thumbnailsRow;
-    private Span             emptyState;
-    private Upload           uploadButton;
-    private boolean          editMode;
+    private Div thumbnailsRow;
+    private Span emptyState;
+    private Upload uploadButton;
+    private boolean editMode;
     private transient AdvertisementInfoDto ad;
 
     private final List<TempAttachment> tempUploads = new ArrayList<>();
@@ -63,14 +65,14 @@ public class AttachmentGallery extends Div implements I18nParams {
     }
 
     public void configureForView(AdvertisementInfoDto ad) {
-        this.ad       = ad;
+        this.ad = ad;
         this.editMode = false;
         refresh();
     }
 
     public void configureForEdit(AdvertisementInfoDto ad) {
-        this.ad          = ad;
-        this.editMode    = true;
+        this.ad = ad;
+        this.editMode = true;
         this.tempSessionId = null;
         tempUploads.clear();
         removeUploadIfPresent();
@@ -80,8 +82,8 @@ public class AttachmentGallery extends Div implements I18nParams {
     }
 
     public void configureForCreate(String tempSessionId) {
-        this.ad            = null;
-        this.editMode      = true;
+        this.ad = null;
+        this.editMode = true;
         this.tempSessionId = tempSessionId;
         tempUploads.clear();
         removeUploadIfPresent();
@@ -96,7 +98,6 @@ public class AttachmentGallery extends Div implements I18nParams {
         attachmentService.commitTempUploads(savedAd, savedAd.getId(), tempUploads);
         tempUploads.clear();
     }
-
 
     public void discardTempUploads() {
         if (tempUploads.isEmpty()) return;

@@ -63,12 +63,13 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
-    private final AttachmentGallery                               gallery;
+    private final ObjectProvider<AttachmentGallery>               galleryProvider;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
     @Getter
     private Advertisement savedAdvertisement;
+    private AttachmentGallery activeGallery;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -100,19 +101,21 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
 
-        Div content;
-        if (isCreate) {
-            String tempSessionId = UUID.randomUUID().toString();
-            gallery.configureForCreate(tempSessionId);
-            content = new Div(titleField, descriptionField, gallery);
-        } else {
-            gallery.configureForEdit(params.getAd());
-            content = new Div(
-                    titleField,
-                    descriptionField,
-                    gallery,
-                    metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd()))
-            );
+        Div content = new Div(titleField, descriptionField);
+        galleryProvider.ifAvailable(gallery -> {
+            this.activeGallery = gallery;
+
+            if (isCreate) {
+                String tempSessionId = UUID.randomUUID().toString();
+                gallery.configureForCreate(tempSessionId);
+            } else {
+                gallery.configureForEdit(params.getAd());
+            }
+            content.add(gallery);
+        });
+
+        if (!isCreate) {
+            content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         }
 
         saveButton.configure(UiPrimaryButton.Parameters.builder()
@@ -132,12 +135,16 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     public boolean save() {
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
-            gallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+            if (this.activeGallery != null) {
+                this.activeGallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+            }
         });
     }
 
     public void discard() {
-        gallery.discardTempUploads();
+        if (this.activeGallery != null) {
+            this.activeGallery.discardTempUploads();
+        }
     }
 
     public boolean hasChanges() {

@@ -18,6 +18,7 @@ call :FindFiles "*.yml"
 call :FindFiles "*.properties"
 call :FindFiles "*.xml"
 call :FindFiles "*.sql"
+call :FindFiles "*.imports"
 
 :: 3. Add specific root-level files
 for %%F in (README.md Dockerfile lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
@@ -48,6 +49,7 @@ call :CountFiles ".css" "CSS files"
 call :CountFiles ".yml" "YAML files"
 call :CountFiles ".properties" "Properties files"
 call :CountFiles ".sql" "SQL files"
+call :CountFiles ".imports" "Spring AutoConfig files"
 
 echo.
 echo Check root files:

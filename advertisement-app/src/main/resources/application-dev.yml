@@ -18,6 +18,7 @@ storage:
     region: us-east-1
     access-key: admin
     secret-key: admin12345
+    enabled: true
 
 #storage:
 #  s3:

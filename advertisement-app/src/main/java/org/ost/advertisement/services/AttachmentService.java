@@ -6,6 +6,8 @@ import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementAttachmentRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.security.UserIdMarker;
+import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.storage.api.StorageService;
 import org.springframework.stereotype.Service;
 
 import java.io.InputStream;
@@ -13,13 +15,14 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@ConditionalOnStorageEnabled
 public class AttachmentService {
 
     public record TempAttachment(
             String tempUrl,
             String filename,
             String contentType,
-            long   size
+            long size
     ) {}
 
     private final AdvertisementAttachmentRepository repository;
