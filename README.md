@@ -103,16 +103,37 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-co
 
 ---
 
+## Environment Variables
+
+Key variables used by the application (configured in `docker-compose.app.yml` or passed directly):
+
+| Variable | Description | Example |
+|---|---|---|
+| `DB_HOST` | PostgreSQL host | `db` / `ep-xxx.neon.tech` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_NAME` | Database name | `experiments` |
+| `DB_USER` | Database user | `experiments_user` |
+| `DB_PASSWORD` | Database password | — |
+| `DB_SSL_PARAMS` | Optional SSL query params | `?sslmode=require` |
+| `S3_ENDPOINT` | S3-compatible storage endpoint | `http://minio:9000` |
+| `S3_BUCKET` | Bucket name | `advertisement` |
+| `S3_ACCESS_KEY` | S3 access key | — |
+| `S3_SECRET_KEY` | S3 secret key | — |
+| `S3_REGION` | S3 region | `us-east-1` / `auto` |
+| `S3_PUBLIC_URL` | Public base URL for file access | `http://localhost:9000/advertisement` |
+
+---
+
 ## Running Without Docker
+
+Requires a running PostgreSQL instance and a running MinIO instance (or any S3-compatible storage)
+matching the `application-dev.yml` config.
 
 ```bash
 git clone https://github.com/OstMutant/Advertisement.git
 cd Advertisement
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
-
-Requires a running PostgreSQL instance matching the `application-dev.yml` config,
-and a running MinIO instance (or any S3-compatible storage).
 
 ---
 

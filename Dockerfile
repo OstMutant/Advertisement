@@ -8,14 +8,18 @@ COPY .mvn .mvn
 # Copy module POMs to leverage Docker cache for dependencies
 COPY sql-engine/pom.xml sql-engine/
 COPY advertisement-app/pom.xml advertisement-app/
+COPY storage-api/pom.xml storage-api/
+COPY storage-s3-spring-boot-starter/pom.xml storage-s3-spring-boot-starter/
 
 # Download dependencies (this layer is cached until pom.xml changes)
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw
 RUN ./mvnw dependency:go-offline -q
 
-# Copy the source code for both modules
+# Copy the source code for all modules
 COPY sql-engine/src ./sql-engine/src
 COPY advertisement-app/src ./advertisement-app/src
+COPY storage-api/src ./storage-api/src
+COPY storage-s3-spring-boot-starter/src ./storage-s3-spring-boot-starter/src
 
 # Build the project (Vaadin production mode enabled via POM profile)
 RUN ./mvnw clean package -Pproduction -DskipTests -q
@@ -27,4 +31,4 @@ WORKDIR /app
 COPY --from=builder /app/advertisement-app/target/*.jar app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-Dspring.profiles.active=prod", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
