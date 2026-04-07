@@ -13,3 +13,8 @@
 /examples.iml
 /advertisement-app/src/main/frontend
 /advertisement.iml
+/advertisement-app/target/
+/sql-engine/target/
+/storage-s3-spring-boot-starter/target/
+/storage-api/target/
+/advertisement-app/src/main/bundles/
