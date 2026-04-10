@@ -3,6 +3,9 @@
 A personal backend project used as an architectural playground — for exploring trade-offs,
 experimenting with patterns, and developing engineering intuition.
 
+🚀 **Live Demo:** [advertisement-dtdg.onrender.com](https://advertisement-dtdg.onrender.com/)  
+*(Note: Hosted on Render's free tier. Initial load may take up to 50 seconds if the instance is sleeping).*
+
 ---
 
 ## About
@@ -59,6 +62,28 @@ declaratively and kept strongly typed.
 | [Supabase Storage](https://supabase.com/storage) | S3-compatible file storage |
 | [UptimeRobot](https://uptimerobot.com) | Keeps the free-tier instance alive |
 
+### Deploying to Render
+Please note that **Render ignores `docker-compose.app.yml`** and builds the application directly from the `Dockerfile`.
+
+To successfully deploy the app, you **must** manually add the following Environment Variables in your Render Web Service dashboard (under the "Environment" tab):
+
+1. `SPRING_PROFILES_ACTIVE` = `prod` *(Crucial: prevents the app from falling back to `dev` and trying to connect to `localhost`)*
+2. Database credentials (e.g., from Neon):
+    - `DB_HOST`
+    - `DB_NAME`
+    - `DB_USER`
+    - `DB_PASSWORD`
+    - `DB_SSL_PARAMS` = `?sslmode=require&channel_binding=require`
+3. Storage credentials (e.g., from Supabase Storage):
+    - `S3_ENDPOINT`
+    - `S3_BUCKET`
+    - `S3_ACCESS_KEY`
+    - `S3_SECRET_KEY`
+    - `S3_REGION`
+    - `S3_PUBLIC_URL`
+
+Render will automatically inject the `PORT` variable, which the application uses to bind the web server.
+
 ---
 
 ## Running Locally
@@ -105,7 +130,9 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-co
 
 ## Environment Variables
 
-Key variables used by the application (configured in `docker-compose.app.yml` or passed directly):
+Key variables used by the application.
+* For **local Docker testing**, configure them in `docker-compose.app.yml`.
+* For **Production (Render)**, set them directly in the cloud provider's dashboard.
 
 | Variable | Description | Example |
 |---|---|---|
