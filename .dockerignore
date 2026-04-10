@@ -1,0 +1,11 @@
+.git
+.idea
+target/
+*/target/
+node_modules/
+advertisement-app/node_modules/
+advertisement-app/src/main/frontend/generated/
+*.md
+*.bat
+docker-compose*.yml
+.mvn/wrapper/maven-wrapper.jar

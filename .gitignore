@@ -2,8 +2,8 @@
 /target
 /src/main/bundles
 /node_modules
-/src/main/frontend/generated/
-/src/main/frontend/index.html
+/advertisement-app/src/main/frontend/generated/
+/advertisement-app/src/main/frontend/index.html
 /tsconfig.json
 /types.d.ts
 /vite.config.ts
@@ -11,5 +11,10 @@
 /package.json
 /package-lock.json
 /examples.iml
-/src/main/frontend
+/advertisement-app/src/main/frontend
 /advertisement.iml
+/advertisement-app/target/
+/sql-engine/target/
+/storage-s3-spring-boot-starter/target/
+/storage-api/target/
+/advertisement-app/src/main/bundles/

@@ -1,92 +1,95 @@
 @echo off
-(
-  dir /S /B *.java
-  dir /S /B pom.xml
-  dir /S /B README.md
-  dir /S /B src\main\frontend\themes\my-app\*.css
-  dir /S /B src\main\resources\*
-  dir /B docker-compose.app.yml
-  dir /B docker-compose.db.yml
-  dir /B Dockerfile
-  dir /B lombok.config
-  dir /B mvn.bat
-  dir /B mvnw
-  dir /B mvnw.cmd
-) > all-code.txt
+setlocal
 
-:: === Java files ===
-for /R %%f in (*.java) do (
-  echo ===== %%f ===== >> all-code.txt
-  type "%%f" >> all-code.txt
+:: Output file name
+set "OUT=all-code.txt"
+echo Preparing %OUT%...
+
+:: 1. Create a temporary file to store the list of all files
+set "FILE_LIST=temp_files_list.tmp"
+type nul > "%FILE_LIST%"
+
+:: 2. Collect files by extension across the entire project (including all modules)
+:: The :FindFiles function automatically ignores target, node_modules, etc.
+call :FindFiles "*.java"
+call :FindFiles "pom.xml"
+call :FindFiles "*.css"
+call :FindFiles "*.yml"
+call :FindFiles "*.properties"
+call :FindFiles "*.xml"
+call :FindFiles "*.sql"
+call :FindFiles "*.imports"
+
+:: 3. Add specific root-level files
+for %%F in (README.md Dockerfile lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
+    if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
-:: === pom.xml ===
-if exist pom.xml (
-  echo ===== pom.xml ===== >> all-code.txt
-  type pom.xml >> all-code.txt
+:: 4. Write the "Table of Contents" to the output file
+echo === TABLE OF CONTENTS === > "%OUT%"
+type "%FILE_LIST%" >> "%OUT%"
+echo. >> "%OUT%"
+echo ========================= >> "%OUT%"
+echo. >> "%OUT%"
+
+:: 5. Read the temporary list and append the content of each file
+for /F "usebackq delims=" %%F in ("%FILE_LIST%") do (
+    echo ===== %%~nxF [%%F] ===== >> "%OUT%"
+    type "%%F" >> "%OUT%"
+    echo. >> "%OUT%"
+    echo. >> "%OUT%"
 )
 
-:: === README.md ===
-if exist README.md (
-  echo ===== README.md ===== >> all-code.txt
-  type README.md >> all-code.txt
-)
-
-:: === CSS files ===
-for %%f in (src\main\frontend\themes\my-app\*.css) do (
-  echo ===== %%f ===== >> all-code.txt
-  type "%%f" >> all-code.txt
-)
-
-:: === Resource files ===
-for /R src\main\resources %%f in (*) do (
-  echo ===== %%f ===== >> all-code.txt
-  type "%%f" >> all-code.txt
-)
-
-:: === Root-level files ===
-for %%f in (
-  docker-compose.app.yml
-  docker-compose.db.yml
-  docker-compose.minio.yml
-  Dockerfile
-  lombok.config
-  mvn.bat
-  mvnw
-  mvnw.cmd
-) do (
-  if exist %%f (
-    echo ===== %%f ===== >> all-code.txt
-    type %%f >> all-code.txt
-  )
-)
-
-:: === Summary for console only ===
+:: 6. Print summary to the console
 echo.
 echo ===== SUMMARY =====
-echo Total Java files:
-dir /S /B *.java | find /C /V ""
-echo Total CSS files:
-dir /S /B src\main\frontend\themes\my-app\*.css | find /C /V ""
-echo Total resource files:
-dir /S /B src\main\resources\* | find /C /V ""
-echo pom.xml present:
-if exist pom.xml (echo YES) else (echo NO)
-echo README.md present:
-if exist README.md (echo YES) else (echo NO)
-echo docker-compose.app.yml present:
-if exist docker-compose.app.yml (echo YES) else (echo NO)
-echo docker-compose.db.yml present:
-if exist docker-compose.db.yml (echo YES) else (echo NO)
-echo docker-compose.minio.yml present:
-if exist docker-compose.minio.yml (echo YES) else (echo NO)
-echo Dockerfile present:
-if exist Dockerfile (echo YES) else (echo NO)
-echo lombok.config present:
-if exist lombok.config (echo YES) else (echo NO)
-echo mvn.bat present:
-if exist mvn.bat (echo YES) else (echo NO)
-echo mvnw present:
-if exist mvnw (echo YES) else (echo NO)
-echo mvnw.cmd present:
-if exist mvnw.cmd (echo YES) else (echo NO)
+call :CountFiles ".java" "Java files"
+call :CountFiles "pom.xml" "POM files"
+call :CountFiles ".css" "CSS files"
+call :CountFiles ".yml" "YAML files"
+call :CountFiles ".properties" "Properties files"
+call :CountFiles ".sql" "SQL files"
+call :CountFiles ".imports" "Spring AutoConfig files"
+
+echo.
+echo Check root files:
+call :CheckRootFile "README.md"
+call :CheckRootFile "Dockerfile"
+call :CheckRootFile "docker-compose.app.yml"
+call :CheckRootFile "docker-compose.db.yml"
+call :CheckRootFile "docker-compose.minio.yml"
+call :CheckRootFile "lombok.config"
+
+:: Clean up the temporary file
+del "%FILE_LIST%"
+
+echo.
+echo Done! All code saved to %OUT%.
+goto :EOF
+
+:: ==========================================
+::                FUNCTIONS
+:: ==========================================
+
+:FindFiles
+:: Recursively searches for files and filters out system/generated folders
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\generated\\ \\frontend\\generated\\" ') do (
+    echo %%A >> "%FILE_LIST%"
+)
+goto :EOF
+
+:CountFiles
+:: Counts the number of occurrences in the temp list by extension/name
+set "count=0"
+for /f %%A in ('type "%FILE_LIST%" 2^>nul ^| find /C /I "%~1"') do set "count=%%A"
+echo %~2: %count%
+goto :EOF
+
+:CheckRootFile
+:: Checks the physical presence of a file in the current directory
+if exist "%~1" (
+    echo [YES] %~1
+) else (
+    echo [NO]  %~1
+)
+goto :EOF

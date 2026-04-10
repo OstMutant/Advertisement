@@ -50,6 +50,17 @@ declaratively and kept strongly typed.
 
 ---
 
+## Deployment
+
+| Service | Role |
+|---|---|
+| [Render](https://render.com) | Application hosting |
+| [Neon](https://neon.tech) | Serverless PostgreSQL |
+| [Supabase Storage](https://supabase.com/storage) | S3-compatible file storage |
+| [UptimeRobot](https://uptimerobot.com) | Keeps the free-tier instance alive |
+
+---
+
 ## Running Locally
 
 The project uses three separate Docker Compose files:
@@ -57,7 +68,7 @@ The project uses three separate Docker Compose files:
 | File | Purpose |
 |---|---|
 | `docker-compose.db.yml` | PostgreSQL |
-| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Cloudflare R2) |
+| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
 | `docker-compose.app.yml` | Application (production build) |
 
 ### Option 1 — Dev mode (run from IDE)
@@ -78,7 +89,7 @@ Open the app: http://localhost:8080
 
 ### Option 2 — Full Docker (local production simulation)
 
-Builds and runs everything in containers — useful for verifying the production build before deploying.
+Builds and runs everything in containers — useful for verifying the production build before deploying to Render.
 
 ```bash
 docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml up --build
@@ -90,28 +101,39 @@ To stop and remove volumes:
 docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml down -v
 ```
 
-### Option 3 — Cloud DB + R2 (Neon + Cloudflare R2)
+---
 
-Use only the app compose file and override environment variables:
+## Environment Variables
 
-```bash
-docker-compose -f docker-compose.app.yml up --build
-```
+Key variables used by the application (configured in `docker-compose.app.yml` or passed directly):
 
-Uncomment the Neon and R2 sections in `docker-compose.app.yml` and fill in your credentials before running.
+| Variable | Description | Example |
+|---|---|---|
+| `DB_HOST` | PostgreSQL host | `db` / `ep-xxx.neon.tech` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_NAME` | Database name | `experiments` |
+| `DB_USER` | Database user | `experiments_user` |
+| `DB_PASSWORD` | Database password | — |
+| `DB_SSL_PARAMS` | Optional SSL query params | `?sslmode=require` |
+| `S3_ENDPOINT` | S3-compatible storage endpoint | `http://minio:9000` |
+| `S3_BUCKET` | Bucket name | `advertisement` |
+| `S3_ACCESS_KEY` | S3 access key | — |
+| `S3_SECRET_KEY` | S3 secret key | — |
+| `S3_REGION` | S3 region | `us-east-1` / `auto` |
+| `S3_PUBLIC_URL` | Public base URL for file access | `http://localhost:9000/advertisement` |
 
 ---
 
 ## Running Without Docker
 
+Requires a running PostgreSQL instance and a running MinIO instance (or any S3-compatible storage)
+matching the `application-dev.yml` config.
+
 ```bash
 git clone https://github.com/OstMutant/Advertisement.git
 cd Advertisement
-./mvnw spring-boot:run
+./mvnw spring-boot:run -Dspring-boot.run.profiles=dev
 ```
-
-Requires a running PostgreSQL instance matching the `application-dev.yml` config,
-and a running MinIO instance (or any S3-compatible storage).
 
 ---
 
