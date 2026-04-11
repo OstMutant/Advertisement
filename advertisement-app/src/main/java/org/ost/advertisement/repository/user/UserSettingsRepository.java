@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.exceptions.persistence.SettingsPersistenceException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -31,7 +32,7 @@ public class UserSettingsRepository {
             );
         } catch (Exception ex) {
             log.error("Failed to save settings for userId={}", userId, ex);
-            throw new RuntimeException("Failed to save settings", ex);
+            throw new SettingsPersistenceException("Failed to save settings for userId=" + userId, ex);
         }
     }
 
