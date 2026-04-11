@@ -1,0 +1,39 @@
+# ==============================================================================
+# AI Developer (Claude Code) for Java 25 project
+# ==============================================================================
+#
+# HOW TO BUILD:
+# Open terminal in D:\Ost\dev\Advertisement\ and run:
+# docker build -f Dockerfile.ai -t claude-j25-dev .
+#
+# MULTIPLE ACCOUNTS WORKFLOW (BY LOGIN):
+# We use separate isolated config folders for auth (based on your email),
+# but share the local project directory so chat history and context are preserved.
+#
+# 1. Run Account 1:
+#    > claude.bat my.email.1@gmail.com
+#    (Login via browser on first run. Work until limits are reached).
+# 2. Press Ctrl+C to exit when limit is reached.
+# 3. Run Account 2:
+#    > claude.bat my.email.2@gmail.com
+#    (Login via browser with your second account. It will resume the exact same chat!).
+#
+# QUICK START PROMPT:
+# No longer needed manually! Claude automatically reads the `CLAUDE.md` file
+# in the project root to understand the Java 25 / Spring JDBC architecture.
+# ==============================================================================
+
+FROM eclipse-temurin:25-jdk-jammy
+
+# Install Node.js (for Claude CLI), Maven (for testing) and Git
+RUN apt-get update && apt-get install -y curl git maven \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Set the working directory where the local code will be mounted
+WORKDIR /app
+
+# Run Claude Code CLI as the main container process
+ENTRYPOINT ["claude"]
