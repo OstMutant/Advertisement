@@ -20,6 +20,8 @@ public class AdvertisementInfoDto implements EntityMarker {
     Long createdByUserId;
     String createdByUserName;
     String createdByUserEmail;
+    String mainImageUrl;
+    int    imageCount;
 
     @Override
     public Long getOwnerUserId() {

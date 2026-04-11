@@ -51,7 +51,8 @@ public class AttachmentGallery extends Div implements I18nParams {
     private Long entityId;
     private transient UserIdMarker owner;
 
-    private final List<TempAttachment> tempUploads = new ArrayList<>();
+    private final List<TempAttachment> tempUploads        = new ArrayList<>();
+    private final List<Attachment>     currentAttachments = new ArrayList<>();
     private String tempSessionId;
 
     @PostConstruct
@@ -124,12 +125,13 @@ public class AttachmentGallery extends Div implements I18nParams {
             showEmpty();
             return;
         }
-        List<Attachment> attachments = attachmentService.getByEntityId(entityType, entityId);
-        if (attachments.isEmpty()) {
+        currentAttachments.clear();
+        currentAttachments.addAll(attachmentService.getByEntityId(entityType, entityId));
+        if (currentAttachments.isEmpty()) {
             showEmpty();
         } else {
             emptyState.setVisible(false);
-            attachments.forEach(a -> thumbnailsRow.add(buildThumbnail(a)));
+            currentAttachments.forEach(a -> thumbnailsRow.add(buildThumbnail(a)));
         }
     }
 
@@ -151,13 +153,14 @@ public class AttachmentGallery extends Div implements I18nParams {
         if (editMode) {
             Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
                 attachmentService.delete(owner, attachment.getId());
+                currentAttachments.remove(attachment);
                 wrapper.removeFromParent();
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
             });
             styleDeleteBtn(deleteBtn);
             wrapper.add(img, deleteBtn);
         } else {
-            img.addClickListener(_ -> openLightbox(attachment.getUrl(), attachment.getFilename()));
+            img.addClickListener(_ -> openLightbox(attachment));
             wrapper.add(img);
         }
 
@@ -207,6 +210,7 @@ public class AttachmentGallery extends Div implements I18nParams {
                         metadata.contentType()
                 );
                 hideEmpty();
+                currentAttachments.add(saved);
                 thumbnailsRow.add(buildThumbnail(saved));
             }
         }));
@@ -232,15 +236,14 @@ public class AttachmentGallery extends Div implements I18nParams {
         btn.addClassName("attachment-gallery__delete-btn");
     }
 
-    private void openLightbox(String url, String filename) {
+    private void openLightbox(Attachment attachment) {
         Div overlay = new Div();
         overlay.addClassName("attachment-lightbox");
         overlay.addClickListener(_ -> overlay.removeFromParent());
 
-        Image img = new Image(url, filename);
+        Image img = new Image(attachment.getUrl(), attachment.getFilename());
         img.addClassName("attachment-lightbox__image");
-        img.addClickListener(e -> e.getSource().getElement()
-                .executeJs("event.stopPropagation()"));
+        img.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
         overlay.add(img);
         getUI().ifPresent(ui -> ui.getElement().appendChild(overlay.getElement()));

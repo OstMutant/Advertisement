@@ -52,11 +52,20 @@ public class AdvertisementsView extends VerticalLayout {
         advertisementContainer = buildAdvertisementContainer();
         Button addButton = buildAddButton();
 
+        VerticalLayout contentWrapper = new VerticalLayout(
+                queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar
+        );
+        contentWrapper.addClassName("advertisements-content-wrapper");
+        contentWrapper.setPadding(false);
+        contentWrapper.setSpacing(false);
+        contentWrapper.setWidthFull();
+        contentWrapper.setFlexGrow(1, advertisementContainer);
+
         addClassName("advertisements-view");
         setSizeFull();
-        setFlexGrow(1, advertisementContainer);
+        setFlexGrow(1, contentWrapper);
 
-        add(queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar, overlay);
+        add(contentWrapper, overlay);
 
         queryStatusBar.getQueryBlock().addEventListener(() -> {
             paginationBar.setTotalCount(0);

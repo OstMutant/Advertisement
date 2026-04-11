@@ -15,6 +15,13 @@ public final class AdvertisementTable {
     public static final String CREATED_AT  = ALIAS + ".created_at";
     public static final String UPDATED_AT  = ALIAS + ".updated_at";
 
+    public static final String MAIN_IMAGE_URL =
+            "(SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = " + ALIAS + ".id " +
+            "ORDER BY created_at ASC LIMIT 1)";
+
+    public static final String IMAGE_COUNT =
+            "(SELECT COUNT(*) FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = " + ALIAS + ".id)";
+
     public static final String SOURCE =
             TABLE + " " + ALIAS + " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id";
 }

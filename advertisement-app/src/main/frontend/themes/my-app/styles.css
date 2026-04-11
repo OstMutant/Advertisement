@@ -14,6 +14,7 @@
 @import url("./locale-selector.css");
 @import url("./header-bar.css");
 @import url("./attachment-gallery.css");
+@import url("./card-lightbox.css");
 
 /* Global utility classes */
 .svg-icon {

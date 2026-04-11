@@ -1,8 +1,11 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -22,6 +25,11 @@ import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.Advertise
 import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.advertisement.entities.Attachment;
+import org.ost.advertisement.entities.EntityType;
+import org.ost.advertisement.services.AttachmentService;
+
+import java.util.List;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -30,7 +38,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class AdvertisementCardView extends VerticalLayout
+public class AdvertisementCardView extends HorizontalLayout
         implements Configurable<AdvertisementCardView, AdvertisementCardView.Parameters>, I18nParams, Initialization<AdvertisementCardView> {
 
     private static final String CLICK_EVENT = "click";
@@ -59,6 +67,7 @@ public class AdvertisementCardView extends VerticalLayout
     private final transient AccessEvaluator                    access;
     private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
+    private final transient ObjectProvider<AttachmentService>  attachmentService;
 
     @Override
     @PostConstruct
@@ -77,16 +86,58 @@ public class AdvertisementCardView extends VerticalLayout
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
-        Span spacer = new Span();
-        setFlexGrow(1, spacer);
-
-        add(createTitle(ad),
-                createDescription(ad),
-                spacer,
-                createMetaPanel(ad),
-                createActions(ad, onChanged));
+        if (attachmentService.getIfAvailable() != null && ad.getMainImageUrl() != null) {
+            add(createThumbnail(ad));
+        }
+        add(createContent(ad, onChanged));
 
         return this;
+    }
+
+    private Div createThumbnail(AdvertisementInfoDto ad) {
+        Image img = new Image(ad.getMainImageUrl(), ad.getTitle());
+        img.addClassName("advertisement-thumbnail");
+
+        Div wrapper = new Div(img);
+        wrapper.addClassName("advertisement-thumbnail-wrapper");
+
+        if (ad.getImageCount() > 1) {
+            Span badge = new Span(VaadinIcon.CAMERA.create(), new Span(String.valueOf(ad.getImageCount())));
+            badge.addClassName("advertisement-thumbnail-badge");
+            wrapper.add(badge);
+        }
+
+        wrapper.getElement().addEventListener("click", _ ->
+            attachmentService.ifAvailable(s -> {
+                List<Attachment> attachments = s.getByEntityId(EntityType.ADVERTISEMENT, ad.getId());
+                CardPhotoLightbox.open(attachments, 0);
+            })
+        ).addEventData("event.stopPropagation()");
+        return wrapper;
+    }
+
+    private VerticalLayout createContent(AdvertisementInfoDto ad, Runnable onChanged) {
+        Span spacer = new Span();
+
+        HorizontalLayout bottom = new HorizontalLayout(
+                createMetaPanel(ad),
+                createActions(ad, onChanged)
+        );
+        bottom.setWidthFull();
+        bottom.setAlignItems(Alignment.END);
+        bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
+
+        VerticalLayout content = new VerticalLayout(
+                createTitle(ad),
+                createDescription(ad),
+                spacer,
+                bottom
+        );
+        content.addClassName("advertisement-content");
+        content.setPadding(false);
+        content.setSpacing(false);
+        content.setFlexGrow(1, spacer);
+        return content;
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {

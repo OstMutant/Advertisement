@@ -8,19 +8,24 @@
   box-sizing: border-box;
 }
 
+.advertisements-content-wrapper {
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .add-advertisement-button {
   margin-top: 12px;
 }
 
 .advertisement-container {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  /* stretch — all cards in the same row have equal height */
-  align-items: stretch;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
   padding: 16px;
   box-sizing: border-box;
+  width: 100%;
 }
 
 /* Empty state */
