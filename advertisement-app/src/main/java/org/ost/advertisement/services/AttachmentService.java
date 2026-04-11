@@ -10,6 +10,7 @@ import org.ost.advertisement.security.UserIdMarker;
 import org.ost.storage.api.ConditionalOnStorageEnabled;
 import org.ost.storage.api.StorageService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.util.List;
@@ -34,6 +35,7 @@ public class AttachmentService {
         return repository.findByEntityTypeAndEntityId(entityType, entityId);
     }
 
+    @Transactional
     public Attachment upload(UserIdMarker owner, EntityType entityType, Long entityId,
                              String filename, InputStream inputStream,
                              long contentLength, String contentType) {
@@ -55,13 +57,14 @@ public class AttachmentService {
                 .build());
     }
 
+    @Transactional
     public void delete(UserIdMarker owner, Long attachmentId) {
         if (access.canNotDelete(owner)) {
             throw new AccessDeniedException("You cannot delete this attachment");
         }
         repository.findById(attachmentId).ifPresent(attachment -> {
-            storageService.delete(attachment.getUrl());
             repository.deleteById(attachmentId);
+            storageService.delete(attachment.getUrl());
         });
     }
 
@@ -75,6 +78,7 @@ public class AttachmentService {
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
+    @Transactional
     public void commitTempUploads(UserIdMarker owner, EntityType entityType, Long entityId,
                                   List<TempAttachment> temps) {
         if (temps.isEmpty()) return;

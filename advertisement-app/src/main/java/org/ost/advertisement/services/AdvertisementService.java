@@ -12,6 +12,7 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -32,6 +33,7 @@ public class AdvertisementService {
         return repository.countByFilter(filter).intValue();
     }
 
+    @Transactional
     public Advertisement save(Advertisement ad) {
         if (access.canNotEdit(ad)) {
             throw new AccessDeniedException("You cannot edit this advertisement");
@@ -39,6 +41,7 @@ public class AdvertisementService {
         return repository.save(ad);
     }
 
+    @Transactional
     public void delete(EntityMarker ad) {
         if (access.canNotDelete(ad)) {
             throw new AccessDeniedException("You cannot delete this advertisement");

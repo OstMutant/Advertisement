@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -36,6 +37,7 @@ public class UserService {
         return repository.countByFilter(filter).intValue();
     }
 
+    @Transactional
     public void save(User targetUser) {
         if (access.canNotEdit(targetUser)) {
             throw new AccessDeniedException("You cannot edit this user");
@@ -43,6 +45,7 @@ public class UserService {
         repository.save(targetUser);
     }
 
+    @Transactional
     public void delete(EntityMarker targetUser) {
         if (access.canNotDelete(targetUser)) {
             throw new AccessDeniedException("You cannot delete this user");
@@ -50,6 +53,7 @@ public class UserService {
         repository.deleteById(targetUser.getId());
     }
 
+    @Transactional
     public void register(@Valid SignUpDto dto) {
         boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()) == 0;
         User newUser = User.builder()

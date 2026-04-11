@@ -6,6 +6,7 @@ import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.repository.user.UserSettingsRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -18,6 +19,7 @@ public class UserSettingsService {
         return repository.load(userId);
     }
 
+    @Transactional
     public void save(Long userId, UserSettings settings) {
         repository.save(userId, settings);
         eventPublisher.publishEvent(new SettingsChangedEvent(this, userId, settings));
