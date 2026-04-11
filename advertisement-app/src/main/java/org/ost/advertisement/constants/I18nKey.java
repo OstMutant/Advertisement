@@ -7,6 +7,8 @@ public enum I18nKey {
     HEADER_LOGIN("header.login"),
     HEADER_LOGOUT("header.logout"),
     HEADER_SIGNUP("header.signup"),
+    HEADER_SETTINGS("header.settings"),
+    HEADER_HOME("header.home"),
 
     // === Logout Confirm ===
     LOGOUT_CONFIRM_TEXT("logout.confirm.text"),
@@ -205,7 +207,14 @@ public enum I18nKey {
     OVERLAY_UNSAVED_TITLE("overlay.unsaved.title"),
     OVERLAY_UNSAVED_TEXT("overlay.unsaved.text"),
     OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
-    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel");
+    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel"),
+
+    // === Settings ===
+    SETTINGS_SECTION_TITLE("settings.section.title"),
+    SETTINGS_ADS_PAGE_SIZE_LABEL("settings.adsPageSize.label"),
+    SETTINGS_USERS_PAGE_SIZE_LABEL("settings.usersPageSize.label"),
+    SETTINGS_SAVE_BUTTON("settings.save.button"),
+    SETTINGS_SAVED_SUCCESS("settings.saved.success");
 
     private final String key;
 

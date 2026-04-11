@@ -15,6 +15,7 @@ import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.advertisement.ui.views.main.header.dialogs.LogoutDialog;
 import org.ost.advertisement.ui.views.main.header.dialogs.SignUpDialog;
+import org.ost.advertisement.ui.views.main.header.settings.SettingsOverlay;
 
 import static org.ost.advertisement.constants.I18nKey.*;
 
@@ -24,15 +25,17 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class HeaderBar extends HorizontalLayout {
 
     private final LocaleSelectorComponent localeSelectorComponent;
-    private final LoginDialog loginDialog;
-    private final LogoutDialog logoutDialog;
-    private final SignUpDialog signUpDialog;
-    private final transient I18nService i18n;
-    private final transient AuthContextService authContextService;
+    private final LoginDialog             loginDialog;
+    private final LogoutDialog            logoutDialog;
+    private final SignUpDialog            signUpDialog;
+    private final SettingsOverlay         settingsOverlay;
+    private final transient I18nService          i18n;
+    private final transient AuthContextService   authContextService;
 
     @PostConstruct
     protected void init() {
         addClassName("header-bar");
+        add(settingsOverlay);
         add(initAuthBlock());
     }
 
@@ -59,13 +62,20 @@ public class HeaderBar extends HorizontalLayout {
 
         if (currentUser != null) {
             userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
-            authRow.add(userInfo, createLogoutButton());
+            authRow.add(userInfo, createSettingsButton(), createLogoutButton());
         } else {
             userInfo.setText(i18n.get(HEADER_NOT_SIGNED_IN));
             authRow.add(userInfo, createLoginButton(), createSignUpButton());
         }
 
         return authRow;
+    }
+
+    private Button createSettingsButton() {
+        Button button = new Button(i18n.get(HEADER_SETTINGS), VaadinIcon.COG.create(),
+                _ -> settingsOverlay.openSettings());
+        button.addClassName("header-settings-button");
+        return button;
     }
 
     private Button createLoginButton() {

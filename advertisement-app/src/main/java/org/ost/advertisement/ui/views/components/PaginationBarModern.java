@@ -20,7 +20,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class PaginationBarModern extends HorizontalLayout implements I18nParams {
 
     @Getter
-    private final int pageSize = 25;
+    private int pageSize = 20;
 
     @Getter
     private final transient I18nService i18nService;
@@ -75,6 +75,12 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
         lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
         add(firstButton, prevButton, pageIndicator, nextButton, lastButton);
+        updateUI();
+    }
+
+    public void setPageSize(int size) {
+        this.pageSize = size;
+        this.currentPage = 0;
         updateUI();
     }
 

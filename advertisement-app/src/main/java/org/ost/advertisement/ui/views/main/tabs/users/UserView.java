@@ -1,5 +1,6 @@
 package org.ost.advertisement.ui.views.main.tabs.users;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -11,14 +12,18 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.services.UserSettingsService;
+import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.services.NotificationService;
+import org.springframework.context.event.EventListener;
 
 import java.util.Collections;
 import java.util.List;
@@ -33,15 +38,17 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService userService;
-    private final transient I18nService i18n;
-    private final transient NotificationService notificationService;
-    private final QueryStatusBar<UserFilterDto> queryStatusBar;
+    private final transient UserService                  userService;
+    private final transient UserSettingsService          settingsService;
+    private final transient AuthContextService           authContextService;
+    private final transient I18nService                  i18n;
+    private final transient NotificationService          notificationService;
+    private final QueryStatusBar<UserFilterDto>          queryStatusBar;
     private final transient UserGridConfigurator.Builder gridConfiguratorBuilder;
-    private final UserOverlay overlay;
-    private final transient ConfirmActionDialog.Builder confirmActionDialogBuilder;
+    private final UserOverlay                            overlay;
+    private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
 
-    private Grid<User> grid;
+    private Grid<User>          grid;
     private PaginationBarModern paginationBar;
 
     @PostConstruct
@@ -66,7 +73,29 @@ public class UserView extends VerticalLayout {
         addComponentAsFirst(queryStatusBar);
         addComponentAtIndex(1, queryStatusBar.getQueryBlock());
 
+        applySettingsOnInit();
         refreshGrid();
+    }
+
+    private void applySettingsOnInit() {
+        authContextService.getCurrentUser().ifPresent(user -> {
+            paginationBar.setPageSize(settingsService.load(user.getId()).getUsersPageSize());
+        });
+    }
+
+    @EventListener
+    public void onSettingsChanged(SettingsChangedEvent event) {
+        authContextService.getCurrentUser()
+                .filter(u -> u.getId().equals(event.getUserId()))
+                .ifPresent(_ -> {
+                    UI ui = UI.getCurrent();
+                    if (ui != null) {
+                        ui.access(() -> {
+                            paginationBar.setPageSize(event.getSettings().getUsersPageSize());
+                            refreshGrid();
+                        });
+                    }
+                });
     }
 
     private void initPagination() {
@@ -100,8 +129,8 @@ public class UserView extends VerticalLayout {
         var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<User> pageData = userService.getFiltered(currentFilter, page, size, sort);
-            int totalCount = userService.count(currentFilter);
+            List<User> pageData   = userService.getFiltered(currentFilter, page, size, sort);
+            int        totalCount = userService.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
             grid.setItems(pageData != null ? pageData : Collections.emptyList());
         } catch (ConstraintViolationException ex) {
