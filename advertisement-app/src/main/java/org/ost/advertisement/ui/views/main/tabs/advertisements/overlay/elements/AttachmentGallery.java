@@ -35,6 +35,9 @@ import static org.ost.advertisement.constants.I18nKey.ATTACHMENT_GALLERY_TITLE;
 @ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div implements I18nParams {
 
+    private static final int    MAX_FILES     = 10;
+    private static final int    MAX_FILE_SIZE = 10 * 1024 * 1024;
+
     private final transient AttachmentService attachmentService;
     @Getter
     private final transient I18nService i18nService;
@@ -209,8 +212,8 @@ public class AttachmentGallery extends Div implements I18nParams {
         }));
         upload.addClassName("attachment-gallery__upload");
         upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif");
-        upload.setMaxFiles(10);
-        upload.setMaxFileSize(10 * 1024 * 1024);
+        upload.setMaxFiles(MAX_FILES);
+        upload.setMaxFileSize(MAX_FILE_SIZE);
         return upload;
     }
 
