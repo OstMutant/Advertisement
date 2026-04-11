@@ -13,6 +13,8 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
 
+import org.ost.advertisement.constants.PaginationDefaults;
+
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
@@ -20,7 +22,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class PaginationBarModern extends HorizontalLayout implements I18nParams {
 
     @Getter
-    private int pageSize = 20;
+    private int pageSize = PaginationDefaults.DEFAULT_PAGE_SIZE;
 
     @Getter
     private final transient I18nService i18nService;

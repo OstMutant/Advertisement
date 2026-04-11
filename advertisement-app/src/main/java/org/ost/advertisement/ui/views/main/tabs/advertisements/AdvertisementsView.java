@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -11,18 +10,18 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.UserSettingsService;
-import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
+import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Sort;
 
@@ -35,14 +34,13 @@ import static org.ost.advertisement.constants.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService   advertisementService;
-    private final transient AdvertisementOverlay   overlay;
+    private final transient AdvertisementService          advertisementService;
+    private final transient AdvertisementOverlay          overlay;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService            i18n;
-    private final transient AccessEvaluator        access;
-    private final transient EmptyStateView.Builder emptyStateBuilder;
-    private final transient AuthContextService     authContextService;
-    private final transient UserSettingsService    settingsService;
+    private final transient I18nService                   i18n;
+    private final transient AccessEvaluator               access;
+    private final transient EmptyStateView.Builder        emptyStateBuilder;
+    private final transient SettingsPaginationSupport     settingsPaginationSupport;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBarModern                    paginationBar;
@@ -72,24 +70,12 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private void applySettingsOnInit() {
-        authContextService.getCurrentUser().ifPresent(user -> {
-            paginationBar.setPageSize(settingsService.load(user.getId()).getAdsPageSize());
-        });
+        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getAdsPageSize);
     }
 
     @EventListener
     public void onSettingsChanged(SettingsChangedEvent event) {
-        authContextService.getCurrentUser()
-                .filter(u -> u.getId().equals(event.getUserId()))
-                .ifPresent(_ -> {
-                    UI ui = UI.getCurrent();
-                    if (ui != null) {
-                        ui.access(() -> {
-                            paginationBar.setPageSize(event.getSettings().getAdsPageSize());
-                            refresh();
-                        });
-                    }
-                });
+        settingsPaginationSupport.handleSettingsChanged(event, paginationBar, UserSettings::getAdsPageSize, this::refresh);
     }
 
     private FlexLayout buildAdvertisementContainer() {

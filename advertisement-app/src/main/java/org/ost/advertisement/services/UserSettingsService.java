@@ -15,12 +15,11 @@ public class UserSettingsService {
     private final ApplicationEventPublisher eventPublisher;
 
     public UserSettings load(Long userId) {
-        return repository.loadSettings(userId);
+        return repository.load(userId);
     }
 
-    public void updatePageSizes(Long userId, int adsPageSize, int usersPageSize) {
-        repository.updatePageSizes(userId, adsPageSize, usersPageSize);
-        UserSettings updated = repository.loadSettings(userId);
-        eventPublisher.publishEvent(new SettingsChangedEvent(this, userId, updated));
+    public void save(Long userId, UserSettings settings) {
+        repository.save(userId, settings);
+        eventPublisher.publishEvent(new SettingsChangedEvent(this, userId, settings));
     }
 }

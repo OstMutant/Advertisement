@@ -22,6 +22,8 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.springframework.beans.factory.ObjectProvider;
 
+import org.ost.advertisement.constants.PaginationDefaults;
+
 import static org.ost.advertisement.constants.I18nKey.*;
 
 @SpringComponent
@@ -101,10 +103,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private void handleSave() {
         if (currentUser == null) return;
 
-        int adsPageSize   = adsPageSizeField.getValue()   != null ? adsPageSizeField.getValue()   : UserSettings.defaultSettings().getAdsPageSize();
-        int usersPageSize = usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : UserSettings.defaultSettings().getUsersPageSize();
+        UserSettings settings = UserSettings.builder()
+                .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .build();
 
-        settingsService.updatePageSizes(currentUser.getId(), adsPageSize, usersPageSize);
+        settingsService.save(currentUser.getId(), settings);
 
         notifications.success(SETTINGS_SAVED_SUCCESS);
         closeToList();
@@ -112,8 +116,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private IntegerField buildAdsPageSizeField(UserSettings settings) {
         adsPageSizeField = new IntegerField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
-        adsPageSizeField.setMin(5);
-        adsPageSizeField.setMax(100);
+        adsPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
+        adsPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
         adsPageSizeField.setStep(5);
         adsPageSizeField.setStepButtonsVisible(true);
         adsPageSizeField.setValue(settings.getAdsPageSize());
@@ -123,8 +127,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private IntegerField buildUsersPageSizeField(UserSettings settings) {
         usersPageSizeField = new IntegerField(getValue(SETTINGS_USERS_PAGE_SIZE_LABEL));
-        usersPageSizeField.setMin(5);
-        usersPageSizeField.setMax(100);
+        usersPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
+        usersPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
         usersPageSizeField.setStep(5);
         usersPageSizeField.setStepButtonsVisible(true);
         usersPageSizeField.setValue(settings.getUsersPageSize());

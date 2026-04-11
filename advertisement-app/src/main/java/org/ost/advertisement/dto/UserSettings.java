@@ -5,22 +5,23 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Builder;
 import lombok.Value;
+import org.ost.advertisement.constants.PaginationDefaults;
 
 @Value
 @Builder
 @JsonDeserialize(builder = UserSettings.UserSettingsBuilder.class)
 public class UserSettings {
 
-    @Min(5) @Max(100)
+    @Min(PaginationDefaults.MIN_PAGE_SIZE) @Max(PaginationDefaults.MAX_PAGE_SIZE)
     int adsPageSize;
 
-    @Min(5) @Max(100)
+    @Min(PaginationDefaults.MIN_PAGE_SIZE) @Max(PaginationDefaults.MAX_PAGE_SIZE)
     int usersPageSize;
 
     public static UserSettings defaultSettings() {
         return UserSettings.builder()
-                .adsPageSize(20)
-                .usersPageSize(20)
+                .adsPageSize(PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .usersPageSize(PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .build();
     }
 

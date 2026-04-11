@@ -1,6 +1,5 @@
 package org.ost.advertisement.ui.views.main.tabs.users;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -12,12 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.services.UserSettingsService;
-import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
@@ -39,8 +38,7 @@ import static org.ost.advertisement.constants.I18nKey.*;
 public class UserView extends VerticalLayout {
 
     private final transient UserService                  userService;
-    private final transient UserSettingsService          settingsService;
-    private final transient AuthContextService           authContextService;
+    private final transient SettingsPaginationSupport    settingsPaginationSupport;
     private final transient I18nService                  i18n;
     private final transient NotificationService          notificationService;
     private final QueryStatusBar<UserFilterDto>          queryStatusBar;
@@ -78,24 +76,12 @@ public class UserView extends VerticalLayout {
     }
 
     private void applySettingsOnInit() {
-        authContextService.getCurrentUser().ifPresent(user -> {
-            paginationBar.setPageSize(settingsService.load(user.getId()).getUsersPageSize());
-        });
+        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getUsersPageSize);
     }
 
     @EventListener
     public void onSettingsChanged(SettingsChangedEvent event) {
-        authContextService.getCurrentUser()
-                .filter(u -> u.getId().equals(event.getUserId()))
-                .ifPresent(_ -> {
-                    UI ui = UI.getCurrent();
-                    if (ui != null) {
-                        ui.access(() -> {
-                            paginationBar.setPageSize(event.getSettings().getUsersPageSize());
-                            refreshGrid();
-                        });
-                    }
-                });
+        settingsPaginationSupport.handleSettingsChanged(event, paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
     }
 
     private void initPagination() {
