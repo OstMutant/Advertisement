@@ -1,9 +1,10 @@
 package org.ost.advertisement.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.entities.AdvertisementAttachment;
+import org.ost.advertisement.entities.Attachment;
+import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
-import org.ost.advertisement.repository.advertisement.AdvertisementAttachmentRepository;
+import org.ost.advertisement.repository.attachment.AttachmentRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.security.UserIdMarker;
 import org.ost.storage.api.ConditionalOnStorageEnabled;
@@ -25,26 +26,28 @@ public class AttachmentService {
             long size
     ) {}
 
-    private final AdvertisementAttachmentRepository repository;
-    private final StorageService storageService;
-    private final AccessEvaluator access;
+    private final AttachmentRepository repository;
+    private final StorageService       storageService;
+    private final AccessEvaluator      access;
 
-    public List<AdvertisementAttachment> getByAdvertisementId(Long advertisementId) {
-        return repository.findByAdvertisementId(advertisementId);
+    public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
+        return repository.findByEntityTypeAndEntityId(entityType, entityId);
     }
 
-    public AdvertisementAttachment upload(UserIdMarker target, Long advertisementId,
-                                          String filename, InputStream inputStream,
-                                          long contentLength, String contentType) {
-        if (access.canNotEdit(target)) {
-            throw new AccessDeniedException("You cannot add attachments to this advertisement");
+    public Attachment upload(UserIdMarker owner, EntityType entityType, Long entityId,
+                             String filename, InputStream inputStream,
+                             long contentLength, String contentType) {
+        if (access.canNotEdit(owner)) {
+            throw new AccessDeniedException("You cannot add attachments to this entity");
         }
 
-        String url = storageService.upload("advertisements/" + advertisementId,
+        String url = storageService.upload(
+                entityType.name().toLowerCase() + "s/" + entityId,
                 filename, inputStream, contentLength, contentType);
 
-        return repository.save(AdvertisementAttachment.builder()
-                .advertisementId(advertisementId)
+        return repository.save(Attachment.builder()
+                .entityType(entityType)
+                .entityId(entityId)
                 .url(url)
                 .filename(filename)
                 .contentType(contentType)
@@ -52,8 +55,8 @@ public class AttachmentService {
                 .build());
     }
 
-    public void delete(UserIdMarker target, Long attachmentId) {
-        if (access.canNotDelete(target)) {
+    public void delete(UserIdMarker owner, Long attachmentId) {
+        if (access.canNotDelete(owner)) {
             throw new AccessDeniedException("You cannot delete this attachment");
         }
         repository.findById(attachmentId).ifPresent(attachment -> {
@@ -66,27 +69,28 @@ public class AttachmentService {
                                      String filename, InputStream inputStream,
                                      long contentLength, String contentType) {
         String tempUrl = storageService.upload(
-                "advertisements/temp/" + tempSessionId,
+                "temp/" + tempSessionId,
                 filename, inputStream, contentLength, contentType);
 
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
-    public void commitTempUploads(UserIdMarker target, Long advertisementId,
+    public void commitTempUploads(UserIdMarker owner, EntityType entityType, Long entityId,
                                   List<TempAttachment> temps) {
         if (temps.isEmpty()) return;
-        if (access.canNotEdit(target)) {
-            throw new AccessDeniedException("You cannot add attachments to this advertisement");
+        if (access.canNotEdit(owner)) {
+            throw new AccessDeniedException("You cannot add attachments to this entity");
         }
 
         for (TempAttachment temp : temps) {
             String finalUrl = storageService.move(
                     temp.tempUrl(),
-                    "advertisements/" + advertisementId,
+                    entityType.name().toLowerCase() + "s/" + entityId,
                     temp.filename());
 
-            repository.save(AdvertisementAttachment.builder()
-                    .advertisementId(advertisementId)
+            repository.save(Attachment.builder()
+                    .entityType(entityType)
+                    .entityId(entityId)
                     .url(finalUrl)
                     .filename(temp.filename())
                     .contentType(temp.contentType())

@@ -10,6 +10,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -82,7 +83,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         Div viewBody = new Div(title, description);
 
         galleryProvider.ifAvailable(gallery -> {
-            gallery.configureForView(params.getAd());
+            gallery.configureForView(EntityType.ADVERTISEMENT, params.getAd().getId());
             viewBody.add(gallery);
         });
 

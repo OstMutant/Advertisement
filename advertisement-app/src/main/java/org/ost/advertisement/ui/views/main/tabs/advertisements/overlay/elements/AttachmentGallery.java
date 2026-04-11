@@ -12,8 +12,9 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.entities.AdvertisementAttachment;
+import org.ost.advertisement.entities.Attachment;
+import org.ost.advertisement.entities.EntityType;
+import org.ost.advertisement.security.UserIdMarker;
 import org.ost.advertisement.services.AttachmentService;
 import org.ost.advertisement.services.AttachmentService.TempAttachment;
 import org.ost.advertisement.services.I18nService;
@@ -42,7 +43,10 @@ public class AttachmentGallery extends Div implements I18nParams {
     private Span emptyState;
     private Upload uploadButton;
     private boolean editMode;
-    private transient AdvertisementInfoDto ad;
+
+    private EntityType entityType;
+    private Long entityId;
+    private transient UserIdMarker owner;
 
     private final List<TempAttachment> tempUploads = new ArrayList<>();
     private String tempSessionId;
@@ -64,14 +68,18 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(title, thumbnailsRow, emptyState);
     }
 
-    public void configureForView(AdvertisementInfoDto ad) {
-        this.ad = ad;
+    public void configureForView(EntityType entityType, Long entityId) {
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.owner = null;
         this.editMode = false;
         refresh();
     }
 
-    public void configureForEdit(AdvertisementInfoDto ad) {
-        this.ad = ad;
+    public void configureForEdit(EntityType entityType, Long entityId, UserIdMarker owner) {
+        this.entityType = entityType;
+        this.entityId = entityId;
+        this.owner = owner;
         this.editMode = true;
         this.tempSessionId = null;
         tempUploads.clear();
@@ -81,8 +89,10 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(uploadButton);
     }
 
-    public void configureForCreate(String tempSessionId) {
-        this.ad = null;
+    public void configureForCreate(EntityType entityType, String tempSessionId) {
+        this.entityType = entityType;
+        this.entityId = null;
+        this.owner = null;
         this.editMode = true;
         this.tempSessionId = tempSessionId;
         tempUploads.clear();
@@ -93,9 +103,9 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(uploadButton);
     }
 
-    public void commitTempUploads(AdvertisementInfoDto savedAd) {
+    public void commitTempUploads(Long entityId, UserIdMarker owner) {
         if (tempUploads.isEmpty()) return;
-        attachmentService.commitTempUploads(savedAd, savedAd.getId(), tempUploads);
+        attachmentService.commitTempUploads(owner, entityType, entityId, tempUploads);
         tempUploads.clear();
     }
 
@@ -107,12 +117,11 @@ public class AttachmentGallery extends Div implements I18nParams {
 
     private void refresh() {
         thumbnailsRow.removeAll();
-        if (ad == null) {
+        if (entityId == null) {
             showEmpty();
             return;
         }
-        List<AdvertisementAttachment> attachments =
-                attachmentService.getByAdvertisementId(ad.getId());
+        List<Attachment> attachments = attachmentService.getByEntityId(entityType, entityId);
         if (attachments.isEmpty()) {
             showEmpty();
         } else {
@@ -129,7 +138,7 @@ public class AttachmentGallery extends Div implements I18nParams {
         emptyState.setVisible(false);
     }
 
-    private Div buildThumbnail(AdvertisementAttachment attachment) {
+    private Div buildThumbnail(Attachment attachment) {
         Div wrapper = new Div();
         wrapper.addClassName("attachment-gallery__item");
 
@@ -138,7 +147,7 @@ public class AttachmentGallery extends Div implements I18nParams {
 
         if (editMode) {
             Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
-                attachmentService.delete(ad, attachment.getId());
+                attachmentService.delete(owner, attachment.getId());
                 wrapper.removeFromParent();
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
             });
@@ -185,9 +194,10 @@ public class AttachmentGallery extends Div implements I18nParams {
                 hideEmpty();
                 thumbnailsRow.add(buildTempThumbnail(temp));
             } else {
-                AdvertisementAttachment saved = attachmentService.upload(
-                        ad,
-                        ad.getId(),
+                Attachment saved = attachmentService.upload(
+                        owner,
+                        entityType,
+                        entityId,
                         metadata.fileName(),
                         new ByteArrayInputStream(bytes),
                         bytes.length,
@@ -200,7 +210,7 @@ public class AttachmentGallery extends Div implements I18nParams {
         upload.addClassName("attachment-gallery__upload");
         upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif");
         upload.setMaxFiles(10);
-        upload.setMaxFileSize(10 * 1024 * 1024); // 10 MB
+        upload.setMaxFileSize(10 * 1024 * 1024);
         return upload;
     }
 

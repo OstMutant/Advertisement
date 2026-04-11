@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.Advertisement;
+import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
@@ -107,9 +108,9 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
 
             if (isCreate) {
                 String tempSessionId = UUID.randomUUID().toString();
-                gallery.configureForCreate(tempSessionId);
+                gallery.configureForCreate(EntityType.ADVERTISEMENT, tempSessionId);
             } else {
-                gallery.configureForEdit(params.getAd());
+                gallery.configureForEdit(EntityType.ADVERTISEMENT, params.getAd().getId(), params.getAd());
             }
             content.add(gallery);
         });
@@ -136,7 +137,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
             if (this.activeGallery != null) {
-                this.activeGallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+                this.activeGallery.commitTempUploads(savedAdvertisement.getId(), savedAdvertisement);
             }
         });
     }
