@@ -101,7 +101,7 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
     }
 
     public boolean save() {
-        return binder.save(dto -> userService.save(mapper.toUser(dto)));
+        return binder.save(dto -> userService.save(mapper.copy(dto)));
     }
 
     public boolean hasChanges() {

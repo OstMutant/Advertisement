@@ -3,6 +3,7 @@ package org.ost.advertisement.services;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.SignUpDto;
+import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.Role;
@@ -38,11 +39,16 @@ public class UserService {
     }
 
     @Transactional
-    public void save(User targetUser) {
-        if (access.canNotEdit(targetUser)) {
+    public void save(UserProfileDto dto) {
+        if (access.canNotEdit(dto)) {
             throw new AccessDeniedException("You cannot edit this user");
         }
-        repository.save(targetUser);
+        repository.updateProfile(dto);
+    }
+
+    @Transactional
+    public void updateLocale(Long userId, String locale) {
+        repository.updateLocale(userId, locale);
     }
 
     @Transactional

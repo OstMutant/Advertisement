@@ -3,8 +3,6 @@ package org.ost.advertisement.ui.dto;
 import lombok.*;
 import org.ost.advertisement.entities.Role;
 
-import java.time.Instant;
-
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -13,16 +11,7 @@ import java.time.Instant;
 public class UserEditDto implements EditDto {
 
     private Long id;
-
     private String name;
-    private String email;
-    private String passwordHash;
-
     private Role role;
-
-    private Instant createdAt;
-    private Instant updatedAt;
-
-    private String locale;
 
 }

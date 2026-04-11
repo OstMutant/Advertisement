@@ -8,7 +8,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
 import org.ost.advertisement.services.UserService;
@@ -72,17 +71,15 @@ public class LocaleSelectorComponent extends HorizontalLayout {
     }
 
     private void handleLocaleChange(Locale newLocale) {
-        User currentUser = authContextService.getCurrentUser().orElse(null);
-        if (currentUser != null) {
-            User updated = currentUser.withLocale(newLocale.toLanguageTag());
-            userService.save(updated);
-            authContextService.updateCurrentUser(updated);
-        } else {
+        authContextService.getCurrentUser().ifPresentOrElse(currentUser -> {
+            userService.updateLocale(currentUser.getId(), newLocale.toLanguageTag());
+            authContextService.updateCurrentUser(currentUser.withLocale(newLocale.toLanguageTag()));
+        }, () -> {
             UI ui = UI.getCurrent();
             if (ui != null && ui.getSession() != null) {
                 ui.getSession().setLocale(newLocale);
             }
-        }
+        });
         sessionService.refreshCurrentLocale();
         UI.getCurrent().getPage().reload();
     }
