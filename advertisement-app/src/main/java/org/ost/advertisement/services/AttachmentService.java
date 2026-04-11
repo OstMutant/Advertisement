@@ -103,6 +103,13 @@ public class AttachmentService {
         }
     }
 
+    @Transactional
+    public void deleteAll(EntityType entityType, Long entityId) {
+        List<Attachment> attachments = repository.findByEntityTypeAndEntityId(entityType, entityId);
+        repository.deleteByEntityTypeAndEntityId(entityType, entityId);
+        attachments.forEach(a -> storageService.delete(a.getUrl()));
+    }
+
     public void discardTempUploads(List<TempAttachment> temps) {
         temps.forEach(t -> storageService.delete(t.tempUrl()));
     }

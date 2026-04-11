@@ -6,9 +6,11 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.EntityMarker;
+import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.security.AccessEvaluator;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -22,8 +24,9 @@ import java.util.List;
 @Validated
 public class AdvertisementService {
 
-    private final AdvertisementRepository repository;
-    private final AccessEvaluator access;
+    private final AdvertisementRepository            repository;
+    private final AccessEvaluator                    access;
+    private final ObjectProvider<AttachmentService>  attachmentService;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -46,6 +49,7 @@ public class AdvertisementService {
         if (access.canNotDelete(ad)) {
             throw new AccessDeniedException("You cannot delete this advertisement");
         }
+        attachmentService.ifAvailable(s -> s.deleteAll(EntityType.ADVERTISEMENT, ad.getId()));
         repository.deleteById(ad.getId());
     }
 }
