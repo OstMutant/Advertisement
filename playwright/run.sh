@@ -19,6 +19,12 @@ fi
 UX_FLAG=${2:-}
 SCREENSHOT_DIR="/app/playwright/screenshots"
 
+# For the smoke scenario — clear all screenshots before the run
+if [ "$SCENARIO" = "smoke" ] && [ "$UX_FLAG" = "--ux" ]; then
+  echo "Clearing old screenshots..."
+  rm -f "$SCREENSHOT_DIR"/*.png
+fi
+
 docker run -d --name pw-runner --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 300
 docker cp "$SCRIPT" pw-runner:/tmp/scenario.js
 docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js

@@ -4,7 +4,15 @@
       "Bash(docker run *)",
       "Bash(docker cp *)",
       "Bash(docker exec *)",
-      "Bash(docker rm *)"
+      "Bash(docker rm *)",
+      "Bash(bash /app/playwright/run.sh filter-advertisements --ux)",
+      "Bash(bash /app/playwright/run.sh filter-users --ux)",
+      "Bash(bash /app/playwright/run.sh upload-image --ux)",
+      "Bash(bash /app/playwright/run.sh upload-gallery --ux)",
+      "Bash(apt-get install *)",
+      "Bash(psql -h localhost -U experiments_user -d postgres -c ' *)",
+      "Bash(bash *)",
+      "Bash(PGPASSWORD=experiments_user_password psql *)"
     ]
   }
 }

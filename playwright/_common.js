@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || '/screenshots';
-const MAX_SCREENSHOTS = 20;
+const MAX_SCREENSHOTS = 100;
 
 async function check(label, fn) {
   try {
@@ -30,12 +30,11 @@ async function screenshot(page, name, uxMode) {
 
 async function login(page, email = 'user1@example.com', password = 'password') {
   await page.goto('http://localhost:8080/', { waitUntil: 'networkidle' });
-  await page.locator('vaadin-button').filter({ hasText: 'Log In' }).first().click();
+  await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();
   await page.waitForSelector('vaadin-email-field', { timeout: 5000 });
   await page.locator('vaadin-email-field input').fill(email);
   await page.locator('vaadin-password-field input').fill(password);
-  // Click the dialog's Log In button (last one on page)
-  await page.locator('vaadin-button').filter({ hasText: 'Log In' }).last().click();
+  await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
   await page.waitForTimeout(2000);
   const body = await page.textContent('body');
   if (body.includes('Not signed in')) throw new Error('Login failed');
