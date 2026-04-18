@@ -31,7 +31,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.UUID;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")

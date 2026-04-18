@@ -17,7 +17,7 @@ import org.ost.advertisement.ui.views.main.header.dialogs.LogoutDialog;
 import org.ost.advertisement.ui.views.main.header.dialogs.SignUpDialog;
 import org.ost.advertisement.ui.views.main.header.settings.SettingsOverlay;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

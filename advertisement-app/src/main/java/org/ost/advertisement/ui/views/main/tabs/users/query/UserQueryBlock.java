@@ -19,7 +19,7 @@ import org.ost.advertisement.ui.views.components.query.processor.FilterProcessor
 import org.ost.advertisement.ui.views.components.query.processor.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

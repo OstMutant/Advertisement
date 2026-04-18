@@ -27,7 +27,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

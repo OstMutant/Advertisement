@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.components.query.processor;
 
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 
 public record SortFieldMeta(
         String property,

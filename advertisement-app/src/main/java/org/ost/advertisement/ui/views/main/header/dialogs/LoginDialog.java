@@ -20,7 +20,7 @@ import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @Slf4j
 @SpringComponent

@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.rules;
 
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.services.I18nService;
 
 public interface I18nParams {

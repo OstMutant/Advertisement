@@ -8,7 +8,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.rules.Initialization;
@@ -21,7 +21,7 @@ import org.springframework.stereotype.Component;
 import java.util.Arrays;
 
 import static java.util.Optional.ofNullable;
-import static org.ost.advertisement.constants.I18nKey.SORT_ICON_TOOLTIP;
+import static org.ost.advertisement.common.I18nKey.SORT_ICON_TOOLTIP;
 import static org.ost.advertisement.ui.views.components.query.elements.SortIcon.SortIconState.fromDirection;
 
 @Component

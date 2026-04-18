@@ -16,8 +16,8 @@ import org.ost.advertisement.services.auth.AuthContextService;
 import java.util.List;
 import java.util.Locale;
 
-import static org.ost.advertisement.constants.I18nKey.LOCALE_ENGLISH;
-import static org.ost.advertisement.constants.I18nKey.LOCALE_UKRAINIAN;
+import static org.ost.advertisement.common.I18nKey.LOCALE_ENGLISH;
+import static org.ost.advertisement.common.I18nKey.LOCALE_UKRAINIAN;
 
 @SpringComponent
 @UIScope

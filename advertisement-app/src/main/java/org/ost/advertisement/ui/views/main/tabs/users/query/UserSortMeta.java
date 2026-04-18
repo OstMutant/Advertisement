@@ -5,7 +5,7 @@ import lombok.NoArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.ui.views.components.query.processor.SortFieldMeta;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserSortMeta {

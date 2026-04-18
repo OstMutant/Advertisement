@@ -1,4 +1,4 @@
-package org.ost.advertisement.constants;
+package org.ost.advertisement.common;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

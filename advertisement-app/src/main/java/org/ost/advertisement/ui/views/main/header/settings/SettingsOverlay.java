@@ -22,9 +22,9 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.springframework.beans.factory.ObjectProvider;
 
-import org.ost.advertisement.constants.PaginationDefaults;
+import org.ost.advertisement.common.PaginationDefaults;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

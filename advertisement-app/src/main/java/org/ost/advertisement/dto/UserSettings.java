@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.Builder;
 import lombok.Value;
-import org.ost.advertisement.constants.PaginationDefaults;
+import org.ost.advertisement.common.PaginationDefaults;
 
 @Value
 @Builder

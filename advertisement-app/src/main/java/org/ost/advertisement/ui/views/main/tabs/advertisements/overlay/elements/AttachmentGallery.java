@@ -26,8 +26,8 @@ import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.ost.advertisement.constants.I18nKey.ATTACHMENT_GALLERY_EMPTY;
-import static org.ost.advertisement.constants.I18nKey.ATTACHMENT_GALLERY_TITLE;
+import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_EMPTY;
+import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_TITLE;
 
 @SpringComponent
 @Scope("prototype")

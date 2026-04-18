@@ -21,8 +21,8 @@ import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.constants.Constants.EMAIL_PATTERN;
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.ui.views.main.header.dialogs.Constants.EMAIL_PATTERN;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @Slf4j
 @SpringComponent

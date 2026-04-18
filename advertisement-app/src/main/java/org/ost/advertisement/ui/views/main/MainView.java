@@ -27,8 +27,8 @@ import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_ADVERTISEMENTS;
-import static org.ost.advertisement.constants.I18nKey.MAIN_TAB_USERS;
+import static org.ost.advertisement.common.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.advertisement.common.I18nKey.MAIN_TAB_USERS;
 
 @Route("")
 @RequiredArgsConstructor

@@ -38,7 +38,7 @@ public class AdvertisementService {
 
     @Transactional
     public Advertisement save(Advertisement ad) {
-        if (access.canNotEdit(ad)) {
+        if (ad.isNew() ? !access.isLoggedIn() : access.canNotEdit(ad)) {
             throw new AccessDeniedException("You cannot edit this advertisement");
         }
         return repository.save(ad);

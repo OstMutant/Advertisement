@@ -16,7 +16,7 @@ import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserFormOver
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.springframework.beans.factory.ObjectProvider;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

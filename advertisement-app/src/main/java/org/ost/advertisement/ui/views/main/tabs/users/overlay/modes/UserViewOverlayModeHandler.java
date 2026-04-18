@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
@@ -21,7 +21,7 @@ import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
