@@ -28,5 +28,6 @@ docker run -it --rm ^
   -v "%CD%:/app" ^
   -v "%CONFIG_DIR%:/root/.claude" ^
   -v "%USERPROFILE%\.m2:/root/.m2" ^
+  -v //var/run/docker.sock:/var/run/docker.sock ^
   --network host ^
   claude-j25-dev

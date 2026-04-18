@@ -19,9 +19,12 @@ call :FindFiles "*.properties"
 call :FindFiles "*.xml"
 call :FindFiles "*.sql"
 call :FindFiles "*.imports"
+call :FindFiles "*.js"
+call :FindFiles "*.sh"
+call :FindFiles "*.md"
 
 :: 3. Add specific root-level files
-for %%F in (README.md Dockerfile lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
+for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai claude.bat lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
@@ -50,11 +53,17 @@ call :CountFiles ".yml" "YAML files"
 call :CountFiles ".properties" "Properties files"
 call :CountFiles ".sql" "SQL files"
 call :CountFiles ".imports" "Spring AutoConfig files"
+call :CountFiles ".js" "JS files (Playwright)"
+call :CountFiles ".sh" "Shell scripts"
+call :CountFiles ".md" "Markdown files"
 
 echo.
 echo Check root files:
 call :CheckRootFile "README.md"
+call :CheckRootFile "CLAUDE.md"
 call :CheckRootFile "Dockerfile"
+call :CheckRootFile "Dockerfile.ai"
+call :CheckRootFile "claude.bat"
 call :CheckRootFile "docker-compose.app.yml"
 call :CheckRootFile "docker-compose.db.yml"
 call :CheckRootFile "docker-compose.minio.yml"
