@@ -1,13 +1,14 @@
 /* ── Block container ───────────────────────────────────────────────── */
 
 .advertisement-query-block {
-    margin-top:       8px;
-    padding:          12px;
-    border:           1px solid #ddd;
-    border-radius:    6px;
-    background-color: #fafafa;
-    gap:              12px;
-    box-sizing:       border-box;
+    margin-top:    8px;
+    padding:       14px 16px;
+    border:        1px solid #e2e8f0;
+    border-radius: 12px;
+    background:    #ffffff;
+    gap:           12px;
+    box-sizing:    border-box;
+    box-shadow:    0 1px 3px rgba(0,0,0,0.04);
 }
 
 /* ── Row layout ────────────────────────────────────────────────────── */

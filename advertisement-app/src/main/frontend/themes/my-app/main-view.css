@@ -63,9 +63,31 @@ html, body, #root {
   display: none !important;
 }
 
+/* ── Tab bar ───────────────────────────────────────────────────────── */
+
+.main-tabs {
+  background: #ffffff;
+  border-bottom: 2px solid #e2e8f0;
+  padding: 0 1.25rem;
+}
+
+.main-tabs vaadin-tab {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: #64748b;
+  padding: 0.7rem 1rem;
+  letter-spacing: 0.01em;
+}
+
+.main-tabs vaadin-tab[selected] {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
 /* Small responsive tweak for narrow screens (keeps original look) */
 @media (max-width: 600px) {
   .main-tabs {
-    margin: 0.25rem 0;
+    padding: 0 0.5rem;
+    margin: 0;
   }
 }

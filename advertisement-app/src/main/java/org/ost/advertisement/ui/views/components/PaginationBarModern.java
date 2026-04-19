@@ -32,6 +32,7 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
     private final Button nextButton;
     private final Button lastButton;
     private final Span pageIndicator = new Span();
+    private final Span resultCount   = new Span();
 
     @Getter
     private int currentPage = 0;
@@ -76,7 +77,8 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
         nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
 
-        add(firstButton, prevButton, pageIndicator, nextButton, lastButton);
+        resultCount.addClassName("pagination-count");
+        add(firstButton, prevButton, pageIndicator, nextButton, lastButton, resultCount);
         updateUI();
     }
 
@@ -101,6 +103,10 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
     private void updateUI() {
         int totalPages = getTotalPages();
         pageIndicator.setText(getValue(PAGINATION_INDICATOR, currentPage + 1, totalPages));
+
+        int from = totalCount == 0 ? 0 : currentPage * pageSize + 1;
+        int to   = Math.min((currentPage + 1) * pageSize, totalCount);
+        resultCount.setText(getValue(PAGINATION_COUNT, from, to, totalCount));
 
         firstButton.setEnabled(currentPage > 0);
         prevButton.setEnabled(currentPage > 0);

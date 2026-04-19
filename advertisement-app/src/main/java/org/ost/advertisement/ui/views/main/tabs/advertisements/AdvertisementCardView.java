@@ -88,10 +88,18 @@ public class AdvertisementCardView extends HorizontalLayout
 
         if (attachmentService.getIfAvailable() != null && ad.getMainImageUrl() != null) {
             add(createThumbnail(ad));
+        } else {
+            add(createThumbnailPlaceholder());
         }
         add(createContent(ad, onChanged));
 
         return this;
+    }
+
+    private Div createThumbnailPlaceholder() {
+        Div placeholder = new Div(VaadinIcon.HOME.create());
+        placeholder.addClassName("advertisement-thumbnail-placeholder");
+        return placeholder;
     }
 
     private Div createThumbnail(AdvertisementInfoDto ad) {

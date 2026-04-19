@@ -12,7 +12,8 @@
       "Bash(apt-get install *)",
       "Bash(psql -h localhost -U experiments_user -d postgres -c ' *)",
       "Bash(bash *)",
-      "Bash(PGPASSWORD=experiments_user_password psql *)"
+      "Bash(PGPASSWORD=experiments_user_password psql *)",
+      "Bash(docker build *)"
     ]
   }
 }

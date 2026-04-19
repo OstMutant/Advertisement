@@ -1,14 +1,16 @@
 .user-grid-name {
-    font-weight: 500;
+    font-weight: 600;
+    color: #1e293b;
     white-space: normal;
     overflow-wrap: anywhere;
 }
 
 .user-grid-email {
     font-size: 12px;
-    color: gray;
+    color: #94a3b8;
     white-space: normal;
     overflow-wrap: anywhere;
+    margin-top: 2px;
 }
 
 .user-grid-actions {
@@ -32,4 +34,31 @@
 
 .user-grid-actions vaadin-button[theme~="error"]:hover {
     background-color: var(--lumo-error-color-10pct);
+}
+
+/* ── Role badges ──────────────────────────────────────────────────────────── */
+
+.user-role-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.user-role-admin {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.user-role-user {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.user-role-moderator {
+    background: #ffedd5;
+    color: #c2410c;
 }

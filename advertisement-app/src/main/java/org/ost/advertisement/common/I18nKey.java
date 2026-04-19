@@ -186,6 +186,7 @@ public enum I18nKey {
     PAGINATION_NEXT("pagination.next"),
     PAGINATION_LAST("pagination.last"),
     PAGINATION_INDICATOR("pagination.indicator"),
+    PAGINATION_COUNT("pagination.count"),
 
     QUERY_STATUS_FILTERS_PREFIX("query.status.filters.prefix"),
     QUERY_STATUS_FILTERS_NONE("query.status.filters.none"),

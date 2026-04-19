@@ -37,3 +37,35 @@ vaadin-dialog-overlay::part(footer) {
     overflow: hidden;
     min-height: 0;
 }
+
+/* ── Confirm dialog ────────────────────────────────────────────────── */
+
+.dialog-confirm-body {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: var(--lumo-space-m) 0 var(--lumo-space-s);
+}
+
+.dialog-confirm-icon {
+    color: #f59e0b;
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    margin-top: 1px;
+}
+
+.dialog-confirm-text {
+    margin: 0;
+    color: #334155;
+    line-height: 1.55;
+}
+
+/* ── Pagination bar ────────────────────────────────────────────────── */
+
+.pagination-count {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-left: var(--lumo-space-m);
+    white-space: nowrap;
+}

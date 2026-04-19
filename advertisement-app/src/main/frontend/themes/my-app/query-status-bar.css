@@ -1,37 +1,42 @@
-/* The summary bar at the top of the list */
 .query-status-bar {
     margin-top: 8px;
-    padding: 8px 12px;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    background-color: #fafafa; /* Uniform background with Query Block */
+    padding: 10px 14px;
+    border: 1px solid #e2e8f0;
+    border-left: 3px solid #3b82f6;
+    border-radius: 8px;
+    background-color: #eff6ff;
     cursor: pointer;
     width: 100%;
-    font-size: 0.85rem;
-    color: #444;
+    font-size: 0.83rem;
+    color: #334155;
     margin-bottom: 12px;
     box-sizing: border-box;
+    transition: background-color 0.15s ease;
 }
 
-/* Container for the status text elements */
+.query-status-bar:hover {
+    background-color: #dbeafe;
+}
+
 .query-status-bar-row {
     width: 100%;
     flex-wrap: wrap;
     gap: var(--lumo-space-m);
 }
 
-/* Labels and icons within the status bar */
 .query-status-bar-filter-info,
 .query-status-bar-sort-info {
     font-weight: 500;
+    color: #1d4ed8;
 }
 
 .query-status-bar-separator {
     margin: 0 8px;
-    color: #999;
+    color: #93c5fd;
 }
 
 .query-status-bar-toggle-icon {
     margin-right: 8px;
     font-weight: bold;
+    color: #3b82f6;
 }

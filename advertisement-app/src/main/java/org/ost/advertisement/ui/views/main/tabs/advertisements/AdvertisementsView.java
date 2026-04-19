@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.Shortcuts;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -74,6 +76,12 @@ public class AdvertisementsView extends VerticalLayout {
 
         paginationBar.setPageChangeListener(_ -> refresh());
 
+        Shortcuts.addShortcutListener(this, () -> {
+            if (access.isLoggedIn() && isVisible()) {
+                overlay.openForCreate(this::refresh);
+            }
+        }, Key.KEY_N);
+
         applySettingsOnInit();
         refresh();
     }
@@ -97,7 +105,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private Button buildAddButton() {
-        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD), VaadinIcon.PLUS.create());
         button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> overlay.openForCreate(this::refresh));

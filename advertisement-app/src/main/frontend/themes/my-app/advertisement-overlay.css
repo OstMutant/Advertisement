@@ -4,7 +4,7 @@
     position: fixed;
     inset: 0;
     z-index: 100;
-    background: var(--lumo-base-color);
+    background: #f5f7fa;
     display: none;
 }
 
@@ -34,7 +34,7 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--lumo-space-m) 0;
-    border-bottom: 1px solid var(--lumo-contrast-10pct);
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
     gap: var(--lumo-space-s);
 }
@@ -105,20 +105,28 @@
 }
 
 .overlay__view-title {
-    font-size: var(--lumo-font-size-l);
-    font-weight: 600;
-    color: var(--lumo-body-text-color);
+    font-size: 1.85rem;
+    font-weight: 700;
+    color: #1e293b;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    margin: 0;
 }
 
 .overlay__view-description {
-    font-size: var(--lumo-font-size-m);
-    color: var(--lumo-body-text-color);
-    line-height: 1.7;
+    font-size: 1rem;
+    color: #475569;
+    line-height: 1.75;
     white-space: pre-wrap;
 }
 
 /* ----------------------------------------------------------------- meta container */
-/* Hosts a DialogAdvertisementMetaPanel — override card-specific styles */
+
+.overlay__meta-container {
+    border-top: 1px solid #e2e8f0;
+    padding-top: var(--lumo-space-m);
+    margin-top: var(--lumo-space-s);
+}
 
 .overlay__meta-container .advertisement-meta {
     margin-top: 0;
@@ -126,7 +134,7 @@
     overflow: visible;
     text-overflow: unset;
     font-size: var(--lumo-font-size-s);
-    color: var(--lumo-secondary-text-color);
+    color: #94a3b8;
     flex-wrap: wrap;
 }
 

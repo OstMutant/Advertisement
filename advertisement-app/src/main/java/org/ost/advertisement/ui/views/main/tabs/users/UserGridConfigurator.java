@@ -77,7 +77,12 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                 .setFlexGrow(1)
                 .setHeader(getDualHeader(getValue(USER_VIEW_HEADER_NAME), getValue(USER_VIEW_HEADER_EMAIL)));
 
-        grid.addColumn(user -> user.getRole().name())
+        grid.addColumn(new ComponentRenderer<>(user -> {
+                    Span badge = new Span(user.getRole().name());
+                    badge.addClassName("user-role-badge");
+                    badge.addClassName("user-role-" + user.getRole().name().toLowerCase());
+                    return badge;
+                }))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_ROLE)));
 
