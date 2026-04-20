@@ -13,7 +13,10 @@
       "Bash(psql -h localhost -U experiments_user -d postgres -c ' *)",
       "Bash(bash *)",
       "Bash(PGPASSWORD=experiments_user_password psql *)",
-      "Bash(docker build *)"
+      "Bash(docker build *)",
+      "Bash(curl -s \"http://localhost:8080/\")",
+      "Bash(curl -s \"http://localhost:8080/VAADIN/build/indexhtml-ChMj0KPN.css\")",
+      "Bash(sort -k6,7)"
     ]
   }
 }

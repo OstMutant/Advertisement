@@ -53,6 +53,8 @@ public enum I18nKey {
     USER_DIALOG_NOTIFICATION_SUCCESS("user.dialog.notification.success"),
     USER_DIALOG_NOTIFICATION_VALIDATION_FAILED("user.dialog.notification.validation.failed"),
     USER_DIALOG_NOTIFICATION_SAVE_ERROR("user.dialog.notification.save.error"),
+    USER_DIALOG_SECTION_LABEL("user.dialog.section.label"),
+    USER_DIALOG_SECTION_VIEW("user.dialog.section.view"),
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
     USER_DIALOG_BUTTON_CANCEL("user.dialog.button.cancel"),
 
@@ -70,6 +72,8 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
+    ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
+    ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
     ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR("advertisement.description.overlay.author"),

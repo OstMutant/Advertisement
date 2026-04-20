@@ -12,6 +12,7 @@ import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.security.AccessEvaluator;
+import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
@@ -20,6 +21,7 @@ import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -29,7 +31,7 @@ import static org.ost.advertisement.common.I18nKey.*;
 @Scope("prototype")
 @RequiredArgsConstructor
 public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
-        Configurable<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters> {
+        Configurable<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -47,6 +49,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     private final AccessEvaluator               access;
+    @Getter
+    private final I18nService                   i18nService;
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
@@ -80,7 +84,13 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd()));
 
-        Div viewBody = new Div(title, description);
+        Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
+        cardHeader.addClassName("overlay__view-card-header");
+
+        Div textCard = new Div(cardHeader, title, description);
+        textCard.addClassName("overlay__view-card");
+
+        Div viewBody = new Div(textCard);
 
         galleryProvider.ifAvailable(gallery -> {
             gallery.configureForView(EntityType.ADVERTISEMENT, params.getAd().getId());

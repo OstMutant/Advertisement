@@ -1,6 +1,8 @@
 package org.ost.advertisement.ui.views.main.header;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -36,7 +38,17 @@ public class HeaderBar extends HorizontalLayout {
     protected void init() {
         addClassName("header-bar");
         add(settingsOverlay);
+        add(buildLogo());
         add(initAuthBlock());
+    }
+
+    private Div buildLogo() {
+        Image icon = new Image("icons/logo.svg", "Logo");
+        icon.addClassName("header-logo-icon");
+
+        Div logo = new Div(icon);
+        logo.addClassName("header-logo");
+        return logo;
     }
 
     private VerticalLayout initAuthBlock() {

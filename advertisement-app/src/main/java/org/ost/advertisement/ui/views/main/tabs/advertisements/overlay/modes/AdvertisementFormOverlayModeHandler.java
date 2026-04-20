@@ -1,6 +1,8 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -102,7 +104,13 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
 
-        Div content = new Div(titleField, descriptionField);
+        Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, titleField, descriptionField);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        Div content = new Div(fieldsCard);
         galleryProvider.ifAvailable(gallery -> {
             this.activeGallery = gallery;
 

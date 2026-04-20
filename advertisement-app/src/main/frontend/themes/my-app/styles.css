@@ -18,6 +18,8 @@
 @import url("./header-bar.css");
 @import url("./attachment-gallery.css");
 @import url("./card-lightbox.css");
+@import url("./user-overlay.css");
+@import url("./forms.css");
 
 /* Global font + page background */
 html, body {

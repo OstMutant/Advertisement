@@ -1,6 +1,8 @@
 package org.ost.advertisement.ui.views.main.tabs.users.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -96,7 +98,13 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
 
-        layout.setContent(new Div(nameField, roleComboBox));
+        Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_LABEL)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, nameField, roleComboBox);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        layout.setContent(new Div(fieldsCard));
         layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 

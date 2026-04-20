@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.components;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -46,10 +47,15 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
 
-        firstButton = new Button(getValue(PAGINATION_FIRST));
-        prevButton  = new Button(getValue(PAGINATION_PREV));
-        nextButton  = new Button(getValue(PAGINATION_NEXT));
-        lastButton  = new Button(getValue(PAGINATION_LAST));
+        firstButton = new Button(VaadinIcon.ANGLE_DOUBLE_LEFT.create());
+        prevButton  = new Button(VaadinIcon.ANGLE_LEFT.create());
+        nextButton  = new Button(VaadinIcon.ANGLE_RIGHT.create());
+        lastButton  = new Button(VaadinIcon.ANGLE_DOUBLE_RIGHT.create());
+
+        firstButton.getElement().setAttribute("title", getValue(PAGINATION_FIRST));
+        prevButton.getElement().setAttribute("title",  getValue(PAGINATION_PREV));
+        nextButton.getElement().setAttribute("title",  getValue(PAGINATION_NEXT));
+        lastButton.getElement().setAttribute("title",  getValue(PAGINATION_LAST));
 
         firstButton.addClickListener(_ -> {
             currentPage = 0;
@@ -72,10 +78,10 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
             triggerCallback();
         });
 
-        firstButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        prevButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        firstButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        prevButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
+        nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
+        lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
 
         resultCount.addClassName("pagination-count");
         add(firstButton, prevButton, pageIndicator, nextButton, lastButton, resultCount);

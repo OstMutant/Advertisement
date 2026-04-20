@@ -104,6 +104,38 @@
     gap: var(--lumo-space-m);
 }
 
+/* White card for title + description */
+.overlay__view-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-top: 3px solid #059669 !important;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+/* White card for edit fields */
+.overlay__form-fields-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
+}
+
+.overlay__form-fields-card vaadin-text-field,
+.overlay__form-fields-card vaadin-text-area {
+    width: 100%;
+}
+
 .overlay__view-title {
     font-size: 1.85rem;
     font-weight: 700;
