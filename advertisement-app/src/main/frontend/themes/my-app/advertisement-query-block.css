@@ -1,14 +1,16 @@
 /* ── Block container ───────────────────────────────────────────────── */
 
 .advertisement-query-block {
-    margin-top:    8px;
-    padding:       14px 16px;
-    border:        1px solid #e2e8f0;
+    margin-top:    0;
+    padding:       0 16px 16px;
+    border:        1px solid #dbeafe;
+    border-top:    3px solid #3b82f6 !important;
     border-radius: 12px;
-    background:    #ffffff;
-    gap:           12px;
+    background:    linear-gradient(to bottom, #f0f7ff 0%, #ffffff 80px);
+    gap:           0;
     box-sizing:    border-box;
-    box-shadow:    0 1px 3px rgba(0,0,0,0.04);
+    box-shadow:    0 2px 6px rgba(59,130,246,0.08);
+    overflow:      hidden;
 }
 
 /* ── Row layout ────────────────────────────────────────────────────── */
@@ -18,20 +20,38 @@
     display:     flex;
     align-items: center;
     gap:         12px;
+    padding:     12px 0;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.query-inline-row:last-of-type {
+    border-bottom: none;
 }
 
 .query-inline-label-sort {
-    display:     flex;
-    align-items: center;
-    gap:         var(--lumo-space-s);
-    min-width:   140px;
-    flex-shrink: 0;
+    display:          flex;
+    align-items:      center;
+    gap:              6px;
+    min-width:        145px;
+    flex-shrink:      0;
+    background:       rgba(239, 246, 255, 0.9);
+    border:           1px solid #dbeafe;
+    border-radius:    8px;
+    padding:          5px 10px;
+}
+
+.query-inline-label-sort span {
+    font-size:   0.8rem;
+    font-weight: 600;
+    color:       #2563eb;
+    white-space: nowrap;
 }
 
 .query-inline-filters {
     display:     flex;
     align-items: end;
     gap:         var(--lumo-space-s);
+    flex-wrap:   wrap;
 }
 
 /* ── Field widths ──────────────────────────────────────────────────── */
@@ -70,12 +90,12 @@
 }
 
 .query-datetime-date {
-    width:       145px;
+    width:       165px;
     flex-shrink: 0;
 }
 
 .query-datetime-time {
-    width:       100px;
+    width:       105px;
     flex-shrink: 0;
 }
 
@@ -85,4 +105,50 @@
     padding: 0;
     margin:  0;
     gap:     4px;
+}
+
+/* ── Vaadin field overrides inside query blocks ────────────────────── */
+
+.advertisement-query-block vaadin-text-field::part(input-field),
+.advertisement-query-block vaadin-date-picker::part(input-field),
+.advertisement-query-block vaadin-time-picker::part(input-field),
+.advertisement-query-block vaadin-combo-box::part(input-field),
+.advertisement-query-block vaadin-number-field::part(input-field),
+.advertisement-query-block vaadin-integer-field::part(input-field),
+.user-query-block vaadin-text-field::part(input-field),
+.user-query-block vaadin-date-picker::part(input-field),
+.user-query-block vaadin-time-picker::part(input-field),
+.user-query-block vaadin-combo-box::part(input-field),
+.user-query-block vaadin-multi-select-combo-box::part(input-field),
+.user-query-block vaadin-number-field::part(input-field),
+.user-query-block vaadin-integer-field::part(input-field) {
+    background:    #ffffff;
+    border:        1.5px solid #dbeafe;
+    border-radius: 8px;
+    box-shadow:    0 1px 2px rgba(0,0,0,0.03);
+    transition:    border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.advertisement-query-block vaadin-text-field:focus-within::part(input-field),
+.advertisement-query-block vaadin-date-picker:focus-within::part(input-field),
+.advertisement-query-block vaadin-time-picker:focus-within::part(input-field),
+.advertisement-query-block vaadin-combo-box:focus-within::part(input-field),
+.advertisement-query-block vaadin-number-field:focus-within::part(input-field),
+.user-query-block vaadin-text-field:focus-within::part(input-field),
+.user-query-block vaadin-date-picker:focus-within::part(input-field),
+.user-query-block vaadin-time-picker:focus-within::part(input-field),
+.user-query-block vaadin-combo-box:focus-within::part(input-field),
+.user-query-block vaadin-multi-select-combo-box:focus-within::part(input-field),
+.user-query-block vaadin-number-field:focus-within::part(input-field) {
+    border-color: #3b82f6;
+    box-shadow:   0 0 0 3px rgba(59,130,246,0.12);
+}
+
+/* ── Action block ──────────────────────────────────────────────────── */
+
+.query-action-block {
+    padding-top: 12px;
+    margin-top:  4px;
+    border-top:  1px solid #e2e8f0;
+    width:       100%;
 }

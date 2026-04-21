@@ -43,8 +43,9 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
                 .build());
 
         add(applyButton, clearButton);
+        addClassName("query-action-block");
         setSpacing(false);
-        setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+        setJustifyContentMode(FlexComponent.JustifyContentMode.START);
         return this;
     }
 
