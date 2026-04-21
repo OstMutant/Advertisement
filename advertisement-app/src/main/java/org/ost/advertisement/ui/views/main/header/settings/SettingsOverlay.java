@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.main.header.settings;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.textfield.IntegerField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -65,7 +66,13 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         form.add(buildAdsPageSizeField(currentSettings), buildUsersPageSizeField(currentSettings));
 
-        Div content = new Div(form);
+        Div cardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, form);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        Div content = new Div(fieldsCard);
         content.addClassName("settings-overlay-content");
         layout.setContent(content);
 

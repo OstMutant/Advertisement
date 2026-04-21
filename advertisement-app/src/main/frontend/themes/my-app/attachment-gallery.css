@@ -3,18 +3,25 @@
 .attachment-gallery {
     background: #ffffff;
     border: 1px solid #e2e8f0;
+    border-top: 3px solid #6366f1 !important;
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
     flex-direction: column;
     gap: var(--lumo-space-m);
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    overflow: hidden;
 }
 
 .attachment-gallery__title {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: #94a3b8;
+    display: block;
+    margin: -20px -24px 4px;
+    padding: 13px 24px;
+    background: linear-gradient(to right, #eef2ff, #ede9fe);
+    border-bottom: 1px solid #c7d2fe;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #6366f1;
     text-transform: uppercase;
     letter-spacing: 0.08em;
 }
