@@ -25,19 +25,30 @@ if [ "$SCENARIO" = "smoke" ] && [ "$UX_FLAG" = "--ux" ]; then
   rm -f "$SCREENSHOT_DIR"/*.png
 fi
 
-docker run -d --name pw-runner --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 300
+# ── Reuse pw-runner if already running, otherwise start it ──────────────────
+if ! docker inspect pw-runner &>/dev/null; then
+  docker run -d --name pw-runner --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 86400
+else
+  STATUS=$(docker inspect -f '{{.State.Status}}' pw-runner 2>/dev/null)
+  if [ "$STATUS" != "running" ]; then
+    docker rm -f pw-runner
+    docker run -d --name pw-runner --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 86400
+  fi
+fi
+
 docker cp "$SCRIPT" pw-runner:/tmp/scenario.js
 docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js
 
+# Install node_modules into /tmp only once (docker cp doesn't touch subdirs)
+INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
+
 if [ "$UX_FLAG" = "--ux" ]; then
-  docker exec pw-runner bash -c "mkdir -p /screenshots && cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 -q && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SCREENSHOT_DIR=/screenshots node /tmp/scenario.js --ux"
+  docker exec pw-runner bash -c "$INSTALL_CMD && mkdir -p /screenshots && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SCREENSHOT_DIR=/screenshots node /tmp/scenario.js --ux"
   mkdir -p "$SCREENSHOT_DIR"
   docker cp pw-runner:/screenshots/. "$SCREENSHOT_DIR/" 2>/dev/null
   echo ""
   echo "Screenshots saved to $SCREENSHOT_DIR/"
   ls "$SCREENSHOT_DIR/"
 else
-  docker exec pw-runner bash -c "cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 -q && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright node /tmp/scenario.js"
+  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright node /tmp/scenario.js"
 fi
-
-docker rm -f pw-runner

@@ -19,6 +19,14 @@ public class AccessEvaluator {
         return authContextService.getCurrentUser().isPresent();
     }
 
+    public boolean isPrivileged() {
+        return currentUser().map(u -> roleChecker.isAdmin(u) || roleChecker.isModerator(u)).orElse(false);
+    }
+
+    public Long getCurrentUserId() {
+        return currentUser().map(User::getId).orElse(null);
+    }
+
     public boolean canView() {
         return currentUser()
                 .map(u -> roleChecker.isAdmin(u) || roleChecker.isModerator(u))

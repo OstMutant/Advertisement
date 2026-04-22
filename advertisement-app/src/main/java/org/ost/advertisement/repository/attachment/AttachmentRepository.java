@@ -10,7 +10,7 @@ import java.util.List;
 @Repository
 public interface AttachmentRepository extends CrudRepository<Attachment, Long> {
 
-    List<Attachment> findByEntityTypeAndEntityId(EntityType entityType, Long entityId);
+    List<Attachment> findByEntityTypeAndEntityIdAndDeletedAtIsNull(EntityType entityType, Long entityId);
 
     void deleteByEntityTypeAndEntityId(EntityType entityType, Long entityId);
 }

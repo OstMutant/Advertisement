@@ -25,6 +25,7 @@ import org.springframework.context.annotation.Scope;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_EMPTY;
 import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_TITLE;
@@ -53,6 +54,7 @@ public class AttachmentGallery extends Div implements I18nParams {
 
     private final List<TempAttachment> tempUploads        = new ArrayList<>();
     private final List<Attachment>     currentAttachments = new ArrayList<>();
+    private       boolean              hasPendingDeletion = false;
     private String tempSessionId;
 
     @PostConstruct
@@ -85,8 +87,9 @@ public class AttachmentGallery extends Div implements I18nParams {
         this.entityId = entityId;
         this.owner = owner;
         this.editMode = true;
-        this.tempSessionId = null;
+        this.tempSessionId = UUID.randomUUID().toString();
         tempUploads.clear();
+        hasPendingDeletion = false;
         removeUploadIfPresent();
         refresh();
         uploadButton = buildUploadButton();
@@ -108,9 +111,18 @@ public class AttachmentGallery extends Div implements I18nParams {
     }
 
     public void commitTempUploads(Long entityId, UserIdMarker owner) {
-        if (tempUploads.isEmpty()) return;
-        attachmentService.commitTempUploads(owner, entityType, entityId, tempUploads);
+        if (tempUploads.isEmpty() && !hasPendingDeletion) return;
+
+        if (!tempUploads.isEmpty()) {
+            attachmentService.commitTempUploadsQuiet(owner, entityType, entityId, tempUploads);
+        }
+
+        if (entityType == EntityType.ADVERTISEMENT) {
+            attachmentService.capturePhotoChanges(entityId);
+        }
+
         tempUploads.clear();
+        hasPendingDeletion = false;
     }
 
     public void discardTempUploads() {
@@ -152,7 +164,8 @@ public class AttachmentGallery extends Div implements I18nParams {
 
         if (editMode) {
             Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
-                attachmentService.delete(owner, attachment.getId());
+                attachmentService.deleteSkipSnapshot(owner, attachment.getId());
+                hasPendingDeletion = true;
                 currentAttachments.remove(attachment);
                 wrapper.removeFromParent();
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();

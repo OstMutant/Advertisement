@@ -40,7 +40,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
     @Override
     public void updateProfile(UserProfileDto dto) {
         executor.jdbc().update(
-                "UPDATE user_information SET name = :name, role = :role WHERE id = :id",
+                "UPDATE user_information SET name = :name, role = :role, updated_at = NOW() WHERE id = :id",
                 new MapSqlParameterSource()
                         .addValue("name", dto.name())
                         .addValue("role", dto.role().name())

@@ -108,6 +108,10 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
         layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 
+    public Long getSavedUserId() {
+        return params.getUser().getId();
+    }
+
     public boolean save() {
         return binder.save(dto -> userService.save(mapper.copy(dto)));
     }

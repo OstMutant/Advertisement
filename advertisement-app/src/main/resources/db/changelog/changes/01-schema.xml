@@ -7,6 +7,7 @@
 
     <changeSet id="01-schema" author="ostap">
 
+        <!-- ── user_information ────────────────────────────────────────────── -->
         <createTable tableName="user_information">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
@@ -37,6 +38,7 @@
             CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'));
         </sql>
 
+        <!-- ── advertisement ───────────────────────────────────────────────── -->
         <createTable tableName="advertisement">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
@@ -53,6 +55,8 @@
                 <constraints nullable="false"/>
             </column>
             <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="deleted_by_user_id" type="BIGINT"/>
         </createTable>
 
         <addForeignKeyConstraint
@@ -71,6 +75,14 @@
                 referencedColumnNames="id"
                 onDelete="SET NULL"/>
 
+        <addForeignKeyConstraint
+                baseTableName="advertisement"
+                baseColumnNames="deleted_by_user_id"
+                constraintName="fk_advertisement_deleted_by"
+                referencedTableName="user_information"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
         <createIndex indexName="idx_advertisement_title" tableName="advertisement">
             <column name="title"/>
         </createIndex>
@@ -80,8 +92,11 @@
         <createIndex indexName="idx_advertisement_created_by" tableName="advertisement">
             <column name="created_by_user_id"/>
         </createIndex>
+        <createIndex indexName="idx_advertisement_deleted_at" tableName="advertisement">
+            <column name="deleted_at"/>
+        </createIndex>
 
-        <!-- Polymorphic attachment table — supports any entity type -->
+        <!-- ── attachment ──────────────────────────────────────────────────── -->
         <createTable tableName="attachment">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
@@ -107,13 +122,94 @@
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
                 <constraints nullable="false"/>
             </column>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="deleted_by_user_id" type="BIGINT"/>
         </createTable>
 
         <createIndex indexName="idx_attachment_entity" tableName="attachment">
             <column name="entity_type"/>
             <column name="entity_id"/>
         </createIndex>
+        <createIndex indexName="idx_attachment_deleted_at" tableName="attachment">
+            <column name="deleted_at"/>
+        </createIndex>
 
+        <!-- ── advertisement_snapshot ──────────────────────────────────────── -->
+        <createTable tableName="advertisement_snapshot">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="advertisement_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="VARCHAR(255)"/>
+            <column name="description" type="TEXT"/>
+            <column name="attachment_urls" type="TEXT[]"/>
+            <column name="changed_by_user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INTEGER" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changes_summary" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_adv_snap_user_date" tableName="advertisement_snapshot">
+            <column name="changed_by_user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+        <createIndex indexName="idx_adv_snap_adv_date" tableName="advertisement_snapshot">
+            <column name="advertisement_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- ── user_snapshot ───────────────────────────────────────────────── -->
+        <createTable tableName="user_snapshot">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="role" type="VARCHAR(50)"/>
+            <column name="changed_by_user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INTEGER" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="changes_summary" type="TEXT"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_user_snap_user_date" tableName="user_snapshot">
+            <column name="changed_by_user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+        <createIndex indexName="idx_user_snap_uid_date" tableName="user_snapshot">
+            <column name="user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+    </changeSet>
+
+    <changeSet id="02-user-snapshot-settings" author="ostap">
+        <addColumn tableName="user_snapshot">
+            <column name="settings" type="JSONB"/>
+        </addColumn>
     </changeSet>
 
     <changeSet id="01-test-data" author="ostap" context="dev">

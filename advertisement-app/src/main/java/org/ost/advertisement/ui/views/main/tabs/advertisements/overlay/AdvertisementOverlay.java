@@ -5,6 +5,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
@@ -43,6 +44,7 @@ public class AdvertisementOverlay extends BaseOverlay {
 
     private final transient I18nService                                 i18n;
     private final transient NotificationService                         notification;
+    private final transient AdvertisementService                        advertisementService;
     private final transient AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
     private final transient AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
     private final transient ConfirmActionDialog.Builder                 confirmDiscardBuilder;
@@ -100,6 +102,7 @@ public class AdvertisementOverlay extends BaseOverlay {
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
+                            .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerBuilder.build(
@@ -132,7 +135,15 @@ public class AdvertisementOverlay extends BaseOverlay {
         if (currentFormHandler.save()) {
             notification.success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
             session.onSaved().run();
-            closeToList();
+            if (session.enteredFromView()) {
+                Long savedId = currentFormHandler.getSavedAdvertisement().getId();
+                advertisementService.findById(savedId).ifPresentOrElse(freshAd -> {
+                    session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
+                    switchTo();
+                }, this::closeToList);
+            } else {
+                closeToList();
+            }
         } else {
             notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
         }
@@ -151,6 +162,21 @@ public class AdvertisementOverlay extends BaseOverlay {
             ).open();
         } else {
             doCancel();
+        }
+    }
+
+    private void handleRestore(Long snapshotId) {
+        try {
+            if (advertisementService.restore(session.ad().getId(), snapshotId)) {
+                notification.success(ADVERTISEMENT_RESTORED_SUCCESS);
+                session.onSaved().run();
+                advertisementService.findById(session.ad().getId()).ifPresent(freshAd -> {
+                    session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
+                    switchTo();
+                });
+            }
+        } catch (Exception e) {
+            notification.error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
         }
     }
 

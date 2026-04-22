@@ -26,4 +26,7 @@ public class Attachment {
 
     @CreatedDate
     Instant createdAt;
+
+    Instant deletedAt;
+    Long    deletedByUserId;
 }

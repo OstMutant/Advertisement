@@ -16,7 +16,19 @@
       "Bash(docker build *)",
       "Bash(curl -s \"http://localhost:8080/\")",
       "Bash(curl -s \"http://localhost:8080/VAADIN/build/indexhtml-ChMj0KPN.css\")",
-      "Bash(sort -k6,7)"
+      "Bash(sort -k6,7)",
+      "Bash(xargs cat *)",
+      "Bash(docker system *)",
+      "Bash(docker image *)",
+      "Bash(sort -k2 -h)",
+      "Bash(docker container ls *)",
+      "Bash(docker builder prune *)",
+      "Bash(docker buildx prune *)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(psql -h localhost -U experiments_user -d experiments -c ' *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(sort -t: -k2 -rn)",
+      "Bash(python3 *)"
     ]
   }
 }
