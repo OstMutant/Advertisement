@@ -82,19 +82,16 @@ async function saveOverlay(page) {
   });
   await screenshot(page, 'gallery-02-single-image-saved', UX);
 
-  // Open detail to verify the image is shown
+  // After save, overlay switches to view mode — verify images directly without reopening
   await check(`Verify single image visible in detail`, async () => {
-    await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: SINGLE_TITLE }) })
-      .first().click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
     const imgs = await page.locator('.base-overlay.overlay--visible img').count();
     console.log(`      images in detail overlay: ${imgs}`);
     if (imgs === 0) throw new Error('No image found in detail overlay');
   });
   await screenshot(page, 'gallery-03-single-image-detail', UX);
 
-  // Back to list via breadcrumb button
+  // Back to list
   await page.locator('.overlay__breadcrumb-back').click();
   await page.waitForTimeout(800);
 
@@ -110,12 +107,9 @@ async function saveOverlay(page) {
   });
   await screenshot(page, 'gallery-04-multiple-images-saved', UX);
 
-  // Open detail to verify all images shown
+  // After save, overlay switches to view mode — verify images directly
   await check(`Verify multiple images visible in detail`, async () => {
-    await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: MULTIPLE_TITLE }) })
-      .first().click();
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(500);
     const imgs = await page.locator('.base-overlay.overlay--visible img').count();
     console.log(`      images in detail overlay: ${imgs}`);
     if (imgs < 2) throw new Error(`Expected multiple images, got ${imgs}`);
