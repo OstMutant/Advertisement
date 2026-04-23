@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.InputStream;
 import java.sql.Array;
 import java.sql.Connection;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -79,10 +80,7 @@ public class AttachmentService {
             throw new AccessDeniedException("You cannot delete this attachment");
         }
         repository.findById(attachmentId).ifPresent(attachment -> {
-            jdbc.update(
-                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id",
-                new MapSqlParameterSource().addValue("id", attachmentId).addValue("deletedBy", owner.getOwnerUserId())
-            );
+            softDeleteAttachment(attachmentId, owner.getOwnerUserId());
             if (attachment.getEntityType() == EntityType.ADVERTISEMENT) {
                 capturePhotoChanges(attachment.getEntityId());
             }
@@ -95,9 +93,13 @@ public class AttachmentService {
         if (access.canNotDelete(owner)) {
             throw new AccessDeniedException("You cannot delete this attachment");
         }
+        softDeleteAttachment(attachmentId, owner.getOwnerUserId());
+    }
+
+    private void softDeleteAttachment(Long id, Long deletedBy) {
         jdbc.update(
             "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id",
-            new MapSqlParameterSource().addValue("id", attachmentId).addValue("deletedBy", owner.getOwnerUserId())
+            new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedBy)
         );
     }
 
@@ -160,7 +162,7 @@ public class AttachmentService {
      */
     @Transactional
     public void restoreToUrls(Long adId, String[] targetUrls, Long restoredByUserId) {
-        Set<String> target = (targetUrls != null) ? Set.of(targetUrls) : Set.of();
+        Set<String> target = (targetUrls != null) ? Set.copyOf(Arrays.asList(targetUrls)) : Set.of();
 
         if (target.isEmpty()) {
             // soft-delete everything currently active

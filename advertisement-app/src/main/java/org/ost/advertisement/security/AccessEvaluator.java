@@ -28,9 +28,7 @@ public class AccessEvaluator {
     }
 
     public boolean canView() {
-        return currentUser()
-                .map(u -> roleChecker.isAdmin(u) || roleChecker.isModerator(u))
-                .orElse(false);
+        return isPrivileged();
     }
 
     public boolean canNotEdit(UserIdMarker target) {

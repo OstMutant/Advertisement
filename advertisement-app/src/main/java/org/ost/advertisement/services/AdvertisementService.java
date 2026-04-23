@@ -89,8 +89,10 @@ public class AdvertisementService {
             throw new AccessDeniedException("You cannot delete this advertisement");
         }
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
-        repository.findById(ad.getId()).ifPresent(entity ->
-                snapshotService.captureAdvertisement(entity, ActionType.DELETED, currentUserId));
+        if (currentUserId != null) {
+            repository.findById(ad.getId()).ifPresent(entity ->
+                    snapshotService.captureAdvertisement(entity, ActionType.DELETED, currentUserId));
+        }
         attachmentService.ifAvailable(s -> s.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));
         repository.softDelete(ad.getId(), currentUserId);
     }

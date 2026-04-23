@@ -15,7 +15,7 @@ import static org.ost.sqlengine.filter.SqlCondition.*;
 public class AdvertisementFilterBuilder extends FilterBuilder<AdvertisementFilterDto> {
 
     public AdvertisementFilterBuilder() {
-        relations.addAll(List.of(
+        super(List.of(
                 of(title, TITLE, (mapping, value) -> like(mapping, value.getTitle())),
                 of(createdAtStart, CREATED_AT, (mapping, value) -> after(mapping, value.getCreatedAtStart())),
                 of(createdAtEnd, CREATED_AT, (mapping, value) -> before(mapping, value.getCreatedAtEnd())),

@@ -204,10 +204,7 @@ async function newSession(browser, email, pw = 'password') {
   await screenshot(page, 'upload-single-03-saved', UX);
 
   await check('Verify 1 image in detail', async () => {
-    await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: 'Single Image House' }) })
-      .first().click();
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
     const imgs = await page.locator('.base-overlay.overlay--visible img').count();
     console.log(`      images: ${imgs}`);
     if (imgs !== 1) throw new Error(`Expected 1 image, got ${imgs}`);
@@ -263,10 +260,7 @@ async function newSession(browser, email, pw = 'password') {
   await screenshot(page, 'upload-multi-03-saved', UX);
 
   await check('Verify 3 images in detail', async () => {
-    await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: 'Gallery Mansion' }) })
-      .first().click();
-    await page.waitForTimeout(800);
+    await page.waitForTimeout(500);
     const imgs = await page.locator('.base-overlay.overlay--visible img').count();
     console.log(`      images: ${imgs}`);
     if (imgs < 2) throw new Error(`Expected multiple images, got ${imgs}`);

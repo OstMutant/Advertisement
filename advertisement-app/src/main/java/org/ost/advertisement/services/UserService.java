@@ -70,7 +70,7 @@ public class UserService {
 
     @Transactional
     public void register(@Valid SignUpDto dto) {
-        boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()) == 0;
+        boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
         User newUser = User.builder()
                 .name(dto.getName().trim())
                 .email(dto.getEmail().trim())
@@ -89,8 +89,7 @@ public class UserService {
     public Optional<User> restoreBeforeSnapshot(Long snapshotId, Long actingUserId) {
         return snapshotService.getUserStateBefore(snapshotId).flatMap(state -> {
             User before = repository.findById(state.userId()).orElse(null);
-            repository.updateProfile(new org.ost.advertisement.dto.UserProfileDto(
-                    state.userId(), state.name(), state.role()));
+            repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {
                 snapshotService.captureUser(updated, before, ActionType.UPDATED, actingUserId);
                 return updated;

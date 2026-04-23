@@ -65,37 +65,18 @@ public record SqlCondition<R>(
     }
 
     public enum SqlOperator {
-        EQUALS {
-            @Override
-            public String formatClause(String sqlExpression, String filterProperty) {
-                return sqlExpression + " = :" + filterProperty;
-            }
-        },
-        LESS_OR_EQUAL {
-            @Override
-            public String formatClause(String sqlExpression, String filterProperty) {
-                return sqlExpression + " <= :" + filterProperty;
-            }
-        },
-        GREATER_OR_EQUAL {
-            @Override
-            public String formatClause(String sqlExpression, String filterProperty) {
-                return sqlExpression + " >= :" + filterProperty;
-            }
-        },
-        LIKE_IGNORE_CASE {
-            @Override
-            public String formatClause(String sqlExpression, String filterProperty) {
-                return sqlExpression + " ILIKE :" + filterProperty;
-            }
-        },
-        IN {
-            @Override
-            public String formatClause(String sqlExpression, String filterProperty) {
-                return sqlExpression + " IN (:" + filterProperty + ")";
-            }
-        };
+        EQUALS          ("%s = :%s"),
+        LESS_OR_EQUAL   ("%s <= :%s"),
+        GREATER_OR_EQUAL("%s >= :%s"),
+        LIKE_IGNORE_CASE("%s ILIKE :%s"),
+        IN              ("%s IN (:%s)");
 
-        public abstract String formatClause(String sqlExpression, String filterProperty);
+        private final String template;
+
+        SqlOperator(String template) { this.template = template; }
+
+        public String formatClause(String sqlExpression, String filterProperty) {
+            return template.formatted(sqlExpression, filterProperty);
+        }
     }
 }
