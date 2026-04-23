@@ -59,19 +59,24 @@ public class AttachmentService {
                 entityType.name().toLowerCase() + "s/" + entityId,
                 filename, inputStream, contentLength, contentType);
 
-        Attachment saved = repository.save(Attachment.builder()
-                .entityType(entityType)
-                .entityId(entityId)
-                .url(url)
-                .filename(filename)
-                .contentType(contentType)
-                .size(contentLength)
-                .build());
+        try {
+            Attachment saved = repository.save(Attachment.builder()
+                    .entityType(entityType)
+                    .entityId(entityId)
+                    .url(url)
+                    .filename(filename)
+                    .contentType(contentType)
+                    .size(contentLength)
+                    .build());
 
-        if (entityType == EntityType.ADVERTISEMENT) {
-            capturePhotoChanges(entityId);
+            if (entityType == EntityType.ADVERTISEMENT) {
+                capturePhotoChanges(entityId);
+            }
+            return saved;
+        } catch (Exception e) {
+            storageService.delete(url);
+            throw e;
         }
-        return saved;
     }
 
     @Transactional
@@ -151,8 +156,13 @@ public class AttachmentService {
                         .build())
                 .toList();
 
-        // 2. Then persist all to DB in one transaction
-        repository.saveAll(toSave);
+        // 2. Then persist all to DB; on failure roll back S3 moves
+        try {
+            repository.saveAll(toSave);
+        } catch (Exception e) {
+            toSave.forEach(a -> storageService.delete(a.getUrl()));
+            throw e;
+        }
     }
 
     /**

@@ -53,7 +53,7 @@ public abstract class SqlProjection<T> implements RowMapper<T> {
                 .map(Sort::stream)
                 .orElseGet(Stream::empty)
                 .map(order -> ofNullable(aliasToSqlMap.get(order.getProperty()))
-                        .map(col -> col + " " + order.getDirection().name())
+                        .map(col -> col + " " + order.getDirection().name() + " NULLS LAST")
                         .orElse(null))
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining(", "));

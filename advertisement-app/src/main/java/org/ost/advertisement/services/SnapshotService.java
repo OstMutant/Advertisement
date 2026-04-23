@@ -12,6 +12,7 @@ import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjec
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.Array;
 import java.sql.Connection;
@@ -34,6 +35,7 @@ public class SnapshotService {
     private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper               objectMapper;
 
+    @Transactional
     public void captureAdvertisement(Advertisement ad, ActionType actionType, Long changedByUserId) {
         List<String> currentUrls = getActiveAttachmentUrls(ad.getId());
         String changesSummary = switch (actionType) {
@@ -62,10 +64,12 @@ public class SnapshotService {
         );
     }
 
+    @Transactional
     public void captureUser(User user, ActionType actionType, Long changedByUserId) {
         captureUser(user, null, actionType, changedByUserId);
     }
 
+    @Transactional
     public void captureUser(User user, User before, ActionType actionType, Long changedByUserId) {
         String changesSummary = switch (actionType) {
             case CREATED -> "ім'я: \"" + truncate(user.getName()) + "\"; email: " + truncate(user.getEmail()) + "; роль: " + user.getRole().name();
@@ -75,6 +79,7 @@ public class SnapshotService {
         insertUserSnapshot(user, null, actionType, changedByUserId, changesSummary);
     }
 
+    @Transactional
     public void captureSettingsChange(User user, UserSettings oldSettings, UserSettings newSettings, Long changedByUserId) {
         List<String> parts = new ArrayList<>();
         if (oldSettings.getAdsPageSize() != newSettings.getAdsPageSize()) {
@@ -169,6 +174,7 @@ public class SnapshotService {
         return results.isEmpty() ? null : results.get(0);
     }
 
+    @Transactional
     public void captureAdvertisementAttachmentChange(Long advertisementId, Long changedByUserId) {
         List<String> currentUrls = getActiveAttachmentUrls(advertisementId);
         Array urlArray = toSqlArray(currentUrls);
@@ -225,6 +231,7 @@ public class SnapshotService {
         }
     }
 
+    @Transactional
     public void appendNoteToLastSnapshot(Long advertisementId, String note) {
         jdbc.update("""
                 UPDATE advertisement_snapshot
