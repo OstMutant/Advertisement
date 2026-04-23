@@ -1,11 +1,13 @@
-/* Styling for field states: clean, modified (dirty), saved-but-different (changed), or invalid */
+/* Styling for field states: clean, modified (dirty), active-filter (changed), or invalid */
 .highlight-clean,
 .highlight-dirty,
 .highlight-changed,
 .highlight-invalid {
-    box-sizing: border-box !important;
-    transition: outline 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    box-sizing:    border-box !important;
     border-radius: var(--lumo-border-radius-m);
+    transition:    outline 0.2s ease-in-out,
+                   background-color 0.2s ease-in-out,
+                   box-shadow 0.2s ease-in-out;
 }
 
 .highlight-clean {
@@ -14,19 +16,34 @@
 }
 
 .highlight-dirty {
-    outline: 2px solid orange !important;
+    outline:        2px solid #f59e0b !important;
     outline-offset: -2px;
 }
 
 .highlight-changed {
-    outline: 2px solid #0176ff !important;
+    outline:        2px solid #3b82f6 !important;
     outline-offset: -2px;
 }
 
 .highlight-invalid {
-    outline: 2px solid red !important;
+    outline:        2px solid #ef4444 !important;
     outline-offset: -2px;
-    background-color: rgba(255, 0, 0, 0.05) !important;
+}
+
+/* Background tint + left accent only for input fields, not buttons */
+:not(vaadin-button).highlight-dirty {
+    background-color: rgba(245, 158, 11, 0.06) !important;
+    box-shadow:       inset 3px 0 0 #f59e0b !important;
+}
+
+:not(vaadin-button).highlight-changed {
+    background-color: rgba(59, 130, 246, 0.07) !important;
+    box-shadow:       inset 3px 0 0 #3b82f6 !important;
+}
+
+:not(vaadin-button).highlight-invalid {
+    background-color: rgba(239, 68, 68, 0.06) !important;
+    box-shadow:       inset 3px 0 0 #ef4444 !important;
 }
 
 /* Suppress inner outlines for composite fields like QueryDateTimeField */

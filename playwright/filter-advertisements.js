@@ -26,6 +26,7 @@ const UX = process.argv.includes('--ux');
     const titleInput = page.locator('.advertisement-query-block .query-text input').first();
     await titleInput.fill('Test');
     await page.waitForTimeout(500);
+    await screenshot(page, 'filter-ads-02b-dirty-state', UX);
     // Apply — find Apply/Search button inside queryActionBlock
     await page.locator('.advertisement-query-block vaadin-button[title*="Застосувати"]').first().click();
     await page.waitForTimeout(1500);
