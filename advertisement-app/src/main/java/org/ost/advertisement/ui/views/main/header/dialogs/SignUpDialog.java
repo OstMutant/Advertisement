@@ -1,7 +1,6 @@
 package org.ost.advertisement.ui.views.main.header.dialogs;
 
-import com.vaadin.flow.data.binder.Binder;
-import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
@@ -21,7 +20,6 @@ import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.advertisement.ui.views.main.header.dialogs.Constants.EMAIL_PATTERN;
 import static org.ost.advertisement.common.I18nKey.*;
 
 @Slf4j
@@ -45,7 +43,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
 
-    private final Binder<SignUpDto>   binder = new Binder<>(SignUpDto.class);
+    private final BeanValidationBinder<SignUpDto> binder = new BeanValidationBinder<>(SignUpDto.class);
     private final transient SignUpDto dto    = new SignUpDto();
 
     @Override
@@ -103,13 +101,9 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     private void bindFields() {
         binder.setBean(dto);
 
-        binder.forField(nameField)
-                .withValidator(new StringLengthValidator(getValue(SIGNUP_ERROR_NAME_REQUIRED), 1, 255))
-                .bind(SignUpDto::getName, SignUpDto::setName);
+        binder.forField(nameField).bind(SignUpDto::getName, SignUpDto::setName);
 
         binder.forField(emailField)
-                .withValidator(email -> EMAIL_PATTERN.matcher(email == null ? "" : email.trim()).matches(),
-                        getValue(SIGNUP_ERROR_EMAIL_INVALID))
                 .withValidator(email -> {
                     try {
                         return email != null && userService.findByEmail(email.trim()).isEmpty();
@@ -120,9 +114,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
                 }, getValue(SIGNUP_ERROR_EMAIL_EXISTS))
                 .bind(SignUpDto::getEmail, SignUpDto::setEmail);
 
-        binder.forField(passwordField)
-                .withValidator(new StringLengthValidator(getValue(SIGNUP_ERROR_PASSWORD_SHORT), 6, 255))
-                .bind(SignUpDto::getPassword, SignUpDto::setPassword);
+        binder.forField(passwordField).bind(SignUpDto::getPassword, SignUpDto::setPassword);
     }
 
     private void handleRegistration() {

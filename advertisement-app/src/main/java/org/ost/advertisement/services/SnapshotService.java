@@ -8,7 +8,6 @@ import org.ost.advertisement.entities.ActionType;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -106,41 +105,29 @@ public class SnapshotService {
     }
 
     public Optional<UserSettings> getSettingsFromSnapshot(Long snapshotId) {
-        try {
-            return Optional.ofNullable(jdbc.queryForObject(
-                    "SELECT settings FROM user_snapshot WHERE id = :id",
-                    new MapSqlParameterSource("id", snapshotId),
-                    (rs, row) -> {
-                        String json = rs.getString("settings");
-                        if (json == null) return null;
-                        return fromJson(json, UserSettings.class);
-                    }
-            ));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return jdbc.query(
+                "SELECT settings FROM user_snapshot WHERE id = :id AND settings IS NOT NULL",
+                new MapSqlParameterSource("id", snapshotId),
+                (rs, row) -> fromJson(rs.getString("settings"), UserSettings.class)
+        ).stream().findFirst();
     }
 
     /** Returns the user's state from the snapshot BEFORE the given one (version - 1). */
     public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
-        try {
-            return Optional.ofNullable(jdbc.queryForObject("""
-                    SELECT prev.user_id, prev.name, prev.role
-                    FROM user_snapshot cur
-                    JOIN user_snapshot prev
-                         ON prev.user_id = cur.user_id AND prev.version = cur.version - 1
-                    WHERE cur.id = :snapshotId
-                    """,
-                    new MapSqlParameterSource("snapshotId", snapshotId),
-                    (rs, row) -> new UserSnapshotState(
-                            rs.getLong("user_id"),
-                            rs.getString("name"),
-                            Role.valueOf(rs.getString("role"))
-                    )
-            ));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return jdbc.query("""
+                SELECT prev.user_id, prev.name, prev.role
+                FROM user_snapshot cur
+                JOIN user_snapshot prev
+                     ON prev.user_id = cur.user_id AND prev.version = cur.version - 1
+                WHERE cur.id = :snapshotId
+                """,
+                new MapSqlParameterSource("snapshotId", snapshotId),
+                (rs, row) -> new UserSnapshotState(
+                        rs.getLong("user_id"),
+                        rs.getString("name"),
+                        Role.valueOf(rs.getString("role"))
+                )
+        ).stream().findFirst();
     }
 
     private String computeUserDiff(User user, User before) {
@@ -157,29 +144,26 @@ public class SnapshotService {
             }
             return parts.isEmpty() ? null : String.join("; ", parts);
         }
-        try {
-            return jdbc.queryForObject("""
-                    SELECT name, email, role FROM user_snapshot
-                    WHERE user_id = :userId
-                    ORDER BY version DESC LIMIT 1
-                    """,
-                    new MapSqlParameterSource("userId", user.getId()),
-                    (rs, row) -> {
-                        List<String> parts = new ArrayList<>();
-                        if (!Objects.equals(user.getName(), rs.getString("name"))) {
-                            parts.add("ім'я: \"" + truncate(rs.getString("name")) + "\" → \"" + truncate(user.getName()) + "\"");
-                        }
-                        if (!Objects.equals(user.getEmail(), rs.getString("email"))) {
-                            parts.add("email: \"" + truncate(rs.getString("email")) + "\" → \"" + truncate(user.getEmail()) + "\"");
-                        }
-                        if (!Objects.equals(user.getRole().name(), rs.getString("role"))) {
-                            parts.add("роль: " + rs.getString("role") + " → " + user.getRole().name());
-                        }
-                        return parts.isEmpty() ? null : String.join("; ", parts);
-                    });
-        } catch (EmptyResultDataAccessException e) {
-            return null;
-        }
+        List<String> results = jdbc.query("""
+                SELECT name, email, role FROM user_snapshot
+                WHERE user_id = :userId
+                ORDER BY version DESC LIMIT 1
+                """,
+                new MapSqlParameterSource("userId", user.getId()),
+                (rs, row) -> {
+                    List<String> parts = new ArrayList<>();
+                    if (!Objects.equals(user.getName(), rs.getString("name"))) {
+                        parts.add("ім'я: \"" + truncate(rs.getString("name")) + "\" → \"" + truncate(user.getName()) + "\"");
+                    }
+                    if (!Objects.equals(user.getEmail(), rs.getString("email"))) {
+                        parts.add("email: \"" + truncate(rs.getString("email")) + "\" → \"" + truncate(user.getEmail()) + "\"");
+                    }
+                    if (!Objects.equals(user.getRole().name(), rs.getString("role"))) {
+                        parts.add("роль: " + rs.getString("role") + " → " + user.getRole().name());
+                    }
+                    return parts.isEmpty() ? null : String.join("; ", parts);
+                });
+        return results.isEmpty() ? null : results.get(0);
     }
 
     public void captureAdvertisementAttachmentChange(Long advertisementId, Long changedByUserId) {
@@ -187,29 +171,24 @@ public class SnapshotService {
         Array urlArray = toSqlArray(currentUrls);
 
         record RecentSnapshot(Long id, String changesSummary, String[] baselineUrls) {}
-        RecentSnapshot recent;
-        try {
-            recent = jdbc.queryForObject("""
-                    SELECT s.id, s.changes_summary, prev.attachment_urls AS baseline_urls
-                    FROM advertisement_snapshot s
-                    LEFT JOIN advertisement_snapshot prev
-                           ON prev.advertisement_id = s.advertisement_id
-                          AND prev.version = s.version - 1
-                    WHERE s.advertisement_id = :adId
-                      AND s.action_type IN ('CREATED', 'UPDATED')
-                      AND s.created_at > NOW() - INTERVAL '5 minutes'
-                    ORDER BY s.version DESC LIMIT 1
-                    """,
-                    new MapSqlParameterSource("adId", advertisementId),
-                    (rs, row) -> new RecentSnapshot(
-                            rs.getLong("id"),
-                            rs.getString("changes_summary"),
-                            toStringArray(rs, "baseline_urls")
-                    )
-            );
-        } catch (EmptyResultDataAccessException e) {
-            recent = null;
-        }
+        RecentSnapshot recent = jdbc.query("""
+                SELECT s.id, s.changes_summary, prev.attachment_urls AS baseline_urls
+                FROM advertisement_snapshot s
+                LEFT JOIN advertisement_snapshot prev
+                       ON prev.advertisement_id = s.advertisement_id
+                      AND prev.version = s.version - 1
+                WHERE s.advertisement_id = :adId
+                  AND s.action_type IN ('CREATED', 'UPDATED')
+                  AND s.created_at > NOW() - INTERVAL '5 minutes'
+                ORDER BY s.version DESC LIMIT 1
+                """,
+                new MapSqlParameterSource("adId", advertisementId),
+                (rs, row) -> new RecentSnapshot(
+                        rs.getLong("id"),
+                        rs.getString("changes_summary"),
+                        toStringArray(rs, "baseline_urls")
+                )
+        ).stream().findFirst().orElse(null);
 
         if (recent != null) {
             List<String> baseline = recent.baselineUrls().length > 0 ? Arrays.asList(recent.baselineUrls()) : List.of();
@@ -218,15 +197,11 @@ public class SnapshotService {
             jdbc.update("UPDATE advertisement_snapshot SET changes_summary = :s, attachment_urls = :u WHERE id = :id",
                     new MapSqlParameterSource().addValue("id", recent.id()).addValue("s", newSummary).addValue("u", urlArray));
         } else {
-            String[] prevArr;
-            try {
-                prevArr = jdbc.queryForObject(
-                        "SELECT attachment_urls FROM advertisement_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1",
-                        new MapSqlParameterSource("adId", advertisementId),
-                        (rs, row) -> toStringArray(rs, "attachment_urls"));
-            } catch (EmptyResultDataAccessException e) {
-                prevArr = new String[0];
-            }
+            String[] prevArr = jdbc.query(
+                    "SELECT attachment_urls FROM advertisement_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1",
+                    new MapSqlParameterSource("adId", advertisementId),
+                    (rs, row) -> toStringArray(rs, "attachment_urls")
+            ).stream().findFirst().orElse(new String[0]);
             List<String> baseline = prevArr != null && prevArr.length > 0 ? Arrays.asList(prevArr) : List.of();
             String photoDiff = buildPhotoDiffEntry(baseline, currentUrls);
             jdbc.update("""
@@ -312,54 +287,40 @@ public class SnapshotService {
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
-        try {
-            return Optional.ofNullable(jdbc.queryForObject(
-                    "SELECT title, description, attachment_urls FROM advertisement_snapshot WHERE id = :id",
-                    new MapSqlParameterSource("id", snapshotId),
-                    (rs, row) -> {
-                        Array arr = null;
-                        try { arr = rs.getArray("attachment_urls"); } catch (Exception ignored) {}
-                        String[] urls = new String[0];
-                        if (arr != null) {
-                            try { urls = (String[]) arr.getArray(); } catch (Exception ignored) {}
-                        }
-                        return new SnapshotContent(rs.getString("title"), rs.getString("description"), urls);
-                    }
-            ));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
+        return jdbc.query(
+                "SELECT title, description, attachment_urls FROM advertisement_snapshot WHERE id = :id",
+                new MapSqlParameterSource("id", snapshotId),
+                (rs, row) -> new SnapshotContent(
+                        rs.getString("title"),
+                        rs.getString("description"),
+                        toStringArray(rs, "attachment_urls")
+                )
+        ).stream().findFirst();
     }
 
     private String computeDiff(Advertisement ad, List<String> currentUrls) {
-        try {
-            return jdbc.queryForObject("""
-                    SELECT title, description, attachment_urls FROM advertisement_snapshot
-                    WHERE advertisement_id = :adId
-                    ORDER BY version DESC LIMIT 1
-                    """,
-                    new MapSqlParameterSource("adId", ad.getId()),
-                    (rs, row) -> {
-                        List<String> parts = new ArrayList<>();
-                        String prevTitle = rs.getString("title");
-                        String prevDesc  = rs.getString("description");
-                        if (!Objects.equals(ad.getTitle(), prevTitle)) {
-                            parts.add("назва: \"" + truncate(prevTitle) + "\" → \"" + truncate(ad.getTitle()) + "\"");
-                        }
-                        if (!Objects.equals(ad.getDescription(), prevDesc)) {
-                            parts.add("опис: \"" + truncate(prevDesc) + "\" → \"" + truncate(ad.getDescription()) + "\"");
-                        }
-                        // photo diff
-                        Array prevArr = rs.getArray("attachment_urls");
-                        List<String> prevUrls = prevArr != null
-                                ? List.of((String[]) prevArr.getArray()) : List.of();
-                        String photoDiff = buildPhotoDiffEntry(prevUrls, currentUrls);
-                        if (photoDiff != null) parts.add(photoDiff);
-                        return parts.isEmpty() ? null : String.join("; ", parts);
-                    });
-        } catch (EmptyResultDataAccessException e) {
-            return null;
-        }
+        List<String> results = jdbc.query("""
+                SELECT title, description, attachment_urls FROM advertisement_snapshot
+                WHERE advertisement_id = :adId
+                ORDER BY version DESC LIMIT 1
+                """,
+                new MapSqlParameterSource("adId", ad.getId()),
+                (rs, row) -> {
+                    List<String> parts = new ArrayList<>();
+                    String prevTitle = rs.getString("title");
+                    String prevDesc  = rs.getString("description");
+                    if (!Objects.equals(ad.getTitle(), prevTitle)) {
+                        parts.add("назва: \"" + truncate(prevTitle) + "\" → \"" + truncate(ad.getTitle()) + "\"");
+                    }
+                    if (!Objects.equals(ad.getDescription(), prevDesc)) {
+                        parts.add("опис: \"" + truncate(prevDesc) + "\" → \"" + truncate(ad.getDescription()) + "\"");
+                    }
+                    List<String> prevUrls = List.of(toStringArray(rs, "attachment_urls"));
+                    String photoDiff = buildPhotoDiffEntry(prevUrls, currentUrls);
+                    if (photoDiff != null) parts.add(photoDiff);
+                    return parts.isEmpty() ? null : String.join("; ", parts);
+                });
+        return results.isEmpty() ? null : results.get(0);
     }
 
     public List<String> getActiveAttachmentUrls(Long adId) {

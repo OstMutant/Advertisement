@@ -29,7 +29,8 @@ public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto>
 
     public AdvertisementProjection() {
         super(List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL, MAIN_IMAGE_URL, IMAGE_COUNT),
-                AdvertisementTable.SOURCE);
+                AdvertisementTable.SOURCE,
+                AdvertisementTable.COUNT_SOURCE);
     }
 
     @Override

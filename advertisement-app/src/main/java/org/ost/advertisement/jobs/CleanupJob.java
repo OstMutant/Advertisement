@@ -11,7 +11,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -24,7 +26,7 @@ public class CleanupJob {
     @Value("${app.cleanup.retention-days:90}")
     private int retentionDays;
 
-    @Scheduled(cron = "0 0 2 * * *")
+    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
     @Transactional
     public void run() {
         log.info("Cleanup job started, retention = {} days", retentionDays);
@@ -43,17 +45,31 @@ public class CleanupJob {
                 String.class
         );
 
+        if (urls.isEmpty()) {
+            log.info("Deleted 0 attachments");
+            return;
+        }
+
+        Set<String> failedUrls = new HashSet<>();
         storageService.ifAvailable(s -> urls.forEach(url -> {
             try { s.delete(url); } catch (Exception e) {
                 log.warn("Failed to delete S3 object {}: {}", url, e.getMessage());
+                failedUrls.add(url);
             }
         }));
 
+        List<String> toDelete = failedUrls.isEmpty()
+                ? urls
+                : urls.stream().filter(u -> !failedUrls.contains(u)).toList();
+
         int deleted = jdbc.update(
-                "DELETE FROM attachment WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)",
-                new MapSqlParameterSource("days", retentionDays)
+                "DELETE FROM attachment WHERE url IN (:urls)",
+                new MapSqlParameterSource("urls", toDelete)
         );
         log.info("Deleted {} attachments", deleted);
+        if (!failedUrls.isEmpty()) {
+            log.warn("{} attachments skipped — S3 deletion failed, will retry on next run", failedUrls.size());
+        }
     }
 
     private void deleteAdvertisements() {

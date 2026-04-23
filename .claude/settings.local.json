@@ -28,7 +28,8 @@
       "Bash(psql -h localhost -U experiments_user -d experiments -c ' *)",
       "Bash(echo \"exit: $?\")",
       "Bash(sort -t: -k2 -rn)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(xargs ls *)"
     ]
   }
 }

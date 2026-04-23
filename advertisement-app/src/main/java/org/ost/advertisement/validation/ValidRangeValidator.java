@@ -7,7 +7,6 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 
-@SuppressWarnings("rawtypes")
 public class ValidRangeValidator implements ConstraintValidator<ValidRange, Object> {
 
     private static final Logger log = LoggerFactory.getLogger(ValidRangeValidator.class);
@@ -41,8 +40,10 @@ public class ValidRangeValidator implements ConstraintValidator<ValidRange, Obje
                 return true;
             }
 
-            Comparable startComparable = (Comparable) start;
-            Comparable endComparable = (Comparable) end;
+            @SuppressWarnings("unchecked")
+            Comparable<Object> startComparable = (Comparable<Object>) start;
+            @SuppressWarnings("unchecked")
+            Comparable<Object> endComparable = (Comparable<Object>) end;
 
             if (startComparable.compareTo(endComparable) <= 0) {
                 return true;

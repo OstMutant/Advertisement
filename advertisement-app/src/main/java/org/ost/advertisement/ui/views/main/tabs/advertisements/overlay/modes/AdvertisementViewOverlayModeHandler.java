@@ -242,16 +242,4 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         ).open();
     }
 
-    private static String truncate(String s) {
-        if (s == null) return "";
-        return s.length() > 40 ? s.substring(0, 40) + "…" : s;
-    }
-
-    private String formatAction(ActionType actionType) {
-        return switch (actionType) {
-            case CREATED -> getValue(ACTIVITY_ACTION_CREATED);
-            case UPDATED -> getValue(ACTIVITY_ACTION_UPDATED);
-            case DELETED -> getValue(ACTIVITY_ACTION_DELETED);
-        };
-    }
 }

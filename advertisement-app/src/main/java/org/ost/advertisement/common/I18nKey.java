@@ -177,6 +177,7 @@ public enum I18nKey {
     // === Attachment Gallery ===
     ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
     ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
+    ATTACHMENT_GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),

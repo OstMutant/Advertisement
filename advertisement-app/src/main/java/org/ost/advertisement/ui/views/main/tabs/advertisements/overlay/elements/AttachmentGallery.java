@@ -12,6 +12,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.entities.Attachment;
 import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.security.UserIdMarker;
@@ -19,6 +20,7 @@ import org.ost.advertisement.services.AttachmentService;
 import org.ost.advertisement.services.AttachmentService.TempAttachment;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.storage.api.ConditionalOnStorageEnabled;
 import org.springframework.context.annotation.Scope;
 
@@ -27,8 +29,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_EMPTY;
-import static org.ost.advertisement.common.I18nKey.ATTACHMENT_GALLERY_TITLE;
+import static org.ost.advertisement.common.I18nKey.*;
+
+@Slf4j
 
 @SpringComponent
 @Scope("prototype")
@@ -39,9 +42,10 @@ public class AttachmentGallery extends Div implements I18nParams {
     private static final int    MAX_FILES     = 10;
     private static final int    MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-    private final transient AttachmentService attachmentService;
+    private final transient AttachmentService    attachmentService;
     @Getter
-    private final transient I18nService i18nService;
+    private final transient I18nService          i18nService;
+    private final transient NotificationService  notificationService;
 
     private Div thumbnailsRow;
     private Span emptyState;
@@ -213,18 +217,23 @@ public class AttachmentGallery extends Div implements I18nParams {
                 hideEmpty();
                 thumbnailsRow.add(buildTempThumbnail(temp));
             } else {
-                Attachment saved = attachmentService.upload(
-                        owner,
-                        entityType,
-                        entityId,
-                        metadata.fileName(),
-                        new ByteArrayInputStream(bytes),
-                        bytes.length,
-                        metadata.contentType()
-                );
-                hideEmpty();
-                currentAttachments.add(saved);
-                thumbnailsRow.add(buildThumbnail(saved));
+                try {
+                    Attachment saved = attachmentService.upload(
+                            owner,
+                            entityType,
+                            entityId,
+                            metadata.fileName(),
+                            new ByteArrayInputStream(bytes),
+                            bytes.length,
+                            metadata.contentType()
+                    );
+                    hideEmpty();
+                    currentAttachments.add(saved);
+                    thumbnailsRow.add(buildThumbnail(saved));
+                } catch (Exception e) {
+                    log.error("Failed to upload attachment: {}", metadata.fileName(), e);
+                    notificationService.error(ATTACHMENT_GALLERY_UPLOAD_ERROR);
+                }
             }
         }));
         upload.addClassName("attachment-gallery__upload");

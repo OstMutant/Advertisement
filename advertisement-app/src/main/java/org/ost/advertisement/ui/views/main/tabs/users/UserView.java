@@ -5,6 +5,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
@@ -22,9 +23,9 @@ import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.springframework.context.event.EventListener;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ApplicationEventMulticaster;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -45,6 +46,10 @@ public class UserView extends VerticalLayout {
     private final transient UserGridConfigurator.Builder gridConfiguratorBuilder;
     private final UserOverlay                            overlay;
     private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
+
+    private final ApplicationEventMulticaster            eventMulticaster;
+
+    private ApplicationListener<SettingsChangedEvent> settingsListener;
 
     private Grid<User>          grid;
     private PaginationBarModern paginationBar;
@@ -71,17 +76,21 @@ public class UserView extends VerticalLayout {
         addComponentAsFirst(queryStatusBar);
         addComponentAtIndex(1, queryStatusBar.getQueryBlock());
 
+        settingsListener = event -> settingsPaginationSupport
+                .handleSettingsChanged(event, paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
+        eventMulticaster.addApplicationListener(settingsListener);
+
         applySettingsOnInit();
         refreshGrid();
     }
 
-    private void applySettingsOnInit() {
-        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getUsersPageSize);
+    @PreDestroy
+    public void destroy() {
+        eventMulticaster.removeApplicationListener(settingsListener);
     }
 
-    @EventListener
-    public void onSettingsChanged(SettingsChangedEvent event) {
-        settingsPaginationSupport.handleSettingsChanged(event, paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
+    private void applySettingsOnInit() {
+        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getUsersPageSize);
     }
 
     private void initPagination() {
@@ -118,16 +127,16 @@ public class UserView extends VerticalLayout {
             List<User> pageData   = userService.getFiltered(currentFilter, page, size, sort);
             int        totalCount = userService.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
-            grid.setItems(pageData != null ? pageData : Collections.emptyList());
+            grid.setItems(pageData);
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching users: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
-            grid.setItems(Collections.emptyList());
+            grid.setItems(List.of());
             paginationBar.setTotalCount(0);
         } catch (Exception ex) {
             log.error("Unexpected error while refreshing user grid", ex);
             notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
-            grid.setItems(Collections.emptyList());
+            grid.setItems(List.of());
             paginationBar.setTotalCount(0);
         } finally {
             queryStatusBar.update();

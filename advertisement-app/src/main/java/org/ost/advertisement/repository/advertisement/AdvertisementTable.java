@@ -31,4 +31,7 @@ public final class AdvertisementTable {
             TABLE + " " + ALIAS +
             " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id" +
             ATTACHMENT_JOIN;
+
+    /** Lightweight source for COUNT queries — filters use only advertisement columns. */
+    public static final String COUNT_SOURCE = TABLE + " " + ALIAS;
 }

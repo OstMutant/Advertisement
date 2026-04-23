@@ -10,6 +10,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.UserSettings;
@@ -24,7 +25,8 @@ import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
-import org.springframework.context.event.EventListener;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -46,6 +48,9 @@ public class AdvertisementsView extends VerticalLayout {
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBarModern                    paginationBar;
+    private final ApplicationEventMulticaster            eventMulticaster;
+
+    private ApplicationListener<SettingsChangedEvent> settingsListener;
 
     private FlexLayout advertisementContainer;
 
@@ -82,17 +87,21 @@ public class AdvertisementsView extends VerticalLayout {
             }
         }, Key.KEY_N);
 
+        settingsListener = event -> settingsPaginationSupport
+                .handleSettingsChanged(event, paginationBar, UserSettings::getAdsPageSize, this::refresh);
+        eventMulticaster.addApplicationListener(settingsListener);
+
         applySettingsOnInit();
         refresh();
     }
 
-    private void applySettingsOnInit() {
-        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getAdsPageSize);
+    @PreDestroy
+    public void destroy() {
+        eventMulticaster.removeApplicationListener(settingsListener);
     }
 
-    @EventListener
-    public void onSettingsChanged(SettingsChangedEvent event) {
-        settingsPaginationSupport.handleSettingsChanged(event, paginationBar, UserSettings::getAdsPageSize, this::refresh);
+    private void applySettingsOnInit() {
+        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getAdsPageSize);
     }
 
     private FlexLayout buildAdvertisementContainer() {

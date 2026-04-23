@@ -43,7 +43,7 @@ public class RepositoryCustom<T, F> {
     public Long countByFilter(F filter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         String sql = sqlQueryBuilder.count(
-                sqlProjection.getSqlSource(),
+                sqlProjection.getCountSource(),
                 filterBuilder.build(params, filter)
         );
         return executor.count(sql, params);

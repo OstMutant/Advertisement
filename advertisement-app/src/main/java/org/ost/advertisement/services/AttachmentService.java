@@ -46,7 +46,6 @@ public class AttachmentService {
         return repository.findByEntityTypeAndEntityIdAndDeletedAtIsNull(entityType, entityId);
     }
 
-    @Transactional
     public Attachment upload(UserIdMarker owner, EntityType entityType, Long entityId,
                              String filename, InputStream inputStream,
                              long contentLength, String contentType) {
@@ -54,6 +53,7 @@ public class AttachmentService {
             throw new AccessDeniedException("You cannot add attachments to this entity");
         }
 
+        // S3 upload happens before any DB connection is acquired
         String url = storageService.upload(
                 entityType.name().toLowerCase() + "s/" + entityId,
                 filename, inputStream, contentLength, contentType);
@@ -119,7 +119,6 @@ public class AttachmentService {
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
-    @Transactional
     public void commitTempUploads(UserIdMarker owner, EntityType entityType, Long entityId,
                                   List<TempAttachment> temps) {
         commitTempUploadsQuiet(owner, entityType, entityId, temps);
@@ -130,7 +129,6 @@ public class AttachmentService {
     }
 
     /** Moves temp files to final location without creating a snapshot entry. */
-    @Transactional
     public void commitTempUploadsQuiet(UserIdMarker owner, EntityType entityType, Long entityId,
                                        List<TempAttachment> temps) {
         if (temps.isEmpty()) return;
@@ -138,21 +136,21 @@ public class AttachmentService {
             throw new AccessDeniedException("You cannot add attachments to this entity");
         }
 
-        for (TempAttachment temp : temps) {
-            String finalUrl = storageService.move(
-                    temp.tempUrl(),
-                    entityType.name().toLowerCase() + "s/" + entityId,
-                    temp.filename());
+        // 1. All S3 moves happen before any DB connection is acquired
+        String folder = entityType.name().toLowerCase() + "s/" + entityId;
+        List<Attachment> toSave = temps.stream()
+                .map(temp -> Attachment.builder()
+                        .entityType(entityType)
+                        .entityId(entityId)
+                        .url(storageService.move(temp.tempUrl(), folder, temp.filename()))
+                        .filename(temp.filename())
+                        .contentType(temp.contentType())
+                        .size(temp.size())
+                        .build())
+                .toList();
 
-            repository.save(Attachment.builder()
-                    .entityType(entityType)
-                    .entityId(entityId)
-                    .url(finalUrl)
-                    .filename(temp.filename())
-                    .contentType(temp.contentType())
-                    .size(temp.size())
-                    .build());
-        }
+        // 2. Then persist all to DB in one transaction
+        repository.saveAll(toSave);
     }
 
     /**
@@ -204,13 +202,6 @@ public class AttachmentService {
                 .addValue("type",      entityType.name())
                 .addValue("entityId",  entityId)
         );
-    }
-
-    @Transactional
-    public void deleteAll(EntityType entityType, Long entityId) {
-        List<Attachment> attachments = repository.findByEntityTypeAndEntityIdAndDeletedAtIsNull(entityType, entityId);
-        repository.deleteByEntityTypeAndEntityId(entityType, entityId);
-        attachments.forEach(a -> storageService.delete(a.getUrl()));
     }
 
     public void discardTempUploads(List<TempAttachment> temps) {

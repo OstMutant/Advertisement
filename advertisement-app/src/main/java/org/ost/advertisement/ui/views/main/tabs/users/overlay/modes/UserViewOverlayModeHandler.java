@@ -221,14 +221,6 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         return container;
     }
 
-    private String formatAction(ActionType actionType) {
-        return switch (actionType) {
-            case CREATED -> getValue(ACTIVITY_ACTION_CREATED);
-            case UPDATED -> getValue(ACTIVITY_ACTION_UPDATED);
-            case DELETED -> getValue(ACTIVITY_ACTION_DELETED);
-        };
-    }
-
     private UiLabeledField field(I18nKey labelKey, String value) {
         return labeledFieldBuilder.build(
                 UiLabeledField.Parameters.builder()

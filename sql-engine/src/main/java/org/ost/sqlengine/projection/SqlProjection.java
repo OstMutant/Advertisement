@@ -19,10 +19,17 @@ public abstract class SqlProjection<T> implements RowMapper<T> {
     private final Map<String, String> aliasToSqlMap;
     @Getter
     private final String sqlSource;
+    @Getter
+    private final String countSource;
 
     protected SqlProjection(List<SqlFieldDefinition<?>> items, String sqlSource) {
+        this(items, sqlSource, sqlSource);
+    }
+
+    protected SqlProjection(List<SqlFieldDefinition<?>> items, String sqlSource, String countSource) {
         Objects.requireNonNull(items, "Parameter 'items' must not be null.");
         Objects.requireNonNull(sqlSource, "Parameter 'sqlSource' must not be null.");
+        Objects.requireNonNull(countSource, "Parameter 'countSource' must not be null.");
         this.aliasToSqlMap = items.stream()
                 .collect(Collectors.toMap(
                         SqlFieldDefinition::alias,
@@ -31,6 +38,7 @@ public abstract class SqlProjection<T> implements RowMapper<T> {
                         HashMap::new
                 ));
         this.sqlSource = sqlSource;
+        this.countSource = countSource;
     }
 
     public String getSelectClause() {

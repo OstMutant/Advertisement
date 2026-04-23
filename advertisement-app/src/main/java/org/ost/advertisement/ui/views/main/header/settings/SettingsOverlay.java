@@ -227,14 +227,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         return container;
     }
 
-    private String formatAction(ActionType actionType) {
-        return switch (actionType) {
-            case CREATED -> getValue(ACTIVITY_ACTION_CREATED);
-            case UPDATED -> getValue(ACTIVITY_ACTION_UPDATED);
-            case DELETED -> getValue(ACTIVITY_ACTION_DELETED);
-        };
-    }
-
     private IntegerField buildAdsPageSizeField(UserSettings settings) {
         adsPageSizeField = new IntegerField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
         adsPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
