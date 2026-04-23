@@ -33,6 +33,18 @@ public class SqlFieldBuilder {
         });
     }
 
+    public static SqlFieldDefinition<Integer> intVal(String sqlExpression, String sqlAlias) {
+        return build(sqlExpression, sqlAlias, (rs, alias) -> rs.getInt(alias));
+    }
+
+    public static SqlFieldDefinition<String[]> strArray(String sqlExpression, String sqlAlias) {
+        return build(sqlExpression, sqlAlias, (rs, alias) -> {
+            java.sql.Array arr = rs.getArray(alias);
+            if (arr == null) return new String[0];
+            return (String[]) arr.getArray();
+        });
+    }
+
     public static <T> SqlFieldDefinition<T> build(String sqlExpression, String alias, SqlFieldReader<T> extractor) {
         return SqlFieldDefinition.<T>builder().sqlExpression(sqlExpression).alias(alias).extractor(extractor).build();
     }

@@ -8,6 +8,7 @@ import org.ost.advertisement.entities.ActionType;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjection;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,8 @@ public class SnapshotService {
 
     public record SnapshotContent(String title, String description, String[] attachmentUrls) {}
     public record UserSnapshotState(Long userId, String name, Role role) {}
+
+    private static final AdvertisementHistoryProjection HISTORY_PROJECTION = new AdvertisementHistoryProjection();
 
     private final NamedParameterJdbcTemplate jdbc;
     private final ObjectMapper               objectMapper;
@@ -242,48 +245,10 @@ public class SnapshotService {
     }
 
     public List<AdvertisementHistoryDto> getAdvertisementHistory(Long advertisementId, Long currentUserId, boolean showAll) {
-        Long filterUserId = showAll ? null : currentUserId;
-        return jdbc.query("""
-                SELECT s.id, s.version, s.action_type, s.title, s.description,
-                       s.changes_summary, s.attachment_urls, s.created_at,
-                       COALESCE(u.name, '—') AS changed_by_name,
-                       prev.id   AS prev_id,   prev.title       AS prev_title,
-                       prev.description       AS prev_description,
-                       prev.attachment_urls   AS prev_urls
-                FROM advertisement_snapshot s
-                LEFT JOIN user_information u ON u.id = s.changed_by_user_id
-                LEFT JOIN advertisement_snapshot prev
-                       ON prev.advertisement_id = s.advertisement_id
-                      AND prev.version = s.version - 1
-                WHERE s.advertisement_id = :adId
-                  AND (CAST(:filterUserId AS BIGINT) IS NULL OR s.changed_by_user_id = :filterUserId)
-                ORDER BY s.version DESC
-                LIMIT 50
-                """,
+        return HISTORY_PROJECTION.queryAll(jdbc,
                 new MapSqlParameterSource()
                         .addValue("adId",         advertisementId)
-                        .addValue("filterUserId", filterUserId),
-                (rs, row) -> {
-                    String[] urls     = toStringArray(rs, "attachment_urls");
-                    String[] prevUrls = toStringArray(rs, "prev_urls");
-                    Long prevId = rs.getLong("prev_id");
-                    if (rs.wasNull()) prevId = null;
-                    return new AdvertisementHistoryDto(
-                            rs.getLong("id"),
-                            rs.getInt("version"),
-                            ActionType.valueOf(rs.getString("action_type")),
-                            rs.getString("changed_by_name"),
-                            rs.getTimestamp("created_at").toInstant(),
-                            rs.getString("title"),
-                            rs.getString("description"),
-                            rs.getString("changes_summary"),
-                            urls,
-                            prevId,
-                            rs.getString("prev_title"),
-                            rs.getString("prev_description"),
-                            prevUrls
-                    );
-                });
+                        .addValue("filterUserId", showAll ? null : currentUserId));
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {

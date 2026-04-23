@@ -29,7 +29,9 @@
       "Bash(echo \"exit: $?\")",
       "Bash(sort -t: -k2 -rn)",
       "Bash(python3 *)",
-      "Bash(xargs ls *)"
+      "Bash(xargs ls *)",
+      "Bash(xargs -I{} basename {} .js)",
+      "Bash(git *)"
     ]
   }
 }
