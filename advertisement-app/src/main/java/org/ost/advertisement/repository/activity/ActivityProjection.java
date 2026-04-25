@@ -1,10 +1,15 @@
 package org.ost.advertisement.repository.activity;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.ActivityItemDto;
 import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlFieldDefinition;
 import org.ost.sqlengine.projection.SqlFixedProjection;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,6 +18,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
 
+@Component
 public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
 
     private static final String SOURCE = "advertisement_snapshot s LEFT JOIN user_information u ON u.id = s.changed_by_user_id";
@@ -27,7 +33,7 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                        s.created_at,
                        EXISTS(SELECT 1 FROM advertisement a
                               WHERE a.id = s.advertisement_id AND a.deleted_at IS NULL) AS entity_exists,
-                       s.changes_summary,
+                       s.changes_summary::text                                          AS changes_summary,
                        s.changed_by_user_id,
                        COALESCE(u.name, '—')                                            AS changed_by_name
                 FROM advertisement_snapshot s
@@ -44,7 +50,7 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                        s.created_at,
                        EXISTS(SELECT 1 FROM user_information u2
                               WHERE u2.id = s.user_id)          AS entity_exists,
-                       s.changes_summary,
+                       s.changes_summary::text                  AS changes_summary,
                        s.changed_by_user_id,
                        COALESCE(u.name, '—')                   AS changed_by_name
                 FROM user_snapshot s
@@ -70,10 +76,13 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
     static final SqlFieldDefinition<Long>    CHANGED_BY_USER_ID = id("s.changed_by_user_id",   "changed_by_user_id");
     static final SqlFieldDefinition<String>  CHANGED_BY_NAME    = str("COALESCE(u.name,'—')",  "changed_by_name");
 
-    public ActivityProjection() {
+    @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
+
+    public ActivityProjection(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, ENTITY_ID, ENTITY_TYPE, DISPLAY_NAME, ACTION_TYPE_STR,
                       CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, CHANGED_BY_USER_ID, CHANGED_BY_NAME),
               SOURCE);
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -91,9 +100,18 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                 ActionType.valueOf(ACTION_TYPE_STR.extract(rs)),
                 CREATED_AT.extract(rs),
                 ENTITY_EXISTS.extract(rs),
-                CHANGES_SUMMARY.extract(rs),
+                parseChanges(CHANGES_SUMMARY.extract(rs)),
                 CHANGED_BY_USER_ID.extract(rs),
                 CHANGED_BY_NAME.extract(rs)
         );
+    }
+
+    private List<ChangeEntry> parseChanges(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 }

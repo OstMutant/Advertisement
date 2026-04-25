@@ -12,11 +12,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivityRepository {
 
-    private static final ActivityProjection PROJECTION = new ActivityProjection();
-
     private final NamedParameterJdbcTemplate jdbc;
+    private final ActivityProjection         projection;
 
     public List<ActivityItemDto> findByUserId(Long userId) {
-        return PROJECTION.queryAll(jdbc, new MapSqlParameterSource("userId", userId));
+        return projection.queryAll(jdbc, new MapSqlParameterSource("userId", userId));
     }
 }

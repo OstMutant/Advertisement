@@ -52,6 +52,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient AuthContextService       authContextService;
     private final transient ActivityService          activityService;
     private final transient SnapshotService          snapshotService;
+    private final transient ActivityUiUtil           activityUiUtil;
 
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
@@ -198,8 +199,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             Span editor = ActivityUiUtil.buildEditorBadge(item.changedByUserId(), item.changedByName(), userId);
             if (editor != null) row.add(editor);
 
-            if (item.changesSummary() != null && !item.changesSummary().isBlank()) {
-                row.add(ActivityUiUtil.buildChangesList(item.changesSummary(), "user-activity-changes"));
+            if (!item.changes().isEmpty()) {
+                row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
             }
 
             // Restore button for settings entries (USER type with a snapshot)

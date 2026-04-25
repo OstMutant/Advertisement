@@ -299,12 +299,7 @@
     font-style: italic;
 }
 
-.adv-history-restore-btn {
-    align-self: flex-end;
-}
-
 .adv-history-current-badge {
-    align-self: flex-end;
     font-size: 0.72rem;
     font-weight: 600;
     color: #166534;

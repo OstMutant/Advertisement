@@ -56,9 +56,7 @@ const UX = process.argv.includes('--ux');
     await page.waitForTimeout(2000);
     await screenshot(page, 'history-04-after-edit', UX);
 
-    // Re-open the ad and check history
-    await page.locator('text=History Test Ad').first().click();
-    await page.waitForTimeout(1000);
+    // Overlay is still open in view mode — click History tab directly
     await overlay.locator('vaadin-tab').filter({ hasText: /history|Історія|History/i }).click();
     await page.waitForTimeout(800);
     await screenshot(page, 'history-05-history-with-diff', UX);

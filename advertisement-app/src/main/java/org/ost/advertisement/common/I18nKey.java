@@ -247,7 +247,15 @@ public enum I18nKey {
 
     // === Settings History ===
     SETTINGS_RESTORE_BUTTON("settings.restore.button"),
-    SETTINGS_RESTORED_SUCCESS("settings.restored.success");
+    SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
+
+    // === Restore Confirm ===
+    ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),
+    ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED("advertisement.restore.confirm.desc.changed"),
+
+    // === Change field labels ===
+    CHANGES_FIELD_TITLE("changes.field.title"),
+    CHANGES_FIELD_DESCRIPTION("changes.field.description");
 
     private final String key;
 

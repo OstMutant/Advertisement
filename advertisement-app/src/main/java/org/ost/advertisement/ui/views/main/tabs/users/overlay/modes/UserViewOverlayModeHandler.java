@@ -66,6 +66,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final I18nService              i18nService;
     private final ActivityService          activityService;
     private final SnapshotService          snapshotService;
+    private final ActivityUiUtil           activityUiUtil;
     private final UiLabeledField.Builder   labeledFieldBuilder;
     private final UiPrimaryButton.Builder  editButtonBuilder;
     private final UiIconButton.Builder     closeButtonBuilder;
@@ -194,8 +195,8 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
             Span editor = ActivityUiUtil.buildEditorBadge(item.changedByUserId(), item.changedByName(), userId);
             if (editor != null) row.add(editor);
 
-            if (item.changesSummary() != null && !item.changesSummary().isBlank()) {
-                row.add(ActivityUiUtil.buildChangesList(item.changesSummary(), "user-activity-changes"));
+            if (!item.changes().isEmpty()) {
+                row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
             }
 
             if ("USER".equals(item.entityType()) && item.actionType() == ActionType.UPDATED

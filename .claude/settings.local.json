@@ -31,7 +31,8 @@
       "Bash(python3 *)",
       "Bash(xargs ls *)",
       "Bash(xargs -I{} basename {} .js)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(psql -h localhost -U experiments_user -d experiments -c \"DROP TABLE IF EXISTS advertisement_snapshot, user_snapshot, databasechangelog, databasechangeloglock CASCADE;\")"
     ]
   }
 }

@@ -68,6 +68,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     @Getter
     private final I18nService                   i18nService;
     private final SnapshotService               snapshotService;
+    private final ActivityUiUtil                activityUiUtil;
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
@@ -183,11 +184,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
             Div meta = new Div(versionBadge, actionBadge, changedBy, time);
             meta.addClassName("adv-history-meta");
-            row.add(meta);
-
-            if (h.changesSummary() != null && !h.changesSummary().isBlank()) {
-                row.add(ActivityUiUtil.buildChangesList(h.changesSummary(), "adv-history-changes"));
-            }
 
             // Restore button: only if prev exists, not CREATED, and prev state differs from current
             if (access.canOperate(params.getAd())
@@ -202,15 +198,21 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                 if (matchesCurrent) {
                     Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
                     badge.addClassName("adv-history-current-badge");
-                    row.add(badge);
+                    meta.add(badge);
                 } else {
                     Button restoreBtn = new Button(getValue(ADVERTISEMENT_RESTORE_BUTTON));
                     restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     restoreBtn.addClassName("adv-history-restore-btn");
                     long prevId = h.prevSnapshotId();
                     restoreBtn.addClickListener(_ -> showRestoreConfirm(h, prevId));
-                    row.add(restoreBtn);
+                    meta.add(restoreBtn);
                 }
+            }
+
+            row.add(meta);
+
+            if (!h.changes().isEmpty()) {
+                row.add(activityUiUtil.buildChangesList(h.changes(), "adv-history-changes"));
             }
 
             container.add(row);
@@ -222,13 +224,13 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {
         List<String> diffs = new ArrayList<>();
         if (!Objects.equals(params.getAd().getTitle(), h.title())) {
-            diffs.add("назва: \"" + truncate(params.getAd().getTitle()) + "\" → \"" + truncate(h.title()) + "\"");
+            diffs.add(getValue(CHANGES_FIELD_TITLE) + ": \"" + truncate(params.getAd().getTitle()) + "\" → \"" + truncate(h.title()) + "\"");
         }
         if (!Objects.equals(params.getAd().getDescription(), h.description())) {
-            diffs.add("опис буде змінено");
+            diffs.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED));
         }
         String diffText = diffs.isEmpty()
-                ? "Відновити текст цієї версії (зміни у фото не відновлюються)"
+                ? getValue(ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT)
                 : String.join("\n", diffs);
 
         confirmDialogBuilder.build(
