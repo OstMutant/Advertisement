@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,11 +33,33 @@ public class CleanupJob {
     public void run() {
         log.info("Cleanup job started, retention = {} days", retentionDays);
 
+        deleteStaleTempUploads();
         deleteAttachments();
         deleteAdvertisements();
         pruneSnapshots();
 
         log.info("Cleanup job finished");
+    }
+
+    private void deleteStaleTempUploads() {
+        Instant cutoff = Instant.now().minus(1, ChronoUnit.DAYS);
+        storageService.ifAvailable(s -> {
+            List<String> stale = s.listByPrefix("temp/", cutoff);
+            if (stale.isEmpty()) {
+                log.info("Deleted 0 stale temp uploads");
+                return;
+            }
+            int deleted = 0;
+            for (String url : stale) {
+                try {
+                    s.delete(url);
+                    deleted++;
+                } catch (Exception e) {
+                    log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
+                }
+            }
+            log.info("Deleted {} stale temp uploads", deleted);
+        });
     }
 
     private void deleteAttachments() {
