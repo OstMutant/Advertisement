@@ -32,7 +32,41 @@
       "Bash(xargs ls *)",
       "Bash(xargs -I{} basename {} .js)",
       "Bash(git *)",
-      "Bash(psql -h localhost -U experiments_user -d experiments -c \"DROP TABLE IF EXISTS advertisement_snapshot, user_snapshot, databasechangelog, databasechangeloglock CASCADE;\")"
+      "Bash(psql -h localhost -U experiments_user -d experiments -c \"DROP TABLE IF EXISTS advertisement_snapshot, user_snapshot, databasechangelog, databasechangeloglock CASCADE;\")",
+      "Bash(xargs -r docker rmi --force)",
+      "Skill(update-config)",
+      "Bash(docker volume *)",
+      "Bash(docker container prune *)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "docker image prune -f 2>/dev/null || true",
+            "if": "Bash(docker build *)",
+            "statusMessage": "Cleaning dangling Docker images...",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "docker container prune -f 2>/dev/null || true",
+            "if": "Bash(docker rm *)",
+            "statusMessage": "Cleaning stopped containers...",
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "docker container prune -f 2>/dev/null || true",
+            "if": "Bash(bash /app/playwright/run.sh *)",
+            "statusMessage": "Cleaning stopped containers...",
+            "async": true
+          }
+        ]
+      }
     ]
   }
 }
