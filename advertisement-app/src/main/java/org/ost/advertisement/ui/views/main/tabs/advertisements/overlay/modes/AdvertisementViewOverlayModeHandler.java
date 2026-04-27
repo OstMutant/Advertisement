@@ -184,6 +184,11 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
             Div meta = new Div(versionBadge, actionBadge, changedBy, time);
             meta.addClassName("adv-history-meta");
+            row.add(meta);
+
+            if (!h.changes().isEmpty()) {
+                row.add(activityUiUtil.buildChangesList(h.changes(), "adv-history-changes"));
+            }
 
             // Restore button: only if prev exists, not CREATED, and prev state differs from current
             if (access.canOperate(params.getAd())
@@ -198,21 +203,15 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                 if (matchesCurrent) {
                     Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
                     badge.addClassName("adv-history-current-badge");
-                    meta.add(badge);
+                    row.add(badge);
                 } else {
                     Button restoreBtn = new Button(getValue(ADVERTISEMENT_RESTORE_BUTTON));
                     restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     restoreBtn.addClassName("adv-history-restore-btn");
                     long prevId = h.prevSnapshotId();
                     restoreBtn.addClickListener(_ -> showRestoreConfirm(h, prevId));
-                    meta.add(restoreBtn);
+                    row.add(restoreBtn);
                 }
-            }
-
-            row.add(meta);
-
-            if (!h.changes().isEmpty()) {
-                row.add(activityUiUtil.buildChangesList(h.changes(), "adv-history-changes"));
             }
 
             container.add(row);
