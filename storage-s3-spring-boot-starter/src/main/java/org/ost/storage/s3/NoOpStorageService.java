@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.time.Instant;
+import java.util.List;
 
 public class NoOpStorageService implements StorageService {
 
@@ -27,5 +29,10 @@ public class NoOpStorageService implements StorageService {
     @Override
     public void delete(String url) {
         // no-op
+    }
+
+    @Override
+    public List<String> listByPrefix(String prefix, Instant uploadedBefore) {
+        return List.of();
     }
 }

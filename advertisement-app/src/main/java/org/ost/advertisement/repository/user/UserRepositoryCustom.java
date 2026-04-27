@@ -1,5 +1,6 @@
 package org.ost.advertisement.repository.user;
 
+import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.springframework.data.domain.Pageable;
@@ -14,4 +15,8 @@ public interface UserRepositoryCustom {
     Long countByFilter(UserFilterDto filter);
 
     Optional<User> findByEmail(String email);
+
+    void updateProfile(UserProfileDto dto);
+
+    void updateLocale(Long userId, String locale);
 }

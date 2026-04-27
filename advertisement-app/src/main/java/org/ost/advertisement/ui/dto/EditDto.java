@@ -1,12 +1,6 @@
 package org.ost.advertisement.ui.dto;
 
-import java.util.Objects;
+import org.ost.advertisement.common.Identifiable;
 
-public interface EditDto {
-
-    Long getId();
-
-    default boolean isNew() {
-        return Objects.isNull(getId());
-    }
+public interface EditDto extends Identifiable {
 }

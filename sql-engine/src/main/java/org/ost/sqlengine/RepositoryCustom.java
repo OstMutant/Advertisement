@@ -11,7 +11,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import java.util.List;
 import java.util.Optional;
 
-import static java.util.Optional.ofNullable;
 
 public class RepositoryCustom<T, F> {
 
@@ -43,7 +42,7 @@ public class RepositoryCustom<T, F> {
     public Long countByFilter(F filter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         String sql = sqlQueryBuilder.count(
-                sqlProjection.getSqlSource(),
+                sqlProjection.getCountSource(),
                 filterBuilder.build(params, filter)
         );
         return executor.count(sql, params);
@@ -60,13 +59,9 @@ public class RepositoryCustom<T, F> {
     }
 
     private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
-        return ofNullable(pageable)
-                .filter(p -> !p.isUnpaged())
-                .map(p -> {
-                    params.addValue("limit", p.getPageSize());
-                    params.addValue("offset", p.getOffset());
-                    return "LIMIT :limit OFFSET :offset";
-                })
-                .orElse("");
+        if (pageable == null || pageable.isUnpaged()) return "";
+        params.addValue("limit", pageable.getPageSize());
+        params.addValue("offset", pageable.getOffset());
+        return "LIMIT :limit OFFSET :offset";
     }
 }

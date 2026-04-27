@@ -18,3 +18,9 @@
 /storage-s3-spring-boot-starter/target/
 /storage-api/target/
 /advertisement-app/src/main/bundles/
+/advertisement-app/node_modules
+/advertisement-app/package-lock.json
+/advertisement-app/package.json
+/advertisement-app/tsconfig.json
+/advertisement-app/types.d.ts
+/playwright/screenshots/

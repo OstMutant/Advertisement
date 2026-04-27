@@ -1,4 +1,4 @@
-package org.ost.advertisement.constants;
+package org.ost.advertisement.common;
 
 public enum I18nKey {
     // === Header ===
@@ -7,6 +7,8 @@ public enum I18nKey {
     HEADER_LOGIN("header.login"),
     HEADER_LOGOUT("header.logout"),
     HEADER_SIGNUP("header.signup"),
+    HEADER_SETTINGS("header.settings"),
+    HEADER_HOME("header.home"),
 
     // === Logout Confirm ===
     LOGOUT_CONFIRM_TEXT("logout.confirm.text"),
@@ -51,6 +53,8 @@ public enum I18nKey {
     USER_DIALOG_NOTIFICATION_SUCCESS("user.dialog.notification.success"),
     USER_DIALOG_NOTIFICATION_VALIDATION_FAILED("user.dialog.notification.validation.failed"),
     USER_DIALOG_NOTIFICATION_SAVE_ERROR("user.dialog.notification.save.error"),
+    USER_DIALOG_SECTION_LABEL("user.dialog.section.label"),
+    USER_DIALOG_SECTION_VIEW("user.dialog.section.view"),
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
     USER_DIALOG_BUTTON_CANCEL("user.dialog.button.cancel"),
 
@@ -68,6 +72,8 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
+    ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
+    ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
     ADVERTISEMENT_OVERLAY_BUTTON_CANCEL("advertisement.overlay.button.cancel"),
     ADVERTISEMENT_DESCRIPTION_OVERLAY_AUTHOR("advertisement.description.overlay.author"),
@@ -85,6 +91,8 @@ public enum I18nKey {
     USER_VIEW_CONFIRM_DELETE_TITLE("user.view.confirm.delete.title"),
     USER_VIEW_CONFIRM_DELETE_TEXT("user.view.confirm.delete.text"),
     USER_VIEW_BUTTON_EDIT("user.view.button.edit"),
+    USER_RESTORE_BUTTON("user.restore.button"),
+    USER_ACTIVITY_CURRENT_STATE("user.activity.current.state"),
     USER_VIEW_BUTTON_DELETE("user.view.button.delete"),
     USER_VIEW_CONFIRM_DELETE_BUTTON("user.view.confirm.delete.button"),
     USER_VIEW_CONFIRM_CANCEL_BUTTON("user.view.confirm.cancel.button"),
@@ -169,6 +177,7 @@ public enum I18nKey {
     // === Attachment Gallery ===
     ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
     ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
+    ATTACHMENT_GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
@@ -184,6 +193,7 @@ public enum I18nKey {
     PAGINATION_NEXT("pagination.next"),
     PAGINATION_LAST("pagination.last"),
     PAGINATION_INDICATOR("pagination.indicator"),
+    PAGINATION_COUNT("pagination.count"),
 
     QUERY_STATUS_FILTERS_PREFIX("query.status.filters.prefix"),
     QUERY_STATUS_FILTERS_NONE("query.status.filters.none"),
@@ -205,7 +215,47 @@ public enum I18nKey {
     OVERLAY_UNSAVED_TITLE("overlay.unsaved.title"),
     OVERLAY_UNSAVED_TEXT("overlay.unsaved.text"),
     OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
-    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel");
+    OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel"),
+
+    // === Settings ===
+    SETTINGS_SECTION_TITLE("settings.section.title"),
+    SETTINGS_ADS_PAGE_SIZE_LABEL("settings.adsPageSize.label"),
+    SETTINGS_USERS_PAGE_SIZE_LABEL("settings.usersPageSize.label"),
+    SETTINGS_SAVE_BUTTON("settings.save.button"),
+    SETTINGS_SAVED_SUCCESS("settings.saved.success"),
+
+    // === Activity ===
+    ACTIVITY_TAB("activity.tab"),
+    ACTIVITY_PROFILE_TAB("activity.profile.tab"),
+    ACTIVITY_EMPTY("activity.empty"),
+    ACTIVITY_SECTION_TITLE("activity.section.title"),
+    ACTIVITY_ACTION_CREATED("activity.action.created"),
+    ACTIVITY_ACTION_UPDATED("activity.action.updated"),
+    ACTIVITY_ACTION_DELETED("activity.action.deleted"),
+    ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
+
+    // === Advertisement History ===
+    ADVERTISEMENT_HISTORY_TAB("advertisement.history.tab"),
+    ADVERTISEMENT_VIEW_TAB("advertisement.view.tab"),
+    ADVERTISEMENT_RESTORE_BUTTON("advertisement.restore.button"),
+    ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
+    ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),
+    ADVERTISEMENT_RESTORE_CONFIRM_BUTTON("advertisement.restore.confirm.button"),
+    ADVERTISEMENT_RESTORE_CONFIRM_CANCEL("advertisement.restore.confirm.cancel"),
+    ADVERTISEMENT_HISTORY_EMPTY("advertisement.history.empty"),
+    ADVERTISEMENT_HISTORY_CURRENT_STATE("advertisement.history.current.state"),
+
+    // === Settings History ===
+    SETTINGS_RESTORE_BUTTON("settings.restore.button"),
+    SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
+
+    // === Restore Confirm ===
+    ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),
+    ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED("advertisement.restore.confirm.desc.changed"),
+
+    // === Change field labels ===
+    CHANGES_FIELD_TITLE("changes.field.title"),
+    CHANGES_FIELD_DESCRIPTION("changes.field.description");
 
     private final String key;
 

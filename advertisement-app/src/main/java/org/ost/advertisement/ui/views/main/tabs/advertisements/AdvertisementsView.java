@@ -1,5 +1,7 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.Shortcuts;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -8,9 +10,12 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
+import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
+import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -19,26 +24,33 @@ import org.ost.advertisement.ui.views.components.PaginationBarModern;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
+import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.event.ApplicationEventMulticaster;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService advertisementService;
-    private final transient AdvertisementOverlay overlay;
+    private final transient AdvertisementService          advertisementService;
+    private final transient AdvertisementOverlay          overlay;
     private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService i18n;
-    private final transient AccessEvaluator access;
-    private final transient EmptyStateView.Builder emptyStateBuilder;
+    private final transient I18nService                   i18n;
+    private final transient AccessEvaluator               access;
+    private final transient EmptyStateView.Builder        emptyStateBuilder;
+    private final transient SettingsPaginationSupport     settingsPaginationSupport;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
-    private final PaginationBarModern paginationBar;
+    private final PaginationBarModern                    paginationBar;
+    private final ApplicationEventMulticaster            eventMulticaster;
+
+    private ApplicationListener<SettingsChangedEvent> settingsListener;
 
     private FlexLayout advertisementContainer;
 
@@ -47,11 +59,20 @@ public class AdvertisementsView extends VerticalLayout {
         advertisementContainer = buildAdvertisementContainer();
         Button addButton = buildAddButton();
 
+        VerticalLayout contentWrapper = new VerticalLayout(
+                queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar
+        );
+        contentWrapper.addClassName("advertisements-content-wrapper");
+        contentWrapper.setPadding(false);
+        contentWrapper.setSpacing(false);
+        contentWrapper.setWidthFull();
+        contentWrapper.setFlexGrow(1, advertisementContainer);
+
         addClassName("advertisements-view");
         setSizeFull();
-        setFlexGrow(1, advertisementContainer);
+        setFlexGrow(1, contentWrapper);
 
-        add(queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar, overlay);
+        add(contentWrapper, overlay);
 
         queryStatusBar.getQueryBlock().addEventListener(() -> {
             paginationBar.setTotalCount(0);
@@ -60,7 +81,27 @@ public class AdvertisementsView extends VerticalLayout {
 
         paginationBar.setPageChangeListener(_ -> refresh());
 
+        Shortcuts.addShortcutListener(this, () -> {
+            if (access.isLoggedIn() && isVisible()) {
+                overlay.openForCreate(this::refresh);
+            }
+        }, Key.KEY_N);
+
+        settingsListener = event -> settingsPaginationSupport
+                .handleSettingsChanged(event, paginationBar, UserSettings::getAdsPageSize, this::refresh);
+        eventMulticaster.addApplicationListener(settingsListener);
+
+        applySettingsOnInit();
         refresh();
+    }
+
+    @PreDestroy
+    public void destroy() {
+        eventMulticaster.removeApplicationListener(settingsListener);
+    }
+
+    private void applySettingsOnInit() {
+        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getAdsPageSize);
     }
 
     private FlexLayout buildAdvertisementContainer() {
@@ -73,7 +114,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private Button buildAddButton() {
-        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD));
+        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD), VaadinIcon.PLUS.create());
         button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> overlay.openForCreate(this::refresh));
@@ -86,7 +127,8 @@ public class AdvertisementsView extends VerticalLayout {
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
-        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
+        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
+                filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
 
         paginationBar.setTotalCount(advertisementService.count(filter));
 

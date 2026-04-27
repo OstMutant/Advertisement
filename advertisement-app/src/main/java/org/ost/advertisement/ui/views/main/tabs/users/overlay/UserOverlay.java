@@ -6,6 +6,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
@@ -16,7 +17,9 @@ import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserFormOver
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.springframework.beans.factory.ObjectProvider;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import org.ost.advertisement.entities.User;
+
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -43,6 +46,8 @@ public class UserOverlay extends BaseOverlay {
 
     private final transient I18nService                  i18n;
     private final transient NotificationService          notification;
+    private final transient UserService                  userService;
+    private final transient org.ost.advertisement.services.auth.AuthContextService authContextService;
     private final transient UserViewOverlayModeHandler.Builder  viewModeHandlerBuilder;
     private final transient UserFormOverlayModeHandler.Builder  formModeHandlerBuilder;
     private final transient ConfirmActionDialog.Builder  confirmDiscardBuilder;
@@ -95,6 +100,7 @@ public class UserOverlay extends BaseOverlay {
                             .user(session.user())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
+                            .onRestoreUser(this::handleRestoreUser)
                             .build());
             case EDIT -> {
                 currentFormHandler = formModeHandlerBuilder.build(
@@ -123,7 +129,15 @@ public class UserOverlay extends BaseOverlay {
         if (currentFormHandler.save()) {
             notification.success(USER_DIALOG_NOTIFICATION_SUCCESS);
             session.onSaved().run();
-            closeToList();
+            if (session.enteredFromView()) {
+                Long savedId = currentFormHandler.getSavedUserId();
+                userService.findById(savedId).ifPresentOrElse(freshUser -> {
+                    session = new OverlaySession(Mode.VIEW, freshUser, session.onSaved(), false);
+                    switchTo();
+                }, this::closeToList);
+            } else {
+                closeToList();
+            }
         } else {
             notification.error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
         }
@@ -143,6 +157,18 @@ public class UserOverlay extends BaseOverlay {
         } else {
             doCancel();
         }
+    }
+
+    private void handleRestoreUser(Long snapshotId) {
+        Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
+        userService.restoreBeforeSnapshot(snapshotId, actingUserId).ifPresentOrElse(
+                restoredUser -> {
+                    notification.success(USER_DIALOG_NOTIFICATION_SUCCESS);
+                    session.onSaved().run();
+                    openSession(new OverlaySession(Mode.VIEW, restoredUser, session.onSaved(), false));
+                },
+                () -> notification.error(USER_DIALOG_NOTIFICATION_SAVE_ERROR)
+        );
     }
 
     private void doCancel() {

@@ -12,12 +12,13 @@ import java.time.Instant;
 @Value
 @Builder
 @FieldNameConstants
-@Table("advertisement_attachment")
-public class AdvertisementAttachment {
+@Table("attachment")
+public class Attachment {
 
     @Id
     Long id;
-    Long advertisementId;
+    EntityType entityType;
+    Long entityId;
     String url;
     String filename;
     String contentType;
@@ -25,4 +26,7 @@ public class AdvertisementAttachment {
 
     @CreatedDate
     Instant createdAt;
+
+    Instant deletedAt;
+    Long    deletedByUserId;
 }

@@ -1,6 +1,8 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.Advertisement;
+import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
@@ -30,7 +33,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.UUID;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
@@ -101,15 +104,21 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
 
-        Div content = new Div(titleField, descriptionField);
+        Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, titleField, descriptionField);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        Div content = new Div(fieldsCard);
         galleryProvider.ifAvailable(gallery -> {
             this.activeGallery = gallery;
 
             if (isCreate) {
                 String tempSessionId = UUID.randomUUID().toString();
-                gallery.configureForCreate(tempSessionId);
+                gallery.configureForCreate(EntityType.ADVERTISEMENT, tempSessionId);
             } else {
-                gallery.configureForEdit(params.getAd());
+                gallery.configureForEdit(EntityType.ADVERTISEMENT, params.getAd().getId(), params.getAd());
             }
             content.add(gallery);
         });
@@ -136,7 +145,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
             if (this.activeGallery != null) {
-                this.activeGallery.commitTempUploads(mapper.toInfoDto(savedAdvertisement));
+                this.activeGallery.commitTempUploads(savedAdvertisement.getId(), savedAdvertisement);
             }
         });
     }

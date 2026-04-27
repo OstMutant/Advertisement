@@ -13,7 +13,7 @@ import static org.ost.advertisement.repository.user.UserProjection.*;
 public class UserFilterBuilder extends FilterBuilder<UserFilterDto> {
 
     public UserFilterBuilder() {
-        relations.addAll(List.of(
+        super(List.of(
                 of(name, NAME, (projection, value) -> like(projection, value.getName())),
                 of(email, EMAIL, (projection, value) -> like(projection, value.getEmail())),
                 of(roles, ROLE, (projection, value) -> inSet(projection, value.getRoles())),

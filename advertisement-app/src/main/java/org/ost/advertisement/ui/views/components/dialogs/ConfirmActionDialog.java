@@ -1,14 +1,17 @@
 package org.ost.advertisement.ui.views.components.dialogs;
 
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Paragraph;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
@@ -59,9 +62,15 @@ public final class ConfirmActionDialog extends BaseDialog
     public ConfirmActionDialog configure(Parameters p) {
         setHeaderTitle(getValue(p.getTitleKey()));
 
+        Icon warningIcon = VaadinIcon.WARNING.create();
+        warningIcon.addClassName("dialog-confirm-icon");
+
         Paragraph body = new Paragraph(p.getMessage());
         body.addClassName("dialog-confirm-text");
-        layout.addFormContent(body);
+
+        Div bodyWrapper = new Div(warningIcon, body);
+        bodyWrapper.addClassName("dialog-confirm-body");
+        layout.addFormContent(bodyWrapper);
 
         UiPrimaryButton confirmButton = confirmButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());

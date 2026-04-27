@@ -2,7 +2,6 @@ package org.ost.sqlengine.filter;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -10,16 +9,17 @@ import java.util.stream.Collectors;
 
 public abstract class FilterBuilder<F> {
 
-    protected final List<FilterBinding<F, ?>> relations = new ArrayList<>();
+    protected final List<FilterBinding<F, ?>> relations;
+
+    protected FilterBuilder(List<FilterBinding<F, ?>> bindings) {
+        this.relations = List.copyOf(bindings);
+    }
 
     public String build(MapSqlParameterSource params, F filter) {
-        List<SqlCondition<?>> sqlConditions = new ArrayList<>();
-        for (FilterBinding<F, ?> relation : relations) {
-            SqlCondition<?> sqlCondition = relation.getCondition(filter);
-            if (Objects.nonNull(sqlCondition)) {
-                sqlConditions.add(sqlCondition);
-            }
-        }
+        List<SqlCondition<?>> sqlConditions = relations.stream()
+                .<SqlCondition<?>>map(r -> r.getCondition(filter))
+                .filter(Objects::nonNull)
+                .toList();
         toParams(sqlConditions).forEach(params::addValue);
         return toSql(sqlConditions);
     }

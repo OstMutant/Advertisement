@@ -5,9 +5,14 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
+import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.paginators.ListObjectsV2Iterable;
 
 import java.io.InputStream;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 public class S3StorageService implements StorageService {
@@ -45,6 +50,17 @@ public class S3StorageService implements StorageService {
     public void delete(String url) {
         String key = extractKey(url);
         s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(key).build());
+    }
+
+    @Override
+    public List<String> listByPrefix(String prefix, Instant uploadedBefore) {
+        ListObjectsV2Iterable pages = s3Client.listObjectsV2Paginator(
+                ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).build());
+        List<String> result = new ArrayList<>();
+        pages.contents().stream()
+                .filter(obj -> obj.lastModified().isBefore(uploadedBefore))
+                .forEach(obj -> result.add(buildUrl(obj.key())));
+        return result;
     }
 
     private String buildUrl(String key) {

@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components.query.processor;
 
 import lombok.Getter;
-import org.ost.advertisement.constants.I18nKey;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon.SortHighlightColor;

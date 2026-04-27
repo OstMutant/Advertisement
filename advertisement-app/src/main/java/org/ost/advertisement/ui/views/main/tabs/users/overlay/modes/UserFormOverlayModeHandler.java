@@ -1,6 +1,8 @@
 package org.ost.advertisement.ui.views.main.tabs.users.overlay.modes;
 
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -28,7 +30,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
@@ -96,12 +98,22 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
 
-        layout.setContent(new Div(nameField, roleComboBox));
+        Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_LABEL)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, nameField, roleComboBox);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        layout.setContent(new Div(fieldsCard));
         layout.setHeaderActions(new Div(saveButton, cancelButton));
     }
 
+    public Long getSavedUserId() {
+        return params.getUser().getId();
+    }
+
     public boolean save() {
-        return binder.save(dto -> userService.save(mapper.toUser(dto)));
+        return binder.save(dto -> userService.save(mapper.copy(dto)));
     }
 
     public boolean hasChanges() {

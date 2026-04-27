@@ -10,7 +10,7 @@ import org.ost.advertisement.services.AuthService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SessionService;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @UIScope

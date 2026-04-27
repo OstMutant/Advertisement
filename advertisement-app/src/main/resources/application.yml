@@ -26,6 +26,11 @@ management:
       exposure:
         include: "*"
 
+# Application settings
+app:
+  cleanup:
+    retention-days: 90
+
 # Logging configuration
 logging:
   level:

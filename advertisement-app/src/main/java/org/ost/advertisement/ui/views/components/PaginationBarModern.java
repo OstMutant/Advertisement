@@ -3,6 +3,7 @@ package org.ost.advertisement.ui.views.components;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -13,14 +14,16 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
 
-import static org.ost.advertisement.constants.I18nKey.*;
+import org.ost.advertisement.common.PaginationDefaults;
+
+import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
 public class PaginationBarModern extends HorizontalLayout implements I18nParams {
 
     @Getter
-    private final int pageSize = 25;
+    private int pageSize = PaginationDefaults.DEFAULT_PAGE_SIZE;
 
     @Getter
     private final transient I18nService i18nService;
@@ -30,6 +33,7 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
     private final Button nextButton;
     private final Button lastButton;
     private final Span pageIndicator = new Span();
+    private final Span resultCount   = new Span();
 
     @Getter
     private int currentPage = 0;
@@ -43,10 +47,15 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
 
-        firstButton = new Button(getValue(PAGINATION_FIRST));
-        prevButton  = new Button(getValue(PAGINATION_PREV));
-        nextButton  = new Button(getValue(PAGINATION_NEXT));
-        lastButton  = new Button(getValue(PAGINATION_LAST));
+        firstButton = new Button(VaadinIcon.ANGLE_DOUBLE_LEFT.create());
+        prevButton  = new Button(VaadinIcon.ANGLE_LEFT.create());
+        nextButton  = new Button(VaadinIcon.ANGLE_RIGHT.create());
+        lastButton  = new Button(VaadinIcon.ANGLE_DOUBLE_RIGHT.create());
+
+        firstButton.getElement().setAttribute("title", getValue(PAGINATION_FIRST));
+        prevButton.getElement().setAttribute("title",  getValue(PAGINATION_PREV));
+        nextButton.getElement().setAttribute("title",  getValue(PAGINATION_NEXT));
+        lastButton.getElement().setAttribute("title",  getValue(PAGINATION_LAST));
 
         firstButton.addClickListener(_ -> {
             currentPage = 0;
@@ -69,12 +78,19 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
             triggerCallback();
         });
 
-        firstButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        prevButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        firstButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
+        prevButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
+        nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
+        lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
 
-        add(firstButton, prevButton, pageIndicator, nextButton, lastButton);
+        resultCount.addClassName("pagination-count");
+        add(firstButton, prevButton, pageIndicator, nextButton, lastButton, resultCount);
+        updateUI();
+    }
+
+    public void setPageSize(int size) {
+        this.pageSize = size;
+        this.currentPage = 0;
         updateUI();
     }
 
@@ -93,6 +109,10 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
     private void updateUI() {
         int totalPages = getTotalPages();
         pageIndicator.setText(getValue(PAGINATION_INDICATOR, currentPage + 1, totalPages));
+
+        int from = totalCount == 0 ? 0 : currentPage * pageSize + 1;
+        int to   = Math.min((currentPage + 1) * pageSize, totalCount);
+        resultCount.setText(getValue(PAGINATION_COUNT, from, to, totalCount));
 
         firstButton.setEnabled(currentPage > 0);
         prevButton.setEnabled(currentPage > 0);

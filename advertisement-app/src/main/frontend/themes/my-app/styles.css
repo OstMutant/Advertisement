@@ -1,3 +1,6 @@
+/* Google Fonts — Inter */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
 /* Main Entry Point for CSS imports */
 @import url("./highlight.css");
 @import url("./dialogs.css");
@@ -14,6 +17,15 @@
 @import url("./locale-selector.css");
 @import url("./header-bar.css");
 @import url("./attachment-gallery.css");
+@import url("./card-lightbox.css");
+@import url("./user-overlay.css");
+@import url("./forms.css");
+
+/* Global font + page background */
+html, body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
+    background-color: #f5f7fa;
+}
 
 /* Global utility classes */
 .svg-icon {

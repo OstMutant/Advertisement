@@ -5,6 +5,8 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
+import java.util.Optional;
+
 @Component
 @RequiredArgsConstructor
 public class AccessEvaluator {
@@ -17,9 +19,16 @@ public class AccessEvaluator {
         return authContextService.getCurrentUser().isPresent();
     }
 
+    public boolean isPrivileged() {
+        return currentUser().map(u -> roleChecker.isAdmin(u) || roleChecker.isModerator(u)).orElse(false);
+    }
+
+    public Long getCurrentUserId() {
+        return currentUser().map(User::getId).orElse(null);
+    }
+
     public boolean canView() {
-        User currentUser = getCurrentUser();
-        return roleChecker.isAdmin(currentUser) || roleChecker.isModerator(currentUser);
+        return isPrivileged();
     }
 
     public boolean canNotEdit(UserIdMarker target) {
@@ -31,13 +40,14 @@ public class AccessEvaluator {
     }
 
     public boolean canOperate(UserIdMarker target) {
-        User currentUser = getCurrentUser();
-        return roleChecker.isAdmin(currentUser)
-                || roleChecker.isModerator(currentUser)
-                || ownershipChecker.isOwner(currentUser, target);
+        return currentUser()
+                .map(u -> roleChecker.isAdmin(u)
+                        || roleChecker.isModerator(u)
+                        || ownershipChecker.isOwner(u, target))
+                .orElse(false);
     }
 
-    protected User getCurrentUser() {
-        return authContextService.getCurrentUser().orElse(null);
+    private Optional<User> currentUser() {
+        return authContextService.getCurrentUser();
     }
 }

@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.Objects;
 
-import static org.ost.advertisement.constants.I18nKey.ACTIONS_APPLY_TOOLTIP;
-import static org.ost.advertisement.constants.I18nKey.ACTIONS_CLEAR_TOOLTIP;
+import static org.ost.advertisement.common.I18nKey.ACTIONS_APPLY_TOOLTIP;
+import static org.ost.advertisement.common.I18nKey.ACTIONS_CLEAR_TOOLTIP;
 import static org.ost.advertisement.ui.views.utils.HighlighterUtil.setDirtyOrClean;
 
 @SpringComponent
@@ -43,8 +43,9 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
                 .build());
 
         add(applyButton, clearButton);
+        addClassName("query-action-block");
         setSpacing(false);
-        setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
+        setJustifyContentMode(FlexComponent.JustifyContentMode.START);
         return this;
     }
 

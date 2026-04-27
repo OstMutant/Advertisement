@@ -4,8 +4,6 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.springframework.stereotype.Component;
 
-import static java.util.Optional.ofNullable;
-
 @Component
 public class RoleChecker {
 
@@ -22,7 +20,7 @@ public class RoleChecker {
     }
 
     private boolean hasRole(User user, Role role) {
-        return ofNullable(user).map(User::getRole).filter(v -> v == role).isPresent();
+        return user != null && user.getRole() == role;
     }
 }
 
