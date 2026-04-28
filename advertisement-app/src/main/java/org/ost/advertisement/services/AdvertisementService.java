@@ -7,13 +7,14 @@ import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.ActionType;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.EntityMarker;
-import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.events.AdvertisementDeletedEvent;
+import org.ost.advertisement.events.AdvertisementRestoredEvent;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.auth.AuthContextService;
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -28,11 +29,11 @@ import java.util.Optional;
 @Validated
 public class AdvertisementService {
 
-    private final AdvertisementRepository           repository;
-    private final AccessEvaluator                   access;
-    private final ObjectProvider<AttachmentService> attachmentService;
-    private final SnapshotService                   snapshotService;
-    private final AuthContextService                authContextService;
+    private final AdvertisementRepository  repository;
+    private final AccessEvaluator          access;
+    private final SnapshotService          snapshotService;
+    private final AuthContextService       authContextService;
+    private final ApplicationEventPublisher context;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -77,8 +78,8 @@ public class AdvertisementService {
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            attachmentService.ifAvailable(s -> s.restoreToUrls(saved.getId(), content.attachmentUrls(), currentUserId));
             snapshotService.captureAdvertisement(saved, ActionType.UPDATED, currentUserId);
+            context.publishEvent(new AdvertisementRestoredEvent(saved.getId(), content.version(), currentUserId));
         }
         return true;
     }
@@ -93,7 +94,9 @@ public class AdvertisementService {
             repository.findById(ad.getId()).ifPresent(entity ->
                     snapshotService.captureAdvertisement(entity, ActionType.DELETED, currentUserId));
         }
-        attachmentService.ifAvailable(s -> s.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));
+        if (currentUserId != null) {
+            context.publishEvent(new AdvertisementDeletedEvent(ad.getId(), currentUserId));
+        }
         repository.softDelete(ad.getId(), currentUserId);
     }
 }

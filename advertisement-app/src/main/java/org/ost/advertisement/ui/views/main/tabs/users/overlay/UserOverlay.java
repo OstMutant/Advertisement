@@ -161,7 +161,7 @@ public class UserOverlay extends BaseOverlay {
 
     private void handleRestoreUser(Long snapshotId) {
         Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
-        userService.restoreBeforeSnapshot(snapshotId, actingUserId).ifPresentOrElse(
+        userService.restoreToSnapshot(snapshotId, actingUserId).ifPresentOrElse(
                 restoredUser -> {
                     notification.success(USER_DIALOG_NOTIFICATION_SUCCESS);
                     session.onSaved().run();

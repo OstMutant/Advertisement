@@ -36,7 +36,12 @@
       "Bash(xargs -r docker rmi --force)",
       "Skill(update-config)",
       "Bash(docker volume *)",
-      "Bash(docker container prune *)"
+      "Bash(docker container prune *)",
+      "Bash(grep -v \"^\\\\[ERROR\\\\] $\")",
+      "Bash(wait)",
+      "Bash(apt-get update *)",
+      "Bash(unzip -l /tmp/app.jar)",
+      "Bash(grep -E \"\\\\.java$\")"
     ]
   },
   "hooks": {

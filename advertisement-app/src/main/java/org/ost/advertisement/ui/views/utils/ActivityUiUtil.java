@@ -4,6 +4,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.model.ChangeEntry;
 import org.ost.advertisement.services.I18nService;
 
@@ -25,15 +26,10 @@ public class ActivityUiUtil {
     }
 
     public Div buildChangesList(List<ChangeEntry> changes, String cssClass) {
-        return buildChangesList(changes, cssClass, false);
-    }
-
-    public Div buildChangesList(List<ChangeEntry> changes, String cssClass, boolean textOnly) {
         Div container = new Div();
         container.addClassName(cssClass);
         if (changes == null || changes.isEmpty()) return container;
         for (ChangeEntry entry : changes) {
-            if (textOnly && entry.isPhoto()) continue;
             String text = format(entry);
             if (text != null && !text.isBlank()) {
                 Span item = new Span("• " + text);
@@ -44,7 +40,7 @@ public class ActivityUiUtil {
         return container;
     }
 
-    private String format(ChangeEntry entry) {
+    public String format(ChangeEntry entry) {
         return switch (entry) {
             case ChangeEntry.FieldChange f -> {
                 String label = i18n.get("changes.field." + f.field());
@@ -53,16 +49,17 @@ public class ActivityUiUtil {
                 }
                 yield label + ": \"" + f.from() + "\" → \"" + f.to() + "\"";
             }
-            case ChangeEntry.PhotoChange p -> {
-                String before = p.before().isEmpty() ? "—" : "[" + String.join(", ", p.before()) + "]";
-                String after  = p.after().isEmpty()  ? "—" : "[" + String.join(", ", p.after())  + "]";
-                yield i18n.get("changes.photos") + ": " + before + " → " + after;
-            }
             case ChangeEntry.SettingChange s -> {
                 String label = i18n.get("changes.setting." + s.key());
                 yield label + ": " + s.from() + " → " + s.to();
             }
             case ChangeEntry.NoteEntry n -> n.text();
+            case ChangeEntry.PhotoChange p -> {
+                String label = i18n.get(I18nKey.CHANGES_PHOTOS);
+                String before = p.before() == null || p.before().isEmpty() ? "—" : String.join(", ", p.before());
+                String after  = p.after()  == null || p.after().isEmpty()  ? "—" : String.join(", ", p.after());
+                yield label + ": " + before + " → " + after;
+            }
         };
     }
 }

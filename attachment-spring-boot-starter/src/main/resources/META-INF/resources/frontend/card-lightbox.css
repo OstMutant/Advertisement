@@ -1,0 +1,78 @@
+.card-lightbox [part="overlay"] {
+    background: rgba(0, 0, 0, 0.92);
+    box-shadow: none;
+    border-radius: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+}
+
+.card-lightbox [part="content"] {
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-lightbox__content {
+    gap: 16px;
+}
+
+.card-lightbox__viewer {
+    gap: 12px;
+    padding: 0;
+}
+
+.card-lightbox__main-image {
+    max-width: 80vw;
+    max-height: 75vh;
+    object-fit: contain;
+    border-radius: var(--lumo-border-radius-m);
+    user-select: none;
+}
+
+.card-lightbox__nav {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+}
+
+.card-lightbox__nav:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}
+
+.card-lightbox__strip {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 80vw;
+}
+
+.card-lightbox__thumb {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: var(--lumo-border-radius-s);
+    cursor: pointer;
+    opacity: 0.6;
+    border: 2px solid transparent;
+    transition: opacity 0.15s, border-color 0.15s;
+}
+
+.card-lightbox__thumb:hover {
+    opacity: 1;
+}
+
+.card-lightbox__thumb--active {
+    opacity: 1;
+    border-color: white;
+}

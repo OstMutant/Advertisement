@@ -16,19 +16,20 @@ import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
 
 public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto> {
 
-    public static final SqlFieldDefinition<Long>    ID         = id(AdvertisementTable.ID,          id);
-    public static final SqlFieldDefinition<String>  TITLE      = str(AdvertisementTable.TITLE,      title);
-    public static final SqlFieldDefinition<String>  DESCRIPTION= str(AdvertisementTable.DESCRIPTION,description);
-    public static final SqlFieldDefinition<Instant> CREATED_AT = instant(AdvertisementTable.CREATED_AT, createdAt);
-    public static final SqlFieldDefinition<Instant> UPDATED_AT = instant(AdvertisementTable.UPDATED_AT, updatedAt);
-    public static final SqlFieldDefinition<Long>    USER_ID        = id(UserTable.ID,                        createdByUserId);
-    public static final SqlFieldDefinition<String>  USER_NAME      = str(UserTable.NAME,                     createdByUserName);
-    public static final SqlFieldDefinition<String>  USER_EMAIL     = str(UserTable.EMAIL,                    createdByUserEmail);
-    public static final SqlFieldDefinition<String>  MAIN_IMAGE_URL = str(AdvertisementTable.MAIN_IMAGE_URL,  mainImageUrl);
-    public static final SqlFieldDefinition<Long>    IMAGE_COUNT    = longVal(AdvertisementTable.IMAGE_COUNT, imageCount);
+    public static final SqlFieldDefinition<Long>    ID          = id(AdvertisementTable.ID,           id);
+    public static final SqlFieldDefinition<String>  TITLE       = str(AdvertisementTable.TITLE,       title);
+    public static final SqlFieldDefinition<String>  DESCRIPTION = str(AdvertisementTable.DESCRIPTION, description);
+    public static final SqlFieldDefinition<Instant> CREATED_AT  = instant(AdvertisementTable.CREATED_AT, createdAt);
+    public static final SqlFieldDefinition<Instant> UPDATED_AT  = instant(AdvertisementTable.UPDATED_AT, updatedAt);
+    public static final SqlFieldDefinition<Long>    USER_ID        = id(UserTable.ID,       createdByUserId);
+    public static final SqlFieldDefinition<String>  USER_NAME      = str(UserTable.NAME,     createdByUserName);
+    public static final SqlFieldDefinition<String>  USER_EMAIL     = str(UserTable.EMAIL,    createdByUserEmail);
+    public static final SqlFieldDefinition<String>  MAIN_IMAGE_URL = str("att.att_url",      mainImageUrl);
+    public static final SqlFieldDefinition<Integer> IMAGE_COUNT    = intVal("att.att_count", imageCount);
 
     public AdvertisementProjection() {
-        super(List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL, MAIN_IMAGE_URL, IMAGE_COUNT),
+        super(List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL,
+                      MAIN_IMAGE_URL, IMAGE_COUNT),
                 AdvertisementTable.SOURCE,
                 AdvertisementTable.COUNT_SOURCE);
     }
@@ -45,7 +46,7 @@ public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto>
                 .createdByUserName(USER_NAME.extract(rs))
                 .createdByUserEmail(USER_EMAIL.extract(rs))
                 .mainImageUrl(MAIN_IMAGE_URL.extract(rs))
-                .imageCount(IMAGE_COUNT.extract(rs).intValue())
+                .imageCount(IMAGE_COUNT.extract(rs))
                 .build();
     }
 }

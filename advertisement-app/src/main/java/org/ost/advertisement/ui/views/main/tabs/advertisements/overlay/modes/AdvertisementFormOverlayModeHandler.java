@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.Advertisement;
-import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.dto.AdvertisementEditDto;
@@ -23,7 +22,7 @@ import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.AttachmentGallery;
+import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.Configurable;
@@ -32,6 +31,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.UUID;
+
 
 import static org.ost.advertisement.common.I18nKey.*;
 
@@ -116,9 +116,9 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
 
             if (isCreate) {
                 String tempSessionId = UUID.randomUUID().toString();
-                gallery.configureForCreate(EntityType.ADVERTISEMENT, tempSessionId);
+                gallery.configureForCreate(tempSessionId);
             } else {
-                gallery.configureForEdit(EntityType.ADVERTISEMENT, params.getAd().getId(), params.getAd());
+                gallery.configureForEdit(params.getAd().getId());
             }
             content.add(gallery);
         });
@@ -145,7 +145,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
             if (this.activeGallery != null) {
-                this.activeGallery.commitTempUploads(savedAdvertisement.getId(), savedAdvertisement);
+                this.activeGallery.commitTempUploads(savedAdvertisement.getId());
             }
         });
     }

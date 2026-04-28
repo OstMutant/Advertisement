@@ -24,3 +24,5 @@
 /advertisement-app/tsconfig.json
 /advertisement-app/types.d.ts
 /playwright/screenshots/
+/attachment-spring-boot-starter/target
+/advertisement-events/target

@@ -153,6 +153,11 @@
     color:      #1e40af;
 }
 
+.user-activity-type--settings {
+    background: #d1fae5;
+    color:      #065f46;
+}
+
 .user-activity-name {
     font-size: 0.85rem;
     color:     #334155;

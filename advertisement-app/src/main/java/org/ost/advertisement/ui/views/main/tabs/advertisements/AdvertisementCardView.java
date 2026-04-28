@@ -25,11 +25,9 @@ import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.Advertise
 import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
-import org.ost.advertisement.entities.Attachment;
-import org.ost.advertisement.entities.EntityType;
-import org.ost.advertisement.services.AttachmentService;
 
-import java.util.List;
+import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.ui.CardPhotoLightbox;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -67,7 +65,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
-    private final transient ObjectProvider<AttachmentService>  attachmentService;
+    private final transient ObjectProvider<AttachmentService>  attachmentServiceProvider;
 
     @Override
     @PostConstruct
@@ -86,39 +84,31 @@ public class AdvertisementCardView extends HorizontalLayout
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
-        if (attachmentService.getIfAvailable() != null && ad.getMainImageUrl() != null) {
-            add(createThumbnail(ad));
-        } else {
-            add(createThumbnailPlaceholder());
-        }
+        add(createThumbnail(ad));
         add(createContent(ad, onChanged));
 
         return this;
     }
 
-    private Div createThumbnailPlaceholder() {
-        Div placeholder = new Div(VaadinIcon.HOME.create());
-        placeholder.addClassName("advertisement-thumbnail-placeholder");
-        return placeholder;
-    }
-
     private Div createThumbnail(AdvertisementInfoDto ad) {
+        if (ad.getMainImageUrl() == null) {
+            Div placeholder = new Div(VaadinIcon.HOME.create());
+            placeholder.addClassName("advertisement-thumbnail-placeholder");
+            return placeholder;
+        }
+        Div wrapper = new Div();
+        wrapper.addClassName("advertisement-thumbnail-wrapper");
         Image img = new Image(ad.getMainImageUrl(), ad.getTitle());
         img.addClassName("advertisement-thumbnail");
-
-        Div wrapper = new Div(img);
-        wrapper.addClassName("advertisement-thumbnail-wrapper");
-
-        if (ad.getImageCount() > 1) {
+        wrapper.add(img);
+        if (ad.getImageCount() != null && ad.getImageCount() > 1) {
             Span badge = new Span(VaadinIcon.CAMERA.create(), new Span(String.valueOf(ad.getImageCount())));
             badge.addClassName("advertisement-thumbnail-badge");
             wrapper.add(badge);
         }
-
         wrapper.getElement().addEventListener("click", _ ->
-            attachmentService.ifAvailable(s -> {
-                List<Attachment> attachments = s.getByEntityId(EntityType.ADVERTISEMENT, ad.getId());
-                CardPhotoLightbox.open(attachments, 0);
+            attachmentServiceProvider.ifAvailable(svc -> {
+                CardPhotoLightbox.open(svc.getByEntityId(ad.getId()), 0);
             })
         ).addEventData("event.stopPropagation()");
         return wrapper;

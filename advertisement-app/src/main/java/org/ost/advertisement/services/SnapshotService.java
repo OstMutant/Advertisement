@@ -12,7 +12,6 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.model.ChangeEntry;
 import org.ost.advertisement.model.ChangeEntry.FieldChange;
-import org.ost.advertisement.model.ChangeEntry.PhotoChange;
 import org.ost.advertisement.model.ChangeEntry.SettingChange;
 import org.ost.advertisement.model.ChangeEntry.NoteEntry;
 import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjection;
@@ -21,11 +20,11 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.Array;
-import java.sql.Connection;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -33,7 +32,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class SnapshotService {
 
-    public record SnapshotContent(String title, String description, String[] attachmentUrls) {}
+    public record SnapshotContent(String title, String description, int version) {}
     public record UserSnapshotState(Long userId, String name, Role role) {}
 
     private final NamedParameterJdbcTemplate    jdbc;
@@ -42,22 +41,19 @@ public class SnapshotService {
 
     @Transactional
     public void captureAdvertisement(Advertisement ad, ActionType actionType, Long changedByUserId) {
-        List<String> currentUrls = getActiveAttachmentUrls(ad.getId());
         List<ChangeEntry> changes = switch (actionType) {
             case CREATED -> List.of(
                     new FieldChange("title",       null, truncate(ad.getTitle())),
                     new FieldChange("description", null, truncate(ad.getDescription()))
             );
-            case UPDATED -> computeDiff(ad, currentUrls);
+            case UPDATED -> computeDiff(ad);
             case DELETED -> null;
         };
 
-        Array urlArray = toSqlArray(currentUrls);
-
         jdbc.update("""
                 INSERT INTO advertisement_snapshot
-                    (advertisement_id, title, description, attachment_urls, changed_by_user_id, action_type, version, changes_summary)
-                VALUES (:adId, :title, :description, :attachmentUrls, :changedBy, :actionType,
+                    (advertisement_id, title, description, changed_by_user_id, action_type, version, changes_summary)
+                VALUES (:adId, :title, :description, :changedBy, :actionType,
                     COALESCE((SELECT MAX(version) FROM advertisement_snapshot WHERE advertisement_id = :adId), 0) + 1,
                     CAST(:changesSummary AS JSONB))
                 """,
@@ -65,7 +61,6 @@ public class SnapshotService {
                         .addValue("adId",           ad.getId())
                         .addValue("title",          ad.getTitle())
                         .addValue("description",    ad.getDescription())
-                        .addValue("attachmentUrls", urlArray)
                         .addValue("changedBy",      changedByUserId)
                         .addValue("actionType",     actionType.name())
                         .addValue("changesSummary", toChangesJson(changes))
@@ -101,7 +96,7 @@ public class SnapshotService {
             parts.add(new SettingChange("usersPageSize", oldSettings.getUsersPageSize(), newSettings.getUsersPageSize()));
         }
         if (parts.isEmpty()) return;
-        insertUserSnapshot(user, toJson(oldSettings), ActionType.UPDATED, changedByUserId, parts);
+        insertUserSnapshot(user, toJson(newSettings), ActionType.UPDATED, changedByUserId, parts);
     }
 
     private void insertUserSnapshot(User user, String settingsJson, ActionType actionType,
@@ -130,6 +125,18 @@ public class SnapshotService {
                 "SELECT settings FROM user_snapshot WHERE id = :id AND settings IS NOT NULL",
                 new MapSqlParameterSource("id", snapshotId),
                 (rs, row) -> fromJson(rs.getString("settings"), UserSettings.class)
+        ).stream().findFirst();
+    }
+
+    public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
+        return jdbc.query(
+                "SELECT user_id, name, role FROM user_snapshot WHERE id = :id",
+                new MapSqlParameterSource("id", snapshotId),
+                (rs, row) -> new UserSnapshotState(
+                        rs.getLong("user_id"),
+                        rs.getString("name"),
+                        Role.valueOf(rs.getString("role"))
+                )
         ).stream().findFirst();
     }
 
@@ -184,66 +191,6 @@ public class SnapshotService {
     }
 
     @Transactional
-    public void captureAdvertisementAttachmentChange(Long advertisementId, Long changedByUserId) {
-        List<String> currentUrls = getActiveAttachmentUrls(advertisementId);
-        Array urlArray = toSqlArray(currentUrls);
-
-        record RecentSnapshot(Long id, String changesSummaryJson, String[] baselineUrls) {}
-        RecentSnapshot recent = jdbc.query("""
-                SELECT s.id, s.changes_summary::text AS changes_summary, prev.attachment_urls AS baseline_urls
-                FROM advertisement_snapshot s
-                LEFT JOIN advertisement_snapshot prev
-                       ON prev.advertisement_id = s.advertisement_id
-                      AND prev.version = s.version - 1
-                WHERE s.advertisement_id = :adId
-                  AND s.action_type IN ('CREATED', 'UPDATED')
-                  AND s.created_at > NOW() - INTERVAL '5 minutes'
-                ORDER BY s.version DESC LIMIT 1
-                """,
-                new MapSqlParameterSource("adId", advertisementId),
-                (rs, row) -> new RecentSnapshot(
-                        rs.getLong("id"),
-                        rs.getString("changes_summary"),
-                        toStringArray(rs, "baseline_urls")
-                )
-        ).stream().findFirst().orElse(null);
-
-        if (recent != null) {
-            List<String> baseline = recent.baselineUrls().length > 0 ? Arrays.asList(recent.baselineUrls()) : List.of();
-            PhotoChange photoDiff  = buildPhotoDiff(baseline, currentUrls);
-            List<ChangeEntry> newChanges = mergeSummary(stripPhotoEntries(fromJsonList(recent.changesSummaryJson())), photoDiff);
-            jdbc.update("UPDATE advertisement_snapshot SET changes_summary = CAST(:s AS JSONB), attachment_urls = :u WHERE id = :id",
-                    new MapSqlParameterSource()
-                            .addValue("id", recent.id())
-                            .addValue("s",  toChangesJson(newChanges))
-                            .addValue("u",  urlArray));
-        } else {
-            String[] prevArr = jdbc.query(
-                    "SELECT attachment_urls FROM advertisement_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1",
-                    new MapSqlParameterSource("adId", advertisementId),
-                    (rs, row) -> toStringArray(rs, "attachment_urls")
-            ).stream().findFirst().orElse(new String[0]);
-            List<String> baseline = prevArr != null && prevArr.length > 0 ? Arrays.asList(prevArr) : List.of();
-            PhotoChange photoDiff = buildPhotoDiff(baseline, currentUrls);
-            jdbc.update("""
-                    INSERT INTO advertisement_snapshot
-                        (advertisement_id, title, description, attachment_urls, changed_by_user_id, action_type, version, changes_summary)
-                    SELECT id, title, description, :attachmentUrls, :changedBy, 'UPDATED',
-                        COALESCE((SELECT MAX(version) FROM advertisement_snapshot WHERE advertisement_id = :adId), 0) + 1,
-                        CAST(:photoDiff AS JSONB)
-                    FROM advertisement
-                    WHERE id = :adId AND deleted_at IS NULL
-                    """,
-                    new MapSqlParameterSource()
-                            .addValue("adId",           advertisementId)
-                            .addValue("changedBy",      changedByUserId)
-                            .addValue("photoDiff",      toChangesJson(photoDiff != null ? List.of(photoDiff) : null))
-                            .addValue("attachmentUrls", urlArray)
-            );
-        }
-    }
-
-    @Transactional
     public void appendNoteToLastSnapshot(Long advertisementId, String note) {
         Long snapshotId = jdbc.queryForObject(
                 "SELECT id FROM advertisement_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1",
@@ -262,27 +209,125 @@ public class SnapshotService {
     }
 
     public List<AdvertisementHistoryDto> getAdvertisementHistory(Long advertisementId, Long currentUserId, boolean showAll) {
-        return historyProjection.queryAll(jdbc,
+        List<AdvertisementHistoryDto> textHistory = historyProjection.queryAll(jdbc,
                 new MapSqlParameterSource()
                         .addValue("adId",         advertisementId)
                         .addValue("filterUserId", showAll ? null : currentUserId));
+
+        List<AdvertisementHistoryDto> photoHistory = getPhotoHistory(advertisementId, showAll ? null : currentUserId);
+
+        if (photoHistory.isEmpty()) return textHistory;
+
+        List<AdvertisementHistoryDto> result    = new ArrayList<>(textHistory);
+        List<AdvertisementHistoryDto> remaining = new ArrayList<>();
+
+        for (AdvertisementHistoryDto ph : photoHistory) {
+            AdvertisementHistoryDto matchingText = result.stream()
+                    .filter(t -> t.version() == ph.version())
+                    .findFirst().orElse(null);
+
+            if (matchingText != null) {
+                result.remove(matchingText);
+                List<ChangeEntry> merged = new ArrayList<>(matchingText.changes());
+                merged.addAll(ph.changes());
+                String[] currUrls = matchingText.currAttachmentUrls() != null
+                        ? matchingText.currAttachmentUrls() : ph.currAttachmentUrls();
+                result.add(new AdvertisementHistoryDto(
+                        matchingText.snapshotId(), matchingText.version(), matchingText.actionType(),
+                        matchingText.changedByUserName(), matchingText.createdAt(),
+                        matchingText.title(), matchingText.description(), merged,
+                        matchingText.prevSnapshotId(), matchingText.prevTitle(), matchingText.prevDescription(),
+                        ph.prevAttachmentUrls(), currUrls
+                ));
+            } else {
+                remaining.add(ph);
+            }
+        }
+
+        result.addAll(remaining);
+        result.sort(Comparator.comparing(AdvertisementHistoryDto::createdAt).reversed());
+        return result;
+    }
+
+    private List<AdvertisementHistoryDto> getPhotoHistory(Long advertisementId, Long filterUserId) {
+        return jdbc.query("""
+                SELECT ps.id, ps.version, ps.changes_summary::text AS changes_summary,
+                       ps.created_at, COALESCE(u.name, '—') AS changed_by_name,
+                       ps.attachment_urls,
+                       (SELECT prev.attachment_urls FROM photo_snapshot prev
+                        WHERE prev.advertisement_id = ps.advertisement_id AND prev.version < ps.version
+                        ORDER BY prev.version DESC LIMIT 1) AS prev_attachment_urls
+                FROM photo_snapshot ps
+                LEFT JOIN user_information u ON u.id = ps.changed_by_user_id
+                WHERE ps.advertisement_id = :adId
+                  AND ps.changes_summary IS NOT NULL
+                  AND (CAST(:filterUserId AS BIGINT) IS NULL OR ps.changed_by_user_id = :filterUserId)
+                ORDER BY ps.version DESC
+                LIMIT 50
+                """,
+                new MapSqlParameterSource()
+                        .addValue("adId",         advertisementId)
+                        .addValue("filterUserId", filterUserId),
+                (rs, row) -> {
+                    List<ChangeEntry> changes = parsePhotoChanges(rs.getString("changes_summary"));
+                    if (changes.isEmpty()) return null;
+                    String[] prevUrls = toStringArray(rs, "prev_attachment_urls");
+                    String[] currUrls = toStringArray(rs, "attachment_urls");
+                    return new AdvertisementHistoryDto(
+                            rs.getLong("id"),
+                            rs.getInt("version"),
+                            ActionType.UPDATED,
+                            rs.getString("changed_by_name"),
+                            rs.getTimestamp("created_at").toInstant(),
+                            null, null, changes, null, null, null,
+                            prevUrls, currUrls
+                    );
+                }
+        ).stream().filter(Objects::nonNull).toList();
+    }
+
+    private static String[] toStringArray(java.sql.ResultSet rs, String col) {
+        try {
+            java.sql.Array arr = rs.getArray(col);
+            if (arr == null) return null;
+            return (String[]) arr.getArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ChangeEntry> parsePhotoChanges(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            List<Map<String, Object>> raw = objectMapper.readValue(json, new TypeReference<>() {});
+            return raw.stream()
+                    .map(m -> {
+                        List<String> before = (List<String>) m.getOrDefault("before", List.of());
+                        List<String> after  = (List<String>) m.getOrDefault("after",  List.of());
+                        return (ChangeEntry) new ChangeEntry.PhotoChange(before, after);
+                    })
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
         return jdbc.query(
-                "SELECT title, description, attachment_urls FROM advertisement_snapshot WHERE id = :id",
+                "SELECT title, description, version FROM advertisement_snapshot WHERE id = :id",
                 new MapSqlParameterSource("id", snapshotId),
                 (rs, row) -> new SnapshotContent(
                         rs.getString("title"),
                         rs.getString("description"),
-                        toStringArray(rs, "attachment_urls")
+                        rs.getInt("version")
                 )
         ).stream().findFirst();
     }
 
-    private List<ChangeEntry> computeDiff(Advertisement ad, List<String> currentUrls) {
+    private List<ChangeEntry> computeDiff(Advertisement ad) {
         List<List<ChangeEntry>> results = jdbc.query("""
-                SELECT title, description, attachment_urls FROM advertisement_snapshot
+                SELECT title, description FROM advertisement_snapshot
                 WHERE advertisement_id = :adId
                 ORDER BY version DESC LIMIT 1
                 """,
@@ -297,26 +342,9 @@ public class SnapshotService {
                     if (!Objects.equals(ad.getDescription(), prevDesc)) {
                         parts.add(new FieldChange("description", truncate(prevDesc), truncate(ad.getDescription())));
                     }
-                    List<String> prevUrls = List.of(toStringArray(rs, "attachment_urls"));
-                    PhotoChange photoDiff = buildPhotoDiff(prevUrls, currentUrls);
-                    if (photoDiff != null) parts.add(photoDiff);
                     return parts.isEmpty() ? null : parts;
                 });
         return results.isEmpty() ? null : results.get(0);
-    }
-
-    public List<String> getActiveAttachmentUrls(Long adId) {
-        return jdbc.queryForList(
-                "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL",
-                new MapSqlParameterSource("adId", adId),
-                String.class
-        );
-    }
-
-    private Array toSqlArray(List<String> list) {
-        return jdbc.getJdbcOperations().execute(
-                (Connection conn) -> conn.createArrayOf("text", list.toArray(new String[0]))
-        );
     }
 
     private static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
@@ -356,47 +384,8 @@ public class SnapshotService {
         }
     }
 
-    private static PhotoChange buildPhotoDiff(List<String> prevUrls, List<String> currUrls) {
-        List<String> prevNames = prevUrls.stream().map(SnapshotService::filename).toList();
-        List<String> currNames = currUrls.stream().map(SnapshotService::filename).toList();
-        if (prevNames.equals(currNames)) return null;
-        return new PhotoChange(prevNames, currNames);
-    }
-
-    static List<ChangeEntry> stripPhotoEntries(List<ChangeEntry> changes) {
-        if (changes == null) return null;
-        List<ChangeEntry> result = changes.stream()
-                .filter(e -> !e.isPhoto())
-                .toList();
-        return result.isEmpty() ? null : result;
-    }
-
-    private static List<ChangeEntry> mergeSummary(List<ChangeEntry> text, PhotoChange photo) {
-        if (text == null && photo == null) return null;
-        if (photo == null) return text;
-        List<ChangeEntry> result = new ArrayList<>(text != null ? text : List.of());
-        result.add(photo);
-        return result;
-    }
-
-    private static String filename(String url) {
-        if (url == null || url.isBlank()) return "";
-        int i = url.lastIndexOf('/');
-        return i >= 0 ? url.substring(i + 1) : url;
-    }
-
     private static String truncate(String s) {
         if (s == null) return "";
         return s.length() > 40 ? s.substring(0, 40) + "…" : s;
-    }
-
-    private static String[] toStringArray(java.sql.ResultSet rs, String col) {
-        try {
-            java.sql.Array arr = rs.getArray(col);
-            if (arr == null) return new String[0];
-            return (String[]) arr.getArray();
-        } catch (Exception e) {
-            return new String[0];
-        }
     }
 }

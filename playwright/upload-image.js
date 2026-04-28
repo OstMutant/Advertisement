@@ -77,6 +77,10 @@ async function createAd(page, title, desc) {
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForTimeout(1500);
+      // overlay switches to view mode after save — close via breadcrumb
+      await page.locator('.overlay__breadcrumb-back').click();
+      await page.waitForSelector('.base-overlay.overlay--visible', { state: 'hidden', timeout: 5000 }).catch(() => {});
+      await page.waitForTimeout(300);
     });
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);

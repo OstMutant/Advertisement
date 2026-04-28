@@ -17,6 +17,7 @@ import org.ost.advertisement.dto.ActivityItemDto;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.ActionType;
 import org.ost.advertisement.entities.User;
+import org.ost.advertisement.model.ChangeEntry;
 import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SnapshotService;
@@ -163,6 +164,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private Div buildActivityContent(Long userId) {
         List<ActivityItemDto> items = activityService.getForUser(userId);
+        UserSettings currentSettings = settingsService.load(userId);
         Div container = new Div();
         container.addClassName("user-activity-list");
 
@@ -178,18 +180,28 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             row.addClassName("user-activity-row");
             if (!item.entityExists()) row.addClassName("user-activity-row--deleted");
 
+            boolean isSettingChange = "USER".equals(item.entityType())
+                    && item.changes().stream().anyMatch(e -> e instanceof ChangeEntry.SettingChange);
+
             Span action = new Span(formatAction(item.actionType()));
             action.addClassName("user-activity-action");
 
-            String nameText = item.entityExists()
-                    ? item.displayName()
-                    : item.displayName() + " " + getValue(ACTIVITY_ENTITY_DELETED);
+            String typeLabel   = isSettingChange ? "SETTINGS" : item.entityType();
+            String typeCssKey  = isSettingChange ? "settings"  : item.entityType().toLowerCase();
+            Span type = new Span(typeLabel);
+            type.addClassName("user-activity-type");
+            type.addClassName("user-activity-type--" + typeCssKey);
+
+            String nameText;
+            if ("ADVERTISEMENT".equals(item.entityType())) {
+                nameText = item.changedByName() != null ? item.changedByName() : item.displayName();
+            } else {
+                nameText = item.entityExists()
+                        ? item.displayName()
+                        : item.displayName() + " " + getValue(ACTIVITY_ENTITY_DELETED);
+            }
             Span name = new Span(nameText);
             name.addClassName("user-activity-name");
-
-            Span type = new Span(item.entityType());
-            type.addClassName("user-activity-type");
-            type.addClassName("user-activity-type--" + item.entityType().toLowerCase());
 
             Span time = new Span(TimeZoneUtil.formatInstantHuman(item.createdAt()));
             time.addClassName("user-activity-time");
@@ -199,31 +211,157 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             Span editor = ActivityUiUtil.buildEditorBadge(item.changedByUserId(), item.changedByName(), userId);
             if (editor != null) row.add(editor);
 
-            if (!item.changes().isEmpty()) {
-                row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
+            if (isSettingChange) {
+                row.add(buildFullSettingsFieldsList(item, currentSettings));
+            } else if ("USER".equals(item.entityType())) {
+                row.add(buildFullUserFieldsList(item));
+            } else if ("ADVERTISEMENT".equals(item.entityType())) {
+                row.add(buildFullAdvFieldsList(item));
             }
 
             // Restore button for settings entries (USER type with a snapshot)
             if ("USER".equals(item.entityType()) && item.snapshotId() != null && item.snapshotId() > 0) {
                 snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(settings -> {
-                    Button restoreBtn = new Button(getValue(SETTINGS_RESTORE_BUTTON));
-                    restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                    restoreBtn.addClassName("adv-history-restore-btn");
-                    restoreBtn.addClickListener(_ -> {
-                        UserSettings current = settingsService.load(currentUser.getId());
-                        settingsService.save(currentUser.getId(), settings);
-                        snapshotService.captureSettingsChange(currentUser, current, settings, currentUser.getId());
-                        adsPageSizeField.setValue(settings.getAdsPageSize());
-                        usersPageSizeField.setValue(settings.getUsersPageSize());
-                        activityPanel.removeAll();
-                        tabs.setSelectedTab(settingsTab);
-                        notifications.success(SETTINGS_RESTORED_SUCCESS);
-                    });
-                    row.add(restoreBtn);
+                    UserSettings live = settingsService.load(currentUser.getId());
+                    boolean matchesCurrent = live.getAdsPageSize() == settings.getAdsPageSize()
+                            && live.getUsersPageSize() == settings.getUsersPageSize();
+                    if (matchesCurrent) {
+                        Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
+                        badge.addClassName("user-activity-current-badge");
+                        row.add(badge);
+                    } else {
+                        Button restoreBtn = new Button(getValue(SETTINGS_RESTORE_BUTTON));
+                        restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+                        restoreBtn.addClassName("adv-history-restore-btn");
+                        restoreBtn.addClickListener(_ -> {
+                            UserSettings current = settingsService.load(currentUser.getId());
+                            settingsService.save(currentUser.getId(), settings);
+                            snapshotService.captureSettingsChange(currentUser, current, settings, currentUser.getId());
+                            adsPageSizeField.setValue(settings.getAdsPageSize());
+                            usersPageSizeField.setValue(settings.getUsersPageSize());
+                            activityPanel.removeAll();
+                            tabs.setSelectedTab(settingsTab);
+                            notifications.success(SETTINGS_RESTORED_SUCCESS);
+                        });
+                        row.add(restoreBtn);
+                    }
                 });
             }
 
             container.add(row);
+        }
+        return container;
+    }
+
+    private Div buildFullUserFieldsList(ActivityItemDto item) {
+        Div container = new Div();
+        container.addClassName("user-activity-changes");
+
+        boolean nameInChanges  = false;
+        boolean emailInChanges = false;
+        boolean roleInChanges  = false;
+
+        for (ChangeEntry entry : item.changes()) {
+            switch (entry) {
+                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameInChanges  = true;
+                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailInChanges = true;
+                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleInChanges  = true;
+                default -> {}
+            }
+            String text = activityUiUtil.format(entry);
+            if (text != null && !text.isBlank()) {
+                Span span = new Span("• " + text);
+                span.addClassName("user-activity-changes-item");
+                container.add(span);
+            }
+        }
+
+        if (!nameInChanges && currentUser.getName() != null) {
+            Span span = new Span("• " + getI18nService().get("changes.field.name") + ": " + currentUser.getName());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        if (!emailInChanges && currentUser.getEmail() != null) {
+            Span span = new Span("• " + getI18nService().get("changes.field.email") + ": " + currentUser.getEmail());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        if (!roleInChanges && currentUser.getRole() != null) {
+            Span span = new Span("• " + getI18nService().get("changes.field.role") + ": " + currentUser.getRole().name());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        return container;
+    }
+
+    private Div buildFullSettingsFieldsList(ActivityItemDto item, UserSettings currentSettings) {
+        Div container = new Div();
+        container.addClassName("user-activity-changes");
+
+        boolean adsPageSizeInChanges   = false;
+        boolean usersPageSizeInChanges = false;
+
+        for (ChangeEntry entry : item.changes()) {
+            switch (entry) {
+                case ChangeEntry.SettingChange s when "adsPageSize".equals(s.key())   -> adsPageSizeInChanges   = true;
+                case ChangeEntry.SettingChange s when "usersPageSize".equals(s.key()) -> usersPageSizeInChanges = true;
+                default -> {}
+            }
+            String text = activityUiUtil.format(entry);
+            if (text != null && !text.isBlank()) {
+                Span span = new Span("• " + text);
+                span.addClassName("user-activity-changes-item");
+                container.add(span);
+            }
+        }
+
+        if (!adsPageSizeInChanges) {
+            Span span = new Span("• " + getI18nService().get("changes.setting.adsPageSize") + ": " + currentSettings.getAdsPageSize());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        if (!usersPageSizeInChanges) {
+            Span span = new Span("• " + getI18nService().get("changes.setting.usersPageSize") + ": " + currentSettings.getUsersPageSize());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        return container;
+    }
+
+    private Div buildFullAdvFieldsList(ActivityItemDto item) {
+        Div container = new Div();
+        container.addClassName("user-activity-changes");
+
+        boolean titleInChanges = false;
+        boolean descInChanges  = false;
+        boolean photoInChanges = false;
+
+        for (ChangeEntry entry : item.changes()) {
+            switch (entry) {
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
+                case ChangeEntry.PhotoChange ignored                                 -> photoInChanges = true;
+                default -> {}
+            }
+            String text = activityUiUtil.format(entry);
+            if (text != null && !text.isBlank()) {
+                Span span = new Span("• " + text);
+                span.addClassName("user-activity-changes-item");
+                container.add(span);
+            }
+        }
+
+        if (!titleInChanges && item.snapshotTitle() != null) {
+            Span span = new Span("• " + getValue(CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle());
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
+        }
+        if (!descInChanges && item.snapshotDescription() != null) {
+            String desc = item.snapshotDescription().length() > 60
+                    ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
+            Span span = new Span("• " + getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc);
+            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
+            container.add(span);
         }
         return container;
     }

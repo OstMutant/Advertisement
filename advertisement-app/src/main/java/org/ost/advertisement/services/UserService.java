@@ -97,6 +97,18 @@ public class UserService {
         });
     }
 
+    @Transactional
+    public Optional<User> restoreToSnapshot(Long snapshotId, Long actingUserId) {
+        return snapshotService.getUserStateAt(snapshotId).flatMap(state -> {
+            User before = repository.findById(state.userId()).orElse(null);
+            repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
+            return repository.findById(state.userId()).map(updated -> {
+                snapshotService.captureUser(updated, before, ActionType.UPDATED, actingUserId);
+                return updated;
+            });
+        });
+    }
+
     public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email);
     }

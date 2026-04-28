@@ -7,17 +7,17 @@ import java.time.Instant;
 import java.util.List;
 
 public record AdvertisementHistoryDto(
-        Long             snapshotId,
-        int              version,
-        ActionType       actionType,
-        String           changedByUserName,
-        Instant          createdAt,
-        String           title,
-        String           description,
+        Long              snapshotId,
+        int               version,
+        ActionType        actionType,
+        String            changedByUserName,
+        Instant           createdAt,
+        String            title,
+        String            description,
         List<ChangeEntry> changes,
-        String[]         attachmentUrls,
-        Long             prevSnapshotId,
-        String           prevTitle,
-        String           prevDescription,
-        String[]         prevAttachmentUrls
+        Long              prevSnapshotId,
+        String            prevTitle,
+        String            prevDescription,
+        String[]          prevAttachmentUrls,
+        String[]          currAttachmentUrls
 ) {}

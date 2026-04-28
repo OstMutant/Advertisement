@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.main.tabs.advertisements;
+package org.ost.attachment.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
@@ -7,7 +7,7 @@ import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import org.ost.advertisement.entities.Attachment;
+import org.ost.attachment.entity.Attachment;
 
 import java.util.List;
 
@@ -23,8 +23,8 @@ public class CardPhotoLightbox {
         Image mainImg = new Image();
         mainImg.addClassName("card-lightbox__main-image");
 
-        Button prev  = new Button(VaadinIcon.ANGLE_LEFT.create());
-        Button next  = new Button(VaadinIcon.ANGLE_RIGHT.create());
+        Button prev = new Button(VaadinIcon.ANGLE_LEFT.create());
+        Button next = new Button(VaadinIcon.ANGLE_RIGHT.create());
         prev.addClassName("card-lightbox__nav");
         next.addClassName("card-lightbox__nav");
 

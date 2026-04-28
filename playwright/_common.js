@@ -69,4 +69,63 @@ async function waitForGrid(page, selector = 'vaadin-grid', timeout = 8000) {
   );
 }
 
-module.exports = { check, screenshot, login, waitForOverlay, waitForOverlayClosed, waitForGrid };
+/**
+ * Create a new advertisement and return to list.
+ * @param {object} page
+ * @param {object} opts - { title, description, imagePath? }
+ */
+async function createAd(page, { title, description, imagePath } = {}) {
+  await page.locator('.add-advertisement-button').click();
+  await page.waitForTimeout(600);
+  const overlay = page.locator('.advertisement-overlay');
+  await overlay.locator('vaadin-text-field input').fill(title || 'Test Ad');
+  await overlay.locator('vaadin-text-area textarea').fill(description || 'Test description');
+  if (imagePath) {
+    await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(imagePath);
+    await page.waitForTimeout(1500);
+  }
+  await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+  await page.waitForTimeout(1500);
+}
+
+/**
+ * Open the detail overlay for an ad by title.
+ * @param {object} page
+ * @param {string} title
+ */
+async function openAdDetail(page, title) {
+  await page.waitForSelector('.advertisement-title', { timeout: 5000 });
+  await page.locator('.advertisement-card')
+    .filter({ has: page.locator('.advertisement-title', { hasText: title }) })
+    .first().click();
+  await page.waitForTimeout(600);
+}
+
+/**
+ * Open the history tab inside an already-open ad overlay.
+ * Returns false if the tab is not visible.
+ * @param {object} page
+ */
+async function openHistory(page) {
+  const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Іс|Hist/i });
+  if (!await historyTab.isVisible()) return false;
+  await historyTab.click();
+  await page.waitForTimeout(600);
+  return true;
+}
+
+/**
+ * Close the overlay via breadcrumb back button.
+ * @param {object} page
+ */
+async function closeOverlay(page) {
+  await page.locator('.overlay__breadcrumb-back').click();
+  await page.waitForSelector('.base-overlay.overlay--visible', { state: 'hidden', timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
+}
+
+module.exports = {
+  check, screenshot, login,
+  waitForOverlay, waitForOverlayClosed, waitForGrid,
+  createAd, openAdDetail, openHistory, closeOverlay,
+};

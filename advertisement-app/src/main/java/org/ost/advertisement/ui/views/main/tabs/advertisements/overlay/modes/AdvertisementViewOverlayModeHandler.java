@@ -16,7 +16,6 @@ import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.entities.ActionType;
-import org.ost.advertisement.entities.EntityType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SnapshotService;
@@ -25,7 +24,8 @@ import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.AttachmentGallery;
+import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
@@ -34,6 +34,8 @@ import org.ost.advertisement.ui.views.utils.ActivityUiUtil;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
+
+import org.ost.advertisement.model.ChangeEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -72,8 +74,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final ObjectProvider<AttachmentGallery> galleryProvider;
-    private final ConfirmActionDialog.Builder   confirmDialogBuilder;
+    private final ObjectProvider<AttachmentGallery>   galleryProvider;
+    private final ObjectProvider<AttachmentService>   attachmentServiceProvider;
+    private final ConfirmActionDialog.Builder         confirmDialogBuilder;
 
     private Parameters params;
 
@@ -138,7 +141,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         Div viewBody = new Div(textCard);
 
         galleryProvider.ifAvailable(gallery -> {
-            gallery.configureForView(EntityType.ADVERTISEMENT, params.getAd().getId());
+            gallery.configureForView(params.getAd().getId());
             viewBody.add(gallery);
         });
 
@@ -161,9 +164,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             return container;
         }
 
-        List<String> currentUrls = snapshotService.getActiveAttachmentUrls(adId);
-        String currentTitle      = params.getAd().getTitle();
-        String currentDesc       = params.getAd().getDescription();
+        String currentTitle = params.getAd().getTitle();
+        String currentDesc  = params.getAd().getDescription();
+        java.util.Set<String> currentPhotoUrls = loadCurrentPhotoUrls(adId);
 
         for (AdvertisementHistoryDto h : history) {
             Div row = new Div();
@@ -186,19 +189,17 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             meta.addClassName("adv-history-meta");
             row.add(meta);
 
-            if (!h.changes().isEmpty()) {
-                row.add(activityUiUtil.buildChangesList(h.changes(), "adv-history-changes"));
-            }
+            row.add(buildFullFieldsList(h));
 
-            // Restore button: only if prev exists, not CREATED, and prev state differs from current
-            if (access.canOperate(params.getAd())
-                    && h.actionType() != ActionType.CREATED
-                    && h.prevSnapshotId() != null) {
+            // Restore button: text-based rows (prevSnapshotId != null guards photo-only rows);
+            // CREATED also eligible when history has multiple entries
+            boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
+            if (access.canOperate(params.getAd()) && isTextRow
+                    && (h.actionType() != ActionType.CREATED || history.size() > 1)) {
 
-                List<String> prevUrlList = h.prevAttachmentUrls() != null ? List.of(h.prevAttachmentUrls()) : List.of();
-                boolean matchesCurrent = Objects.equals(h.prevTitle(), currentTitle)
-                        && Objects.equals(h.prevDescription(), currentDesc)
-                        && prevUrlList.equals(currentUrls);
+                boolean matchesCurrent = Objects.equals(h.title(), currentTitle)
+                        && Objects.equals(h.description(), currentDesc)
+                        && matchesCurrentPhotos(h.currAttachmentUrls(), currentPhotoUrls);
 
                 if (matchesCurrent) {
                     Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
@@ -208,8 +209,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                     Button restoreBtn = new Button(getValue(ADVERTISEMENT_RESTORE_BUTTON));
                     restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     restoreBtn.addClassName("adv-history-restore-btn");
-                    long prevId = h.prevSnapshotId();
-                    restoreBtn.addClickListener(_ -> showRestoreConfirm(h, prevId));
+                    long snapId = h.snapshotId();
+                    restoreBtn.addClickListener(_ -> showRestoreConfirm(h, snapId, currentPhotoUrls));
                     row.add(restoreBtn);
                 }
             }
@@ -220,27 +221,129 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         return container;
     }
 
-    private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {
-        List<String> diffs = new ArrayList<>();
-        if (!Objects.equals(params.getAd().getTitle(), h.title())) {
-            diffs.add(getValue(CHANGES_FIELD_TITLE) + ": \"" + truncate(params.getAd().getTitle()) + "\" → \"" + truncate(h.title()) + "\"");
+    private Div buildFullFieldsList(AdvertisementHistoryDto h) {
+        Div container = new Div();
+        container.addClassName("adv-history-changes");
+
+        boolean titleInChanges = false;
+        boolean descInChanges  = false;
+        boolean photoInChanges = false;
+
+        for (ChangeEntry entry : h.changes()) {
+            switch (entry) {
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
+                case ChangeEntry.PhotoChange ignored                                 -> photoInChanges = true;
+                default -> {}
+            }
+            String text = activityUiUtil.format(entry);
+            if (text != null && !text.isBlank()) {
+                Span item = new Span("• " + text);
+                item.addClassName("adv-history-changes-item");
+                container.add(item);
+            }
         }
-        if (!Objects.equals(params.getAd().getDescription(), h.description())) {
-            diffs.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED));
+
+        if (!titleInChanges && h.title() != null) {
+            Span item = new Span("• " + getValue(CHANGES_FIELD_TITLE) + ": " + h.title());
+            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
+            container.add(item);
         }
-        String diffText = diffs.isEmpty()
-                ? getValue(ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT)
-                : String.join("\n", diffs);
+        if (!descInChanges && h.description() != null) {
+            String desc = h.description().length() > 60
+                    ? h.description().substring(0, 60) + "…" : h.description();
+            Span item = new Span("• " + getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc);
+            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
+            container.add(item);
+        }
+        if (!photoInChanges && h.currAttachmentUrls() != null) {
+            String photoLabel = getValue(CHANGES_PHOTOS);
+            String photos = h.currAttachmentUrls().length == 0 ? "—"
+                    : java.util.Arrays.stream(h.currAttachmentUrls()).map(AdvertisementViewOverlayModeHandler::filename)
+                            .collect(java.util.stream.Collectors.joining(", "));
+            Span item = new Span("• " + photoLabel + ": " + photos);
+            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
+            container.add(item);
+        }
+
+        return container;
+    }
+
+    private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId,
+                                     java.util.Set<String> currentPhotoUrls) {
+        List<String> lines = new ArrayList<>();
+
+        String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
+
+        if (Objects.equals(params.getAd().getTitle(), h.title())) {
+            lines.add(getValue(CHANGES_FIELD_TITLE) + ": " + noChange);
+        } else {
+            lines.add(getValue(CHANGES_FIELD_TITLE) + ": \"" + truncate(params.getAd().getTitle())
+                    + "\" → \"" + truncate(h.title()) + "\"");
+        }
+
+        if (Objects.equals(params.getAd().getDescription(), h.description())) {
+            lines.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + noChange);
+        } else {
+            lines.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED));
+        }
+
+        if (h.currAttachmentUrls() != null) {
+            java.util.Set<String> targetUrls = java.util.Arrays.stream(h.currAttachmentUrls())
+                    .collect(java.util.stream.Collectors.toSet());
+            List<String> photoLines = new ArrayList<>();
+            for (String url : targetUrls) {
+                String fn = filename(url);
+                if (currentPhotoUrls.contains(url)) {
+                    photoLines.add("  = " + fn);
+                } else {
+                    photoLines.add("  + " + fn);
+                }
+            }
+            for (String url : currentPhotoUrls) {
+                if (!targetUrls.contains(url)) {
+                    photoLines.add("  - " + filename(url));
+                }
+            }
+            java.util.Collections.sort(photoLines);
+            if (photoLines.isEmpty()) {
+                lines.add(getValue(CHANGES_PHOTOS) + ": " + noChange);
+            } else {
+                lines.add(getValue(CHANGES_PHOTOS) + ":\n" + String.join("\n", photoLines));
+            }
+        } else {
+            lines.add(getValue(CHANGES_PHOTOS) + ": " + noChange);
+        }
 
         confirmDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
-                        .message(diffText)
+                        .message(String.join("\n", lines))
                         .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
                         .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
                         .onConfirm(() -> params.getOnRestore().accept(snapshotId))
                         .build()
         ).open();
+    }
+
+    private static String filename(String url) {
+        if (url == null || url.isBlank()) return url;
+        int i = url.lastIndexOf('/');
+        return i >= 0 ? url.substring(i + 1) : url;
+    }
+
+    private java.util.Set<String> loadCurrentPhotoUrls(Long adId) {
+        AttachmentService svc = attachmentServiceProvider.getIfAvailable();
+        if (svc == null) return java.util.Set.of();
+        return svc.getByEntityId(adId).stream()
+                .map(org.ost.attachment.entity.Attachment::getUrl)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    private boolean matchesCurrentPhotos(String[] currUrls, java.util.Set<String> currentUrls) {
+        if (currUrls == null) return true;
+        java.util.Set<String> target = java.util.Set.of(currUrls);
+        return target.equals(currentUrls);
     }
 
 }

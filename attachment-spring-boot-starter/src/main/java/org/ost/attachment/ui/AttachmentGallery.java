@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements;
+package org.ost.attachment.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -6,55 +6,50 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.notification.NotificationVariant;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.entities.Attachment;
-import org.ost.advertisement.entities.EntityType;
-import org.ost.advertisement.security.UserIdMarker;
-import org.ost.advertisement.services.AttachmentService;
-import org.ost.advertisement.services.AttachmentService.TempAttachment;
-import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.services.NotificationService;
+import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import java.io.ByteArrayInputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
-import static org.ost.advertisement.common.I18nKey.*;
-
 @Slf4j
-
+@CssImport("./attachment-gallery.css")
+@CssImport("./card-lightbox.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
 @ConditionalOnStorageEnabled
-public class AttachmentGallery extends Div implements I18nParams {
+public class AttachmentGallery extends Div {
 
-    private static final int    MAX_FILES     = 10;
-    private static final int    MAX_FILE_SIZE = 10 * 1024 * 1024;
+    private static final int MAX_FILES     = 10;
+    private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-    private final transient AttachmentService    attachmentService;
-    @Getter
-    private final transient I18nService          i18nService;
-    private final transient NotificationService  notificationService;
+    private final transient AttachmentService attachmentService;
+    private final transient MessageSource     messageSource;
 
     private Div thumbnailsRow;
     private Span emptyState;
     private Upload uploadButton;
     private boolean editMode;
 
-    private EntityType entityType;
     private Long entityId;
-    private transient UserIdMarker owner;
 
     private final List<TempAttachment> tempUploads        = new ArrayList<>();
     private final List<Attachment>     currentAttachments = new ArrayList<>();
@@ -65,31 +60,27 @@ public class AttachmentGallery extends Div implements I18nParams {
     private void init() {
         addClassName("attachment-gallery");
 
-        Span title = new Span(getValue(ATTACHMENT_GALLERY_TITLE));
+        Span title = new Span(msg("attachment.gallery.title", "Photos"));
         title.addClassName("attachment-gallery__title");
 
         thumbnailsRow = new Div();
         thumbnailsRow.addClassName("attachment-gallery__thumbnails");
 
-        emptyState = new Span(getValue(ATTACHMENT_GALLERY_EMPTY));
+        emptyState = new Span(msg("attachment.gallery.empty", "No photos"));
         emptyState.addClassName("attachment-gallery__empty");
         emptyState.setVisible(false);
 
         add(title, thumbnailsRow, emptyState);
     }
 
-    public void configureForView(EntityType entityType, Long entityId) {
-        this.entityType = entityType;
+    public void configureForView(Long entityId) {
         this.entityId = entityId;
-        this.owner = null;
         this.editMode = false;
         refresh();
     }
 
-    public void configureForEdit(EntityType entityType, Long entityId, UserIdMarker owner) {
-        this.entityType = entityType;
+    public void configureForEdit(Long entityId) {
         this.entityId = entityId;
-        this.owner = owner;
         this.editMode = true;
         this.tempSessionId = UUID.randomUUID().toString();
         tempUploads.clear();
@@ -100,10 +91,8 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(uploadButton);
     }
 
-    public void configureForCreate(EntityType entityType, String tempSessionId) {
-        this.entityType = entityType;
+    public void configureForCreate(String tempSessionId) {
         this.entityId = null;
-        this.owner = null;
         this.editMode = true;
         this.tempSessionId = tempSessionId;
         tempUploads.clear();
@@ -114,17 +103,14 @@ public class AttachmentGallery extends Div implements I18nParams {
         add(uploadButton);
     }
 
-    public void commitTempUploads(Long entityId, UserIdMarker owner) {
+    public void commitTempUploads(Long entityId) {
+        boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && !hasPendingDeletion) return;
-
         if (!tempUploads.isEmpty()) {
-            attachmentService.commitTempUploadsQuiet(owner, entityType, entityId, tempUploads);
+            attachmentService.commitTempUploads(entityId, tempUploads);
+        } else if (hasPendingDeletion && !isCreate) {
+            attachmentService.captureSnapshot(entityId);
         }
-
-        if (entityType == EntityType.ADVERTISEMENT) {
-            attachmentService.capturePhotoChanges(entityId);
-        }
-
         tempUploads.clear();
         hasPendingDeletion = false;
     }
@@ -142,7 +128,7 @@ public class AttachmentGallery extends Div implements I18nParams {
             return;
         }
         currentAttachments.clear();
-        currentAttachments.addAll(attachmentService.getByEntityId(entityType, entityId));
+        currentAttachments.addAll(attachmentService.getByEntityId(entityId));
         if (currentAttachments.isEmpty()) {
             showEmpty();
         } else {
@@ -151,13 +137,8 @@ public class AttachmentGallery extends Div implements I18nParams {
         }
     }
 
-    private void showEmpty() {
-        emptyState.setVisible(true);
-    }
-
-    private void hideEmpty() {
-        emptyState.setVisible(false);
-    }
+    private void showEmpty() { emptyState.setVisible(true); }
+    private void hideEmpty() { emptyState.setVisible(false); }
 
     private Div buildThumbnail(Attachment attachment) {
         Div wrapper = new Div();
@@ -168,7 +149,7 @@ public class AttachmentGallery extends Div implements I18nParams {
 
         if (editMode) {
             Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
-                attachmentService.deleteSkipSnapshot(owner, attachment.getId());
+                attachmentService.deleteSkipSnapshot(attachment.getId());
                 hasPendingDeletion = true;
                 currentAttachments.remove(attachment);
                 wrapper.removeFromParent();
@@ -180,7 +161,6 @@ public class AttachmentGallery extends Div implements I18nParams {
             img.addClickListener(_ -> openLightbox(attachment));
             wrapper.add(img);
         }
-
         return wrapper;
     }
 
@@ -198,7 +178,6 @@ public class AttachmentGallery extends Div implements I18nParams {
             if (thumbnailsRow.getComponentCount() == 0) showEmpty();
         });
         styleDeleteBtn(deleteBtn);
-
         wrapper.add(img, deleteBtn);
         return wrapper;
     }
@@ -207,11 +186,8 @@ public class AttachmentGallery extends Div implements I18nParams {
         Upload upload = new Upload(UploadHandler.inMemory((metadata, bytes) -> {
             if (tempSessionId != null) {
                 TempAttachment temp = attachmentService.uploadTemp(
-                        tempSessionId,
-                        metadata.fileName(),
-                        new ByteArrayInputStream(bytes),
-                        bytes.length,
-                        metadata.contentType()
+                        tempSessionId, metadata.fileName(),
+                        new ByteArrayInputStream(bytes), bytes.length, metadata.contentType()
                 );
                 tempUploads.add(temp);
                 hideEmpty();
@@ -219,20 +195,15 @@ public class AttachmentGallery extends Div implements I18nParams {
             } else {
                 try {
                     Attachment saved = attachmentService.upload(
-                            owner,
-                            entityType,
-                            entityId,
-                            metadata.fileName(),
-                            new ByteArrayInputStream(bytes),
-                            bytes.length,
-                            metadata.contentType()
+                            entityId, metadata.fileName(),
+                            new ByteArrayInputStream(bytes), bytes.length, metadata.contentType()
                     );
                     hideEmpty();
                     currentAttachments.add(saved);
                     thumbnailsRow.add(buildThumbnail(saved));
                 } catch (Exception e) {
                     log.error("Failed to upload attachment: {}", metadata.fileName(), e);
-                    notificationService.error(ATTACHMENT_GALLERY_UPLOAD_ERROR);
+                    showError(msg("attachment.gallery.upload.error", "Upload failed"));
                 }
             }
         }));
@@ -251,10 +222,7 @@ public class AttachmentGallery extends Div implements I18nParams {
     }
 
     private static void styleDeleteBtn(Button btn) {
-        btn.addThemeVariants(
-                ButtonVariant.LUMO_TERTIARY,
-                ButtonVariant.LUMO_ERROR,
-                ButtonVariant.LUMO_ICON);
+        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_ICON);
         btn.addClassName("attachment-gallery__delete-btn");
     }
 
@@ -269,5 +237,21 @@ public class AttachmentGallery extends Div implements I18nParams {
 
         overlay.add(img);
         getUI().ifPresent(ui -> ui.getElement().appendChild(overlay.getElement()));
+    }
+
+    private static void showError(String message) {
+        Notification n = Notification.show(message, 5000, Notification.Position.TOP_END);
+        n.addThemeVariants(NotificationVariant.LUMO_ERROR);
+    }
+
+    private String msg(String key, String fallback) {
+        Locale locale = VaadinSession.getCurrent() != null
+                ? VaadinSession.getCurrent().getLocale()
+                : Locale.getDefault();
+        try {
+            return messageSource.getMessage(key, null, locale);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 }

@@ -252,10 +252,12 @@ public enum I18nKey {
     // === Restore Confirm ===
     ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),
     ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED("advertisement.restore.confirm.desc.changed"),
+    ADVERTISEMENT_RESTORE_NO_CHANGE("advertisement.restore.no.change"),
 
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
-    CHANGES_FIELD_DESCRIPTION("changes.field.description");
+    CHANGES_FIELD_DESCRIPTION("changes.field.description"),
+    CHANGES_PHOTOS("changes.photos");
 
     private final String key;
 
