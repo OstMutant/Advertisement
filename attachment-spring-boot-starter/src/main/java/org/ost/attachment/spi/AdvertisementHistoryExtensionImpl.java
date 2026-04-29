@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.attachment.service.PhotoSnapshotService;
-import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

@@ -6,7 +6,7 @@ import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.UserActivityExtension;
 import org.ost.attachment.service.PhotoSnapshotService;
-import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

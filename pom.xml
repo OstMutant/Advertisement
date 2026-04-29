@@ -20,10 +20,9 @@
 
     <modules>
         <module>sql-engine</module>
-        <module>advertisement-events</module>
+        <module>advertisement-contracts</module>
         <module>attachment-spring-boot-starter</module>
         <module>advertisement-app</module>
-        <module>storage-api</module>
         <module>storage-s3-spring-boot-starter</module>
     </modules>
 
@@ -52,17 +51,12 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
-                <artifactId>advertisement-events</artifactId>
+                <artifactId>advertisement-contracts</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>attachment-spring-boot-starter</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.ost</groupId>
-                <artifactId>storage-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

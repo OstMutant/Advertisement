@@ -1,6 +1,6 @@
 package org.ost.storage.s3;
 
-import org.ost.storage.api.StorageService;
+import org.ost.advertisement.spi.storage.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

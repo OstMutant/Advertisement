@@ -5,7 +5,7 @@ import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.PhotoSnapshotService;
-import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionSynchronization;

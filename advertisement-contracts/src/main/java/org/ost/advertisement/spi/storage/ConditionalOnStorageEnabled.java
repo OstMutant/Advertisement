@@ -1,4 +1,4 @@
-package org.ost.storage.api;
+package org.ost.advertisement.spi.storage;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 

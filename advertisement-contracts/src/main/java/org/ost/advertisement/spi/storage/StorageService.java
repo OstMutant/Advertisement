@@ -1,4 +1,4 @@
-package org.ost.storage.api;
+package org.ost.advertisement.spi.storage;
 
 import java.io.InputStream;
 import java.time.Instant;

@@ -1,4 +1,4 @@
-@echo off
+В@echo off
 set JAVA_HOME=d:\Program Files\Java\jdk-25
 set MAVEN_OPTS=--enable-native-access=ALL-UNNAMED
 

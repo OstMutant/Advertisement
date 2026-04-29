@@ -24,15 +24,11 @@
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>advertisement-events</artifactId>
+            <artifactId>advertisement-contracts</artifactId>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>attachment-spring-boot-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ost</groupId>
-            <artifactId>storage-api</artifactId>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>

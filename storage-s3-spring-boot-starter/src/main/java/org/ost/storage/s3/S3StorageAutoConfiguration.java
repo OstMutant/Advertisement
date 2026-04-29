@@ -1,7 +1,7 @@
 package org.ost.storage.s3;
 
-import org.ost.storage.api.ConditionalOnStorageEnabled;
-import org.ost.storage.api.StorageService;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.StorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

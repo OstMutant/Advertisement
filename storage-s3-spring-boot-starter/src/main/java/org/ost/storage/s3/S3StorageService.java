@@ -1,6 +1,6 @@
 package org.ost.storage.s3;
 
-import org.ost.storage.api.StorageService;
+import org.ost.advertisement.spi.storage.StorageService;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;

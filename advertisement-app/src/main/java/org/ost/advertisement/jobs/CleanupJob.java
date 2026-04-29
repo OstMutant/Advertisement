@@ -2,7 +2,7 @@ package org.ost.advertisement.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.storage.api.StorageService;
+import org.ost.advertisement.spi.storage.StorageService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;

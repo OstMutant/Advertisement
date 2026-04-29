@@ -19,7 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entity.Attachment;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
-import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 

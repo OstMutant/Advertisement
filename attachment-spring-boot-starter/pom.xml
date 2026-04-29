@@ -19,11 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>advertisement-events</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ost</groupId>
-            <artifactId>storage-api</artifactId>
+            <artifactId>advertisement-contracts</artifactId>
         </dependency>
 
         <dependency>

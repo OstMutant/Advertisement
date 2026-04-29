@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>storage-api</artifactId>
+            <artifactId>advertisement-contracts</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

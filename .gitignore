@@ -1,5 +1,7 @@
 /.idea
-/target
+
+
+
 /src/main/bundles
 /node_modules
 /advertisement-app/src/main/frontend/generated/
@@ -26,3 +28,7 @@
 /playwright/screenshots/
 /attachment-spring-boot-starter/target
 /advertisement-events/target
+/advertisement-app/.vaadin-node-tasks.lock
+/advertisement-app/vite.generated.ts
+/advertisement-app/vite.config.ts
+/advertisement-contracts/target/

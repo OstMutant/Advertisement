@@ -6,7 +6,7 @@ import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardPhotoLightbox;
-import org.ost.storage.api.ConditionalOnStorageEnabled;
+import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
