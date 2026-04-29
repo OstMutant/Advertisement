@@ -1,8 +1,10 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes;
 
+import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
@@ -22,7 +24,7 @@ import org.ost.advertisement.ui.views.components.fields.UiTextField;
 import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.attachment.ui.AttachmentGallery;
+import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.Configurable;
@@ -35,6 +37,7 @@ import java.util.UUID;
 
 import static org.ost.advertisement.common.I18nKey.*;
 
+@Uses(Upload.class)
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -66,13 +69,13 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
-    private final ObjectProvider<AttachmentGallery>               galleryProvider;
+    private final ObjectProvider<AdvertisementGalleryExtension>   galleryExtension;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
     @Getter
     private Advertisement savedAdvertisement;
-    private AttachmentGallery activeGallery;
+    private AdvertisementGalleryExtension.FormHandle activeHandle;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -111,16 +114,11 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        galleryProvider.ifAvailable(gallery -> {
-            this.activeGallery = gallery;
-
-            if (isCreate) {
-                String tempSessionId = UUID.randomUUID().toString();
-                gallery.configureForCreate(tempSessionId);
-            } else {
-                gallery.configureForEdit(params.getAd().getId());
-            }
-            content.add(gallery);
+        galleryExtension.ifAvailable(ext -> {
+            this.activeHandle = isCreate
+                    ? ext.buildGalleryForCreate(UUID.randomUUID().toString())
+                    : ext.buildGalleryForEdit(params.getAd().getId());
+            content.add(activeHandle.getComponent());
         });
 
         if (!isCreate) {
@@ -144,15 +142,15 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     public boolean save() {
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
-            if (this.activeGallery != null) {
-                this.activeGallery.commitTempUploads(savedAdvertisement.getId());
+            if (this.activeHandle != null) {
+                this.activeHandle.commit(savedAdvertisement.getId());
             }
         });
     }
 
     public void discard() {
-        if (this.activeGallery != null) {
-            this.activeGallery.discardTempUploads();
+        if (this.activeHandle != null) {
+            this.activeHandle.discard();
         }
     }
 

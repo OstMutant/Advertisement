@@ -3,9 +3,9 @@ package org.ost.advertisement.repository.advertisement;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.dto.AdvertisementHistoryDto;
-import org.ost.advertisement.entities.ActionType;
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlFieldDefinition;
 import org.ost.sqlengine.projection.SqlFixedProjection;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,18 +27,12 @@ public class AdvertisementHistoryProjection extends SqlFixedProjection<Advertise
                    COALESCE(u.name, '—') AS changed_by_name,
                    prev.id               AS prev_id,
                    prev.title            AS prev_title,
-                   prev.description      AS prev_description,
-                   ps_curr.attachment_urls AS curr_attachment_urls
+                   prev.description      AS prev_description
             FROM advertisement_snapshot s
             LEFT JOIN user_information u ON u.id = s.changed_by_user_id
             LEFT JOIN advertisement_snapshot prev
                    ON prev.advertisement_id = s.advertisement_id
                   AND prev.version = s.version - 1
-            LEFT JOIN LATERAL (
-                SELECT attachment_urls FROM photo_snapshot
-                WHERE advertisement_id = s.advertisement_id AND version <= s.version
-                ORDER BY version DESC LIMIT 1
-            ) ps_curr ON true
             WHERE s.advertisement_id = :adId
               AND (CAST(:filterUserId AS BIGINT) IS NULL OR s.changed_by_user_id = :filterUserId)
             ORDER BY s.version DESC
@@ -88,20 +82,8 @@ public class AdvertisementHistoryProjection extends SqlFixedProjection<Advertise
                 parseChanges(CHANGES_SUMMARY.extract(rs)),
                 PREV_ID.extract(rs),
                 PREV_TITLE.extract(rs),
-                PREV_DESCRIPTION.extract(rs),
-                null,
-                toStringArray(rs, "curr_attachment_urls")
+                PREV_DESCRIPTION.extract(rs)
         );
-    }
-
-    private static String[] toStringArray(ResultSet rs, String col) {
-        try {
-            java.sql.Array arr = rs.getArray(col);
-            if (arr == null) return null;
-            return (String[]) arr.getArray();
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private List<ChangeEntry> parseChanges(String json) {

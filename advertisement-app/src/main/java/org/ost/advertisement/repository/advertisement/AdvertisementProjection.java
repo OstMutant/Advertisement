@@ -24,8 +24,8 @@ public class AdvertisementProjection extends SqlProjection<AdvertisementInfoDto>
     public static final SqlFieldDefinition<Long>    USER_ID        = id(UserTable.ID,       createdByUserId);
     public static final SqlFieldDefinition<String>  USER_NAME      = str(UserTable.NAME,     createdByUserName);
     public static final SqlFieldDefinition<String>  USER_EMAIL     = str(UserTable.EMAIL,    createdByUserEmail);
-    public static final SqlFieldDefinition<String>  MAIN_IMAGE_URL = str("att.att_url",      mainImageUrl);
-    public static final SqlFieldDefinition<Integer> IMAGE_COUNT    = intVal("att.att_count", imageCount);
+    public static final SqlFieldDefinition<String>  MAIN_IMAGE_URL = str(AdvertisementTable.ALIAS + ".main_image_url", mainImageUrl);
+    public static final SqlFieldDefinition<Integer> IMAGE_COUNT    = intVal(AdvertisementTable.ALIAS + ".image_count",    imageCount);
 
     public AdvertisementProjection() {
         super(List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT, USER_ID, USER_NAME, USER_EMAIL,

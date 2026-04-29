@@ -1,7 +1,7 @@
 package org.ost.advertisement.config;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.spi.AttachmentCurrentUserProvider;
+import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.context.annotation.Bean;

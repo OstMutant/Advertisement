@@ -14,6 +14,18 @@
 
     <artifactId>advertisement-events</artifactId>
     <name>Advertisement Events</name>
-    <description>Shared event records — no dependencies, pure Java</description>
+    <description>Shared Kernel — events, DTOs, SPI interfaces shared across modules</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+    </dependencies>
 
 </project>

@@ -14,10 +14,10 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.dto.ActivityItemDto;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.dto.ActivityItemDto;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.services.ActivityService;
@@ -264,7 +264,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
             switch (entry) {
                 case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
                 case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
-                case ChangeEntry.PhotoChange ignored                                 -> photoInChanges = true;
+                case ChangeEntry.GenericChange ignored                                 -> photoInChanges = true;
                 default -> {}
             }
             String text = activityUiUtil.format(entry);

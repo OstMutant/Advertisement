@@ -3,28 +3,29 @@ package org.ost.advertisement.services;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.advertisement.dto.UserSettings;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.model.ChangeEntry;
-import org.ost.advertisement.model.ChangeEntry.FieldChange;
-import org.ost.advertisement.model.ChangeEntry.SettingChange;
-import org.ost.advertisement.model.ChangeEntry.NoteEntry;
+import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.events.model.ChangeEntry.FieldChange;
+import org.ost.advertisement.events.model.ChangeEntry.SettingChange;
+import org.ost.advertisement.events.model.ChangeEntry.NoteEntry;
 import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjection;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
+import org.springframework.beans.factory.ObjectProvider;
+
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -38,6 +39,7 @@ public class SnapshotService {
     private final NamedParameterJdbcTemplate    jdbc;
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
     private final AdvertisementHistoryProjection historyProjection;
+    private final ObjectProvider<AdvertisementHistoryExtension> historyExtension;
 
     @Transactional
     public void captureAdvertisement(Advertisement ad, ActionType actionType, Long changedByUserId) {
@@ -209,108 +211,23 @@ public class SnapshotService {
     }
 
     public List<AdvertisementHistoryDto> getAdvertisementHistory(Long advertisementId, Long currentUserId, boolean showAll) {
-        List<AdvertisementHistoryDto> textHistory = historyProjection.queryAll(jdbc,
+        List<AdvertisementHistoryDto> history = historyProjection.queryAll(jdbc,
                 new MapSqlParameterSource()
                         .addValue("adId",         advertisementId)
                         .addValue("filterUserId", showAll ? null : currentUserId));
-
-        List<AdvertisementHistoryDto> photoHistory = getPhotoHistory(advertisementId, showAll ? null : currentUserId);
-
-        if (photoHistory.isEmpty()) return textHistory;
-
-        List<AdvertisementHistoryDto> result    = new ArrayList<>(textHistory);
-        List<AdvertisementHistoryDto> remaining = new ArrayList<>();
-
-        for (AdvertisementHistoryDto ph : photoHistory) {
-            AdvertisementHistoryDto matchingText = result.stream()
-                    .filter(t -> t.version() == ph.version())
-                    .findFirst().orElse(null);
-
-            if (matchingText != null) {
-                result.remove(matchingText);
-                List<ChangeEntry> merged = new ArrayList<>(matchingText.changes());
-                merged.addAll(ph.changes());
-                String[] currUrls = matchingText.currAttachmentUrls() != null
-                        ? matchingText.currAttachmentUrls() : ph.currAttachmentUrls();
-                result.add(new AdvertisementHistoryDto(
-                        matchingText.snapshotId(), matchingText.version(), matchingText.actionType(),
-                        matchingText.changedByUserName(), matchingText.createdAt(),
-                        matchingText.title(), matchingText.description(), merged,
-                        matchingText.prevSnapshotId(), matchingText.prevTitle(), matchingText.prevDescription(),
-                        ph.prevAttachmentUrls(), currUrls
-                ));
-            } else {
-                remaining.add(ph);
-            }
-        }
-
-        result.addAll(remaining);
-        result.sort(Comparator.comparing(AdvertisementHistoryDto::createdAt).reversed());
-        return result;
-    }
-
-    private List<AdvertisementHistoryDto> getPhotoHistory(Long advertisementId, Long filterUserId) {
-        return jdbc.query("""
-                SELECT ps.id, ps.version, ps.changes_summary::text AS changes_summary,
-                       ps.created_at, COALESCE(u.name, '—') AS changed_by_name,
-                       ps.attachment_urls,
-                       (SELECT prev.attachment_urls FROM photo_snapshot prev
-                        WHERE prev.advertisement_id = ps.advertisement_id AND prev.version < ps.version
-                        ORDER BY prev.version DESC LIMIT 1) AS prev_attachment_urls
-                FROM photo_snapshot ps
-                LEFT JOIN user_information u ON u.id = ps.changed_by_user_id
-                WHERE ps.advertisement_id = :adId
-                  AND ps.changes_summary IS NOT NULL
-                  AND (CAST(:filterUserId AS BIGINT) IS NULL OR ps.changed_by_user_id = :filterUserId)
-                ORDER BY ps.version DESC
-                LIMIT 50
-                """,
-                new MapSqlParameterSource()
-                        .addValue("adId",         advertisementId)
-                        .addValue("filterUserId", filterUserId),
-                (rs, row) -> {
-                    List<ChangeEntry> changes = parsePhotoChanges(rs.getString("changes_summary"));
-                    if (changes.isEmpty()) return null;
-                    String[] prevUrls = toStringArray(rs, "prev_attachment_urls");
-                    String[] currUrls = toStringArray(rs, "attachment_urls");
-                    return new AdvertisementHistoryDto(
-                            rs.getLong("id"),
-                            rs.getInt("version"),
-                            ActionType.UPDATED,
-                            rs.getString("changed_by_name"),
-                            rs.getTimestamp("created_at").toInstant(),
-                            null, null, changes, null, null, null,
-                            prevUrls, currUrls
-                    );
-                }
-        ).stream().filter(Objects::nonNull).toList();
-    }
-
-    private static String[] toStringArray(java.sql.ResultSet rs, String col) {
-        try {
-            java.sql.Array arr = rs.getArray(col);
-            if (arr == null) return null;
-            return (String[]) arr.getArray();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<ChangeEntry> parsePhotoChanges(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            List<Map<String, Object>> raw = objectMapper.readValue(json, new TypeReference<>() {});
-            return raw.stream()
-                    .map(m -> {
-                        List<String> before = (List<String>) m.getOrDefault("before", List.of());
-                        List<String> after  = (List<String>) m.getOrDefault("after",  List.of());
-                        return (ChangeEntry) new ChangeEntry.PhotoChange(before, after);
-                    })
-                    .toList();
-        } catch (Exception e) {
-            return List.of();
-        }
+        AdvertisementHistoryExtension ext = historyExtension.getIfAvailable();
+        if (ext == null) return history;
+        return history.stream()
+                .map(h -> {
+                    List<ChangeEntry> photoChanges = ext.getPhotoChanges(advertisementId, h.version());
+                    if (photoChanges.isEmpty()) return h;
+                    List<ChangeEntry> combined = new ArrayList<>(photoChanges);
+                    combined.addAll(h.changes());
+                    return new AdvertisementHistoryDto(h.snapshotId(), h.version(), h.actionType(),
+                            h.changedByUserName(), h.createdAt(), h.title(), h.description(),
+                            combined, h.prevSnapshotId(), h.prevTitle(), h.prevDescription());
+                })
+                .toList();
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {

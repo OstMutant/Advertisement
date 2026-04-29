@@ -3,9 +3,9 @@ package org.ost.advertisement.repository.activity;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.dto.ActivityItemDto;
-import org.ost.advertisement.entities.ActionType;
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.dto.ActivityItemDto;
+import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlFieldDefinition;
 import org.ost.sqlengine.projection.SqlFixedProjection;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -61,33 +61,10 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                 LEFT JOIN user_information u ON u.id = s.changed_by_user_id
                 WHERE s.changed_by_user_id = :userId OR s.user_id = :userId
                 ORDER BY s.created_at DESC LIMIT 20
-            ),
-            photo_act AS (
-                SELECT ps.id                                                              AS snapshot_id,
-                       ps.advertisement_id                                                AS entity_id,
-                       'ADVERTISEMENT'                                                    AS entity_type,
-                       COALESCE(a.title, '—')                                             AS display_name,
-                       'UPDATED'                                                          AS action_type,
-                       ps.created_at,
-                       EXISTS(SELECT 1 FROM advertisement a2
-                              WHERE a2.id = ps.advertisement_id AND a2.deleted_at IS NULL) AS entity_exists,
-                       ps.changes_summary::text                                           AS changes_summary,
-                       ps.changed_by_user_id,
-                       COALESCE(u.name, '—')                                              AS changed_by_name,
-                       COALESCE(a.title, '—')                                             AS snapshot_title,
-                       NULL::text                                                         AS snapshot_description
-                FROM photo_snapshot ps
-                LEFT JOIN advertisement a ON a.id = ps.advertisement_id
-                LEFT JOIN user_information u ON u.id = ps.changed_by_user_id
-                WHERE ps.changed_by_user_id = :userId
-                  AND ps.changes_summary IS NOT NULL
-                ORDER BY ps.created_at DESC LIMIT 20
             )
             SELECT * FROM adv_act
             UNION ALL
             SELECT * FROM user_act
-            UNION ALL
-            SELECT * FROM photo_act
             ORDER BY created_at DESC
             LIMIT 20
             """;
@@ -140,22 +117,6 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});
         } catch (Exception e) {
-            // photo_snapshot stores [{before:[...], after:[...]}] without type discriminator
-            return parsePhotoChanges(json);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private List<ChangeEntry> parsePhotoChanges(String json) {
-        try {
-            List<java.util.Map<String, Object>> raw = objectMapper.readValue(json, new TypeReference<>() {});
-            return raw.stream()
-                    .map(m -> (ChangeEntry) new ChangeEntry.PhotoChange(
-                            (List<String>) m.getOrDefault("before", List.of()),
-                            (List<String>) m.getOrDefault("after",  List.of())
-                    ))
-                    .toList();
-        } catch (Exception e2) {
             return List.of();
         }
     }

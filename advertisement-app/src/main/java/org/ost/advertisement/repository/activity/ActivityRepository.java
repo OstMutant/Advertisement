@@ -1,7 +1,7 @@
 package org.ost.advertisement.repository.activity;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.ActivityItemDto;
+import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;

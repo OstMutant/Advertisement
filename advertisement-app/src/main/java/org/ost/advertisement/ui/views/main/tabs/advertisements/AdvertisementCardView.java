@@ -26,8 +26,7 @@ import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButt
 import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 
-import org.ost.attachment.service.AttachmentService;
-import org.ost.attachment.ui.CardPhotoLightbox;
+import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -65,7 +64,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
-    private final transient ObjectProvider<AttachmentService>  attachmentServiceProvider;
+    private final transient ObjectProvider<AdvertisementGalleryExtension> galleryExtension;
 
     @Override
     @PostConstruct
@@ -107,9 +106,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener("click", _ ->
-            attachmentServiceProvider.ifAvailable(svc -> {
-                CardPhotoLightbox.open(svc.getByEntityId(ad.getId()), 0);
-            })
+                galleryExtension.ifAvailable(ext -> ext.openPhotoLightbox(ad.getId()))
         ).addEventData("event.stopPropagation()");
         return wrapper;
     }

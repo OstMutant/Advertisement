@@ -13,9 +13,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.advertisement.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.SnapshotService;
@@ -24,8 +24,8 @@ import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.attachment.service.AttachmentService;
-import org.ost.attachment.ui.AttachmentGallery;
+import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
+import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
@@ -35,7 +35,7 @@ import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.model.ChangeEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -74,8 +74,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final ObjectProvider<AttachmentGallery>   galleryProvider;
-    private final ObjectProvider<AttachmentService>   attachmentServiceProvider;
+    private final ObjectProvider<AdvertisementGalleryExtension>  galleryExtension;
+    private final ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
     private final ConfirmActionDialog.Builder         confirmDialogBuilder;
 
     private Parameters params;
@@ -140,10 +140,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         Div viewBody = new Div(textCard);
 
-        galleryProvider.ifAvailable(gallery -> {
-            gallery.configureForView(params.getAd().getId());
-            viewBody.add(gallery);
-        });
+        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(params.getAd().getId())));
 
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
@@ -166,7 +163,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         String currentTitle = params.getAd().getTitle();
         String currentDesc  = params.getAd().getDescription();
-        java.util.Set<String> currentPhotoUrls = loadCurrentPhotoUrls(adId);
 
         for (AdvertisementHistoryDto h : history) {
             Div row = new Div();
@@ -197,9 +193,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             if (access.canOperate(params.getAd()) && isTextRow
                     && (h.actionType() != ActionType.CREATED || history.size() > 1)) {
 
-                boolean matchesCurrent = Objects.equals(h.title(), currentTitle)
-                        && Objects.equals(h.description(), currentDesc)
-                        && matchesCurrentPhotos(h.currAttachmentUrls(), currentPhotoUrls);
+                boolean textMatches = Objects.equals(h.title(), currentTitle)
+                        && Objects.equals(h.description(), currentDesc);
+                boolean matchesCurrent = textMatches && photosMatchCurrent(params.getAd().getId(), h.version());
 
                 if (matchesCurrent) {
                     Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
@@ -210,7 +206,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                     restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     restoreBtn.addClassName("adv-history-restore-btn");
                     long snapId = h.snapshotId();
-                    restoreBtn.addClickListener(_ -> showRestoreConfirm(h, snapId, currentPhotoUrls));
+                    restoreBtn.addClickListener(_ -> showRestoreConfirm(h, snapId));
                     row.add(restoreBtn);
                 }
             }
@@ -233,7 +229,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             switch (entry) {
                 case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
                 case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
-                case ChangeEntry.PhotoChange ignored                                 -> photoInChanges = true;
+                case ChangeEntry.GenericChange ignored                                 -> photoInChanges = true;
                 default -> {}
             }
             String text = activityUiUtil.format(entry);
@@ -256,21 +252,15 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
             container.add(item);
         }
-        if (!photoInChanges && h.currAttachmentUrls() != null) {
-            String photoLabel = getValue(CHANGES_PHOTOS);
-            String photos = h.currAttachmentUrls().length == 0 ? "—"
-                    : java.util.Arrays.stream(h.currAttachmentUrls()).map(AdvertisementViewOverlayModeHandler::filename)
-                            .collect(java.util.stream.Collectors.joining(", "));
-            Span item = new Span("• " + photoLabel + ": " + photos);
-            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
-            container.add(item);
-        }
-
         return container;
     }
 
-    private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId,
-                                     java.util.Set<String> currentPhotoUrls) {
+    private boolean photosMatchCurrent(Long adId, int version) {
+        AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+        return ext == null || ext.photosMatchCurrent(adId, version);
+    }
+
+    private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {
         List<String> lines = new ArrayList<>();
 
         String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
@@ -288,33 +278,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             lines.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED));
         }
 
-        if (h.currAttachmentUrls() != null) {
-            java.util.Set<String> targetUrls = java.util.Arrays.stream(h.currAttachmentUrls())
-                    .collect(java.util.stream.Collectors.toSet());
-            List<String> photoLines = new ArrayList<>();
-            for (String url : targetUrls) {
-                String fn = filename(url);
-                if (currentPhotoUrls.contains(url)) {
-                    photoLines.add("  = " + fn);
-                } else {
-                    photoLines.add("  + " + fn);
-                }
-            }
-            for (String url : currentPhotoUrls) {
-                if (!targetUrls.contains(url)) {
-                    photoLines.add("  - " + filename(url));
-                }
-            }
-            java.util.Collections.sort(photoLines);
-            if (photoLines.isEmpty()) {
-                lines.add(getValue(CHANGES_PHOTOS) + ": " + noChange);
-            } else {
-                lines.add(getValue(CHANGES_PHOTOS) + ":\n" + String.join("\n", photoLines));
-            }
-        } else {
-            lines.add(getValue(CHANGES_PHOTOS) + ": " + noChange);
-        }
-
         confirmDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
@@ -324,26 +287,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                         .onConfirm(() -> params.getOnRestore().accept(snapshotId))
                         .build()
         ).open();
-    }
-
-    private static String filename(String url) {
-        if (url == null || url.isBlank()) return url;
-        int i = url.lastIndexOf('/');
-        return i >= 0 ? url.substring(i + 1) : url;
-    }
-
-    private java.util.Set<String> loadCurrentPhotoUrls(Long adId) {
-        AttachmentService svc = attachmentServiceProvider.getIfAvailable();
-        if (svc == null) return java.util.Set.of();
-        return svc.getByEntityId(adId).stream()
-                .map(org.ost.attachment.entity.Attachment::getUrl)
-                .collect(java.util.stream.Collectors.toSet());
-    }
-
-    private boolean matchesCurrentPhotos(String[] currUrls, java.util.Set<String> currentUrls) {
-        if (currUrls == null) return true;
-        java.util.Set<String> target = java.util.Set.of(currUrls);
-        return target.equals(currentUrls);
     }
 
 }

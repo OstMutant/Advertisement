@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;

@@ -41,7 +41,12 @@
       "Bash(wait)",
       "Bash(apt-get update *)",
       "Bash(unzip -l /tmp/app.jar)",
-      "Bash(grep -E \"\\\\.java$\")"
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(awk -F: '{print $1}')",
+      "Bash(grep -v \"^$\")",
+      "Bash(grep -v \"png$\")",
+      "Bash(mvn -pl attachment-spring-boot-starter compile -q)",
+      "Bash(grep -v \"\\\\.png$\")"
     ]
   },
   "hooks": {

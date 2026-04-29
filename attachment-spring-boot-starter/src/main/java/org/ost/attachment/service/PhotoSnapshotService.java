@@ -1,7 +1,9 @@
 package org.ost.attachment.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.events.model.ChangeEntry;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,7 @@ import java.sql.Array;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -62,7 +65,49 @@ public class PhotoSnapshotService {
         );
     }
 
+    public boolean photosMatchCurrent(Long adId, int version) {
+        List<String> atVersion = jdbc.query(
+                "SELECT attachment_urls FROM photo_snapshot " +
+                "WHERE advertisement_id = :adId AND version <= :version " +
+                "ORDER BY version DESC LIMIT 1",
+                new MapSqlParameterSource().addValue("adId", adId).addValue("version", version),
+                (rs, row) -> toStringList(rs, "attachment_urls")
+        ).stream().findFirst().orElse(List.of());
+        List<String> current = getActiveUrls(adId);
+        List<String> atNames  = atVersion.stream().map(PhotoSnapshotService::filename).sorted().toList();
+        List<String> curNames = current.stream().map(PhotoSnapshotService::filename).sorted().toList();
+        return atNames.equals(curNames);
+    }
+
+    public List<ChangeEntry> getChangesForVersion(Long adId, int version) {
+        return jdbc.query(
+                "SELECT changes_summary::text FROM photo_snapshot " +
+                "WHERE advertisement_id = :adId AND version = :version AND changes_summary IS NOT NULL",
+                new MapSqlParameterSource().addValue("adId", adId).addValue("version", version),
+                (rs, row) -> parsePhotoChanges(rs.getString(1))
+        ).stream().findFirst().orElse(List.of());
+    }
+
     // ── internals ────────────────────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    public List<ChangeEntry> parsePhotoChanges(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            List<Map<String, Object>> raw = objectMapper.readValue(json, new TypeReference<>() {});
+            return raw.stream()
+                    .map(m -> {
+                        List<String> before = (List<String>) m.getOrDefault("before", List.of());
+                        List<String> after  = (List<String>) m.getOrDefault("after",  List.of());
+                        String beforeStr = before.isEmpty() ? "—" : String.join(", ", before);
+                        String afterStr  = after.isEmpty()  ? "—" : String.join(", ", after);
+                        return (ChangeEntry) new ChangeEntry.GenericChange("changes.photos", beforeStr, afterStr);
+                    })
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
 
     private List<String> getPrevUrls(Long adId) {
         return jdbc.query(

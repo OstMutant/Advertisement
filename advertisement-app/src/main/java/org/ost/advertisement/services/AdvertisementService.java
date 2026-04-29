@@ -4,12 +4,16 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.events.AdvertisementDeletedEvent;
+import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -29,11 +33,12 @@ import java.util.Optional;
 @Validated
 public class AdvertisementService {
 
-    private final AdvertisementRepository  repository;
-    private final AccessEvaluator          access;
-    private final SnapshotService          snapshotService;
-    private final AuthContextService       authContextService;
-    private final ApplicationEventPublisher context;
+    private final AdvertisementRepository       repository;
+    private final AccessEvaluator               access;
+    private final SnapshotService               snapshotService;
+    private final AuthContextService            authContextService;
+    private final ApplicationEventPublisher     context;
+    private final NamedParameterJdbcTemplate    jdbc;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -98,5 +103,16 @@ public class AdvertisementService {
             context.publishEvent(new AdvertisementDeletedEvent(ad.getId(), currentUserId));
         }
         repository.softDelete(ad.getId(), currentUserId);
+    }
+
+    @EventListener
+    public void onMediaUpdated(AdvertisementMediaUpdatedEvent event) {
+        jdbc.update(
+                "UPDATE advertisement SET main_image_url = :url, image_count = :count WHERE id = :id",
+                new MapSqlParameterSource()
+                        .addValue("url",   event.mainImageUrl())
+                        .addValue("count", event.imageCount())
+                        .addValue("id",    event.adId())
+        );
     }
 }

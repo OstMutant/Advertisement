@@ -28,6 +28,11 @@
             <column name="version" descending="true"/>
         </createIndex>
 
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_photo_snapshot_changes ON photo_snapshot USING GIN (changes_summary);
+            CREATE INDEX IF NOT EXISTS idx_photo_snapshot_adv_version ON photo_snapshot (advertisement_id, version DESC);
+        </sql>
+
     </changeSet>
 
 </databaseChangeLog>

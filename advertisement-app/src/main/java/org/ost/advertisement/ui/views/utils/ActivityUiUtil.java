@@ -4,8 +4,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.services.I18nService;
 
 import java.util.List;
@@ -54,11 +53,12 @@ public class ActivityUiUtil {
                 yield label + ": " + s.from() + " → " + s.to();
             }
             case ChangeEntry.NoteEntry n -> n.text();
-            case ChangeEntry.PhotoChange p -> {
-                String label = i18n.get(I18nKey.CHANGES_PHOTOS);
-                String before = p.before() == null || p.before().isEmpty() ? "—" : String.join(", ", p.before());
-                String after  = p.after()  == null || p.after().isEmpty()  ? "—" : String.join(", ", p.after());
-                yield label + ": " + before + " → " + after;
+            case ChangeEntry.GenericChange g -> {
+                String label = i18n.get(g.labelI18nKey());
+                if (g.before() == null || g.before().isBlank()) {
+                    yield label + ": \"" + g.after() + "\"";
+                }
+                yield label + ": " + g.before() + " → " + g.after();
             }
         };
     }

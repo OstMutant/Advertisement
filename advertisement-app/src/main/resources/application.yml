@@ -26,6 +26,10 @@ management:
       exposure:
         include: "*"
 
+vaadin:
+  whitelisted-packages:
+    - org.ost.attachment
+
 # Application settings
 app:
   cleanup:

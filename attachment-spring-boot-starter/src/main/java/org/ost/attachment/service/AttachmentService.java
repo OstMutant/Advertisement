@@ -3,10 +3,12 @@ package org.ost.attachment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entity.Attachment;
-import org.ost.attachment.spi.AttachmentCurrentUserProvider;
+import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
+import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.storage.api.ConditionalOnStorageEnabled;
 import org.ost.storage.api.StorageService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -31,6 +33,7 @@ public class AttachmentService {
     private final NamedParameterJdbcTemplate                jdbc;
     private final PhotoSnapshotService                      photoSnapshotService;
     private final ObjectProvider<AttachmentCurrentUserProvider> currentUserProvider;
+    private final ApplicationEventPublisher                 eventPublisher;
 
     public List<Attachment> getByEntityId(Long entityId) {
         return jdbc.query(
@@ -46,6 +49,7 @@ public class AttachmentService {
         try {
             Attachment saved = insert(entityId, url, filename, contentType, contentLength);
             capturePhotoChanges(entityId);
+            publishMediaUpdate(entityId);
             return saved;
         } catch (Exception e) {
             storageService.delete(url);
@@ -60,6 +64,7 @@ public class AttachmentService {
         Long userId = resolveCurrentUserId();
         softDelete(attachmentId, userId);
         capturePhotoChanges(attachment.getEntityId());
+        publishMediaUpdate(attachment.getEntityId());
     }
 
     @Transactional
@@ -77,6 +82,7 @@ public class AttachmentService {
     public void commitTempUploads(Long entityId, List<TempAttachment> temps) {
         commitTempUploadsQuiet(entityId, temps);
         capturePhotoChanges(entityId);
+        publishMediaUpdate(entityId);
     }
 
     public void captureSnapshot(Long entityId) {
@@ -127,6 +133,7 @@ public class AttachmentService {
                 "  AND deleted_at IS NULL AND NOT (url = ANY(:urls))",
                 new MapSqlParameterSource().addValue("adId", adId).addValue("userId", userId).addValue("urls", urlArray)
         );
+        publishMediaUpdate(adId);
     }
 
     @Transactional
@@ -136,6 +143,7 @@ public class AttachmentService {
                 "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL",
                 new MapSqlParameterSource().addValue("deletedBy", deletedByUserId).addValue("entityId", entityId)
         );
+        publishMediaUpdate(entityId);
     }
 
     public void discardTempUploads(List<TempAttachment> temps) {
@@ -143,6 +151,21 @@ public class AttachmentService {
     }
 
     // ── internals ────────────────────────────────────────────────────────────
+
+    private void publishMediaUpdate(Long entityId) {
+        String mainUrl = jdbc.query(
+                "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id " +
+                "AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1",
+                new MapSqlParameterSource("id", entityId),
+                (rs, n) -> rs.getString("url")
+        ).stream().findFirst().orElse(null);
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL",
+                new MapSqlParameterSource("id", entityId),
+                Integer.class
+        );
+        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, mainUrl, count != null ? count : 0));
+    }
 
     private void capturePhotoChanges(Long entityId) {
         Long userId = resolveCurrentUserId();

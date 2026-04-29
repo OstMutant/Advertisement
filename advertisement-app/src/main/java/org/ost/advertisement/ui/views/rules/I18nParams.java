@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.rules;
 
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.entities.ActionType;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.services.I18nService;
 
 import static org.ost.advertisement.common.I18nKey.*;

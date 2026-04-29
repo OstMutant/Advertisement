@@ -1,4 +1,4 @@
-package org.ost.advertisement.entities;
+package org.ost.advertisement.events.model;
 
 public enum ActionType {
     CREATED, UPDATED, DELETED

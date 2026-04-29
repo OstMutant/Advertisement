@@ -6,7 +6,5 @@
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
     <include file="db/changelog/changes/01-schema.xml"/>
-    <include file="db/changelog/changes/03-separate-photo.xml"/>
-    <include file="db/changelog/changes/04-jsonb-indexes.xml"/>
 
 </databaseChangeLog>

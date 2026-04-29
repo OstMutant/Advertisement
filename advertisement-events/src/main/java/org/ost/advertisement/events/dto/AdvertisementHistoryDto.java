@@ -1,7 +1,7 @@
-package org.ost.advertisement.dto;
+package org.ost.advertisement.events.dto;
 
-import org.ost.advertisement.entities.ActionType;
-import org.ost.advertisement.model.ChangeEntry;
+import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.ChangeEntry;
 
 import java.time.Instant;
 import java.util.List;
@@ -17,7 +17,5 @@ public record AdvertisementHistoryDto(
         List<ChangeEntry> changes,
         Long              prevSnapshotId,
         String            prevTitle,
-        String            prevDescription,
-        String[]          prevAttachmentUrls,
-        String[]          currAttachmentUrls
+        String            prevDescription
 ) {}
