@@ -36,11 +36,32 @@ else
   fi
 fi
 
+# Install node_modules into /tmp only once (docker cp doesn't touch subdirs)
+INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 @playwright/test@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
+
+# ── @playwright/test spec files (*.spec) ────────────────────────────────────
+if [[ "$SCENARIO" == *.spec ]]; then
+  SPEC_FILE="/app/playwright/${SCENARIO}.js"
+  if [ ! -f "$SPEC_FILE" ]; then
+    echo "Error: spec file '$SPEC_FILE' not found"
+    exit 1
+  fi
+  docker cp "$SPEC_FILE" pw-runner:/tmp/scenario.spec.js
+  docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js
+  docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/_test-helpers.js
+  docker cp /app/playwright/playwright.config.js pw-runner:/tmp/playwright.config.js
+
+  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright npx playwright test scenario.spec.js --config playwright.config.js"
+
+  mkdir -p /app/playwright/pw-report
+  docker cp pw-runner:/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
+    echo "HTML report: /app/playwright/pw-report/index.html"
+  exit $?
+fi
+
+# ── Legacy plain-node scenarios ──────────────────────────────────────────────
 docker cp "$SCRIPT" pw-runner:/tmp/scenario.js
 docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js
-
-# Install node_modules into /tmp only once (docker cp doesn't touch subdirs)
-INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
 
 if [ "$UX_FLAG" = "--ux" ]; then
   docker exec pw-runner bash -c "$INSTALL_CMD && mkdir -p /screenshots && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SCREENSHOT_DIR=/screenshots node /tmp/scenario.js --ux"

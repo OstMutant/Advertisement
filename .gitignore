@@ -32,3 +32,4 @@
 /advertisement-app/vite.generated.ts
 /advertisement-app/vite.config.ts
 /advertisement-contracts/target/
+/playwright/pw-report/
