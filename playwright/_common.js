@@ -1,10 +1,12 @@
-const fs = require('fs');
+const { chromium } = require('playwright');
+const fs   = require('fs');
 const path = require('path');
+const https = require('https');
 
 const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || '/screenshots';
 const MAX_SCREENSHOTS = 100;
+const UX = process.argv.includes('--ux');
 
-// Fast-fail: first [FAIL] kills the process so AI sees a short output
 async function check(label, fn) {
   try {
     await fn();
@@ -15,7 +17,7 @@ async function check(label, fn) {
   }
 }
 
-async function screenshot(page, name, uxMode) {
+async function screenshot(page, name, uxMode = UX) {
   if (!uxMode) return;
   if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
   const files = fs.readdirSync(SCREENSHOT_DIR)
@@ -37,26 +39,33 @@ async function login(page, email = 'user1@example.com', password = 'password') {
   await page.locator('vaadin-email-field input').fill(email);
   await page.locator('vaadin-password-field input').fill(password);
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
-  // Wait for main navigation to appear (login redirects to app)
   await page.waitForSelector('.header-settings-button', { timeout: 10000 });
   const body = await page.textContent('body');
   if (body.includes('Not signed in')) throw new Error('Login failed');
   console.log('[OK] Logged in as', email);
 }
 
-// ── Smart wait helpers (use instead of waitForTimeout) ───────────────────────
+async function withBrowser(fn, { email = 'user1@example.com', password = 'password', skipLogin = false } = {}) {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    if (!skipLogin) await login(page, email, password);
+    await fn(page);
+  } finally {
+    await browser.close();
+  }
+}
 
-/** Wait for overlay to become visible */
+// ── Smart wait helpers ────────────────────────────────────────────────────────
+
 async function waitForOverlay(page, timeout = 5000) {
   await page.waitForSelector('.base-overlay.overlay--visible', { timeout });
 }
 
-/** Wait for overlay to close */
 async function waitForOverlayClosed(page, timeout = 5000) {
   await page.waitForSelector('.base-overlay.overlay--visible', { state: 'hidden', timeout });
 }
 
-/** Wait for vaadin-grid to contain at least one row */
 async function waitForGrid(page, selector = 'vaadin-grid', timeout = 8000) {
   await page.waitForFunction(
     sel => {
@@ -69,63 +78,89 @@ async function waitForGrid(page, selector = 'vaadin-grid', timeout = 8000) {
   );
 }
 
-/**
- * Create a new advertisement and return to list.
- * @param {object} page
- * @param {object} opts - { title, description, imagePath? }
- */
+// ── Action helpers ────────────────────────────────────────────────────────────
+
+function downloadPng(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, res => {
+      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+      res.pipe(file);
+      file.on('finish', () => file.close(resolve));
+    }).on('error', reject);
+  });
+}
+
 async function createAd(page, { title, description, imagePath } = {}) {
   await page.locator('.add-advertisement-button').click();
-  await page.waitForTimeout(600);
+  await waitForOverlay(page);
   const overlay = page.locator('.advertisement-overlay');
   await overlay.locator('vaadin-text-field input').fill(title || 'Test Ad');
   await overlay.locator('vaadin-text-area textarea').fill(description || 'Test description');
   if (imagePath) {
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(imagePath);
-    await page.waitForTimeout(1500);
+    await page.waitForSelector('.attachment-gallery__item', { timeout: 10000 });
   }
   await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-  await page.waitForTimeout(1500);
+  await waitForOverlayClosed(page);
 }
 
-/**
- * Open the detail overlay for an ad by title.
- * @param {object} page
- * @param {string} title
- */
 async function openAdDetail(page, title) {
   await page.waitForSelector('.advertisement-title', { timeout: 5000 });
   await page.locator('.advertisement-card')
     .filter({ has: page.locator('.advertisement-title', { hasText: title }) })
     .first().click();
-  await page.waitForTimeout(600);
+  await waitForOverlay(page);
 }
 
-/**
- * Open the history tab inside an already-open ad overlay.
- * Returns false if the tab is not visible.
- * @param {object} page
- */
 async function openHistory(page) {
   const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Іс|Hist/i });
   if (!await historyTab.isVisible()) return false;
   await historyTab.click();
-  await page.waitForTimeout(600);
+  await page.waitForSelector('.adv-history-list', { timeout: 5000 });
   return true;
 }
 
-/**
- * Close the overlay via breadcrumb back button.
- * @param {object} page
- */
 async function closeOverlay(page) {
   await page.locator('.overlay__breadcrumb-back').click();
-  await page.waitForSelector('.base-overlay.overlay--visible', { state: 'hidden', timeout: 5000 }).catch(() => {});
-  await page.waitForTimeout(300);
+  await waitForOverlayClosed(page).catch(() => {});
+}
+
+async function openSettings(page) {
+  await page.locator('.header-settings-button').click();
+  await waitForOverlay(page);
+}
+
+async function clickEdit(page) {
+  await page.locator('.base-overlay.overlay--visible vaadin-button')
+    .filter({ hasText: /edit|редагувати/i }).first().click();
+  await page.waitForSelector('.base-overlay.overlay--visible vaadin-text-field input', { timeout: 5000 });
+}
+
+async function confirmDialog(page, textSource = 'Оновити|Update') {
+  await page.waitForSelector('vaadin-dialog-overlay', { timeout: 5000 });
+  await page.evaluate((src) => {
+    const re = new RegExp(src, 'i');
+    const dialog = document.querySelector('vaadin-dialog[opened]');
+    if (!dialog) throw new Error('No open dialog');
+    const btn = [...dialog.querySelectorAll('vaadin-button')].find(b => re.test(b.textContent?.trim()));
+    if (!btn) throw new Error('Confirm button not found: ' + src);
+    btn.click();
+  }, textSource);
+  await page.waitForSelector('vaadin-dialog-overlay', { state: 'hidden', timeout: 5000 }).catch(() => {});
+}
+
+async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+  await page.locator(`${overlaySelector} vaadin-tab`)
+    .filter({ hasText: /activ|активн/i }).click();
+  await page.waitForSelector('.user-activity-list', { timeout: 5000 });
 }
 
 module.exports = {
-  check, screenshot, login,
+  check, screenshot, login, UX,
+  withBrowser,
   waitForOverlay, waitForOverlayClosed, waitForGrid,
+  downloadPng,
   createAd, openAdDetail, openHistory, closeOverlay,
+  openSettings, clickEdit, confirmDialog, openActivityTab,
 };

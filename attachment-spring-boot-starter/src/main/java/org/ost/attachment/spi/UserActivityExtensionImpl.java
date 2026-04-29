@@ -28,6 +28,7 @@ public class UserActivityExtensionImpl implements UserActivityExtension {
                        ps.created_at, ps.changed_by_user_id,
                        COALESCE(u.name, '—')    AS changed_by_name,
                        COALESCE(a.title, '—')   AS display_name,
+                       a.description            AS snapshot_description,
                        EXISTS(SELECT 1 FROM advertisement a2
                               WHERE a2.id = ps.advertisement_id AND a2.deleted_at IS NULL) AS entity_exists
                 FROM photo_snapshot ps
@@ -54,6 +55,8 @@ public class UserActivityExtensionImpl implements UserActivityExtension {
                             rs.getLong("changed_by_user_id"),
                             rs.getString("changed_by_name"),
                             rs.getString("display_name"),
+                            rs.getString("snapshot_description"),
+                            null,
                             null
                     );
                 }

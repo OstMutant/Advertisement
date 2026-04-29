@@ -37,6 +37,7 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -212,17 +213,19 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
             if (editor != null) row.add(editor);
 
             if (isSettingChange) {
-                row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
                 if (item.snapshotId() != null && item.snapshotId() > 0) {
-                    snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snap -> {
-                        boolean matchesCurrent = snap.getAdsPageSize() == currentSettings.getAdsPageSize()
-                                && snap.getUsersPageSize() == currentSettings.getUsersPageSize();
+                    snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
+                        row.add(buildFullSettingsFieldsList(item, snapSettings));
+                        boolean matchesCurrent = snapSettings.getAdsPageSize() == currentSettings.getAdsPageSize()
+                                && snapSettings.getUsersPageSize() == currentSettings.getUsersPageSize();
                         if (matchesCurrent) {
                             Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
                             badge.addClassName("user-activity-current-badge");
                             row.add(badge);
                         }
                     });
+                } else {
+                    row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
                 }
             } else if ("USER".equals(item.entityType())) {
                 row.add(buildFullUserFieldsList(item, user));
@@ -256,37 +259,37 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         Div container = new Div();
         container.addClassName("user-activity-changes");
 
-        boolean titleInChanges = false;
-        boolean descInChanges  = false;
-        boolean photoInChanges = false;
+        ChangeEntry titleChange = null;
+        ChangeEntry descChange  = null;
+        List<ChangeEntry> photoChanges = new ArrayList<>();
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : item.changes()) {
             switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
-                case ChangeEntry.GenericChange ignored                                 -> photoInChanges = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span span = new Span("• " + text);
-                span.addClassName("user-activity-changes-item");
-                container.add(span);
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
+                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
+                default                                                              -> otherChanges.add(entry);
             }
         }
 
-        if (!titleInChanges && item.snapshotTitle() != null) {
-            Span span = new Span("• " + getValue(I18nKey.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+        if (titleChange != null) {
+            addActivitySpan(container, activityUiUtil.format(titleChange), false);
+        } else if (item.snapshotTitle() != null) {
+            addActivitySpan(container, getValue(I18nKey.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
         }
-        if (!descInChanges && item.snapshotDescription() != null) {
+
+        if (descChange != null) {
+            addActivitySpan(container, activityUiUtil.format(descChange), false);
+        } else if (item.snapshotDescription() != null) {
             String desc = item.snapshotDescription().length() > 60
                     ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
-            Span span = new Span("• " + getValue(I18nKey.CHANGES_FIELD_DESCRIPTION) + ": " + desc);
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+            addActivitySpan(container, getValue(I18nKey.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
+
+        for (ChangeEntry pc : photoChanges)  addActivitySpan(container, activityUiUtil.format(pc), false);
+        for (ChangeEntry oc : otherChanges)  addActivitySpan(container, activityUiUtil.format(oc), false);
+
         return container;
     }
 
@@ -294,41 +297,82 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         Div container = new Div();
         container.addClassName("user-activity-changes");
 
-        boolean nameInChanges  = false;
-        boolean emailInChanges = false;
-        boolean roleInChanges  = false;
+        ChangeEntry nameChange  = null;
+        ChangeEntry emailChange = null;
+        ChangeEntry roleChange  = null;
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : item.changes()) {
             switch (entry) {
-                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameInChanges  = true;
-                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailInChanges = true;
-                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleInChanges  = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span span = new Span("• " + text);
-                span.addClassName("user-activity-changes-item");
-                container.add(span);
+                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameChange  = f;
+                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailChange = f;
+                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleChange  = f;
+                default                                                        -> otherChanges.add(entry);
             }
         }
 
-        if (!nameInChanges && user.getName() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.name") + ": " + user.getName());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+        if (nameChange != null) {
+            addActivitySpan(container, activityUiUtil.format(nameChange), false);
+        } else if (item.displayName() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.name") + ": " + item.displayName(), true);
         }
-        if (!emailInChanges && user.getEmail() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.email") + ": " + user.getEmail());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+
+        if (emailChange != null) {
+            addActivitySpan(container, activityUiUtil.format(emailChange), false);
+        } else if (item.snapshotEmail() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.email") + ": " + item.snapshotEmail(), true);
         }
-        if (!roleInChanges && user.getRole() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.role") + ": " + user.getRole().name());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+
+        if (roleChange != null) {
+            addActivitySpan(container, activityUiUtil.format(roleChange), false);
+        } else if (item.snapshotRole() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.role") + ": " + item.snapshotRole(), true);
         }
+
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+
         return container;
+    }
+
+    private Div buildFullSettingsFieldsList(ActivityItemDto item, UserSettings snapSettings) {
+        Div container = new Div();
+        container.addClassName("user-activity-changes");
+
+        ChangeEntry adsChange   = null;
+        ChangeEntry usersChange = null;
+        List<ChangeEntry> otherChanges = new ArrayList<>();
+
+        for (ChangeEntry entry : item.changes()) {
+            switch (entry) {
+                case ChangeEntry.SettingChange s when "adsPageSize".equals(s.key())   -> adsChange   = s;
+                case ChangeEntry.SettingChange s when "usersPageSize".equals(s.key()) -> usersChange = s;
+                default                                                                -> otherChanges.add(entry);
+            }
+        }
+
+        if (adsChange != null) {
+            addActivitySpan(container, activityUiUtil.format(adsChange), false);
+        } else {
+            addActivitySpan(container, getI18nService().get("changes.setting.adsPageSize") + ": " + snapSettings.getAdsPageSize(), true);
+        }
+
+        if (usersChange != null) {
+            addActivitySpan(container, activityUiUtil.format(usersChange), false);
+        } else {
+            addActivitySpan(container, getI18nService().get("changes.setting.usersPageSize") + ": " + snapSettings.getUsersPageSize(), true);
+        }
+
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+
+        return container;
+    }
+
+    private void addActivitySpan(Div container, String text, boolean unchanged) {
+        if (text == null || text.isBlank()) return;
+        Span span = new Span("• " + text);
+        span.addClassName("user-activity-changes-item");
+        if (unchanged) span.addClassName("user-activity-changes-item--unchanged");
+        container.add(span);
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {

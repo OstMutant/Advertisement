@@ -221,38 +221,45 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         Div container = new Div();
         container.addClassName("adv-history-changes");
 
-        boolean titleInChanges = false;
-        boolean descInChanges  = false;
-        boolean photoInChanges = false;
+        ChangeEntry titleChange = null;
+        ChangeEntry descChange  = null;
+        List<ChangeEntry> photoChanges = new ArrayList<>();
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : h.changes()) {
             switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
-                case ChangeEntry.GenericChange ignored                                 -> photoInChanges = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span item = new Span("• " + text);
-                item.addClassName("adv-history-changes-item");
-                container.add(item);
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
+                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
+                default                                                              -> otherChanges.add(entry);
             }
         }
 
-        if (!titleInChanges && h.title() != null) {
-            Span item = new Span("• " + getValue(CHANGES_FIELD_TITLE) + ": " + h.title());
-            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
-            container.add(item);
+        if (titleChange != null) {
+            addHistorySpan(container, activityUiUtil.format(titleChange), false);
+        } else if (h.title() != null) {
+            addHistorySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + h.title(), true);
         }
-        if (!descInChanges && h.description() != null) {
-            String desc = h.description().length() > 60
-                    ? h.description().substring(0, 60) + "…" : h.description();
-            Span item = new Span("• " + getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc);
-            item.addClassNames("adv-history-changes-item", "adv-history-changes-item--unchanged");
-            container.add(item);
+
+        if (descChange != null) {
+            addHistorySpan(container, activityUiUtil.format(descChange), false);
+        } else if (h.description() != null) {
+            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
+            addHistorySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
+
+        for (ChangeEntry pc : photoChanges)  addHistorySpan(container, activityUiUtil.format(pc), false);
+        for (ChangeEntry oc : otherChanges)  addHistorySpan(container, activityUiUtil.format(oc), false);
+
         return container;
+    }
+
+    private void addHistorySpan(Div container, String text, boolean unchanged) {
+        if (text == null || text.isBlank()) return;
+        Span item = new Span("• " + text);
+        item.addClassName("adv-history-changes-item");
+        if (unchanged) item.addClassName("adv-history-changes-item--unchanged");
+        container.add(item);
     }
 
     private boolean photosMatchCurrent(Long adId, int version) {

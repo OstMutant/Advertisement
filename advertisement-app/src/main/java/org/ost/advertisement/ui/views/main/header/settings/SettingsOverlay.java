@@ -25,6 +25,7 @@ import org.ost.advertisement.services.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
+import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
@@ -36,6 +37,7 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import org.ost.advertisement.common.PaginationDefaults;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.ost.advertisement.common.I18nKey.*;
@@ -57,8 +59,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
-    private final transient UiPrimaryButton.Builder saveButtonBuilder;
-    private final transient UiIconButton.Builder    closeButtonBuilder;
+    private final transient UiPrimaryButton.Builder    saveButtonBuilder;
+    private final transient UiIconButton.Builder       closeButtonBuilder;
+    private final transient ConfirmActionDialog.Builder confirmDialogBuilder;
 
     private OverlayLayout layout;
     private IntegerField  adsPageSizeField;
@@ -164,7 +167,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private Div buildActivityContent(Long userId) {
         List<ActivityItemDto> items = activityService.getForUser(userId);
-        UserSettings currentSettings = settingsService.load(userId);
         Div container = new Div();
         container.addClassName("user-activity-list");
 
@@ -212,40 +214,31 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             if (editor != null) row.add(editor);
 
             if (isSettingChange) {
-                row.add(buildFullSettingsFieldsList(item, currentSettings));
+                if (item.snapshotId() != null && item.snapshotId() > 0) {
+                    snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
+                        row.add(buildFullSettingsFieldsList(item, snapSettings));
+                        UserSettings live = settingsService.load(currentUser.getId());
+                        boolean matchesCurrent = live.getAdsPageSize() == snapSettings.getAdsPageSize()
+                                && live.getUsersPageSize() == snapSettings.getUsersPageSize();
+                        if (matchesCurrent) {
+                            Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
+                            badge.addClassName("user-activity-current-badge");
+                            row.add(badge);
+                        } else {
+                            Button restoreBtn = new Button(getValue(SETTINGS_RESTORE_BUTTON));
+                            restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+                            restoreBtn.addClassName("adv-history-restore-btn");
+                            restoreBtn.addClickListener(_ -> showSettingsRestoreConfirm(snapSettings));
+                            row.add(restoreBtn);
+                        }
+                    });
+                } else {
+                    row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
+                }
             } else if ("USER".equals(item.entityType())) {
                 row.add(buildFullUserFieldsList(item));
             } else if ("ADVERTISEMENT".equals(item.entityType())) {
                 row.add(buildFullAdvFieldsList(item));
-            }
-
-            // Restore button for settings entries (USER type with a snapshot)
-            if ("USER".equals(item.entityType()) && item.snapshotId() != null && item.snapshotId() > 0) {
-                snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(settings -> {
-                    UserSettings live = settingsService.load(currentUser.getId());
-                    boolean matchesCurrent = live.getAdsPageSize() == settings.getAdsPageSize()
-                            && live.getUsersPageSize() == settings.getUsersPageSize();
-                    if (matchesCurrent) {
-                        Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
-                        badge.addClassName("user-activity-current-badge");
-                        row.add(badge);
-                    } else {
-                        Button restoreBtn = new Button(getValue(SETTINGS_RESTORE_BUTTON));
-                        restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                        restoreBtn.addClassName("adv-history-restore-btn");
-                        restoreBtn.addClickListener(_ -> {
-                            UserSettings current = settingsService.load(currentUser.getId());
-                            settingsService.save(currentUser.getId(), settings);
-                            snapshotService.captureSettingsChange(currentUser, current, settings, currentUser.getId());
-                            adsPageSizeField.setValue(settings.getAdsPageSize());
-                            usersPageSizeField.setValue(settings.getUsersPageSize());
-                            activityPanel.removeAll();
-                            tabs.setSelectedTab(settingsTab);
-                            notifications.success(SETTINGS_RESTORED_SUCCESS);
-                        });
-                        row.add(restoreBtn);
-                    }
-                });
             }
 
             container.add(row);
@@ -257,74 +250,73 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         Div container = new Div();
         container.addClassName("user-activity-changes");
 
-        boolean nameInChanges  = false;
-        boolean emailInChanges = false;
-        boolean roleInChanges  = false;
+        ChangeEntry nameChange  = null;
+        ChangeEntry emailChange = null;
+        ChangeEntry roleChange  = null;
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : item.changes()) {
             switch (entry) {
-                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameInChanges  = true;
-                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailInChanges = true;
-                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleInChanges  = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span span = new Span("• " + text);
-                span.addClassName("user-activity-changes-item");
-                container.add(span);
+                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameChange  = f;
+                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailChange = f;
+                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleChange  = f;
+                default                                                        -> otherChanges.add(entry);
             }
         }
 
-        if (!nameInChanges && currentUser.getName() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.name") + ": " + currentUser.getName());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+        if (nameChange != null) {
+            addActivitySpan(container, activityUiUtil.format(nameChange), false);
+        } else if (item.displayName() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.name") + ": " + item.displayName(), true);
         }
-        if (!emailInChanges && currentUser.getEmail() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.email") + ": " + currentUser.getEmail());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+
+        if (emailChange != null) {
+            addActivitySpan(container, activityUiUtil.format(emailChange), false);
+        } else if (item.snapshotEmail() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.email") + ": " + item.snapshotEmail(), true);
         }
-        if (!roleInChanges && currentUser.getRole() != null) {
-            Span span = new Span("• " + getI18nService().get("changes.field.role") + ": " + currentUser.getRole().name());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+
+        if (roleChange != null) {
+            addActivitySpan(container, activityUiUtil.format(roleChange), false);
+        } else if (item.snapshotRole() != null) {
+            addActivitySpan(container, getI18nService().get("changes.field.role") + ": " + item.snapshotRole(), true);
         }
+
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+
         return container;
     }
 
-    private Div buildFullSettingsFieldsList(ActivityItemDto item, UserSettings currentSettings) {
+    private Div buildFullSettingsFieldsList(ActivityItemDto item, UserSettings snapSettings) {
         Div container = new Div();
         container.addClassName("user-activity-changes");
 
-        boolean adsPageSizeInChanges   = false;
-        boolean usersPageSizeInChanges = false;
+        ChangeEntry adsChange   = null;
+        ChangeEntry usersChange = null;
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : item.changes()) {
             switch (entry) {
-                case ChangeEntry.SettingChange s when "adsPageSize".equals(s.key())   -> adsPageSizeInChanges   = true;
-                case ChangeEntry.SettingChange s when "usersPageSize".equals(s.key()) -> usersPageSizeInChanges = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span span = new Span("• " + text);
-                span.addClassName("user-activity-changes-item");
-                container.add(span);
+                case ChangeEntry.SettingChange s when "adsPageSize".equals(s.key())   -> adsChange   = s;
+                case ChangeEntry.SettingChange s when "usersPageSize".equals(s.key()) -> usersChange = s;
+                default                                                                -> otherChanges.add(entry);
             }
         }
 
-        if (!adsPageSizeInChanges) {
-            Span span = new Span("• " + getI18nService().get("changes.setting.adsPageSize") + ": " + currentSettings.getAdsPageSize());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+        if (adsChange != null) {
+            addActivitySpan(container, activityUiUtil.format(adsChange), false);
+        } else {
+            addActivitySpan(container, getI18nService().get("changes.setting.adsPageSize") + ": " + snapSettings.getAdsPageSize(), true);
         }
-        if (!usersPageSizeInChanges) {
-            Span span = new Span("• " + getI18nService().get("changes.setting.usersPageSize") + ": " + currentSettings.getUsersPageSize());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+
+        if (usersChange != null) {
+            addActivitySpan(container, activityUiUtil.format(usersChange), false);
+        } else {
+            addActivitySpan(container, getI18nService().get("changes.setting.usersPageSize") + ": " + snapSettings.getUsersPageSize(), true);
         }
+
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+
         return container;
     }
 
@@ -332,38 +324,81 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         Div container = new Div();
         container.addClassName("user-activity-changes");
 
-        boolean titleInChanges = false;
-        boolean descInChanges  = false;
-        boolean photoInChanges = false;
+        ChangeEntry titleChange = null;
+        ChangeEntry descChange  = null;
+        List<ChangeEntry> photoChanges = new ArrayList<>();
+        List<ChangeEntry> otherChanges = new ArrayList<>();
 
         for (ChangeEntry entry : item.changes()) {
             switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleInChanges = true;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descInChanges  = true;
-                case ChangeEntry.GenericChange ignored                                 -> photoInChanges = true;
-                default -> {}
-            }
-            String text = activityUiUtil.format(entry);
-            if (text != null && !text.isBlank()) {
-                Span span = new Span("• " + text);
-                span.addClassName("user-activity-changes-item");
-                container.add(span);
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
+                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
+                default                                                              -> otherChanges.add(entry);
             }
         }
 
-        if (!titleInChanges && item.snapshotTitle() != null) {
-            Span span = new Span("• " + getValue(CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle());
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+        if (titleChange != null) {
+            addActivitySpan(container, activityUiUtil.format(titleChange), false);
+        } else if (item.snapshotTitle() != null) {
+            addActivitySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
         }
-        if (!descInChanges && item.snapshotDescription() != null) {
+
+        if (descChange != null) {
+            addActivitySpan(container, activityUiUtil.format(descChange), false);
+        } else if (item.snapshotDescription() != null) {
             String desc = item.snapshotDescription().length() > 60
                     ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
-            Span span = new Span("• " + getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc);
-            span.addClassNames("user-activity-changes-item", "user-activity-changes-item--unchanged");
-            container.add(span);
+            addActivitySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
+
+        for (ChangeEntry pc : photoChanges)  addActivitySpan(container, activityUiUtil.format(pc), false);
+        for (ChangeEntry oc : otherChanges)  addActivitySpan(container, activityUiUtil.format(oc), false);
+
         return container;
+    }
+
+    private void addActivitySpan(Div container, String text, boolean unchanged) {
+        if (text == null || text.isBlank()) return;
+        Span span = new Span("• " + text);
+        span.addClassName("user-activity-changes-item");
+        if (unchanged) span.addClassName("user-activity-changes-item--unchanged");
+        container.add(span);
+    }
+
+    private void showSettingsRestoreConfirm(UserSettings target) {
+        UserSettings current = settingsService.load(currentUser.getId());
+        List<String> lines = new ArrayList<>();
+        String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
+
+        String adsLabel = getI18nService().get("changes.setting.adsPageSize");
+        lines.add(current.getAdsPageSize() == target.getAdsPageSize()
+                ? adsLabel + ": " + noChange
+                : adsLabel + ": " + current.getAdsPageSize() + " → " + target.getAdsPageSize());
+
+        String usersLabel = getI18nService().get("changes.setting.usersPageSize");
+        lines.add(current.getUsersPageSize() == target.getUsersPageSize()
+                ? usersLabel + ": " + noChange
+                : usersLabel + ": " + current.getUsersPageSize() + " → " + target.getUsersPageSize());
+
+        confirmDialogBuilder.build(
+                ConfirmActionDialog.Parameters.builder()
+                        .titleKey(SETTINGS_RESTORE_CONFIRM_TITLE)
+                        .message(String.join("\n", lines))
+                        .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
+                        .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
+                        .onConfirm(() -> {
+                            UserSettings before = settingsService.load(currentUser.getId());
+                            settingsService.save(currentUser.getId(), target);
+                            snapshotService.captureSettingsChange(currentUser, before, target, currentUser.getId());
+                            adsPageSizeField.setValue(target.getAdsPageSize());
+                            usersPageSizeField.setValue(target.getUsersPageSize());
+                            activityPanel.removeAll();
+                            tabs.setSelectedTab(settingsTab);
+                            notifications.success(SETTINGS_RESTORED_SUCCESS);
+                        })
+                        .build()
+        ).open();
     }
 
     private IntegerField buildAdsPageSizeField(UserSettings settings) {

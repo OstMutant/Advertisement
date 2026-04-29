@@ -18,5 +18,7 @@ public record ActivityItemDto(
         Long              changedByUserId,
         String            changedByName,
         String            snapshotTitle,
-        String            snapshotDescription
+        String            snapshotDescription,
+        String            snapshotEmail,
+        String            snapshotRole
 ) {}

@@ -248,6 +248,7 @@ public enum I18nKey {
     // === Settings History ===
     SETTINGS_RESTORE_BUTTON("settings.restore.button"),
     SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
+    SETTINGS_RESTORE_CONFIRM_TITLE("settings.restore.confirm.title"),
 
     // === Restore Confirm ===
     ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),

@@ -37,7 +37,9 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                        s.changed_by_user_id,
                        COALESCE(u.name, '—')                                            AS changed_by_name,
                        s.title                                                          AS snapshot_title,
-                       s.description                                                    AS snapshot_description
+                       s.description                                                    AS snapshot_description,
+                       NULL::text                                                       AS snapshot_email,
+                       NULL::text                                                       AS snapshot_role
                 FROM advertisement_snapshot s
                 LEFT JOIN user_information u ON u.id = s.changed_by_user_id
                 WHERE s.changed_by_user_id = :userId
@@ -56,7 +58,9 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                        s.changed_by_user_id,
                        COALESCE(u.name, '—')                   AS changed_by_name,
                        NULL::text                               AS snapshot_title,
-                       NULL::text                               AS snapshot_description
+                       NULL::text                               AS snapshot_description,
+                       s.email                                  AS snapshot_email,
+                       s.role                                   AS snapshot_role
                 FROM user_snapshot s
                 LEFT JOIN user_information u ON u.id = s.changed_by_user_id
                 WHERE s.changed_by_user_id = :userId OR s.user_id = :userId
@@ -108,7 +112,9 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
                 CHANGED_BY_USER_ID.extract(rs),
                 CHANGED_BY_NAME.extract(rs),
                 rs.getString("snapshot_title"),
-                rs.getString("snapshot_description")
+                rs.getString("snapshot_description"),
+                rs.getString("snapshot_email"),
+                rs.getString("snapshot_role")
         );
     }
 
