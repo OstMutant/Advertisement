@@ -31,6 +31,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
+import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.ui.views.utils.ActivityUiUtil;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
@@ -58,6 +59,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient ActivityUiUtil           activityUiUtil;
 
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
+    private final transient ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -352,7 +354,17 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             addActivitySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
-        for (ChangeEntry pc : photoChanges)  addActivitySpan(container, activityUiUtil.format(pc), false);
+        if (photoChanges.isEmpty() && item.snapshotId() != null) {
+            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            if (ext != null) {
+                String state = ext.getPhotoStateForAdvSnapshot(item.entityId(), item.snapshotId());
+                if (state != null && !state.isBlank()) {
+                    addActivitySpan(container, getValue(CHANGES_PHOTOS) + ": " + state, true);
+                }
+            }
+        } else {
+            for (ChangeEntry pc : photoChanges) addActivitySpan(container, activityUiUtil.format(pc), false);
+        }
         for (ChangeEntry oc : otherChanges)  addActivitySpan(container, activityUiUtil.format(oc), false);
 
         return container;

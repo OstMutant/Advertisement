@@ -185,7 +185,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             meta.addClassName("adv-history-meta");
             row.add(meta);
 
-            row.add(buildFullFieldsList(h));
+            row.add(buildFullFieldsList(h, adId));
 
             // Restore button: text-based rows (prevSnapshotId != null guards photo-only rows);
             // CREATED also eligible when history has multiple entries
@@ -217,7 +217,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         return container;
     }
 
-    private Div buildFullFieldsList(AdvertisementHistoryDto h) {
+    private Div buildFullFieldsList(AdvertisementHistoryDto h, Long adId) {
         Div container = new Div();
         container.addClassName("adv-history-changes");
 
@@ -248,7 +248,17 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             addHistorySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
-        for (ChangeEntry pc : photoChanges)  addHistorySpan(container, activityUiUtil.format(pc), false);
+        if (photoChanges.isEmpty()) {
+            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            if (ext != null) {
+                String state = ext.getPhotoStateAtVersion(adId, h.version());
+                if (state != null && !state.isBlank()) {
+                    addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + state, true);
+                }
+            }
+        } else {
+            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityUiUtil.format(pc), false);
+        }
         for (ChangeEntry oc : otherChanges)  addHistorySpan(container, activityUiUtil.format(oc), false);
 
         return container;

@@ -31,6 +31,7 @@ import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
+import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
@@ -75,6 +76,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiLabeledField.Builder   labeledFieldBuilder;
     private final UiPrimaryButton.Builder  editButtonBuilder;
     private final UiIconButton.Builder     closeButtonBuilder;
+    private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
 
     private Parameters params;
 
@@ -287,7 +289,17 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
             addActivitySpan(container, getValue(I18nKey.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
-        for (ChangeEntry pc : photoChanges)  addActivitySpan(container, activityUiUtil.format(pc), false);
+        if (photoChanges.isEmpty() && item.snapshotId() != null) {
+            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            if (ext != null) {
+                String state = ext.getPhotoStateForAdvSnapshot(item.entityId(), item.snapshotId());
+                if (state != null && !state.isBlank()) {
+                    addActivitySpan(container, getValue(I18nKey.CHANGES_PHOTOS) + ": " + state, true);
+                }
+            }
+        } else {
+            for (ChangeEntry pc : photoChanges) addActivitySpan(container, activityUiUtil.format(pc), false);
+        }
         for (ChangeEntry oc : otherChanges)  addActivitySpan(container, activityUiUtil.format(oc), false);
 
         return container;

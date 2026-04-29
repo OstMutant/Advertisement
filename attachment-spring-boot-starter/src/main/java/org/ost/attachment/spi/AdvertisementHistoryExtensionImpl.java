@@ -25,4 +25,14 @@ public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryEx
     public boolean photosMatchCurrent(Long adId, int version) {
         return photoSnapshotService.photosMatchCurrent(adId, version);
     }
+
+    @Override
+    public String getPhotoStateAtVersion(Long adId, int version) {
+        return photoSnapshotService.getPhotoStateAtVersion(adId, version);
+    }
+
+    @Override
+    public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
+        return photoSnapshotService.getPhotoStateForAdvSnapshot(adId, advSnapshotId);
+    }
 }

@@ -47,6 +47,26 @@ public class PhotoSnapshotService {
                         .addValue("userId",  userId));
     }
 
+    public String getPhotoStateAtVersion(Long adId, int version) {
+        String[] urls = getUrlsAtVersion(adId, version);
+        if (urls.length == 0) return "";
+        return java.util.Arrays.stream(urls).map(PhotoSnapshotService::filename).collect(java.util.stream.Collectors.joining(", "));
+    }
+
+    public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
+        return jdbc.query("""
+                SELECT attachment_urls FROM photo_snapshot
+                WHERE advertisement_id = :adId
+                  AND version <= (SELECT version FROM advertisement_snapshot WHERE id = :snapId)
+                ORDER BY version DESC LIMIT 1
+                """,
+                new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId),
+                (rs, row) -> toStringList(rs, "attachment_urls")
+        ).stream().findFirst()
+                .map(l -> l.stream().map(PhotoSnapshotService::filename).collect(java.util.stream.Collectors.joining(", ")))
+                .orElse("");
+    }
+
     public String[] getUrlsAtVersion(Long adId, int version) {
         return jdbc.query(
                 "SELECT attachment_urls FROM photo_snapshot " +
