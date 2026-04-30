@@ -1,31 +1,19 @@
 #!/bin/bash
-# Usage: ./playwright/run.sh <scenario> [--ux]
-# Example: ./playwright/run.sh add-advertisement
-#          ./playwright/run.sh add-advertisement --ux
+# Usage:
+#   ./playwright/run.sh                  — run all spec files
+#   ./playwright/run.sh smoke            — run smoke.spec.js
+#   ./playwright/run.sh --ux             — run all with local screenshots
+#   ./playwright/run.sh smoke --ux       — run one with local screenshots
 
-SCENARIO=$1
-if [ -z "$SCENARIO" ]; then
-  echo "Usage: ./playwright/run.sh <scenario> [--ux]"
-  echo "Available: $(ls /app/playwright/*.js | grep -v _common | xargs -n1 basename | sed 's/.js//' | tr '\n' ' ')"
-  exit 1
-fi
+# ── Parse args ───────────────────────────────────────────────────────────────
+SCENARIO=""
+UX_FLAG=""
+for arg in "$@"; do
+  if [ "$arg" = "--ux" ]; then UX_FLAG="--ux";
+  else SCENARIO="$arg"; fi
+done
 
-SCRIPT="/app/playwright/${SCENARIO}.js"
-if [ ! -f "$SCRIPT" ]; then
-  echo "Error: scenario '$SCENARIO' not found at $SCRIPT"
-  exit 1
-fi
-
-UX_FLAG=${2:-}
-SCREENSHOT_DIR="/app/playwright/screenshots"
-
-# For the smoke scenario — clear all screenshots before the run
-if [ "$SCENARIO" = "smoke" ] && [ "$UX_FLAG" = "--ux" ]; then
-  echo "Clearing old screenshots..."
-  rm -f "$SCREENSHOT_DIR"/*.png
-fi
-
-# ── Reuse pw-runner if already running, otherwise start it ──────────────────
+# ── Reuse pw-runner if already running, otherwise start it ───────────────────
 if ! docker inspect pw-runner &>/dev/null; then
   docker run -d --name pw-runner --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 86400
 else
@@ -36,40 +24,49 @@ else
   fi
 fi
 
-# Install node_modules into /tmp only once (docker cp doesn't touch subdirs)
 INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 @playwright/test@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
 
-# ── @playwright/test spec files (*.spec) ────────────────────────────────────
-if [[ "$SCENARIO" == *.spec ]]; then
-  SPEC_FILE="/app/playwright/${SCENARIO}.js"
-  if [ ! -f "$SPEC_FILE" ]; then
-    echo "Error: spec file '$SPEC_FILE' not found"
+# ── Clean stale artifacts in container ───────────────────────────────────────
+docker exec pw-runner bash -c "rm -rf /tmp/*.spec.js /tmp/_test-helpers.js /tmp/playwright.config.js /tmp/test-results /tmp/screenshots"
+
+# ── Sync spec files ───────────────────────────────────────────────────────────
+for f in /app/playwright/*.spec.js \
+          /app/playwright/_test-helpers.js \
+          /app/playwright/playwright.config.js; do
+  docker cp "$f" pw-runner:/tmp/ 2>/dev/null
+done
+
+# ── Build run command ─────────────────────────────────────────────────────────
+PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
+[ "$UX_FLAG" = "--ux" ] && PW_ENV="$PW_ENV PW_UX=1 SCREENSHOT_DIR=/tmp/screenshots"
+
+if [ -n "$SCENARIO" ]; then
+  SPEC="${SCENARIO%.spec}.spec.js"
+  if [ ! -f "/app/playwright/$SPEC" ]; then
+    echo "Error: /app/playwright/$SPEC not found"
+    echo "Available: $(ls /app/playwright/*.spec.js | xargs -n1 basename | sed 's/.spec.js//' | tr '\n' ' ')"
     exit 1
   fi
-  docker cp "$SPEC_FILE" pw-runner:/tmp/scenario.spec.js
-  docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js
-  docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/_test-helpers.js
-  docker cp /app/playwright/playwright.config.js pw-runner:/tmp/playwright.config.js
-
-  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright npx playwright test scenario.spec.js --config playwright.config.js"
-
-  mkdir -p /app/playwright/pw-report
-  docker cp pw-runner:/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
-    echo "HTML report: /app/playwright/pw-report/index.html"
-  exit $?
-fi
-
-# ── Legacy plain-node scenarios ──────────────────────────────────────────────
-docker cp "$SCRIPT" pw-runner:/tmp/scenario.js
-docker cp /app/playwright/_common.js pw-runner:/tmp/_common.js
-
-if [ "$UX_FLAG" = "--ux" ]; then
-  docker exec pw-runner bash -c "$INSTALL_CMD && mkdir -p /screenshots && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright SCREENSHOT_DIR=/screenshots node /tmp/scenario.js --ux"
-  mkdir -p "$SCREENSHOT_DIR"
-  docker cp pw-runner:/screenshots/. "$SCREENSHOT_DIR/" 2>/dev/null
-  echo ""
-  echo "Screenshots saved to $SCREENSHOT_DIR/"
-  ls "$SCREENSHOT_DIR/"
+  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SPEC --config playwright.config.js"
 else
-  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && PLAYWRIGHT_BROWSERS_PATH=/ms-playwright node /tmp/scenario.js"
+  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test --config playwright.config.js"
 fi
+
+EXIT_CODE=$?
+
+# ── Copy HTML report back ─────────────────────────────────────────────────────
+rm -rf /app/playwright/pw-report
+mkdir -p /app/playwright/pw-report
+docker cp pw-runner:/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
+  echo "HTML report: /app/playwright/pw-report/index.html"
+
+# ── Copy screenshots back (only in --ux mode) ─────────────────────────────────
+if [ "$UX_FLAG" = "--ux" ]; then
+  rm -rf /app/playwright/screenshots
+  mkdir -p /app/playwright/screenshots
+  docker cp pw-runner:/tmp/screenshots/. /app/playwright/screenshots/ 2>/dev/null
+  echo "Screenshots: /app/playwright/screenshots/"
+  ls /app/playwright/screenshots/ 2>/dev/null
+fi
+
+exit $EXIT_CODE

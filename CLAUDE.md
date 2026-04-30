@@ -27,9 +27,10 @@ After making UI changes, verify them by running the Playwright script inside Doc
 ### Scripts location
 All scenarios live in `/app/playwright/`. Run via `run.sh`:
 ```bash
-bash /app/playwright/run.sh add-advertisement
-bash /app/playwright/run.sh edit-advertisement
-bash /app/playwright/run.sh add-advertisement --ux   # with screenshots
+bash /app/playwright/run.sh                  # all tests
+bash /app/playwright/run.sh smoke            # one scenario
+bash /app/playwright/run.sh smoke --ux       # with local screenshots for AI analysis
+bash /app/playwright/run.sh --ux             # all tests with screenshots
 ```
 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
@@ -41,7 +42,7 @@ bash /app/playwright/run.sh add-advertisement --ux   # with screenshots
 3. Start app: `docker run -d --name advertisement-app --network host -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement advertisement-app`
 4. Wait for start: `docker logs advertisement-app | grep "Started Application"`
 5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
-6. For UX analysis add `--ux` flag → read screenshots from `/tmp/screenshots/` with `Read` tool
+6. For UX analysis add `--ux` flag → read screenshots from `/app/playwright/screenshots/` with `Read` tool
 
 ### Vaadin-specific notes
 - Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`
@@ -49,6 +50,6 @@ bash /app/playwright/run.sh add-advertisement --ux   # with screenshots
 - Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
 
 ### Adding new scenarios
-1. Create `/app/playwright/my-scenario.js`
-2. `const { check, screenshot, login } = require('./_common');`
+1. Create `/app/playwright/my-scenario.spec.js`
+2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`
 3. Run with `bash /app/playwright/run.sh my-scenario`
