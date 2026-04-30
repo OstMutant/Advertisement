@@ -23,6 +23,7 @@ test.describe('Smoke: language (no auth)', () => {
       await page.locator('.locale-combobox input').click();
       await page.locator('vaadin-combo-box-item').filter({ hasText: /укр|ukrainian/i }).first().click();
       await page.waitForLoadState('networkidle').catch(() => {});
+      await screenshot(page, 'language-switched-back');
     });
   });
 });
@@ -63,6 +64,7 @@ test.describe('Smoke: user flow', () => {
       await page.locator('.overlay__view-title').waitFor();
       const body = await page.textContent('body');
       if (!body.includes('edited')) throw new Error('Edited title not visible');
+      await screenshot(page, 'user-flow-ad-edited');
     });
 
     const backBtn = page.locator('.overlay__breadcrumb-back');
@@ -141,12 +143,14 @@ test.describe('Smoke: user flow', () => {
     await test.step('Open settings and save page size', async () => {
       await page.locator('.header-settings-button').click();
       await waitForOverlay(page);
+      await screenshot(page, 'user-flow-settings-open');
       const field = page.locator('vaadin-integer-field').first().locator('input');
       await field.click({ clickCount: 3 });
       await field.fill('15');
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForLoadState('networkidle');
+      await screenshot(page, 'user-flow-done');
     });
   });
 });
@@ -185,8 +189,10 @@ test.describe('Smoke: admin flow', () => {
       await page.locator('.user-query-block .query-text input').first().fill('User 1');
       await page.locator('.user-query-block vaadin-button[title*="Застосувати"]').first().click();
       await page.locator('vaadin-grid.user-grid .user-grid-name').first().waitFor({ timeout: 5000 });
+      await screenshot(page, 'admin-flow-users-filtered');
       await page.locator('.user-query-block vaadin-button[title*="Очистити"]').first().click();
       await page.locator('vaadin-grid.user-grid .user-grid-name').first().waitFor({ timeout: 5000 });
+      await screenshot(page, 'admin-flow-done');
     });
   });
 });

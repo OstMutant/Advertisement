@@ -184,8 +184,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             row.addClassName("user-activity-row");
             if (!item.entityExists()) row.addClassName("user-activity-row--deleted");
 
-            boolean isSettingChange = "USER".equals(item.entityType())
-                    && item.changes().stream().anyMatch(e -> e instanceof ChangeEntry.SettingChange);
+            boolean isSettingChange = "USER_SETTINGS".equals(item.entityType())
+                    || ("USER".equals(item.entityType())
+                        && item.changes().stream().anyMatch(e -> e instanceof ChangeEntry.SettingChange));
 
             Span action = new Span(formatAction(item.actionType()));
             action.addClassName("user-activity-action");

@@ -37,7 +37,7 @@ public class PhotoSnapshotService {
                 INSERT INTO photo_snapshot
                     (advertisement_id, version, attachment_urls, changes_summary, changed_by_user_id, created_at)
                 VALUES (:adId,
-                    (SELECT COALESCE(MAX(version), 0) FROM advertisement_snapshot WHERE advertisement_id = :adId),
+                    (SELECT COUNT(*)::int FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId),
                     :urls, CAST(:changes AS JSONB), :userId, NOW())
                 """,
                 new MapSqlParameterSource()
@@ -57,7 +57,11 @@ public class PhotoSnapshotService {
         return jdbc.query("""
                 SELECT attachment_urls FROM photo_snapshot
                 WHERE advertisement_id = :adId
-                  AND version <= (SELECT version FROM advertisement_snapshot WHERE id = :snapId)
+                  AND version <= (
+                      SELECT COUNT(*)::int FROM audit_log
+                      WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId
+                        AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)
+                  )
                 ORDER BY version DESC LIMIT 1
                 """,
                 new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId),

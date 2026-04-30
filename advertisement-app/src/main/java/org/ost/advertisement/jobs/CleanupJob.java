@@ -105,14 +105,10 @@ public class CleanupJob {
     }
 
     private void pruneSnapshots() {
-        int advSnaps = jdbc.update(
-                "DELETE FROM advertisement_snapshot WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)",
+        int pruned = jdbc.update(
+                "DELETE FROM audit_log WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)",
                 new MapSqlParameterSource("days", retentionDays)
         );
-        int userSnaps = jdbc.update(
-                "DELETE FROM user_snapshot WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)",
-                new MapSqlParameterSource("days", retentionDays)
-        );
-        log.info("Pruned {} advertisement snapshots, {} user snapshots", advSnaps, userSnaps);
+        log.info("Pruned {} audit log entries", pruned);
     }
 }

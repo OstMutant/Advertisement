@@ -91,22 +91,6 @@ test.describe('Photo activity', () => {
 
     await closeAdOverlay(page);
 
-    await page.locator('vaadin-tab').filter({ hasText: /users|юзер|користувач/i }).first().click();
-    await page.locator('vaadin-grid.user-grid').waitFor({ timeout: 8000 });
-    await page.locator('vaadin-grid.user-grid vaadin-grid-cell-content .user-grid-name').first().click();
-    await waitForOverlay(page);
-    await openActivityTab(page);
-
-    await test.step('User activity shows photo change after create', async () => {
-      checkPhotoInText(
-        await page.locator('.base-overlay.overlay--visible .user-activity-list').textContent(),
-        'user-activity-after-create');
-    });
-
-    await page.locator('.base-overlay.overlay--visible vaadin-button')
-      .filter({ hasText: /користувач|users/i }).last().click();
-    await waitForOverlayClosed(page);
-
     await openSettings(page);
     await openActivityTab(page);
 

@@ -138,83 +138,46 @@
             <column name="deleted_at"/>
         </createIndex>
 
-        <!-- ── advertisement_snapshot ──────────────────────────────────────── -->
-        <createTable tableName="advertisement_snapshot">
+        <!-- ── audit_log ───────────────────────────────────────────────────── -->
+        <createTable tableName="audit_log">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="advertisement_id" type="BIGINT">
+            <!-- 'ADVERTISEMENT', 'USER', 'USER_SETTINGS' -->
+            <column name="entity_type" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
-            <column name="title" type="VARCHAR(255)"/>
-            <column name="description" type="TEXT"/>
-            <column name="changed_by_user_id" type="BIGINT">
+            <column name="entity_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
             <column name="action_type" type="VARCHAR(50)">
                 <constraints nullable="false"/>
             </column>
-            <column name="version" type="INTEGER" defaultValueNumeric="1">
+            <!-- serialized snapshot DTO (AdvertisementSnapshot / UserSnapshot / SettingsSnapshot) -->
+            <column name="snapshot_data" type="JSONB"/>
+            <column name="changes_summary" type="JSONB"/>
+            <column name="changed_by_user_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
-            <column name="changes_summary" type="JSONB"/>
             <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
                 <constraints nullable="false"/>
             </column>
         </createTable>
 
-        <createIndex indexName="idx_adv_snap_user_date" tableName="advertisement_snapshot">
+        <createIndex indexName="idx_audit_entity" tableName="audit_log">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_changed_by" tableName="audit_log">
             <column name="changed_by_user_id"/>
             <column name="created_at" descending="true"/>
-        </createIndex>
-        <createIndex indexName="idx_adv_snap_adv_date" tableName="advertisement_snapshot">
-            <column name="advertisement_id"/>
-            <column name="created_at" descending="true"/>
-        </createIndex>
-        <createIndex indexName="idx_adv_snapshot_adv_version" tableName="advertisement_snapshot">
-            <column name="advertisement_id"/>
-            <column name="version" descending="true"/>
         </createIndex>
 
         <sql>
-            CREATE INDEX IF NOT EXISTS idx_adv_snapshot_changes ON advertisement_snapshot USING GIN (changes_summary);
+            CREATE INDEX IF NOT EXISTS idx_audit_changes_gin ON audit_log USING GIN (changes_summary);
         </sql>
-
-        <!-- ── user_snapshot ───────────────────────────────────────────────── -->
-        <createTable tableName="user_snapshot">
-            <column name="id" type="BIGSERIAL">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="user_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="name" type="VARCHAR(255)"/>
-            <column name="email" type="VARCHAR(255)"/>
-            <column name="role" type="VARCHAR(50)"/>
-            <column name="changed_by_user_id" type="BIGINT">
-                <constraints nullable="false"/>
-            </column>
-            <column name="action_type" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="version" type="INTEGER" defaultValueNumeric="1">
-                <constraints nullable="false"/>
-            </column>
-            <column name="changes_summary" type="JSONB"/>
-            <column name="settings" type="JSONB"/>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
-                <constraints nullable="false"/>
-            </column>
-        </createTable>
-
-        <createIndex indexName="idx_user_snap_user_date" tableName="user_snapshot">
-            <column name="changed_by_user_id"/>
-            <column name="created_at" descending="true"/>
-        </createIndex>
-        <createIndex indexName="idx_user_snap_uid_date" tableName="user_snapshot">
-            <column name="user_id"/>
-            <column name="created_at" descending="true"/>
-        </createIndex>
 
     </changeSet>
 

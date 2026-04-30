@@ -22,37 +22,45 @@ import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
 public class AdvertisementHistoryProjection extends SqlFixedProjection<AdvertisementHistoryDto> {
 
     private static final String QUERY = """
-            SELECT s.id, s.version, s.action_type, s.title, s.description,
-                   s.changes_summary::text AS changes_summary, s.created_at,
+            WITH numbered AS (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at)           AS version,
+                       LAG(id)                            OVER (PARTITION BY entity_id ORDER BY created_at) AS prev_id,
+                       LAG(snapshot_data->>'title')       OVER (PARTITION BY entity_id ORDER BY created_at) AS prev_title,
+                       LAG(snapshot_data->>'description') OVER (PARTITION BY entity_id ORDER BY created_at) AS prev_description,
+                       snapshot_data->>'title'            AS title,
+                       snapshot_data->>'description'      AS description,
+                       action_type,
+                       changes_summary::text              AS changes_summary,
+                       changed_by_user_id,
+                       created_at
+                FROM audit_log
+                WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId
+            )
+            SELECT n.id, n.version::int, n.action_type,
                    COALESCE(u.name, '—') AS changed_by_name,
-                   prev.id               AS prev_id,
-                   prev.title            AS prev_title,
-                   prev.description      AS prev_description
-            FROM advertisement_snapshot s
-            LEFT JOIN user_information u ON u.id = s.changed_by_user_id
-            LEFT JOIN advertisement_snapshot prev
-                   ON prev.advertisement_id = s.advertisement_id
-                  AND prev.version = s.version - 1
-            WHERE s.advertisement_id = :adId
-              AND (CAST(:filterUserId AS BIGINT) IS NULL OR s.changed_by_user_id = :filterUserId)
-            ORDER BY s.version DESC
-            LIMIT 50
+                   n.created_at, n.title, n.description, n.changes_summary,
+                   n.prev_id, n.prev_title, n.prev_description
+            FROM numbered n
+            LEFT JOIN user_information u ON u.id = n.changed_by_user_id
+            WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.changed_by_user_id = :filterUserId
+            ORDER BY n.version DESC
+            LIMIT 101
             """;
 
-    private static final String SOURCE =
-            "advertisement_snapshot s LEFT JOIN user_information u ON u.id = s.changed_by_user_id";
+    private static final String SOURCE = "audit_log n LEFT JOIN user_information u ON u.id = n.changed_by_user_id";
 
-    static final SqlFieldDefinition<Long>    SNAPSHOT_ID      = id("s.id",                         "id");
-    static final SqlFieldDefinition<Integer> VERSION          = intVal("s.version",                "version");
-    static final SqlFieldDefinition<String>  ACTION_TYPE_STR  = str("s.action_type",               "action_type");
+    static final SqlFieldDefinition<Long>    SNAPSHOT_ID      = id("n.id",                         "id");
+    static final SqlFieldDefinition<Integer> VERSION          = intVal("n.version",                "version");
+    static final SqlFieldDefinition<String>  ACTION_TYPE_STR  = str("n.action_type",               "action_type");
     static final SqlFieldDefinition<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",        "changed_by_name");
-    static final SqlFieldDefinition<Instant> CREATED_AT       = instant("s.created_at",            "created_at");
-    static final SqlFieldDefinition<String>  TITLE            = str("s.title",                     "title");
-    static final SqlFieldDefinition<String>  DESCRIPTION      = str("s.description",               "description");
-    static final SqlFieldDefinition<String>  CHANGES_SUMMARY  = str("s.changes_summary::text",     "changes_summary");
-    static final SqlFieldDefinition<Long>    PREV_ID          = longVal("prev.id",                 "prev_id");
-    static final SqlFieldDefinition<String>  PREV_TITLE       = str("prev.title",                  "prev_title");
-    static final SqlFieldDefinition<String>  PREV_DESCRIPTION = str("prev.description",            "prev_description");
+    static final SqlFieldDefinition<Instant> CREATED_AT       = instant("n.created_at",            "created_at");
+    static final SqlFieldDefinition<String>  TITLE            = str("n.title",                     "title");
+    static final SqlFieldDefinition<String>  DESCRIPTION      = str("n.description",               "description");
+    static final SqlFieldDefinition<String>  CHANGES_SUMMARY  = str("n.changes_summary",           "changes_summary");
+    static final SqlFieldDefinition<Long>    PREV_ID          = longVal("n.prev_id",               "prev_id");
+    static final SqlFieldDefinition<String>  PREV_TITLE       = str("n.prev_title",                "prev_title");
+    static final SqlFieldDefinition<String>  PREV_DESCRIPTION = str("n.prev_description",          "prev_description");
 
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
 
