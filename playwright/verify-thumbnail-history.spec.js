@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, downloadPng } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, downloadPng, screenshot } = require('./_test-helpers');
 const fs = require('fs');
 
 const avatar = seed =>
@@ -31,6 +31,7 @@ test.describe('Thumbnail and photo history', () => {
       const src = await thumbs.first().getAttribute('src');
       if (!src) throw new Error('Thumbnail img has no src');
     });
+    await screenshot(page, 'thumbnail-01-cards');
 
     await page.locator('.advertisement-card')
       .filter({ has: page.locator('.advertisement-title', { hasText: 'Thumbnail Verify Ad' }) })
@@ -43,6 +44,7 @@ test.describe('Thumbnail and photo history', () => {
       if (!/(фото|photo)/i.test(text))
         throw new Error('No photo entry in history for thumbnail ad: ' + text.slice(0, 200));
     });
+    await screenshot(page, 'thumbnail-02-history');
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   });

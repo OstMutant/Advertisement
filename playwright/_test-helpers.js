@@ -1,11 +1,7 @@
 const { test: base, expect } = require('@playwright/test');
-const fs   = require('fs');
-const path = require('path');
+const fs    = require('fs');
 const https = require('https');
 
-const SCREENSHOT_DIR = process.env.SCREENSHOT_DIR || '/tmp/screenshots';
-const MAX_SCREENSHOTS = 100;
-const UX = process.env.PW_UX === '1';
 
 // ── Core ──────────────────────────────────────────────────────────────────────
 
@@ -98,21 +94,8 @@ async function createAd(page, { title, description, imagePath } = {}) {
 
 async function screenshot(page, name) {
   const buffer = await page.screenshot({ fullPage: false });
-
-  // Always attach to Playwright HTML report
   await base.info().attach(name, { body: buffer, contentType: 'image/png' });
-
-  // Save locally only in --ux mode (for AI visual analysis via Read tool)
-  if (!UX) return;
-  if (!fs.existsSync(SCREENSHOT_DIR)) fs.mkdirSync(SCREENSHOT_DIR, { recursive: true });
-  const files = fs.readdirSync(SCREENSHOT_DIR)
-    .filter(f => f.endsWith('.png'))
-    .map(f => ({ f, t: fs.statSync(path.join(SCREENSHOT_DIR, f)).mtimeMs }))
-    .sort((a, b) => a.t - b.t);
-  while (files.length >= MAX_SCREENSHOTS) fs.unlinkSync(path.join(SCREENSHOT_DIR, files.shift().f));
-  const file = path.join(SCREENSHOT_DIR, `${name}.png`);
-  fs.writeFileSync(file, buffer);
-  console.log(`[SCREENSHOT] Attached to report & saved to ${file}`);
+  console.log(`[SCREENSHOT] ${name}`);
 }
 
 // ── Download helper ───────────────────────────────────────────────────────────

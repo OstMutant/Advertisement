@@ -20,7 +20,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.SnapshotService;
+import org.ost.advertisement.services.AuditService;
 import org.ost.advertisement.services.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
@@ -55,7 +55,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient NotificationService      notifications;
     private final transient AuthContextService       authContextService;
     private final transient ActivityService          activityService;
-    private final transient SnapshotService          snapshotService;
+    private final transient AuditService          snapshotService;
     private final transient ActivityUiUtil           activityUiUtil;
 
     private final transient ObjectProvider<OverlayLayout> layoutProvider;

@@ -35,7 +35,7 @@ public class AdvertisementService {
 
     private final AdvertisementRepository       repository;
     private final AccessEvaluator               access;
-    private final SnapshotService               snapshotService;
+    private final AuditService               snapshotService;
     private final AuthContextService            authContextService;
     private final ApplicationEventPublisher     context;
     private final NamedParameterJdbcTemplate    jdbc;
@@ -71,7 +71,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        SnapshotService.SnapshotContent content = snapshotService.getSnapshotContent(snapshotId).orElse(null);
+        AuditService.SnapshotContent content = snapshotService.getSnapshotContent(snapshotId).orElse(null);
         if (content == null) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())

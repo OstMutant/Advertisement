@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog, screenshot } = require('./_test-helpers');
 
 test.describe('Advertisement history', () => {
   test.beforeEach(async ({ page }) => {
@@ -52,6 +52,7 @@ test.describe('Advertisement history', () => {
     await test.step('Changes summary shown', async () => {
       if (await page.locator('.adv-history-changes').count() === 0) throw new Error('No changes summary found');
     });
+    await screenshot(page, 'adv-history-01-after-edit');
 
     const restoreBtns = page.locator('.adv-history-restore-btn');
     await test.step('Restore buttons present', async () => {
@@ -70,6 +71,7 @@ test.describe('Advertisement history', () => {
     await test.step('View shown after restore', async () => {
       await expect(page.locator('.overlay__view-title')).toBeVisible();
     });
+    await screenshot(page, 'adv-history-02-after-restore');
 
     await openHistory(page);
 

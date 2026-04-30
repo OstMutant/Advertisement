@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, downloadPng } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot } = require('./_test-helpers');
 const fs = require('fs');
 
 const avatar = seed =>
@@ -46,6 +46,7 @@ test.describe('Upload gallery', () => {
     await test.step('Gallery shows multiple images', async () => {
       const imgs = await page.locator('.base-overlay.overlay--visible img').count();
       if (imgs < 2) throw new Error(`Expected multiple images, got ${imgs}`);
+      await screenshot(page, 'gallery-01-multi-images');
     });
 
     await test.step('Delete one image and save', async () => {

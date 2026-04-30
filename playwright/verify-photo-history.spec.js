@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -75,6 +75,7 @@ test.describe('Verify photo history', () => {
       if (!/(фото|photo)/i.test(text))
         throw new Error('No photo change entry in history after create: ' + text.slice(0, 200));
     });
+    await screenshot(page, 'verify-photo-01-history');
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   });
@@ -114,6 +115,7 @@ test.describe('Verify photo history', () => {
         if (!/(фото|photo)/i.test(text))
           throw new Error('No photo deletion entry in history: ' + text.slice(0, 200));
       });
+      await screenshot(page, 'verify-photo-02-delete-history');
     } else {
       await test.step('Photo deletion visible in history', async () => {
         await page.locator('.base-overlay.overlay--visible vaadin-button')
@@ -124,6 +126,7 @@ test.describe('Verify photo history', () => {
         if (!/(фото|photo)/i.test(text))
           throw new Error('No photo entry in history: ' + text.slice(0, 200));
       });
+      await screenshot(page, 'verify-photo-02-delete-history');
     }
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);

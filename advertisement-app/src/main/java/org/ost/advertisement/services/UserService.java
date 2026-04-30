@@ -31,7 +31,7 @@ public class UserService {
     private final UserRepository     repository;
     private final AccessEvaluator    access;
     private final PasswordEncoder    passwordEncoder;
-    private final SnapshotService    snapshotService;
+    private final AuditService    snapshotService;
     private final AuthContextService authContextService;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {

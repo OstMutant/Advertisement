@@ -22,7 +22,7 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.SnapshotService;
+import org.ost.advertisement.services.AuditService;
 import org.ost.advertisement.services.UserSettingsService;
 import org.ost.advertisement.ui.views.utils.ActivityUiUtil;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
@@ -70,7 +70,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     @Getter
     private final I18nService              i18nService;
     private final ActivityService          activityService;
-    private final SnapshotService          snapshotService;
+    private final AuditService          snapshotService;
     private final UserSettingsService      userSettingsService;
     private final ActivityUiUtil           activityUiUtil;
     private final UiLabeledField.Builder   labeledFieldBuilder;

@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, confirmDialog } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, confirmDialog, screenshot } = require('./_test-helpers');
 
 test.describe('Settings activity', () => {
   test.beforeEach(async ({ page }) => {
@@ -55,6 +55,7 @@ test.describe('Settings activity', () => {
       if (await page.locator('.user-activity-list .adv-history-restore-btn').count() === 0)
         throw new Error('No restore button for settings');
     });
+    await screenshot(page, 'settings-activity-01-activity-list');
 
     await page.locator('.user-activity-list .adv-history-restore-btn').nth(0).click();
     await confirmDialog(page, 'Оновити|Update');
@@ -71,5 +72,6 @@ test.describe('Settings activity', () => {
       const currentSize = await getAdsPageSizeValue(page);
       if (currentSize !== newSize) throw new Error(`Expected ${newSize} after restore, got ${currentSize}`);
     });
+    await screenshot(page, 'settings-activity-02-after-restore');
   });
 });

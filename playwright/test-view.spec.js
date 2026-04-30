@@ -1,4 +1,4 @@
-const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed } = require('./_test-helpers');
+const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, screenshot } = require('./_test-helpers');
 
 test.describe('Advertisement view overlay', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,6 +14,7 @@ test.describe('Advertisement view overlay', () => {
       await page.locator('.advertisement-card').first().click();
       await waitForOverlay(page);
       await expect(page.locator('.overlay__view-title')).toBeVisible();
+      await screenshot(page, 'view-overlay-01-open');
     });
 
     await test.step('Close overlay', async () => {

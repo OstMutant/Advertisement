@@ -1,4 +1,4 @@
-const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed } = require('./_test-helpers');
+const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, screenshot } = require('./_test-helpers');
 
 test.describe('Add advertisement', () => {
 
@@ -19,6 +19,7 @@ test.describe('Add advertisement', () => {
     await expect(
       page.locator('.advertisement-card').filter({ hasText: 'Spec Test Ad' }).first()
     ).toBeVisible();
+    await screenshot(page, 'add-ad-01-created');
   });
 
 });

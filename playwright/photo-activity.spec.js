@@ -1,6 +1,6 @@
 const { test, expect, loginAs,
         waitForOverlay, waitForOverlayClosed,
-        openAdDetail, openHistory, openSettings, openActivityTab, confirmDialog } = require('./_test-helpers');
+        openAdDetail, openHistory, openSettings, openActivityTab, confirmDialog, screenshot } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -88,6 +88,7 @@ test.describe('Photo activity', () => {
     await test.step('History shows photo change after create', async () => {
       checkPhotoInText(await page.locator('.adv-history-list').textContent(), 'history-after-create');
     });
+    await screenshot(page, 'photo-activity-01-history');
 
     await closeAdOverlay(page);
 
@@ -99,6 +100,7 @@ test.describe('Photo activity', () => {
         await page.locator('.base-overlay.overlay--visible .user-activity-list').textContent(),
         'settings-activity-after-create');
     });
+    await screenshot(page, 'photo-activity-02-settings');
 
     await page.keyboard.press('Escape');
     await waitForOverlayClosed(page);
@@ -120,6 +122,7 @@ test.describe('Photo activity', () => {
       if (!(await page.locator('.adv-history-list').textContent()).includes('→'))
         throw new Error('No diff arrow → in history');
     });
+    await screenshot(page, 'photo-activity-03-history-diff');
 
     await test.step('Restore button on older entry', async () => {
       if (await page.locator('.adv-history-restore-btn').count() === 0)
@@ -142,6 +145,7 @@ test.describe('Photo activity', () => {
       if (rows < 3) throw new Error(`Expected >=3 rows after restore, got ${rows}`);
       checkPhotoInText(await page.locator('.adv-history-list').textContent(), 'history-after-restore');
     });
+    await screenshot(page, 'photo-activity-04-after-restore');
 
     paths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
   });

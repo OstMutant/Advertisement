@@ -31,7 +31,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class SnapshotService {
+public class AuditService {
 
     public record SnapshotContent(String title, String description, int version) {}
     public record UserSnapshotState(Long userId, String name, Role role) {}

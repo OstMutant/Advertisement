@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog, screenshot } = require('./_test-helpers');
 
 test.describe('Advertisement history (deep)', () => {
   test.beforeEach(async ({ page }) => {
@@ -80,6 +80,7 @@ test.describe('Advertisement history (deep)', () => {
       if (await page.locator('.adv-history-changes').count() === 0)
         throw new Error('No changes summary found');
     });
+    await screenshot(page, 'history-deep-01-three-versions');
 
     await page.locator('.adv-history-restore-btn').last().click();
 
@@ -100,5 +101,6 @@ test.describe('Advertisement history (deep)', () => {
       const newRows = await page.locator('.adv-history-row').count();
       if (newRows <= rows) throw new Error(`Expected more rows after restore, got ${newRows}`);
     });
+    await screenshot(page, 'history-deep-02-after-restore');
   });
 });

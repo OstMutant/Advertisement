@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, screenshot } = require('./_test-helpers');
 
 test.describe('User edit diff', () => {
   test.beforeEach(async ({ page }) => {
@@ -37,5 +37,6 @@ test.describe('User edit diff', () => {
       const text = await page.locator('.user-activity-list').first().textContent();
       if (!text.includes('→')) throw new Error('No diff arrow → in user edit activity');
     });
+    await screenshot(page, 'user-edit-diff-01-activity');
   });
 });

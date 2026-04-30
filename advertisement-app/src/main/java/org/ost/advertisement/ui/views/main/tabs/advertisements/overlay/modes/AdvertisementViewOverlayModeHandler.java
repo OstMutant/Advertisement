@@ -18,7 +18,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.SnapshotService;
+import org.ost.advertisement.services.AuditService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
@@ -69,7 +69,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final AccessEvaluator               access;
     @Getter
     private final I18nService                   i18nService;
-    private final SnapshotService               snapshotService;
+    private final AuditService               snapshotService;
     private final ActivityUiUtil                activityUiUtil;
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
