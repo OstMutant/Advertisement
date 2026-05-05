@@ -29,11 +29,4 @@ public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
     public void execute(String sql, MapSqlParameterSource params) {
         jdbcClient.sql(sql).paramSource(params).update();
     }
-
-    // SQL must contain RETURNING id — JdbcClient.update(keyHolder) has no column array overload
-    public Long executeAndReturnKey(String sql, MapSqlParameterSource params) {
-        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcClient.sql(sql).paramSource(params).update(keyHolder);
-        return keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
-    }
 }

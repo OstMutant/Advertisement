@@ -44,13 +44,13 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
     @Override
     public void updateLocale(Long userId, String locale) {
-        executor.execute(LOCALE_WRITER.updateWhere("id = :id"),
+        execute(LOCALE_WRITER.updateWhere("id = :id"),
                 LOCALE_WRITER.params(locale).addValue("id", userId));
     }
 
     @Override
     public void updateProfile(UserProfileDto dto) {
-        executor.execute(PROFILE_WRITER.updateWhere("id = :id"),
+        execute(PROFILE_WRITER.updateWhere("id = :id"),
                 PROFILE_WRITER.params(dto).addValue("id", dto.id()));
     }
 }

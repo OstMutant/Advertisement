@@ -36,7 +36,7 @@ public class SqlSelectFieldFactory {
     }
 
     public static SqlSelectField<Integer> intVal(String sqlExpression, String sqlAlias) {
-        return build(sqlExpression, sqlAlias, (rs, alias) -> rs.getInt(alias));
+        return build(sqlExpression, sqlAlias, ResultSet::getInt);
     }
 
     public static SqlSelectField<String[]> strArray(String sqlExpression, String sqlAlias) {

@@ -25,8 +25,4 @@ public abstract class SqlFixedQuery<T> extends SqlEntityProjection<T> {
     public List<T> queryAll(JdbcClient jdbcClient, MapSqlParameterSource params) {
         return jdbcClient.sql(querySql()).paramSource(params).query(this).list();
     }
-
-    public Optional<T> queryOne(JdbcClient jdbcClient, MapSqlParameterSource params) {
-        return jdbcClient.sql(querySql()).paramSource(params).query(this).optional();
-    }
 }

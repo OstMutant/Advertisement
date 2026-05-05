@@ -31,18 +31,13 @@ public class AdvertisementRepositoryCustomImpl
 
     @Override
     public void softDelete(Long id, Long deletedByUserId) {
-        executor.execute(SOFT_DELETE.sql(),
+        execute(SOFT_DELETE.sql(),
                 new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId));
     }
 
     @Override
     public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
-        MapSqlParameterSource params = new MapSqlParameterSource("id", id);
-        String sql = sqlQueryBuilder.select(
-                sqlProjection.getSelectClause(),
-                sqlProjection.getSqlSource(),
-                "a.id = :id AND a.deleted_at IS NULL"
-        );
-        return executor.findOne(sql, params, sqlProjection);
+        return findOne("a.id = :id AND a.deleted_at IS NULL",
+                new MapSqlParameterSource("id", id));
     }
 }

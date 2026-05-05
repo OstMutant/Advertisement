@@ -14,10 +14,10 @@ import java.util.Optional;
 
 public class RepositoryCustom<T, F> {
 
-    protected final SqlEntityProjection<T> sqlProjection;
-    protected final SqlFilterBuilder<F> filterBuilder;
-    protected final SqlQueryBuilder sqlQueryBuilder;
-    protected final SqlQueryExecutor<T> executor;
+    private final SqlEntityProjection<T> sqlProjection;
+    private final SqlFilterBuilder<F> filterBuilder;
+    private final SqlQueryBuilder sqlQueryBuilder;
+    private final SqlQueryExecutor<T> executor;
 
     protected RepositoryCustom(JdbcClient jdbcClient, SqlEntityProjection<T> sqlProjection,
                                SqlFilterBuilder<F> filterBuilder) {
@@ -56,6 +56,19 @@ public class RepositoryCustom<T, F> {
                 customApplier.build(params, filter)
         );
         return executor.findOne(sql, params, sqlProjection);
+    }
+
+    protected Optional<T> findOne(String where, MapSqlParameterSource params) {
+        String sql = sqlQueryBuilder.select(
+                sqlProjection.getSelectClause(),
+                sqlProjection.getSqlSource(),
+                where
+        );
+        return executor.findOne(sql, params, sqlProjection);
+    }
+
+    protected void execute(String sql, MapSqlParameterSource params) {
+        executor.execute(sql, params);
     }
 
     private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {
