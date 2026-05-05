@@ -5,11 +5,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 
 @FunctionalInterface
-public interface SqlFixedWriter {
+public interface SqlWriteCommand {
 
     String sql();
 
-    static SqlFixedWriter of(String sql) {
+    static SqlWriteCommand of(String sql) {
         return () -> sql;
     }
 

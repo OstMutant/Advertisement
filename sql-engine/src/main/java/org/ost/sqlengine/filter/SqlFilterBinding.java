@@ -1,7 +1,6 @@
 package org.ost.sqlengine.filter;
 
-public interface FilterBinding<F, R> extends FilterMapping {
+public interface SqlFilterBinding<F, R> extends SqlFilterMapping {
 
     SqlCondition<R> getCondition(F value);
 }
-

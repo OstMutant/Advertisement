@@ -11,8 +11,8 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
-import org.ost.advertisement.repository.advertisement.AdvertisementProjection;
-import org.ost.sqlengine.writer.SqlFixedWriter;
+import org.ost.advertisement.repository.advertisement.AdvertisementDescriptor;
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -35,10 +35,10 @@ import java.util.Optional;
 @Validated
 public class AdvertisementService {
 
-    private static final SqlFixedWriter UPDATE_MEDIA = SqlFixedWriter.of(
-            "UPDATE " + AdvertisementProjection.Write.TABLE +
-            " SET " + AdvertisementProjection.Write.MAIN_IMAGE_URL + " = :url," +
-            " "     + AdvertisementProjection.Write.IMAGE_COUNT + " = :count" +
+    private static final SqlWriteCommand UPDATE_MEDIA = SqlWriteCommand.of(
+            "UPDATE " + AdvertisementDescriptor.Write.TABLE +
+            " SET " + AdvertisementDescriptor.Write.MAIN_IMAGE_URL + " = :url," +
+            " "     + AdvertisementDescriptor.Write.IMAGE_COUNT + " = :count" +
             " WHERE id = :id"
     );
 

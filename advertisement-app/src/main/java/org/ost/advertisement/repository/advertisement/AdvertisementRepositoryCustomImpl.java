@@ -3,7 +3,7 @@ package org.ost.advertisement.repository.advertisement;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.writer.SqlFixedWriter;
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
@@ -15,13 +15,13 @@ public class AdvertisementRepositoryCustomImpl
         extends RepositoryCustom<AdvertisementInfoDto, AdvertisementFilterDto>
         implements AdvertisementRepositoryCustom {
 
-    private static final AdvertisementProjection   ADVERTISEMENT_PROJECTION    = new AdvertisementProjection();
+    private static final AdvertisementDescriptor    ADVERTISEMENT_PROJECTION    = new AdvertisementDescriptor();
     private static final AdvertisementFilterBuilder ADVERTISEMENT_FILTER_BUILDER = new AdvertisementFilterBuilder();
 
-    private static final SqlFixedWriter SOFT_DELETE = SqlFixedWriter.of(
-            "UPDATE " + AdvertisementProjection.Write.TABLE +
-            " SET " + AdvertisementProjection.Write.DELETED_AT + " = NOW()," +
-            " "     + AdvertisementProjection.Write.DELETED_BY_USER_ID + " = :deletedBy" +
+    private static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
+            "UPDATE " + AdvertisementDescriptor.Write.TABLE +
+            " SET " + AdvertisementDescriptor.Write.DELETED_AT + " = NOW()," +
+            " "     + AdvertisementDescriptor.Write.DELETED_BY_USER_ID + " = :deletedBy" +
             " WHERE id = :id"
     );
 

@@ -1,16 +1,16 @@
 package org.ost.advertisement.repository.user;
 
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.sqlengine.filter.FilterBuilder;
+import org.ost.sqlengine.filter.SqlFilterBuilder;
 
 import java.util.List;
 
 import static org.ost.advertisement.dto.filter.UserFilterDto.Fields.*;
-import static org.ost.sqlengine.filter.DefaultFilterBinding.of;
+import static org.ost.sqlengine.filter.SqlBoundFilter.of;
 import static org.ost.sqlengine.filter.SqlCondition.*;
-import static org.ost.advertisement.repository.user.UserProjection.*;
+import static org.ost.advertisement.repository.user.UserDescriptor.*;
 
-public class UserFilterBuilder extends FilterBuilder<UserFilterDto> {
+public class UserFilterBuilder extends SqlFilterBuilder<UserFilterDto> {
 
     public UserFilterBuilder() {
         super(List.of(

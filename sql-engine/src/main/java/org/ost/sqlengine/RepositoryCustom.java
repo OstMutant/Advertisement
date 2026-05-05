@@ -1,9 +1,9 @@
 package org.ost.sqlengine;
 
-import org.ost.sqlengine.exec.RepositoryExecutor;
+import org.ost.sqlengine.exec.SqlQueryExecutor;
 import org.ost.sqlengine.exec.SqlQueryBuilder;
-import org.ost.sqlengine.filter.FilterBuilder;
-import org.ost.sqlengine.projection.SqlProjection;
+import org.ost.sqlengine.filter.SqlFilterBuilder;
+import org.ost.sqlengine.projection.SqlEntityProjection;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -14,17 +14,17 @@ import java.util.Optional;
 
 public class RepositoryCustom<T, F> {
 
-    protected final SqlProjection<T> sqlProjection;
-    protected final FilterBuilder<F> filterBuilder;
+    protected final SqlEntityProjection<T> sqlProjection;
+    protected final SqlFilterBuilder<F> filterBuilder;
     protected final SqlQueryBuilder sqlQueryBuilder;
-    protected final RepositoryExecutor<T> executor;
+    protected final SqlQueryExecutor<T> executor;
 
-    protected RepositoryCustom(JdbcClient jdbcClient, SqlProjection<T> sqlProjection,
-                               FilterBuilder<F> filterBuilder) {
+    protected RepositoryCustom(JdbcClient jdbcClient, SqlEntityProjection<T> sqlProjection,
+                               SqlFilterBuilder<F> filterBuilder) {
         this.sqlProjection = sqlProjection;
         this.filterBuilder = filterBuilder;
         this.sqlQueryBuilder = new SqlQueryBuilder();
-        this.executor = new RepositoryExecutor<>(jdbcClient);
+        this.executor = new SqlQueryExecutor<>(jdbcClient);
     }
 
     public List<T> findByFilter(F filter, Pageable pageable) {
@@ -48,7 +48,7 @@ public class RepositoryCustom<T, F> {
         return executor.count(sql, params);
     }
 
-    public <C> Optional<T> find(FilterBuilder<C> customApplier, C filter) {
+    public <C> Optional<T> find(SqlFilterBuilder<C> customApplier, C filter) {
         MapSqlParameterSource params = new MapSqlParameterSource();
         String sql = sqlQueryBuilder.select(
                 sqlProjection.getSelectClause(),

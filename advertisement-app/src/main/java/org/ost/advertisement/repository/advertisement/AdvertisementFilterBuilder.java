@@ -1,17 +1,17 @@
 package org.ost.advertisement.repository.advertisement;
 
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.sqlengine.filter.FilterBuilder;
+import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.util.List;
 
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.*;
-import static org.ost.advertisement.repository.advertisement.AdvertisementProjection.*;
-import static org.ost.sqlengine.filter.DefaultFilterBinding.of;
+import static org.ost.advertisement.repository.advertisement.AdvertisementDescriptor.*;
+import static org.ost.sqlengine.filter.SqlBoundFilter.of;
 import static org.ost.sqlengine.filter.SqlCondition.*;
 
-public class AdvertisementFilterBuilder extends FilterBuilder<AdvertisementFilterDto> {
+public class AdvertisementFilterBuilder extends SqlFilterBuilder<AdvertisementFilterDto> {
 
     public AdvertisementFilterBuilder() {
         super(List.of(

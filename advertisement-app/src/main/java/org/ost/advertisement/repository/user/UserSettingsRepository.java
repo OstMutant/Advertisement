@@ -4,8 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.exceptions.persistence.SettingsPersistenceException;
-import org.ost.advertisement.repository.user.UserProjection;
-import org.ost.sqlengine.writer.SqlFixedWriter;
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,9 +19,9 @@ public class UserSettingsRepository {
 
     private static final Logger log = LoggerFactory.getLogger(UserSettingsRepository.class);
 
-    private static final SqlFixedWriter SAVE_SETTINGS = SqlFixedWriter.of(
-            "UPDATE " + UserProjection.Write.TABLE +
-            " SET " + UserProjection.Write.SETTINGS + " = :settings::jsonb WHERE id = :userId"
+    private static final SqlWriteCommand SAVE_SETTINGS = SqlWriteCommand.of(
+            "UPDATE " + UserDescriptor.Write.TABLE +
+            " SET " + UserDescriptor.Write.SETTINGS + " = :settings::jsonb WHERE id = :userId"
     );
 
     private final JdbcClient jdbcClient;
@@ -44,8 +43,8 @@ public class UserSettingsRepository {
     public UserSettings load(Long userId) {
         try {
             String json = jdbcClient.sql(
-                    "SELECT " + UserProjection.Write.SETTINGS +
-                    " FROM " + UserProjection.Write.TABLE + " WHERE id = :userId")
+                    "SELECT " + UserDescriptor.Write.SETTINGS +
+                    " FROM " + UserDescriptor.Write.TABLE + " WHERE id = :userId")
                     .paramSource(new MapSqlParameterSource("userId", userId))
                     .query(String.class).optional().orElse(null);
             if (json == null) {

@@ -6,8 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.sqlengine.projection.SqlFieldDefinition;
-import org.ost.sqlengine.projection.SqlFixedProjection;
+import org.ost.sqlengine.projection.SqlSelectField;
+import org.ost.sqlengine.projection.SqlFixedQuery;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -16,10 +16,10 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
+import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
 @Component
-public class AdvertisementHistoryProjection extends SqlFixedProjection<AdvertisementHistoryDto> {
+public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementHistoryDto> {
 
     private static final String QUERY = """
             WITH numbered AS (
@@ -50,17 +50,17 @@ public class AdvertisementHistoryProjection extends SqlFixedProjection<Advertise
 
     private static final String SOURCE = "audit_log n LEFT JOIN user_information u ON u.id = n.changed_by_user_id";
 
-    static final SqlFieldDefinition<Long>    SNAPSHOT_ID      = id("n.id",                         "id");
-    static final SqlFieldDefinition<Integer> VERSION          = intVal("n.version",                "version");
-    static final SqlFieldDefinition<String>  ACTION_TYPE_STR  = str("n.action_type",               "action_type");
-    static final SqlFieldDefinition<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",        "changed_by_name");
-    static final SqlFieldDefinition<Instant> CREATED_AT       = instant("n.created_at",            "created_at");
-    static final SqlFieldDefinition<String>  TITLE            = str("n.title",                     "title");
-    static final SqlFieldDefinition<String>  DESCRIPTION      = str("n.description",               "description");
-    static final SqlFieldDefinition<String>  CHANGES_SUMMARY  = str("n.changes_summary",           "changes_summary");
-    static final SqlFieldDefinition<Long>    PREV_ID          = longVal("n.prev_id",               "prev_id");
-    static final SqlFieldDefinition<String>  PREV_TITLE       = str("n.prev_title",                "prev_title");
-    static final SqlFieldDefinition<String>  PREV_DESCRIPTION = str("n.prev_description",          "prev_description");
+    static final SqlSelectField<Long>    SNAPSHOT_ID      = id("n.id",                         "id");
+    static final SqlSelectField<Integer> VERSION          = intVal("n.version",                "version");
+    static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",               "action_type");
+    static final SqlSelectField<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",        "changed_by_name");
+    static final SqlSelectField<Instant> CREATED_AT       = instant("n.created_at",            "created_at");
+    static final SqlSelectField<String>  TITLE            = str("n.title",                     "title");
+    static final SqlSelectField<String>  DESCRIPTION      = str("n.description",               "description");
+    static final SqlSelectField<String>  CHANGES_SUMMARY  = str("n.changes_summary",           "changes_summary");
+    static final SqlSelectField<Long>    PREV_ID          = longVal("n.prev_id",               "prev_id");
+    static final SqlSelectField<String>  PREV_TITLE       = str("n.prev_title",                "prev_title");
+    static final SqlSelectField<String>  PREV_DESCRIPTION = str("n.prev_description",          "prev_description");
 
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
 

@@ -8,7 +8,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import java.util.List;
 import java.util.Optional;
 
-public record RepositoryExecutor<T>(JdbcClient jdbcClient) {
+public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
 
     // ── READ ──────────────────────────────────────────────────────────────────
 

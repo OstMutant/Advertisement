@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
-public abstract class SqlProjection<T> implements RowMapper<T> {
+public abstract class SqlEntityProjection<T> implements RowMapper<T> {
 
     private final Map<String, String> aliasToSqlMap;
     @Getter
@@ -22,18 +22,18 @@ public abstract class SqlProjection<T> implements RowMapper<T> {
     @Getter
     private final String countSource;
 
-    protected SqlProjection(List<SqlFieldDefinition<?>> items, String sqlSource) {
+    protected SqlEntityProjection(List<SqlSelectField<?>> items, String sqlSource) {
         this(items, sqlSource, sqlSource);
     }
 
-    protected SqlProjection(List<SqlFieldDefinition<?>> items, String sqlSource, String countSource) {
+    protected SqlEntityProjection(List<SqlSelectField<?>> items, String sqlSource, String countSource) {
         Objects.requireNonNull(items, "Parameter 'items' must not be null.");
         Objects.requireNonNull(sqlSource, "Parameter 'sqlSource' must not be null.");
         Objects.requireNonNull(countSource, "Parameter 'countSource' must not be null.");
         this.aliasToSqlMap = items.stream()
                 .collect(Collectors.toMap(
-                        SqlFieldDefinition::alias,
-                        SqlFieldDefinition::sqlExpression,
+                        SqlSelectField::alias,
+                        SqlSelectField::sqlExpression,
                         (existing, replacement) -> existing,
                         LinkedHashMap::new
                 ));

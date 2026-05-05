@@ -7,16 +7,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public abstract class FilterBuilder<F> {
+public abstract class SqlFilterBuilder<F> {
 
-    protected final List<FilterBinding<F, ?>> relations;
+    protected final List<SqlFilterBinding<F, ?>> bindings;
 
-    protected FilterBuilder(List<FilterBinding<F, ?>> bindings) {
-        this.relations = List.copyOf(bindings);
+    protected SqlFilterBuilder(List<SqlFilterBinding<F, ?>> bindings) {
+        this.bindings = List.copyOf(bindings);
     }
 
     public String build(MapSqlParameterSource params, F filter) {
-        List<SqlCondition<?>> sqlConditions = relations.stream()
+        List<SqlCondition<?>> sqlConditions = bindings.stream()
                 .<SqlCondition<?>>map(r -> r.getCondition(filter))
                 .filter(Objects::nonNull)
                 .toList();

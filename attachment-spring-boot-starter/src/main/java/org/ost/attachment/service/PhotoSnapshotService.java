@@ -4,9 +4,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.attachment.repository.AttachmentProjection;
-import org.ost.attachment.repository.PhotoSnapshotProjection;
-import org.ost.sqlengine.writer.SqlFixedWriter;
+import org.ost.attachment.repository.AttachmentDescriptor;
+import org.ost.attachment.repository.PhotoSnapshotDescriptor;
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Service;
@@ -25,13 +25,13 @@ public class PhotoSnapshotService {
 
     record PhotoChange(List<String> before, List<String> after) {}
 
-    private static final SqlFixedWriter INSERT_SNAPSHOT = SqlFixedWriter.of(
-            "INSERT INTO " + PhotoSnapshotProjection.Write.TABLE +
-            " (" + PhotoSnapshotProjection.Write.ADVERTISEMENT_ID + "," +
-            " "  + PhotoSnapshotProjection.Write.VERSION + "," +
-            " "  + PhotoSnapshotProjection.Write.ATTACHMENT_URLS + "," +
-            " "  + PhotoSnapshotProjection.Write.CHANGES_SUMMARY + "," +
-            " "  + PhotoSnapshotProjection.Write.CHANGED_BY_USER_ID + ", created_at)" +
+    private static final SqlWriteCommand INSERT_SNAPSHOT = SqlWriteCommand.of(
+            "INSERT INTO " + PhotoSnapshotDescriptor.Write.TABLE +
+            " (" + PhotoSnapshotDescriptor.Write.ADVERTISEMENT_ID + "," +
+            " "  + PhotoSnapshotDescriptor.Write.VERSION + "," +
+            " "  + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
+            " "  + PhotoSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
+            " "  + PhotoSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
             " VALUES (:adId," +
             " (SELECT COUNT(*)::int FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId)," +
             " :urls, CAST(:changes AS JSONB), :userId, NOW())"
@@ -64,8 +64,8 @@ public class PhotoSnapshotService {
 
     public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotProjection.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotProjection.TABLE +
+                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
                 " WHERE advertisement_id = :adId" +
                 " AND version <= (" +
                 "   SELECT COUNT(*)::int FROM audit_log" +
@@ -73,7 +73,7 @@ public class PhotoSnapshotService {
                 "     AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)" +
                 " ) ORDER BY version DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotProjection.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
                 .map(l -> l.stream().map(PhotoSnapshotService::filename).collect(Collectors.joining(", ")))
                 .orElse("");
@@ -81,12 +81,12 @@ public class PhotoSnapshotService {
 
     public String[] getUrlsAtVersion(Long adId, int version) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotProjection.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotProjection.TABLE +
+                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
                 " WHERE advertisement_id = :adId AND version <= :version" +
                 " ORDER BY version DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotProjection.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
@@ -94,8 +94,8 @@ public class PhotoSnapshotService {
 
     public List<String> getActiveUrls(Long adId) {
         return jdbcClient.sql(
-                "SELECT " + AttachmentProjection.Write.URL +
-                " FROM " + AttachmentProjection.TABLE +
+                "SELECT " + AttachmentDescriptor.Write.URL +
+                " FROM " + AttachmentDescriptor.TABLE +
                 " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL")
                 .paramSource(new MapSqlParameterSource("adId", adId))
                 .query(String.class).list();
@@ -103,12 +103,12 @@ public class PhotoSnapshotService {
 
     public boolean photosMatchCurrent(Long adId, int version) {
         List<String> atVersion = jdbcClient.sql(
-                "SELECT " + PhotoSnapshotProjection.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotProjection.TABLE +
+                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
                 " WHERE advertisement_id = :adId AND version <= :version" +
                 " ORDER BY version DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotProjection.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional().orElse(List.of());
         List<String> current  = getActiveUrls(adId);
         List<String> atNames  = atVersion.stream().map(PhotoSnapshotService::filename).sorted().toList();
@@ -118,8 +118,8 @@ public class PhotoSnapshotService {
 
     public List<ChangeEntry> getChangesForVersion(Long adId, int version) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotProjection.Write.CHANGES_SUMMARY + "::text" +
-                " FROM " + PhotoSnapshotProjection.TABLE +
+                "SELECT " + PhotoSnapshotDescriptor.Write.CHANGES_SUMMARY + "::text" +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
                 " WHERE advertisement_id = :adId AND version = :version AND changes_summary IS NOT NULL")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
                 .query((rs, row) -> parsePhotoChanges(rs.getString(1)))
@@ -149,11 +149,11 @@ public class PhotoSnapshotService {
 
     private List<String> getPrevUrls(Long adId) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotProjection.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotProjection.TABLE +
+                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
                 " WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource("adId", adId))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotProjection.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional().orElse(List.of());
     }
 

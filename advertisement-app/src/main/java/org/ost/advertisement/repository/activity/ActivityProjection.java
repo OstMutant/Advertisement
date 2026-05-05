@@ -6,8 +6,8 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.sqlengine.projection.SqlFieldDefinition;
-import org.ost.sqlengine.projection.SqlFixedProjection;
+import org.ost.sqlengine.projection.SqlSelectField;
+import org.ost.sqlengine.projection.SqlFixedQuery;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -16,10 +16,10 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
+import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
 @Component
-public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
+public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
     private static final String SOURCE = "audit_log s LEFT JOIN user_information u ON u.id = s.changed_by_user_id";
 
@@ -75,16 +75,16 @@ public class ActivityProjection extends SqlFixedProjection<ActivityItemDto> {
             LIMIT 20
             """;
 
-    static final SqlFieldDefinition<Long>    SNAPSHOT_ID        = id("s.id",                   "snapshot_id");
-    static final SqlFieldDefinition<Long>    ENTITY_ID          = id("s.entity_id",            "entity_id");
-    static final SqlFieldDefinition<String>  ENTITY_TYPE        = str("s.entity_type",         "entity_type");
-    static final SqlFieldDefinition<String>  DISPLAY_NAME       = str("display_name",          "display_name");
-    static final SqlFieldDefinition<String>  ACTION_TYPE_STR    = str("s.action_type",         "action_type");
-    static final SqlFieldDefinition<Instant> CREATED_AT         = instant("s.created_at",      "created_at");
-    static final SqlFieldDefinition<Boolean> ENTITY_EXISTS      = bool("entity_exists",        "entity_exists");
-    static final SqlFieldDefinition<String>  CHANGES_SUMMARY    = str("s.changes_summary",     "changes_summary");
-    static final SqlFieldDefinition<Long>    CHANGED_BY_USER_ID = id("s.changed_by_user_id",   "changed_by_user_id");
-    static final SqlFieldDefinition<String>  CHANGED_BY_NAME    = str("COALESCE(u.name,'—')",  "changed_by_name");
+    static final SqlSelectField<Long>    SNAPSHOT_ID        = id("s.id",                   "snapshot_id");
+    static final SqlSelectField<Long>    ENTITY_ID          = id("s.entity_id",            "entity_id");
+    static final SqlSelectField<String>  ENTITY_TYPE        = str("s.entity_type",         "entity_type");
+    static final SqlSelectField<String>  DISPLAY_NAME       = str("display_name",          "display_name");
+    static final SqlSelectField<String>  ACTION_TYPE_STR    = str("s.action_type",         "action_type");
+    static final SqlSelectField<Instant> CREATED_AT         = instant("s.created_at",      "created_at");
+    static final SqlSelectField<Boolean> ENTITY_EXISTS      = bool("entity_exists",        "entity_exists");
+    static final SqlSelectField<String>  CHANGES_SUMMARY    = str("s.changes_summary",     "changes_summary");
+    static final SqlSelectField<Long>    CHANGED_BY_USER_ID = id("s.changed_by_user_id",   "changed_by_user_id");
+    static final SqlSelectField<String>  CHANGED_BY_NAME    = str("COALESCE(u.name,'—')",  "changed_by_name");
 
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
 

@@ -17,9 +17,9 @@ import static org.ost.sqlengine.writer.SqlEntityWriter.colExpr;
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
         implements UserRepositoryCustom {
 
-    private static final UserProjection          USER_PROJECTION           = new UserProjection();
-    private static final UserFilterBuilder        USER_FILTER_BUILDER       = new UserFilterBuilder();
-    private static final UserEmailFilterBuilder   USER_EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
+    private static final UserDescriptor         USER_PROJECTION           = new UserDescriptor();
+    private static final UserFilterBuilder       USER_FILTER_BUILDER       = new UserFilterBuilder();
+    private static final UserEmailFilterBuilder  USER_EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
 
     private static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
             "user_information",

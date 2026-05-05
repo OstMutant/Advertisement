@@ -1,6 +1,6 @@
 package org.ost.sqlengine.filter;
 
-public interface FilterMapping {
+public interface SqlFilterMapping {
 
     String filterProperty();
 

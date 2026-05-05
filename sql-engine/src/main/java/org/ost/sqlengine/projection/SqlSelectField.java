@@ -7,13 +7,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Builder
-public record SqlFieldDefinition<T>(
+public record SqlSelectField<T>(
         @NonNull String sqlExpression,
         @NonNull String alias,
         @NonNull SqlFieldReader<T> extractor
-) implements SqlFieldProjection {
+) implements SqlField {
 
-    public SqlFieldDefinition {
+    public SqlSelectField {
         if (sqlExpression.isBlank()) {
             throw new IllegalArgumentException("SQL expression must not be blank");
         }
@@ -37,4 +37,3 @@ public record SqlFieldDefinition<T>(
         return dot >= 0 ? sqlExpression.substring(dot + 1) : sqlExpression;
     }
 }
-

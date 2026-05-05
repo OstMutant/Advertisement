@@ -11,12 +11,12 @@ import java.util.Optional;
  * Use for fixed or structurally complex queries (CTEs, UNION ALL, self-joins)
  * that cannot be assembled dynamically by RepositoryCustom.
  *
- * Inherits SqlFieldDefinition mechanics and RowMapper from SqlProjection.
+ * Inherits SqlSelectField mechanics and RowMapper from SqlEntityProjection.
  * Subclasses define field constants, implement mapRow(), and provide querySql().
  */
-public abstract class SqlFixedProjection<T> extends SqlProjection<T> {
+public abstract class SqlFixedQuery<T> extends SqlEntityProjection<T> {
 
-    protected SqlFixedProjection(List<SqlFieldDefinition<?>> items, String sqlSource) {
+    protected SqlFixedQuery(List<SqlSelectField<?>> items, String sqlSource) {
         super(items, sqlSource);
     }
 

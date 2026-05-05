@@ -22,12 +22,12 @@ public class SqlEntityWriter<E> {
         return new SqlEntityWriter<>(table, Arrays.asList(columns));
     }
 
-    public static <E> SqlColumnDefinition<E> col(String column, Function<E, Object> extractor) {
-        return new SqlColumnDefinition<>(column, extractor);
+    public static <E> SqlMappedColumn<E> col(String column, Function<E, Object> extractor) {
+        return new SqlMappedColumn<>(column, extractor);
     }
 
-    public static <E> SqlColumnDefinition<E> col(String column, String param, Function<E, Object> extractor) {
-        return new SqlColumnDefinition<>(column, param, extractor);
+    public static <E> SqlMappedColumn<E> col(String column, String param, Function<E, Object> extractor) {
+        return new SqlMappedColumn<>(column, param, extractor);
     }
 
     public static <E> SqlExpressionColumn<E> colExpr(String column, String sqlExpression) {
@@ -39,7 +39,7 @@ public class SqlEntityWriter<E> {
         List<String> valExprs = new ArrayList<>();
         for (SqlWriteColumn<E> c : columns) {
             switch (c) {
-                case SqlColumnDefinition<E> col -> {
+                case SqlMappedColumn<E> col -> {
                     colNames.add(col.column());
                     valExprs.add(":" + col.param());
                 }
@@ -58,7 +58,7 @@ public class SqlEntityWriter<E> {
         List<String> setClauses = new ArrayList<>();
         for (SqlWriteColumn<E> c : columns) {
             switch (c) {
-                case SqlColumnDefinition<E> col ->
+                case SqlMappedColumn<E> col ->
                         setClauses.add(col.column() + " = :" + col.param());
                 case SqlExpressionColumn<E> expr ->
                         setClauses.add(expr.column() + " = " + expr.sqlExpression());
@@ -71,7 +71,7 @@ public class SqlEntityWriter<E> {
         MapSqlParameterSource params = new MapSqlParameterSource();
         for (SqlWriteColumn<E> c : columns) {
             switch (c) {
-                case SqlColumnDefinition<E> col ->
+                case SqlMappedColumn<E> col ->
                         params.addValue(col.param(), col.extractor().apply(entity));
                 case SqlExpressionColumn<E> expr -> {
                     // SQL expression has no named parameter — skip

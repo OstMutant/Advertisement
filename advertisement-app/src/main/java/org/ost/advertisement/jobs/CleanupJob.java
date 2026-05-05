@@ -2,9 +2,9 @@ package org.ost.advertisement.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.repository.advertisement.AdvertisementProjection;
-import org.ost.advertisement.repository.audit.AuditLogProjection;
-import org.ost.attachment.repository.AttachmentProjection;
+import org.ost.advertisement.repository.advertisement.AdvertisementDescriptor;
+import org.ost.advertisement.repository.audit.AuditLogDescriptor;
+import org.ost.attachment.repository.AttachmentDescriptor;
 import org.ost.advertisement.spi.storage.StorageService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
@@ -67,8 +67,8 @@ public class CleanupJob {
 
     private void deleteAttachments() {
         List<String> urls = jdbcClient.sql(
-                "SELECT " + AttachmentProjection.Write.URL +
-                " FROM " + AttachmentProjection.Write.TABLE +
+                "SELECT " + AttachmentDescriptor.Write.URL +
+                " FROM " + AttachmentDescriptor.Write.TABLE +
                 " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
                 .paramSource(new MapSqlParameterSource("days", retentionDays))
                 .query(String.class).list();
@@ -91,7 +91,7 @@ public class CleanupJob {
                 : urls.stream().filter(u -> !failedUrls.contains(u)).toList();
 
         int deleted = jdbcClient.sql(
-                "DELETE FROM " + AttachmentProjection.Write.TABLE + " WHERE url IN (:urls)")
+                "DELETE FROM " + AttachmentDescriptor.Write.TABLE + " WHERE url IN (:urls)")
                 .paramSource(new MapSqlParameterSource("urls", toDelete))
                 .update();
         log.info("Deleted {} attachments", deleted);
@@ -102,7 +102,7 @@ public class CleanupJob {
 
     private void deleteAdvertisements() {
         int deleted = jdbcClient.sql(
-                "DELETE FROM " + AdvertisementProjection.Write.TABLE +
+                "DELETE FROM " + AdvertisementDescriptor.Write.TABLE +
                 " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
                 .paramSource(new MapSqlParameterSource("days", retentionDays))
                 .update();
@@ -111,7 +111,7 @@ public class CleanupJob {
 
     private void pruneSnapshots() {
         int pruned = jdbcClient.sql(
-                "DELETE FROM " + AuditLogProjection.Write.TABLE +
+                "DELETE FROM " + AuditLogDescriptor.Write.TABLE +
                 " WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
                 .paramSource(new MapSqlParameterSource("days", retentionDays))
                 .update();
