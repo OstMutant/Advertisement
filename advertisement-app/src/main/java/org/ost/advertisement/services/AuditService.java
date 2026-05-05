@@ -20,8 +20,8 @@ import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjection;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,10 +40,10 @@ public class AuditService {
     private static final String ENTITY_USER          = "USER";
     private static final String ENTITY_USER_SETTINGS = "USER_SETTINGS";
 
-    private final NamedParameterJdbcTemplate    jdbc;
+    private final JdbcClient                         jdbcClient;
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
-    private final AuditDiffEngine               diffEngine;
-    private final AdvertisementHistoryProjection historyProjection;
+    private final AuditDiffEngine                    diffEngine;
+    private final AdvertisementHistoryProjection     historyProjection;
     private final ObjectProvider<AdvertisementHistoryExtension> historyExtension;
 
     // ── Capture ───────────────────────────────────────────────────────────────
@@ -95,28 +95,28 @@ public class AuditService {
     // ── Read ──────────────────────────────────────────────────────────────────
 
     public Optional<UserSettings> getSettingsFromSnapshot(Long snapshotId) {
-        return jdbc.query(
-                "SELECT snapshot_data::text FROM audit_log WHERE id = :id AND entity_type = :type",
-                new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER_SETTINGS),
-                (rs, row) -> fromJson(rs.getString(1), UserSettings.class)
-        ).stream().findFirst();
+        return jdbcClient.sql(
+                "SELECT snapshot_data::text FROM audit_log WHERE id = :id AND entity_type = :type")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER_SETTINGS))
+                .query((rs, row) -> fromJson(rs.getString(1), UserSettings.class))
+                .optional();
     }
 
     public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
-        return jdbc.query(
+        return jdbcClient.sql(
                 "SELECT entity_id, snapshot_data->>'name' AS name, snapshot_data->>'role' AS role " +
-                "FROM audit_log WHERE id = :id AND entity_type = :type",
-                new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER),
-                (rs, row) -> new UserSnapshotState(
+                "FROM audit_log WHERE id = :id AND entity_type = :type")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER))
+                .query((rs, row) -> new UserSnapshotState(
                         rs.getLong("entity_id"),
                         rs.getString("name"),
                         Role.valueOf(rs.getString("role"))
-                )
-        ).stream().findFirst();
+                ))
+                .optional();
     }
 
     public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
-        return jdbc.query("""
+        return jdbcClient.sql("""
                 SELECT prev.entity_id, prev.snapshot_data->>'name' AS name, prev.snapshot_data->>'role' AS role
                 FROM audit_log cur
                 JOIN LATERAL (
@@ -126,18 +126,18 @@ public class AuditService {
                     ORDER BY created_at DESC LIMIT 1
                 ) prev ON true
                 WHERE cur.id = :snapshotId AND cur.entity_type = 'USER'
-                """,
-                new MapSqlParameterSource("snapshotId", snapshotId),
-                (rs, row) -> new UserSnapshotState(
+                """)
+                .paramSource(new MapSqlParameterSource("snapshotId", snapshotId))
+                .query((rs, row) -> new UserSnapshotState(
                         rs.getLong("entity_id"),
                         rs.getString("name"),
                         Role.valueOf(rs.getString("role"))
-                )
-        ).stream().findFirst();
+                ))
+                .optional();
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
-        return jdbc.query("""
+        return jdbcClient.sql("""
                 SELECT a.snapshot_data->>'title'       AS title,
                        a.snapshot_data->>'description' AS description,
                        (SELECT COUNT(*) FROM audit_log b
@@ -145,36 +145,39 @@ public class AuditService {
                           AND b.created_at <= a.created_at)::int AS version
                 FROM audit_log a
                 WHERE a.id = :id AND a.entity_type = 'ADVERTISEMENT'
-                """,
-                new MapSqlParameterSource("id", snapshotId),
-                (rs, row) -> new SnapshotContent(
+                """)
+                .paramSource(new MapSqlParameterSource("id", snapshotId))
+                .query((rs, row) -> new SnapshotContent(
                         rs.getString("title"),
                         rs.getString("description"),
                         rs.getInt("version")
-                )
-        ).stream().findFirst();
+                ))
+                .optional();
     }
 
     @Transactional
     public void appendNoteToLastSnapshot(Long advertisementId, String note) {
-        Long snapshotId = jdbc.queryForObject(
-                "SELECT id FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId ORDER BY created_at DESC LIMIT 1",
-                new MapSqlParameterSource("adId", advertisementId), Long.class);
+        Long snapshotId = jdbcClient.sql(
+                "SELECT id FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId ORDER BY created_at DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource("adId", advertisementId))
+                .query(Long.class).optional().orElse(null);
         if (snapshotId == null) return;
 
-        String currentJson = jdbc.queryForObject(
-                "SELECT changes_summary::text FROM audit_log WHERE id = :id",
-                new MapSqlParameterSource("id", snapshotId), String.class);
+        String currentJson = jdbcClient.sql(
+                "SELECT changes_summary::text FROM audit_log WHERE id = :id")
+                .paramSource(new MapSqlParameterSource("id", snapshotId))
+                .query(String.class).single();
 
         List<ChangeEntry> entries = new ArrayList<>(fromJsonList(currentJson));
         entries.add(new NoteEntry(note));
 
-        jdbc.update("UPDATE audit_log SET changes_summary = CAST(:s AS JSONB) WHERE id = :id",
-                new MapSqlParameterSource().addValue("id", snapshotId).addValue("s", toJson(entries)));
+        jdbcClient.sql("UPDATE audit_log SET changes_summary = CAST(:s AS JSONB) WHERE id = :id")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("s", toJson(entries)))
+                .update();
     }
 
     public List<AdvertisementHistoryDto> getAdvertisementHistory(Long advertisementId, Long currentUserId, boolean showAll) {
-        List<AdvertisementHistoryDto> history = historyProjection.queryAll(jdbc,
+        List<AdvertisementHistoryDto> history = historyProjection.queryAll(jdbcClient,
                 new MapSqlParameterSource()
                         .addValue("adId",         advertisementId)
                         .addValue("filterUserId", showAll ? null : currentUserId));
@@ -210,28 +213,28 @@ public class AuditService {
 
     private void insertAuditLog(String entityType, Long entityId, ActionType actionType,
                                 Object snapshotDto, List<ChangeEntry> changes, Long changedByUserId) {
-        jdbc.update("""
+        jdbcClient.sql("""
                 INSERT INTO audit_log
                     (entity_type, entity_id, action_type, snapshot_data, changes_summary, changed_by_user_id)
                 VALUES (:entityType, :entityId, :actionType,
                         CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :changedBy)
-                """,
-                new MapSqlParameterSource()
+                """)
+                .paramSource(new MapSqlParameterSource()
                         .addValue("entityType",   entityType)
                         .addValue("entityId",     entityId)
                         .addValue("actionType",   actionType.name())
                         .addValue("snapshotData", toJson(snapshotDto))
                         .addValue("changes",      toChangesJson(changes))
-                        .addValue("changedBy",    changedByUserId)
-        );
+                        .addValue("changedBy",    changedByUserId))
+                .update();
     }
 
     private <T> T loadLastSnapshot(String entityType, Long entityId, Class<T> type) {
-        return jdbc.query(
-                "SELECT snapshot_data::text FROM audit_log WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1",
-                new MapSqlParameterSource().addValue("type", entityType).addValue("id", entityId),
-                (rs, row) -> fromJson(rs.getString(1), type)
-        ).stream().findFirst().orElse(null);
+        return jdbcClient.sql(
+                "SELECT snapshot_data::text FROM audit_log WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource().addValue("type", entityType).addValue("id", entityId))
+                .query((rs, row) -> fromJson(rs.getString(1), type))
+                .optional().orElse(null);
     }
 
     private String toChangesJson(List<ChangeEntry> changes) {

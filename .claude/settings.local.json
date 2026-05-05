@@ -51,7 +51,9 @@
       "Bash(chmod +x *)",
       "Bash(sed -i \"s/overlay--visible vaadin-text-field input'\\)\\\\.waitFor\\(\\)/overlay--visible vaadin-text-field input'\\).first\\(\\).waitFor\\(\\)/g\" playwright/activity-types.spec.js playwright/advertisement-history.spec.js playwright/edit-advertisement.spec.js playwright/photo-activity.spec.js playwright/smoke.spec.js playwright/upload-image.spec.js playwright/verify-photo-history.spec.js)",
       "Bash(sed -i \"s/attachment-gallery__item'\\)\\\\.waitFor\\(\\)/attachment-gallery__item'\\).first\\(\\).waitFor\\(\\)/g\" playwright/upload-image.spec.js playwright/verify-photo-history.spec.js)",
-      "Bash(xargs -n1 basename)"
+      "Bash(xargs -n1 basename)",
+      "Read(//root/.m2/repository/org/springframework/spring-jdbc/**)",
+      "Bash(jar -tf ~/.m2/repository/org/springframework/spring-jdbc/7.0.2/spring-jdbc-7.0.2.jar)"
     ]
   },
   "hooks": {

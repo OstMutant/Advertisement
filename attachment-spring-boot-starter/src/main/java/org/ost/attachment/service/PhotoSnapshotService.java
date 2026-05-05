@@ -4,17 +4,22 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.sql.Array;
 import java.sql.Connection;
 import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -22,8 +27,9 @@ public class PhotoSnapshotService {
 
     record PhotoChange(List<String> before, List<String> after) {}
 
-    private final NamedParameterJdbcTemplate jdbc;
-    private final ObjectMapper               objectMapper;
+    private final JdbcClient   jdbcClient;
+    private final DataSource   dataSource;
+    private final ObjectMapper objectMapper;
 
     @Transactional
     public void capture(Long adId, Long userId) {
@@ -33,28 +39,29 @@ public class PhotoSnapshotService {
         if (diff == null) return;
 
         Array urlArray = toSqlArray(currentUrls);
-        jdbc.update("""
+        jdbcClient.sql("""
                 INSERT INTO photo_snapshot
                     (advertisement_id, version, attachment_urls, changes_summary, changed_by_user_id, created_at)
                 VALUES (:adId,
                     (SELECT COUNT(*)::int FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId),
                     :urls, CAST(:changes AS JSONB), :userId, NOW())
-                """,
-                new MapSqlParameterSource()
+                """)
+                .paramSource(new MapSqlParameterSource()
                         .addValue("adId",    adId)
                         .addValue("urls",    urlArray)
                         .addValue("changes", toJson(diff))
-                        .addValue("userId",  userId));
+                        .addValue("userId",  userId))
+                .update();
     }
 
     public String getPhotoStateAtVersion(Long adId, int version) {
         String[] urls = getUrlsAtVersion(adId, version);
         if (urls.length == 0) return "";
-        return java.util.Arrays.stream(urls).map(PhotoSnapshotService::filename).collect(java.util.stream.Collectors.joining(", "));
+        return Arrays.stream(urls).map(PhotoSnapshotService::filename).collect(Collectors.joining(", "));
     }
 
     public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
-        return jdbc.query("""
+        return jdbcClient.sql("""
                 SELECT attachment_urls FROM photo_snapshot
                 WHERE advertisement_id = :adId
                   AND version <= (
@@ -63,53 +70,55 @@ public class PhotoSnapshotService {
                         AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)
                   )
                 ORDER BY version DESC LIMIT 1
-                """,
-                new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId),
-                (rs, row) -> toStringList(rs, "attachment_urls")
-        ).stream().findFirst()
-                .map(l -> l.stream().map(PhotoSnapshotService::filename).collect(java.util.stream.Collectors.joining(", ")))
+                """)
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
+                .query((rs, row) -> toStringList(rs, "attachment_urls"))
+                .optional()
+                .map(l -> l.stream().map(PhotoSnapshotService::filename).collect(Collectors.joining(", ")))
                 .orElse("");
     }
 
     public String[] getUrlsAtVersion(Long adId, int version) {
-        return jdbc.query(
+        return jdbcClient.sql(
                 "SELECT attachment_urls FROM photo_snapshot " +
                 "WHERE advertisement_id = :adId AND version <= :version " +
-                "ORDER BY version DESC LIMIT 1",
-                new MapSqlParameterSource().addValue("adId", adId).addValue("version", version),
-                (rs, row) -> toStringList(rs, "attachment_urls")
-        ).stream().findFirst().map(l -> l.toArray(new String[0])).orElse(new String[0]);
+                "ORDER BY version DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
+                .query((rs, row) -> toStringList(rs, "attachment_urls"))
+                .optional()
+                .map(l -> l.toArray(new String[0]))
+                .orElse(new String[0]);
     }
 
     public List<String> getActiveUrls(Long adId) {
-        return jdbc.queryForList(
-                "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL",
-                new MapSqlParameterSource("adId", adId),
-                String.class
-        );
+        return jdbcClient.sql(
+                "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource("adId", adId))
+                .query(String.class)
+                .list();
     }
 
     public boolean photosMatchCurrent(Long adId, int version) {
-        List<String> atVersion = jdbc.query(
+        List<String> atVersion = jdbcClient.sql(
                 "SELECT attachment_urls FROM photo_snapshot " +
                 "WHERE advertisement_id = :adId AND version <= :version " +
-                "ORDER BY version DESC LIMIT 1",
-                new MapSqlParameterSource().addValue("adId", adId).addValue("version", version),
-                (rs, row) -> toStringList(rs, "attachment_urls")
-        ).stream().findFirst().orElse(List.of());
-        List<String> current = getActiveUrls(adId);
+                "ORDER BY version DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
+                .query((rs, row) -> toStringList(rs, "attachment_urls"))
+                .optional().orElse(List.of());
+        List<String> current  = getActiveUrls(adId);
         List<String> atNames  = atVersion.stream().map(PhotoSnapshotService::filename).sorted().toList();
         List<String> curNames = current.stream().map(PhotoSnapshotService::filename).sorted().toList();
         return atNames.equals(curNames);
     }
 
     public List<ChangeEntry> getChangesForVersion(Long adId, int version) {
-        return jdbc.query(
+        return jdbcClient.sql(
                 "SELECT changes_summary::text FROM photo_snapshot " +
-                "WHERE advertisement_id = :adId AND version = :version AND changes_summary IS NOT NULL",
-                new MapSqlParameterSource().addValue("adId", adId).addValue("version", version),
-                (rs, row) -> parsePhotoChanges(rs.getString(1))
-        ).stream().findFirst().orElse(List.of());
+                "WHERE advertisement_id = :adId AND version = :version AND changes_summary IS NOT NULL")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
+                .query((rs, row) -> parsePhotoChanges(rs.getString(1)))
+                .optional().orElse(List.of());
     }
 
     // ── internals ────────────────────────────────────────────────────────────
@@ -134,11 +143,11 @@ public class PhotoSnapshotService {
     }
 
     private List<String> getPrevUrls(Long adId) {
-        return jdbc.query(
-                "SELECT attachment_urls FROM photo_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1",
-                new MapSqlParameterSource("adId", adId),
-                (rs, row) -> toStringList(rs, "attachment_urls")
-        ).stream().findFirst().orElse(List.of());
+        return jdbcClient.sql(
+                "SELECT attachment_urls FROM photo_snapshot WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource("adId", adId))
+                .query((rs, row) -> toStringList(rs, "attachment_urls"))
+                .optional().orElse(List.of());
     }
 
     private static PhotoChange buildDiff(List<String> prev, List<String> curr) {
@@ -157,9 +166,14 @@ public class PhotoSnapshotService {
     }
 
     private Array toSqlArray(List<String> list) {
-        return jdbc.getJdbcOperations().execute(
-                (Connection conn) -> conn.createArrayOf("text", list.toArray(new String[0]))
-        );
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try {
+            return conn.createArrayOf("text", list.toArray(new String[0]));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
+        }
     }
 
     private static List<String> toStringList(ResultSet rs, String col) {

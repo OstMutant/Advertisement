@@ -9,13 +9,16 @@ import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.ost.advertisement.spi.storage.StorageService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.DataSourceUtils;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sql.DataSource;
 import java.io.InputStream;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
@@ -29,18 +32,18 @@ public class AttachmentService {
 
     public record TempAttachment(String tempUrl, String filename, String contentType, long size) {}
 
-    private final StorageService                            storageService;
-    private final NamedParameterJdbcTemplate                jdbc;
-    private final PhotoSnapshotService                      photoSnapshotService;
+    private final StorageService                             storageService;
+    private final JdbcClient                                 jdbcClient;
+    private final DataSource                                 dataSource;
+    private final PhotoSnapshotService                       photoSnapshotService;
     private final ObjectProvider<AttachmentCurrentUserProvider> currentUserProvider;
-    private final ApplicationEventPublisher                 eventPublisher;
+    private final ApplicationEventPublisher                  eventPublisher;
 
     public List<Attachment> getByEntityId(Long entityId) {
-        return jdbc.query(
-                "SELECT * FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL",
-                new MapSqlParameterSource("id", entityId),
-                this::mapRow
-        );
+        return jdbcClient.sql(
+                "SELECT * FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource("id", entityId))
+                .query(this::mapRow).list();
     }
 
     public Attachment upload(Long entityId, String filename,
@@ -112,37 +115,35 @@ public class AttachmentService {
     @Transactional
     public void restoreToUrls(Long adId, String[] targetUrls, Long userId) {
         if (targetUrls == null || targetUrls.length == 0) {
-            jdbc.update(
+            jdbcClient.sql(
                     "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :userId " +
-                    "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL",
-                    new MapSqlParameterSource().addValue("userId", userId).addValue("adId", adId)
-            );
+                    "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL")
+                    .paramSource(new MapSqlParameterSource().addValue("userId", userId).addValue("adId", adId))
+                    .update();
             return;
         }
-        var urlArray = jdbc.getJdbcOperations().execute(
-                (java.sql.Connection conn) -> conn.createArrayOf("text", targetUrls)
-        );
-        jdbc.update(
+        var urlArray = toSqlArray(targetUrls);
+        jdbcClient.sql(
                 "UPDATE attachment SET deleted_at = NULL, deleted_by_user_id = NULL " +
-                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND url = ANY(:urls)",
-                new MapSqlParameterSource().addValue("adId", adId).addValue("urls", urlArray)
-        );
-        jdbc.update(
+                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND url = ANY(:urls)")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("urls", urlArray))
+                .update();
+        jdbcClient.sql(
                 "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :userId " +
                 "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId " +
-                "  AND deleted_at IS NULL AND NOT (url = ANY(:urls))",
-                new MapSqlParameterSource().addValue("adId", adId).addValue("userId", userId).addValue("urls", urlArray)
-        );
+                "  AND deleted_at IS NULL AND NOT (url = ANY(:urls))")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("userId", userId).addValue("urls", urlArray))
+                .update();
         publishMediaUpdate(adId);
     }
 
     @Transactional
     public void softDeleteAll(Long entityId, Long deletedByUserId) {
-        jdbc.update(
+        jdbcClient.sql(
                 "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy " +
-                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL",
-                new MapSqlParameterSource().addValue("deletedBy", deletedByUserId).addValue("entityId", entityId)
-        );
+                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource().addValue("deletedBy", deletedByUserId).addValue("entityId", entityId))
+                .update();
         publishMediaUpdate(entityId);
     }
 
@@ -153,17 +154,16 @@ public class AttachmentService {
     // ── internals ────────────────────────────────────────────────────────────
 
     private void publishMediaUpdate(Long entityId) {
-        String mainUrl = jdbc.query(
+        String mainUrl = jdbcClient.sql(
                 "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id " +
-                "AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1",
-                new MapSqlParameterSource("id", entityId),
-                (rs, n) -> rs.getString("url")
-        ).stream().findFirst().orElse(null);
-        Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL",
-                new MapSqlParameterSource("id", entityId),
-                Integer.class
-        );
+                "AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")
+                .paramSource(new MapSqlParameterSource("id", entityId))
+                .query((rs, n) -> rs.getString("url"))
+                .optional().orElse(null);
+        Integer count = jdbcClient.sql(
+                "SELECT COUNT(*) FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource("id", entityId))
+                .query(Integer.class).single();
         eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, mainUrl, count != null ? count : 0));
     }
 
@@ -181,18 +181,16 @@ public class AttachmentService {
 
     private Attachment insert(Long entityId, String url, String filename, String contentType, long size) {
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbc.update(
+        jdbcClient.sql(
                 "INSERT INTO attachment (entity_type, entity_id, url, filename, content_type, size, created_at) " +
-                "VALUES ('ADVERTISEMENT', :entityId, :url, :filename, :contentType, :size, NOW())",
-                new MapSqlParameterSource()
+                "VALUES ('ADVERTISEMENT', :entityId, :url, :filename, :contentType, :size, NOW())")
+                .paramSource(new MapSqlParameterSource()
                         .addValue("entityId", entityId)
                         .addValue("url", url)
                         .addValue("filename", filename)
                         .addValue("contentType", contentType)
-                        .addValue("size", size),
-                keyHolder,
-                new String[]{"id"}
-        );
+                        .addValue("size", size))
+                .update(keyHolder, "id");
         Long id = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
         return Attachment.builder()
                 .id(id).entityId(entityId).url(url).filename(filename)
@@ -200,18 +198,27 @@ public class AttachmentService {
     }
 
     private void softDelete(Long id, Long deletedBy) {
-        jdbc.update(
-                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id",
-                new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedBy)
-        );
+        jdbcClient.sql(
+                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
+                .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedBy))
+                .update();
     }
 
     private Attachment findById(Long id) {
-        return jdbc.query(
-                "SELECT * FROM attachment WHERE id = :id",
-                new MapSqlParameterSource("id", id),
-                this::mapRow
-        ).stream().findFirst().orElse(null);
+        return jdbcClient.sql("SELECT * FROM attachment WHERE id = :id")
+                .paramSource(new MapSqlParameterSource("id", id))
+                .query(this::mapRow).optional().orElse(null);
+    }
+
+    private java.sql.Array toSqlArray(String[] values) {
+        Connection conn = DataSourceUtils.getConnection(dataSource);
+        try {
+            return conn.createArrayOf("text", values);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            DataSourceUtils.releaseConnection(conn, dataSource);
+        }
     }
 
     private Attachment mapRow(ResultSet rs, int rowNum) throws SQLException {

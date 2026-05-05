@@ -5,8 +5,8 @@ import org.ost.sqlengine.exec.SqlQueryBuilder;
 import org.ost.sqlengine.filter.FilterBuilder;
 import org.ost.sqlengine.projection.SqlProjection;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -19,12 +19,12 @@ public class RepositoryCustom<T, F> {
     protected final SqlQueryBuilder sqlQueryBuilder;
     protected final RepositoryExecutor<T> executor;
 
-    protected RepositoryCustom(NamedParameterJdbcTemplate jdbc, SqlProjection<T> sqlProjection,
+    protected RepositoryCustom(JdbcClient jdbcClient, SqlProjection<T> sqlProjection,
                                FilterBuilder<F> filterBuilder) {
         this.sqlProjection = sqlProjection;
         this.filterBuilder = filterBuilder;
         this.sqlQueryBuilder = new SqlQueryBuilder();
-        this.executor = new RepositoryExecutor<>(jdbc);
+        this.executor = new RepositoryExecutor<>(jdbcClient);
     }
 
     public List<T> findByFilter(F filter, Pageable pageable) {

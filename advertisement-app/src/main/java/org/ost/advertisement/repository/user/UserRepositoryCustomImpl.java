@@ -5,7 +5,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.sqlengine.RepositoryCustom;
 import org.ost.sqlengine.writer.SqlEntityWriter;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -29,8 +29,8 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
             col("locale", s -> s)
     );
 
-    public UserRepositoryCustomImpl(NamedParameterJdbcTemplate jdbc) {
-        super(jdbc, USER_PROJECTION, USER_FILTER_BUILDER);
+    public UserRepositoryCustomImpl(JdbcClient jdbcClient) {
+        super(jdbcClient, USER_PROJECTION, USER_FILTER_BUILDER);
     }
 
     @Override
@@ -40,17 +40,17 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
     @Override
     public void updateLocale(Long userId, String locale) {
-        executor.jdbc().update(
-                LOCALE_WRITER.updateWhere("user_information", "id = :id"),
-                LOCALE_WRITER.params(locale).addValue("id", userId)
-        );
+        executor.jdbcClient()
+                .sql(LOCALE_WRITER.updateWhere("user_information", "id = :id"))
+                .paramSource(LOCALE_WRITER.params(locale).addValue("id", userId))
+                .update();
     }
 
     @Override
     public void updateProfile(UserProfileDto dto) {
-        executor.jdbc().update(
-                PROFILE_WRITER.updateWhere("user_information", "updated_at = NOW()", "id = :id"),
-                PROFILE_WRITER.params(dto).addValue("id", dto.id())
-        );
+        executor.jdbcClient()
+                .sql(PROFILE_WRITER.updateWhere("user_information", "updated_at = NOW()", "id = :id"))
+                .paramSource(PROFILE_WRITER.params(dto).addValue("id", dto.id()))
+                .update();
     }
 }

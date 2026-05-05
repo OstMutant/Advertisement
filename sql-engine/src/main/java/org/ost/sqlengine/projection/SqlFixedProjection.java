@@ -1,7 +1,7 @@
 package org.ost.sqlengine.projection;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,11 +22,11 @@ public abstract class SqlFixedProjection<T> extends SqlProjection<T> {
 
     public abstract String querySql();
 
-    public List<T> queryAll(NamedParameterJdbcTemplate jdbc, MapSqlParameterSource params) {
-        return jdbc.query(querySql(), params, this);
+    public List<T> queryAll(JdbcClient jdbcClient, MapSqlParameterSource params) {
+        return jdbcClient.sql(querySql()).paramSource(params).query(this).list();
     }
 
-    public Optional<T> queryOne(NamedParameterJdbcTemplate jdbc, MapSqlParameterSource params) {
-        return jdbc.query(querySql(), params, this).stream().findFirst();
+    public Optional<T> queryOne(JdbcClient jdbcClient, MapSqlParameterSource params) {
+        return jdbcClient.sql(querySql()).paramSource(params).query(this).optional();
     }
 }
