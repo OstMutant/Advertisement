@@ -34,26 +34,6 @@ public class SqlEntityWriter<E> {
         return new SqlExpressionColumn<>(column, sqlExpression);
     }
 
-    public String insertInto() {
-        List<String> colNames = new ArrayList<>();
-        List<String> valExprs = new ArrayList<>();
-        for (SqlWriteColumn<E> c : columns) {
-            switch (c) {
-                case SqlMappedColumn<E> col -> {
-                    colNames.add(col.column());
-                    valExprs.add(":" + col.param());
-                }
-                case SqlExpressionColumn<E> expr -> {
-                    colNames.add(expr.column());
-                    valExprs.add(expr.sqlExpression());
-                }
-            }
-        }
-        return "INSERT INTO " + table +
-               " (" + String.join(", ", colNames) + ")" +
-               " VALUES (" + String.join(", ", valExprs) + ")";
-    }
-
     public String updateWhere(String where) {
         List<String> setClauses = new ArrayList<>();
         for (SqlWriteColumn<E> c : columns) {
@@ -73,7 +53,7 @@ public class SqlEntityWriter<E> {
             switch (c) {
                 case SqlMappedColumn<E> col ->
                         params.addValue(col.param(), col.extractor().apply(entity));
-                case SqlExpressionColumn<E> expr -> {
+                case SqlExpressionColumn<E> _ -> {
                     // SQL expression has no named parameter — skip
                 }
             }

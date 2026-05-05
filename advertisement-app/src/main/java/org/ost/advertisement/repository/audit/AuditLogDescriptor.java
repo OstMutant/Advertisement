@@ -6,14 +6,11 @@ import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
 public final class AuditLogDescriptor {
 
-    public static final String TABLE  = "audit_log";
-    public static final String ALIAS  = "al";
-    public static final String SOURCE = TABLE + " " + ALIAS;
+    public static final String TABLE = "audit_log";
 
-    public static final SqlSelectField<Long>   ID          = id(ALIAS + ".id",         "al_id");
-    public static final SqlSelectField<Long>   ENTITY_ID   = longVal(ALIAS + ".entity_id",  "entity_id");
-    public static final SqlSelectField<String> ENTITY_TYPE = str(ALIAS + ".entity_type", "entity_type");
-    public static final SqlSelectField<String> ACTION_TYPE = str(ALIAS + ".action_type", "action_type");
+    public static final SqlSelectField<Long>   ENTITY_ID   = longVal("al.entity_id",  "entity_id");
+    public static final SqlSelectField<String> ENTITY_TYPE = str("al.entity_type", "entity_type");
+    public static final SqlSelectField<String> ACTION_TYPE = str("al.action_type", "action_type");
 
     public static final class EntityType {
         private EntityType() {}

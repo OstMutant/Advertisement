@@ -21,7 +21,7 @@ public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementIn
             " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id";
     public static final String COUNT_SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlSelectField<Long>    ID             = id(ALIAS + ".id",             id);
+    public static final SqlSelectField<Long>    ID             = longVal(ALIAS + ".id",             id);
     public static final SqlSelectField<String>  TITLE          = str(ALIAS + ".title",          title);
     public static final SqlSelectField<String>  DESCRIPTION    = str(ALIAS + ".description",    description);
     public static final SqlSelectField<Instant> CREATED_AT     = instant(ALIAS + ".created_at", createdAt);
@@ -29,7 +29,7 @@ public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementIn
     public static final SqlSelectField<Instant> DELETED_AT     = instant(ALIAS + ".deleted_at", "deleted_at");
     public static final SqlSelectField<String>  MAIN_IMAGE_URL = str(ALIAS + ".main_image_url", mainImageUrl);
     public static final SqlSelectField<Integer> IMAGE_COUNT    = intVal(ALIAS + ".image_count",  imageCount);
-    public static final SqlSelectField<Long>    USER_ID        = id("u.id",                     createdByUserId);
+    public static final SqlSelectField<Long>    USER_ID        = longVal("u.id",                     createdByUserId);
     public static final SqlSelectField<String>  USER_NAME      = str("u.name",                  createdByUserName);
     public static final SqlSelectField<String>  USER_EMAIL     = str("u.email",                 createdByUserEmail);
 

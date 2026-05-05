@@ -17,7 +17,7 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
     public static final String TABLE  = "attachment";
     public static final String SOURCE = TABLE;
 
-    public static final SqlSelectField<Long>    ID                  = id("id",                     "id");
+    public static final SqlSelectField<Long>    ID                  = longVal("id",                     "id");
     public static final SqlSelectField<Long>    ENTITY_ID           = longVal("entity_id",          "entity_id");
     public static final SqlSelectField<String>  URL                 = str("url",                    "url");
     public static final SqlSelectField<String>  FILENAME            = str("filename",                "filename");

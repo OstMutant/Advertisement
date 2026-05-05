@@ -20,7 +20,7 @@ public class UserDescriptor extends SqlEntityProjection<User> {
     public static final String ALIAS  = "u";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlSelectField<Long>    ID            = id(ALIAS + ".id",            id);
+    public static final SqlSelectField<Long>    ID            = longVal(ALIAS + ".id",            id);
     public static final SqlSelectField<String>  NAME          = str(ALIAS + ".name",          name);
     public static final SqlSelectField<String>  EMAIL         = str(ALIAS + ".email",         email);
     public static final SqlSelectField<String>  ROLE          = str(ALIAS + ".role",          role);

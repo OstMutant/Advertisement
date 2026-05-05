@@ -4,17 +4,19 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * A projection that owns its complete SQL query.
  * Use for fixed or structurally complex queries (CTEs, UNION ALL, self-joins)
  * that cannot be assembled dynamically by RepositoryCustom.
  *
- * Inherits SqlSelectField mechanics and RowMapper from SqlEntityProjection.
  * Subclasses define field constants, implement mapRow(), and provide querySql().
  */
 public abstract class SqlFixedQuery<T> extends SqlEntityProjection<T> {
+
+    protected SqlFixedQuery(List<SqlSelectField<?>> items) {
+        super(items, "");
+    }
 
     protected SqlFixedQuery(List<SqlSelectField<?>> items, String sqlSource) {
         super(items, sqlSource);

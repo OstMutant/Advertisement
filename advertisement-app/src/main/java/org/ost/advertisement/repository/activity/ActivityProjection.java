@@ -21,8 +21,6 @@ import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 @Component
 public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
-    private static final String SOURCE = "audit_log s LEFT JOIN user_information u ON u.id = s.changed_by_user_id";
-
     private static final String QUERY = """
             WITH adv_act AS (
                 SELECT s.id                                                             AS snapshot_id,
@@ -75,23 +73,22 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
             LIMIT 20
             """;
 
-    static final SqlSelectField<Long>    SNAPSHOT_ID        = id("s.id",                   "snapshot_id");
-    static final SqlSelectField<Long>    ENTITY_ID          = id("s.entity_id",            "entity_id");
+    static final SqlSelectField<Long>    SNAPSHOT_ID        = longVal("s.id",                   "snapshot_id");
+    static final SqlSelectField<Long>    ENTITY_ID          = longVal("s.entity_id",            "entity_id");
     static final SqlSelectField<String>  ENTITY_TYPE        = str("s.entity_type",         "entity_type");
     static final SqlSelectField<String>  DISPLAY_NAME       = str("display_name",          "display_name");
     static final SqlSelectField<String>  ACTION_TYPE_STR    = str("s.action_type",         "action_type");
     static final SqlSelectField<Instant> CREATED_AT         = instant("s.created_at",      "created_at");
     static final SqlSelectField<Boolean> ENTITY_EXISTS      = bool("entity_exists",        "entity_exists");
     static final SqlSelectField<String>  CHANGES_SUMMARY    = str("s.changes_summary",     "changes_summary");
-    static final SqlSelectField<Long>    CHANGED_BY_USER_ID = id("s.changed_by_user_id",   "changed_by_user_id");
+    static final SqlSelectField<Long>    CHANGED_BY_USER_ID = longVal("s.changed_by_user_id",   "changed_by_user_id");
     static final SqlSelectField<String>  CHANGED_BY_NAME    = str("COALESCE(u.name,'—')",  "changed_by_name");
 
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
 
     public ActivityProjection(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, ENTITY_ID, ENTITY_TYPE, DISPLAY_NAME, ACTION_TYPE_STR,
-                      CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, CHANGED_BY_USER_ID, CHANGED_BY_NAME),
-              SOURCE);
+                      CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, CHANGED_BY_USER_ID, CHANGED_BY_NAME));
         this.objectMapper = objectMapper;
     }
 

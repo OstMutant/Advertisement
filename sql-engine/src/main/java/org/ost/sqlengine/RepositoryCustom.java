@@ -4,6 +4,7 @@ import org.ost.sqlengine.exec.SqlQueryExecutor;
 import org.ost.sqlengine.exec.SqlQueryBuilder;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.projection.SqlEntityProjection;
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -69,6 +70,10 @@ public class RepositoryCustom<T, F> {
 
     protected void execute(String sql, MapSqlParameterSource params) {
         executor.execute(sql, params);
+    }
+
+    protected void execute(SqlWriteCommand command, MapSqlParameterSource params) {
+        command.execute(executor.jdbcClient(), params);
     }
 
     private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {

@@ -15,8 +15,10 @@ public class AdvertisementRepositoryCustomImpl
         extends RepositoryCustom<AdvertisementInfoDto, AdvertisementFilterDto>
         implements AdvertisementRepositoryCustom {
 
-    private static final AdvertisementDescriptor    ADVERTISEMENT_PROJECTION    = new AdvertisementDescriptor();
-    private static final AdvertisementFilterBuilder ADVERTISEMENT_FILTER_BUILDER = new AdvertisementFilterBuilder();
+    private static final AdvertisementDescriptor    PROJECTION    = new AdvertisementDescriptor();
+    private static final AdvertisementFilterBuilder FILTER_BUILDER = new AdvertisementFilterBuilder();
+
+    private static final String BY_ID = "a.id = :id AND a.deleted_at IS NULL";
 
     private static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
             "UPDATE " + AdvertisementDescriptor.Write.TABLE +
@@ -26,18 +28,17 @@ public class AdvertisementRepositoryCustomImpl
     );
 
     public AdvertisementRepositoryCustomImpl(JdbcClient jdbcClient) {
-        super(jdbcClient, ADVERTISEMENT_PROJECTION, ADVERTISEMENT_FILTER_BUILDER);
+        super(jdbcClient, PROJECTION, FILTER_BUILDER);
     }
 
     @Override
     public void softDelete(Long id, Long deletedByUserId) {
-        execute(SOFT_DELETE.sql(),
+        execute(SOFT_DELETE,
                 new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId));
     }
 
     @Override
     public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
-        return findOne("a.id = :id AND a.deleted_at IS NULL",
-                new MapSqlParameterSource("id", id));
+        return findOne(BY_ID, new MapSqlParameterSource("id", id));
     }
 }

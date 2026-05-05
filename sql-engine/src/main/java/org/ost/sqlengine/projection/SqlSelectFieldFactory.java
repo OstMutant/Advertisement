@@ -14,12 +14,6 @@ public class SqlSelectFieldFactory {
         return build(sqlExpression, sqlAlias, ResultSet::getString);
     }
 
-    /** @deprecated use {@link #longVal} */
-    @Deprecated
-    public static SqlSelectField<Long> id(String sqlExpression, String sqlAlias) {
-        return longVal(sqlExpression, sqlAlias);
-    }
-
     public static SqlSelectField<Long> longVal(String sqlExpression, String sqlAlias) {
         return build(sqlExpression, sqlAlias, (rs, alias) -> rs.getObject(alias, Long.class));
     }
@@ -37,14 +31,6 @@ public class SqlSelectFieldFactory {
 
     public static SqlSelectField<Integer> intVal(String sqlExpression, String sqlAlias) {
         return build(sqlExpression, sqlAlias, ResultSet::getInt);
-    }
-
-    public static SqlSelectField<String[]> strArray(String sqlExpression, String sqlAlias) {
-        return build(sqlExpression, sqlAlias, (rs, alias) -> {
-            java.sql.Array arr = rs.getArray(alias);
-            if (arr == null) return new String[0];
-            return (String[]) arr.getArray();
-        });
     }
 
     public static <T> SqlSelectField<T> build(String sqlExpression, String alias, SqlFieldReader<T> extractor) {

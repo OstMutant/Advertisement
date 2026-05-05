@@ -48,9 +48,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
             LIMIT 101
             """;
 
-    private static final String SOURCE = "audit_log n LEFT JOIN user_information u ON u.id = n.changed_by_user_id";
-
-    static final SqlSelectField<Long>    SNAPSHOT_ID      = id("n.id",                         "id");
+    static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",                         "id");
     static final SqlSelectField<Integer> VERSION          = intVal("n.version",                "version");
     static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",               "action_type");
     static final SqlSelectField<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",        "changed_by_name");
@@ -67,8 +65,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
     public AdvertisementHistoryProjection(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, VERSION, ACTION_TYPE_STR, CHANGED_BY_NAME, CREATED_AT,
                       TITLE, DESCRIPTION, CHANGES_SUMMARY,
-                      PREV_ID, PREV_TITLE, PREV_DESCRIPTION),
-              SOURCE);
+                      PREV_ID, PREV_TITLE, PREV_DESCRIPTION));
         this.objectMapper = objectMapper;
     }
 
@@ -98,7 +95,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
         if (json == null || json.isBlank()) return List.of();
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
+        } catch (Exception _) {
             return List.of();
         }
     }
