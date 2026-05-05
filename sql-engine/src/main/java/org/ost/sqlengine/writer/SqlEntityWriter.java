@@ -1,53 +1,83 @@
 package org.ost.sqlengine.writer;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class SqlEntityWriter<E> {
 
-    private final List<SqlColumnDefinition<E>> columns;
+    private final String               table;
+    private final List<SqlWriteColumn<E>> columns;
+
+    private SqlEntityWriter(String table, List<SqlWriteColumn<E>> columns) {
+        this.table   = table;
+        this.columns = columns;
+    }
 
     @SafeVarargs
-    public static <E> SqlEntityWriter<E> of(SqlColumnDefinition<E>... columns) {
-        return new SqlEntityWriter<>(Arrays.asList(columns));
+    public static <E> SqlEntityWriter<E> of(String table, SqlWriteColumn<E>... columns) {
+        return new SqlEntityWriter<>(table, Arrays.asList(columns));
     }
 
     public static <E> SqlColumnDefinition<E> col(String column, Function<E, Object> extractor) {
         return new SqlColumnDefinition<>(column, extractor);
     }
 
-    public String insertInto(String table) {
-        String cols = columns.stream().map(SqlColumnDefinition::column).collect(Collectors.joining(", "));
-        String vals = columns.stream().map(c -> ":" + c.column()).collect(Collectors.joining(", "));
-        return "INSERT INTO " + table + " (" + cols + ") VALUES (" + vals + ")";
+    public static <E> SqlColumnDefinition<E> col(String column, String param, Function<E, Object> extractor) {
+        return new SqlColumnDefinition<>(column, param, extractor);
     }
 
-    public String updateWhere(String table, String where) {
-        return buildUpdate(table, null, where);
+    public static <E> SqlExpressionColumn<E> colExpr(String column, String sqlExpression) {
+        return new SqlExpressionColumn<>(column, sqlExpression);
     }
 
-    public String updateWhere(String table, String extraSet, String where) {
-        return buildUpdate(table, extraSet, where);
+    public String insertInto() {
+        List<String> colNames = new ArrayList<>();
+        List<String> valExprs = new ArrayList<>();
+        for (SqlWriteColumn<E> c : columns) {
+            switch (c) {
+                case SqlColumnDefinition<E> col -> {
+                    colNames.add(col.column());
+                    valExprs.add(":" + col.param());
+                }
+                case SqlExpressionColumn<E> expr -> {
+                    colNames.add(expr.column());
+                    valExprs.add(expr.sqlExpression());
+                }
+            }
+        }
+        return "INSERT INTO " + table +
+               " (" + String.join(", ", colNames) + ")" +
+               " VALUES (" + String.join(", ", valExprs) + ")";
+    }
+
+    public String updateWhere(String where) {
+        List<String> setClauses = new ArrayList<>();
+        for (SqlWriteColumn<E> c : columns) {
+            switch (c) {
+                case SqlColumnDefinition<E> col ->
+                        setClauses.add(col.column() + " = :" + col.param());
+                case SqlExpressionColumn<E> expr ->
+                        setClauses.add(expr.column() + " = " + expr.sqlExpression());
+            }
+        }
+        return "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + where;
     }
 
     public MapSqlParameterSource params(E entity) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        columns.forEach(c -> c.bind(params, entity));
+        for (SqlWriteColumn<E> c : columns) {
+            switch (c) {
+                case SqlColumnDefinition<E> col ->
+                        params.addValue(col.param(), col.extractor().apply(entity));
+                case SqlExpressionColumn<E> expr -> {
+                    // SQL expression has no named parameter — skip
+                }
+            }
+        }
         return params;
-    }
-
-    private String buildUpdate(String table, String extraSet, String where) {
-        String sets = columns.stream()
-                .map(c -> c.column() + " = :" + c.column())
-                .collect(Collectors.joining(", "));
-        String fullSet = extraSet != null ? sets + ", " + extraSet : sets;
-        return "UPDATE " + table + " SET " + fullSet + " WHERE " + where;
     }
 }

@@ -53,7 +53,8 @@
       "Bash(sed -i \"s/attachment-gallery__item'\\)\\\\.waitFor\\(\\)/attachment-gallery__item'\\).first\\(\\).waitFor\\(\\)/g\" playwright/upload-image.spec.js playwright/verify-photo-history.spec.js)",
       "Bash(xargs -n1 basename)",
       "Read(//root/.m2/repository/org/springframework/spring-jdbc/**)",
-      "Bash(jar -tf ~/.m2/repository/org/springframework/spring-jdbc/7.0.2/spring-jdbc-7.0.2.jar)"
+      "Bash(jar -tf ~/.m2/repository/org/springframework/spring-jdbc/7.0.2/spring-jdbc-7.0.2.jar)",
+      "Bash(awk '{print $5, $9}')"
     ]
   },
   "hooks": {

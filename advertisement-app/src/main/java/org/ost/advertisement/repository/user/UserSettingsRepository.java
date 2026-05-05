@@ -2,13 +2,15 @@ package org.ost.advertisement.repository.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.exceptions.persistence.SettingsPersistenceException;
+import org.ost.advertisement.repository.user.UserProjection;
+import org.ost.sqlengine.writer.SqlFixedWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,18 +20,21 @@ public class UserSettingsRepository {
 
     private static final Logger log = LoggerFactory.getLogger(UserSettingsRepository.class);
 
-    private final NamedParameterJdbcTemplate jdbc;
+    private static final SqlFixedWriter SAVE_SETTINGS = SqlFixedWriter.of(
+            "UPDATE " + UserProjection.Write.TABLE +
+            " SET " + UserProjection.Write.SETTINGS + " = :settings::jsonb WHERE id = :userId"
+    );
+
+    private final JdbcClient jdbcClient;
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper mapper;
 
     @Transactional
     public void save(Long userId, UserSettings settings) {
         try {
-            jdbc.update(
-                    "UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId",
+            SAVE_SETTINGS.execute(jdbcClient,
                     new MapSqlParameterSource()
                             .addValue("settings", mapper.writeValueAsString(settings))
-                            .addValue("userId",   userId)
-            );
+                            .addValue("userId",   userId));
         } catch (Exception ex) {
             log.error("Failed to save settings for userId={}", userId, ex);
             throw new SettingsPersistenceException("Failed to save settings for userId=" + userId, ex);
@@ -38,11 +43,11 @@ public class UserSettingsRepository {
 
     public UserSettings load(Long userId) {
         try {
-            String json = jdbc.queryForObject(
-                    "SELECT settings FROM user_information WHERE id = :userId",
-                    new MapSqlParameterSource("userId", userId),
-                    String.class
-            );
+            String json = jdbcClient.sql(
+                    "SELECT " + UserProjection.Write.SETTINGS +
+                    " FROM " + UserProjection.Write.TABLE + " WHERE id = :userId")
+                    .paramSource(new MapSqlParameterSource("userId", userId))
+                    .query(String.class).optional().orElse(null);
             if (json == null) {
                 log.debug("settings IS NULL for userId={}, using defaults", userId);
                 return UserSettings.defaultSettings();

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 import static org.ost.sqlengine.writer.SqlEntityWriter.col;
+import static org.ost.sqlengine.writer.SqlEntityWriter.colExpr;
 
 @Repository
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
@@ -21,11 +22,14 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
     private static final UserEmailFilterBuilder   USER_EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
 
     private static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
+            "user_information",
             col("name", UserProfileDto::name),
-            col("role", u -> u.role().name())
+            col("role", u -> u.role().name()),
+            colExpr("updated_at", "NOW()")
     );
 
     private static final SqlEntityWriter<String> LOCALE_WRITER = SqlEntityWriter.of(
+            "user_information",
             col("locale", s -> s)
     );
 
@@ -40,17 +44,13 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
     @Override
     public void updateLocale(Long userId, String locale) {
-        executor.jdbcClient()
-                .sql(LOCALE_WRITER.updateWhere("user_information", "id = :id"))
-                .paramSource(LOCALE_WRITER.params(locale).addValue("id", userId))
-                .update();
+        executor.execute(LOCALE_WRITER.updateWhere("id = :id"),
+                LOCALE_WRITER.params(locale).addValue("id", userId));
     }
 
     @Override
     public void updateProfile(UserProfileDto dto) {
-        executor.jdbcClient()
-                .sql(PROFILE_WRITER.updateWhere("user_information", "updated_at = NOW()", "id = :id"))
-                .paramSource(PROFILE_WRITER.params(dto).addValue("id", dto.id()))
-                .update();
+        executor.execute(PROFILE_WRITER.updateWhere("id = :id"),
+                PROFILE_WRITER.params(dto).addValue("id", dto.id()));
     }
 }

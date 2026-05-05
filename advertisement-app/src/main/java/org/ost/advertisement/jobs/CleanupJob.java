@@ -2,11 +2,14 @@ package org.ost.advertisement.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.repository.advertisement.AdvertisementProjection;
+import org.ost.advertisement.repository.audit.AuditLogProjection;
+import org.ost.attachment.repository.AttachmentProjection;
 import org.ost.advertisement.spi.storage.StorageService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +25,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CleanupJob {
 
-    private final NamedParameterJdbcTemplate     jdbc;
+    private final JdbcClient                     jdbcClient;
     private final ObjectProvider<StorageService> storageService;
 
     @Value("${app.cleanup.retention-days:90}")
@@ -63,11 +66,12 @@ public class CleanupJob {
     }
 
     private void deleteAttachments() {
-        List<String> urls = jdbc.queryForList(
-                "SELECT url FROM attachment WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)",
-                new MapSqlParameterSource("days", retentionDays),
-                String.class
-        );
+        List<String> urls = jdbcClient.sql(
+                "SELECT " + AttachmentProjection.Write.URL +
+                " FROM " + AttachmentProjection.Write.TABLE +
+                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", retentionDays))
+                .query(String.class).list();
 
         if (urls.isEmpty()) {
             log.info("Deleted 0 attachments");
@@ -86,10 +90,10 @@ public class CleanupJob {
                 ? urls
                 : urls.stream().filter(u -> !failedUrls.contains(u)).toList();
 
-        int deleted = jdbc.update(
-                "DELETE FROM attachment WHERE url IN (:urls)",
-                new MapSqlParameterSource("urls", toDelete)
-        );
+        int deleted = jdbcClient.sql(
+                "DELETE FROM " + AttachmentProjection.Write.TABLE + " WHERE url IN (:urls)")
+                .paramSource(new MapSqlParameterSource("urls", toDelete))
+                .update();
         log.info("Deleted {} attachments", deleted);
         if (!failedUrls.isEmpty()) {
             log.warn("{} attachments skipped — S3 deletion failed, will retry on next run", failedUrls.size());
@@ -97,18 +101,20 @@ public class CleanupJob {
     }
 
     private void deleteAdvertisements() {
-        int deleted = jdbc.update(
-                "DELETE FROM advertisement WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)",
-                new MapSqlParameterSource("days", retentionDays)
-        );
+        int deleted = jdbcClient.sql(
+                "DELETE FROM " + AdvertisementProjection.Write.TABLE +
+                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", retentionDays))
+                .update();
         log.info("Deleted {} advertisements", deleted);
     }
 
     private void pruneSnapshots() {
-        int pruned = jdbc.update(
-                "DELETE FROM audit_log WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)",
-                new MapSqlParameterSource("days", retentionDays)
-        );
+        int pruned = jdbcClient.sql(
+                "DELETE FROM " + AuditLogProjection.Write.TABLE +
+                " WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", retentionDays))
+                .update();
         log.info("Pruned {} audit log entries", pruned);
     }
 }

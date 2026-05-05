@@ -8,7 +8,6 @@ import java.util.List;
 
 import static org.ost.advertisement.dto.filter.AdvertisementFilterDto.Fields.*;
 import static org.ost.advertisement.repository.advertisement.AdvertisementProjection.*;
-import static org.ost.advertisement.repository.advertisement.AdvertisementTable.DELETED_AT;
 import static org.ost.sqlengine.filter.DefaultFilterBinding.of;
 import static org.ost.sqlengine.filter.SqlCondition.*;
 
@@ -27,7 +26,7 @@ public class AdvertisementFilterBuilder extends FilterBuilder<AdvertisementFilte
     @Override
     public String build(MapSqlParameterSource params, AdvertisementFilterDto filter) {
         String dynamic = super.build(params, filter);
-        String base    = DELETED_AT + " IS NULL";
+        String base    = DELETED_AT.sqlExpression() + " IS NULL";
         return dynamic.isEmpty() ? base : base + " AND " + dynamic;
     }
 }

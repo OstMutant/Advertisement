@@ -18,6 +18,8 @@ import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.model.ChangeEntry.NoteEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.repository.advertisement.AdvertisementHistoryProjection;
+import org.ost.advertisement.repository.audit.AuditLogProjection;
+import org.ost.sqlengine.writer.SqlFixedWriter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -36,9 +38,17 @@ public class AuditService {
     public record SnapshotContent(String title, String description, int version) {}
     public record UserSnapshotState(Long userId, String name, Role role) {}
 
-    private static final String ENTITY_ADVERTISEMENT = "ADVERTISEMENT";
-    private static final String ENTITY_USER          = "USER";
-    private static final String ENTITY_USER_SETTINGS = "USER_SETTINGS";
+    private static final SqlFixedWriter INSERT_AUDIT_LOG = SqlFixedWriter.of(
+            "INSERT INTO " + AuditLogProjection.Write.TABLE +
+            " (" + AuditLogProjection.Write.ENTITY_TYPE + ", " +
+                   AuditLogProjection.Write.ENTITY_ID + ", " +
+                   AuditLogProjection.Write.ACTION_TYPE + ", " +
+                   AuditLogProjection.Write.SNAPSHOT_DATA + ", " +
+                   AuditLogProjection.Write.CHANGES_SUMMARY + ", " +
+                   AuditLogProjection.Write.CHANGED_BY_USER_ID + ")" +
+            " VALUES (:entityType, :entityId, :actionType," +
+            " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :changedBy)"
+    );
 
     private final JdbcClient                         jdbcClient;
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
@@ -54,12 +64,12 @@ public class AuditService {
         List<ChangeEntry> changes = switch (actionType) {
             case CREATED -> diffEngine.diffFromNull(current);
             case UPDATED -> {
-                AdvertisementSnapshot prev = loadLastSnapshot(ENTITY_ADVERTISEMENT, ad.getId(), AdvertisementSnapshot.class);
+                AdvertisementSnapshot prev = loadLastSnapshot(AuditLogProjection.EntityType.ADVERTISEMENT, ad.getId(), AdvertisementSnapshot.class);
                 yield prev != null ? diffEngine.diff(prev, current) : diffEngine.diffFromNull(current);
             }
             case DELETED -> null;
         };
-        insertAuditLog(ENTITY_ADVERTISEMENT, ad.getId(), actionType, current, changes, changedByUserId);
+        insertAuditLog(AuditLogProjection.EntityType.ADVERTISEMENT, ad.getId(), actionType, current, changes, changedByUserId);
     }
 
     @Transactional
@@ -75,12 +85,12 @@ public class AuditService {
             case UPDATED -> {
                 UserSnapshot prev = before != null
                         ? UserSnapshot.from(before)
-                        : loadLastSnapshot(ENTITY_USER, user.getId(), UserSnapshot.class);
+                        : loadLastSnapshot(AuditLogProjection.EntityType.USER, user.getId(), UserSnapshot.class);
                 yield prev != null ? diffEngine.diff(prev, current) : diffEngine.diffFromNull(current);
             }
             case DELETED -> null;
         };
-        insertAuditLog(ENTITY_USER, user.getId(), actionType, current, changes, changedByUserId);
+        insertAuditLog(AuditLogProjection.EntityType.USER, user.getId(), actionType, current, changes, changedByUserId);
     }
 
     @Transactional
@@ -89,24 +99,25 @@ public class AuditService {
         SettingsSnapshot current = SettingsSnapshot.from(newSettings);
         List<ChangeEntry> changes = diffEngine.diff(prev, current);
         if (changes.isEmpty()) return;
-        insertAuditLog(ENTITY_USER_SETTINGS, user.getId(), ActionType.UPDATED, current, changes, changedByUserId);
+        insertAuditLog(AuditLogProjection.EntityType.USER_SETTINGS, user.getId(), ActionType.UPDATED, current, changes, changedByUserId);
     }
 
     // ── Read ──────────────────────────────────────────────────────────────────
 
     public Optional<UserSettings> getSettingsFromSnapshot(Long snapshotId) {
         return jdbcClient.sql(
-                "SELECT snapshot_data::text FROM audit_log WHERE id = :id AND entity_type = :type")
-                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER_SETTINGS))
+                "SELECT " + AuditLogProjection.Write.SNAPSHOT_DATA + "::text" +
+                " FROM " + AuditLogProjection.Write.TABLE + " WHERE id = :id AND entity_type = :type")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", AuditLogProjection.EntityType.USER_SETTINGS))
                 .query((rs, row) -> fromJson(rs.getString(1), UserSettings.class))
                 .optional();
     }
 
     public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
         return jdbcClient.sql(
-                "SELECT entity_id, snapshot_data->>'name' AS name, snapshot_data->>'role' AS role " +
-                "FROM audit_log WHERE id = :id AND entity_type = :type")
-                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", ENTITY_USER))
+                "SELECT entity_id, snapshot_data->>'name' AS name, snapshot_data->>'role' AS role" +
+                " FROM " + AuditLogProjection.Write.TABLE + " WHERE id = :id AND entity_type = :type")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", AuditLogProjection.EntityType.USER))
                 .query((rs, row) -> new UserSnapshotState(
                         rs.getLong("entity_id"),
                         rs.getString("name"),
@@ -213,25 +224,21 @@ public class AuditService {
 
     private void insertAuditLog(String entityType, Long entityId, ActionType actionType,
                                 Object snapshotDto, List<ChangeEntry> changes, Long changedByUserId) {
-        jdbcClient.sql("""
-                INSERT INTO audit_log
-                    (entity_type, entity_id, action_type, snapshot_data, changes_summary, changed_by_user_id)
-                VALUES (:entityType, :entityId, :actionType,
-                        CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :changedBy)
-                """)
-                .paramSource(new MapSqlParameterSource()
+        INSERT_AUDIT_LOG.execute(jdbcClient,
+                new MapSqlParameterSource()
                         .addValue("entityType",   entityType)
                         .addValue("entityId",     entityId)
                         .addValue("actionType",   actionType.name())
                         .addValue("snapshotData", toJson(snapshotDto))
                         .addValue("changes",      toChangesJson(changes))
-                        .addValue("changedBy",    changedByUserId))
-                .update();
+                        .addValue("changedBy",    changedByUserId));
     }
 
     private <T> T loadLastSnapshot(String entityType, Long entityId, Class<T> type) {
         return jdbcClient.sql(
-                "SELECT snapshot_data::text FROM audit_log WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
+                "SELECT " + AuditLogProjection.Write.SNAPSHOT_DATA + "::text" +
+                " FROM " + AuditLogProjection.Write.TABLE +
+                " WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("type", entityType).addValue("id", entityId))
                 .query((rs, row) -> fromJson(rs.getString(1), type))
                 .optional().orElse(null);

@@ -16,17 +16,27 @@ import static org.ost.sqlengine.projection.SqlFieldBuilder.*;
 
 public class UserProjection extends SqlProjection<User> {
 
-    public static final SqlFieldDefinition<Long>    ID            = id(UserTable.ID,         id);
-    public static final SqlFieldDefinition<String>  NAME          = str(UserTable.NAME,       name);
-    public static final SqlFieldDefinition<String>  EMAIL         = str(UserTable.EMAIL,      email);
-    public static final SqlFieldDefinition<String>  ROLE          = str(UserTable.ROLE,       role);
-    public static final SqlFieldDefinition<String>  PASSWORD_HASH = str(UserTable.PASSWORD,   passwordHash);
-    public static final SqlFieldDefinition<Instant> CREATED_AT    = instant(UserTable.CREATED_AT, createdAt);
-    public static final SqlFieldDefinition<Instant> UPDATED_AT    = instant(UserTable.UPDATED_AT, updatedAt);
-    public static final SqlFieldDefinition<String>  LOCALE        = str(UserTable.LOCALE,     locale);
+    public static final String TABLE  = "user_information";
+    public static final String ALIAS  = "u";
+    public static final String SOURCE = TABLE + " " + ALIAS;
+
+    public static final SqlFieldDefinition<Long>    ID            = id(ALIAS + ".id",            id);
+    public static final SqlFieldDefinition<String>  NAME          = str(ALIAS + ".name",          name);
+    public static final SqlFieldDefinition<String>  EMAIL         = str(ALIAS + ".email",         email);
+    public static final SqlFieldDefinition<String>  ROLE          = str(ALIAS + ".role",          role);
+    public static final SqlFieldDefinition<String>  PASSWORD_HASH = str(ALIAS + ".password_hash", passwordHash);
+    public static final SqlFieldDefinition<Instant> CREATED_AT    = instant(ALIAS + ".created_at", createdAt);
+    public static final SqlFieldDefinition<Instant> UPDATED_AT    = instant(ALIAS + ".updated_at", updatedAt);
+    public static final SqlFieldDefinition<String>  LOCALE        = str(ALIAS + ".locale",         locale);
+
+    public static final class Write {
+        private Write() {}
+        public static final String TABLE    = UserProjection.TABLE;
+        public static final String SETTINGS = "settings";
+    }
 
     public UserProjection() {
-        super(List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), UserTable.SOURCE);
+        super(List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE);
     }
 
     @Override

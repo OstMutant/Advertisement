@@ -3,25 +3,20 @@ package org.ost.attachment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.repository.AttachmentProjection;
 import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
 import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.ost.advertisement.spi.storage.StorageService;
+import org.ost.sqlengine.writer.SqlFixedWriter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.datasource.DataSourceUtils;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import javax.sql.DataSource;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.time.Instant;
 import java.util.List;
 
 @Slf4j
@@ -32,18 +27,71 @@ public class AttachmentService {
 
     public record TempAttachment(String tempUrl, String filename, String contentType, long size) {}
 
+    private static final AttachmentProjection ATTACHMENT_PROJECTION = new AttachmentProjection();
+
+    private static final SqlFixedWriter INSERT_ATTACHMENT = SqlFixedWriter.of(
+            "INSERT INTO " + AttachmentProjection.Write.TABLE +
+            " (entity_type, entity_id, url, filename, content_type, size, created_at)" +
+            " VALUES ('ADVERTISEMENT', :entityId, :url, :filename, :contentType, :size, NOW())" +
+            " RETURNING " + AttachmentProjection.ID.columnName()
+    );
+
+    private static final SqlFixedWriter SOFT_DELETE = SqlFixedWriter.of(
+            "UPDATE " + AttachmentProjection.Write.TABLE +
+            " SET "   + AttachmentProjection.Write.DELETED_AT + " = NOW()," +
+            " "       + AttachmentProjection.Write.DELETED_BY_USER_ID + " = :deletedBy" +
+            " WHERE " + AttachmentProjection.ID.columnName() + " = :id"
+    );
+
+    private static final SqlFixedWriter SOFT_DELETE_ALL = SqlFixedWriter.of(
+            "UPDATE " + AttachmentProjection.Write.TABLE +
+            " SET "   + AttachmentProjection.Write.DELETED_AT + " = NOW()," +
+            " "       + AttachmentProjection.Write.DELETED_BY_USER_ID + " = :deletedBy" +
+            " WHERE entity_type = 'ADVERTISEMENT'" +
+            " AND "  + AttachmentProjection.Write.ENTITY_ID + " = :entityId" +
+            " AND "  + AttachmentProjection.Write.DELETED_AT + " IS NULL"
+    );
+
+    private static final SqlFixedWriter RESTORE_DELETE_ALL = SqlFixedWriter.of(
+            "UPDATE " + AttachmentProjection.Write.TABLE +
+            " SET "   + AttachmentProjection.Write.DELETED_AT + " = NOW()," +
+            " "       + AttachmentProjection.Write.DELETED_BY_USER_ID + " = :userId" +
+            " WHERE entity_type = 'ADVERTISEMENT'" +
+            " AND "  + AttachmentProjection.Write.ENTITY_ID + " = :adId" +
+            " AND "  + AttachmentProjection.Write.DELETED_AT + " IS NULL"
+    );
+
+    private static final SqlFixedWriter RESTORE_UNDELETE = SqlFixedWriter.of(
+            "UPDATE " + AttachmentProjection.Write.TABLE +
+            " SET "   + AttachmentProjection.Write.DELETED_AT + " = NULL," +
+            " "       + AttachmentProjection.Write.DELETED_BY_USER_ID + " = NULL" +
+            " WHERE entity_type = 'ADVERTISEMENT'" +
+            " AND "  + AttachmentProjection.Write.ENTITY_ID + " = :adId" +
+            " AND "  + AttachmentProjection.Write.URL + " = ANY(:urls)"
+    );
+
+    private static final SqlFixedWriter RESTORE_MARK_DELETED = SqlFixedWriter.of(
+            "UPDATE " + AttachmentProjection.Write.TABLE +
+            " SET "   + AttachmentProjection.Write.DELETED_AT + " = NOW()," +
+            " "       + AttachmentProjection.Write.DELETED_BY_USER_ID + " = :userId" +
+            " WHERE entity_type = 'ADVERTISEMENT'" +
+            " AND "  + AttachmentProjection.Write.ENTITY_ID + " = :adId" +
+            " AND "  + AttachmentProjection.Write.DELETED_AT + " IS NULL" +
+            " AND NOT (" + AttachmentProjection.Write.URL + " = ANY(:urls))"
+    );
+
     private final StorageService                             storageService;
     private final JdbcClient                                 jdbcClient;
-    private final DataSource                                 dataSource;
     private final PhotoSnapshotService                       photoSnapshotService;
     private final ObjectProvider<AttachmentCurrentUserProvider> currentUserProvider;
     private final ApplicationEventPublisher                  eventPublisher;
 
     public List<Attachment> getByEntityId(Long entityId) {
         return jdbcClient.sql(
-                "SELECT * FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL")
-                .paramSource(new MapSqlParameterSource("id", entityId))
-                .query(this::mapRow).list();
+                "SELECT * FROM " + AttachmentProjection.TABLE +
+                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
+                .query(ATTACHMENT_PROJECTION).list();
     }
 
     public Attachment upload(Long entityId, String filename,
@@ -115,35 +163,23 @@ public class AttachmentService {
     @Transactional
     public void restoreToUrls(Long adId, String[] targetUrls, Long userId) {
         if (targetUrls == null || targetUrls.length == 0) {
-            jdbcClient.sql(
-                    "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :userId " +
-                    "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND deleted_at IS NULL")
-                    .paramSource(new MapSqlParameterSource().addValue("userId", userId).addValue("adId", adId))
-                    .update();
+            RESTORE_DELETE_ALL.execute(jdbcClient,
+                    new MapSqlParameterSource().addValue("userId", userId).addValue("adId", adId));
             return;
         }
-        var urlArray = toSqlArray(targetUrls);
-        jdbcClient.sql(
-                "UPDATE attachment SET deleted_at = NULL, deleted_by_user_id = NULL " +
-                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId AND url = ANY(:urls)")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("urls", urlArray))
-                .update();
-        jdbcClient.sql(
-                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :userId " +
-                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId " +
-                "  AND deleted_at IS NULL AND NOT (url = ANY(:urls))")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("userId", userId).addValue("urls", urlArray))
-                .update();
+        // pgjdbc converts String[] to PostgreSQL text[] array automatically
+        MapSqlParameterSource urlParams = new MapSqlParameterSource()
+                .addValue("adId", adId).addValue("urls", targetUrls);
+        RESTORE_UNDELETE.execute(jdbcClient, urlParams);
+        RESTORE_MARK_DELETED.execute(jdbcClient,
+                new MapSqlParameterSource().addValue("adId", adId).addValue("userId", userId).addValue("urls", targetUrls));
         publishMediaUpdate(adId);
     }
 
     @Transactional
     public void softDeleteAll(Long entityId, Long deletedByUserId) {
-        jdbcClient.sql(
-                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy " +
-                "WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
-                .paramSource(new MapSqlParameterSource().addValue("deletedBy", deletedByUserId).addValue("entityId", entityId))
-                .update();
+        SOFT_DELETE_ALL.execute(jdbcClient,
+                new MapSqlParameterSource().addValue("deletedBy", deletedByUserId).addValue(Attachment.Fields.entityId, entityId));
         publishMediaUpdate(entityId);
     }
 
@@ -155,14 +191,17 @@ public class AttachmentService {
 
     private void publishMediaUpdate(Long entityId) {
         String mainUrl = jdbcClient.sql(
-                "SELECT url FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id " +
-                "AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")
-                .paramSource(new MapSqlParameterSource("id", entityId))
-                .query((rs, n) -> rs.getString("url"))
+                "SELECT " + AttachmentProjection.Write.URL +
+                " FROM " + AttachmentProjection.TABLE +
+                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId" +
+                " AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")
+                .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
+                .query((rs, n) -> rs.getString(AttachmentProjection.Write.URL))
                 .optional().orElse(null);
         Integer count = jdbcClient.sql(
-                "SELECT COUNT(*) FROM attachment WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :id AND deleted_at IS NULL")
-                .paramSource(new MapSqlParameterSource("id", entityId))
+                "SELECT COUNT(*) FROM " + AttachmentProjection.TABLE +
+                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
+                .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
                 .query(Integer.class).single();
         eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, mainUrl, count != null ? count : 0));
     }
@@ -180,62 +219,26 @@ public class AttachmentService {
     }
 
     private Attachment insert(Long entityId, String url, String filename, String contentType, long size) {
-        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcClient.sql(
-                "INSERT INTO attachment (entity_type, entity_id, url, filename, content_type, size, created_at) " +
-                "VALUES ('ADVERTISEMENT', :entityId, :url, :filename, :contentType, :size, NOW())")
-                .paramSource(new MapSqlParameterSource()
-                        .addValue("entityId", entityId)
-                        .addValue("url", url)
-                        .addValue("filename", filename)
-                        .addValue("contentType", contentType)
-                        .addValue("size", size))
-                .update(keyHolder, "id");
-        Long id = keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
+        Long id = INSERT_ATTACHMENT.executeAndReturnKey(jdbcClient,
+                new MapSqlParameterSource()
+                        .addValue(Attachment.Fields.entityId,    entityId)
+                        .addValue(Attachment.Fields.url,         url)
+                        .addValue(Attachment.Fields.filename,    filename)
+                        .addValue(Attachment.Fields.contentType, contentType)
+                        .addValue(Attachment.Fields.size,        size));
         return Attachment.builder()
                 .id(id).entityId(entityId).url(url).filename(filename)
                 .contentType(contentType).size(size).build();
     }
 
     private void softDelete(Long id, Long deletedBy) {
-        jdbcClient.sql(
-                "UPDATE attachment SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
-                .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedBy))
-                .update();
+        SOFT_DELETE.execute(jdbcClient,
+                new MapSqlParameterSource().addValue(Attachment.Fields.id, id).addValue("deletedBy", deletedBy));
     }
 
     private Attachment findById(Long id) {
-        return jdbcClient.sql("SELECT * FROM attachment WHERE id = :id")
-                .paramSource(new MapSqlParameterSource("id", id))
-                .query(this::mapRow).optional().orElse(null);
-    }
-
-    private java.sql.Array toSqlArray(String[] values) {
-        Connection conn = DataSourceUtils.getConnection(dataSource);
-        try {
-            return conn.createArrayOf("text", values);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            DataSourceUtils.releaseConnection(conn, dataSource);
-        }
-    }
-
-    private Attachment mapRow(ResultSet rs, int rowNum) throws SQLException {
-        Instant deletedAt = rs.getTimestamp("deleted_at") != null
-                ? rs.getTimestamp("deleted_at").toInstant() : null;
-        Instant createdAt = rs.getTimestamp("created_at") != null
-                ? rs.getTimestamp("created_at").toInstant() : null;
-        return Attachment.builder()
-                .id(rs.getLong("id"))
-                .entityId(rs.getLong("entity_id"))
-                .url(rs.getString("url"))
-                .filename(rs.getString("filename"))
-                .contentType(rs.getString("content_type"))
-                .size(rs.getLong("size"))
-                .createdAt(createdAt)
-                .deletedAt(deletedAt)
-                .deletedByUserId(rs.getObject("deleted_by_user_id", Long.class))
-                .build();
+        return jdbcClient.sql("SELECT * FROM " + AttachmentProjection.TABLE + " WHERE id = :id")
+                .paramSource(new MapSqlParameterSource(Attachment.Fields.id, id))
+                .query(ATTACHMENT_PROJECTION).optional().orElse(null);
     }
 }

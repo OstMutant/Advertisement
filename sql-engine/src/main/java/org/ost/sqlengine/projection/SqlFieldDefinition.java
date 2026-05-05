@@ -25,5 +25,16 @@ public record SqlFieldDefinition<T>(
     public T extract(ResultSet rs) throws SQLException {
         return extractor.apply(rs, alias);
     }
+
+    public String columnName() {
+        if (sqlExpression.contains("(") || sqlExpression.contains(" ")) {
+            throw new UnsupportedOperationException(
+                "columnName() supports only simple column expressions (e.g. 'a.title'), " +
+                "not complex SQL: " + sqlExpression
+            );
+        }
+        int dot = sqlExpression.indexOf('.');
+        return dot >= 0 ? sqlExpression.substring(dot + 1) : sqlExpression;
+    }
 }
 

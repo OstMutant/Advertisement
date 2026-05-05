@@ -5,7 +5,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -35,7 +35,7 @@ public abstract class SqlProjection<T> implements RowMapper<T> {
                         SqlFieldDefinition::alias,
                         SqlFieldDefinition::sqlExpression,
                         (existing, replacement) -> existing,
-                        HashMap::new
+                        LinkedHashMap::new
                 ));
         this.sqlSource = sqlSource;
         this.countSource = countSource;
