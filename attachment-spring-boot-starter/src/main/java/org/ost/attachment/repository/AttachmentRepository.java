@@ -131,6 +131,22 @@ public class AttachmentRepository {
                 .query(String.class).list();
     }
 
+    public List<String> findUrlsDeletedOlderThan(int days) {
+        return jdbcClient.sql(
+                "SELECT " + AttachmentDescriptor.Write.URL +
+                " FROM " + AttachmentDescriptor.Write.TABLE +
+                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", days))
+                .query(String.class).list();
+    }
+
+    public int deleteByUrls(List<String> urls) {
+        return jdbcClient.sql(
+                "DELETE FROM " + AttachmentDescriptor.Write.TABLE + " WHERE url IN (:urls)")
+                .paramSource(new MapSqlParameterSource("urls", urls))
+                .update();
+    }
+
     public MediaStats loadMediaStats(Long entityId) {
         String mainUrl = jdbcClient.sql(
                 "SELECT " + AttachmentDescriptor.Write.URL +

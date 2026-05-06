@@ -12,6 +12,7 @@ import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
 import org.ost.advertisement.repository.advertisement.AdvertisementDescriptor;
+import org.ost.advertisement.repository.audit.AuditLogRepository;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -80,7 +81,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        AuditService.SnapshotContent content = snapshotService.getSnapshotContent(snapshotId).orElse(null);
+        AuditLogRepository.SnapshotContent content = snapshotService.getSnapshotContent(snapshotId).orElse(null);
         if (content == null) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())

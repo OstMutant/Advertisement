@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.advertisement;
+package org.ost.advertisement.repository.audit;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -8,8 +8,6 @@ import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlFixedQuery;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,8 +16,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-@Component
-public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementHistoryDto> {
+public class AdvertisementHistoryQuery extends SqlFixedQuery<AdvertisementHistoryDto> {
 
     private static final String QUERY = """
             WITH numbered AS (
@@ -60,9 +57,9 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
     static final SqlSelectField<String>  PREV_TITLE       = str("n.prev_title",                "prev_title");
     static final SqlSelectField<String>  PREV_DESCRIPTION = str("n.prev_description",          "prev_description");
 
-    @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    public AdvertisementHistoryProjection(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
+    public AdvertisementHistoryQuery(ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, VERSION, ACTION_TYPE_STR, CHANGED_BY_NAME, CREATED_AT,
                       TITLE, DESCRIPTION, CHANGES_SUMMARY,
                       PREV_ID, PREV_TITLE, PREV_DESCRIPTION));

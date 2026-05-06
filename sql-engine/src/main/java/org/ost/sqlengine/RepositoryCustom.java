@@ -68,8 +68,8 @@ public class RepositoryCustom<T, F> {
         return executor.findOne(sql, params, sqlProjection);
     }
 
-    protected void execute(String sql, MapSqlParameterSource params) {
-        executor.execute(sql, params);
+    protected int execute(String sql, MapSqlParameterSource params) {
+        return executor.execute(sql, params);
     }
 
     protected void execute(SqlWriteCommand command, MapSqlParameterSource params) {

@@ -26,7 +26,7 @@ public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
 
     // ── WRITE ─────────────────────────────────────────────────────────────────
 
-    public void execute(String sql, MapSqlParameterSource params) {
-        jdbcClient.sql(sql).paramSource(params).update();
+    public int execute(String sql, MapSqlParameterSource params) {
+        return jdbcClient.sql(sql).paramSource(params).update();
     }
 }

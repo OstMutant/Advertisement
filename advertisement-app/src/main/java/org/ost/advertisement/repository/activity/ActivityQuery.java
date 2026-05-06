@@ -8,8 +8,6 @@ import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlFixedQuery;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,8 +16,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-@Component
-public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
+public class ActivityQuery extends SqlFixedQuery<ActivityItemDto> {
 
     private static final String QUERY = """
             WITH adv_act AS (
@@ -84,9 +81,9 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
     static final SqlSelectField<Long>    CHANGED_BY_USER_ID = longVal("s.changed_by_user_id",   "changed_by_user_id");
     static final SqlSelectField<String>  CHANGED_BY_NAME    = str("COALESCE(u.name,'—')",  "changed_by_name");
 
-    @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper;
 
-    public ActivityProjection(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
+    public ActivityQuery(ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, ENTITY_ID, ENTITY_TYPE, DISPLAY_NAME, ACTION_TYPE_STR,
                       CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, CHANGED_BY_USER_ID, CHANGED_BY_NAME));
         this.objectMapper = objectMapper;

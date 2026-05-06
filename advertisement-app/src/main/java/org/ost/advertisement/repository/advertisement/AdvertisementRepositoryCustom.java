@@ -16,4 +16,6 @@ public interface AdvertisementRepositoryCustom {
     void softDelete(Long id, Long deletedByUserId);
 
     Optional<AdvertisementInfoDto> findAdvertisementById(Long id);
+
+    int deleteOlderThan(int days);
 }

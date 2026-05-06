@@ -41,4 +41,12 @@ public class AdvertisementRepositoryCustomImpl
     public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
         return findOne(BY_ID, new MapSqlParameterSource("id", id));
     }
+
+    @Override
+    public int deleteOlderThan(int days) {
+        return execute(
+                "DELETE FROM " + AdvertisementDescriptor.Write.TABLE +
+                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)",
+                new MapSqlParameterSource("days", days));
+    }
 }
