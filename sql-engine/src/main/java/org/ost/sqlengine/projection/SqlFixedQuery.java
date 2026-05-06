@@ -12,14 +12,10 @@ import java.util.List;
  *
  * Subclasses define field constants, implement mapRow(), and provide querySql().
  */
-public abstract class SqlFixedQuery<T> extends SqlEntityProjection<T> {
+public abstract class SqlFixedQuery<T> extends SqlBaseProjection<T> {
 
     protected SqlFixedQuery(List<SqlSelectField<?>> items) {
-        super(items, "");
-    }
-
-    protected SqlFixedQuery(List<SqlSelectField<?>> items, String sqlSource) {
-        super(items, sqlSource);
+        super(items);
     }
 
     public abstract String querySql();

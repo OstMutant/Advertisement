@@ -6,8 +6,8 @@ import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.projection.SqlEntityProjection;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.data.domain.Pageable;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
 import java.util.Optional;
@@ -73,7 +73,7 @@ public class RepositoryCustom<T, F> {
     }
 
     protected void execute(SqlWriteCommand command, MapSqlParameterSource params) {
-        command.execute(executor.jdbcClient(), params);
+        executor.execute(command, params);
     }
 
     private String pageableToSql(MapSqlParameterSource params, Pageable pageable) {

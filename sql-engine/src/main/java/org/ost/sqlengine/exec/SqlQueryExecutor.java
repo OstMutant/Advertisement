@@ -1,5 +1,6 @@
 package org.ost.sqlengine.exec;
 
+import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -28,5 +29,9 @@ public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
 
     public int execute(String sql, MapSqlParameterSource params) {
         return jdbcClient.sql(sql).paramSource(params).update();
+    }
+
+    public void execute(SqlWriteCommand command, MapSqlParameterSource params) {
+        command.execute(jdbcClient, params);
     }
 }
