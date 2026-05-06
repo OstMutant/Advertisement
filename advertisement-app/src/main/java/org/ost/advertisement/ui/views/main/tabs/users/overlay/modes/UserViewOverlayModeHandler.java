@@ -22,8 +22,8 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.AuditService;
 import org.ost.advertisement.services.UserSettingsService;
+import org.ost.advertisement.services.audit.AuditQueryService;
 import org.ost.advertisement.ui.views.utils.ActivityUiUtil;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
@@ -70,7 +70,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     @Getter
     private final I18nService              i18nService;
     private final ActivityService          activityService;
-    private final AuditService          snapshotService;
+    private final AuditQueryService        auditQueryService;
     private final UserSettingsService      userSettingsService;
     private final ActivityUiUtil           activityUiUtil;
     private final UiLabeledField.Builder   labeledFieldBuilder;
@@ -217,7 +217,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
 
             if (isSettingChange) {
                 if (item.snapshotId() != null && item.snapshotId() > 0) {
-                    snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
+                    auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
                         row.add(buildFullSettingsFieldsList(item, snapSettings));
                         boolean matchesCurrent = snapSettings.getAdsPageSize() == currentSettings.getAdsPageSize()
                                 && snapSettings.getUsersPageSize() == currentSettings.getUsersPageSize();
@@ -234,7 +234,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                 row.add(buildFullUserFieldsList(item, user));
                 boolean isUserRow = item.snapshotId() != null && item.snapshotId() > 0;
                 if (isUserRow && (item.actionType() != ActionType.CREATED || items.size() > 1)) {
-                    boolean matchesCurrent = snapshotService.getUserStateAt(item.snapshotId())
+                    boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
                             .map(state -> state.name().equals(user.getName()) && state.role() == user.getRole())
                             .orElse(false);
                     if (matchesCurrent) {

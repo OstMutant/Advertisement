@@ -2,10 +2,10 @@ package org.ost.attachment.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.advertisement.config.CleanupProperties;
 import org.ost.advertisement.spi.storage.StorageService;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,14 +23,12 @@ public class AttachmentCleanupJob {
 
     private final AttachmentRepository           attachmentRepository;
     private final ObjectProvider<StorageService> storageService;
-
-    @Value("${app.cleanup.retention-days:90}")
-    private int retentionDays;
+    private final CleanupProperties              cleanupProperties;
 
     @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
     @Transactional
     public void run() {
-        log.info("Attachment cleanup started, retention = {} days", retentionDays);
+        log.info("Attachment cleanup started, retention = {} days", cleanupProperties.retentionDays());
         deleteStaleTempUploads();
         deleteAttachments();
         log.info("Attachment cleanup finished");
@@ -58,7 +56,7 @@ public class AttachmentCleanupJob {
     }
 
     private void deleteAttachments() {
-        List<String> urls = attachmentRepository.findUrlsDeletedOlderThan(retentionDays);
+        List<String> urls = attachmentRepository.findUrlsDeletedOlderThan(cleanupProperties.retentionDays());
         if (urls.isEmpty()) {
             log.info("Deleted 0 attachments");
             return;

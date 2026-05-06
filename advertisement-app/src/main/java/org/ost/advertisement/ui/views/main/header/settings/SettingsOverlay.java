@@ -20,8 +20,10 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.AuditService;
 import org.ost.advertisement.services.UserSettingsService;
+import org.ost.advertisement.services.audit.AuditCaptureService;
+import org.ost.advertisement.services.audit.AuditHistoryService;
+import org.ost.advertisement.services.audit.AuditQueryService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -55,7 +57,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient NotificationService      notifications;
     private final transient AuthContextService       authContextService;
     private final transient ActivityService          activityService;
-    private final transient AuditService          snapshotService;
+    private final transient AuditCaptureService      auditCaptureService;
+    private final transient AuditQueryService        auditQueryService;
+    private final transient AuditHistoryService      auditHistoryService;
     private final transient ActivityUiUtil           activityUiUtil;
 
     private final transient ObjectProvider<OverlayLayout> layoutProvider;
@@ -161,7 +165,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 .build();
 
         settingsService.save(currentUser.getId(), newSettings);
-        snapshotService.captureSettingsChange(currentUser, oldSettings, newSettings, currentUser.getId());
+        auditCaptureService.captureSettingsChange(currentUser, oldSettings, newSettings, currentUser.getId());
         activityPanel.removeAll(); // force refresh on next tab switch
 
         notifications.success(SETTINGS_SAVED_SUCCESS);
@@ -218,7 +222,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
             if (isSettingChange) {
                 if (item.snapshotId() != null && item.snapshotId() > 0) {
-                    snapshotService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
+                    auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
                         row.add(buildFullSettingsFieldsList(item, snapSettings));
                         UserSettings live = settingsService.load(currentUser.getId());
                         boolean matchesCurrent = live.getAdsPageSize() == snapSettings.getAdsPageSize()
@@ -403,7 +407,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .onConfirm(() -> {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
-                            snapshotService.captureSettingsChange(currentUser, before, target, currentUser.getId());
+                            auditCaptureService.captureSettingsChange(currentUser, before, target, currentUser.getId());
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());
                             activityPanel.removeAll();
