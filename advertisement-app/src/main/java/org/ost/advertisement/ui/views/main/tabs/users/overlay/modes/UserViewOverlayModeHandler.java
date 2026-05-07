@@ -1,7 +1,5 @@
 package org.ost.advertisement.ui.views.main.tabs.users.overlay.modes;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -14,15 +12,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.events.dto.ActivityItemDto;
-import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.UserSettingsService;
-import org.ost.advertisement.services.audit.AuditQueryService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -31,12 +23,11 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.utils.ActivityRowRenderer;
+import org.ost.advertisement.ui.views.utils.ProfileActivityBuilder;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import java.util.List;
 import java.util.function.Consumer;
 
 import static org.ost.advertisement.common.I18nKey.*;
@@ -63,16 +54,13 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         private final ObjectProvider<UserViewOverlayModeHandler> provider;
     }
 
-    private final AccessEvaluator          access;
+    private final AccessEvaluator                            access;
     @Getter
-    private final I18nService              i18nService;
-    private final ActivityService          activityService;
-    private final AuditQueryService        auditQueryService;
-    private final UserSettingsService      userSettingsService;
-    private final UiLabeledField.Builder   labeledFieldBuilder;
-    private final UiPrimaryButton.Builder  editButtonBuilder;
-    private final UiIconButton.Builder     closeButtonBuilder;
-    private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
+    private final I18nService                                i18nService;
+    private final UiLabeledField.Builder                     labeledFieldBuilder;
+    private final UiPrimaryButton.Builder                    editButtonBuilder;
+    private final UiIconButton.Builder                       closeButtonBuilder;
+    private final ObjectProvider<ProfileActivityBuilder> activityContentBuilderProvider;
 
     private Parameters params;
 
@@ -156,56 +144,8 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     private Div buildActivityContent(User user) {
-        Long userId = user.getId();
-        List<ActivityItemDto> items = activityService.getForUser(userId);
-        Div container = new Div();
-        container.addClassName("user-activity-list");
-
-        if (items.isEmpty()) {
-            Span empty = new Span(getValue(ACTIVITY_EMPTY));
-            empty.addClassName("user-activity-empty");
-            container.add(empty);
-            return container;
-        }
-
-        UserSettings currentSettings = userSettingsService.load(userId);
-        ActivityRowRenderer renderer = rendererProvider.getObject();
-
-        for (ActivityItemDto item : items) {
-            Div row = renderer.buildRow(item, userId);
-
-            if (ActivityRowRenderer.isSettingChange(item) && item.snapshotId() != null && item.snapshotId() > 0) {
-                auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
-                    row.add(renderer.buildSettingsFieldsList(item, snapSettings));
-                    boolean matchesCurrent = snapSettings.getAdsPageSize() == currentSettings.getAdsPageSize()
-                            && snapSettings.getUsersPageSize() == currentSettings.getUsersPageSize();
-                    if (matchesCurrent) {
-                        Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
-                        badge.addClassName("user-activity-current-badge");
-                        row.add(badge);
-                    }
-                });
-            } else if ("USER".equals(item.entityType()) && item.snapshotId() != null && item.snapshotId() > 0
-                    && (item.actionType() != ActionType.CREATED || items.size() > 1)) {
-                boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
-                        .map(state -> state.name().equals(user.getName()) && state.role() == user.getRole())
-                        .orElse(false);
-                if (matchesCurrent) {
-                    Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
-                    badge.addClassName("user-activity-current-badge");
-                    row.add(badge);
-                } else {
-                    Button restoreBtn = new Button(getValue(USER_RESTORE_BUTTON));
-                    restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                    restoreBtn.addClassName("adv-history-restore-btn");
-                    restoreBtn.addClickListener(_ -> params.getOnRestoreUser().accept(item.snapshotId()));
-                    row.add(restoreBtn);
-                }
-            }
-
-            container.add(row);
-        }
-        return container;
+        return activityContentBuilderProvider.getObject()
+                .build(user, params.getOnRestoreUser(), null);
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {

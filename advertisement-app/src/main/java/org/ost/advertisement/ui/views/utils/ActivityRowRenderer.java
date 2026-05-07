@@ -6,6 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
@@ -198,6 +199,58 @@ public class ActivityRowRenderer implements I18nParams {
         for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
 
         return container;
+    }
+
+    public Div buildAdvHistoryFieldsList(AdvertisementHistoryDto h, Long adId) {
+        Div container = new Div();
+        container.addClassName("adv-history-changes");
+
+        ChangeEntry titleChange = null;
+        ChangeEntry descChange  = null;
+        List<ChangeEntry> photoChanges = new ArrayList<>();
+        List<ChangeEntry> otherChanges = new ArrayList<>();
+
+        for (ChangeEntry entry : h.changes()) {
+            switch (entry) {
+                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
+                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
+                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
+                default                                                              -> otherChanges.add(entry);
+            }
+        }
+
+        if (titleChange != null) {
+            addHistorySpan(container, activityUiUtil.format(titleChange), false);
+        } else if (h.title() != null) {
+            addHistorySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + h.title(), true);
+        }
+
+        if (descChange != null) {
+            addHistorySpan(container, activityUiUtil.format(descChange), false);
+        } else if (h.description() != null) {
+            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
+            addHistorySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+        }
+
+        if (photoChanges.isEmpty()) {
+            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            String state = ext != null ? ext.getPhotoStateAtVersion(adId, h.version()) : null;
+            String photoText = (state != null && !state.isBlank()) ? state : "—";
+            addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
+        } else {
+            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityUiUtil.format(pc), false);
+        }
+        for (ChangeEntry oc : otherChanges) addHistorySpan(container, activityUiUtil.format(oc), false);
+
+        return container;
+    }
+
+    private void addHistorySpan(Div container, String text, boolean unchanged) {
+        if (text == null || text.isBlank()) return;
+        Span span = new Span("• " + text);
+        span.addClassName("adv-history-changes-item");
+        if (unchanged) span.addClassName("adv-history-changes-item--unchanged");
+        container.add(span);
     }
 
     private void addActivitySpan(Div container, String text, boolean unchanged) {

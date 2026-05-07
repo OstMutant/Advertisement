@@ -15,13 +15,9 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.events.dto.ActivityItemDto;
-import org.ost.advertisement.services.ActivityService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserSettingsService;
 import org.ost.advertisement.services.audit.AuditCaptureService;
-import org.ost.advertisement.services.audit.AuditHistoryService;
-import org.ost.advertisement.services.audit.AuditQueryService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -31,12 +27,10 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.views.utils.ActivityRowRenderer;
+import org.ost.advertisement.ui.views.utils.ProfileActivityBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 
 import org.ost.advertisement.common.PaginationDefaults;
-
-import java.util.List;
 
 import static org.ost.advertisement.common.I18nKey.*;
 
@@ -48,16 +42,13 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     @Getter
     private final transient I18nService i18nService;
-    private final transient UserSettingsService            settingsService;
-    private final transient NotificationService            notifications;
-    private final transient AuthContextService             authContextService;
-    private final transient ActivityService                activityService;
-    private final transient AuditCaptureService            auditCaptureService;
-    private final transient AuditQueryService              auditQueryService;
-    private final transient AuditHistoryService            auditHistoryService;
+    private final transient UserSettingsService                    settingsService;
+    private final transient NotificationService                    notifications;
+    private final transient AuthContextService                     authContextService;
+    private final transient AuditCaptureService                    auditCaptureService;
 
-    private final transient ObjectProvider<OverlayLayout>         layoutProvider;
-    private final transient ObjectProvider<ActivityRowRenderer>    rendererProvider;
+    private final transient ObjectProvider<OverlayLayout>              layoutProvider;
+    private final transient ObjectProvider<ProfileActivityBuilder> activityContentBuilderProvider;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -166,42 +157,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private Div buildActivityContent(Long userId) {
-        List<ActivityItemDto> items = activityService.getForUser(userId);
-        Div container = new Div();
-        container.addClassName("user-activity-list");
-
-        if (items.isEmpty()) {
-            Span empty = new Span(getValue(ACTIVITY_EMPTY));
-            empty.addClassName("user-activity-empty");
-            container.add(empty);
-            return container;
-        }
-
-        ActivityRowRenderer renderer = rendererProvider.getObject();
-        for (ActivityItemDto item : items) {
-            Div row = renderer.buildRow(item, userId);
-            if (ActivityRowRenderer.isSettingChange(item) && item.snapshotId() != null && item.snapshotId() > 0) {
-                auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
-                    row.add(renderer.buildSettingsFieldsList(item, snapSettings));
-                    UserSettings live = settingsService.load(currentUser.getId());
-                    boolean matchesCurrent = live.getAdsPageSize() == snapSettings.getAdsPageSize()
-                            && live.getUsersPageSize() == snapSettings.getUsersPageSize();
-                    if (matchesCurrent) {
-                        Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
-                        badge.addClassName("user-activity-current-badge");
-                        row.add(badge);
-                    } else {
-                        Button restoreBtn = new Button(getValue(SETTINGS_RESTORE_BUTTON));
-                        restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                        restoreBtn.addClassName("adv-history-restore-btn");
-                        restoreBtn.addClickListener(_ -> showSettingsRestoreConfirm(snapSettings));
-                        row.add(restoreBtn);
-                    }
-                });
-            }
-            container.add(row);
-        }
-        return container;
+        return activityContentBuilderProvider.getObject()
+                .build(currentUser, null, this::showSettingsRestoreConfirm);
     }
 
     private void showSettingsRestoreConfirm(UserSettings target) {

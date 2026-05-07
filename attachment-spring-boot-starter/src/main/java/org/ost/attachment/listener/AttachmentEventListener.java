@@ -8,8 +8,8 @@ import org.ost.attachment.service.PhotoSnapshotService;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.event.TransactionalEventListener;
+import org.springframework.transaction.event.TransactionPhase;
 
 @Component
 @RequiredArgsConstructor
@@ -24,19 +24,10 @@ public class AttachmentEventListener {
         attachmentService.softDeleteAll(event.adId(), event.userId());
     }
 
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(AdvertisementRestoredEvent event) {
         String[] targetUrls = photoSnapshotService.getUrlsAtVersion(event.adId(), event.snapshotVersion());
         attachmentService.restoreToUrls(event.adId(), targetUrls, event.userId());
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    photoSnapshotService.capture(event.adId(), event.userId());
-                }
-            });
-        } else {
-            photoSnapshotService.capture(event.adId(), event.userId());
-        }
+        photoSnapshotService.capture(event.adId(), event.userId());
     }
 }

@@ -30,12 +30,10 @@ import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.utils.ActivityUiUtil;
+import org.ost.advertisement.ui.views.utils.ActivityRowRenderer;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
-
-import org.ost.advertisement.events.model.ChangeEntry;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,13 +68,13 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     @Getter
     private final I18nService                   i18nService;
     private final AuditHistoryService           auditHistoryService;
-    private final ActivityUiUtil                activityUiUtil;
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
     private final ObjectProvider<AdvertisementGalleryExtension>  galleryExtension;
     private final ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
-    private final ConfirmActionDialog.Builder         confirmDialogBuilder;
+    private final ObjectProvider<ActivityRowRenderer>            rendererProvider;
+    private final ConfirmActionDialog.Builder                    confirmDialogBuilder;
 
     private Parameters params;
 
@@ -164,6 +162,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         String currentTitle = params.getAd().getTitle();
         String currentDesc  = params.getAd().getDescription();
 
+        ActivityRowRenderer renderer = rendererProvider.getObject();
+
         for (AdvertisementHistoryDto h : history) {
             Div row = new Div();
             row.addClassName("adv-history-row");
@@ -185,7 +185,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
             meta.addClassName("adv-history-meta");
             row.add(meta);
 
-            row.add(buildFullFieldsList(h, adId));
+            row.add(renderer.buildAdvHistoryFieldsList(h, adId));
 
             // Restore button: text-based rows (prevSnapshotId != null guards photo-only rows);
             // CREATED also eligible when history has multiple entries
@@ -215,58 +215,6 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         }
 
         return container;
-    }
-
-    private Div buildFullFieldsList(AdvertisementHistoryDto h, Long adId) {
-        Div container = new Div();
-        container.addClassName("adv-history-changes");
-
-        ChangeEntry titleChange = null;
-        ChangeEntry descChange  = null;
-        List<ChangeEntry> photoChanges = new ArrayList<>();
-        List<ChangeEntry> otherChanges = new ArrayList<>();
-
-        for (ChangeEntry entry : h.changes()) {
-            switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
-                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
-                default                                                              -> otherChanges.add(entry);
-            }
-        }
-
-        if (titleChange != null) {
-            addHistorySpan(container, activityUiUtil.format(titleChange), false);
-        } else if (h.title() != null) {
-            addHistorySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + h.title(), true);
-        }
-
-        if (descChange != null) {
-            addHistorySpan(container, activityUiUtil.format(descChange), false);
-        } else if (h.description() != null) {
-            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
-            addHistorySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
-        }
-
-        if (photoChanges.isEmpty()) {
-            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getPhotoStateAtVersion(adId, h.version()) : null;
-            String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
-        } else {
-            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityUiUtil.format(pc), false);
-        }
-        for (ChangeEntry oc : otherChanges)  addHistorySpan(container, activityUiUtil.format(oc), false);
-
-        return container;
-    }
-
-    private void addHistorySpan(Div container, String text, boolean unchanged) {
-        if (text == null || text.isBlank()) return;
-        Span item = new Span("• " + text);
-        item.addClassName("adv-history-changes-item");
-        if (unchanged) item.addClassName("adv-history-changes-item--unchanged");
-        container.add(item);
     }
 
     private boolean photosMatchCurrent(Long adId, int version) {
