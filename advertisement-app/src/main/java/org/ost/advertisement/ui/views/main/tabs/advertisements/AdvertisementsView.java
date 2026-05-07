@@ -13,7 +13,6 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
-import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
@@ -23,9 +22,7 @@ import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
-import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ApplicationEventMulticaster;
+import org.ost.advertisement.ui.views.support.SettingsPaginationBinding;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -43,14 +40,11 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient I18nService                   i18n;
     private final transient AccessEvaluator               access;
     private final transient EmptyStateView.Builder        emptyStateBuilder;
-    private final transient SettingsPaginationSupport     settingsPaginationSupport;
     private final transient UiPrimaryButton.Builder       addButtonBuilder;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBarModern                    paginationBar;
-    private final ApplicationEventMulticaster            eventMulticaster;
-
-    private ApplicationListener<SettingsChangedEvent> settingsListener;
+    private final SettingsPaginationBinding              settingsPaginationBinding;
 
     private FlexLayout advertisementContainer;
 
@@ -87,21 +81,13 @@ public class AdvertisementsView extends VerticalLayout {
             }
         }, Key.KEY_N);
 
-        settingsListener = event -> settingsPaginationSupport
-                .handleSettingsChanged(event, paginationBar, UserSettings::getAdsPageSize, this::refresh);
-        eventMulticaster.addApplicationListener(settingsListener);
-
-        applySettingsOnInit();
+        settingsPaginationBinding.register(paginationBar, UserSettings::getAdsPageSize, this::refresh);
         refresh();
     }
 
     @PreDestroy
     public void destroy() {
-        eventMulticaster.removeApplicationListener(settingsListener);
-    }
-
-    private void applySettingsOnInit() {
-        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getAdsPageSize);
+        settingsPaginationBinding.unregister();
     }
 
     private FlexLayout buildAdvertisementContainer() {

@@ -13,18 +13,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.dto.UserSettings;
-import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
-import org.ost.advertisement.ui.views.support.SettingsPaginationSupport;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.springframework.context.ApplicationListener;
-import org.springframework.context.event.ApplicationEventMulticaster;
+import org.ost.advertisement.ui.views.support.SettingsPaginationBinding;
 
 import java.util.List;
 import java.util.Set;
@@ -39,7 +36,6 @@ import static org.ost.advertisement.common.I18nKey.*;
 public class UserView extends VerticalLayout {
 
     private final transient UserService                  userService;
-    private final transient SettingsPaginationSupport    settingsPaginationSupport;
     private final transient I18nService                  i18n;
     private final transient NotificationService          notificationService;
     private final QueryStatusBar<UserFilterDto>          queryStatusBar;
@@ -47,10 +43,7 @@ public class UserView extends VerticalLayout {
     private final UserOverlay                            overlay;
     private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
     private final PaginationBarModern                    paginationBar;
-
-    private final ApplicationEventMulticaster            eventMulticaster;
-
-    private ApplicationListener<SettingsChangedEvent> settingsListener;
+    private final SettingsPaginationBinding              settingsPaginationBinding;
 
     private Grid<User> grid;
 
@@ -79,21 +72,13 @@ public class UserView extends VerticalLayout {
         initQueryBar();
         initGrid();
 
-        settingsListener = event -> settingsPaginationSupport
-                .handleSettingsChanged(event, paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
-        eventMulticaster.addApplicationListener(settingsListener);
-
-        applySettingsOnInit();
+        settingsPaginationBinding.register(paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
         refreshGrid();
     }
 
     @PreDestroy
     public void destroy() {
-        eventMulticaster.removeApplicationListener(settingsListener);
-    }
-
-    private void applySettingsOnInit() {
-        settingsPaginationSupport.applyOnInit(paginationBar, UserSettings::getUsersPageSize);
+        settingsPaginationBinding.unregister();
     }
 
     private void initPagination() {
