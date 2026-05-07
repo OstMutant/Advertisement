@@ -1,4 +1,4 @@
-package org.ost.advertisement.services;
+package org.ost.advertisement.services.auth;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

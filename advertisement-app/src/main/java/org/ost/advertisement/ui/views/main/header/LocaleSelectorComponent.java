@@ -9,8 +9,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.SessionService;
-import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.services.auth.SessionService;
+import org.ost.advertisement.services.user.UserService;
 import org.ost.advertisement.services.auth.AuthContextService;
 
 import java.util.List;

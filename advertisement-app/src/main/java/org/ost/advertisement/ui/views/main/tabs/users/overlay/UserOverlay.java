@@ -7,7 +7,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.services.user.UserService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.advertisement.ui.views.components.overlay.EntityOverlaySupport;

@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
-import org.ost.advertisement.services.UserSettingsService;
+import org.ost.advertisement.services.user.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.PaginationBar;
 

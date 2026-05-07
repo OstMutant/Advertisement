@@ -1,9 +1,8 @@
-package org.ost.advertisement.services;
+package org.ost.advertisement.services.auth;
 
 import com.vaadin.flow.component.UI;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.auth.AuthContextService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

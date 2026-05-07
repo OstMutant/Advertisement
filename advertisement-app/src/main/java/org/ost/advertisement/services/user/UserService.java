@@ -1,4 +1,4 @@
-package org.ost.advertisement.services;
+package org.ost.advertisement.services.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

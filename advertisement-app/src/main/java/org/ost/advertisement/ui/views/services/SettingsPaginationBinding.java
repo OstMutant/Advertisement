@@ -1,11 +1,10 @@
-package org.ost.advertisement.ui.views.support;
+package org.ost.advertisement.ui.views.services;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.ui.views.components.PaginationBar;
-import org.ost.advertisement.ui.views.services.SettingsPaginationService;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.event.ApplicationEventMulticaster;

@@ -1,4 +1,4 @@
-package org.ost.advertisement.services;
+package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.dto.ActivityItemDto;

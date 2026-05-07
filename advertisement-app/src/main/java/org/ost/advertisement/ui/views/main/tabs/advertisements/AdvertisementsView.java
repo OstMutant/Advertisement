@@ -22,7 +22,7 @@ import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
-import org.ost.advertisement.ui.views.support.SettingsPaginationBinding;
+import org.ost.advertisement.ui.views.services.SettingsPaginationBinding;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;

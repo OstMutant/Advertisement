@@ -12,7 +12,7 @@ import lombok.Value;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.services.user.UserService;
 import org.ost.advertisement.ui.dto.UserEditDto;
 import org.ost.advertisement.ui.mappers.UserMapper;
 import org.ost.advertisement.ui.views.components.overlay.OverlayFormBinder;

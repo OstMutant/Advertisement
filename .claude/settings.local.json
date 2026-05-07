@@ -57,7 +57,10 @@
       "Bash(awk '{print $5, $9}')",
       "Bash(grep -E \"\\\\.\\(sql|ddl\\)$|schema\")",
       "Bash(cat)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(grep -oP \"\\(Service|Support|Handler|Builder|Provider|Manager|Helper|Util|Controller|Repository|Factory|Configurator|Renderer|Processor|Evaluator|Binding|Strategy|Extension|Impl|Listener|Guard|Overlay|View|Block|Bar|Button|Dialog|Field|Layout|Panel|Badge|Card|Tab|Form|Mode|Action|Capture|Query|Filter|Sort|Diff|Engine|Executor|Mapper|Snapshot|History|Activity|Audit|Auth|Access|Pagination|Settings|Profile|Media|Event|Sql|Base|Abstract|Generic|Ui|Api|Spi\\)$\")",
+      "Bash(grep -E \"\\\\.\\(config|configuration\\)\\($|\\\\.\\)\")",
+      "Bash(xargs -I{} basename {} .java)"
     ]
   },
   "hooks": {

@@ -1,4 +1,4 @@
-package org.ost.advertisement.services;
+package org.ost.advertisement.services.user;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;

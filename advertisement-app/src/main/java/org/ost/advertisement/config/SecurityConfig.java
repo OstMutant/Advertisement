@@ -4,7 +4,7 @@ import com.vaadin.flow.server.HandlerHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.security.UserPrincipal;
-import org.ost.advertisement.services.UserService;
+import org.ost.advertisement.services.user.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
