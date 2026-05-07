@@ -2,8 +2,6 @@ package org.ost.advertisement.ui.views.main.tabs.advertisements;
 
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.Shortcuts;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -21,6 +19,7 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
@@ -45,6 +44,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient AccessEvaluator               access;
     private final transient EmptyStateView.Builder        emptyStateBuilder;
     private final transient SettingsPaginationSupport     settingsPaginationSupport;
+    private final transient UiPrimaryButton.Builder       addButtonBuilder;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBarModern                    paginationBar;
@@ -57,7 +57,7 @@ public class AdvertisementsView extends VerticalLayout {
     @PostConstruct
     public void init() {
         advertisementContainer = buildAdvertisementContainer();
-        Button addButton = buildAddButton();
+        UiPrimaryButton addButton = buildAddButton();
 
         VerticalLayout contentWrapper = new VerticalLayout(
                 queryStatusBar, queryStatusBar.getQueryBlock(), addButton, advertisementContainer, paginationBar
@@ -113,9 +113,12 @@ public class AdvertisementsView extends VerticalLayout {
         return container;
     }
 
-    private Button buildAddButton() {
-        Button button = new Button(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD), VaadinIcon.PLUS.create());
-        button.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+    private UiPrimaryButton buildAddButton() {
+        UiPrimaryButton button = addButtonBuilder.build(
+                UiPrimaryButton.Parameters.builder()
+                        .labelKey(ADVERTISEMENT_SIDEBAR_BUTTON_ADD)
+                        .icon(VaadinIcon.PLUS.create())
+                        .build());
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> overlay.openForCreate(this::refresh));
         button.setVisible(access.isLoggedIn());

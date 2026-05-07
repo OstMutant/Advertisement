@@ -15,8 +15,9 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class AdvertisementGalleryExtensionImpl implements AdvertisementGalleryExtension {
 
-    private final ObjectProvider<AttachmentGallery> galleryProvider;
-    private final AttachmentService                  attachmentService;
+    private final ObjectProvider<AttachmentGallery>    galleryProvider;
+    private final ObjectProvider<CardPhotoLightbox>    lightboxProvider;
+    private final AttachmentService                    attachmentService;
 
     @Override
     public Component buildGalleryForView(Long adId) {
@@ -41,7 +42,7 @@ public class AdvertisementGalleryExtensionImpl implements AdvertisementGalleryEx
 
     @Override
     public void openPhotoLightbox(Long adId) {
-        CardPhotoLightbox.open(attachmentService.getByEntityId(adId), 0);
+        lightboxProvider.getObject().open(attachmentService.getByEntityId(adId), 0);
     }
 
     private record Handle(AttachmentGallery gallery) implements FormHandle {

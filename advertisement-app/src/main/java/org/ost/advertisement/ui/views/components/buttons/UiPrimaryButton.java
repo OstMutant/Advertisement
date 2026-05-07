@@ -2,6 +2,7 @@ package org.ost.advertisement.ui.views.components.buttons;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
@@ -25,6 +26,7 @@ public class UiPrimaryButton extends Button
     @lombok.Builder
     public static class Parameters {
         @NonNull I18nKey labelKey;
+        Icon icon;
     }
 
     @SpringComponent
@@ -48,6 +50,7 @@ public class UiPrimaryButton extends Button
     @Override
     public UiPrimaryButton configure(Parameters p) {
         setText(getValue(p.getLabelKey()));
+        if (p.getIcon() != null) setIcon(p.getIcon());
         return this;
     }
 }

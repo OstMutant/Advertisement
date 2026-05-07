@@ -2,22 +2,18 @@ package org.ost.advertisement.ui.views.main.tabs.users.overlay;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
-import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
+import org.ost.advertisement.services.auth.AuthContextService;
+import org.ost.advertisement.ui.views.components.overlay.AbstractEntityOverlay;
+import org.ost.advertisement.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
-import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
-import org.springframework.beans.factory.ObjectProvider;
-
-import org.ost.advertisement.entities.User;
 
 import static org.ost.advertisement.common.I18nKey.*;
 
@@ -25,7 +21,7 @@ import static org.ost.advertisement.common.I18nKey.*;
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class UserOverlay extends BaseOverlay {
+public class UserOverlay extends AbstractEntityOverlay {
 
     private enum Mode {VIEW, EDIT}
 
@@ -35,29 +31,22 @@ public class UserOverlay extends BaseOverlay {
             @NonNull Runnable onSaved,
             boolean enteredFromView
     ) {
-        OverlaySession toEdit() {
-            return new OverlaySession(Mode.EDIT, user, onSaved, true);
-        }
-
-        OverlaySession toView() {
-            return new OverlaySession(Mode.VIEW, user, onSaved, false);
-        }
+        OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, user, onSaved, true); }
+        OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
     }
 
-    private final transient I18nService                  i18n;
-    private final transient NotificationService          notification;
-    private final transient UserService                  userService;
-    private final transient org.ost.advertisement.services.auth.AuthContextService authContextService;
-    private final transient UserViewOverlayModeHandler.Builder  viewModeHandlerBuilder;
-    private final transient UserFormOverlayModeHandler.Builder  formModeHandlerBuilder;
-    private final transient ConfirmActionDialog.Builder  confirmDiscardBuilder;
-    private final transient ObjectProvider<OverlayLayout> layoutProvider;
+    @Getter private final EntityOverlaySupport                        support;
+    private final transient UserService                        userService;
+    private final transient AuthContextService                 authContextService;
+    private final transient UserViewOverlayModeHandler.Builder viewModeHandlerBuilder;
+    private final transient UserFormOverlayModeHandler.Builder formModeHandlerBuilder;
 
-    private final OverlayBreadcrumbBackButton breadcrumbBackButton;
-
-    private transient OverlaySession session;
-    private OverlayLayout layout;
+    private transient OverlaySession            session;
     private transient UserFormOverlayModeHandler currentFormHandler;
+
+    @Override protected String  getOverlayCssClass()   { return "user-overlay"; }
+    @Override protected I18nKey              getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
+    @Override protected boolean              hasUnsavedChanges()    { return currentFormHandler != null && currentFormHandler.hasChanges(); }
 
     public void openForView(User user, Runnable onChanged) {
         ensureInitialized();
@@ -69,31 +58,13 @@ public class UserOverlay extends BaseOverlay {
         openSession(new OverlaySession(Mode.EDIT, user, onSaved, false));
     }
 
-    @Override
-    protected void buildContent() {
-        addClassName("user-overlay");
-        breadcrumbBackButton.configure(OverlayBreadcrumbBackButton.Parameters.builder()
-                        .labelKey(MAIN_TAB_USERS)
-                        .build())
-                .addClickListener(_ -> closeToList());
-    }
-
-    @Override
-    protected void onEsc() {
-        handleCancel();
-    }
-
     private void openSession(OverlaySession s) {
-        if (layout != null) layout.removeFromParent();
-        layout = layoutProvider.getObject();
-        layout.setBreadcrumbButton(breadcrumbBackButton);
         session = s;
-        switchTo();
-        add(layout);
-        open();
+        launchSession(this::switchTo);
     }
 
-    private void switchTo() {
+    @Override
+    protected void switchTo() {
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerBuilder.build(
                     UserViewOverlayModeHandler.Parameters.builder()
@@ -115,8 +86,7 @@ public class UserOverlay extends BaseOverlay {
 
         handler.activate(layout);
 
-        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT
-                ? session.user().getName() : "");
+        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT ? session.user().getName() : "");
         layout.getBreadcrumbCurrent().setVisible(session.mode() == Mode.EDIT);
     }
 
@@ -127,7 +97,7 @@ public class UserOverlay extends BaseOverlay {
 
     private void handleSave() {
         if (currentFormHandler.save()) {
-            notification.success(USER_DIALOG_NOTIFICATION_SUCCESS);
+            notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
             session.onSaved().run();
             if (session.enteredFromView()) {
                 Long savedId = currentFormHandler.getSavedUserId();
@@ -139,23 +109,7 @@ public class UserOverlay extends BaseOverlay {
                 closeToList();
             }
         } else {
-            notification.error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
-        }
-    }
-
-    private void handleCancel() {
-        if (currentFormHandler != null && currentFormHandler.hasChanges()) {
-            confirmDiscardBuilder.build(
-                    ConfirmActionDialog.Parameters.builder()
-                            .titleKey(OVERLAY_UNSAVED_TITLE)
-                            .message(i18n.get(OVERLAY_UNSAVED_TEXT))
-                            .confirmKey(OVERLAY_UNSAVED_CONFIRM)
-                            .cancelKey(OVERLAY_UNSAVED_CANCEL)
-                            .onConfirm(this::doCancel)
-                            .build()
-            ).open();
-        } else {
-            doCancel();
+            notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
         }
     }
 
@@ -163,15 +117,16 @@ public class UserOverlay extends BaseOverlay {
         Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         userService.restoreToSnapshot(snapshotId, actingUserId).ifPresentOrElse(
                 restoredUser -> {
-                    notification.success(USER_DIALOG_NOTIFICATION_SUCCESS);
+                    notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
                     session.onSaved().run();
                     openSession(new OverlaySession(Mode.VIEW, restoredUser, session.onSaved(), false));
                 },
-                () -> notification.error(USER_DIALOG_NOTIFICATION_SAVE_ERROR)
+                () -> notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR)
         );
     }
 
-    private void doCancel() {
+    @Override
+    protected void doCancel() {
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
             switchTo();

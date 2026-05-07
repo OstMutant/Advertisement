@@ -7,15 +7,17 @@ import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.attachment.entity.Attachment;
+import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 
+@SpringComponent
+@Scope("prototype")
 public class CardPhotoLightbox {
 
-    private CardPhotoLightbox() {}
-
-    public static void open(List<Attachment> attachments, int startIndex) {
+    public void open(List<Attachment> attachments, int startIndex) {
         if (attachments.isEmpty()) return;
 
         int[] idx = { startIndex };
@@ -77,7 +79,7 @@ public class CardPhotoLightbox {
         dialog.open();
     }
 
-    private static void update(Image mainImg, Div strip, List<Attachment> attachments, int idx) {
+    private void update(Image mainImg, Div strip, List<Attachment> attachments, int idx) {
         Attachment a = attachments.get(idx);
         mainImg.setSrc(a.getUrl());
         mainImg.setAlt(a.getFilename());

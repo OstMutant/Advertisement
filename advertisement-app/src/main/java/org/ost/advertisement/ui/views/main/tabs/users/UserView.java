@@ -46,13 +46,13 @@ public class UserView extends VerticalLayout {
     private final transient UserGridConfigurator.Builder gridConfiguratorBuilder;
     private final UserOverlay                            overlay;
     private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
+    private final PaginationBarModern                    paginationBar;
 
     private final ApplicationEventMulticaster            eventMulticaster;
 
     private ApplicationListener<SettingsChangedEvent> settingsListener;
 
-    private Grid<User>          grid;
-    private PaginationBarModern paginationBar;
+    private Grid<User> grid;
 
     @PostConstruct
     protected void init() {
@@ -64,17 +64,20 @@ public class UserView extends VerticalLayout {
         grid.setWidthFull();
         grid.setAllRowsVisible(true);
 
-        paginationBar = new PaginationBarModern(i18n);
         paginationBar.addClassName("user-pagination");
 
-        add(grid, paginationBar, overlay);
+        VerticalLayout contentWrapper = new VerticalLayout(
+                queryStatusBar, queryStatusBar.getQueryBlock(), grid, paginationBar
+        );
+        contentWrapper.setPadding(false);
+        contentWrapper.setSpacing(false);
+        contentWrapper.setWidthFull();
+
+        add(contentWrapper, overlay);
 
         initPagination();
         initQueryBar();
         initGrid();
-
-        addComponentAsFirst(queryStatusBar);
-        addComponentAtIndex(1, queryStatusBar.getQueryBlock());
 
         settingsListener = event -> settingsPaginationSupport
                 .handleSettingsChanged(event, paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
