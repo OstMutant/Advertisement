@@ -1,5 +1,12 @@
 # Advertisement Project Architecture Rules
 
+## Git Workflow
+- `git add` — run automatically after every file change
+- `git commit` — only when the user explicitly asks to commit
+
+## Language
+All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
+
 ## Core Stack
 - Java 25 (Use modern features: Records, Pattern Matching, Switch expressions).
 - Spring Boot (Web, Security, Data JDBC).
