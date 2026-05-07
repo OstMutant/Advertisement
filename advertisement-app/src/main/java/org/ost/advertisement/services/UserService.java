@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.dto.UserProfileDto;
+import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.Role;
@@ -82,6 +83,8 @@ public class UserService {
                 .build();
         User saved = repository.save(newUser);
         auditCaptureService.captureUser(saved, ActionType.CREATED, saved.getId());
+        UserSettings defaults = UserSettings.defaultSettings();
+        auditCaptureService.captureInitialSettings(saved, defaults, saved.getId());
     }
 
     public Optional<User> findById(Long id) {

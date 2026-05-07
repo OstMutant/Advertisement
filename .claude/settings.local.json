@@ -54,7 +54,10 @@
       "Bash(xargs -n1 basename)",
       "Read(//root/.m2/repository/org/springframework/spring-jdbc/**)",
       "Bash(jar -tf ~/.m2/repository/org/springframework/spring-jdbc/7.0.2/spring-jdbc-7.0.2.jar)",
-      "Bash(awk '{print $5, $9}')"
+      "Bash(awk '{print $5, $9}')",
+      "Bash(grep -E \"\\\\.\\(sql|ddl\\)$|schema\")",
+      "Bash(cat)",
+      "Read(//tmp/**)"
     ]
   },
   "hooks": {

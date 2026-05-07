@@ -72,6 +72,20 @@ public class AuditCaptureService {
                 ActionType.UPDATED.name(), mapper.toJson(current), mapper.toChangesJson(changes), changedByUserId);
     }
 
+    @Transactional
+    public void captureInitialSettings(User user, UserSettings settings, Long changedByUserId) {
+        SettingsSnapshot current = SettingsSnapshot.from(settings);
+        List<ChangeEntry> changes = diffEngine.diffFromNull(current);
+        if (changes.isEmpty()) return;
+        auditLogRepository.insert(
+                AuditLogDescriptor.EntityType.USER_SETTINGS,
+                user.getId(),
+                ActionType.UPDATED.name(),
+                mapper.toJson(current),
+                mapper.toChangesJson(changes),
+                changedByUserId);
+    }
+
     private <T> T loadLastSnapshot(String entityType, Long entityId, Class<T> type) {
         return auditLogRepository.getLastSnapshotData(entityType, entityId)
                 .map(json -> mapper.fromJson(json, type))

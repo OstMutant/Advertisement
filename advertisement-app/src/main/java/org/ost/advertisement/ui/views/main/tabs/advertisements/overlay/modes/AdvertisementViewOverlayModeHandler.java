@@ -250,12 +250,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         if (photoChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            if (ext != null) {
-                String state = ext.getPhotoStateAtVersion(adId, h.version());
-                if (state != null && !state.isBlank()) {
-                    addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + state, true);
-                }
-            }
+            String state = ext != null ? ext.getPhotoStateAtVersion(adId, h.version()) : null;
+            String photoText = (state != null && !state.isBlank()) ? state : "—";
+            addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
         } else {
             for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityUiUtil.format(pc), false);
         }
