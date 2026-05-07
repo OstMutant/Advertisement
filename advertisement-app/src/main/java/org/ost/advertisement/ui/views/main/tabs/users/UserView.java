@@ -21,7 +21,7 @@ import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.views.services.SettingsPaginationBinding;
+import org.ost.advertisement.ui.views.services.pagination.SettingsPaginationBinding;
 
 import java.util.List;
 import java.util.Set;

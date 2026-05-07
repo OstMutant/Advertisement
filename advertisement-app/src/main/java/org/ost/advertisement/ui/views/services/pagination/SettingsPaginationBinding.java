@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.services;
+package org.ost.advertisement.ui.views.services.pagination;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
