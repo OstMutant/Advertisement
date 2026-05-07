@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration;
+package org.ost.advertisement.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

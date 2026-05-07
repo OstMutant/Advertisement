@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration;
+package org.ost.advertisement.config;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;

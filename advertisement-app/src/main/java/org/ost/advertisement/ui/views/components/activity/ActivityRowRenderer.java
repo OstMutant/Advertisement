@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.utils;
+package org.ost.advertisement.ui.views.components.activity;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -12,6 +12,7 @@ import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
+import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -26,7 +27,7 @@ import static org.ost.advertisement.common.I18nKey.*;
 public class ActivityRowRenderer implements I18nParams {
 
     @Getter private final I18nService                                    i18nService;
-    private final        ActivityUiUtil                                   activityUiUtil;
+    private final        ActivityPanel                                    activityUiUtil;
     private final        ObjectProvider<AdvertisementHistoryExtension>    historyExtensionProvider;
 
     public static boolean isSettingChange(ActivityItemDto item) {
@@ -64,7 +65,7 @@ public class ActivityRowRenderer implements I18nParams {
 
         row.add(action, type, name, time);
 
-        Span editor = ActivityUiUtil.buildEditorBadge(item.changedByUserId(), item.changedByName(), viewerUserId);
+        Span editor = ActivityPanel.buildEditorBadge(item.changedByUserId(), item.changedByName(), viewerUserId);
         if (editor != null) row.add(editor);
 
         if (settingChange) {

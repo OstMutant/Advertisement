@@ -27,7 +27,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.views.utils.ProfileActivityBuilder;
+import org.ost.advertisement.ui.views.components.activity.ProfileActivityPanel;
 import org.springframework.beans.factory.ObjectProvider;
 
 import org.ost.advertisement.common.PaginationDefaults;
@@ -48,7 +48,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient AuditCaptureService                    auditCaptureService;
 
     private final transient ObjectProvider<OverlayLayout>              layoutProvider;
-    private final transient ObjectProvider<ProfileActivityBuilder> activityContentBuilderProvider;
+    private final transient ObjectProvider<ProfileActivityPanel> activityContentBuilderProvider;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;

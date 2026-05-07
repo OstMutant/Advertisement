@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration.db;
+package org.ost.advertisement.config.db;
 
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
@@ -22,4 +22,3 @@ public class AuditingConfig implements AuditorAware<Long> {
         return authContextService.getCurrentUser().map(User::getId);
     }
 }
-

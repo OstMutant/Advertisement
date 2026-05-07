@@ -17,7 +17,7 @@ import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
-import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.PaginationBar;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
@@ -43,7 +43,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient UiPrimaryButton.Builder       addButtonBuilder;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
-    private final PaginationBarModern                    paginationBar;
+    private final PaginationBar                          paginationBar;
     private final SettingsPaginationBinding              settingsPaginationBinding;
 
     private FlexLayout advertisementContainer;

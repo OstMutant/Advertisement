@@ -15,6 +15,33 @@
 
 When writing code or refactoring, strictly respect these boundaries. Think about which module a feature belongs to before implementing it.
 
+**Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. The established patterns in this project take priority over generic conventions. Symmetry with existing code is a first-class goal.
+
+## Naming Conventions
+
+### Class suffixes
+- `*Projection` — SQL query object (extends `SqlFixedQuery<T>`). Defines SQL, field mappings, and `mapRow()`. Lives in `repository/*`.
+- `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
+- `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
+- `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
+- `*Binding` — prototype bean that manages a lifecycle (register/unregister listeners). Lives in `ui/views/support/`.
+- `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
+- `*Config` — Spring `@Configuration` class. Infrastructure-level configs (Security, Jackson, etc.) live in `config/`. Feature-scoped factory configs (e.g. `AdvertisementQueryConfig`) stay next to the components they configure.
+- `*Panel` (shared) — general-purpose Spring bean returning a Vaadin component subtree, lives in `ui/views/components/`. Domain-specific panels (tightly coupled to one view) stay in their domain package.
+
+### Package structure (advertisement-app)
+- `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
+- `services/audit/` — entire audit subsystem: services + snapshots + diff engine + annotation
+- `services/auth/` — authentication context (interface + impl)
+- `repository/activity/`, `repository/audit/`, `repository/advertisement/`, `repository/user/` — SQL repositories + projections per domain
+- `ui/views/components/` — reusable Vaadin UI components (incl. `activity/` subpackage)
+- `ui/views/utils/` — pure static utilities only (`*Util` classes)
+- `ui/views/support/` — lifecycle helpers (`*Binding`)
+- `ui/views/services/` — UI-layer Spring services (e.g. `NotificationService`, `SettingsPaginationService`)
+
+### Cross-module consistency
+All modules use `config` (not `configuration`) for Spring configuration packages.
+
 ## UI Verification with Playwright
 
 After making UI changes, verify them by running the Playwright script inside Docker.

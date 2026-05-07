@@ -16,7 +16,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-public class AdvertisementHistoryQuery extends SqlFixedQuery<AdvertisementHistoryDto> {
+public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementHistoryDto> {
 
     private static final String QUERY = """
             WITH numbered AS (
@@ -59,7 +59,7 @@ public class AdvertisementHistoryQuery extends SqlFixedQuery<AdvertisementHistor
 
     private final ObjectMapper objectMapper;
 
-    public AdvertisementHistoryQuery(ObjectMapper objectMapper) {
+    public AdvertisementHistoryProjection(ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, VERSION, ACTION_TYPE_STR, CHANGED_BY_NAME, CREATED_AT,
                       TITLE, DESCRIPTION, CHANGES_SUMMARY,
                       PREV_ID, PREV_TITLE, PREV_DESCRIPTION));

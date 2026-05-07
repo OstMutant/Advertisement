@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.utils;
+package org.ost.advertisement.ui.views.components.activity;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -27,7 +27,7 @@ import static org.ost.advertisement.common.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ProfileActivityBuilder implements I18nParams {
+public class ProfileActivityPanel implements I18nParams {
 
     @Getter private final I18nService                            i18nService;
     private final        ActivityService                         activityService;

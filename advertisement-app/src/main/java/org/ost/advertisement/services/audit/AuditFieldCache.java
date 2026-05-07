@@ -1,4 +1,4 @@
-package org.ost.advertisement.audit;
+package org.ost.advertisement.services.audit;
 
 import org.springframework.stereotype.Component;
 

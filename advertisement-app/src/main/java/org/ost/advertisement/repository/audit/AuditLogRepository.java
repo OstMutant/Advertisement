@@ -36,12 +36,12 @@ public class AuditLogRepository {
     );
 
     private final JdbcClient              jdbcClient;
-    private final AdvertisementHistoryQuery historyQuery;
+    private final AdvertisementHistoryProjection historyQuery;
 
     public AuditLogRepository(JdbcClient jdbcClient,
                                @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         this.jdbcClient   = jdbcClient;
-        this.historyQuery = new AdvertisementHistoryQuery(objectMapper);
+        this.historyQuery = new AdvertisementHistoryProjection(objectMapper);
     }
 
     public void insert(String entityType, Long entityId, String actionType,

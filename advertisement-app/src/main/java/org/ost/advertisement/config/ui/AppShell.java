@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration.ui;
+package org.ost.advertisement.config.ui;
 
 import com.vaadin.flow.component.dependency.JsModule;
 import com.vaadin.flow.component.page.AppShellConfigurator;

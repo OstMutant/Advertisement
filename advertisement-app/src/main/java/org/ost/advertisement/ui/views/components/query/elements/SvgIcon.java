@@ -6,7 +6,7 @@ import lombok.*;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.Initialization;
-import org.ost.advertisement.ui.views.utils.SvgUtils;
+import org.ost.advertisement.ui.views.utils.SvgUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
@@ -43,7 +43,7 @@ public class SvgIcon extends Span implements Configurable<SvgIcon, SvgIcon.Param
     }
 
     public void setSvg(String resourcePath) {
-        String svg = SvgUtils.loadSvg(resourcePath);
+        String svg = SvgUtil.loadSvg(resourcePath);
         if (!svg.isBlank()) {
             getElement().setProperty("innerHTML", svg);
         }

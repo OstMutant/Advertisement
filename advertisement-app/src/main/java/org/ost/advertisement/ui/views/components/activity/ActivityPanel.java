@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.utils;
+package org.ost.advertisement.ui.views.components.activity;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -11,7 +11,7 @@ import java.util.List;
 
 @SpringComponent
 @RequiredArgsConstructor
-public class ActivityUiUtil {
+public class ActivityPanel {
 
     private final I18nService i18n;
 

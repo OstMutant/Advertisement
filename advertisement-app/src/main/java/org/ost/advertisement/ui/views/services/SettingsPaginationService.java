@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.support;
+package org.ost.advertisement.ui.views.services;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -7,18 +7,18 @@ import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.services.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;
-import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.PaginationBar;
 
 import java.util.function.Function;
 
 @SpringComponent
 @RequiredArgsConstructor
-public class SettingsPaginationSupport {
+public class SettingsPaginationService {
 
     private final AuthContextService  authContextService;
     private final UserSettingsService settingsService;
 
-    public void applyOnInit(PaginationBarModern paginationBar, Function<UserSettings, Integer> pageSizeExtractor) {
+    public void applyOnInit(PaginationBar paginationBar, Function<UserSettings, Integer> pageSizeExtractor) {
         authContextService.getCurrentUser().ifPresent(user ->
                 paginationBar.setPageSize(pageSizeExtractor.apply(settingsService.load(user.getId())))
         );
@@ -26,7 +26,7 @@ public class SettingsPaginationSupport {
 
     public void handleSettingsChanged(
             SettingsChangedEvent event,
-            PaginationBarModern paginationBar,
+            PaginationBar paginationBar,
             Function<UserSettings, Integer> pageSizeExtractor,
             Runnable refresh) {
 

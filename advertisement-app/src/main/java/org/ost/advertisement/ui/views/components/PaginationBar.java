@@ -20,7 +20,7 @@ import static org.ost.advertisement.common.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
-public class PaginationBarModern extends HorizontalLayout implements I18nParams {
+public class PaginationBar extends HorizontalLayout implements I18nParams {
 
     @Getter
     private int pageSize = PaginationDefaults.DEFAULT_PAGE_SIZE;
@@ -42,7 +42,7 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
     @Setter
     private transient Consumer<PaginationEvent> pageChangeListener;
 
-    public PaginationBarModern(I18nService i18nService) {
+    public PaginationBar(I18nService i18nService) {
         this.i18nService = i18nService;
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
@@ -130,4 +130,3 @@ public class PaginationBarModern extends HorizontalLayout implements I18nParams 
 
     }
 }
-

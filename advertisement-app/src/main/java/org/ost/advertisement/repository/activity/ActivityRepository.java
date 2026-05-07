@@ -13,12 +13,12 @@ import java.util.List;
 public class ActivityRepository {
 
     private final JdbcClient   jdbcClient;
-    private final ActivityQuery query;
+    private final ActivityProjection query;
 
     public ActivityRepository(JdbcClient jdbcClient,
                                @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         this.jdbcClient = jdbcClient;
-        this.query      = new ActivityQuery(objectMapper);
+        this.query      = new ActivityProjection(objectMapper);
     }
 
     public List<ActivityItemDto> findByUserId(Long userId) {

@@ -8,10 +8,10 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
-public class SvgUtils {
+public class SvgUtil {
 
     public static String loadSvg(String resourcePath) {
-        try (InputStream is = SvgUtils.class.getClassLoader().getResourceAsStream(resourcePath)) {
+        try (InputStream is = SvgUtil.class.getClassLoader().getResourceAsStream(resourcePath)) {
             if (is == null) {
                 return "<!-- SVG not found: " + resourcePath + " -->";
             }

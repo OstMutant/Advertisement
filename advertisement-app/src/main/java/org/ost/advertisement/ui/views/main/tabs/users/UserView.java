@@ -15,7 +15,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.services.UserService;
-import org.ost.advertisement.ui.views.components.PaginationBarModern;
+import org.ost.advertisement.ui.views.components.PaginationBar;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
@@ -42,7 +42,7 @@ public class UserView extends VerticalLayout {
     private final transient UserGridConfigurator.Builder gridConfiguratorBuilder;
     private final UserOverlay                            overlay;
     private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
-    private final PaginationBarModern                    paginationBar;
+    private final PaginationBar                          paginationBar;
     private final SettingsPaginationBinding              settingsPaginationBinding;
 
     private Grid<User> grid;

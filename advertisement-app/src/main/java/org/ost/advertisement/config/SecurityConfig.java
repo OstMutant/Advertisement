@@ -1,4 +1,4 @@
-package org.ost.advertisement.configuration;
+package org.ost.advertisement.config;
 
 import com.vaadin.flow.server.HandlerHelper;
 import jakarta.servlet.http.HttpServletRequest;

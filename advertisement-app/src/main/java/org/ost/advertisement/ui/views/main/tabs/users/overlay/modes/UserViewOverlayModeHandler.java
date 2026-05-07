@@ -23,7 +23,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.utils.ProfileActivityBuilder;
+import org.ost.advertisement.ui.views.components.activity.ProfileActivityPanel;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -60,7 +60,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiLabeledField.Builder                     labeledFieldBuilder;
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
-    private final ObjectProvider<ProfileActivityBuilder> activityContentBuilderProvider;
+    private final ObjectProvider<ProfileActivityPanel> activityContentBuilderProvider;
 
     private Parameters params;
 

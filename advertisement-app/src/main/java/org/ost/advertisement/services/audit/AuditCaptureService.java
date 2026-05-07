@@ -1,10 +1,10 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.AdvertisementSnapshot;
-import org.ost.advertisement.audit.AuditDiffEngine;
-import org.ost.advertisement.audit.SettingsSnapshot;
-import org.ost.advertisement.audit.UserSnapshot;
+import org.ost.advertisement.services.audit.AdvertisementSnapshot;
+import org.ost.advertisement.services.audit.AuditDiffEngine;
+import org.ost.advertisement.services.audit.SettingsSnapshot;
+import org.ost.advertisement.services.audit.UserSnapshot;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.Advertisement;
 import org.ost.advertisement.entities.User;

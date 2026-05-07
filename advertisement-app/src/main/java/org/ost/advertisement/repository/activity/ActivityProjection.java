@@ -16,7 +16,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-public class ActivityQuery extends SqlFixedQuery<ActivityItemDto> {
+public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
     private static final String QUERY = """
             WITH adv_act AS (
@@ -83,7 +83,7 @@ public class ActivityQuery extends SqlFixedQuery<ActivityItemDto> {
 
     private final ObjectMapper objectMapper;
 
-    public ActivityQuery(ObjectMapper objectMapper) {
+    public ActivityProjection(ObjectMapper objectMapper) {
         super(List.of(SNAPSHOT_ID, ENTITY_ID, ENTITY_TYPE, DISPLAY_NAME, ACTION_TYPE_STR,
                       CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, CHANGED_BY_USER_ID, CHANGED_BY_NAME));
         this.objectMapper = objectMapper;
