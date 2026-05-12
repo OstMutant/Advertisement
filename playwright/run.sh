@@ -1,12 +1,15 @@
 #!/bin/bash
 # Usage:
-#   ./playwright/run.sh                  — run all spec files
+#   ./playwright/run.sh                  — run all spec files (no screenshots)
 #   ./playwright/run.sh smoke            — run smoke.spec.js
+#   ./playwright/run.sh smoke --ux       — run smoke + attach named screenshots to report
+#   ./playwright/run.sh --ux             — all tests with screenshots
 
 # ── Parse args ───────────────────────────────────────────────────────────────
+UX=""
 SCENARIO=""
 for arg in "$@"; do
-  if [ "$arg" != "--ux" ]; then SCENARIO="$arg"; fi
+  if [ "$arg" = "--ux" ]; then UX=1; else SCENARIO="$arg"; fi
 done
 
 # ── Reuse pw-runner if already running, otherwise start it ───────────────────
@@ -35,6 +38,7 @@ done
 
 # ── Build run command ─────────────────────────────────────────────────────────
 PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
+[ -n "$UX" ] && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 
 if [ -n "$SCENARIO" ]; then
   SPEC="${SCENARIO%.spec}.spec.js"
@@ -54,5 +58,6 @@ EXIT_CODE=$?
 mkdir -p /app/playwright/pw-report
 docker cp pw-runner:/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
   echo "HTML report: /app/playwright/pw-report/index.html"
+
 
 exit $EXIT_CODE

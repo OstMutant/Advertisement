@@ -93,9 +93,9 @@ async function createAd(page, { title, description, imagePath } = {}) {
 // ── Screenshot helper ─────────────────────────────────────────────────────────
 
 async function screenshot(page, name) {
+  if (!process.env.PW_SCREENSHOTS) return;
   const buffer = await page.screenshot({ fullPage: false });
   await base.info().attach(name, { body: buffer, contentType: 'image/png' });
-  console.log(`[SCREENSHOT] ${name}`);
 }
 
 // ── Download helper ───────────────────────────────────────────────────────────
