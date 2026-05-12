@@ -108,7 +108,7 @@ public class UserView extends VerticalLayout {
         int size = paginationBar.getPageSize();
 
         QueryBlock<UserFilterDto> queryBlock = queryStatusBar.getQueryBlock();
-        UserFilterDto currentFilter = queryBlock.getFilterProcessor().getNewFilter();
+        UserFilterDto currentFilter = queryBlock.getFilterProcessor().getOriginalFilter();
         var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {

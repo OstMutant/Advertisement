@@ -47,7 +47,7 @@ public class AuthContextServiceImpl implements AuthContextService {
             UserPrincipal principal = new UserPrincipal(user);
 
             Authentication newAuth = (currentAuth != null)
-                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), currentAuth.getAuthorities())
+                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
                     : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
 
             SecurityContextHolder.getContext().setAuthentication(newAuth);

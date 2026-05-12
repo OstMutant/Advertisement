@@ -2,6 +2,7 @@ package org.ost.advertisement.services;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.common.I18nKey;
+import org.ost.advertisement.services.auth.SessionService;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 

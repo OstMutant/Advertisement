@@ -18,6 +18,7 @@ import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.buttons.UiTertiaryButton;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -54,6 +55,7 @@ public final class ConfirmActionDialog extends BaseDialog
     private final transient UiTertiaryButton.Builder  cancelButtonBuilder;
 
     @Override
+    @PostConstruct
     protected void buildLayout() {
         super.buildLayout(layout);
     }
