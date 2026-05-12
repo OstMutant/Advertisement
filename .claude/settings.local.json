@@ -63,7 +63,11 @@
       "Bash(xargs -I{} basename {} .java)",
       "Bash(xargs basename *)",
       "Bash(grep -vE \"^[A-Z][a-zA-Z0-9]*\\(Service|Projection|Panel|Repository|Entity|Dto|Filter|Builder|Config|Exception|Event|Handler|Mapper|Dialog|Impl|Custom|Descriptor|Marker|Key|Defaults|Settings|Provider|Shell|Job|Presentation\\)\\\\.java$|^[A-Z][a-zA-Z0-9]*\\\\.java$\")",
-      "Bash(xargs -I '{}' bash -c 'classname=$\\(basename {} .java\\); echo \"{} -> $classname\"')"
+      "Bash(xargs -I '{}' bash -c 'classname=$\\(basename {} .java\\); echo \"{} -> $classname\"')",
+      "Bash(./mvnw compile *)",
+      "Bash(./mvnw clean *)",
+      "Bash(:)",
+      "Bash(sort -k6 -r)"
     ]
   },
   "hooks": {
