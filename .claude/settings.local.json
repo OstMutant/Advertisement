@@ -69,7 +69,9 @@
       "Bash(:)",
       "Bash(sort -k6 -r)",
       "Bash(lsof *)",
-      "Bash(xargs -I{} jar tf {})"
+      "Bash(xargs -I{} jar tf {})",
+      "Bash(curl *)",
+      "Bash(./mvnw *)"
     ]
   },
   "hooks": {
