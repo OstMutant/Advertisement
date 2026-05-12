@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entity.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
+import org.ost.attachment.util.YoutubeUtil;
 import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
 import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
@@ -64,6 +65,28 @@ public class AttachmentService {
         attachmentRepository.softDelete(attachmentId, userId);
     }
 
+    public TempAttachment addYoutubeTemp(String url) {
+        String id = YoutubeUtil.extractId(url);
+        if (id == null) throw new IllegalArgumentException("Invalid YouTube URL");
+        return new TempAttachment(
+            "https://www.youtube.com/watch?v=" + id,
+            "YouTube-" + id,
+            "video/youtube",
+            0L);
+    }
+
+    @Transactional
+    public Attachment addYoutube(Long entityId, String url) {
+        String id = YoutubeUtil.extractId(url);
+        if (id == null) throw new IllegalArgumentException("Invalid YouTube URL");
+        String watchUrl = "https://www.youtube.com/watch?v=" + id;
+        Attachment saved = attachmentRepository.insert(
+            entityId, watchUrl, "YouTube-" + id, "video/youtube", 0L);
+        capturePhotoChanges(entityId);
+        publishMediaUpdate(entityId);
+        return saved;
+    }
+
     public TempAttachment uploadTemp(String tempSessionId, String filename,
                                      InputStream inputStream, long contentLength, String contentType) {
         String tempUrl = storageService.upload("temp/" + tempSessionId, filename, inputStream, contentLength, contentType);
@@ -84,18 +107,25 @@ public class AttachmentService {
         if (temps.isEmpty()) return;
         String folder = "advertisements/" + entityId;
         List<Attachment> toSave = temps.stream()
-                .map(t -> Attachment.builder()
-                        .entityId(entityId)
-                        .url(storageService.move(t.tempUrl(), folder, t.filename()))
-                        .filename(t.filename())
-                        .contentType(t.contentType())
-                        .size(t.size())
-                        .build())
+                .map(t -> {
+                    String finalUrl = "video/youtube".equals(t.contentType())
+                            ? t.tempUrl()
+                            : storageService.move(t.tempUrl(), folder, t.filename());
+                    return Attachment.builder()
+                            .entityId(entityId)
+                            .url(finalUrl)
+                            .filename(t.filename())
+                            .contentType(t.contentType())
+                            .size(t.size())
+                            .build();
+                })
                 .toList();
         try {
             toSave.forEach(a -> attachmentRepository.insert(a.getEntityId(), a.getUrl(), a.getFilename(), a.getContentType(), a.getSize()));
         } catch (Exception e) {
-            toSave.forEach(a -> storageService.delete(a.getUrl()));
+            toSave.stream()
+                    .filter(a -> !"video/youtube".equals(a.getContentType()))
+                    .forEach(a -> storageService.delete(a.getUrl()));
             throw e;
         }
     }
@@ -118,14 +148,21 @@ public class AttachmentService {
     }
 
     public void discardTempUploads(List<TempAttachment> temps) {
-        temps.forEach(t -> storageService.delete(t.tempUrl()));
+        temps.stream()
+             .filter(t -> !"video/youtube".equals(t.contentType()))
+             .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
     // ── internals ────────────────────────────────────────────────────────────
 
     private void publishMediaUpdate(Long entityId) {
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityId);
-        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, stats.mainUrl(), stats.count()));
+        String displayUrl = stats.mainUrl();
+        if (displayUrl != null) {
+            String ytId = YoutubeUtil.extractId(displayUrl);
+            if (ytId != null) displayUrl = YoutubeUtil.thumbnailUrl(ytId);
+        }
+        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, displayUrl, stats.count()));
     }
 
     private void capturePhotoChanges(Long entityId) {

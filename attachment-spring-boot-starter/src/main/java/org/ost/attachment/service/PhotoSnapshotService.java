@@ -1,6 +1,7 @@
 package org.ost.attachment.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import org.ost.attachment.util.YoutubeUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
@@ -101,6 +102,8 @@ public class PhotoSnapshotService {
 
     private static String filename(String url) {
         if (url == null || url.isBlank()) return "";
+        String ytId = YoutubeUtil.extractId(url);
+        if (ytId != null) return "YouTube-" + ytId;
         int i = url.lastIndexOf('/');
         return i >= 0 ? url.substring(i + 1) : url;
     }

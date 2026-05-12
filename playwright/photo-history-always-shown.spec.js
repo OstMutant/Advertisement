@@ -55,7 +55,7 @@ test.describe('Photo line always shown in history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').fill(TITLE);
+    await ov.locator('vaadin-text-field input').first().fill(TITLE);
     await ov.locator('vaadin-text-area textarea').fill('Initial description');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });

@@ -77,6 +77,14 @@
     border-color: white;
 }
 
+.card-lightbox__iframe {
+    width: 80vw;
+    height: 75vh;
+    max-width: 1200px;
+    border: none;
+    border-radius: var(--lumo-border-radius-m);
+}
+
 .card-lightbox__close {
     position: fixed;
     top: 16px;

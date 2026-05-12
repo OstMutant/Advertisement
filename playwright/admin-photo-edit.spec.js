@@ -19,7 +19,7 @@ test.describe('Admin photo edit — single current-state badge', () => {
 
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
-      await overlay.locator('vaadin-text-field input').fill(AD_TITLE);
+      await overlay.locator('vaadin-text-field input').first().fill(AD_TITLE);
       await overlay.locator('vaadin-text-area textarea').fill('Initial description');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);

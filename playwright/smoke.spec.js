@@ -41,7 +41,7 @@ test.describe('Smoke: user flow', () => {
 
     await test.step('Save new advertisement', async () => {
       const overlay = page.locator('.advertisement-overlay');
-      await overlay.locator('vaadin-text-field input').fill('Smoke Test Ad');
+      await overlay.locator('vaadin-text-field input').first().fill('Smoke Test Ad');
       await overlay.locator('vaadin-text-area textarea').fill('Created by smoke test');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);
@@ -79,7 +79,7 @@ test.describe('Smoke: user flow', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').fill('Single Image House');
+      await ov.locator('vaadin-text-field input').first().fill('Single Image House');
       await ov.locator('vaadin-text-area textarea').fill('A cozy house');
       await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);
@@ -109,7 +109,7 @@ test.describe('Smoke: user flow', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').fill('Gallery Mansion');
+      await ov.locator('vaadin-text-field input').first().fill('Gallery Mansion');
       await ov.locator('vaadin-text-area textarea').fill('A luxurious mansion');
       await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);

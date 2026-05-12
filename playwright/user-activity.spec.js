@@ -11,7 +11,7 @@ test.describe('User activity', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').fill('User Activity Test Ad');
+      await ov.locator('vaadin-text-field input').first().fill('User Activity Test Ad');
       await ov.locator('vaadin-text-area textarea').fill('Activity test');
       await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);

@@ -75,7 +75,7 @@ test.describe('Photo activity', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const overlay = page.locator('.advertisement-overlay');
-    await overlay.locator('vaadin-text-field input').fill(AD_TITLE);
+    await overlay.locator('vaadin-text-field input').first().fill(AD_TITLE);
     await overlay.locator('vaadin-text-area textarea').fill('Photo activity test description');
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(paths[0]);
     await page.locator('.attachment-gallery__item').waitFor({ timeout: 10000 });

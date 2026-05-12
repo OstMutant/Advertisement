@@ -52,7 +52,7 @@ test.describe('Verify photo history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').fill('Verify Photo History');
+    await ov.locator('vaadin-text-field input').first().fill('Verify Photo History');
     await ov.locator('vaadin-text-area textarea').fill('Photo history verify');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
@@ -87,7 +87,7 @@ test.describe('Verify photo history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').fill('Verify Photo Delete History');
+    await ov.locator('vaadin-text-field input').first().fill('Verify Photo Delete History');
     await ov.locator('vaadin-text-area textarea').fill('Delete photo test');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });

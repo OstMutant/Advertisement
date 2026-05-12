@@ -28,7 +28,7 @@ test.describe('Upload gallery', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').fill('Gallery Upload Test');
+      await ov.locator('vaadin-text-field input').first().fill('Gallery Upload Test');
       await ov.locator('vaadin-text-area textarea').fill('Testing multi upload');
       await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);

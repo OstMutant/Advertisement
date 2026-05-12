@@ -12,7 +12,7 @@ test.describe('Advertisement history (deep)', () => {
 
     await page.locator('vaadin-button').filter({ hasText: /додати|add/i }).first().click();
     await waitForOverlay(page);
-    await overlay.locator('vaadin-text-field input').fill(TITLE);
+    await overlay.locator('vaadin-text-field input').first().fill(TITLE);
     await overlay.locator('vaadin-text-area textarea').fill('Version 1');
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);

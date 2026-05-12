@@ -13,7 +13,7 @@ test.describe('Activity types', () => {
 
     await page.locator('vaadin-button').filter({ hasText: /додати|add/i }).first().click();
     await waitForOverlay(page);
-    await advOverlay.locator('vaadin-text-field input').fill(AD_TITLE);
+    await advOverlay.locator('vaadin-text-field input').first().fill(AD_TITLE);
     await advOverlay.locator('vaadin-text-area textarea').fill('Initial content');
     await advOverlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);

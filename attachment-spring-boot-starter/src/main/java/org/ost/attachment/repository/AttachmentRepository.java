@@ -135,7 +135,8 @@ public class AttachmentRepository {
         return jdbcClient.sql(
                 "SELECT " + AttachmentDescriptor.Write.URL +
                 " FROM " + AttachmentDescriptor.Write.TABLE +
-                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+                " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)" +
+                " AND content_type <> 'video/youtube'")
                 .paramSource(new MapSqlParameterSource("days", days))
                 .query(String.class).list();
     }
