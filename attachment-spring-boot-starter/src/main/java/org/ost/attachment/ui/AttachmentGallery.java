@@ -137,7 +137,7 @@ public class AttachmentGallery extends Div {
         }
     }
 
-    private void showEmpty() { emptyState.setVisible(true); }
+    private void showEmpty() { emptyState.setVisible(!editMode); }
     private void hideEmpty() { emptyState.setVisible(false); }
 
     private Div buildThumbnail(Attachment attachment) {
@@ -235,7 +235,11 @@ public class AttachmentGallery extends Div {
         img.addClassName("attachment-lightbox__image");
         img.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
-        overlay.add(img);
+        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> overlay.removeFromParent());
+        closeBtn.addClassName("card-lightbox__close");
+        closeBtn.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+
+        overlay.add(closeBtn, img);
         getUI().ifPresent(ui -> ui.getElement().appendChild(overlay.getElement()));
     }
 

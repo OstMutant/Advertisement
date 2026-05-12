@@ -72,7 +72,7 @@ test.describe('Verify photo history', () => {
 
     await test.step('Photo changes visible in CREATED row', async () => {
       const text = await page.locator('.adv-history-list').textContent();
-      if (!/(фото|photo)/i.test(text))
+      if (!/(зображення|image)/i.test(text))
         throw new Error('No photo change entry in history after create: ' + text.slice(0, 200));
     });
     await screenshot(page, 'verify-photo-01-history');
@@ -112,7 +112,7 @@ test.describe('Verify photo history', () => {
 
       await test.step('Photo deletion visible in history', async () => {
         const text = await page.locator('.adv-history-list').textContent();
-        if (!/(фото|photo)/i.test(text))
+        if (!/(зображення|image)/i.test(text))
           throw new Error('No photo deletion entry in history: ' + text.slice(0, 200));
       });
       await screenshot(page, 'verify-photo-02-delete-history');
@@ -123,7 +123,7 @@ test.describe('Verify photo history', () => {
         await page.locator('.overlay__view-title').waitFor();
         await openHistory(page);
         const text = await page.locator('.adv-history-list').textContent();
-        if (!/(фото|photo)/i.test(text))
+        if (!/(зображення|image)/i.test(text))
           throw new Error('No photo entry in history: ' + text.slice(0, 200));
       });
       await screenshot(page, 'verify-photo-02-delete-history');

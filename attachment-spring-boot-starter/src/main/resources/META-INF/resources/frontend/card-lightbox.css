@@ -76,3 +76,21 @@
     opacity: 1;
     border-color: white;
 }
+
+.card-lightbox__close {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: white !important;
+    border-radius: 50% !important;
+    min-width: 44px;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+}
+
+.card-lightbox__close:hover {
+    background: rgba(255, 255, 255, 0.3) !important;
+}

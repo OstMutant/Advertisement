@@ -74,7 +74,9 @@ public class CardPhotoLightbox {
         content.setPadding(false);
         content.setAlignItems(VerticalLayout.Alignment.CENTER);
 
-        dialog.add(content);
+        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> dialog.close());
+        closeBtn.addClassName("card-lightbox__close");
+        dialog.add(closeBtn, content);
         update(mainImg, strip, attachments, idx[0]);
         dialog.open();
     }

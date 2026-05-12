@@ -72,7 +72,7 @@ test.describe('Photo line always shown in history', () => {
 
     const deleteBtn = page.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first();
     await deleteBtn.click();
-    await page.locator('.attachment-gallery__empty').waitFor({ timeout: 3000 });
+    await expect(page.locator('.attachment-gallery__item')).toHaveCount(0);
 
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.locator('.overlay__view-title').waitFor();
@@ -99,7 +99,7 @@ test.describe('Photo line always shown in history', () => {
     await test.step('Latest row (text-only edit) still has photo line', async () => {
       const changes = latestRow.locator('.adv-history-changes-item');
       const texts = await changes.allTextContents();
-      const photoLine = texts.find(t => /^[•\s]*(фото|photos)\s*:/i.test(t));
+      const photoLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
       if (!photoLine) {
         throw new Error(
           'Photo line missing in text-only edit row. Changes found: ' + JSON.stringify(texts)
@@ -110,7 +110,7 @@ test.describe('Photo line always shown in history', () => {
     await test.step('Photo line contains — (photos were deleted in v2)', async () => {
       const changes = latestRow.locator('.adv-history-changes-item');
       const texts = await changes.allTextContents();
-      const photoLine = texts.find(t => /^[•\s]*(фото|photos)\s*:/i.test(t));
+      const photoLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
       if (!photoLine.includes('—')) {
         throw new Error('Expected — in photo line, got: ' + photoLine);
       }

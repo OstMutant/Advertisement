@@ -83,7 +83,8 @@ public class AdvertisementCardView extends HorizontalLayout
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
-        add(createThumbnail(ad));
+        Div thumbnail = createThumbnail(ad);
+        if (thumbnail != null) add(thumbnail);
         add(createContent(ad, onChanged));
 
         return this;
@@ -91,9 +92,7 @@ public class AdvertisementCardView extends HorizontalLayout
 
     private Div createThumbnail(AdvertisementInfoDto ad) {
         if (ad.getMainImageUrl() == null) {
-            Div placeholder = new Div(VaadinIcon.HOME.create());
-            placeholder.addClassName("advertisement-thumbnail-placeholder");
-            return placeholder;
+            return null;
         }
         Div wrapper = new Div();
         wrapper.addClassName("advertisement-thumbnail-wrapper");

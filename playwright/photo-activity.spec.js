@@ -57,7 +57,7 @@ async function closeAdOverlay(page) {
 }
 
 function checkPhotoInText(text, label) {
-  const count = (text.match(/фото|photo/gi) || []).length;
+  const count = (text.match(/зображення|image/gi) || []).length;
   if (count === 0) throw new Error(`No photo change in ${label}: ` + text.slice(0, 200));
 }
 

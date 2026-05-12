@@ -67,26 +67,6 @@
   backdrop-filter: blur(4px);
 }
 
-/* Placeholder for cards without image */
-.advertisement-thumbnail-placeholder {
-  width: 200px;
-  min-width: 200px;
-  height: 150px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #e8f0fe 0%, #f0e6ff 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #94a3b8;
-}
-
-.advertisement-thumbnail-placeholder vaadin-icon {
-  width: 40px;
-  height: 40px;
-  opacity: 0.5;
-}
-
 /* Content (right side) */
 .advertisement-content {
   display: flex;

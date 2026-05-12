@@ -41,7 +41,7 @@ test.describe('Thumbnail and photo history', () => {
 
     await test.step('History tab shows photo changes', async () => {
       const text = await page.locator('.adv-history-list').textContent();
-      if (!/(фото|photo)/i.test(text))
+      if (!/(зображення|image)/i.test(text))
         throw new Error('No photo entry in history for thumbnail ad: ' + text.slice(0, 200));
     });
     await screenshot(page, 'thumbnail-02-history');
