@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.services.auth.AuthService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.auth.SessionService;
+import org.ost.advertisement.services.auth.LocaleProvider;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
@@ -32,7 +32,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     @Getter
     private final transient I18nService              i18nService;
     private final transient NotificationService      notificationService;
-    private final transient SessionService           sessionService;
+    private final transient LocaleProvider            localeProvider;
     private final           DialogLayout             layout;
     private final transient UiEmailField.Builder     emailFieldBuilder;
     private final transient UiPasswordField.Builder  passwordFieldBuilder;
@@ -90,7 +90,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
         if (success) {
             close();
             notificationService.success(LOGIN_SUCCESS);
-            sessionService.refreshCurrentLocale();
+            localeProvider.refreshCurrentLocale();
             UI.getCurrent().getPage().reload();
         } else {
             notificationService.error(LOGIN_ERROR);

@@ -8,7 +8,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.services.auth.AuthService;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.auth.SessionService;
+import org.ost.advertisement.ui.views.services.VaadinLocaleProvider;
 
 import static org.ost.advertisement.common.I18nKey.*;
 
@@ -19,7 +19,7 @@ public class LogoutDialog extends ConfirmDialog {
 
     private final transient AuthService authService;
     private final transient I18nService i18n;
-    private final transient SessionService sessionService;
+    private final transient VaadinLocaleProvider vaadinLocaleProvider;
 
     @PostConstruct
     private void initDialog() {
@@ -32,7 +32,7 @@ public class LogoutDialog extends ConfirmDialog {
         UI ui = UI.getCurrent();
         authService.logout();
         close();
-        sessionService.refreshCurrentLocale(ui);
+        vaadinLocaleProvider.refreshCurrentLocale(ui);
         ui.getPage().reload();
     }
 }
