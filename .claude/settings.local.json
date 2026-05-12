@@ -67,7 +67,9 @@
       "Bash(./mvnw compile *)",
       "Bash(./mvnw clean *)",
       "Bash(:)",
-      "Bash(sort -k6 -r)"
+      "Bash(sort -k6 -r)",
+      "Bash(lsof *)",
+      "Bash(xargs -I{} jar tf {})"
     ]
   },
   "hooks": {
