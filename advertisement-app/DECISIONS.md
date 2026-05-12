@@ -22,6 +22,16 @@
 
 ---
 
+## 2026-05-12 — @EnableMethodSecurity added; @PreAuthorize not used on Vaadin services
+
+**Decision:** `@EnableMethodSecurity` added to `SecurityConfig`. `@PreAuthorize("isAuthenticated()")` is NOT applied at class level on services.
+
+**Why:** Vaadin view beans (`advertisementsView` etc.) are initialized on first HTTP request — before the user authenticates. Class-level `@PreAuthorize` on services breaks this initialization with `AuthorizationDeniedException`. The `/health` REST endpoint is intentionally public (load balancer / monitoring). Any future non-public REST endpoints should use `@PreAuthorize` at the method level directly on the controller.
+
+**Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `ActivityService`, `AuditHistoryService`, `AuditQueryService`, `UserSettingsService` — confirmed broken via smoke tests.
+
+---
+
 ## Ongoing — Modular storage: contract vs implementation
 
 **Decision:** `storage-api` defines the contract; `storage-s3-spring-boot-starter` is the S3 implementation. UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `storage.s3.enabled=false`.
