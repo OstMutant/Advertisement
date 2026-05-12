@@ -31,7 +31,7 @@ When writing code or refactoring, strictly respect these boundaries. Think about
 - `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
 - `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
 - `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
-- `*Binding` — prototype bean that manages a lifecycle (register/unregister listeners). Lives in `ui/views/support/`.
+- `*Binding` — prototype bean that manages a lifecycle (register/unregister listeners). Lives next to the service it supports (e.g. `ui/views/services/pagination/`).
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs (Security, Jackson, etc.) live in `config/`. Feature-scoped factory configs (e.g. `AdvertisementQueryConfig`) stay next to the components they configure.
 - `*Panel` (shared) — general-purpose Spring bean returning a Vaadin component subtree, lives in `ui/views/components/`. Domain-specific panels (tightly coupled to one view) stay in their domain package.
@@ -43,8 +43,7 @@ When writing code or refactoring, strictly respect these boundaries. Think about
 - `repository/activity/`, `repository/audit/`, `repository/advertisement/`, `repository/user/` — SQL repositories + projections per domain
 - `ui/views/components/` — reusable Vaadin UI components (incl. `activity/` subpackage)
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
-- `ui/views/support/` — lifecycle helpers (`*Binding`)
-- `ui/views/services/` — UI-layer Spring services (e.g. `NotificationService`, `SettingsPaginationService`)
+- `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support
 
 ### Cross-module consistency
 All modules use `config` (not `configuration`) for Spring configuration packages.
