@@ -96,20 +96,24 @@ public class UserOverlay extends AbstractEntityOverlay {
     }
 
     private void handleSave() {
-        if (currentFormHandler.save()) {
-            notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
-            session.onSaved().run();
-            if (session.enteredFromView()) {
-                Long savedId = currentFormHandler.getSavedUserId();
-                userService.findById(savedId).ifPresentOrElse(freshUser -> {
-                    session = new OverlaySession(Mode.VIEW, freshUser, session.onSaved(), false);
-                    switchTo();
-                }, this::closeToList);
+        try {
+            if (currentFormHandler.save()) {
+                notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
+                session.onSaved().run();
+                if (session.enteredFromView()) {
+                    Long savedId = currentFormHandler.getSavedUserId();
+                    userService.findById(savedId).ifPresentOrElse(freshUser -> {
+                        session = new OverlaySession(Mode.VIEW, freshUser, session.onSaved(), false);
+                        switchTo();
+                    }, this::closeToList);
+                } else {
+                    closeToList();
+                }
             } else {
-                closeToList();
+                notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
             }
-        } else {
-            notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
+        } catch (Exception e) {
+            notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR, e.getMessage());
         }
     }
 

@@ -15,14 +15,16 @@ import java.util.Locale;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class TimeZoneUtil {
 
+    private static final String CLIENT_TZ_ATTRIBUTE = "clientTimeZoneId";
+
     public static void detectTimeZone() {
         UI.getCurrent().getPage()
                 .executeJs("return Intl.DateTimeFormat().resolvedOptions().timeZone;")
-                .then(String.class, timeZoneId -> VaadinSession.getCurrent().setAttribute("clientTimeZoneId", timeZoneId));
+                .then(String.class, timeZoneId -> VaadinSession.getCurrent().setAttribute(CLIENT_TZ_ATTRIBUTE, timeZoneId));
     }
 
     public static String getClientTimeZoneId() {
-        String timeZoneId = (String) VaadinSession.getCurrent().getAttribute("clientTimeZoneId");
+        String timeZoneId = (String) VaadinSession.getCurrent().getAttribute(CLIENT_TZ_ATTRIBUTE);
         return timeZoneId != null ? timeZoneId : ZoneId.systemDefault().getId();
     }
 

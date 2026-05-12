@@ -62,7 +62,7 @@ public class FilterProcessor<F> {
     }
 
     public boolean isFilterChanged() {
-        return validate() && hasChanged(newFilter, originalFilter);
+        return hasChanged(newFilter, originalFilter);
     }
 
     public boolean validate() {

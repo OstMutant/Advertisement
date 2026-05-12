@@ -7,8 +7,6 @@ import org.ost.advertisement.repository.advertisement.AdvertisementRepositoryCus
 import org.ost.advertisement.repository.audit.AuditLogRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -19,7 +17,6 @@ public class CleanupJob {
     private final CleanupProperties             cleanupProperties;
 
     @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
-    @Transactional
     public void run() {
         log.info("Cleanup job started, retention = {} days", cleanupProperties.retentionDays());
         deleteAdvertisements();

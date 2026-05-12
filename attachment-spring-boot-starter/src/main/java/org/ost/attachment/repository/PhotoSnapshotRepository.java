@@ -45,18 +45,23 @@ public class PhotoSnapshotRepository {
                 .optional().orElse(List.of());
     }
 
+    // Subquery: created_at of audit_log entry at position :version+1 (for upper bound).
+    // photo_snapshot is created AFTER the audit entry in the same save flow, so we use
+    // "created_at < next_audit_entry.created_at" to correctly scope each version's photos.
+    private static final String NEXT_AUDIT_TS =
+            "SELECT al.created_at FROM (" +
+            "    SELECT created_at," +
+            "           ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn" +
+            "    FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+            ") al WHERE al.rn = :version + 1";
+
     public String[] getUrlsAtVersion(Long adId, int version) {
         return jdbcClient.sql(
-                "SELECT attachment_urls FROM (" +
-                "    SELECT attachment_urls," +
-                "           ROW_NUMBER() OVER (" +
-                "               PARTITION BY advertisement_id ORDER BY created_at" +
-                "           ) AS rn" +
-                "    FROM " + PhotoSnapshotDescriptor.TABLE +
-                "    WHERE advertisement_id = :adId" +
-                ") ranked" +
-                " WHERE rn <= :version" +
-                " ORDER BY rn DESC LIMIT 1")
+                "SELECT attachment_urls" +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                " WHERE advertisement_id = :adId" +
+                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
+                " ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
@@ -66,35 +71,36 @@ public class PhotoSnapshotRepository {
 
     public Optional<List<String>> getUrlsForAdvSnapshot(Long adId, Long advSnapshotId) {
         return jdbcClient.sql(
-                "SELECT attachment_urls FROM (" +
-                "    SELECT attachment_urls," +
-                "           ROW_NUMBER() OVER (" +
-                "               PARTITION BY advertisement_id ORDER BY created_at" +
-                "           ) AS rn" +
-                "    FROM " + PhotoSnapshotDescriptor.TABLE +
-                "    WHERE advertisement_id = :adId" +
-                ") ranked" +
-                " WHERE rn <= (" +
-                "    SELECT COUNT(*) FROM audit_log" +
-                "    WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
-                "      AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)" +
-                " ) ORDER BY rn DESC LIMIT 1")
+                "SELECT attachment_urls" +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                " WHERE advertisement_id = :adId" +
+                "   AND created_at < COALESCE((" +
+                "       SELECT created_at FROM audit_log" +
+                "       WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "         AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapId)" +
+                "       ORDER BY created_at ASC LIMIT 1" +
+                "   ), 'infinity'::timestamptz)" +
+                " ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional();
     }
 
     public Optional<String> getChangesJson(Long adId, int version) {
+        String thisAuditTs =
+                "SELECT al.created_at FROM (" +
+                "    SELECT created_at," +
+                "           ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn" +
+                "    FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                ") al WHERE al.rn = :version";
         return jdbcClient.sql(
-                "SELECT changes_summary::text FROM (" +
-                "    SELECT changes_summary," +
-                "           ROW_NUMBER() OVER (" +
-                "               PARTITION BY advertisement_id ORDER BY created_at" +
-                "           ) AS rn" +
-                "    FROM " + PhotoSnapshotDescriptor.TABLE +
-                "    WHERE advertisement_id = :adId" +
-                ") ranked" +
-                " WHERE rn = :version AND changes_summary IS NOT NULL")
+                "SELECT changes_summary::text" +
+                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                " WHERE advertisement_id = :adId" +
+                "   AND created_at >= (" + thisAuditTs + ")" +
+                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
+                "   AND changes_summary IS NOT NULL" +
+                " ORDER BY created_at ASC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
                 .query((rs, row) -> rs.getString(1))
                 .optional();

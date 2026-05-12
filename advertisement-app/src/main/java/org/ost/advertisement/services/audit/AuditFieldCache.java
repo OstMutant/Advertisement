@@ -21,8 +21,4 @@ public class AuditFieldCache {
         );
     }
 
-    public String resolveI18nKey(Field field) {
-        String override = field.getAnnotation(AuditedField.class).i18nKey();
-        return override.isBlank() ? "changes.field." + field.getName() : override;
-    }
 }

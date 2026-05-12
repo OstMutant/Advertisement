@@ -42,7 +42,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
             LEFT JOIN user_information u ON u.id = n.changed_by_user_id
             WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.changed_by_user_id = :filterUserId
             ORDER BY n.version DESC
-            LIMIT 101
+            LIMIT 100
             """;
 
     static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",                         "id");

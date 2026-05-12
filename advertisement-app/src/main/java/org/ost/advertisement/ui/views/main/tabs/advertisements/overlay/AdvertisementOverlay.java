@@ -104,20 +104,24 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     }
 
     private void handleSave() {
-        if (currentFormHandler.save()) {
-            notification().success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-            session.onSaved().run();
-            if (session.enteredFromView()) {
-                Long savedId = currentFormHandler.getSavedAdvertisement().getId();
-                advertisementService.findById(savedId).ifPresentOrElse(freshAd -> {
-                    session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
-                    switchTo();
-                }, this::closeToList);
+        try {
+            if (currentFormHandler.save()) {
+                notification().success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
+                session.onSaved().run();
+                if (session.enteredFromView()) {
+                    Long savedId = currentFormHandler.getSavedAdvertisement().getId();
+                    advertisementService.findById(savedId).ifPresentOrElse(freshAd -> {
+                        session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
+                        switchTo();
+                    }, this::closeToList);
+                } else {
+                    closeToList();
+                }
             } else {
-                closeToList();
+                notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
             }
-        } else {
-            notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
+        } catch (Exception e) {
+            notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
         }
     }
 
@@ -138,7 +142,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void doCancel() {
-        if (session.mode() == Mode.CREATE && currentFormHandler != null) {
+        if (currentFormHandler != null) {
             currentFormHandler.discard();
         }
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {

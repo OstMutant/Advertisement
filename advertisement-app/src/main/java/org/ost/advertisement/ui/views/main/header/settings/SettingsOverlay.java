@@ -142,18 +142,21 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private void handleSave() {
         if (currentUser == null) return;
+        try {
+            UserSettings oldSettings = settingsService.load(currentUser.getId());
+            UserSettings newSettings = UserSettings.builder()
+                    .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                    .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                    .build();
 
-        UserSettings oldSettings = settingsService.load(currentUser.getId());
-        UserSettings newSettings = UserSettings.builder()
-                .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
-                .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
-                .build();
+            settingsService.save(currentUser.getId(), newSettings);
+            auditCaptureService.captureSettingsChange(currentUser, oldSettings, newSettings, currentUser.getId());
+            activityPanel.removeAll();
 
-        settingsService.save(currentUser.getId(), newSettings);
-        auditCaptureService.captureSettingsChange(currentUser, oldSettings, newSettings, currentUser.getId());
-        activityPanel.removeAll();
-
-        notifications.success(SETTINGS_SAVED_SUCCESS);
+            notifications.success(SETTINGS_SAVED_SUCCESS);
+        } catch (Exception e) {
+            notifications.error(e.getMessage());
+        }
     }
 
     private Div buildActivityContent(Long userId) {
