@@ -36,13 +36,13 @@ public class PhotoSnapshotService {
         photoSnapshotRepository.insert(adId, currentUrls.toArray(new String[0]), toJson(diff), userId);
     }
 
-    public String getPhotoStateAtVersion(Long adId, int version) {
+    public String getMediaStateAtVersion(Long adId, int version) {
         String[] urls = photoSnapshotRepository.getUrlsAtVersion(adId, version);
         if (urls.length == 0) return "";
         return Arrays.stream(urls).map(PhotoSnapshotService::filename).collect(Collectors.joining(", "));
     }
 
-    public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
+    public String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId) {
         return photoSnapshotRepository.getUrlsForAdvSnapshot(adId, advSnapshotId)
                 .map(l -> l.stream().map(PhotoSnapshotService::filename).collect(Collectors.joining(", ")))
                 .orElse("");
@@ -52,7 +52,7 @@ public class PhotoSnapshotService {
         return photoSnapshotRepository.getUrlsAtVersion(adId, version);
     }
 
-    public boolean photosMatchCurrent(Long adId, int version) {
+    public boolean mediaMatchCurrent(Long adId, int version) {
         List<String> atVersion = List.of(photoSnapshotRepository.getUrlsAtVersion(adId, version));
         List<String> current   = attachmentRepository.getActiveUrls(adId);
         List<String> atNames   = atVersion.stream().map(PhotoSnapshotService::filename).sorted().toList();

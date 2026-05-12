@@ -41,7 +41,7 @@ public class AdvertisementGalleryExtensionImpl implements AdvertisementGalleryEx
     }
 
     @Override
-    public void openPhotoLightbox(Long adId) {
+    public void openMediaLightbox(Long adId) {
         lightboxProvider.getObject().open(attachmentService.getByEntityId(adId), 0);
     }
 

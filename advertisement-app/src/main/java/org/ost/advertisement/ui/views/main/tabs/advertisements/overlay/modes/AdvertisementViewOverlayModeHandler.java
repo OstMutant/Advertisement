@@ -195,7 +195,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
                 boolean textMatches = Objects.equals(h.title(), currentTitle)
                         && Objects.equals(h.description(), currentDesc);
-                boolean matchesCurrent = textMatches && photosMatchCurrent(params.getAd().getId(), h.version());
+                boolean matchesCurrent = textMatches && mediaMatchCurrent(params.getAd().getId(), h.version());
 
                 if (matchesCurrent) {
                     Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
@@ -217,9 +217,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         return container;
     }
 
-    private boolean photosMatchCurrent(Long adId, int version) {
+    private boolean mediaMatchCurrent(Long adId, int version) {
         AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.photosMatchCurrent(adId, version);
+        return ext == null || ext.mediaMatchCurrent(adId, version);
     }
 
     private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {

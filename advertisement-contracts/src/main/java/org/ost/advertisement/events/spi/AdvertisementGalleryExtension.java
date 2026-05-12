@@ -10,7 +10,7 @@ public interface AdvertisementGalleryExtension {
 
     FormHandle buildGalleryForEdit(Long adId);
 
-    void openPhotoLightbox(Long adId);
+    void openMediaLightbox(Long adId);
 
     interface FormHandle {
         Component getComponent();

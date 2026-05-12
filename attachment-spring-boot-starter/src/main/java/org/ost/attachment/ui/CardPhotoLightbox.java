@@ -51,10 +51,7 @@ public class CardPhotoLightbox {
         for (int i = 0; i < attachments.size(); i++) {
             final int fi = i;
             Attachment a = attachments.get(i);
-            String thumbSrc = "video/youtube".equals(a.getContentType())
-                    ? YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()))
-                    : a.getUrl();
-            Image thumb = new Image(thumbSrc, a.getFilename());
+            Image thumb = new Image(thumbSrc(a), a.getFilename());
             thumb.addClassName("card-lightbox__thumb");
             thumb.addClickListener(_ -> {
                 idx[0] = fi;
@@ -70,7 +67,7 @@ public class CardPhotoLightbox {
         dialog.setResizable(false);
         dialog.setCloseOnEsc(true);
         dialog.setCloseOnOutsideClick(true);
-        dialog.addOpenedChangeListener(e -> { if (!e.isOpened()) iframe.setSrc(""); });
+        dialog.addOpenedChangeListener(e -> { if (!e.isOpened()) iframe.setSrc("about:blank"); });
 
         prev.addClickListener(_ -> {
             idx[0] = (idx[0] - 1 + attachments.size()) % attachments.size();
@@ -96,18 +93,33 @@ public class CardPhotoLightbox {
         dialog.open();
     }
 
+    private static boolean isVideo(String contentType) {
+        return "video/youtube".equals(contentType) || "video/embed".equals(contentType);
+    }
+
+    private static String embedSrc(Attachment a) {
+        if ("video/youtube".equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
+        return a.getUrl();
+    }
+
+    private static String thumbSrc(Attachment a) {
+        if ("video/youtube".equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
+        if ("video/embed".equals(a.getContentType()))   return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
+        return a.getUrl();
+    }
+
     private void update(Image mainImg, IFrame iframe, Div strip,
                         List<Attachment> attachments, int idx) {
         Attachment a = attachments.get(idx);
-        boolean isVideo = "video/youtube".equals(a.getContentType());
+        boolean isVideo = isVideo(a.getContentType());
 
         mainImg.setVisible(!isVideo);
         iframe.setVisible(isVideo);
 
         if (isVideo) {
-            iframe.setSrc(YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl())));
+            iframe.setSrc(embedSrc(a));
         } else {
-            iframe.setSrc("");
+            iframe.setSrc("about:blank");
             mainImg.setSrc(a.getUrl());
             mainImg.setAlt(a.getFilename());
         }

@@ -3,6 +3,7 @@ package org.ost.attachment.ui;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
@@ -42,17 +43,19 @@ import java.util.UUID;
 @ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div {
 
-    private static final int MAX_FILES     = 10;
-    private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
+    private static final int    MAX_FILES     = 10;
+    private static final int    MAX_FILE_SIZE = 10 * 1024 * 1024;
+    private static final String CT_YOUTUBE    = "video/youtube";
+    private static final String CT_EMBED      = "video/embed";
 
     private final transient AttachmentService attachmentService;
     private final transient MessageSource     messageSource;
 
-    private Div             thumbnailsRow;
-    private Span            emptyState;
-    private Upload          uploadButton;
-    private HorizontalLayout youtubeInput;
-    private boolean         editMode;
+    private Div              thumbnailsRow;
+    private Span             emptyState;
+    private Upload           uploadButton;
+    private HorizontalLayout videoInput;
+    private boolean          editMode;
 
     private Long entityId;
 
@@ -93,8 +96,8 @@ public class AttachmentGallery extends Div {
         removeEditControlsIfPresent();
         refresh();
         uploadButton = buildUploadButton();
-        youtubeInput = buildYoutubeInput();
-        add(uploadButton, youtubeInput);
+        videoInput   = buildVideoInput();
+        add(uploadButton, videoInput);
     }
 
     public void configureForCreate(String tempSessionId) {
@@ -106,8 +109,8 @@ public class AttachmentGallery extends Div {
         thumbnailsRow.removeAll();
         showEmpty();
         uploadButton = buildUploadButton();
-        youtubeInput = buildYoutubeInput();
-        add(uploadButton, youtubeInput);
+        videoInput   = buildVideoInput();
+        add(uploadButton, videoInput);
     }
 
     public void commitTempUploads(Long entityId) {
@@ -155,12 +158,8 @@ public class AttachmentGallery extends Div {
         Div wrapper = new Div();
         wrapper.addClassName("attachment-gallery__item");
 
-        boolean isVideo = "video/youtube".equals(attachment.getContentType());
-        String  src     = isVideo
-                ? YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(attachment.getUrl()))
-                : attachment.getUrl();
-
-        Image img = new Image(src, attachment.getFilename());
+        boolean isVideo = isVideoType(attachment.getContentType());
+        Image img = new Image(thumbSrc(attachment.getContentType(), attachment.getUrl()), attachment.getFilename());
         img.addClassName("attachment-gallery__image");
 
         if (editMode) {
@@ -172,21 +171,16 @@ public class AttachmentGallery extends Div {
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
             });
             styleDeleteBtn(deleteBtn);
-            if (isVideo) {
-                Icon playIcon = VaadinIcon.PLAY_CIRCLE_O.create();
-                playIcon.addClassName("attachment-gallery__play-icon");
-                wrapper.add(img, playIcon, deleteBtn);
-            } else {
-                wrapper.add(img, deleteBtn);
-            }
+            wrapper.add(img);
+            if (isVideo) wrapper.add(videoPlayIcon());
+            wrapper.add(deleteBtn);
         } else {
             img.addClickListener(_ -> openLightbox(attachment));
+            wrapper.add(img);
             if (isVideo) {
-                Icon playIcon = VaadinIcon.PLAY_CIRCLE_O.create();
-                playIcon.addClassName("attachment-gallery__play-icon");
-                wrapper.add(img, playIcon);
-            } else {
-                wrapper.add(img);
+                Icon play = videoPlayIcon();
+                play.addClickListener(_ -> openLightbox(attachment));
+                wrapper.add(play);
             }
         }
         return wrapper;
@@ -196,12 +190,8 @@ public class AttachmentGallery extends Div {
         Div wrapper = new Div();
         wrapper.addClassName("attachment-gallery__item");
 
-        boolean isVideo = "video/youtube".equals(temp.contentType());
-        String  src     = isVideo
-                ? YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(temp.tempUrl()))
-                : temp.tempUrl();
-
-        Image img = new Image(src, temp.filename());
+        boolean isVideo = isVideoType(temp.contentType());
+        Image img = new Image(thumbSrc(temp.contentType(), temp.tempUrl()), temp.filename());
         img.addClassName("attachment-gallery__image");
 
         Button deleteBtn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
@@ -212,13 +202,9 @@ public class AttachmentGallery extends Div {
         });
         styleDeleteBtn(deleteBtn);
 
-        if (isVideo) {
-            Icon playIcon = VaadinIcon.PLAY_CIRCLE_O.create();
-            playIcon.addClassName("attachment-gallery__play-icon");
-            wrapper.add(img, playIcon, deleteBtn);
-        } else {
-            wrapper.add(img, deleteBtn);
-        }
+        wrapper.add(img);
+        if (isVideo) wrapper.add(videoPlayIcon());
+        wrapper.add(deleteBtn);
         return wrapper;
     }
 
@@ -251,50 +237,45 @@ public class AttachmentGallery extends Div {
         upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif");
         upload.setMaxFiles(MAX_FILES);
         upload.setMaxFileSize(MAX_FILE_SIZE);
+        upload.getElement().setAttribute("nodrop", "");
         return upload;
     }
 
-    private HorizontalLayout buildYoutubeInput() {
+    private HorizontalLayout buildVideoInput() {
         TextField urlField = new TextField();
-        urlField.setPlaceholder(msg("attachment.youtube.placeholder", "YouTube URL..."));
+        urlField.setPlaceholder(msg("attachment.video.placeholder", "Video URL (YouTube, Facebook...)"));
         urlField.setWidthFull();
 
         Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
             try {
                 String val = urlField.getValue();
                 if (tempSessionId != null) {
-                    TempAttachment temp = attachmentService.addYoutubeTemp(val);
+                    TempAttachment temp = attachmentService.addVideoTemp(val);
                     tempUploads.add(temp);
                     hideEmpty();
                     thumbnailsRow.add(buildTempThumbnail(temp));
                 } else if (entityId != null) {
-                    Attachment saved = attachmentService.addYoutube(entityId, val);
+                    Attachment saved = attachmentService.addVideo(entityId, val);
                     currentAttachments.add(saved);
                     hideEmpty();
                     thumbnailsRow.add(buildThumbnail(saved));
                 }
                 urlField.clear();
             } catch (Exception ex) {
-                showError(msg("attachment.youtube.invalid", "Invalid YouTube URL"));
+                showError(msg("attachment.video.invalid", "Invalid video URL"));
             }
         });
 
         HorizontalLayout row = new HorizontalLayout(urlField, addBtn);
         row.setWidthFull();
         row.setPadding(false);
-        row.addClassName("attachment-gallery__youtube-input");
+        row.addClassName("attachment-gallery__video-input");
         return row;
     }
 
     private void removeEditControlsIfPresent() {
-        if (uploadButton != null) {
-            uploadButton.removeFromParent();
-            uploadButton = null;
-        }
-        if (youtubeInput != null) {
-            youtubeInput.removeFromParent();
-            youtubeInput = null;
-        }
+        if (uploadButton != null) { uploadButton.removeFromParent(); uploadButton = null; }
+        if (videoInput   != null) { videoInput.removeFromParent();   videoInput   = null; }
     }
 
     private static void styleDeleteBtn(Button btn) {
@@ -302,21 +283,65 @@ public class AttachmentGallery extends Div {
         btn.addClassName("attachment-gallery__delete-btn");
     }
 
+    private static Icon videoPlayIcon() {
+        Icon i = VaadinIcon.PLAY_CIRCLE_O.create();
+        i.addClassName("attachment-gallery__play-icon");
+        return i;
+    }
+
+    private static boolean isVideoType(String contentType) {
+        return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
+    }
+
+    private static String thumbSrc(String contentType, String url) {
+        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (CT_EMBED.equals(contentType))   return VIDEO_PLACEHOLDER_SVG;
+        return url;
+    }
+
+    public static final String VIDEO_PLACEHOLDER_SVG =
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E" +
+        "%3Crect width='160' height='160' fill='%23222'/%3E" +
+        "%3Cpolygon points='60,40 60,120 120,80' fill='white' opacity='0.7'/%3E%3C/svg%3E";
+
     private void openLightbox(Attachment attachment) {
         Div overlay = new Div();
         overlay.addClassName("attachment-lightbox");
-        overlay.addClickListener(_ -> overlay.removeFromParent());
 
-        Image img = new Image(attachment.getUrl(), attachment.getFilename());
-        img.addClassName("attachment-lightbox__image");
-        img.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
-
-        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> overlay.removeFromParent());
+        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> closeLightbox(overlay, null));
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
 
-        overlay.add(closeBtn, img);
+        if (isVideoType(attachment.getContentType())) {
+            IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
+            iframe.addClassName("attachment-lightbox__iframe");
+            iframe.getElement().setAttribute("allow",
+                    "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
+            iframe.getElement().setAttribute("allowfullscreen", "true");
+            iframe.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+            overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
+            overlay.add(closeBtn, iframe);
+        } else {
+            Image img = new Image(attachment.getUrl(), attachment.getFilename());
+            img.addClassName("attachment-lightbox__image");
+            img.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+            overlay.addClickListener(_ -> overlay.removeFromParent());
+            overlay.add(closeBtn, img);
+        }
+
         getUI().ifPresent(ui -> ui.getElement().appendChild(overlay.getElement()));
+    }
+
+    private static void closeLightbox(Div overlay, IFrame iframe) {
+        if (iframe != null) iframe.setSrc("about:blank");
+        overlay.removeFromParent();
+    }
+
+    private static String resolveEmbedUrl(Attachment attachment) {
+        if (CT_YOUTUBE.equals(attachment.getContentType())) {
+            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
+        }
+        return attachment.getUrl();
     }
 
     private static void showError(String message) {

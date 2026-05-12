@@ -105,7 +105,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener("click", _ ->
-                galleryExtension.ifAvailable(ext -> ext.openPhotoLightbox(ad.getId()))
+                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(ad.getId()))
         ).addEventData("event.stopPropagation()");
         return wrapper;
     }

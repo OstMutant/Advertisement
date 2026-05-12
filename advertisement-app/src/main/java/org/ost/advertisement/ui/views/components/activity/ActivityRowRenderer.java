@@ -116,7 +116,7 @@ public class ActivityRowRenderer implements I18nParams {
         if (photoChanges.isEmpty() && item.snapshotId() != null) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null
-                    ? ext.getPhotoStateForAdvSnapshot(item.entityId(), item.snapshotId())
+                    ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId())
                     : null;
             String photoText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
@@ -235,7 +235,7 @@ public class ActivityRowRenderer implements I18nParams {
 
         if (photoChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getPhotoStateAtVersion(adId, h.version()) : null;
+            String state = ext != null ? ext.getMediaStateAtVersion(adId, h.version()) : null;
             String photoText = (state != null && !state.isBlank()) ? state : "—";
             addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
         } else {

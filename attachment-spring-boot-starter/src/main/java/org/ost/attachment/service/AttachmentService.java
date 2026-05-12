@@ -25,6 +25,9 @@ public class AttachmentService {
 
     public record TempAttachment(String tempUrl, String filename, String contentType, long size) {}
 
+    private static final String CT_YOUTUBE = "video/youtube";
+    private static final String CT_EMBED   = "video/embed";
+
     private final StorageService                                  storageService;
     private final AttachmentRepository                            attachmentRepository;
     private final PhotoSnapshotService                            photoSnapshotService;
@@ -40,7 +43,7 @@ public class AttachmentService {
         String url = storageService.upload("advertisements/" + entityId, filename, inputStream, contentLength, contentType);
         try {
             Attachment saved = attachmentRepository.insert(entityId, url, filename, contentType, contentLength);
-            capturePhotoChanges(entityId);
+            captureMediaChanges(entityId);
             publishMediaUpdate(entityId);
             return saved;
         } catch (Exception e) {
@@ -55,7 +58,7 @@ public class AttachmentService {
         if (attachment == null) return;
         Long userId = resolveCurrentUserId();
         attachmentRepository.softDelete(attachmentId, userId);
-        capturePhotoChanges(attachment.getEntityId());
+        captureMediaChanges(attachment.getEntityId());
         publishMediaUpdate(attachment.getEntityId());
     }
 
@@ -65,24 +68,30 @@ public class AttachmentService {
         attachmentRepository.softDelete(attachmentId, userId);
     }
 
-    public TempAttachment addYoutubeTemp(String url) {
-        String id = YoutubeUtil.extractId(url);
-        if (id == null) throw new IllegalArgumentException("Invalid YouTube URL");
-        return new TempAttachment(
-            "https://www.youtube.com/watch?v=" + id,
-            "YouTube-" + id,
-            "video/youtube",
-            0L);
+    public TempAttachment addVideoTemp(String url) {
+        String ytId = YoutubeUtil.extractId(url);
+        if (ytId != null) {
+            return new TempAttachment("https://www.youtube.com/watch?v=" + ytId, "YouTube-" + ytId, CT_YOUTUBE, 0L);
+        }
+        if (url == null || url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
+        return new TempAttachment(url, filename, CT_EMBED, 0L);
     }
 
     @Transactional
-    public Attachment addYoutube(Long entityId, String url) {
-        String id = YoutubeUtil.extractId(url);
-        if (id == null) throw new IllegalArgumentException("Invalid YouTube URL");
-        String watchUrl = "https://www.youtube.com/watch?v=" + id;
-        Attachment saved = attachmentRepository.insert(
-            entityId, watchUrl, "YouTube-" + id, "video/youtube", 0L);
-        capturePhotoChanges(entityId);
+    public Attachment addVideo(Long entityId, String url) {
+        String ytId = YoutubeUtil.extractId(url);
+        if (ytId != null) {
+            String watchUrl = "https://www.youtube.com/watch?v=" + ytId;
+            Attachment saved = attachmentRepository.insert(entityId, watchUrl, "YouTube-" + ytId, CT_YOUTUBE, 0L);
+            captureMediaChanges(entityId);
+            publishMediaUpdate(entityId);
+            return saved;
+        }
+        if (url == null || url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
+        Attachment saved = attachmentRepository.insert(entityId, url, filename, CT_EMBED, 0L);
+        captureMediaChanges(entityId);
         publishMediaUpdate(entityId);
         return saved;
     }
@@ -95,12 +104,12 @@ public class AttachmentService {
 
     public void commitTempUploads(Long entityId, List<TempAttachment> temps) {
         commitTempUploadsQuiet(entityId, temps);
-        capturePhotoChanges(entityId);
+        captureMediaChanges(entityId);
         publishMediaUpdate(entityId);
     }
 
     public void captureSnapshot(Long entityId) {
-        capturePhotoChanges(entityId);
+        captureMediaChanges(entityId);
     }
 
     public void commitTempUploadsQuiet(Long entityId, List<TempAttachment> temps) {
@@ -108,7 +117,7 @@ public class AttachmentService {
         String folder = "advertisements/" + entityId;
         List<Attachment> toSave = temps.stream()
                 .map(t -> {
-                    String finalUrl = "video/youtube".equals(t.contentType())
+                    String finalUrl = isVideo(t.contentType())
                             ? t.tempUrl()
                             : storageService.move(t.tempUrl(), folder, t.filename());
                     return Attachment.builder()
@@ -124,7 +133,7 @@ public class AttachmentService {
             toSave.forEach(a -> attachmentRepository.insert(a.getEntityId(), a.getUrl(), a.getFilename(), a.getContentType(), a.getSize()));
         } catch (Exception e) {
             toSave.stream()
-                    .filter(a -> !"video/youtube".equals(a.getContentType()))
+                    .filter(a -> !isVideo(a.getContentType()))
                     .forEach(a -> storageService.delete(a.getUrl()));
             throw e;
         }
@@ -149,23 +158,30 @@ public class AttachmentService {
 
     public void discardTempUploads(List<TempAttachment> temps) {
         temps.stream()
-             .filter(t -> !"video/youtube".equals(t.contentType()))
+             .filter(t -> !isVideo(t.contentType()))
              .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
     // ── internals ────────────────────────────────────────────────────────────
 
+    private static boolean isVideo(String contentType) {
+        return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
+    }
+
     private void publishMediaUpdate(Long entityId) {
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityId);
-        String displayUrl = stats.mainUrl();
-        if (displayUrl != null) {
-            String ytId = YoutubeUtil.extractId(displayUrl);
-            if (ytId != null) displayUrl = YoutubeUtil.thumbnailUrl(ytId);
-        }
+        String displayUrl = resolveDisplayUrl(stats.mainUrl(), stats.mainContentType());
         eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, displayUrl, stats.count()));
     }
 
-    private void capturePhotoChanges(Long entityId) {
+    private static String resolveDisplayUrl(String url, String contentType) {
+        if (url == null) return null;
+        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (CT_EMBED.equals(contentType)) return null;
+        return url;
+    }
+
+    private void captureMediaChanges(Long entityId) {
         Long userId = resolveCurrentUserId();
         if (userId != null) {
             photoSnapshotService.capture(entityId, userId);

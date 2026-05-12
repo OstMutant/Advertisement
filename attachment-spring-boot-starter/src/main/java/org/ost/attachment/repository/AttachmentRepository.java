@@ -13,7 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentRepository {
 
-    public record MediaStats(String mainUrl, int count) {}
+    public record MediaStats(String mainUrl, String mainContentType, int count) {}
 
     private static final AttachmentDescriptor PROJECTION = new AttachmentDescriptor();
 
@@ -136,7 +136,7 @@ public class AttachmentRepository {
                 "SELECT " + AttachmentDescriptor.Write.URL +
                 " FROM " + AttachmentDescriptor.Write.TABLE +
                 " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)" +
-                " AND content_type <> 'video/youtube'")
+                " AND content_type NOT IN ('video/youtube', 'video/embed')")
                 .paramSource(new MapSqlParameterSource("days", days))
                 .query(String.class).list();
     }
@@ -149,19 +149,23 @@ public class AttachmentRepository {
     }
 
     public MediaStats loadMediaStats(Long entityId) {
-        String mainUrl = jdbcClient.sql(
-                "SELECT " + AttachmentDescriptor.Write.URL +
+        record Row(String url, String contentType) {}
+        Row main = jdbcClient.sql(
+                "SELECT " + AttachmentDescriptor.Write.URL + ", " + AttachmentDescriptor.Write.CONTENT_TYPE +
                 " FROM " + AttachmentDescriptor.TABLE +
                 " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId" +
                 " AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")
                 .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
-                .query((rs, n) -> rs.getString(AttachmentDescriptor.Write.URL))
+                .query((rs, n) -> new Row(rs.getString(AttachmentDescriptor.Write.URL),
+                                          rs.getString(AttachmentDescriptor.Write.CONTENT_TYPE)))
                 .optional().orElse(null);
         int count = jdbcClient.sql(
                 "SELECT COUNT(*) FROM " + AttachmentDescriptor.TABLE +
                 " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
                 .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
                 .query(Integer.class).single();
-        return new MediaStats(mainUrl, count);
+        return main != null
+                ? new MediaStats(main.url(), main.contentType(), count)
+                : new MediaStats(null, null, count);
     }
 }

@@ -17,22 +17,22 @@ public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryEx
     private final PhotoSnapshotService photoSnapshotService;
 
     @Override
-    public List<ChangeEntry> getPhotoChanges(Long adId, int version) {
+    public List<ChangeEntry> getMediaChanges(Long adId, int version) {
         return photoSnapshotService.getChangesForVersion(adId, version);
     }
 
     @Override
-    public boolean photosMatchCurrent(Long adId, int version) {
-        return photoSnapshotService.photosMatchCurrent(adId, version);
+    public boolean mediaMatchCurrent(Long adId, int version) {
+        return photoSnapshotService.mediaMatchCurrent(adId, version);
     }
 
     @Override
-    public String getPhotoStateAtVersion(Long adId, int version) {
-        return photoSnapshotService.getPhotoStateAtVersion(adId, version);
+    public String getMediaStateAtVersion(Long adId, int version) {
+        return photoSnapshotService.getMediaStateAtVersion(adId, version);
     }
 
     @Override
-    public String getPhotoStateForAdvSnapshot(Long adId, Long advSnapshotId) {
-        return photoSnapshotService.getPhotoStateForAdvSnapshot(adId, advSnapshotId);
+    public String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId) {
+        return photoSnapshotService.getMediaStateForAdvSnapshot(adId, advSnapshotId);
     }
 }
