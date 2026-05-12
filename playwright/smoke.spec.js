@@ -1,6 +1,9 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay, waitForOverlayClosed, downloadPng } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab,
+        confirmDialog, downloadPng } = require('./_test-helpers');
 const fs = require('fs');
+
+const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
@@ -194,5 +197,165 @@ test.describe('Smoke: admin flow', () => {
       await page.locator('vaadin-grid.user-grid .user-grid-name').first().waitFor({ timeout: 5000 });
       await screenshot(page, 'admin-flow-done');
     });
+  });
+});
+
+test.describe('Smoke: advertisement history', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page);
+  });
+
+  test('create → edit → history has 2+ entries with changes summary', async ({ page }) => {
+    await test.step('Create ad', async () => {
+      await page.locator('.add-advertisement-button').click();
+      await waitForOverlay(page);
+      const ov = page.locator('.advertisement-overlay');
+      await ov.locator('vaadin-text-field input').first().fill('Smoke History Ad');
+      await ov.locator('vaadin-text-area textarea').fill('Version one');
+      await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+      await waitForOverlayClosed(page);
+    });
+
+    await test.step('Edit ad', async () => {
+      await page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: 'Smoke History Ad' }) })
+        .first().click();
+      await waitForOverlay(page);
+      await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
+      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+      await page.locator('.base-overlay.overlay--visible vaadin-text-area textarea').fill('Version two');
+      await page.locator('.base-overlay.overlay--visible vaadin-button')
+        .filter({ hasText: /зберегти|save/i }).click();
+      await page.locator('.overlay__view-title').waitFor();
+    });
+
+    await test.step('History tab has 2+ entries and changes summary', async () => {
+      await openHistory(page);
+      await expect(page.locator('.adv-history-list')).toBeVisible();
+      const rows = await page.locator('.adv-history-row').count();
+      if (rows < 2) throw new Error(`Expected >=2 history rows, got ${rows}`);
+      if (await page.locator('.adv-history-changes').count() === 0)
+        throw new Error('No changes summary in history');
+      await screenshot(page, 'smoke-history');
+    });
+  });
+});
+
+test.describe('Smoke: activity feed', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page);
+  });
+
+  test('settings overlay shows activity tab with entries', async ({ page }) => {
+    await test.step('Create ad to generate activity', async () => {
+      await page.locator('.add-advertisement-button').click();
+      await waitForOverlay(page);
+      const ov = page.locator('.advertisement-overlay');
+      await ov.locator('vaadin-text-field input').first().fill('Smoke Activity Ad');
+      await ov.locator('vaadin-text-area textarea').fill('Activity smoke test');
+      await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+      await waitForOverlayClosed(page);
+    });
+
+    await test.step('Settings has activity tab with entries', async () => {
+      await openSettings(page);
+      const tabs = await page.locator('.base-overlay.overlay--visible vaadin-tab').allTextContents();
+      if (!tabs.some(t => /activ|активн/i.test(t))) throw new Error('No activity tab in settings');
+      await openActivityTab(page);
+      await expect(page.locator('.user-activity-list').first()).toBeVisible();
+      if (await page.locator('.user-activity-row').count() === 0)
+        throw new Error('No activity rows');
+      await screenshot(page, 'smoke-activity');
+    });
+  });
+});
+
+test.describe('Smoke: YouTube lightbox', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAs(page);
+  });
+
+  test('add YouTube + image → lightbox switches iframe src correctly', async ({ page }) => {
+    const imgPath = '/tmp/smoke-lightbox.png';
+    await downloadPng(avatar('smoke-lb'), imgPath);
+
+    await test.step('Create ad with YouTube video + image', async () => {
+      await page.locator('.add-advertisement-button').click();
+      await waitForOverlay(page);
+      const ov = page.locator('.advertisement-overlay');
+      await ov.locator('vaadin-text-field input').first().fill('Smoke YouTube Ad');
+      await ov.locator('vaadin-text-area textarea').fill('YouTube lightbox smoke');
+      await ov.locator('.attachment-gallery__video-input input').fill(YT_URL);
+      await ov.locator('.attachment-gallery__video-input vaadin-button').click();
+      await ov.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
+      await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
+      await ov.locator('.attachment-gallery__item').nth(1).waitFor({ timeout: 10000 });
+      await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+      await waitForOverlayClosed(page);
+    });
+
+    await test.step('Open CardPhotoLightbox via card thumbnail', async () => {
+      await page.locator('.advertisement-card')
+        .filter({ has: page.locator('.advertisement-title', { hasText: 'Smoke YouTube Ad' }) })
+        .first().locator('.advertisement-thumbnail-wrapper').click();
+      await page.waitForFunction(() => {
+        function s(root) {
+          return !!root.querySelector('.card-lightbox__close') ||
+            [...root.querySelectorAll('*')].some(el => el.shadowRoot && s(el.shadowRoot));
+        }
+        return s(document);
+      }, { timeout: 10000 });
+      await screenshot(page, 'smoke-lightbox-youtube');
+    });
+
+    await test.step('Switch to image — iframe src becomes about:blank', async () => {
+      const thumbs = await page.evaluate(() => {
+        function findAll(root, sel) {
+          const els = [...root.querySelectorAll(sel)];
+          for (const c of root.querySelectorAll('*'))
+            if (c.shadowRoot) els.push(...findAll(c.shadowRoot, sel));
+          return els;
+        }
+        return findAll(document, '.card-lightbox__strip .card-lightbox__thumb').length;
+      });
+      if (thumbs < 2) throw new Error(`Expected 2 thumbs in strip, got ${thumbs}`);
+
+      // click the non-active thumb (image)
+      await page.evaluate(() => {
+        function findAll(root, sel) {
+          const els = [...root.querySelectorAll(sel)];
+          for (const c of root.querySelectorAll('*'))
+            if (c.shadowRoot) els.push(...findAll(c.shadowRoot, sel));
+          return els;
+        }
+        const thumbs = findAll(document, '.card-lightbox__strip .card-lightbox__thumb');
+        const imageThumb = thumbs.find(t => !t.classList.contains('card-lightbox__thumb--active'));
+        if (imageThumb) imageThumb.click();
+      });
+
+      await page.waitForFunction(() => {
+        function s(root) {
+          const img = root.querySelector('.card-lightbox__main-image');
+          if (img && !img.hasAttribute('hidden')) return true;
+          return [...root.querySelectorAll('*')].some(el => el.shadowRoot && s(el.shadowRoot));
+        }
+        return s(document);
+      }, { timeout: 5000 });
+
+      const src = await page.evaluate(() => {
+        function s(root) {
+          const f = root.querySelector('.card-lightbox__iframe');
+          if (f) return f.src;
+          for (const c of root.querySelectorAll('*'))
+            if (c.shadowRoot) { const r = s(c.shadowRoot); if (r) return r; }
+          return null;
+        }
+        return s(document);
+      });
+      if (src !== 'about:blank') throw new Error(`Expected iframe src=about:blank, got ${src}`);
+      await screenshot(page, 'smoke-lightbox-image');
+    });
+
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   });
 });
