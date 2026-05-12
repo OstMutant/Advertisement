@@ -1,5 +1,6 @@
 package org.ost.attachment.ui;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.html.Div;
@@ -67,7 +68,7 @@ public class CardPhotoLightbox {
         dialog.setResizable(false);
         dialog.setCloseOnEsc(true);
         dialog.setCloseOnOutsideClick(true);
-        dialog.addOpenedChangeListener(e -> { if (!e.isOpened()) iframe.setSrc("about:blank"); });
+        dialog.addOpenedChangeListener(e -> { if (!e.isOpened()) iframe.getElement().setAttribute("src", "about:blank"); });
 
         prev.addClickListener(_ -> {
             idx[0] = (idx[0] - 1 + attachments.size()) % attachments.size();
@@ -113,15 +114,21 @@ public class CardPhotoLightbox {
         Attachment a = attachments.get(idx);
         boolean isVideo = isVideo(a.getContentType());
 
-        mainImg.setVisible(!isVideo);
-        iframe.setVisible(isVideo);
-
         if (isVideo) {
-            iframe.setSrc(embedSrc(a));
+            String embedUrl = embedSrc(a);
+            iframe.getElement().setAttribute("src", embedUrl);
+            UI.getCurrent().getPage().executeJs(
+                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src=$0;", embedUrl);
+            mainImg.setVisible(false);
+            iframe.setVisible(true);
         } else {
-            iframe.setSrc("about:blank");
+            iframe.getElement().setAttribute("src", "about:blank");
+            UI.getCurrent().getPage().executeJs(
+                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';");
+            iframe.setVisible(false);
             mainImg.setSrc(a.getUrl());
             mainImg.setAlt(a.getFilename());
+            mainImg.setVisible(true);
         }
 
         strip.getChildren().forEach(c -> c.getElement().getClassList().remove("card-lightbox__thumb--active"));
