@@ -9,7 +9,6 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
@@ -55,7 +54,7 @@ public class UserService {
         repository.updateProfile(dto);
         repository.findById(dto.id()).ifPresent(updated -> {
             Long changedBy = authContextService.getCurrentUser().map(User::getId).orElse(dto.id());
-            auditCaptureService.captureUser(updated, before, ActionType.UPDATED, changedBy);
+            auditCaptureService.captureUserUpdated(updated, before, changedBy);
         });
     }
 
@@ -82,7 +81,7 @@ public class UserService {
                 .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         User saved = repository.save(newUser);
-        auditCaptureService.captureUser(saved, ActionType.CREATED, saved.getId());
+        auditCaptureService.captureUserCreated(saved, saved.getId());
         UserSettings defaults = UserSettings.defaultSettings();
         auditCaptureService.captureInitialSettings(saved, defaults, saved.getId());
     }
@@ -97,7 +96,7 @@ public class UserService {
             User before = repository.findById(state.userId()).orElse(null);
             repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {
-                auditCaptureService.captureUser(updated, before, ActionType.UPDATED, actingUserId);
+                auditCaptureService.captureUserUpdated(updated, before, actingUserId);
                 return updated;
             });
         });
@@ -109,7 +108,7 @@ public class UserService {
             User before = repository.findById(state.userId()).orElse(null);
             repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {
-                auditCaptureService.captureUser(updated, before, ActionType.UPDATED, actingUserId);
+                auditCaptureService.captureUserUpdated(updated, before, actingUserId);
                 return updated;
             });
         });

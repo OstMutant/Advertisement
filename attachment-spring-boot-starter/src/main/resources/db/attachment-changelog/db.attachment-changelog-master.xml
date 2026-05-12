@@ -7,5 +7,7 @@
 
     <include file="db/attachment-changelog/changes/01-photo-snapshot.xml"
              relativeToChangelogFile="false"/>
+    <include file="db/attachment-changelog/changes/02-drop-photo-snapshot-version.xml"
+             relativeToChangelogFile="false"/>
 
 </databaseChangeLog>

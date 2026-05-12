@@ -19,7 +19,6 @@ public final class PhotoSnapshotDescriptor {
         private Write() {}
         public static final String TABLE              = PhotoSnapshotDescriptor.TABLE;
         public static final String ADVERTISEMENT_ID   = PhotoSnapshotDescriptor.ADVERTISEMENT_ID.columnName();
-        public static final String VERSION            = "version";
         public static final String ATTACHMENT_URLS    = "attachment_urls";
         public static final String CHANGES_SUMMARY    = PhotoSnapshotDescriptor.CHANGES_SUMMARY.columnName();
         public static final String CHANGED_BY_USER_ID = PhotoSnapshotDescriptor.CHANGED_BY_USER_ID.columnName();

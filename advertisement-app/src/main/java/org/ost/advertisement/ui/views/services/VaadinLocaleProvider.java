@@ -2,8 +2,9 @@ package org.ost.advertisement.ui.views.services;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Scope;
+import org.springframework.context.annotation.ScopedProxyMode;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.services.auth.LocaleProvider;
@@ -14,7 +15,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 @SpringComponent
-@UIScope
+@Scope(value = "vaadin-ui", proxyMode = ScopedProxyMode.TARGET_CLASS)
 @RequiredArgsConstructor
 public class VaadinLocaleProvider implements LocaleProvider {
 

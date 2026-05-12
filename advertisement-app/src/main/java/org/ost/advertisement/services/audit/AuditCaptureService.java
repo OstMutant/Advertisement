@@ -41,25 +41,20 @@ public class AuditCaptureService {
     }
 
     @Transactional
-    public void captureUser(User user, ActionType actionType, Long changedByUserId) {
-        captureUser(user, null, actionType, changedByUserId);
+    public void captureUserCreated(User user, Long changedByUserId) {
+        UserSnapshot current = UserSnapshot.from(user);
+        List<ChangeEntry> changes = diffEngine.diffFromNull(current);
+        auditLogRepository.insert(AuditLogDescriptor.EntityType.USER, user.getId(),
+                ActionType.CREATED.name(), mapper.toJson(current), mapper.toChangesJson(changes), changedByUserId);
     }
 
     @Transactional
-    public void captureUser(User user, User before, ActionType actionType, Long changedByUserId) {
-        UserSnapshot current = UserSnapshot.from(user);
-        List<ChangeEntry> changes = switch (actionType) {
-            case CREATED -> diffEngine.diffFromNull(current);
-            case UPDATED -> {
-                UserSnapshot prev = before != null
-                        ? UserSnapshot.from(before)
-                        : loadLastSnapshot(AuditLogDescriptor.EntityType.USER, user.getId(), UserSnapshot.class);
-                yield prev != null ? diffEngine.diff(prev, current) : diffEngine.diffFromNull(current);
-            }
-            case DELETED -> null;
-        };
-        auditLogRepository.insert(AuditLogDescriptor.EntityType.USER, user.getId(),
-                actionType.name(), mapper.toJson(current), mapper.toChangesJson(changes), changedByUserId);
+    public void captureUserUpdated(User current, User before, Long changedByUserId) {
+        UserSnapshot currentSnapshot = UserSnapshot.from(current);
+        UserSnapshot prevSnapshot    = UserSnapshot.from(before);
+        List<ChangeEntry> changes = diffEngine.diff(prevSnapshot, currentSnapshot);
+        auditLogRepository.insert(AuditLogDescriptor.EntityType.USER, current.getId(),
+                ActionType.UPDATED.name(), mapper.toJson(currentSnapshot), mapper.toChangesJson(changes), changedByUserId);
     }
 
     @Transactional

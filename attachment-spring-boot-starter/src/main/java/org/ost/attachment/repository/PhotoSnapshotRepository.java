@@ -17,12 +17,10 @@ public class PhotoSnapshotRepository {
     private static final SqlWriteCommand INSERT = SqlWriteCommand.of(
             "INSERT INTO " + PhotoSnapshotDescriptor.Write.TABLE +
             " (" + PhotoSnapshotDescriptor.Write.ADVERTISEMENT_ID + "," +
-            " "  + PhotoSnapshotDescriptor.Write.VERSION + "," +
             " "  + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
             " "  + PhotoSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
             " "  + PhotoSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
             " VALUES (:adId," +
-            " (SELECT COUNT(*)::int FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId)," +
             " :urls, CAST(:changes AS JSONB), :userId, NOW())"
     );
 
@@ -41,7 +39,7 @@ public class PhotoSnapshotRepository {
         return jdbcClient.sql(
                 "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
                 " FROM " + PhotoSnapshotDescriptor.TABLE +
-                " WHERE advertisement_id = :adId ORDER BY version DESC LIMIT 1")
+                " WHERE advertisement_id = :adId ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource("adId", adId))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional().orElse(List.of());
@@ -49,10 +47,16 @@ public class PhotoSnapshotRepository {
 
     public String[] getUrlsAtVersion(Long adId, int version) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
-                " WHERE advertisement_id = :adId AND version <= :version" +
-                " ORDER BY version DESC LIMIT 1")
+                "SELECT attachment_urls FROM (" +
+                "    SELECT attachment_urls," +
+                "           ROW_NUMBER() OVER (" +
+                "               PARTITION BY advertisement_id ORDER BY created_at" +
+                "           ) AS rn" +
+                "    FROM " + PhotoSnapshotDescriptor.TABLE +
+                "    WHERE advertisement_id = :adId" +
+                ") ranked" +
+                " WHERE rn <= :version" +
+                " ORDER BY rn DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
@@ -62,14 +66,19 @@ public class PhotoSnapshotRepository {
 
     public Optional<List<String>> getUrlsForAdvSnapshot(Long adId, Long advSnapshotId) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
-                " WHERE advertisement_id = :adId" +
-                " AND version <= (" +
-                "   SELECT COUNT(*)::int FROM audit_log" +
-                "   WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
-                "     AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)" +
-                " ) ORDER BY version DESC LIMIT 1")
+                "SELECT attachment_urls FROM (" +
+                "    SELECT attachment_urls," +
+                "           ROW_NUMBER() OVER (" +
+                "               PARTITION BY advertisement_id ORDER BY created_at" +
+                "           ) AS rn" +
+                "    FROM " + PhotoSnapshotDescriptor.TABLE +
+                "    WHERE advertisement_id = :adId" +
+                ") ranked" +
+                " WHERE rn <= (" +
+                "    SELECT COUNT(*) FROM audit_log" +
+                "    WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "      AND created_at <= (SELECT created_at FROM audit_log WHERE id = :snapId)" +
+                " ) ORDER BY rn DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional();
@@ -77,9 +86,15 @@ public class PhotoSnapshotRepository {
 
     public Optional<String> getChangesJson(Long adId, int version) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotDescriptor.Write.CHANGES_SUMMARY + "::text" +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
-                " WHERE advertisement_id = :adId AND version = :version AND changes_summary IS NOT NULL")
+                "SELECT changes_summary::text FROM (" +
+                "    SELECT changes_summary," +
+                "           ROW_NUMBER() OVER (" +
+                "               PARTITION BY advertisement_id ORDER BY created_at" +
+                "           ) AS rn" +
+                "    FROM " + PhotoSnapshotDescriptor.TABLE +
+                "    WHERE advertisement_id = :adId" +
+                ") ranked" +
+                " WHERE rn = :version AND changes_summary IS NOT NULL")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
                 .query((rs, row) -> rs.getString(1))
                 .optional();

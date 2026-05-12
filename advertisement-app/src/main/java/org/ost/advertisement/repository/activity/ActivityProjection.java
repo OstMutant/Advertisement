@@ -38,7 +38,6 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
                 FROM audit_log s
                 LEFT JOIN user_information u ON u.id = s.changed_by_user_id
                 WHERE s.entity_type = 'ADVERTISEMENT' AND s.changed_by_user_id = :userId
-                ORDER BY s.created_at DESC LIMIT 20
             ),
             user_act AS (
                 SELECT s.id                                                             AS snapshot_id,
@@ -61,7 +60,6 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
                 LEFT JOIN user_information ui2 ON ui2.id = s.entity_id
                 WHERE s.entity_type IN ('USER', 'USER_SETTINGS')
                   AND (s.changed_by_user_id = :userId OR s.entity_id = :userId)
-                ORDER BY s.created_at DESC LIMIT 20
             )
             SELECT * FROM adv_act
             UNION ALL
