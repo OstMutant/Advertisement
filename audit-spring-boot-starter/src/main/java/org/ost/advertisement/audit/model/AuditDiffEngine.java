@@ -1,6 +1,7 @@
-package org.ost.advertisement.services.audit;
+package org.ost.advertisement.audit.model;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.AuditedField;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.springframework.stereotype.Service;
 

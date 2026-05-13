@@ -1,6 +1,7 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;

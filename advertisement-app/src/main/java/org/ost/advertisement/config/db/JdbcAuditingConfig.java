@@ -13,7 +13,7 @@ import java.util.Optional;
 @Configuration
 @EnableJdbcAuditing
 @RequiredArgsConstructor
-public class AuditingConfig implements AuditorAware<Long> {
+public class JdbcAuditingConfig implements AuditorAware<Long> {
 
     private final AuthContextService authContextService;
 

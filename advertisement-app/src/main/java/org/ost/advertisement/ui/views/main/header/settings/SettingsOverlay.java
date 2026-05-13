@@ -13,11 +13,12 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.AuditPort;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.services.audit.SettingsSnapshot;
 import org.ost.advertisement.services.user.UserSettingsService;
-import org.ost.advertisement.services.audit.AuditCaptureService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
@@ -29,6 +30,7 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.components.activity.ProfileActivityPanel;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 
 import org.ost.advertisement.common.PaginationDefaults;
 
@@ -45,7 +47,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UserSettingsService                    settingsService;
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
-    private final transient AuditCaptureService                    auditCaptureService;
+    private final transient AuditPort                              auditPort;
 
     private final transient ObjectProvider<OverlayLayout>              layoutProvider;
     private final transient ObjectProvider<ProfileActivityPanel> activityContentBuilderProvider;
@@ -53,6 +55,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
     private final transient ConfirmActionDialog.Builder confirmDialogBuilder;
+
+    @Value("${audit.enabled:true}")
+    private boolean auditEnabled;
 
     private OverlayLayout    layout;
     private IntegerField     adsPageSizeField;
@@ -87,26 +92,33 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         Div settingsPanel = new Div(settingsCardHeader, form);
         settingsPanel.addClassName("overlay__form-fields-card");
 
-        // ── Activity panel (lazy) ─────────────────────────────────────────
-        activityPanel = new Div();
-        activityPanel.setVisible(false);
+        Div content;
 
-        // ── Tabs ──────────────────────────────────────────────────────────
-        settingsTab      = new Tab(getValue(SETTINGS_SECTION_TITLE));
-        Tab activityTab  = new Tab(getValue(ACTIVITY_TAB));
-        tabs = new Tabs(settingsTab, activityTab);
-        tabs.addClassName("user-view-tabs");
+        if (auditEnabled) {
+            // ── Activity panel (lazy) ─────────────────────────────────────────
+            activityPanel = new Div();
+            activityPanel.setVisible(false);
 
-        tabs.addSelectedChangeListener(event -> {
-            boolean isSettings = event.getSelectedTab() == settingsTab;
-            settingsPanel.setVisible(isSettings);
-            activityPanel.setVisible(!isSettings);
-            if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
-                activityPanel.add(buildActivityContent(currentUser.getId()));
-            }
-        });
+            // ── Tabs ──────────────────────────────────────────────────────────
+            settingsTab      = new Tab(getValue(SETTINGS_SECTION_TITLE));
+            Tab activityTab  = new Tab(getValue(ACTIVITY_TAB));
+            tabs = new Tabs(settingsTab, activityTab);
+            tabs.addClassName("user-view-tabs");
 
-        Div content = new Div(tabs, settingsPanel, activityPanel);
+            tabs.addSelectedChangeListener(event -> {
+                boolean isSettings = event.getSelectedTab() == settingsTab;
+                settingsPanel.setVisible(isSettings);
+                activityPanel.setVisible(!isSettings);
+                if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
+                    activityPanel.add(buildActivityContent(currentUser.getId()));
+                }
+            });
+
+            content = new Div(tabs, settingsPanel, activityPanel);
+        } else {
+            content = new Div(settingsPanel);
+        }
+
         content.addClassName("settings-overlay-content");
         layout.setContent(content);
 
@@ -152,8 +164,13 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     .build();
 
             settingsService.save(currentUser.getId(), newSettings);
-            auditCaptureService.captureSettingsChange(currentUser, oldSettings, newSettings, currentUser.getId());
-            activityPanel.removeAll();
+            if (auditEnabled) {
+                auditPort.captureUpdate(currentUser.getId(),
+                        SettingsSnapshot.from(oldSettings),
+                        SettingsSnapshot.from(newSettings),
+                        currentUser.getId());
+                if (activityPanel != null) activityPanel.removeAll();
+            }
 
             notifications.success(SETTINGS_SAVED_SUCCESS);
         } catch (Exception e) {
@@ -191,10 +208,15 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .onConfirm(() -> {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
-                            auditCaptureService.captureSettingsChange(currentUser, before, target, currentUser.getId());
+                            if (auditEnabled) {
+                                auditPort.captureUpdate(currentUser.getId(),
+                                        SettingsSnapshot.from(before),
+                                        SettingsSnapshot.from(target),
+                                        currentUser.getId());
+                            }
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());
-                            activityPanel.removeAll();
+                            if (activityPanel != null) activityPanel.removeAll();
                             tabs.setSelectedTab(settingsTab);
                             notifications.success(SETTINGS_RESTORED_SUCCESS);
                         })

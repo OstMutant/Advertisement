@@ -76,6 +76,9 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final ObjectProvider<ActivityRowRenderer>            rendererProvider;
     private final ConfirmActionDialog.Builder                    confirmDialogBuilder;
 
+    @org.springframework.beans.factory.annotation.Value("${audit.enabled:true}")
+    private boolean auditEnabled;
+
     private Parameters params;
 
     @Override
@@ -88,24 +91,33 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     public void activate(OverlayLayout layout) {
         Div viewContent = buildViewContent();
 
-        Div historyContent = new Div();
-        historyContent.addClassName("adv-history-content");
-        historyContent.setVisible(false);
-
-        Tab viewTab    = new Tab(getValue(ADVERTISEMENT_VIEW_TAB));
-        Tab historyTab = new Tab(getValue(ADVERTISEMENT_HISTORY_TAB));
-        historyTab.setVisible(access.canOperate(params.getAd()));
-        Tabs tabs = new Tabs(viewTab, historyTab);
+        Tab viewTab = new Tab(getValue(ADVERTISEMENT_VIEW_TAB));
+        Tabs tabs = new Tabs(viewTab);
         tabs.addClassName("adv-overlay-tabs");
 
-        tabs.addSelectedChangeListener(event -> {
-            boolean isView = event.getSelectedTab() == viewTab;
-            viewContent.setVisible(isView);
-            historyContent.setVisible(!isView);
-            if (!isView && historyContent.getChildren().findFirst().isEmpty()) {
-                historyContent.add(buildHistoryContent(params.getAd().getId()));
-            }
-        });
+        Div mainContent;
+
+        if (auditEnabled && access.canOperate(params.getAd())) {
+            Div historyContent = new Div();
+            historyContent.addClassName("adv-history-content");
+            historyContent.setVisible(false);
+
+            Tab historyTab = new Tab(getValue(ADVERTISEMENT_HISTORY_TAB));
+            tabs.add(historyTab);
+
+            tabs.addSelectedChangeListener(event -> {
+                boolean isView = event.getSelectedTab() == viewTab;
+                viewContent.setVisible(isView);
+                historyContent.setVisible(!isView);
+                if (!isView && historyContent.getChildren().findFirst().isEmpty()) {
+                    historyContent.add(buildHistoryContent(params.getAd().getId()));
+                }
+            });
+
+            mainContent = new Div(tabs, viewContent, historyContent);
+        } else {
+            mainContent = new Div(tabs, viewContent);
+        }
 
         editButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
@@ -119,7 +131,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd()));
 
-        layout.setContent(new Div(tabs, viewContent, historyContent));
+        layout.setContent(mainContent);
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 

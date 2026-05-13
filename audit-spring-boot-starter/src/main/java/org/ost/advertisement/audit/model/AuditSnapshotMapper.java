@@ -1,4 +1,4 @@
-package org.ost.advertisement.services.audit;
+package org.ost.advertisement.audit.model;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -11,13 +11,13 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-class AuditSnapshotMapper {
+public class AuditSnapshotMapper {
 
     static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
     @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
 
-    String toJson(Object obj) {
+    public String toJson(Object obj) {
         if (obj == null) return null;
         try {
             return objectMapper.writeValueAsString(obj);
@@ -26,7 +26,7 @@ class AuditSnapshotMapper {
         }
     }
 
-    <T> T fromJson(String json, Class<T> type) {
+    public <T> T fromJson(String json, Class<T> type) {
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, type);
@@ -35,7 +35,7 @@ class AuditSnapshotMapper {
         }
     }
 
-    List<ChangeEntry> fromJsonList(String json) {
+    public List<ChangeEntry> fromJsonList(String json) {
         if (json == null || json.isBlank()) return List.of();
         try {
             return objectMapper.readValue(json, CHANGES_TYPE);
@@ -44,7 +44,7 @@ class AuditSnapshotMapper {
         }
     }
 
-    String toChangesJson(List<ChangeEntry> changes) {
+    public String toChangesJson(List<ChangeEntry> changes) {
         if (changes == null) return null;
         try {
             return objectMapper.writerFor(CHANGES_TYPE).writeValueAsString(changes);

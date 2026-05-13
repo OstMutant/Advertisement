@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="01-audit-schema" author="ostap">
+
+        <!-- ── audit_log ───────────────────────────────────────────────────── -->
+        <createTable tableName="audit_log">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="entity_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action_type" type="VARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="snapshot_data" type="JSONB"/>
+            <column name="changes_summary" type="JSONB"/>
+            <column name="changed_by_user_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_audit_entity" tableName="audit_log">
+            <column name="entity_type"/>
+            <column name="entity_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <createIndex indexName="idx_audit_changed_by" tableName="audit_log">
+            <column name="changed_by_user_id"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <sql>
+            CREATE INDEX IF NOT EXISTS idx_audit_changes_gin ON audit_log USING GIN (changes_summary);
+        </sql>
+
+    </changeSet>
+
+</databaseChangeLog>

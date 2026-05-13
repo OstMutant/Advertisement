@@ -1,4 +1,4 @@
-package org.ost.advertisement.services.audit;
+package org.ost.advertisement.audit;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

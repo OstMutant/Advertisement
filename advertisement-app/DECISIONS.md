@@ -55,3 +55,12 @@
 **Decision:** `storage-api` defines the contract; `storage-s3-spring-boot-starter` is the S3 implementation. UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `storage.s3.enabled=false`.
 
 **Why:** Allows running the app locally without S3. The contract/implementation split keeps domain logic independent of infrastructure.
+
+
+## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
+
+**Decision:** The write side of the audit subsystem (`AuditCaptureService`, `AuditDiffEngine`, `AuditFieldCache`, `AuditSnapshotMapper`, `AuditLogRepository` generic operations) was extracted into a new `audit-spring-boot-starter` module. Domain services (`AdvertisementService`, `UserService`, `SettingsOverlay`) now call `AuditPort` (contract interface) instead of `AuditCaptureService` (concrete service). History/activity read side (domain JOINs) stays in `advertisement-app`.
+
+**Why:** Symmetry with `attachment-spring-boot-starter`. Audit is infrastructure, not domain. Enables deploying audit-free variants by setting `audit.enabled=false`. `AuditableSnapshot` marker interface eliminates stringly-typed entity-type strings. `NoOpAuditPort` is the fallback when `audit.enabled=false`, wiring never fails.
+
+**Rejected:** Moving `AuditHistoryService` / `AuditQueryService` to the starter — they contain domain JOINs against `advertisements`, `users` tables, which the starter must not know about (module boundary violation).

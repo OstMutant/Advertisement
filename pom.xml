@@ -21,6 +21,7 @@
     <modules>
         <module>sql-engine</module>
         <module>advertisement-contracts</module>
+        <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
         <module>advertisement-app</module>
         <module>storage-s3-spring-boot-starter</module>
@@ -52,6 +53,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>advertisement-contracts</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>audit-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

@@ -1,10 +1,11 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.model.AuditSnapshotMapper;
+import org.ost.advertisement.audit.repository.AuditLogDescriptor;
+import org.ost.advertisement.audit.repository.AuditLogRepository.SnapshotContent;
 import org.ost.advertisement.dto.UserSettings;
-import org.ost.advertisement.repository.audit.AuditLogDescriptor;
 import org.ost.advertisement.repository.audit.AuditLogRepository;
-import org.ost.advertisement.repository.audit.AuditLogRepository.SnapshotContent;
 import org.ost.advertisement.repository.audit.AuditLogRepository.UserSnapshotState;
 import org.springframework.stereotype.Service;
 

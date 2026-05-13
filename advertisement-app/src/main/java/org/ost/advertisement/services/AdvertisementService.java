@@ -2,6 +2,7 @@ package org.ost.advertisement.services;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.AuditPort;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.Advertisement;
@@ -9,12 +10,11 @@ import org.ost.advertisement.entities.EntityMarker;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
-import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
-import org.ost.advertisement.repository.audit.AuditLogRepository;
+import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.services.audit.AuditCaptureService;
+import org.ost.advertisement.services.audit.AdvertisementSnapshot;
 import org.ost.advertisement.services.audit.AuditQueryService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.context.ApplicationEventPublisher;
@@ -34,7 +34,7 @@ public class AdvertisementService {
 
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
-    private final AuditCaptureService        auditCaptureService;
+    private final AuditPort                  auditPort;
     private final AuditQueryService          auditQueryService;
     private final AuthContextService         authContextService;
     private final ApplicationEventPublisher  context;
@@ -53,10 +53,16 @@ public class AdvertisementService {
             throw new AccessDeniedException("You cannot edit this advertisement");
         }
         boolean isNew = ad.isNew();
+        Advertisement before = isNew ? null : repository.findById(ad.getId()).orElse(null);
         Advertisement saved = repository.save(ad);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            auditCaptureService.captureAdvertisement(saved, isNew ? ActionType.CREATED : ActionType.UPDATED, currentUserId);
+            if (isNew) {
+                auditPort.captureCreation(saved.getId(), new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
+            } else {
+                AdvertisementSnapshot beforeSnapshot = before != null ? new AdvertisementSnapshot(before.getTitle(), before.getDescription()) : new AdvertisementSnapshot(null, null);
+                auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
+            }
         }
         return saved;
     }
@@ -79,10 +85,11 @@ public class AdvertisementService {
                 .createdAt(current.getCreatedAt())
                 .createdByUserId(current.getCreatedByUserId())
                 .build();
+        AdvertisementSnapshot beforeSnapshot = new AdvertisementSnapshot(current.getTitle(), current.getDescription());
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            auditCaptureService.captureAdvertisement(saved, ActionType.UPDATED, currentUserId);
+            auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
             context.publishEvent(new AdvertisementRestoredEvent(saved.getId(), content.version(), currentUserId));
         }
         return true;
@@ -96,7 +103,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    auditCaptureService.captureAdvertisement(entity, ActionType.DELETED, currentUserId));
+                    auditPort.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId));
         }
         if (currentUserId != null) {
             context.publishEvent(new AdvertisementDeletedEvent(ad.getId(), currentUserId));

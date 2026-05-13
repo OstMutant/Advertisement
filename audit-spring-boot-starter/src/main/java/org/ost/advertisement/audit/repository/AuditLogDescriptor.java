@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.audit;
+package org.ost.advertisement.audit.repository;
 
 import org.ost.sqlengine.projection.SqlSelectField;
 

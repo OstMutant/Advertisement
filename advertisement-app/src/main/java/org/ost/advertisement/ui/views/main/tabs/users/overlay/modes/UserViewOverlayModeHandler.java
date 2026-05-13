@@ -62,6 +62,9 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiIconButton.Builder                       closeButtonBuilder;
     private final ObjectProvider<ProfileActivityPanel> activityContentBuilderProvider;
 
+    @org.springframework.beans.factory.annotation.Value("${audit.enabled:true}")
+    private boolean auditEnabled;
+
     private Parameters params;
 
     @Override
@@ -109,23 +112,33 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         Div card = new Div(cardHeader, profileRow, metaRow);
         card.addClassName("user-view-card");
 
-        Div activityContent = new Div();
-        activityContent.addClassName("user-activity-content");
-        activityContent.setVisible(false);
-
-        Tab profileTab  = new Tab(getValue(ACTIVITY_PROFILE_TAB));
-        Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
-        Tabs tabs = new Tabs(profileTab, activityTab);
+        Tab profileTab = new Tab(getValue(ACTIVITY_PROFILE_TAB));
+        Tabs tabs = new Tabs(profileTab);
         tabs.addClassName("user-view-tabs");
 
-        tabs.addSelectedChangeListener(event -> {
-            boolean isProfile = event.getSelectedTab() == profileTab;
-            card.setVisible(isProfile);
-            activityContent.setVisible(!isProfile);
-            if (!isProfile && activityContent.getChildren().findFirst().isEmpty()) {
-                activityContent.add(buildActivityContent(user));
-            }
-        });
+        Div layoutContent;
+
+        if (auditEnabled) {
+            Div activityContent = new Div();
+            activityContent.addClassName("user-activity-content");
+            activityContent.setVisible(false);
+
+            Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
+            tabs.add(activityTab);
+
+            tabs.addSelectedChangeListener(event -> {
+                boolean isProfile = event.getSelectedTab() == profileTab;
+                card.setVisible(isProfile);
+                activityContent.setVisible(!isProfile);
+                if (!isProfile && activityContent.getChildren().findFirst().isEmpty()) {
+                    activityContent.add(buildActivityContent(user));
+                }
+            });
+
+            layoutContent = new Div(tabs, card, activityContent);
+        } else {
+            layoutContent = new Div(tabs, card);
+        }
 
         UiPrimaryButton editButton = editButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
@@ -139,7 +152,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(user));
 
-        layout.setContent(new Div(tabs, card, activityContent));
+        layout.setContent(layoutContent);
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
