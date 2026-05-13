@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.config.CleanupProperties;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepositoryCustom;
-import org.ost.advertisement.repository.audit.AuditLogRepository;
+import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 @Slf4j

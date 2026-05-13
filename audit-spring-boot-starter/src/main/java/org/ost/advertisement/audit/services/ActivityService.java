@@ -1,17 +1,15 @@
-package org.ost.advertisement.services.audit;
+package org.ost.advertisement.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.repository.ActivityRepository;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.spi.UserActivityExtension;
-import org.ost.advertisement.repository.activity.ActivityRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-@Service
 @RequiredArgsConstructor
 public class ActivityService {
 

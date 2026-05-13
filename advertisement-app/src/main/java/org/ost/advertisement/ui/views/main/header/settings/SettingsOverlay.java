@@ -28,7 +28,7 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.views.components.activity.ProfileActivityPanel;
+import org.ost.advertisement.audit.ui.ProfileActivityPanel;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 
@@ -181,8 +181,10 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private Div buildActivityContent(Long userId) {
+        UserSettings current = settingsService.load(userId);
         return activityContentBuilderProvider.getObject()
-                .build(currentUser, null, this::showSettingsRestoreConfirm);
+                .build(currentUser.getId(), currentUser.getName(), currentUser.getRole(),
+                       current, null, this::showSettingsRestoreConfirm);
     }
 
     private void showSettingsRestoreConfirm(UserSettings target) {

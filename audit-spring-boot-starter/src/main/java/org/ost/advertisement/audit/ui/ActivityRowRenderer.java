@@ -1,7 +1,8 @@
-package org.ost.advertisement.ui.views.components.activity;
+package org.ost.advertisement.audit.ui;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -10,25 +11,26 @@ import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
-import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.ost.advertisement.common.I18nKey.*;
+import java.util.Locale;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ActivityRowRenderer implements I18nParams {
+public class ActivityRowRenderer implements AuditI18nSupport {
 
-    @Getter private final I18nService                                    i18nService;
-    private final        ActivityPanel                                    activityUiUtil;
-    private final        ObjectProvider<AdvertisementHistoryExtension>    historyExtensionProvider;
+    @Getter private final MessageSource                                  messageSource;
+    private final        ActivityPanel                                   activityPanel;
+    private final        ObjectProvider<AdvertisementHistoryExtension>   historyExtensionProvider;
 
     public static boolean isSettingChange(ActivityItemDto item) {
         return "USER_SETTINGS".equals(item.entityType())
@@ -56,11 +58,11 @@ public class ActivityRowRenderer implements I18nParams {
                 ? (item.changedByName() != null ? item.changedByName() : item.displayName())
                 : (item.entityExists()
                         ? item.displayName()
-                        : item.displayName() + " " + getValue(ACTIVITY_ENTITY_DELETED));
+                        : item.displayName() + " " + msg(AuditKeys.ACTIVITY_ENTITY_DELETED));
         Span name = new Span(nameText);
         name.addClassName("user-activity-name");
 
-        Span time = new Span(TimeZoneUtil.formatInstantHuman(item.createdAt()));
+        Span time = new Span(formatInstantHuman(item.createdAt()));
         time.addClassName("user-activity-time");
 
         row.add(action, type, name, time);
@@ -70,7 +72,7 @@ public class ActivityRowRenderer implements I18nParams {
 
         if (settingChange) {
             if (item.snapshotId() == null || item.snapshotId() <= 0) {
-                row.add(activityUiUtil.buildChangesList(item.changes(), "user-activity-changes"));
+                row.add(activityPanel.buildChangesList(item.changes(), "user-activity-changes"));
             }
         } else if ("ADVERTISEMENT".equals(item.entityType())) {
             row.add(buildAdvFieldsList(item));
@@ -100,17 +102,17 @@ public class ActivityRowRenderer implements I18nParams {
         }
 
         if (titleChange != null) {
-            addActivitySpan(container, activityUiUtil.format(titleChange), false);
+            addActivitySpan(container, activityPanel.format(titleChange), false);
         } else if (item.snapshotTitle() != null) {
-            addActivitySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
+            addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
         }
 
         if (descChange != null) {
-            addActivitySpan(container, activityUiUtil.format(descChange), false);
+            addActivitySpan(container, activityPanel.format(descChange), false);
         } else if (item.snapshotDescription() != null) {
             String desc = item.snapshotDescription().length() > 60
                     ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
-            addActivitySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+            addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
         if (photoChanges.isEmpty() && item.snapshotId() != null) {
@@ -119,11 +121,11 @@ public class ActivityRowRenderer implements I18nParams {
                     ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId())
                     : null;
             String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addActivitySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
+            addActivitySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
         } else {
-            for (ChangeEntry pc : photoChanges) addActivitySpan(container, activityUiUtil.format(pc), false);
+            for (ChangeEntry pc : photoChanges) addActivitySpan(container, activityPanel.format(pc), false);
         }
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
 
         return container;
     }
@@ -147,24 +149,24 @@ public class ActivityRowRenderer implements I18nParams {
         }
 
         if (nameChange != null) {
-            addActivitySpan(container, activityUiUtil.format(nameChange), false);
+            addActivitySpan(container, activityPanel.format(nameChange), false);
         } else if (item.displayName() != null) {
-            addActivitySpan(container, i18nService.get("changes.field.name") + ": " + item.displayName(), true);
+            addActivitySpan(container, msg("changes.field.name") + ": " + item.displayName(), true);
         }
 
         if (emailChange != null) {
-            addActivitySpan(container, activityUiUtil.format(emailChange), false);
+            addActivitySpan(container, activityPanel.format(emailChange), false);
         } else if (item.snapshotEmail() != null) {
-            addActivitySpan(container, i18nService.get("changes.field.email") + ": " + item.snapshotEmail(), true);
+            addActivitySpan(container, msg("changes.field.email") + ": " + item.snapshotEmail(), true);
         }
 
         if (roleChange != null) {
-            addActivitySpan(container, activityUiUtil.format(roleChange), false);
+            addActivitySpan(container, activityPanel.format(roleChange), false);
         } else if (item.snapshotRole() != null) {
-            addActivitySpan(container, i18nService.get("changes.field.role") + ": " + item.snapshotRole(), true);
+            addActivitySpan(container, msg("changes.field.role") + ": " + item.snapshotRole(), true);
         }
 
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
 
         return container;
     }
@@ -186,18 +188,18 @@ public class ActivityRowRenderer implements I18nParams {
         }
 
         if (adsChange != null) {
-            addActivitySpan(container, activityUiUtil.format(adsChange), false);
+            addActivitySpan(container, activityPanel.format(adsChange), false);
         } else {
-            addActivitySpan(container, i18nService.get("changes.setting.adsPageSize") + ": " + snapSettings.getAdsPageSize(), true);
+            addActivitySpan(container, msg("changes.setting.adsPageSize") + ": " + snapSettings.getAdsPageSize(), true);
         }
 
         if (usersChange != null) {
-            addActivitySpan(container, activityUiUtil.format(usersChange), false);
+            addActivitySpan(container, activityPanel.format(usersChange), false);
         } else {
-            addActivitySpan(container, i18nService.get("changes.setting.usersPageSize") + ": " + snapSettings.getUsersPageSize(), true);
+            addActivitySpan(container, msg("changes.setting.usersPageSize") + ": " + snapSettings.getUsersPageSize(), true);
         }
 
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityUiUtil.format(oc), false);
+        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
 
         return container;
     }
@@ -221,29 +223,40 @@ public class ActivityRowRenderer implements I18nParams {
         }
 
         if (titleChange != null) {
-            addHistorySpan(container, activityUiUtil.format(titleChange), false);
+            addHistorySpan(container, activityPanel.format(titleChange), false);
         } else if (h.title() != null) {
-            addHistorySpan(container, getValue(CHANGES_FIELD_TITLE) + ": " + h.title(), true);
+            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
         }
 
         if (descChange != null) {
-            addHistorySpan(container, activityUiUtil.format(descChange), false);
+            addHistorySpan(container, activityPanel.format(descChange), false);
         } else if (h.description() != null) {
             String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
-            addHistorySpan(container, getValue(CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
         if (photoChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(adId, h.version()) : null;
             String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, getValue(CHANGES_PHOTOS) + ": " + photoText, true);
+            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
         } else {
-            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityUiUtil.format(pc), false);
+            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityPanel.format(pc), false);
         }
-        for (ChangeEntry oc : otherChanges) addHistorySpan(container, activityUiUtil.format(oc), false);
+        for (ChangeEntry oc : otherChanges) addHistorySpan(container, activityPanel.format(oc), false);
 
         return container;
+    }
+
+    // Inlined from TimeZoneUtil — intentional copy; TimeZoneUtil stays in advertisement-app.
+    private static String formatInstantHuman(Instant instant) {
+        if (instant == null) return "N/A";
+        VaadinSession session = VaadinSession.getCurrent();
+        String tzId = session != null ? (String) session.getAttribute("clientTimeZoneId") : null;
+        ZoneId zone = (tzId != null) ? ZoneId.of(tzId) : ZoneId.systemDefault();
+        Locale locale = (session != null && session.getLocale() != null) ? session.getLocale() : Locale.getDefault();
+        return LocalDateTime.ofInstant(instant, zone)
+                .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm").withLocale(locale));
     }
 
     private void addHistorySpan(Div container, String text, boolean unchanged) {

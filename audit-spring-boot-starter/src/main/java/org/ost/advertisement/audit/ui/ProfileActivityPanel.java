@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.components.activity;
+package org.ost.advertisement.audit.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -7,48 +7,44 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.services.ActivityService;
+import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.dto.UserSettings;
-import org.ost.advertisement.entities.User;
+import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
-import org.ost.advertisement.services.audit.ActivityService;
-import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.user.UserSettingsService;
-import org.ost.advertisement.services.audit.AuditQueryService;
-import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 import java.util.function.Consumer;
 
-import static org.ost.advertisement.common.I18nKey.*;
-
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ProfileActivityPanel implements I18nParams {
+public class ProfileActivityPanel implements AuditI18nSupport {
 
-    @Getter private final I18nService                            i18nService;
-    private final        ActivityService                         activityService;
-    private final        AuditQueryService                       auditQueryService;
-    private final        UserSettingsService                     userSettingsService;
-    private final        ObjectProvider<ActivityRowRenderer>     rendererProvider;
+    @Getter private final MessageSource                         messageSource;
+    private final        ActivityService                        activityService;
+    private final        AuditQueryService                      auditQueryService;
+    private final        ObjectProvider<ActivityRowRenderer>    rendererProvider;
 
-    public Div build(User user, Consumer<Long> onRestoreUser, Consumer<UserSettings> onRestoreSettings) {
-        Long userId = user.getId();
+    public Div build(Long userId, String userName, Role userRole,
+                     UserSettings currentSettings,
+                     Consumer<Long> onRestoreUser,
+                     Consumer<UserSettings> onRestoreSettings) {
         List<ActivityItemDto> items = activityService.getForUser(userId);
         Div container = new Div();
         container.addClassName("user-activity-list");
 
         if (items.isEmpty()) {
-            Span empty = new Span(getValue(ACTIVITY_EMPTY));
+            Span empty = new Span(msg(AuditKeys.ACTIVITY_EMPTY));
             empty.addClassName("user-activity-empty");
             container.add(empty);
             return container;
         }
 
-        UserSettings currentSettings = userSettingsService.load(userId);
         ActivityRowRenderer renderer = rendererProvider.getObject();
 
         for (ActivityItemDto item : items) {
@@ -62,18 +58,18 @@ public class ProfileActivityPanel implements I18nParams {
                     if (matchesCurrent) {
                         row.add(currentBadge());
                     } else if (onRestoreSettings != null) {
-                        row.add(restoreBtn(getValue(SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
+                        row.add(restoreBtn(msg(AuditKeys.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
                     }
                 });
             } else if ("USER".equals(item.entityType()) && item.snapshotId() != null && item.snapshotId() > 0
                     && (item.actionType() != ActionType.CREATED || items.size() > 1)) {
                 boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
-                        .map(state -> state.name().equals(user.getName()) && state.role() == user.getRole())
+                        .map(state -> state.name().equals(userName) && state.role() == userRole)
                         .orElse(false);
                 if (matchesCurrent) {
                     row.add(currentBadge());
                 } else if (onRestoreUser != null) {
-                    row.add(restoreBtn(getValue(USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
+                    row.add(restoreBtn(msg(AuditKeys.USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
                 }
             }
 
@@ -83,7 +79,7 @@ public class ProfileActivityPanel implements I18nParams {
     }
 
     private Span currentBadge() {
-        Span badge = new Span(getValue(USER_ACTIVITY_CURRENT_STATE));
+        Span badge = new Span(msg(AuditKeys.USER_ACTIVITY_CURRENT_STATE));
         badge.addClassName("user-activity-current-badge");
         return badge;
     }

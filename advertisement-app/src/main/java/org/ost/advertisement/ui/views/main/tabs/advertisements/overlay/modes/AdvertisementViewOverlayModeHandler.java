@@ -18,7 +18,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.services.audit.AuditHistoryService;
+import org.ost.advertisement.audit.services.AuditHistoryService;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
@@ -30,7 +30,7 @@ import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.components.activity.ActivityRowRenderer;
+import org.ost.advertisement.audit.ui.ActivityRowRenderer;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;

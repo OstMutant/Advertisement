@@ -15,7 +15,7 @@ import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.audit.AdvertisementSnapshot;
-import org.ost.advertisement.services.audit.AuditQueryService;
+import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;

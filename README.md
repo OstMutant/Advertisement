@@ -41,6 +41,21 @@ declaratively and kept strongly typed.
 
 ---
 
+## Module Layout
+
+```
+advertisement-parent
+├── sql-engine                      — framework-agnostic SQL query-building library
+├── advertisement-contracts         — shared kernel: DTOs, domain events, SPI interfaces
+├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
+├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation
+└── advertisement-app               — Vaadin application (depends on all modules above)
+```
+
+Significant architectural decisions for each module are recorded in per-module `DECISIONS.md` files.
+
+---
+
 ## Key Technical Decisions
 
 | Decision | Reason |
@@ -50,6 +65,7 @@ declaratively and kept strongly typed.
 | Immutable entities (`@Value` + `@Builder`) | Predictable state, no accidental mutation |
 | Enum-based i18n keys | Compile-time safety for localization strings |
 | Rule-oriented validation | Validation logic isolated from UI and service layers |
+| SPI extension pattern | Starters extend app behaviour without knowing each other |
 
 ---
 
@@ -128,6 +144,24 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-co
 
 ---
 
+## Database Scripts
+
+All database scripts live in `database/`:
+
+| File | Purpose |
+|---|---|
+| `database/seed.sql` | 50 dev users (USER / MODERATOR / ADMIN) + advertisements. Loaded automatically by Liquibase on first `dev` profile startup. |
+| `database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
+| `database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
+
+To reset the database before running Playwright tests:
+
+```bash
+bash database/reset.sh
+```
+
+---
+
 ## Environment Variables
 
 Key variables used by the application.
@@ -171,9 +205,8 @@ Actively evolving. Architectural decisions may be revisited, implementations rep
 Planned directions:
 - Extend rule-based validation capabilities
 - Improve composability of the generic filtering layer
-- Add architectural decision records (ADR)
 - Introduce integration and contract tests
-- Explore alternative API adapters
+- Explore alternative API adapters (REST)
 
 ---
 

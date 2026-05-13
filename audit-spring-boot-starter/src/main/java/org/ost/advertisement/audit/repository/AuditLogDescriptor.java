@@ -27,7 +27,7 @@ public final class AuditLogDescriptor {
         public static final String ACTION_TYPE        = AuditLogDescriptor.ACTION_TYPE.columnName();
         public static final String SNAPSHOT_DATA      = "snapshot_data";
         public static final String CHANGES_SUMMARY    = "changes_summary";
-        public static final String CHANGED_BY_USER_ID = "changed_by_user_id";
+        public static final String ACTOR_ID           = "actor_id";
     }
 
     private AuditLogDescriptor() {}

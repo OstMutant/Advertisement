@@ -2,7 +2,7 @@
 # Resets the local database to a clean state with minimal seed data.
 # Run before Playwright smoke tests when you want a fresh start.
 #
-# Usage: bash db/reset-db.sh
+# Usage: bash database/reset.sh
 set -euo pipefail
 
 DB_HOST="${DB_HOST:-localhost}"

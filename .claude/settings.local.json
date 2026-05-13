@@ -74,7 +74,12 @@
       "Bash(./mvnw *)",
       "Bash(xargs find *)",
       "Bash(echo \"sql-engine: $\\(find /app/sql-engine/src/main/java -name \"*.java\")",
-      "Bash(echo \"sql-engine tests: $\\(find /app/sql-engine/src/test/java -name \"*.java\")"
+      "Bash(echo \"sql-engine tests: $\\(find /app/sql-engine/src/test/java -name \"*.java\")",
+      "Read(//app/**)",
+      "Bash(grep -v \"\\\\$\")",
+      "Bash(jar tf *)",
+      "Bash(xargs '-I{}' sh -c 'result=$\\(jar tf {} 2>/dev/null | grep -i \"liquibase\" | head -3\\); if [ -n \"$result\" ]; then echo \"=== {} ===\"; echo \"$result\"; fi')",
+      "Bash(jar xf *)"
     ]
   },
   "hooks": {

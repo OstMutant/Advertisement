@@ -23,7 +23,8 @@ import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.rules.Configurable;
 import org.ost.advertisement.ui.views.rules.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.components.activity.ProfileActivityPanel;
+import org.ost.advertisement.audit.ui.ProfileActivityPanel;
+import org.ost.advertisement.services.user.UserSettingsService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -57,6 +58,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final AccessEvaluator                            access;
     @Getter
     private final I18nService                                i18nService;
+    private final UserSettingsService                        userSettingsService;
     private final UiLabeledField.Builder                     labeledFieldBuilder;
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
@@ -158,7 +160,9 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
 
     private Div buildActivityContent(User user) {
         return activityContentBuilderProvider.getObject()
-                .build(user, params.getOnRestoreUser(), null);
+                .build(user.getId(), user.getName(), user.getRole(),
+                       userSettingsService.load(user.getId()),
+                       params.getOnRestoreUser(), null);
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {

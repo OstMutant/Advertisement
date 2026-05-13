@@ -1,19 +1,21 @@
-package org.ost.advertisement.ui.views.components.activity;
+package org.ost.advertisement.audit.ui;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.advertisement.services.I18nService;
+import org.springframework.context.MessageSource;
 
 import java.util.List;
 
 @SpringComponent
 @RequiredArgsConstructor
-public class ActivityPanel {
+public class ActivityPanel implements AuditI18nSupport {
 
-    private final I18nService i18n;
+    @Getter
+    private final MessageSource messageSource;
 
     public static Span buildEditorBadge(Long changedByUserId, String changedByName, Long viewerUserId) {
         if (changedByUserId == null || changedByUserId == 0 || changedByUserId.equals(viewerUserId)) {
@@ -42,19 +44,19 @@ public class ActivityPanel {
     public String format(ChangeEntry entry) {
         return switch (entry) {
             case ChangeEntry.FieldChange f -> {
-                String label = i18n.get("changes.field." + f.field());
+                String label = msg("changes.field." + f.field());
                 if (f.from() == null || f.from().isBlank()) {
                     yield label + ": \"" + f.to() + "\"";
                 }
                 yield label + ": \"" + f.from() + "\" → \"" + f.to() + "\"";
             }
             case ChangeEntry.SettingChange s -> {
-                String label = i18n.get("changes.setting." + s.key());
+                String label = msg("changes.setting." + s.key());
                 yield label + ": " + s.from() + " → " + s.to();
             }
             case ChangeEntry.NoteEntry n -> n.text();
             case ChangeEntry.GenericChange g -> {
-                String label = i18n.get(g.labelI18nKey());
+                String label = msg(g.labelI18nKey());
                 if (g.before() == null || g.before().isBlank()) {
                     yield label + ": \"" + g.after() + "\"";
                 }

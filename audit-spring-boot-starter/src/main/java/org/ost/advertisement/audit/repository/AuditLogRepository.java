@@ -17,9 +17,9 @@ public class AuditLogRepository {
                    AuditLogDescriptor.Write.ACTION_TYPE + ", " +
                    AuditLogDescriptor.Write.SNAPSHOT_DATA + ", " +
                    AuditLogDescriptor.Write.CHANGES_SUMMARY + ", " +
-                   AuditLogDescriptor.Write.CHANGED_BY_USER_ID + ")" +
+                   AuditLogDescriptor.Write.ACTOR_ID + ")" +
             " VALUES (:entityType, :entityId, :actionType," +
-            " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :changedBy)"
+            " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)"
     );
 
     private static final SqlWriteCommand UPDATE_CHANGES_SUMMARY = SqlWriteCommand.of(
@@ -38,7 +38,7 @@ public class AuditLogRepository {
     }
 
     public void insert(String entityType, Long entityId, String actionType,
-                       String snapshotData, String changesSummary, Long changedBy) {
+                       String snapshotData, String changesSummary, Long actorId) {
         INSERT.execute(jdbcClient,
                 new MapSqlParameterSource()
                         .addValue("entityType",   entityType)
@@ -46,7 +46,7 @@ public class AuditLogRepository {
                         .addValue("actionType",   actionType)
                         .addValue("snapshotData", snapshotData)
                         .addValue("changes",      changesSummary)
-                        .addValue("changedBy",    changedBy));
+                        .addValue("actorId",      actorId));
     }
 
     public Optional<String> getSnapshotData(Long snapshotId, String entityType) {

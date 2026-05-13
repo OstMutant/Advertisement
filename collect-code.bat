@@ -73,6 +73,9 @@ call :CheckRootFile "docker-compose.db.yml"
 call :CheckRootFile "docker-compose.minio.yml"
 call :CheckRootFile "collect-code.bat"
 call :CheckRootFile "lombok.config"
+call :CheckRootFile "database\seed.sql"
+call :CheckRootFile "database\reset.sql"
+call :CheckRootFile "database\reset.sh"
 
 :: Clean up the temporary file
 del "%FILE_LIST%"

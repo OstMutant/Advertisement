@@ -103,7 +103,7 @@
     </changeSet>
 
     <changeSet id="02-test-data" author="ostap" context="dev">
-        <sqlFile path="test-data.sql" relativeToChangelogFile="true"/>
+        <sqlFile path="seed.sql" relativeToChangelogFile="false"/>
     </changeSet>
 
 </databaseChangeLog>

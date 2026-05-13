@@ -13,7 +13,7 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.services.audit.AuditQueryService;
+import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.services.audit.SettingsSnapshot;
 import org.ost.advertisement.services.audit.UserSnapshot;
 import org.ost.advertisement.services.auth.AuthContextService;

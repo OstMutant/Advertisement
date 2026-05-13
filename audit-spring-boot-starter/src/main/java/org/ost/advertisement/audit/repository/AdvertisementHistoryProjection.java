@@ -1,4 +1,4 @@
-package org.ost.advertisement.repository.audit;
+package org.ost.advertisement.audit.repository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +29,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
                        snapshot_data->>'description'      AS description,
                        action_type,
                        changes_summary::text              AS changes_summary,
-                       changed_by_user_id,
+                       actor_id,
                        created_at
                 FROM audit_log
                 WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId
@@ -39,23 +39,23 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
                    n.created_at, n.title, n.description, n.changes_summary,
                    n.prev_id, n.prev_title, n.prev_description
             FROM numbered n
-            LEFT JOIN user_information u ON u.id = n.changed_by_user_id
-            WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.changed_by_user_id = :filterUserId
+            LEFT JOIN user_information u ON u.id = n.actor_id
+            WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.actor_id = :filterUserId
             ORDER BY n.version DESC
             LIMIT 100
             """;
 
-    static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",                         "id");
-    static final SqlSelectField<Integer> VERSION          = intVal("n.version",                "version");
-    static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",               "action_type");
-    static final SqlSelectField<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",        "changed_by_name");
-    static final SqlSelectField<Instant> CREATED_AT       = instant("n.created_at",            "created_at");
-    static final SqlSelectField<String>  TITLE            = str("n.title",                     "title");
-    static final SqlSelectField<String>  DESCRIPTION      = str("n.description",               "description");
-    static final SqlSelectField<String>  CHANGES_SUMMARY  = str("n.changes_summary",           "changes_summary");
-    static final SqlSelectField<Long>    PREV_ID          = longVal("n.prev_id",               "prev_id");
-    static final SqlSelectField<String>  PREV_TITLE       = str("n.prev_title",                "prev_title");
-    static final SqlSelectField<String>  PREV_DESCRIPTION = str("n.prev_description",          "prev_description");
+    static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",              "id");
+    static final SqlSelectField<Integer> VERSION          = intVal("n.version",           "version");
+    static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",         "action_type");
+    static final SqlSelectField<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",  "changed_by_name");
+    static final SqlSelectField<Instant> CREATED_AT       = instant("n.created_at",      "created_at");
+    static final SqlSelectField<String>  TITLE            = str("n.title",                "title");
+    static final SqlSelectField<String>  DESCRIPTION      = str("n.description",          "description");
+    static final SqlSelectField<String>  CHANGES_SUMMARY  = str("n.changes_summary",     "changes_summary");
+    static final SqlSelectField<Long>    PREV_ID          = longVal("n.prev_id",         "prev_id");
+    static final SqlSelectField<String>  PREV_TITLE       = str("n.prev_title",          "prev_title");
+    static final SqlSelectField<String>  PREV_DESCRIPTION = str("n.prev_description",    "prev_description");
 
     private final ObjectMapper objectMapper;
 

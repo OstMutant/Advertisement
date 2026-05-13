@@ -14,7 +14,7 @@
 
     <artifactId>audit-spring-boot-starter</artifactId>
     <name>Audit Spring Boot Starter</name>
-    <description>Audit subsystem — captures entity changes, diffs snapshots, stores audit_log</description>
+    <description>Audit module — captures entity changes, diffs snapshots, stores audit_log; read side with activity feed and history UI</description>
 
     <dependencies>
         <dependency>
@@ -40,6 +40,11 @@
         </dependency>
 
         <dependency>
+            <groupId>com.vaadin</groupId>
+            <artifactId>vaadin-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
@@ -47,6 +52,13 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>${jetbrains-annotations.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 

@@ -22,6 +22,16 @@
 
 ---
 
+## 2026-05-13 — S3 storage implementation merged into this module
+
+**Decision:** `S3StorageService` and `NoOpStorageService` (formerly in `storage-s3-spring-boot-starter`) were merged into `attachment-spring-boot-starter`. Their beans are now registered in `AttachmentAutoConfiguration`. The `storage-s3-spring-boot-starter` module was deleted.
+
+**Why:** Storage only exists to serve attachments. There is no realistic scenario where storage runs without the attachment module or vice versa. Two modules with a mandatory one-way dependency added complexity with no benefit.
+
+**Rejected:** Keeping `storage-s3-spring-boot-starter` as a separate module — the only theoretical benefit was "S3 storage without attachment logic", which has no concrete use case in this project.
+
+---
+
 ## 2026-05-13 — IFrame sandbox attribute on all video embeds
 
 **Decision:** All `IFrame` components for video embedding in `AttachmentGallery` and `CardPhotoLightbox` carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.

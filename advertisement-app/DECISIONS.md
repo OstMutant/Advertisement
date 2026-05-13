@@ -52,9 +52,11 @@
 
 ## Ongoing — Modular storage: contract vs implementation
 
-**Decision:** `storage-api` defines the contract; `storage-s3-spring-boot-starter` is the S3 implementation. UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `storage.s3.enabled=false`.
+**Decision:** `StorageService` interface lives in `advertisement-contracts`. `S3StorageService` and `NoOpStorageService` implementations live in `attachment-spring-boot-starter` (merged from the former `storage-s3-spring-boot-starter` on 2026-05-13). UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `storage.s3.enabled=false`.
 
-**Why:** Allows running the app locally without S3. The contract/implementation split keeps domain logic independent of infrastructure.
+**Why:** Allows running the app locally without S3. The contract/implementation split keeps domain logic independent of infrastructure. Storage was merged into `attachment-spring-boot-starter` because storage only exists to serve attachments — there is no use case for storage without attachments.
+
+**Rejected:** Keeping `storage-s3-spring-boot-starter` as a separate module — two modules with a mandatory one-way dependency and no realistic decoupling scenario.
 
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
@@ -63,4 +65,4 @@
 
 **Why:** Symmetry with `attachment-spring-boot-starter`. Audit is infrastructure, not domain. Enables deploying audit-free variants by setting `audit.enabled=false`. `AuditableSnapshot` marker interface eliminates stringly-typed entity-type strings. `NoOpAuditPort` is the fallback when `audit.enabled=false`, wiring never fails.
 
-**Rejected:** Moving `AuditHistoryService` / `AuditQueryService` to the starter — they contain domain JOINs against `advertisements`, `users` tables, which the starter must not know about (module boundary violation).
+**Update 2026-05-13:** `AuditHistoryService`, `AuditQueryService`, `ActivityService`, and all Vaadin audit UI components were subsequently moved to `audit-spring-boot-starter` when `audit-read-spring-boot-starter` was merged in. The concern about domain JOINs against `advertisements`/`users` tables is accepted as pragmatic coupling — the starter is already Vaadin-scoped (app-level), so SQL coupling to app tables is acceptable.
