@@ -36,7 +36,7 @@ public class CardPhotoLightbox {
                 "gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
         iframe.getElement().setAttribute("sandbox",
-                "allow-scripts allow-same-origin allow-presentation allow-forms");
+                "allow-scripts allow-same-origin allow-presentation");
         iframe.setVisible(false);
 
         Button prev = new Button(VaadinIcon.ANGLE_LEFT.create());

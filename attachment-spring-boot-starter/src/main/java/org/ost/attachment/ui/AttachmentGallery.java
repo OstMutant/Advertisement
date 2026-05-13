@@ -318,7 +318,7 @@ public class AttachmentGallery extends Div {
                     "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
             iframe.getElement().setAttribute("allowfullscreen", "true");
             iframe.getElement().setAttribute("sandbox",
-                    "allow-scripts allow-same-origin allow-presentation allow-forms");
+                    "allow-scripts allow-same-origin allow-presentation");
             iframe.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
             overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
             overlay.add(closeBtn, iframe);
