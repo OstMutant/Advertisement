@@ -7,9 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 @Service
@@ -17,18 +15,6 @@ import java.util.Objects;
 public class AuditDiffEngine {
 
     private final AuditFieldCache fieldCache;
-
-    public Map<String, Object> toSnapshotMap(Object snapshot) {
-        Map<String, Object> map = new LinkedHashMap<>();
-        for (Field f : fieldCache.getAuditedFields(snapshot.getClass())) {
-            try {
-                map.put(f.getName(), f.get(snapshot));
-            } catch (IllegalAccessException e) {
-                map.put(f.getName(), null);
-            }
-        }
-        return map;
-    }
 
     public List<ChangeEntry> diff(Object before, Object after) {
         List<Field> fields = fieldCache.getAuditedFields(after.getClass());
