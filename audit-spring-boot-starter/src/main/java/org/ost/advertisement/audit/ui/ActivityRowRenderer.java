@@ -1,5 +1,6 @@
 package org.ost.advertisement.audit.ui;
 
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.server.VaadinSession;
@@ -24,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+@CssImport("./adv-history.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

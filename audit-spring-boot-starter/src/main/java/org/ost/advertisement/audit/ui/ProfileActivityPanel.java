@@ -2,6 +2,7 @@ package org.ost.advertisement.audit.ui;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -21,6 +22,7 @@ import org.springframework.context.annotation.Scope;
 import java.util.List;
 import java.util.function.Consumer;
 
+@CssImport("./user-activity.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
