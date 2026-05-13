@@ -22,3 +22,10 @@ storage:
 # Vaadin framework settings
 vaadin:
   productionMode: true
+
+# Expose only health endpoint in production (load balancer probe)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

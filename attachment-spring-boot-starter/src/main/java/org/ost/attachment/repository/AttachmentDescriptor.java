@@ -1,7 +1,7 @@
 package org.ost.attachment.repository;
 
 import org.jetbrains.annotations.NotNull;
-import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.entities.Attachment;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlEntityProjection;
 

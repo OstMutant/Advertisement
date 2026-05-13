@@ -71,7 +71,10 @@
       "Bash(lsof *)",
       "Bash(xargs -I{} jar tf {})",
       "Bash(curl *)",
-      "Bash(./mvnw *)"
+      "Bash(./mvnw *)",
+      "Bash(xargs find *)",
+      "Bash(echo \"sql-engine: $\\(find /app/sql-engine/src/main/java -name \"*.java\")",
+      "Bash(echo \"sql-engine tests: $\\(find /app/sql-engine/src/test/java -name \"*.java\")"
     ]
   },
   "hooks": {

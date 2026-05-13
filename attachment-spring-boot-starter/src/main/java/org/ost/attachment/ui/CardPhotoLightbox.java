@@ -10,8 +10,8 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import org.ost.attachment.entity.Attachment;
-import org.ost.attachment.entity.MediaContentType;
+import org.ost.attachment.entities.Attachment;
+import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 

@@ -1,4 +1,4 @@
-package org.ost.attachment.entity;
+package org.ost.attachment.entities;
 
 public enum MediaContentType {
     YOUTUBE("video/youtube"),

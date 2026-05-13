@@ -1,7 +1,7 @@
 package org.ost.attachment.repository;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.entities.Attachment;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

@@ -2,7 +2,7 @@ package org.ost.attachment.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
