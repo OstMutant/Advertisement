@@ -8,11 +8,9 @@ COPY .mvn .mvn
 # Copy module POMs to leverage Docker cache for dependencies
 COPY sql-engine/pom.xml sql-engine/
 COPY advertisement-contracts/pom.xml advertisement-contracts/
-COPY audit-core-spring-boot-starter/pom.xml audit-core-spring-boot-starter/
-COPY audit-read-spring-boot-starter/pom.xml audit-read-spring-boot-starter/
+COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
 COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
 COPY advertisement-app/pom.xml advertisement-app/
-COPY storage-s3-spring-boot-starter/pom.xml storage-s3-spring-boot-starter/
 
 # Download dependencies (this layer is cached until pom.xml changes)
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw
@@ -21,11 +19,9 @@ RUN ./mvnw dependency:go-offline -q
 # Copy the source code for all modules
 COPY sql-engine/src ./sql-engine/src
 COPY advertisement-contracts/src ./advertisement-contracts/src
-COPY audit-core-spring-boot-starter/src ./audit-core-spring-boot-starter/src
-COPY audit-read-spring-boot-starter/src ./audit-read-spring-boot-starter/src
+COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
 COPY advertisement-app/src ./advertisement-app/src
-COPY storage-s3-spring-boot-starter/src ./storage-s3-spring-boot-starter/src
 
 # Build the project (Vaadin production mode enabled via POM profile)
 RUN ./mvnw clean package -Pproduction -DskipTests -q
