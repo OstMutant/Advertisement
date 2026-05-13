@@ -16,6 +16,8 @@ import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.audit.services.DefaultAuditPort;
 import org.ost.advertisement.audit.services.NoOpAuditPort;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
+import org.ost.advertisement.events.spi.AuditActorNameResolver;
+import org.ost.advertisement.events.spi.AuditEntityExistenceChecker;
 import org.ost.advertisement.events.spi.UserActivityExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -87,8 +89,10 @@ public class AuditAutoConfiguration {
     AuditHistoryService auditHistoryService(
             AuditReadRepository auditReadRepository,
             AuditSnapshotMapper snapshotMapper,
-            ObjectProvider<AdvertisementHistoryExtension> historyExtension) {
-        return new AuditHistoryService(auditReadRepository, snapshotMapper, historyExtension);
+            ObjectProvider<AdvertisementHistoryExtension> historyExtension,
+            ObjectProvider<AuditActorNameResolver> actorNameResolver) {
+        return new AuditHistoryService(auditReadRepository, snapshotMapper,
+                                       historyExtension, actorNameResolver);
     }
 
     @Bean
@@ -103,7 +107,10 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(ActivityService.class)
     ActivityService activityService(
             ActivityRepository activityRepository,
-            ObjectProvider<UserActivityExtension> activityExtension) {
-        return new ActivityService(activityRepository, activityExtension);
+            ObjectProvider<UserActivityExtension> activityExtension,
+            ObjectProvider<AuditActorNameResolver> actorNameResolver,
+            ObjectProvider<AuditEntityExistenceChecker> existenceChecker) {
+        return new ActivityService(activityRepository, activityExtension,
+                                   actorNameResolver, existenceChecker);
     }
 }

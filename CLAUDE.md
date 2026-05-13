@@ -23,18 +23,18 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 advertisement-parent (root pom)
 ├── sql-engine                       — framework-agnostic SQL query-building library
 ├── advertisement-contracts          — shared kernel: DTOs, domain events, SPI interfaces
-├── attachment-spring-boot-starter   — photo/attachment module (auto-configured starter)
-├── storage-s3-spring-boot-starter   — S3 storage implementation (auto-configured starter)
+├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
+├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
 └── advertisement-app                — main Vaadin application
 ```
 
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
-**advertisement-contracts** defines the cross-module contracts: domain events (`AdvertisementCreatedEvent`, etc.), SPI interfaces (`StorageService`, `AdvertisementGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentCurrentUserProvider`), shared DTOs, and `@ConditionalOnStorageEnabled`.
+**advertisement-contracts** defines the cross-module contracts: domain events (`AdvertisementCreatedEvent`, etc.), SPI interfaces (`StorageService`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `AdvertisementGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentCurrentUserProvider`), shared DTOs, and `@ConditionalOnStorageEnabled`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), and `AttachmentCleanupJob`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`.
 
-**storage-s3-spring-boot-starter** auto-configures `S3StorageService` when `storage.s3.enabled=true` (or absent), and `NoOpStorageService` when `storage.s3.enabled=false`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), `AttachmentCleanupJob`, `S3StorageService`, and `NoOpStorageService`.
 
 ---
 
@@ -42,7 +42,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
-3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts`; `storage-s3-spring-boot-starter` is the implementation. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
+3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts`; `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 

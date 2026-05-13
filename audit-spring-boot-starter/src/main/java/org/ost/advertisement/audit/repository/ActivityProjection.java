@@ -18,48 +18,41 @@ import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
 public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
-    // EXISTS(SELECT 1 FROM advertisement ...) is a deliberate pragmatic coupling to the advertisement
-    // table. If ever extracted into a generic library, entityExists would need an SPI callback instead.
     private static final String QUERY = """
             WITH adv_act AS (
-                SELECT s.id                                                             AS snapshot_id,
-                       s.entity_id                                                      AS entity_id,
-                       'ADVERTISEMENT'                                                  AS entity_type,
-                       s.snapshot_data->>'title'                                        AS display_name,
+                SELECT s.id                            AS snapshot_id,
+                       s.entity_id                     AS entity_id,
+                       'ADVERTISEMENT'                 AS entity_type,
+                       s.snapshot_data->>'title'       AS display_name,
                        s.action_type,
                        s.created_at,
-                       EXISTS(SELECT 1 FROM advertisement a
-                              WHERE a.id = s.entity_id AND a.deleted_at IS NULL)        AS entity_exists,
-                       s.changes_summary::text                                          AS changes_summary,
+                       FALSE                           AS entity_exists,
+                       s.changes_summary::text         AS changes_summary,
                        s.actor_id,
-                       COALESCE(u.name, '—')                                            AS changed_by_name,
-                       s.snapshot_data->>'title'                                        AS snapshot_title,
-                       s.snapshot_data->>'description'                                  AS snapshot_description,
-                       NULL::text                                                       AS snapshot_email,   -- PostgreSQL cast; column absent for advertisement rows
-                       NULL::text                                                       AS snapshot_role     -- PostgreSQL cast; column absent for advertisement rows
+                       NULL::text                      AS changed_by_name,
+                       s.snapshot_data->>'title'       AS snapshot_title,
+                       s.snapshot_data->>'description' AS snapshot_description,
+                       NULL::text                      AS snapshot_email,
+                       NULL::text                      AS snapshot_role
                 FROM audit_log s
-                LEFT JOIN user_information u ON u.id = s.actor_id
                 WHERE s.entity_type = 'ADVERTISEMENT' AND s.actor_id = :userId
             ),
             user_act AS (
-                SELECT s.id                                                             AS snapshot_id,
-                       s.entity_id                                                      AS entity_id,
-                       s.entity_type                                                    AS entity_type,
-                       COALESCE(s.snapshot_data->>'name', ui2.name, '—')               AS display_name,
+                SELECT s.id                            AS snapshot_id,
+                       s.entity_id                     AS entity_id,
+                       s.entity_type                   AS entity_type,
+                       s.snapshot_data->>'name'        AS display_name,
                        s.action_type,
                        s.created_at,
-                       EXISTS(SELECT 1 FROM user_information u2
-                              WHERE u2.id = s.entity_id)                                AS entity_exists,
-                       s.changes_summary::text                                          AS changes_summary,
+                       FALSE                           AS entity_exists,
+                       s.changes_summary::text         AS changes_summary,
                        s.actor_id,
-                       COALESCE(u.name, '—')                                            AS changed_by_name,
-                       NULL::text                                                       AS snapshot_title,       -- PostgreSQL cast; column absent for user rows
-                       NULL::text                                                       AS snapshot_description, -- PostgreSQL cast; column absent for user rows
-                       s.snapshot_data->>'email'                                        AS snapshot_email,
-                       s.snapshot_data->>'role'                                         AS snapshot_role
+                       NULL::text                      AS changed_by_name,
+                       NULL::text                      AS snapshot_title,
+                       NULL::text                      AS snapshot_description,
+                       s.snapshot_data->>'email'       AS snapshot_email,
+                       s.snapshot_data->>'role'        AS snapshot_role
                 FROM audit_log s
-                LEFT JOIN user_information u   ON u.id   = s.actor_id
-                LEFT JOIN user_information ui2 ON ui2.id = s.entity_id
                 WHERE s.entity_type IN ('USER', 'USER_SETTINGS')
                   AND (s.actor_id = :userId OR s.entity_id = :userId)
             )
@@ -70,16 +63,16 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
             LIMIT 20
             """;
 
-    static final SqlSelectField<Long>    SNAPSHOT_ID     = longVal("s.id",               "snapshot_id");
-    static final SqlSelectField<Long>    ENTITY_ID       = longVal("s.entity_id",        "entity_id");
-    static final SqlSelectField<String>  ENTITY_TYPE     = str("s.entity_type",          "entity_type");
-    static final SqlSelectField<String>  DISPLAY_NAME    = str("display_name",           "display_name");
-    static final SqlSelectField<String>  ACTION_TYPE_STR = str("s.action_type",          "action_type");
-    static final SqlSelectField<Instant> CREATED_AT      = instant("s.created_at",       "created_at");
-    static final SqlSelectField<Boolean> ENTITY_EXISTS   = bool("entity_exists",         "entity_exists");
-    static final SqlSelectField<String>  CHANGES_SUMMARY = str("s.changes_summary",      "changes_summary");
-    static final SqlSelectField<Long>    ACTOR_ID        = longVal("s.actor_id",         "actor_id");
-    static final SqlSelectField<String>  CHANGED_BY_NAME = str("COALESCE(u.name,'—')",   "changed_by_name");
+    static final SqlSelectField<Long>    SNAPSHOT_ID     = longVal("s.id",          "snapshot_id");
+    static final SqlSelectField<Long>    ENTITY_ID       = longVal("s.entity_id",   "entity_id");
+    static final SqlSelectField<String>  ENTITY_TYPE     = str("s.entity_type",     "entity_type");
+    static final SqlSelectField<String>  DISPLAY_NAME    = str("display_name",      "display_name");
+    static final SqlSelectField<String>  ACTION_TYPE_STR = str("s.action_type",     "action_type");
+    static final SqlSelectField<Instant> CREATED_AT      = instant("s.created_at",  "created_at");
+    static final SqlSelectField<Boolean> ENTITY_EXISTS   = bool("entity_exists",    "entity_exists");
+    static final SqlSelectField<String>  CHANGES_SUMMARY = str("s.changes_summary", "changes_summary");
+    static final SqlSelectField<Long>    ACTOR_ID        = longVal("s.actor_id",    "actor_id");
+    static final SqlSelectField<String>  CHANGED_BY_NAME = str("changed_by_name",   "changed_by_name");
 
     private final ObjectMapper objectMapper;
 

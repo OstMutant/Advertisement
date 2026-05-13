@@ -35,21 +35,22 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
                 WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId
             )
             SELECT n.id, n.version::int, n.action_type,
-                   COALESCE(u.name, '—') AS changed_by_name,
+                   n.actor_id,
+                   NULL::text AS changed_by_name,
                    n.created_at, n.title, n.description, n.changes_summary,
                    n.prev_id, n.prev_title, n.prev_description
             FROM numbered n
-            LEFT JOIN user_information u ON u.id = n.actor_id
             WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.actor_id = :filterUserId
             ORDER BY n.version DESC
             LIMIT 100
             """;
 
-    static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",              "id");
-    static final SqlSelectField<Integer> VERSION          = intVal("n.version",           "version");
-    static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",         "action_type");
-    static final SqlSelectField<String>  CHANGED_BY_NAME  = str("COALESCE(u.name,'—')",  "changed_by_name");
-    static final SqlSelectField<Instant> CREATED_AT       = instant("n.created_at",      "created_at");
+    static final SqlSelectField<Long>    SNAPSHOT_ID      = longVal("n.id",          "id");
+    static final SqlSelectField<Integer> VERSION          = intVal("n.version",       "version");
+    static final SqlSelectField<String>  ACTION_TYPE_STR  = str("n.action_type",     "action_type");
+    static final SqlSelectField<Long>    ACTOR_ID         = longVal("n.actor_id",    "actor_id");
+    static final SqlSelectField<String>  CHANGED_BY_NAME  = str("changed_by_name",   "changed_by_name");
+    static final SqlSelectField<Instant> CREATED_AT       = instant("n.created_at",  "created_at");
     static final SqlSelectField<String>  TITLE            = str("n.title",                "title");
     static final SqlSelectField<String>  DESCRIPTION      = str("n.description",          "description");
     static final SqlSelectField<String>  CHANGES_SUMMARY  = str("n.changes_summary",     "changes_summary");
@@ -60,7 +61,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
     private final ObjectMapper objectMapper;
 
     public AdvertisementHistoryProjection(ObjectMapper objectMapper) {
-        super(List.of(SNAPSHOT_ID, VERSION, ACTION_TYPE_STR, CHANGED_BY_NAME, CREATED_AT,
+        super(List.of(SNAPSHOT_ID, VERSION, ACTION_TYPE_STR, ACTOR_ID, CHANGED_BY_NAME, CREATED_AT,
                       TITLE, DESCRIPTION, CHANGES_SUMMARY,
                       PREV_ID, PREV_TITLE, PREV_DESCRIPTION));
         this.objectMapper = objectMapper;
@@ -77,6 +78,7 @@ public class AdvertisementHistoryProjection extends SqlFixedQuery<AdvertisementH
                 SNAPSHOT_ID.extract(rs),
                 VERSION.extract(rs),
                 ActionType.valueOf(ACTION_TYPE_STR.extract(rs)),
+                ACTOR_ID.extract(rs),
                 CHANGED_BY_NAME.extract(rs),
                 CREATED_AT.extract(rs),
                 TITLE.extract(rs),

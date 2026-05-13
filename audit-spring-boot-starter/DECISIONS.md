@@ -25,3 +25,15 @@
 **Why:** The split was premature. The only motivation for keeping them separate was "write side without Vaadin for a future REST service", but no such service exists. Two modules with a mandatory one-way dependency add complexity without benefit. The merged module uses a single `AuditAutoConfiguration`.
 
 **Rejected:** Keeping the split to preserve the option of a Vaadin-free write-side jar — deferred until a concrete REST use case materialises.
+
+---
+
+## 2026-05-13 — SQL coupling to domain tables removed via SPI batch pattern
+
+**Decision:** `ActivityProjection` and `AdvertisementHistoryProjection` no longer JOIN `user_information` or use EXISTS subqueries against `advertisement`/`user_information`. Instead: (a) raw `actor_id` is returned from the query; (b) `AuditActorNameResolver` SPI (`advertisement-contracts`) performs a single bulk `SELECT id, name FROM user_information WHERE id = ANY(:ids)` after the query; (c) `AuditEntityExistenceChecker` SPI performs a single bulk `SELECT id FROM <table> WHERE id = ANY(:ids)` grouped by entity type. Both SPIs are wired via `ObjectProvider` — if absent, actor names stay `null` and entity existence defaults to `false`.
+
+`AdvertisementHistoryDto` gained an `actorId` field so the service can do bulk resolution without a secondary per-row query. Implementations (`AuditActorNameResolverImpl`, `AuditEntityExistenceCheckerImpl`) live in `advertisement-app`.
+
+**Why:** The starter previously coupled directly to `user_information` and `advertisement` tables, making it unusable in any context that does not have those tables. The SPI pattern mirrors `AuditUserProvider` — the starter knows nothing about the domain schema and calls back to the host application for any domain-specific data.
+
+**Rejected:** Per-row secondary queries (`getActorIdForSnapshot`) — single bulk SELECT with `ANY(:ids)` is one round-trip vs N.

@@ -10,6 +10,7 @@ public record AdvertisementHistoryDto(
         Long              snapshotId,
         int               version,
         ActionType        actionType,
+        Long              actorId,
         String            changedByUserName,
         Instant           createdAt,
         String            title,
