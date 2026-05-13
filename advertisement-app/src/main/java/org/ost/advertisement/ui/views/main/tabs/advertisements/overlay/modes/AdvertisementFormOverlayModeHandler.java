@@ -132,7 +132,14 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
 
-        saveButton.addClickListener(_  -> params.getOnSave().run());
+        saveButton.addClickListener(_ -> {
+            saveButton.setEnabled(false);
+            try {
+                params.getOnSave().run();
+            } finally {
+                saveButton.setEnabled(true);
+            }
+        });
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         layout.setContent(content);

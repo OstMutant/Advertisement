@@ -62,6 +62,6 @@ public class AuditDiffEngine {
 
     private static String truncate(String s) {
         if (s == null) return null;
-        return s.length() > 40 ? s.substring(0, 40) + "\u2026" : s;
+        return s.length() > 120 ? s.substring(0, 120) + "\u2026" : s;
     }
 }

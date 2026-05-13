@@ -54,6 +54,7 @@ public class UiComboBox<T> extends ComboBox<T>
         setLabel(getValue(p.getLabelKey()));
         setItems(p.getItems());
         setRequired(p.isRequired());
+        getElement().setAttribute("data-testid", p.getLabelKey().toTestId());
         return this;
     }
 }

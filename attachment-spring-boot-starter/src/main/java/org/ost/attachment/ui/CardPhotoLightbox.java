@@ -11,6 +11,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.entity.MediaContentType;
 import org.ost.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
@@ -34,6 +35,8 @@ public class CardPhotoLightbox {
                 "accelerometer; autoplay; clipboard-write; encrypted-media; " +
                 "gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
+        iframe.getElement().setAttribute("sandbox",
+                "allow-scripts allow-same-origin allow-presentation allow-forms");
         iframe.setVisible(false);
 
         Button prev = new Button(VaadinIcon.ANGLE_LEFT.create());
@@ -95,17 +98,17 @@ public class CardPhotoLightbox {
     }
 
     private static boolean isVideo(String contentType) {
-        return "video/youtube".equals(contentType) || "video/embed".equals(contentType);
+        return MediaContentType.isVideo(contentType);
     }
 
     private static String embedSrc(Attachment a) {
-        if ("video/youtube".equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
         return a.getUrl();
     }
 
     private static String thumbSrc(Attachment a) {
-        if ("video/youtube".equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
-        if ("video/embed".equals(a.getContentType()))   return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentType.EMBED.value().equals(a.getContentType()))   return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
         return a.getUrl();
     }
 

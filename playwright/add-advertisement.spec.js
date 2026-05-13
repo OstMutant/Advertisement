@@ -11,8 +11,8 @@ test.describe('Add advertisement', () => {
     await waitForOverlay(page);
 
     const overlay = page.locator('.advertisement-overlay');
-    await overlay.locator('vaadin-text-field input').first().fill('Spec Test Ad');
-    await overlay.locator('vaadin-text-area textarea').fill('Created by spec test');
+    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Spec Test Ad');
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Created by spec test');
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);
 

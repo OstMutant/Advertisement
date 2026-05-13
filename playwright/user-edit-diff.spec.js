@@ -18,7 +18,7 @@ test.describe('User edit diff', () => {
     });
 
     await test.step('Change user name and save', async () => {
-      const nameField = page.locator('.base-overlay.overlay--visible vaadin-text-field input').first();
+      const nameField = page.locator('[data-testid="user-dialog-field-name-label"] input');
       await nameField.waitFor();
       const current = await nameField.inputValue();
       await nameField.click({ clickCount: 3 });

@@ -19,11 +19,11 @@ test.describe('Edit advertisement', () => {
 
     await test.step('Click Edit button', async () => {
       await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
     });
 
     await test.step('Update title field', async () => {
-      const titleInput = page.locator('vaadin-text-field input').first();
+      const titleInput = page.locator('[data-testid="advertisement-overlay-field-title"] input');
       await titleInput.clear();
       await titleInput.fill('Updated by Playwright');
     });

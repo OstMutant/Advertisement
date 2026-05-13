@@ -269,4 +269,8 @@ public enum I18nKey {
     public String key() {
         return key;
     }
+
+    public String toTestId() {
+        return name().toLowerCase().replace('_', '-');
+    }
 }

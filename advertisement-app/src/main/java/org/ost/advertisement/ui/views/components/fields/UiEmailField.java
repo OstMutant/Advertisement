@@ -51,6 +51,7 @@ public class UiEmailField extends EmailField
         setLabel(getValue(p.getLabelKey()));
         setPlaceholder(getValue(p.getPlaceholderKey()));
         setRequired(p.isRequired());
+        getElement().setAttribute("data-testid", p.getLabelKey().toTestId());
         return this;
     }
 }

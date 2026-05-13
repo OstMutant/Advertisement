@@ -12,8 +12,8 @@ test.describe('Advertisement history (deep)', () => {
 
     await page.locator('vaadin-button').filter({ hasText: /додати|add/i }).first().click();
     await waitForOverlay(page);
-    await overlay.locator('vaadin-text-field input').first().fill(TITLE);
-    await overlay.locator('vaadin-text-area textarea').fill('Version 1');
+    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(TITLE);
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Version 1');
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);
 
@@ -43,8 +43,8 @@ test.describe('Advertisement history (deep)', () => {
       await overlay.locator('vaadin-tab').filter({ hasText: /view|перегляд/i }).click();
       await page.locator('.overlay__view-title').waitFor({ timeout: 3000 });
       await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
-      await overlay.locator('vaadin-text-area textarea').fill(desc);
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(desc);
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await page.locator('.overlay__view-title').waitFor();
       await openHistory(page);

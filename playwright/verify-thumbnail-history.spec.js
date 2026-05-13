@@ -17,8 +17,8 @@ test.describe('Thumbnail and photo history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').first().fill('Thumbnail Verify Ad');
-    await ov.locator('vaadin-text-area textarea').fill('Thumbnail test');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Thumbnail Verify Ad');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Thumbnail test');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();

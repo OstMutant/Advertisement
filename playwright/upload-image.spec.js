@@ -17,8 +17,8 @@ test.describe('Upload image', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').first().fill('Upload Image Test');
-      await ov.locator('vaadin-text-area textarea').fill('Testing single upload');
+      await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Upload Image Test');
+      await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Testing single upload');
       await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);
     });
@@ -29,7 +29,7 @@ test.describe('Upload image', () => {
         .first().click();
       await waitForOverlay(page);
       await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
       await page.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     });

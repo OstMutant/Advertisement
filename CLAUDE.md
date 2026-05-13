@@ -1,4 +1,6 @@
-# Advertisement Project Architecture Rules
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Git Workflow
 - `git add` — run automatically after every file change
@@ -8,33 +10,119 @@
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
 
 ## Core Stack
-- Java 25 (Use modern features: Records, Pattern Matching, Switch expressions).
-- Spring Boot (Web, Security, Data JDBC).
-- Pure SQL via `NamedParameterJdbcTemplate` (NO JPA, NO HIBERNATE).
-- Vaadin for UI.
+- Java 25 (use modern features: Records, Pattern Matching, Switch expressions).
+- Spring Boot 4.0.6, Vaadin 25.1.5.
+- Pure SQL via `JdbcClient` / `NamedParameterJdbcTemplate` (NO JPA, NO HIBERNATE).
+- Liquibase for all schema changes.
+
+---
+
+## Module Layout
+
+```
+advertisement-parent (root pom)
+├── sql-engine                       — framework-agnostic SQL query-building library
+├── advertisement-contracts          — shared kernel: DTOs, domain events, SPI interfaces
+├── attachment-spring-boot-starter   — photo/attachment module (auto-configured starter)
+├── storage-s3-spring-boot-starter   — S3 storage implementation (auto-configured starter)
+└── advertisement-app                — main Vaadin application
+```
+
+**sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
+
+**advertisement-contracts** defines the cross-module contracts: domain events (`AdvertisementCreatedEvent`, etc.), SPI interfaces (`StorageService`, `AdvertisementGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentCurrentUserProvider`), shared DTOs, and `@ConditionalOnStorageEnabled`.
+
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), and `AttachmentCleanupJob`.
+
+**storage-s3-spring-boot-starter** auto-configures `S3StorageService` when `storage.s3.enabled=true` (or absent), and `NoOpStorageService` when `storage.s3.enabled=false`.
+
+---
 
 ## Architecture Guidelines
+
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
-2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always use `UserService` or `AdvertisementService`.
-3. **Modular Storage:** We use a strict modular structure. `storage-api` is the contract, `storage-s3-spring-boot-starter` is the implementation. UI components (like `AttachmentGallery`) MUST degrade gracefully (using `ObjectProvider.ifAvailable()`) if `storage.s3.enabled=false`.
+2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
+3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts`; `storage-s3-spring-boot-starter` is the implementation. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
 4. **Validation:** Use declarative validation rules in DTOs.
-5. **Database Changes:** Database schema must ONLY be modified via Liquibase scripts in `db/changelog/changes`.
+5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
-When writing code or refactoring, strictly respect these boundaries. Think about which module a feature belongs to before implementing it.
+**Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. Symmetry with existing code is a first-class goal.
 
-**Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. The established patterns in this project take priority over generic conventions. Symmetry with existing code is a first-class goal.
+---
+
+## sql-engine API
+
+Two patterns for repositories depending on query complexity:
+
+### Simple/filterable queries — `SqlEntityProjection` + `RepositoryCustom`
+
+Define `SqlSelectField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
+
+```java
+// 1. Define fields
+static final SqlSelectField<Long> ID    = longVal("a.id", "id");
+static final SqlSelectField<String> TITLE = str("a.title", "title");
+
+// 2. Projection (FROM source)
+SqlEntityProjection<AdvertisementDto> projection =
+    new SqlEntityProjection<>(List.of(ID, TITLE, ...), "advertisements a");
+
+// 3. RowMapper lives in RepositoryCustom subclass
+@Override
+protected AdvertisementDto mapRow(ResultSet rs, int rowNum) {
+    return new AdvertisementDto(ID.extract(rs), TITLE.extract(rs), ...);
+}
+
+// 4. Inherited methods
+findByFilter(filter, pageable)   // SELECT ... WHERE ... ORDER BY ... LIMIT/OFFSET
+countByFilter(filter)            // SELECT COUNT(*) FROM ...
+```
+
+### Complex/structural queries — `SqlFixedQuery<T>`
+
+For CTEs, UNION ALL, self-joins — the developer writes the full SQL:
+
+```java
+public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
+    static final SqlSelectField<Long> ID = longVal("s.id", "snapshot_id");
+
+    public ActivityProjection(ObjectMapper om) {
+        super(List.of(ID, ...));
+    }
+
+    @Override public String querySql() { return "WITH ... UNION ALL ..."; }
+
+    @Override public ActivityItemDto mapRow(ResultSet rs, int n) {
+        return new ActivityItemDto(ID.extract(rs), ...);
+    }
+}
+```
+
+### Conditions (`SqlCondition` factory methods)
+`SqlCondition.like()`, `.equalsTo()`, `.after()`, `.before()`, `.inSet()` — all null-safe via `.applyIfPresent()`. Conditions are composed in a `SqlFilterBuilder` subclass that adds named parameters to `MapSqlParameterSource`.
+
+---
+
+## Security: @PreAuthorize and Vaadin
+
+`@EnableMethodSecurity` is active. **Never put `@PreAuthorize` at class level on service beans.** Vaadin initializes view beans on the first HTTP request before the user authenticates; a class-level annotation causes an `AuthorizationDeniedException` during view wiring, preventing any view from loading.
+
+- Method-level `@PreAuthorize` is fine for future REST controller endpoints.
+- Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
+- `/health` is intentionally public (load balancer probe).
+
+---
 
 ## Naming Conventions
 
 ### Class suffixes
-- `*Projection` — SQL query object (extends `SqlFixedQuery<T>`). Defines SQL, field mappings, and `mapRow()`. Lives in `repository/*`.
+- `*Projection` — SQL query object (extends `SqlFixedQuery<T>` or used with `SqlEntityProjection`). Defines SQL, field mappings, and `mapRow()`. Lives in `repository/*`.
 - `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
 - `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
 - `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
 - `*Binding` — prototype bean that manages a lifecycle (register/unregister listeners). Lives next to the service it supports (e.g. `ui/views/services/pagination/`).
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
-- `*Config` — Spring `@Configuration` class. Infrastructure-level configs (Security, Jackson, etc.) live in `config/`. Feature-scoped factory configs (e.g. `AdvertisementQueryConfig`) stay next to the components they configure.
-- `*Panel` (shared) — general-purpose Spring bean returning a Vaadin component subtree, lives in `ui/views/components/`. Domain-specific panels (tightly coupled to one view) stay in their domain package.
+- `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
 
 ### Package structure (advertisement-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
@@ -48,14 +136,37 @@ When writing code or refactoring, strictly respect these boundaries. Think about
 ### Cross-module consistency
 All modules use `config` (not `configuration`) for Spring configuration packages.
 
+---
+
+## Spring Profiles
+- `dev` (default) — `localhost:5432` PostgreSQL, `localhost:9000` MinIO, Liquibase seed data.
+- `prod` — uses env vars: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_REGION`, `S3_PUBLIC_URL`.
+
+Local infrastructure only (IDE dev mode):
+```bash
+docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
+```
+
+---
+
 ## UI Verification with Playwright
 
 After making UI changes, verify them by running the Playwright script inside Docker.
 
 ### Prerequisites
-- App must be running: `docker run -d --name advertisement-app --network host -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement advertisement-app`
 - DB and MinIO already running (started separately via docker-compose.db.yml / docker-compose.minio.yml)
 - App image built with: `docker build -f Dockerfile -t advertisement-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
+- App must be running:
+```bash
+docker run -d --name advertisement-app --network host \
+  -e SPRING_PROFILES_ACTIVE=prod \
+  -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments \
+  -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
+  -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \
+  -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
+  -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
+  advertisement-app
+```
 
 ### Scripts location
 All scenarios live in `/app/playwright/`. Run via `run.sh`:
@@ -72,7 +183,7 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 ### Workflow for UI changes
 1. Make code changes
 2. Rebuild image: `docker rm -f advertisement-app && docker build -f Dockerfile -t advertisement-app .`
-3. Start app: `docker run -d --name advertisement-app --network host -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement advertisement-app`
+3. Start app (command above)
 4. Wait for start: `docker logs advertisement-app | grep "Started Application"`
 5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
 6. For UX analysis add `--ux` flag → read screenshots from `/app/playwright/screenshots/` with `Read` tool
@@ -81,8 +192,20 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 - Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`
 - Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
 - Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
+- `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
 
 ### Adding new scenarios
 1. Create `/app/playwright/my-scenario.spec.js`
 2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`
 3. Run with `bash /app/playwright/run.sh my-scenario`
+
+---
+
+## Architectural Decisions Log
+
+Significant decisions are recorded in per-module `DECISIONS.md` files:
+- `/app/advertisement-app/DECISIONS.md`
+- `/app/attachment-spring-boot-starter/DECISIONS.md`
+- `/app/playwright/DECISIONS.md`
+
+Record any new substantial architectural or technical decision there immediately.

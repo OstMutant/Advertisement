@@ -82,8 +82,8 @@ test.describe('CardPhotoLightbox video/image switching', () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
       const ov = page.locator('.advertisement-overlay');
-      await ov.locator('vaadin-text-field input').first().fill('Lightbox Switch Test');
-      await ov.locator('vaadin-text-area textarea').fill('Testing lightbox video/image switching');
+      await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Lightbox Switch Test');
+      await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Testing lightbox video/image switching');
 
       await ov.locator('.attachment-gallery__video-input input').fill(YT_URL);
       await ov.locator('.attachment-gallery__video-input vaadin-button').click();

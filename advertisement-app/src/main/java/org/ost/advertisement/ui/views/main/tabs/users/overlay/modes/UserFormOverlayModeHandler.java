@@ -92,7 +92,14 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
         cancelButton.configure(UiTertiaryButton.Parameters.builder()
                 .labelKey(USER_DIALOG_BUTTON_CANCEL).build());
 
-        saveButton.addClickListener(_  -> params.getOnSave().run());
+        saveButton.addClickListener(_ -> {
+            saveButton.setEnabled(false);
+            try {
+                params.getOnSave().run();
+            } finally {
+                saveButton.setEnabled(true);
+            }
+        });
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         UserEditDto dto = mapper.toUserEdit(params.getUser());

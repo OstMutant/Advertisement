@@ -52,8 +52,8 @@ test.describe('Verify photo history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').first().fill('Verify Photo History');
-    await ov.locator('vaadin-text-area textarea').fill('Photo history verify');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Photo History');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Photo history verify');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
@@ -87,8 +87,8 @@ test.describe('Verify photo history', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('vaadin-text-field input').first().fill('Verify Photo Delete History');
-    await ov.locator('vaadin-text-area textarea').fill('Delete photo test');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Photo Delete History');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Delete photo test');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
@@ -99,7 +99,7 @@ test.describe('Verify photo history', () => {
       .first().click();
     await waitForOverlay(page);
     await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-    await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+    await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 
     const deleteBtn = page.locator('.attachment-gallery__item .attachment-delete-btn, .attachment-gallery__item button[title*="видалити"], .attachment-gallery__item button[title*="delete"]').first();
     if (await deleteBtn.count() > 0) {

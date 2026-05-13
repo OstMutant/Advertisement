@@ -6,10 +6,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ValidRangeValidator implements ConstraintValidator<ValidRange, Object> {
 
     private static final Logger log = LoggerFactory.getLogger(ValidRangeValidator.class);
+
+    private record FieldKey(Class<?> type, String start, String end) {}
+
+    private static final ConcurrentHashMap<FieldKey, Field[]> CACHE = new ConcurrentHashMap<>();
 
     private String startFieldName;
     private String endFieldName;
@@ -23,17 +28,26 @@ public class ValidRangeValidator implements ConstraintValidator<ValidRange, Obje
     @Override
     public boolean isValid(Object value, ConstraintValidatorContext context) {
         try {
-            Field startField = value.getClass().getDeclaredField(startFieldName);
-            Field endField = value.getClass().getDeclaredField(endFieldName);
-            startField.setAccessible(true);
-            endField.setAccessible(true);
+            Field[] fields = CACHE.computeIfAbsent(
+                new FieldKey(value.getClass(), startFieldName, endFieldName),
+                k -> {
+                    try {
+                        Field s = k.type().getDeclaredField(k.start());
+                        Field e = k.type().getDeclaredField(k.end());
+                        s.setAccessible(true);
+                        e.setAccessible(true);
+                        return new Field[]{s, e};
+                    } catch (NoSuchFieldException ex) {
+                        throw new IllegalArgumentException(
+                            "Field not found: " + k.start() + " or " + k.end(), ex);
+                    }
+                }
+            );
 
-            Object start = startField.get(value);
-            Object end = endField.get(value);
+            Object start = fields[0].get(value);
+            Object end   = fields[1].get(value);
 
-            if (start == null || end == null) {
-                return true;
-            }
+            if (start == null || end == null) return true;
 
             if (!(start instanceof Comparable) || !(end instanceof Comparable)) {
                 log.warn("Fields {} and {} are not Comparable", startFieldName, endFieldName);
@@ -45,21 +59,12 @@ public class ValidRangeValidator implements ConstraintValidator<ValidRange, Obje
             @SuppressWarnings("unchecked")
             Comparable<Object> endComparable = (Comparable<Object>) end;
 
-            if (startComparable.compareTo(endComparable) <= 0) {
-                return true;
-            }
+            if (startComparable.compareTo(endComparable) <= 0) return true;
 
             context.disableDefaultConstraintViolation();
-
-            context.buildConstraintViolationWithTemplate(
-                            startFieldName + " must not be after " + endFieldName)
-                    .addPropertyNode(startFieldName)
-                    .addConstraintViolation();
-
-            context.buildConstraintViolationWithTemplate(
-                            startFieldName + " must not be after " + endFieldName)
-                    .addPropertyNode(endFieldName)
-                    .addConstraintViolation();
+            String msg = startFieldName + " must not be after " + endFieldName;
+            context.buildConstraintViolationWithTemplate(msg).addPropertyNode(startFieldName).addConstraintViolation();
+            context.buildConstraintViolationWithTemplate(msg).addPropertyNode(endFieldName).addConstraintViolation();
 
             return false;
 

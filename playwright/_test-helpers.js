@@ -8,9 +8,9 @@ const https = require('https');
 async function loginAs(page, email = 'user1@example.com', password = 'password') {
   await page.goto('/');
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();
-  await page.locator('vaadin-email-field').waitFor({ timeout: 5000 });
-  await page.locator('vaadin-email-field input').fill(email);
-  await page.locator('vaadin-password-field input').fill(password);
+  await page.locator('[data-testid="login-email-label"]').waitFor({ timeout: 5000 });
+  await page.locator('[data-testid="login-email-label"] input').fill(email);
+  await page.locator('[data-testid="login-password-label"] input').fill(password);
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).last().click();
   await page.locator('.header-settings-button').waitFor({ timeout: 10000 });
   const body = await page.textContent('body');
@@ -80,8 +80,8 @@ async function createAd(page, { title, description, imagePath } = {}) {
   await page.locator('.add-advertisement-button').click();
   await waitForOverlay(page);
   const overlay = page.locator('.advertisement-overlay');
-  await overlay.locator('vaadin-text-field input').fill(title || 'Test Ad');
-  await overlay.locator('vaadin-text-area textarea').fill(description || 'Test description');
+  await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title || 'Test Ad');
+  await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description || 'Test description');
   if (imagePath) {
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(imagePath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });

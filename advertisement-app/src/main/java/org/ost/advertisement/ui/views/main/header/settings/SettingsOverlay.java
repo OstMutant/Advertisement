@@ -54,13 +54,14 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UiIconButton.Builder       closeButtonBuilder;
     private final transient ConfirmActionDialog.Builder confirmDialogBuilder;
 
-    private OverlayLayout layout;
-    private IntegerField  adsPageSizeField;
-    private IntegerField  usersPageSizeField;
-    private Div           activityPanel;
-    private Tabs          tabs;
-    private Tab           settingsTab;
-    private transient User currentUser;
+    private OverlayLayout    layout;
+    private IntegerField     adsPageSizeField;
+    private IntegerField     usersPageSizeField;
+    private Div              activityPanel;
+    private Tabs             tabs;
+    private Tab              settingsTab;
+    private UiPrimaryButton  saveBtn;
+    private transient User   currentUser;
 
     public void openSettings() {
         currentUser = authContextService.getCurrentUser().orElse(null);
@@ -109,7 +110,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         content.addClassName("settings-overlay-content");
         layout.setContent(content);
 
-        UiPrimaryButton saveBtn = saveButtonBuilder.build(
+        saveBtn = saveButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
         saveBtn.addClickListener(_ -> handleSave());
 
@@ -142,6 +143,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private void handleSave() {
         if (currentUser == null) return;
+        if (saveBtn != null) saveBtn.setEnabled(false);
         try {
             UserSettings oldSettings = settingsService.load(currentUser.getId());
             UserSettings newSettings = UserSettings.builder()
@@ -156,6 +158,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             notifications.success(SETTINGS_SAVED_SUCCESS);
         } catch (Exception e) {
             notifications.error(e.getMessage());
+        } finally {
+            if (saveBtn != null) saveBtn.setEnabled(true);
         }
     }
 

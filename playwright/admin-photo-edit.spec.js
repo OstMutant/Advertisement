@@ -19,8 +19,8 @@ test.describe('Admin photo edit — single current-state badge', () => {
 
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
-      await overlay.locator('vaadin-text-field input').first().fill(AD_TITLE);
-      await overlay.locator('vaadin-text-area textarea').fill('Initial description');
+      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(AD_TITLE);
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Initial description');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await waitForOverlayClosed(page);
 
@@ -30,8 +30,8 @@ test.describe('Admin photo edit — single current-state badge', () => {
         .first().click();
       await waitForOverlay(page);
       await overlay.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
-      await overlay.locator('vaadin-text-area textarea').fill('Updated description v2');
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Updated description v2');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await page.locator('.overlay__view-title').waitFor();
       // Close overlay via breadcrumb back link
@@ -59,7 +59,7 @@ test.describe('Admin photo edit — single current-state badge', () => {
         .first().click();
       await waitForOverlay(page);
       await overlay.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 
       await page.locator('vaadin-upload input[type="file"]').setInputFiles(img1);
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
@@ -73,7 +73,7 @@ test.describe('Admin photo edit — single current-state badge', () => {
       const overlay = page.locator('.advertisement-overlay');
 
       await overlay.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 
       // Delete existing photo and upload a new one
       await page.locator('.attachment-gallery__delete-btn').first().click();

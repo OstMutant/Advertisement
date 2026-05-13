@@ -46,7 +46,7 @@ function makePng(path, r, g, b) {
 async function openEditMode(page) {
   await page.locator('.base-overlay.overlay--visible vaadin-button')
     .filter({ hasText: /edit|редагувати/i }).first().click();
-  await page.locator('.base-overlay.overlay--visible vaadin-text-field input').first().waitFor();
+  await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 }
 
 async function closeAdOverlay(page) {
@@ -75,8 +75,8 @@ test.describe('Photo activity', () => {
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const overlay = page.locator('.advertisement-overlay');
-    await overlay.locator('vaadin-text-field input').first().fill(AD_TITLE);
-    await overlay.locator('vaadin-text-area textarea').fill('Photo activity test description');
+    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(AD_TITLE);
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Photo activity test description');
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(paths[0]);
     await page.locator('.attachment-gallery__item').waitFor({ timeout: 10000 });
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();

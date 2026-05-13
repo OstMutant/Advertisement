@@ -19,12 +19,14 @@ call :FindFiles "*.properties"
 call :FindFiles "*.xml"
 call :FindFiles "*.sql"
 call :FindFiles "*.imports"
+call :FindFiles "*.bat"
+call :FindFiles "*.json"
 call :FindFiles "*.js"
 call :FindFiles "*.sh"
 call :FindFiles "*.md"
 
 :: 3. Add specific root-level files
-for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai claude.bat lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
+for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai claude.bat collect-code.bat lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
@@ -53,6 +55,8 @@ call :CountFiles ".yml" "YAML files"
 call :CountFiles ".properties" "Properties files"
 call :CountFiles ".sql" "SQL files"
 call :CountFiles ".imports" "Spring AutoConfig files"
+call :CountFiles ".bat" "Batch scripts"
+call :CountFiles ".json" "JSON files"
 call :CountFiles ".js" "JS files (Playwright)"
 call :CountFiles ".sh" "Shell scripts"
 call :CountFiles ".md" "Markdown files"
@@ -67,6 +71,7 @@ call :CheckRootFile "claude.bat"
 call :CheckRootFile "docker-compose.app.yml"
 call :CheckRootFile "docker-compose.db.yml"
 call :CheckRootFile "docker-compose.minio.yml"
+call :CheckRootFile "collect-code.bat"
 call :CheckRootFile "lombok.config"
 
 :: Clean up the temporary file
@@ -82,7 +87,7 @@ goto :EOF
 
 :FindFiles
 :: Recursively searches for files and filters out system/generated folders
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\generated\\ \\frontend\\generated\\" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\" ') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF

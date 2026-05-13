@@ -21,6 +21,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entity.Attachment;
+import org.ost.attachment.entity.MediaContentType;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
@@ -43,10 +44,8 @@ import java.util.UUID;
 @ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div {
 
-    private static final int    MAX_FILES     = 10;
-    private static final int    MAX_FILE_SIZE = 10 * 1024 * 1024;
-    private static final String CT_YOUTUBE    = "video/youtube";
-    private static final String CT_EMBED      = "video/embed";
+    private static final int MAX_FILES     = 10;
+    private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
 
     private final transient AttachmentService attachmentService;
     private final transient MessageSource     messageSource;
@@ -290,12 +289,12 @@ public class AttachmentGallery extends Div {
     }
 
     private static boolean isVideoType(String contentType) {
-        return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
+        return MediaContentType.isVideo(contentType);
     }
 
     private static String thumbSrc(String contentType, String url) {
-        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (CT_EMBED.equals(contentType))   return VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentType.YOUTUBE.value().equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (MediaContentType.EMBED.value().equals(contentType))   return VIDEO_PLACEHOLDER_SVG;
         return url;
     }
 
@@ -318,6 +317,8 @@ public class AttachmentGallery extends Div {
             iframe.getElement().setAttribute("allow",
                     "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
             iframe.getElement().setAttribute("allowfullscreen", "true");
+            iframe.getElement().setAttribute("sandbox",
+                    "allow-scripts allow-same-origin allow-presentation allow-forms");
             iframe.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
             overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
             overlay.add(closeBtn, iframe);
@@ -338,7 +339,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String resolveEmbedUrl(Attachment attachment) {
-        if (CT_YOUTUBE.equals(attachment.getContentType())) {
+        if (MediaContentType.YOUTUBE.value().equals(attachment.getContentType())) {
             return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
         }
         return attachment.getUrl();

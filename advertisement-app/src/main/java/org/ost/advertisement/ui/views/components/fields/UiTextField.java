@@ -53,6 +53,7 @@ public class UiTextField extends TextField
         setPlaceholder(getValue(p.getPlaceholderKey()));
         if (p.getMaxLength() > 0) setMaxLength(p.getMaxLength());
         setRequired(p.isRequired());
+        getElement().setAttribute("data-testid", p.getLabelKey().toTestId());
         return this;
     }
 }

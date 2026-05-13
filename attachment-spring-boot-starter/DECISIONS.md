@@ -12,6 +12,24 @@
 
 ---
 
+## 2026-05-13 — MediaContentType enum centralizes video content type constants
+
+**Decision:** `"video/youtube"` and `"video/embed"` are defined once in `MediaContentType` enum (`org.ost.attachment.entity`). Both `AttachmentGallery` and `CardPhotoLightbox` reference it instead of using raw strings or private constants.
+
+**Why:** The two classes independently duplicated the same string literals. Centralizing eliminates the risk of inconsistency and makes the `isVideo()` check a single-source-of-truth call.
+
+**Rejected:** Placing the enum in `advertisement-contracts` — the content types are an internal attachment-module concept, not a cross-module contract.
+
+---
+
+## 2026-05-13 — IFrame sandbox attribute on all video embeds
+
+**Decision:** All `IFrame` components for video embedding in `AttachmentGallery` and `CardPhotoLightbox` carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
+
+**Why:** Without `sandbox`, the embedded iframe has unrestricted browser capabilities. The chosen flags are the minimum required for YouTube and generic embed playback.
+
+---
+
 ## 2026-05-12 — Vaadin IFrame src patching via `Page.executeJs`
 
 **Decision:** In `CardPhotoLightbox`, iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.

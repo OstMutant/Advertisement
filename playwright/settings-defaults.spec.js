@@ -4,11 +4,11 @@ const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, closeOverla
 async function signUpAndLogin(page, email, password = 'password123') {
   await page.goto('/');
   await page.locator('.header-signup-button').click();
-  await page.locator('vaadin-text-field input').first().waitFor({ timeout: 5000 });
+  await page.locator('[data-testid="signup-name-label"] input').waitFor({ timeout: 5000 });
 
-  await page.locator('vaadin-text-field input').first().fill('Test User');
-  await page.locator('vaadin-email-field input').fill(email);
-  await page.locator('vaadin-password-field input').fill(password);
+  await page.locator('[data-testid="signup-name-label"] input').fill('Test User');
+  await page.locator('[data-testid="signup-email-label"] input').fill(email);
+  await page.locator('[data-testid="signup-password-label"] input').fill(password);
 
   await page.locator('vaadin-button').filter({ hasText: /sign up|зареєструватися/i }).last().click();
   await page.locator('vaadin-notification').waitFor({ timeout: 5000 }).catch(() => {});
