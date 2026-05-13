@@ -10,6 +10,7 @@ import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
@@ -33,8 +34,8 @@ public class ActivityRowRenderer implements AuditI18nSupport {
     private final        ObjectProvider<AdvertisementHistoryExtension>   historyExtensionProvider;
 
     public static boolean isSettingChange(ActivityItemDto item) {
-        return "USER_SETTINGS".equals(item.entityType())
-                || ("USER".equals(item.entityType())
+        return item.entityType() == EntityType.USER_SETTINGS
+                || (item.entityType() == EntityType.USER
                     && item.changes().stream().anyMatch(e -> e instanceof ChangeEntry.SettingChange));
     }
 
@@ -44,8 +45,8 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         if (!item.entityExists()) row.addClassName("user-activity-row--deleted");
 
         boolean settingChange = isSettingChange(item);
-        String typeLabel  = settingChange ? "SETTINGS"  : item.entityType();
-        String typeCssKey = settingChange ? "settings"  : item.entityType().toLowerCase();
+        String typeLabel  = settingChange ? "SETTINGS"  : item.entityType().name();
+        String typeCssKey = settingChange ? "settings"  : item.entityType().name().toLowerCase();
 
         Span action = new Span(formatAction(item.actionType()));
         action.addClassName("user-activity-action");
@@ -54,7 +55,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         type.addClassName("user-activity-type");
         type.addClassName("user-activity-type--" + typeCssKey);
 
-        String nameText = "ADVERTISEMENT".equals(item.entityType())
+        String nameText = item.entityType() == EntityType.ADVERTISEMENT
                 ? (item.changedByName() != null ? item.changedByName() : item.displayName())
                 : (item.entityExists()
                         ? item.displayName()
@@ -74,9 +75,9 @@ public class ActivityRowRenderer implements AuditI18nSupport {
             if (item.snapshotId() == null || item.snapshotId() <= 0) {
                 row.add(activityPanel.buildChangesList(item.changes(), "user-activity-changes"));
             }
-        } else if ("ADVERTISEMENT".equals(item.entityType())) {
+        } else if (item.entityType() == EntityType.ADVERTISEMENT) {
             row.add(buildAdvFieldsList(item));
-        } else if ("USER".equals(item.entityType())) {
+        } else if (item.entityType() == EntityType.USER) {
             row.add(buildUserFieldsList(item));
         }
 

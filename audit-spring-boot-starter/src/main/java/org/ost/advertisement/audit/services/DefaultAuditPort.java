@@ -7,6 +7,7 @@ import org.ost.advertisement.audit.AuditableSnapshot;
 import org.ost.advertisement.audit.model.AuditDiffEngine;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
+import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +35,7 @@ public class DefaultAuditPort implements AuditPort {
         auditLogRepository.insert(
                 snapshot.entityType(),
                 entityId,
-                "CREATED",
+                ActionType.CREATED,
                 snapshotMapper.toJson(snapshot),
                 snapshotMapper.toChangesJson(changes),
                 resolveActor(actorId));
@@ -47,7 +48,7 @@ public class DefaultAuditPort implements AuditPort {
         auditLogRepository.insert(
                 after.entityType(),
                 entityId,
-                "UPDATED",
+                ActionType.UPDATED,
                 snapshotMapper.toJson(after),
                 snapshotMapper.toChangesJson(changes),
                 resolveActor(actorId));
@@ -59,7 +60,7 @@ public class DefaultAuditPort implements AuditPort {
         auditLogRepository.insert(
                 snapshot.entityType(),
                 entityId,
-                "DELETED",
+                ActionType.DELETED,
                 snapshotMapper.toJson(snapshot),
                 null,
                 resolveActor(actorId));

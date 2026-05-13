@@ -12,13 +12,6 @@ public final class AuditLogDescriptor {
     public static final SqlSelectField<String> ENTITY_TYPE = str("al.entity_type", "entity_type");
     public static final SqlSelectField<String> ACTION_TYPE = str("al.action_type", "action_type");
 
-    public static final class EntityType {
-        private EntityType() {}
-        public static final String ADVERTISEMENT = "ADVERTISEMENT";
-        public static final String USER          = "USER";
-        public static final String USER_SETTINGS = "USER_SETTINGS";
-    }
-
     public static final class Write {
         private Write() {}
         public static final String TABLE              = AuditLogDescriptor.TABLE;

@@ -1,6 +1,7 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.advertisement.events.spi.AuditEntityExistenceChecker;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -15,16 +16,14 @@ public class AuditEntityExistenceCheckerImpl implements AuditEntityExistenceChec
     private final JdbcClient jdbcClient;
 
     @Override
-    public Set<Long> findExisting(String entityType, Set<Long> entityIds) {
+    public Set<Long> findExisting(EntityType entityType, Set<Long> entityIds) {
         if (entityIds.isEmpty()) return Set.of();
         String sql = switch (entityType) {
-            case "ADVERTISEMENT" ->
+            case ADVERTISEMENT ->
                 "SELECT id FROM advertisement WHERE id = ANY(:ids) AND deleted_at IS NULL";
-            case "USER", "USER_SETTINGS" ->
+            case USER, USER_SETTINGS ->
                 "SELECT id FROM user_information WHERE id = ANY(:ids)";
-            default -> null;
         };
-        if (sql == null) return Set.of();
         return jdbcClient.sql(sql)
                 .param("ids", entityIds.toArray(new Long[0]))
                 .query((rs, _) -> rs.getLong("id"))

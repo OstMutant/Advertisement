@@ -3,6 +3,7 @@ package org.ost.attachment.repository;
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.attachment.service.PhotoSnapshotService;
 import org.ost.sqlengine.projection.SqlFixedQuery;
 import org.ost.sqlengine.projection.SqlSelectField;
@@ -59,7 +60,7 @@ public class PhotoActivityProjection extends SqlFixedQuery<ActivityItemDto> {
         return new ActivityItemDto(
                 SNAPSHOT_ID.extract(rs),
                 ADVERTISEMENT_ID.extract(rs),
-                "ADVERTISEMENT",
+                EntityType.ADVERTISEMENT,
                 DISPLAY_NAME.extract(rs),
                 ActionType.UPDATED,
                 CREATED_AT.extract(rs),

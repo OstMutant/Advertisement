@@ -13,6 +13,7 @@ import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
@@ -61,7 +62,7 @@ public class ProfileActivityPanel implements AuditI18nSupport {
                         row.add(restoreBtn(msg(AuditKeys.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
                     }
                 });
-            } else if ("USER".equals(item.entityType()) && item.snapshotId() != null && item.snapshotId() > 0
+            } else if (item.entityType() == EntityType.USER && item.snapshotId() != null && item.snapshotId() > 0
                     && (item.actionType() != ActionType.CREATED || items.size() > 1)) {
                 boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
                         .map(state -> state.name().equals(userName) && state.role() == userRole)

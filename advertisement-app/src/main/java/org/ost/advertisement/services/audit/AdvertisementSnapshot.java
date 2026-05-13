@@ -3,6 +3,7 @@ package org.ost.advertisement.services.audit;
 import org.ost.advertisement.audit.AuditableSnapshot;
 import org.ost.advertisement.audit.AuditedField;
 import org.ost.advertisement.entities.Advertisement;
+import org.ost.advertisement.events.model.EntityType;
 
 public record AdvertisementSnapshot(
         @AuditedField String title,
@@ -13,5 +14,5 @@ public record AdvertisementSnapshot(
     }
 
     @Override
-    public String entityType() { return "ADVERTISEMENT"; }
+    public EntityType entityType() { return EntityType.ADVERTISEMENT; }
 }

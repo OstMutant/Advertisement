@@ -1,5 +1,7 @@
 package org.ost.advertisement.audit.repository;
 
+import org.ost.advertisement.events.model.ActionType;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -37,33 +39,33 @@ public class AuditLogRepository {
         return jdbcClient;
     }
 
-    public void insert(String entityType, Long entityId, String actionType,
+    public void insert(EntityType entityType, Long entityId, ActionType actionType,
                        String snapshotData, String changesSummary, Long actorId) {
         INSERT.execute(jdbcClient,
                 new MapSqlParameterSource()
-                        .addValue("entityType",   entityType)
+                        .addValue("entityType",   entityType.name())
                         .addValue("entityId",     entityId)
-                        .addValue("actionType",   actionType)
+                        .addValue("actionType",   actionType.name())
                         .addValue("snapshotData", snapshotData)
                         .addValue("changes",      changesSummary)
                         .addValue("actorId",      actorId));
     }
 
-    public Optional<String> getSnapshotData(Long snapshotId, String entityType) {
+    public Optional<String> getSnapshotData(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql(
                 "SELECT " + AuditLogDescriptor.Write.SNAPSHOT_DATA + "::text" +
                 " FROM " + AuditLogDescriptor.Write.TABLE + " WHERE id = :id AND entity_type = :type")
-                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", entityType))
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", entityType.name()))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
     }
 
-    public Optional<String> getLastSnapshotData(String entityType, Long entityId) {
+    public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {
         return jdbcClient.sql(
                 "SELECT " + AuditLogDescriptor.Write.SNAPSHOT_DATA + "::text" +
                 " FROM " + AuditLogDescriptor.Write.TABLE +
                 " WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
-                .paramSource(new MapSqlParameterSource().addValue("type", entityType).addValue("id", entityId))
+                .paramSource(new MapSqlParameterSource().addValue("type", entityType.name()).addValue("id", entityId))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
     }

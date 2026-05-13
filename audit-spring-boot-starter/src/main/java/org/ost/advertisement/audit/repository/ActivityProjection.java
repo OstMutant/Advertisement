@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlFixedQuery;
 
@@ -92,7 +93,7 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
         return new ActivityItemDto(
                 SNAPSHOT_ID.extract(rs),
                 ENTITY_ID.extract(rs),
-                ENTITY_TYPE.extract(rs),
+                EntityType.valueOf(ENTITY_TYPE.extract(rs)),
                 DISPLAY_NAME.extract(rs),
                 ActionType.valueOf(ACTION_TYPE_STR.extract(rs)),
                 CREATED_AT.extract(rs),

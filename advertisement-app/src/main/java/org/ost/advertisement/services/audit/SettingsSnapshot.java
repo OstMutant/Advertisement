@@ -3,6 +3,7 @@ package org.ost.advertisement.services.audit;
 import org.ost.advertisement.audit.AuditableSnapshot;
 import org.ost.advertisement.audit.AuditedField;
 import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.events.model.EntityType;
 
 public record SettingsSnapshot(
         @AuditedField int adsPageSize,
@@ -13,5 +14,5 @@ public record SettingsSnapshot(
     }
 
     @Override
-    public String entityType() { return "USER_SETTINGS"; }
+    public EntityType entityType() { return EntityType.USER_SETTINGS; }
 }

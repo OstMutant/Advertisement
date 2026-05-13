@@ -3,6 +3,7 @@ package org.ost.advertisement.audit.services;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.repository.ActivityRepository;
 import org.ost.advertisement.events.dto.ActivityItemDto;
+import org.ost.advertisement.events.model.EntityType;
 import org.ost.advertisement.events.spi.AuditActorNameResolver;
 import org.ost.advertisement.events.spi.AuditEntityExistenceChecker;
 import org.ost.advertisement.events.spi.UserActivityExtension;
@@ -62,11 +63,11 @@ public class ActivityService {
     private List<ActivityItemDto> resolveEntityExistence(List<ActivityItemDto> items) {
         AuditEntityExistenceChecker checker = existenceChecker.getIfAvailable();
         if (checker == null) return items;
-        Map<String, Set<Long>> byType = items.stream()
+        Map<EntityType, Set<Long>> byType = items.stream()
                 .collect(Collectors.groupingBy(
                         ActivityItemDto::entityType,
                         Collectors.mapping(ActivityItemDto::entityId, Collectors.toSet())));
-        Map<String, Set<Long>> existingByType = byType.entrySet().stream()
+        Map<EntityType, Set<Long>> existingByType = byType.entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         e -> checker.findExisting(e.getKey(), e.getValue())));

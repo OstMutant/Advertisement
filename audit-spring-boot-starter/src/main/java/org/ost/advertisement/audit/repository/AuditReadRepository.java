@@ -3,6 +3,7 @@ package org.ost.advertisement.audit.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.events.model.EntityType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -28,7 +29,7 @@ public class AuditReadRepository extends AuditLogRepository {
                 " FROM " + AuditLogDescriptor.Write.TABLE + " WHERE id = :id AND entity_type = :type")
                 .paramSource(new MapSqlParameterSource()
                         .addValue("id", snapshotId)
-                        .addValue("type", AuditLogDescriptor.EntityType.USER))
+                        .addValue("type", EntityType.USER.name()))
                 .query((rs, row) -> new UserSnapshotState(
                         rs.getLong("entity_id"),
                         rs.getString("name"),
