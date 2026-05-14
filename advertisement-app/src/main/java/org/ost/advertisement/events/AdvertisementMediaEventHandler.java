@@ -14,8 +14,9 @@ public class AdvertisementMediaEventHandler {
 
     private static final SqlWriteCommand UPDATE_MEDIA = SqlWriteCommand.of(
             "UPDATE " + AdvertisementDescriptor.Write.TABLE +
-            " SET " + AdvertisementDescriptor.Write.MAIN_IMAGE_URL + " = :url," +
-            " "     + AdvertisementDescriptor.Write.IMAGE_COUNT + " = :count" +
+            " SET " + AdvertisementDescriptor.Write.MAIN_IMAGE_URL   + " = :url," +
+            " "     + AdvertisementDescriptor.Write.MAIN_CONTENT_TYPE + " = :contentType," +
+            " "     + AdvertisementDescriptor.Write.IMAGE_COUNT       + " = :count" +
             " WHERE id = :id"
     );
 
@@ -25,8 +26,9 @@ public class AdvertisementMediaEventHandler {
     public void onMediaUpdated(AdvertisementMediaUpdatedEvent event) {
         UPDATE_MEDIA.execute(jdbcClient,
                 new MapSqlParameterSource()
-                        .addValue("url",   event.mainImageUrl())
-                        .addValue("count", event.imageCount())
-                        .addValue("id",    event.adId()));
+                        .addValue("url",         event.mainImageUrl())
+                        .addValue("contentType", event.mainContentType())
+                        .addValue("count",       event.imageCount())
+                        .addValue("id",          event.adId()));
     }
 }

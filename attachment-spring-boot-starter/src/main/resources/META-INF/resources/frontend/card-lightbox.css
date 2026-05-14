@@ -85,6 +85,20 @@
     border-radius: var(--lumo-border-radius-m);
 }
 
+.card-lightbox__main-video-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.card-lightbox__main-video {
+    width: min(80vw, 1200px);
+    max-height: 75vh;
+    border-radius: var(--lumo-border-radius-m);
+    outline: none;
+    background: #000;
+}
+
 .card-lightbox__close {
     position: fixed;
     top: 16px;

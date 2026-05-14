@@ -2,6 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Approval Rule
+**Every action must be approved by the user before execution — no exceptions.** Describe what you plan to do and wait for explicit confirmation before making any change.
+
 ## Git Workflow
 - `git add` — run automatically after every file change
 - `git commit` — only when the user explicitly asks to commit

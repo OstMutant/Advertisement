@@ -29,7 +29,7 @@ import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
-import java.io.ByteArrayInputStream;
+import com.vaadin.flow.server.streams.UploadEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -44,8 +44,8 @@ import java.util.UUID;
 @ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div {
 
-    private static final int    MAX_FILES        = 10;
-    private static final int    MAX_FILE_SIZE    = 10 * 1024 * 1024;
+    private static final int  MAX_FILES     = 10;
+    private static final long MAX_FILE_SIZE = 500L * 1024 * 1024;
     private static final String CLICK_EVENT      = "click";
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
@@ -210,34 +210,47 @@ public class AttachmentGallery extends Div {
     }
 
     private Upload buildUploadButton() {
-        Upload upload = new Upload(UploadHandler.inMemory((metadata, bytes) -> {
-            if (tempSessionId != null) {
-                TempAttachment temp = attachmentService.uploadTemp(
-                        tempSessionId, metadata.fileName(),
-                        new ByteArrayInputStream(bytes), bytes.length, metadata.contentType()
-                );
-                tempUploads.add(temp);
-                hideEmpty();
-                thumbnailsRow.add(buildTempThumbnail(temp));
-            } else {
+        UploadHandler handler = new UploadHandler() {
+            @Override public long getFileSizeMax()   { return MAX_FILE_SIZE; }
+            @Override public long getFileCountMax()  { return MAX_FILES; }
+
+            @Override
+            public void handleUploadRequest(UploadEvent event) {
+                String filename    = event.getFileName();
+                String contentType = event.getContentType();
+                long   size        = event.getFileSize();
+                var    ui          = event.getUI();
                 try {
-                    Attachment saved = attachmentService.upload(
-                            entityId, metadata.fileName(),
-                            new ByteArrayInputStream(bytes), bytes.length, metadata.contentType()
-                    );
-                    hideEmpty();
-                    currentAttachments.add(saved);
-                    thumbnailsRow.add(buildThumbnail(saved));
+                    if (tempSessionId != null) {
+                        TempAttachment temp = attachmentService.uploadTemp(
+                                tempSessionId, filename, event.getInputStream(), size, contentType);
+                        ui.access(() -> {
+                            tempUploads.add(temp);
+                            hideEmpty();
+                            thumbnailsRow.add(buildTempThumbnail(temp));
+                        });
+                    } else if (entityId != null) {
+                        Attachment saved = attachmentService.upload(
+                                entityId, filename, event.getInputStream(), size, contentType);
+                        ui.access(() -> {
+                            currentAttachments.add(saved);
+                            hideEmpty();
+                            thumbnailsRow.add(buildThumbnail(saved));
+                        });
+                    }
                 } catch (Exception e) {
-                    log.error("Failed to upload attachment: {}", metadata.fileName(), e);
-                    showError(msg("attachment.gallery.upload.error", "Upload failed"));
+                    log.error("Failed to upload attachment: {}", filename, e);
+                    ui.access(() -> showError(msg("attachment.gallery.upload.error", "Upload failed")));
                 }
             }
-        }));
+        };
+
+        Upload upload = new Upload(handler);
         upload.addClassName("attachment-gallery__upload");
-        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif");
+        upload.setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif",
+                                    "video/mp4", "video/webm");
         upload.setMaxFiles(MAX_FILES);
-        upload.setMaxFileSize(MAX_FILE_SIZE);
+        upload.setMaxFileSize((int) MAX_FILE_SIZE);
         upload.getElement().setAttribute("nodrop", "");
         return upload;
     }
@@ -295,15 +308,13 @@ public class AttachmentGallery extends Div {
     }
 
     private static String thumbSrc(String contentType, String url) {
-        if (MediaContentType.YOUTUBE.value().equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (MediaContentType.EMBED.value().equals(contentType))   return VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentType.YOUTUBE.value().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (MediaContentType.isEmbedded(contentType))              return VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentType.isUploadedVideo(contentType))         return VIDEO_PLACEHOLDER_SVG;
         return url;
     }
 
-    public static final String VIDEO_PLACEHOLDER_SVG =
-        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E" +
-        "%3Crect width='160' height='160' fill='%23222'/%3E" +
-        "%3Cpolygon points='60,40 60,120 120,80' fill='white' opacity='0.7'/%3E%3C/svg%3E";
+    public static final String VIDEO_PLACEHOLDER_SVG = MediaContentType.VIDEO_THUMBNAIL;
 
     private void openLightbox(Attachment attachment) {
         Div overlay = new Div();
@@ -313,7 +324,8 @@ public class AttachmentGallery extends Div {
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
-        if (isVideoType(attachment.getContentType())) {
+        String ct = attachment.getContentType();
+        if (MediaContentType.isEmbedded(ct)) {
             IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
             iframe.addClassName("attachment-lightbox__iframe");
             iframe.getElement().setAttribute("allow",
@@ -324,6 +336,19 @@ public class AttachmentGallery extends Div {
             iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
             overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
             overlay.add(closeBtn, iframe);
+        } else if (MediaContentType.isUploadedVideo(ct)) {
+            com.vaadin.flow.dom.Element videoEl = new com.vaadin.flow.dom.Element("video");
+            videoEl.setAttribute("controls", "");
+            videoEl.setAttribute("src", attachment.getUrl());
+            videoEl.getClassList().add("attachment-lightbox__video");
+            Div videoWrapper = new Div();
+            videoWrapper.getElement().appendChild(videoEl);
+            videoWrapper.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
+            overlay.addClickListener(_ -> {
+                videoEl.executeJs("this.pause(); this.src='';");
+                overlay.removeFromParent();
+            });
+            overlay.add(closeBtn, videoWrapper);
         } else {
             Image img = new Image(attachment.getUrl(), attachment.getFilename());
             img.addClassName("attachment-lightbox__image");

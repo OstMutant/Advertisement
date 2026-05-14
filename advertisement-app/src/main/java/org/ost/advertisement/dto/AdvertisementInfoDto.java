@@ -21,6 +21,7 @@ public class AdvertisementInfoDto implements EntityMarker {
     String createdByUserName;
     String createdByUserEmail;
     String mainImageUrl;
+    String mainContentType;
     Integer imageCount;
 
     @Override

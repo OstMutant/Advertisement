@@ -5,6 +5,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -26,6 +27,7 @@ import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButt
 import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 
+import org.ost.attachment.entities.MediaContentType;
 import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -92,16 +94,30 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Div createThumbnail(AdvertisementInfoDto ad) {
-        if (ad.getMainImageUrl() == null) {
+        if (ad.getMediaUrl() == null) {
             return null;
         }
         Div wrapper = new Div();
         wrapper.addClassName("advertisement-thumbnail-wrapper");
-        Image img = new Image(ad.getMainImageUrl(), ad.getTitle());
-        img.addClassName("advertisement-thumbnail");
-        wrapper.add(img);
-        if (ad.getImageCount() != null && ad.getImageCount() > 1) {
-            Span badge = new Span(VaadinIcon.CAMERA.create(), new Span(String.valueOf(ad.getImageCount())));
+
+        if (MediaContentType.isUploadedVideo(ad.getMediaContentType())) {
+            com.vaadin.flow.dom.Element video = new com.vaadin.flow.dom.Element("video");
+            video.setAttribute("src", ad.getMediaUrl());
+            video.setAttribute("preload", "metadata");
+            video.setAttribute("muted", "");
+            video.getClassList().add("advertisement-thumbnail");
+            wrapper.getElement().appendChild(video);
+            Icon playIcon = VaadinIcon.PLAY_CIRCLE_O.create();
+            playIcon.addClassName("advertisement-thumbnail-play");
+            wrapper.add(playIcon);
+        } else {
+            Image img = new Image(ad.getMediaUrl(), ad.getTitle());
+            img.addClassName("advertisement-thumbnail");
+            wrapper.add(img);
+        }
+
+        if (ad.getMediaCount() != null && ad.getMediaCount() > 1) {
+            Span badge = new Span(VaadinIcon.CAMERA.create(), new Span(String.valueOf(ad.getMediaCount())));
             badge.addClassName("advertisement-thumbnail-badge");
             wrapper.add(badge);
         }

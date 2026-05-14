@@ -3,6 +3,7 @@ package org.ost.attachment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
+import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
@@ -172,13 +173,15 @@ public class AttachmentService {
     private void publishMediaUpdate(Long entityId) {
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityId);
         String displayUrl = resolveDisplayUrl(stats.mainUrl(), stats.mainContentType());
-        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(entityId, displayUrl, stats.count()));
+        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(
+                entityId, displayUrl, stats.mainContentType(), stats.count()));
     }
 
     private static String resolveDisplayUrl(String url, String contentType) {
         if (url == null) return null;
         if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (CT_EMBED.equals(contentType)) return null;
+        if (MediaContentType.isUploadedVideo(contentType)) return url;
         return url;
     }
 
