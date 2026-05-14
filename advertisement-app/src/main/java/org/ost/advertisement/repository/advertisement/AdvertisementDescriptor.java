@@ -27,9 +27,9 @@ public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementIn
     public static final SqlSelectField<Instant> CREATED_AT        = instant(ALIAS + ".created_at",    createdAt);
     public static final SqlSelectField<Instant> UPDATED_AT        = instant(ALIAS + ".updated_at",    updatedAt);
     public static final SqlSelectField<Instant> DELETED_AT        = instant(ALIAS + ".deleted_at",    "deleted_at");
-    public static final SqlSelectField<String>  MAIN_IMAGE_URL    = str(ALIAS + ".main_image_url",    mainImageUrl);
-    public static final SqlSelectField<String>  MAIN_CONTENT_TYPE = str(ALIAS + ".main_content_type", mainContentType);
-    public static final SqlSelectField<Integer> IMAGE_COUNT       = intVal(ALIAS + ".image_count",    imageCount);
+    public static final SqlSelectField<String>  MEDIA_URL          = str(ALIAS + ".media_url",          mediaUrl);
+    public static final SqlSelectField<String>  MEDIA_CONTENT_TYPE = str(ALIAS + ".media_content_type", mediaContentType);
+    public static final SqlSelectField<Integer> MEDIA_COUNT        = intVal(ALIAS + ".media_count",      mediaCount);
     public static final SqlSelectField<Long>    USER_ID           = longVal("u.id",                   createdByUserId);
     public static final SqlSelectField<String>  USER_NAME         = str("u.name",                     createdByUserName);
     public static final SqlSelectField<String>  USER_EMAIL        = str("u.email",                    createdByUserEmail);
@@ -39,14 +39,14 @@ public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementIn
         public static final String TABLE              = AdvertisementDescriptor.TABLE;
         public static final String DELETED_AT         = AdvertisementDescriptor.DELETED_AT.columnName();
         public static final String DELETED_BY_USER_ID = "deleted_by_user_id";
-        public static final String MAIN_IMAGE_URL     = AdvertisementDescriptor.MAIN_IMAGE_URL.columnName();
-        public static final String MAIN_CONTENT_TYPE  = AdvertisementDescriptor.MAIN_CONTENT_TYPE.columnName();
-        public static final String IMAGE_COUNT        = AdvertisementDescriptor.IMAGE_COUNT.columnName();
+        public static final String MEDIA_URL          = AdvertisementDescriptor.MEDIA_URL.columnName();
+        public static final String MEDIA_CONTENT_TYPE = AdvertisementDescriptor.MEDIA_CONTENT_TYPE.columnName();
+        public static final String MEDIA_COUNT        = AdvertisementDescriptor.MEDIA_COUNT.columnName();
     }
 
     public AdvertisementDescriptor() {
         super(List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT,
-                      USER_ID, USER_NAME, USER_EMAIL, MAIN_IMAGE_URL, MAIN_CONTENT_TYPE, IMAGE_COUNT),
+                      USER_ID, USER_NAME, USER_EMAIL, MEDIA_URL, MEDIA_CONTENT_TYPE, MEDIA_COUNT),
                 SOURCE, COUNT_SOURCE);
     }
 
@@ -61,9 +61,9 @@ public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementIn
                 .createdByUserId(USER_ID.extract(rs))
                 .createdByUserName(USER_NAME.extract(rs))
                 .createdByUserEmail(USER_EMAIL.extract(rs))
-                .mainImageUrl(MAIN_IMAGE_URL.extract(rs))
-                .mainContentType(MAIN_CONTENT_TYPE.extract(rs))
-                .imageCount(IMAGE_COUNT.extract(rs))
+                .mediaUrl(MEDIA_URL.extract(rs))
+                .mediaContentType(MEDIA_CONTENT_TYPE.extract(rs))
+                .mediaCount(MEDIA_COUNT.extract(rs))
                 .build();
     }
 }

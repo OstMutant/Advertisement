@@ -34,3 +34,4 @@
 /advertisement-contracts/target/
 /audit-spring-boot-starter/target/
 /playwright/pw-report/
+/target/sonar
