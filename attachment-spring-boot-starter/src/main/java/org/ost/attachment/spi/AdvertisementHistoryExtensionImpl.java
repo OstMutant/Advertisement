@@ -3,7 +3,7 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
-import org.ost.attachment.service.PhotoSnapshotService;
+import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.stereotype.Component;
 
@@ -14,25 +14,25 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryExtension {
 
-    private final PhotoSnapshotService photoSnapshotService;
+    private final AttachmentSnapshotService attachmentSnapshotService;
 
     @Override
     public List<ChangeEntry> getMediaChanges(Long adId, int version) {
-        return photoSnapshotService.getChangesForVersion(adId, version);
+        return attachmentSnapshotService.getChangesForVersion(adId, version);
     }
 
     @Override
     public boolean mediaMatchCurrent(Long adId, int version) {
-        return photoSnapshotService.mediaMatchCurrent(adId, version);
+        return attachmentSnapshotService.mediaMatchCurrent(adId, version);
     }
 
     @Override
     public String getMediaStateAtVersion(Long adId, int version) {
-        return photoSnapshotService.getMediaStateAtVersion(adId, version);
+        return attachmentSnapshotService.getMediaStateAtVersion(adId, version);
     }
 
     @Override
     public String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId) {
-        return photoSnapshotService.getMediaStateForAdvSnapshot(adId, advSnapshotId);
+        return attachmentSnapshotService.getMediaStateForAdvSnapshot(adId, advSnapshotId);
     }
 }

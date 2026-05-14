@@ -45,8 +45,8 @@
             <column name="deleted_at"/>
         </createIndex>
 
-        <!-- ── photo_snapshot ──────────────────────────────────────────────── -->
-        <createTable tableName="photo_snapshot">
+        <!-- ── attachment_snapshot ─────────────────────────────────────────── -->
+        <createTable tableName="attachment_snapshot">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -59,12 +59,12 @@
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
         </createTable>
 
-        <createIndex indexName="idx_photo_snapshot_adv" tableName="photo_snapshot">
+        <createIndex indexName="idx_attachment_snapshot_adv" tableName="attachment_snapshot">
             <column name="advertisement_id"/>
         </createIndex>
 
         <sql>
-            CREATE INDEX IF NOT EXISTS idx_photo_snapshot_changes ON photo_snapshot USING GIN (changes_summary);
+            CREATE INDEX IF NOT EXISTS idx_attachment_snapshot_changes ON attachment_snapshot USING GIN (changes_summary);
         </sql>
 
     </changeSet>

@@ -6,6 +6,7 @@ import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.advertisement.events.spi.AttachmentCurrentUserProvider;
+import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.advertisement.events.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.ost.advertisement.spi.storage.StorageService;
@@ -30,7 +31,7 @@ public class AttachmentService {
 
     private final StorageService                                  storageService;
     private final AttachmentRepository                            attachmentRepository;
-    private final PhotoSnapshotService                            photoSnapshotService;
+    private final AttachmentSnapshotService                       attachmentSnapshotService;
     private final ObjectProvider<AttachmentCurrentUserProvider>   currentUserProvider;
     private final ApplicationEventPublisher                       eventPublisher;
 
@@ -184,7 +185,7 @@ public class AttachmentService {
     private void captureMediaChanges(Long entityId) {
         Long userId = resolveCurrentUserId();
         if (userId != null) {
-            photoSnapshotService.capture(entityId, userId);
+            attachmentSnapshotService.capture(entityId, userId);
         }
     }
 

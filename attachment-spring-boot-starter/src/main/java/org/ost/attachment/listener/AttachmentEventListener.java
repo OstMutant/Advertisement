@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
 import org.ost.attachment.service.AttachmentService;
-import org.ost.attachment.service.PhotoSnapshotService;
+import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -16,8 +16,8 @@ import org.springframework.transaction.event.TransactionPhase;
 @ConditionalOnStorageEnabled
 public class AttachmentEventListener {
 
-    private final AttachmentService    attachmentService;
-    private final PhotoSnapshotService photoSnapshotService;
+    private final AttachmentService         attachmentService;
+    private final AttachmentSnapshotService attachmentSnapshotService;
 
     @EventListener
     public void on(AdvertisementDeletedEvent event) {
@@ -26,8 +26,8 @@ public class AttachmentEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void on(AdvertisementRestoredEvent event) {
-        String[] targetUrls = photoSnapshotService.getUrlsAtVersion(event.adId(), event.snapshotVersion());
+        String[] targetUrls = attachmentSnapshotService.getUrlsAtVersion(event.adId(), event.snapshotVersion());
         attachmentService.restoreToUrls(event.adId(), targetUrls, event.userId());
-        photoSnapshotService.capture(event.adId(), event.userId());
+        attachmentSnapshotService.capture(event.adId(), event.userId());
     }
 }

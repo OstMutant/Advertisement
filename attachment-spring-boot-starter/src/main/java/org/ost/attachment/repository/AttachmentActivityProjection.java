@@ -4,7 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.EntityType;
-import org.ost.attachment.service.PhotoSnapshotService;
+import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.sqlengine.projection.SqlFixedQuery;
 import org.ost.sqlengine.projection.SqlSelectField;
 
@@ -15,7 +15,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-public class PhotoActivityProjection extends SqlFixedQuery<ActivityItemDto> {
+public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
     private static final String QUERY =
             "SELECT ps.id, ps.advertisement_id, ps.changes_summary::text," +
@@ -25,7 +25,7 @@ public class PhotoActivityProjection extends SqlFixedQuery<ActivityItemDto> {
             " a.description AS snapshot_description," +
             " EXISTS(SELECT 1 FROM advertisement a2" +
             "        WHERE a2.id = ps.advertisement_id AND a2.deleted_at IS NULL) AS entity_exists" +
-            " FROM " + PhotoSnapshotDescriptor.SOURCE +
+            " FROM " + AttachmentSnapshotDescriptor.SOURCE +
             " LEFT JOIN advertisement a ON a.id = ps.advertisement_id" +
             " LEFT JOIN user_information u ON u.id = ps.changed_by_user_id" +
             " WHERE ps.changed_by_user_id = :userId" +
@@ -42,12 +42,12 @@ public class PhotoActivityProjection extends SqlFixedQuery<ActivityItemDto> {
     static final SqlSelectField<String>  SNAPSHOT_DESC      = str("a.description",                "snapshot_description");
     static final SqlSelectField<Boolean> ENTITY_EXISTS      = bool("entity_exists",               "entity_exists");
 
-    private final PhotoSnapshotService photoSnapshotService;
+    private final AttachmentSnapshotService attachmentSnapshotService;
 
-    public PhotoActivityProjection(PhotoSnapshotService photoSnapshotService) {
+    public AttachmentActivityProjection(AttachmentSnapshotService attachmentSnapshotService) {
         super(List.of(SNAPSHOT_ID, ADVERTISEMENT_ID, CHANGES_SUMMARY, CREATED_AT,
                       CHANGED_BY_USER_ID, CHANGED_BY_NAME, DISPLAY_NAME, SNAPSHOT_DESC, ENTITY_EXISTS));
-        this.photoSnapshotService = photoSnapshotService;
+        this.attachmentSnapshotService = attachmentSnapshotService;
     }
 
     @Override
@@ -65,7 +65,7 @@ public class PhotoActivityProjection extends SqlFixedQuery<ActivityItemDto> {
                 ActionType.UPDATED,
                 CREATED_AT.extract(rs),
                 ENTITY_EXISTS.extract(rs),
-                photoSnapshotService.parsePhotoChanges(CHANGES_SUMMARY.extract(rs)),
+                attachmentSnapshotService.parseMediaChanges(CHANGES_SUMMARY.extract(rs)),
                 CHANGED_BY_USER_ID.extract(rs),
                 CHANGED_BY_NAME.extract(rs),
                 DISPLAY_NAME.extract(rs),

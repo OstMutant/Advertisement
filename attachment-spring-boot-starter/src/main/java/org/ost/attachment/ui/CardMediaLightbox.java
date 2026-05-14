@@ -20,7 +20,7 @@ import java.util.List;
 
 @SpringComponent
 @Scope("prototype")
-public class CardPhotoLightbox {
+public class CardMediaLightbox {
 
     public void open(List<Attachment> attachments, int startIndex) {
         if (attachments.isEmpty()) return;

@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
-import org.ost.attachment.ui.CardPhotoLightbox;
+import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -16,7 +16,7 @@ import org.springframework.stereotype.Service;
 public class AdvertisementGalleryExtensionImpl implements AdvertisementGalleryExtension {
 
     private final ObjectProvider<AttachmentGallery>    galleryProvider;
-    private final ObjectProvider<CardPhotoLightbox>    lightboxProvider;
+    private final ObjectProvider<CardMediaLightbox>    lightboxProvider;
     private final AttachmentService                    attachmentService;
 
     @Override

@@ -4,9 +4,9 @@ import org.ost.sqlengine.projection.SqlSelectField;
 
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
 
-public final class PhotoSnapshotDescriptor {
+public final class AttachmentSnapshotDescriptor {
 
-    public static final String TABLE  = "photo_snapshot";
+    public static final String TABLE  = "attachment_snapshot";
     public static final String ALIAS  = "ps";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
@@ -17,12 +17,12 @@ public final class PhotoSnapshotDescriptor {
 
     public static final class Write {
         private Write() {}
-        public static final String TABLE              = PhotoSnapshotDescriptor.TABLE;
-        public static final String ADVERTISEMENT_ID   = PhotoSnapshotDescriptor.ADVERTISEMENT_ID.columnName();
+        public static final String TABLE              = AttachmentSnapshotDescriptor.TABLE;
+        public static final String ADVERTISEMENT_ID   = AttachmentSnapshotDescriptor.ADVERTISEMENT_ID.columnName();
         public static final String ATTACHMENT_URLS    = "attachment_urls";
-        public static final String CHANGES_SUMMARY    = PhotoSnapshotDescriptor.CHANGES_SUMMARY.columnName();
-        public static final String CHANGED_BY_USER_ID = PhotoSnapshotDescriptor.CHANGED_BY_USER_ID.columnName();
+        public static final String CHANGES_SUMMARY    = AttachmentSnapshotDescriptor.CHANGES_SUMMARY.columnName();
+        public static final String CHANGED_BY_USER_ID = AttachmentSnapshotDescriptor.CHANGED_BY_USER_ID.columnName();
     }
 
-    private PhotoSnapshotDescriptor() {}
+    private AttachmentSnapshotDescriptor() {}
 }

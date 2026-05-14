@@ -12,19 +12,19 @@ import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
-public class PhotoSnapshotRepository {
+public class AttachmentSnapshotRepository {
 
     private static final SqlWriteCommand INSERT = SqlWriteCommand.of(
-            "INSERT INTO " + PhotoSnapshotDescriptor.Write.TABLE +
-            " (" + PhotoSnapshotDescriptor.Write.ADVERTISEMENT_ID + "," +
-            " "  + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
-            " "  + PhotoSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
-            " "  + PhotoSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
+            "INSERT INTO " + AttachmentSnapshotDescriptor.Write.TABLE +
+            " (" + AttachmentSnapshotDescriptor.Write.ADVERTISEMENT_ID + "," +
+            " "  + AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
+            " "  + AttachmentSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
+            " "  + AttachmentSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
             " VALUES (:adId," +
             " :urls, CAST(:changes AS JSONB), :userId, NOW())"
     );
 
-    private static final String FROM_TABLE = " FROM " + PhotoSnapshotDescriptor.TABLE;
+    private static final String FROM_TABLE = " FROM " + AttachmentSnapshotDescriptor.TABLE;
 
     private final JdbcClient jdbcClient;
 
@@ -39,17 +39,17 @@ public class PhotoSnapshotRepository {
 
     public List<String> getPrevUrls(Long adId) {
         return jdbcClient.sql(
-                "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
+                "SELECT " + AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS +
                 FROM_TABLE +
                 " WHERE advertisement_id = :adId ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource("adId", adId))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional().orElse(List.of());
     }
 
     // Subquery: created_at of audit_log entry at position :version+1 (for upper bound).
-    // photo_snapshot is created AFTER the audit entry in the same save flow, so we use
-    // "created_at < next_audit_entry.created_at" to correctly scope each version's photos.
+    // attachment_snapshot is created AFTER the audit entry in the same save flow, so we use
+    // "created_at < next_audit_entry.created_at" to correctly scope each version's attachments.
     private static final String NEXT_AUDIT_TS =
             "SELECT al.created_at FROM (" +
             "    SELECT created_at," +
@@ -65,7 +65,7 @@ public class PhotoSnapshotRepository {
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
@@ -84,7 +84,7 @@ public class PhotoSnapshotRepository {
                 "   ), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
-                .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
+                .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional();
     }
 

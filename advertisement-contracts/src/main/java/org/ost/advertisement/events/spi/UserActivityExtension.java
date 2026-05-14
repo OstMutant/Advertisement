@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface UserActivityExtension {
 
-    List<ActivityItemDto> getPhotoActivity(Long userId);
+    List<ActivityItemDto> getMediaActivity(Long userId);
 }

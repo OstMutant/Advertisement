@@ -103,21 +103,21 @@ public class ActivityRowRenderer implements AuditI18nSupport {
             addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
-        renderActivityPhotoSection(container, item, c.photos());
+        renderActivityMediaSection(container, item, c.media());
         c.others().forEach(oc -> addActivitySpan(container, activityPanel.format(oc), false));
         return container;
     }
 
-    private void renderActivityPhotoSection(Div container, ActivityItemDto item, List<ChangeEntry> photoChanges) {
-        if (photoChanges.isEmpty() && item.snapshotId() != null) {
+    private void renderActivityMediaSection(Div container, ActivityItemDto item, List<ChangeEntry> mediaChanges) {
+        if (mediaChanges.isEmpty() && item.snapshotId() != null) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null
                     ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId())
                     : null;
-            String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addActivitySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
+            String mediaText = (state != null && !state.isBlank()) ? state : "—";
+            addActivitySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
-            photoChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
+            mediaChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
         }
     }
 
@@ -213,19 +213,19 @@ public class ActivityRowRenderer implements AuditI18nSupport {
             addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
-        renderHistoryPhotoSection(container, c.photos(), adId, h.version());
+        renderHistoryMediaSection(container, c.media(), adId, h.version());
         c.others().forEach(oc -> addHistorySpan(container, activityPanel.format(oc), false));
         return container;
     }
 
-    private void renderHistoryPhotoSection(Div container, List<ChangeEntry> photoChanges, Long adId, int version) {
-        if (photoChanges.isEmpty()) {
+    private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges, Long adId, int version) {
+        if (mediaChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(adId, version) : null;
-            String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
+            String mediaText = (state != null && !state.isBlank()) ? state : "—";
+            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
-            photoChanges.forEach(pc -> addHistorySpan(container, activityPanel.format(pc), false));
+            mediaChanges.forEach(pc -> addHistorySpan(container, activityPanel.format(pc), false));
         }
     }
 
@@ -239,22 +239,22 @@ public class ActivityRowRenderer implements AuditI18nSupport {
     }
 
     private record AdvChanges(ChangeEntry title, ChangeEntry desc,
-                               List<ChangeEntry> photos, List<ChangeEntry> others) {}
+                               List<ChangeEntry> media, List<ChangeEntry> others) {}
 
     private static AdvChanges categorizeAdvChanges(List<ChangeEntry> entries) {
         ChangeEntry titleChange = null;
         ChangeEntry descChange  = null;
-        List<ChangeEntry> photoChanges = new ArrayList<>();
+        List<ChangeEntry> mediaChanges = new ArrayList<>();
         List<ChangeEntry> otherChanges = new ArrayList<>();
         for (ChangeEntry entry : entries) {
             switch (entry) {
                 case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
                 case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
-                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
+                case ChangeEntry.GenericChange gc                                    -> mediaChanges.add(gc);
                 default                                                              -> otherChanges.add(entry);
             }
         }
-        return new AdvChanges(titleChange, descChange, photoChanges, otherChanges);
+        return new AdvChanges(titleChange, descChange, mediaChanges, otherChanges);
     }
 
     // Inlined from TimeZoneUtil — intentional copy; TimeZoneUtil stays in advertisement-app.

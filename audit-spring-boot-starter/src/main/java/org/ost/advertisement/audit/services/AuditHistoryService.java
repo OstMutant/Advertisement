@@ -35,9 +35,9 @@ public class AuditHistoryService {
         if (ext == null) return history;
         return history.stream()
                 .map(h -> {
-                    List<ChangeEntry> photoChanges = ext.getMediaChanges(advertisementId, h.version());
-                    if (photoChanges.isEmpty()) return h;
-                    List<ChangeEntry> combined = new ArrayList<>(photoChanges);
+                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(advertisementId, h.version());
+                    if (mediaChanges.isEmpty()) return h;
+                    List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());
                     return new AdvertisementHistoryDto(h.snapshotId(), h.version(), h.actionType(),
                             h.actorId(), h.changedByUserName(), h.createdAt(), h.title(), h.description(),

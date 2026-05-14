@@ -31,7 +31,7 @@ public class ActivityService {
         UserActivityExtension ext = activityExtension.getIfAvailable();
         List<ActivityItemDto> combined = new ArrayList<>(base);
         if (ext != null) {
-            combined.addAll(ext.getPhotoActivity(userId));
+            combined.addAll(ext.getMediaActivity(userId));
             combined.sort(Comparator.comparing(ActivityItemDto::createdAt).reversed());
             if (combined.size() > 20) combined = combined.subList(0, 20);
         }
