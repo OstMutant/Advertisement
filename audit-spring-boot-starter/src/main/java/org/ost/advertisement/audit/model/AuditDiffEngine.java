@@ -1,7 +1,7 @@
 package org.ost.advertisement.audit.model;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.AuditedField;
+import org.ost.advertisement.audit.AuditableSnapshot;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +16,7 @@ public class AuditDiffEngine {
 
     private final AuditFieldCache fieldCache;
 
-    public List<ChangeEntry> diff(Object before, Object after) {
+    public List<ChangeEntry> diff(AuditableSnapshot before, AuditableSnapshot after) {
         List<Field> fields = fieldCache.getAuditedFields(after.getClass());
         List<ChangeEntry> changes = new ArrayList<>();
         for (Field f : fields) {
@@ -25,13 +25,13 @@ public class AuditDiffEngine {
                 Object next = f.get(after);
                 if (Objects.equals(prev, next)) continue;
                 changes.add(toEntry(f, prev, next));
-            } catch (IllegalAccessException ignored) {
+            } catch (IllegalAccessException _) {
             }
         }
         return changes;
     }
 
-    public List<ChangeEntry> diffFromNull(Object after) {
+    public List<ChangeEntry> diffFromNull(AuditableSnapshot after) {
         return diff(null, after);
     }
 
