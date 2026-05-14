@@ -26,6 +26,7 @@ public class ValidRangeValidator implements ConstraintValidator<ValidRange, Obje
     }
 
     @Override
+    @SuppressWarnings("java:S3011")
     public boolean isValid(Object value, ConstraintValidatorContext context) {
         try {
             Field[] fields = CACHE.computeIfAbsent(

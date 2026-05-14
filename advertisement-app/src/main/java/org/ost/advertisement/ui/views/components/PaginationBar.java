@@ -22,6 +22,8 @@ import static org.ost.advertisement.common.I18nKey.*;
 @Scope("prototype")
 public class PaginationBar extends HorizontalLayout implements I18nParams {
 
+    private static final String TITLE_ATTR = "title";
+
     @Getter
     private int pageSize = PaginationDefaults.DEFAULT_PAGE_SIZE;
 
@@ -52,10 +54,10 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
         nextButton  = new Button(VaadinIcon.ANGLE_RIGHT.create());
         lastButton  = new Button(VaadinIcon.ANGLE_DOUBLE_RIGHT.create());
 
-        firstButton.getElement().setAttribute("title", getValue(PAGINATION_FIRST));
-        prevButton.getElement().setAttribute("title",  getValue(PAGINATION_PREV));
-        nextButton.getElement().setAttribute("title",  getValue(PAGINATION_NEXT));
-        lastButton.getElement().setAttribute("title",  getValue(PAGINATION_LAST));
+        firstButton.getElement().setAttribute(TITLE_ATTR, getValue(PAGINATION_FIRST));
+        prevButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_PREV));
+        nextButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_NEXT));
+        lastButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_LAST));
 
         firstButton.addClickListener(_ -> {
             currentPage = 0;

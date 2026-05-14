@@ -21,6 +21,7 @@ public interface SqlWriteCommand {
     default Long executeAndReturnKey(JdbcClient jdbcClient, MapSqlParameterSource params) {
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcClient.sql(sql()).paramSource(params).update(keyHolder);
-        return keyHolder.getKey() != null ? keyHolder.getKey().longValue() : null;
+        Number key = keyHolder.getKey();
+        return key != null ? key.longValue() : null;
     }
 }

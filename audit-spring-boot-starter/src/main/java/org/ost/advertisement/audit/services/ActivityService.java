@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -45,7 +46,7 @@ public class ActivityService {
         if (resolver == null) return items;
         Set<Long> ids = items.stream()
                 .map(ActivityItemDto::changedByUserId)
-                .filter(id -> id != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (ids.isEmpty()) return items;
         Map<Long, String> names = resolver.resolveNames(ids);

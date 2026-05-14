@@ -24,33 +24,46 @@ public class AttachmentRepository {
             " RETURNING " + AttachmentDescriptor.ID.columnName()
     );
 
+    private static final String WHERE_ACTIVE_BY_ENTITY =
+            " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL";
+
+    private static final String UPDATE_TABLE =
+            "UPDATE " + AttachmentDescriptor.Write.TABLE;
+
+    private static final String SET_DELETED_NOW =
+            " SET " + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
+            " "     + AttachmentDescriptor.Write.DELETED_BY_USER_ID;
+
+    private static final String SQL_SELECT = "SELECT ";
+    private static final String SQL_FROM   = " FROM ";
+
+    private static final String SELECT_URL_FROM_TABLE =
+            SQL_SELECT + AttachmentDescriptor.Write.URL + SQL_FROM + AttachmentDescriptor.TABLE;
+
+    private static final String SELECT_URL_FROM_WRITE_TABLE =
+            SQL_SELECT + AttachmentDescriptor.Write.URL + SQL_FROM + AttachmentDescriptor.Write.TABLE;
+
     private static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
-            "UPDATE " + AttachmentDescriptor.Write.TABLE +
-            " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
-            " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = :deletedBy" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :deletedBy" +
             " WHERE " + AttachmentDescriptor.ID.columnName() + " = :id"
     );
 
     private static final SqlWriteCommand SOFT_DELETE_ALL = SqlWriteCommand.of(
-            "UPDATE " + AttachmentDescriptor.Write.TABLE +
-            " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
-            " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = :deletedBy" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :deletedBy" +
             " WHERE entity_type = 'ADVERTISEMENT'" +
             " AND "  + AttachmentDescriptor.Write.ENTITY_ID + " = :entityId" +
             " AND "  + AttachmentDescriptor.Write.DELETED_AT + " IS NULL"
     );
 
     private static final SqlWriteCommand RESTORE_DELETE_ALL = SqlWriteCommand.of(
-            "UPDATE " + AttachmentDescriptor.Write.TABLE +
-            " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
-            " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = :userId" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :userId" +
             " WHERE entity_type = 'ADVERTISEMENT'" +
             " AND "  + AttachmentDescriptor.Write.ENTITY_ID + " = :adId" +
             " AND "  + AttachmentDescriptor.Write.DELETED_AT + " IS NULL"
     );
 
     private static final SqlWriteCommand RESTORE_UNDELETE = SqlWriteCommand.of(
-            "UPDATE " + AttachmentDescriptor.Write.TABLE +
+            UPDATE_TABLE +
             " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NULL," +
             " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = NULL" +
             " WHERE entity_type = 'ADVERTISEMENT'" +
@@ -59,9 +72,7 @@ public class AttachmentRepository {
     );
 
     private static final SqlWriteCommand RESTORE_MARK_DELETED = SqlWriteCommand.of(
-            "UPDATE " + AttachmentDescriptor.Write.TABLE +
-            " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
-            " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = :userId" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :userId" +
             " WHERE entity_type = 'ADVERTISEMENT'" +
             " AND "  + AttachmentDescriptor.Write.ENTITY_ID + " = :adId" +
             " AND "  + AttachmentDescriptor.Write.DELETED_AT + " IS NULL" +
@@ -116,25 +127,20 @@ public class AttachmentRepository {
 
     public List<Attachment> getByEntityId(Long entityId) {
         return jdbcClient.sql(
-                "SELECT * FROM " + AttachmentDescriptor.TABLE +
-                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
+                "SELECT * FROM " + AttachmentDescriptor.TABLE + WHERE_ACTIVE_BY_ENTITY)
                 .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
                 .query(PROJECTION).list();
     }
 
     public List<String> getActiveUrls(Long entityId) {
-        return jdbcClient.sql(
-                "SELECT " + AttachmentDescriptor.Write.URL +
-                " FROM " + AttachmentDescriptor.TABLE +
-                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
+        return jdbcClient.sql(SELECT_URL_FROM_TABLE + WHERE_ACTIVE_BY_ENTITY)
                 .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
                 .query(String.class).list();
     }
 
     public List<String> findUrlsDeletedOlderThan(int days) {
         return jdbcClient.sql(
-                "SELECT " + AttachmentDescriptor.Write.URL +
-                " FROM " + AttachmentDescriptor.Write.TABLE +
+                SELECT_URL_FROM_WRITE_TABLE +
                 " WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)" +
                 " AND content_type NOT IN ('video/youtube', 'video/embed')")
                 .paramSource(new MapSqlParameterSource("days", days))
@@ -150,22 +156,23 @@ public class AttachmentRepository {
 
     public MediaStats loadMediaStats(Long entityId) {
         record Row(String url, String contentType) {}
-        Row main = jdbcClient.sql(
-                "SELECT " + AttachmentDescriptor.Write.URL + ", " + AttachmentDescriptor.Write.CONTENT_TYPE +
-                " FROM " + AttachmentDescriptor.TABLE +
+        var params = new MapSqlParameterSource(Attachment.Fields.entityId, entityId);
+        var main = jdbcClient.sql(
+                SQL_SELECT + AttachmentDescriptor.Write.URL + ", " + AttachmentDescriptor.Write.CONTENT_TYPE +
+                SQL_FROM + AttachmentDescriptor.TABLE +
                 " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId" +
                 " AND deleted_at IS NULL ORDER BY created_at ASC LIMIT 1")
-                .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
+                .paramSource(params)
                 .query((rs, n) -> new Row(rs.getString(AttachmentDescriptor.Write.URL),
                                           rs.getString(AttachmentDescriptor.Write.CONTENT_TYPE)))
-                .optional().orElse(null);
-        int count = jdbcClient.sql(
-                "SELECT COUNT(*) FROM " + AttachmentDescriptor.TABLE +
-                " WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :entityId AND deleted_at IS NULL")
-                .paramSource(new MapSqlParameterSource(Attachment.Fields.entityId, entityId))
+                .optional();
+        Integer countVal = jdbcClient.sql(
+                "SELECT COUNT(*) FROM " + AttachmentDescriptor.TABLE + WHERE_ACTIVE_BY_ENTITY)
+                .paramSource(params)
                 .query(Integer.class).single();
-        return main != null
-                ? new MediaStats(main.url(), main.contentType(), count)
-                : new MediaStats(null, null, count);
+        int count = countVal != null ? countVal : 0;
+        return main
+                .map(m -> new MediaStats(m.url(), m.contentType(), count))
+                .orElse(new MediaStats(null, null, count));
     }
 }

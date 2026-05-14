@@ -6,7 +6,7 @@ import java.util.regex.Pattern;
 public final class YoutubeUtil {
 
     private static final Pattern PATTERN = Pattern.compile(
-        "(?:youtube\\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?|shorts)/|.*[?&]v=)" +
+        "(?:youtube\\.com/(?:embed/|shorts/|v/|.*[?&]v=)" +
         "|youtu\\.be/)([^\"&?/\\s]{11})"
     );
 

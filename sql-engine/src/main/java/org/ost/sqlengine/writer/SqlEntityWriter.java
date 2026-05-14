@@ -38,10 +38,10 @@ public class SqlEntityWriter<E> {
         List<String> setClauses = new ArrayList<>();
         for (SqlWriteColumn<E> c : columns) {
             switch (c) {
-                case SqlMappedColumn<E> col ->
-                        setClauses.add(col.column() + " = :" + col.param());
-                case SqlExpressionColumn<E> expr ->
-                        setClauses.add(expr.column() + " = " + expr.sqlExpression());
+                case SqlMappedColumn<E>(var column, var param, _) ->
+                        setClauses.add(column + " = :" + param);
+                case SqlExpressionColumn<E>(var column, var sqlExpression) ->
+                        setClauses.add(column + " = " + sqlExpression);
             }
         }
         return "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + where;
@@ -51,8 +51,8 @@ public class SqlEntityWriter<E> {
         MapSqlParameterSource params = new MapSqlParameterSource();
         for (SqlWriteColumn<E> c : columns) {
             switch (c) {
-                case SqlMappedColumn<E> col ->
-                        params.addValue(col.param(), col.extractor().apply(entity));
+                case SqlMappedColumn<E>(_, var param, var extractor) ->
+                        params.addValue(param, extractor.apply(entity));
                 case SqlExpressionColumn<E> _ -> {
                     // SQL expression has no named parameter — skip
                 }

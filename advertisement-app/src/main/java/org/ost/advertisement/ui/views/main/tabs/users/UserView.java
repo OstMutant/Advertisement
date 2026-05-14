@@ -43,7 +43,7 @@ public class UserView extends VerticalLayout {
     private final UserOverlay                            overlay;
     private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
     private final PaginationBar                          paginationBar;
-    private final SettingsPaginationBinding              settingsPaginationBinding;
+    private final transient SettingsPaginationBinding    settingsPaginationBinding;
 
     private Grid<User> grid;
 

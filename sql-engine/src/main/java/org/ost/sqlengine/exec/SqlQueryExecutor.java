@@ -4,8 +4,6 @@ import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
-
 import java.util.List;
 import java.util.Optional;
 

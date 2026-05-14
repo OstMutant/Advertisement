@@ -112,7 +112,7 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
         if (json == null || json.isBlank()) return List.of();
         try {
             return objectMapper.readValue(json, new TypeReference<>() {});
-        } catch (Exception e) {
+        } catch (Exception _) {
             return List.of();
         }
     }

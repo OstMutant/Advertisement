@@ -61,7 +61,7 @@ class SqlSelectFieldTest {
         var field = SqlSelectField.<String>builder()
                 .sqlExpression("a.title")
                 .alias("title")
-                .extractor((r, alias) -> r.getString(alias))
+                .extractor(ResultSet::getString)
                 .build();
 
         assertThat(field.extract(rs)).isEqualTo("Hello");
@@ -71,7 +71,7 @@ class SqlSelectFieldTest {
         return SqlSelectField.<String>builder()
                 .sqlExpression(expr)
                 .alias(alias)
-                .extractor((rs, a) -> rs.getString(a))
+                .extractor(ResultSet::getString)
                 .build();
     }
 }

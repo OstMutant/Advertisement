@@ -13,13 +13,15 @@ public class AuditFieldCache {
 
     private final ConcurrentHashMap<Class<?>, List<Field>> cache = new ConcurrentHashMap<>();
 
+    @SuppressWarnings("java:S3011")
     public List<Field> getAuditedFields(Class<?> type) {
-        return cache.computeIfAbsent(type, t ->
-                Arrays.stream(t.getDeclaredFields())
-                        .filter(f -> f.isAnnotationPresent(AuditedField.class))
-                        .peek(f -> f.setAccessible(true))
-                        .toList()
-        );
+        return cache.computeIfAbsent(type, t -> {
+            List<Field> fields = Arrays.stream(t.getDeclaredFields())
+                    .filter(f -> f.isAnnotationPresent(AuditedField.class))
+                    .toList();
+            fields.forEach(f -> f.setAccessible(true));
+            return fields;
+        });
     }
 
 }

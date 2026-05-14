@@ -199,8 +199,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
             row.add(renderer.buildAdvHistoryFieldsList(h, adId));
 
-            // Restore button: text-based rows (prevSnapshotId != null guards photo-only rows);
-            // CREATED also eligible when history has multiple entries
+            // Show restore button for text-based rows; CREATED rows only when history has multiple entries
             boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
             if (access.canOperate(params.getAd()) && isTextRow
                     && (h.actionType() != ActionType.CREATED || history.size() > 1)) {

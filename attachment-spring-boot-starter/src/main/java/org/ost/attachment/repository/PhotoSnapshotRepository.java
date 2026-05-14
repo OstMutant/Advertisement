@@ -24,6 +24,8 @@ public class PhotoSnapshotRepository {
             " :urls, CAST(:changes AS JSONB), :userId, NOW())"
     );
 
+    private static final String FROM_TABLE = " FROM " + PhotoSnapshotDescriptor.TABLE;
+
     private final JdbcClient jdbcClient;
 
     public void insert(Long adId, String[] urls, String changesJson, Long userId) {
@@ -38,7 +40,7 @@ public class PhotoSnapshotRepository {
     public List<String> getPrevUrls(Long adId) {
         return jdbcClient.sql(
                 "SELECT " + PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                FROM_TABLE +
                 " WHERE advertisement_id = :adId ORDER BY created_at DESC LIMIT 1")
                 .paramSource(new MapSqlParameterSource("adId", adId))
                 .query((rs, row) -> toStringList(rs, PhotoSnapshotDescriptor.Write.ATTACHMENT_URLS))
@@ -58,7 +60,7 @@ public class PhotoSnapshotRepository {
     public String[] getUrlsAtVersion(Long adId, int version) {
         return jdbcClient.sql(
                 "SELECT attachment_urls" +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                FROM_TABLE +
                 " WHERE advertisement_id = :adId" +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
@@ -72,7 +74,7 @@ public class PhotoSnapshotRepository {
     public Optional<List<String>> getUrlsForAdvSnapshot(Long adId, Long advSnapshotId) {
         return jdbcClient.sql(
                 "SELECT attachment_urls" +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                FROM_TABLE +
                 " WHERE advertisement_id = :adId" +
                 "   AND created_at < COALESCE((" +
                 "       SELECT created_at FROM audit_log" +
@@ -95,7 +97,7 @@ public class PhotoSnapshotRepository {
                 ") al WHERE al.rn = :version";
         return jdbcClient.sql(
                 "SELECT changes_summary::text" +
-                " FROM " + PhotoSnapshotDescriptor.TABLE +
+                FROM_TABLE +
                 " WHERE advertisement_id = :adId" +
                 "   AND created_at >= (" + thisAuditTs + ")" +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
@@ -112,7 +114,7 @@ public class PhotoSnapshotRepository {
             if (arr == null) return List.of();
             String[] arr2 = (String[]) arr.getArray();
             return arr2 == null ? List.of() : List.of(arr2);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return List.of();
         }
     }

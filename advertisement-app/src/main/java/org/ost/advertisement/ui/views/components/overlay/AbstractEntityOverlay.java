@@ -5,6 +5,7 @@ import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.services.NotificationService;
 
+@SuppressWarnings("java:S110")
 public abstract class AbstractEntityOverlay extends BaseOverlay {
 
     protected OverlayLayout               layout;

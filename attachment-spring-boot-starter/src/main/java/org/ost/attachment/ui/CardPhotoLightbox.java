@@ -7,6 +7,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -46,8 +47,8 @@ public class CardPhotoLightbox {
 
         HorizontalLayout viewer = new HorizontalLayout(prev, mainImg, iframe, next);
         viewer.addClassName("card-lightbox__viewer");
-        viewer.setAlignItems(HorizontalLayout.Alignment.CENTER);
-        viewer.setJustifyContentMode(HorizontalLayout.JustifyContentMode.CENTER);
+        viewer.setAlignItems(FlexComponent.Alignment.CENTER);
+        viewer.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 
         Div strip = new Div();
         strip.addClassName("card-lightbox__strip");
@@ -66,7 +67,6 @@ public class CardPhotoLightbox {
 
         Dialog dialog = new Dialog();
         dialog.addClassName("card-lightbox");
-        dialog.setModal(true);
         dialog.setDraggable(false);
         dialog.setResizable(false);
         dialog.setCloseOnEsc(true);
@@ -88,7 +88,7 @@ public class CardPhotoLightbox {
         VerticalLayout content = new VerticalLayout(viewer, strip);
         content.addClassName("card-lightbox__content");
         content.setPadding(false);
-        content.setAlignItems(VerticalLayout.Alignment.CENTER);
+        content.setAlignItems(FlexComponent.Alignment.CENTER);
 
         Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> dialog.close());
         closeBtn.addClassName("card-lightbox__close");

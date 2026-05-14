@@ -53,6 +53,7 @@ public class SecurityConfig {
     }
 
     @Bean
+    @SuppressWarnings({"java:S112", "java:S1130"})
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
                                                    SecurityContextRepository securityContextRepository) throws Exception {
         http

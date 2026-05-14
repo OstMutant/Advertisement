@@ -44,8 +44,10 @@ import java.util.UUID;
 @ConditionalOnStorageEnabled
 public class AttachmentGallery extends Div {
 
-    private static final int MAX_FILES     = 10;
-    private static final int MAX_FILE_SIZE = 10 * 1024 * 1024;
+    private static final int    MAX_FILES        = 10;
+    private static final int    MAX_FILE_SIZE    = 10 * 1024 * 1024;
+    private static final String CLICK_EVENT      = "click";
+    private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
     private final transient AttachmentService attachmentService;
     private final transient MessageSource     messageSource;
@@ -260,7 +262,7 @@ public class AttachmentGallery extends Div {
                     thumbnailsRow.add(buildThumbnail(saved));
                 }
                 urlField.clear();
-            } catch (Exception ex) {
+            } catch (Exception _) {
                 showError(msg("attachment.video.invalid", "Invalid video URL"));
             }
         });
@@ -309,7 +311,7 @@ public class AttachmentGallery extends Div {
 
         Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> closeLightbox(overlay, null));
         closeBtn.addClassName("card-lightbox__close");
-        closeBtn.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+        closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
         if (isVideoType(attachment.getContentType())) {
             IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
@@ -319,13 +321,13 @@ public class AttachmentGallery extends Div {
             iframe.getElement().setAttribute("allowfullscreen", "true");
             iframe.getElement().setAttribute("sandbox",
                     "allow-scripts allow-same-origin allow-presentation");
-            iframe.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+            iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
             overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
             overlay.add(closeBtn, iframe);
         } else {
             Image img = new Image(attachment.getUrl(), attachment.getFilename());
             img.addClassName("attachment-lightbox__image");
-            img.getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
+            img.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
             overlay.addClickListener(_ -> overlay.removeFromParent());
             overlay.add(closeBtn, img);
         }
@@ -356,7 +358,7 @@ public class AttachmentGallery extends Div {
                 : Locale.getDefault();
         try {
             return messageSource.getMessage(key, null, locale);
-        } catch (Exception e) {
+        } catch (Exception _) {
             return fallback;
         }
     }

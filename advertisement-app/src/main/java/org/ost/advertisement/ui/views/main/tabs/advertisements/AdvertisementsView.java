@@ -44,7 +44,7 @@ public class AdvertisementsView extends VerticalLayout {
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
-    private final SettingsPaginationBinding              settingsPaginationBinding;
+    private final transient SettingsPaginationBinding    settingsPaginationBinding;
 
     private FlexLayout advertisementContainer;
 

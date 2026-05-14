@@ -15,9 +15,9 @@ public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
     }
 
     protected SqlEntityProjection(List<SqlSelectField<?>> items, String sqlSource, String countSource) {
-        super(items);
         Objects.requireNonNull(sqlSource,    "Parameter 'sqlSource' must not be null.");
         Objects.requireNonNull(countSource,  "Parameter 'countSource' must not be null.");
+        super(items);
         this.sqlSource   = sqlSource;
         this.countSource = countSource;
     }

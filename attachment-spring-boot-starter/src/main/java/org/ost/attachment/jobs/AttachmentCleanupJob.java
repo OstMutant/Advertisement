@@ -47,7 +47,7 @@ public class AttachmentCleanupJob {
                 try {
                     s.delete(url);
                     deleted++;
-                } catch (Exception e) {
+                } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
                     log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
                 }
             }
@@ -64,7 +64,7 @@ public class AttachmentCleanupJob {
 
         Set<String> failedUrls = new HashSet<>();
         storageService.ifAvailable(s -> urls.forEach(url -> {
-            try { s.delete(url); } catch (Exception e) {
+            try { s.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
                 log.warn("Failed to delete S3 object {}: {}", url, e.getMessage());
                 failedUrls.add(url);
             }

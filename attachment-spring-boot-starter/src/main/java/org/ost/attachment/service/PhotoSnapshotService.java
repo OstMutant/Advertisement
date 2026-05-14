@@ -80,7 +80,7 @@ public class PhotoSnapshotService {
                         return (ChangeEntry) new ChangeEntry.GenericChange("changes.photos", beforeStr, afterStr);
                     })
                     .toList();
-        } catch (Exception e) {
+        } catch (Exception _) {
             return List.of();
         }
     }
@@ -95,7 +95,7 @@ public class PhotoSnapshotService {
         if (diff == null) return null;
         try {
             return objectMapper.writeValueAsString(List.of(diff));
-        } catch (Exception e) {
+        } catch (Exception _) {
             return null;
         }
     }

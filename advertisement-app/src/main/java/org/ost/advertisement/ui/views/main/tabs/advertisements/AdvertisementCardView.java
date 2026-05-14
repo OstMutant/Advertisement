@@ -38,7 +38,8 @@ import static org.ost.advertisement.common.I18nKey.*;
 public class AdvertisementCardView extends HorizontalLayout
         implements Configurable<AdvertisementCardView, AdvertisementCardView.Parameters>, I18nParams, Initialization<AdvertisementCardView> {
 
-    private static final String CLICK_EVENT = "click";
+    private static final String CLICK_EVENT      = "click";
+    private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
     @Value
     @lombok.Builder
@@ -104,9 +105,9 @@ public class AdvertisementCardView extends HorizontalLayout
             badge.addClassName("advertisement-thumbnail-badge");
             wrapper.add(badge);
         }
-        wrapper.getElement().addEventListener("click", _ ->
+        wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
                 galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(ad.getId()))
-        ).addEventData("event.stopPropagation()");
+        ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
 
@@ -181,7 +182,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .build()
         );
         edit.setVisible(visible);
-        edit.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData("event.stopPropagation()");
+        edit.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return edit;
     }
 
@@ -195,7 +196,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .build()
         );
         delete.setVisible(visible);
-        delete.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData("event.stopPropagation()");
+        delete.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return delete;
     }
 

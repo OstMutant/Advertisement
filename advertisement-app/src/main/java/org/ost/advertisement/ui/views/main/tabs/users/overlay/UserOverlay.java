@@ -35,7 +35,7 @@ public class UserOverlay extends AbstractEntityOverlay {
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
     }
 
-    @Getter private final EntityOverlaySupport                        support;
+    @Getter private final transient EntityOverlaySupport               support;
     private final transient UserService                        userService;
     private final transient AuthContextService                 authContextService;
     private final transient UserViewOverlayModeHandler.Builder viewModeHandlerBuilder;

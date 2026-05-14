@@ -15,13 +15,16 @@ public class NoOpAuditPort implements AuditPort {
 
     @Override
     public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+        // no-op: audit subsystem is disabled
     }
 
     @Override
     public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
+        // no-op: audit subsystem is disabled
     }
 
     @Override
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+        // no-op: audit subsystem is disabled
     }
 }

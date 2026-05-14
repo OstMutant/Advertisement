@@ -31,6 +31,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class ActivityRowRenderer implements AuditI18nSupport {
 
+    private static final String CSS_CHANGES = "user-activity-changes";
+
     @Getter private final MessageSource                                  messageSource;
     private final        ActivityPanel                                   activityPanel;
     private final        ObjectProvider<AdvertisementHistoryExtension>   historyExtensionProvider;
@@ -57,11 +59,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         type.addClassName("user-activity-type");
         type.addClassName("user-activity-type--" + typeCssKey);
 
-        String nameText = item.entityType() == EntityType.ADVERTISEMENT
-                ? (item.changedByName() != null ? item.changedByName() : item.displayName())
-                : (item.entityExists()
-                        ? item.displayName()
-                        : item.displayName() + " " + msg(AuditKeys.ACTIVITY_ENTITY_DELETED));
+        String nameText = resolveNameText(item);
         Span name = new Span(nameText);
         name.addClassName("user-activity-name");
 
@@ -75,7 +73,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
 
         if (settingChange) {
             if (item.snapshotId() == null || item.snapshotId() <= 0) {
-                row.add(activityPanel.buildChangesList(item.changes(), "user-activity-changes"));
+                row.add(activityPanel.buildChangesList(item.changes(), CSS_CHANGES));
             }
         } else if (item.entityType() == EntityType.ADVERTISEMENT) {
             row.add(buildAdvFieldsList(item));
@@ -88,36 +86,29 @@ public class ActivityRowRenderer implements AuditI18nSupport {
 
     public Div buildAdvFieldsList(ActivityItemDto item) {
         Div container = new Div();
-        container.addClassName("user-activity-changes");
+        container.addClassName(CSS_CHANGES);
+        AdvChanges c = categorizeAdvChanges(item.changes());
 
-        ChangeEntry titleChange = null;
-        ChangeEntry descChange  = null;
-        List<ChangeEntry> photoChanges = new ArrayList<>();
-        List<ChangeEntry> otherChanges = new ArrayList<>();
-
-        for (ChangeEntry entry : item.changes()) {
-            switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
-                case ChangeEntry.GenericChange gc                                    -> photoChanges.add(gc);
-                default                                                              -> otherChanges.add(entry);
-            }
-        }
-
-        if (titleChange != null) {
-            addActivitySpan(container, activityPanel.format(titleChange), false);
+        if (c.title() != null) {
+            addActivitySpan(container, activityPanel.format(c.title()), false);
         } else if (item.snapshotTitle() != null) {
             addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
         }
 
-        if (descChange != null) {
-            addActivitySpan(container, activityPanel.format(descChange), false);
+        if (c.desc() != null) {
+            addActivitySpan(container, activityPanel.format(c.desc()), false);
         } else if (item.snapshotDescription() != null) {
             String desc = item.snapshotDescription().length() > 60
                     ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
             addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
+        renderActivityPhotoSection(container, item, c.photos());
+        c.others().forEach(oc -> addActivitySpan(container, activityPanel.format(oc), false));
+        return container;
+    }
+
+    private void renderActivityPhotoSection(Div container, ActivityItemDto item, List<ChangeEntry> photoChanges) {
         if (photoChanges.isEmpty() && item.snapshotId() != null) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null
@@ -126,16 +117,13 @@ public class ActivityRowRenderer implements AuditI18nSupport {
             String photoText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
         } else {
-            for (ChangeEntry pc : photoChanges) addActivitySpan(container, activityPanel.format(pc), false);
+            photoChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
         }
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
-
-        return container;
     }
 
     public Div buildUserFieldsList(ActivityItemDto item) {
         Div container = new Div();
-        container.addClassName("user-activity-changes");
+        container.addClassName(CSS_CHANGES);
 
         ChangeEntry nameChange  = null;
         ChangeEntry emailChange = null;
@@ -176,7 +164,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
 
     public Div buildSettingsFieldsList(ActivityItemDto item, UserSettings snapSettings) {
         Div container = new Div();
-        container.addClassName("user-activity-changes");
+        container.addClassName(CSS_CHANGES);
 
         ChangeEntry adsChange   = null;
         ChangeEntry usersChange = null;
@@ -210,13 +198,55 @@ public class ActivityRowRenderer implements AuditI18nSupport {
     public Div buildAdvHistoryFieldsList(AdvertisementHistoryDto h, Long adId) {
         Div container = new Div();
         container.addClassName("adv-history-changes");
+        AdvChanges c = categorizeAdvChanges(h.changes());
 
+        if (c.title() != null) {
+            addHistorySpan(container, activityPanel.format(c.title()), false);
+        } else if (h.title() != null) {
+            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
+        }
+
+        if (c.desc() != null) {
+            addHistorySpan(container, activityPanel.format(c.desc()), false);
+        } else if (h.description() != null) {
+            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
+            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+        }
+
+        renderHistoryPhotoSection(container, c.photos(), adId, h.version());
+        c.others().forEach(oc -> addHistorySpan(container, activityPanel.format(oc), false));
+        return container;
+    }
+
+    private void renderHistoryPhotoSection(Div container, List<ChangeEntry> photoChanges, Long adId, int version) {
+        if (photoChanges.isEmpty()) {
+            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            String state = ext != null ? ext.getMediaStateAtVersion(adId, version) : null;
+            String photoText = (state != null && !state.isBlank()) ? state : "—";
+            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
+        } else {
+            photoChanges.forEach(pc -> addHistorySpan(container, activityPanel.format(pc), false));
+        }
+    }
+
+    private String resolveNameText(ActivityItemDto item) {
+        if (item.entityType() == EntityType.ADVERTISEMENT) {
+            return item.changedByName() != null ? item.changedByName() : item.displayName();
+        }
+        return item.entityExists()
+                ? item.displayName()
+                : item.displayName() + " " + msg(AuditKeys.ACTIVITY_ENTITY_DELETED);
+    }
+
+    private record AdvChanges(ChangeEntry title, ChangeEntry desc,
+                               List<ChangeEntry> photos, List<ChangeEntry> others) {}
+
+    private static AdvChanges categorizeAdvChanges(List<ChangeEntry> entries) {
         ChangeEntry titleChange = null;
         ChangeEntry descChange  = null;
         List<ChangeEntry> photoChanges = new ArrayList<>();
         List<ChangeEntry> otherChanges = new ArrayList<>();
-
-        for (ChangeEntry entry : h.changes()) {
+        for (ChangeEntry entry : entries) {
             switch (entry) {
                 case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
                 case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
@@ -224,31 +254,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
                 default                                                              -> otherChanges.add(entry);
             }
         }
-
-        if (titleChange != null) {
-            addHistorySpan(container, activityPanel.format(titleChange), false);
-        } else if (h.title() != null) {
-            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
-        }
-
-        if (descChange != null) {
-            addHistorySpan(container, activityPanel.format(descChange), false);
-        } else if (h.description() != null) {
-            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
-            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
-        }
-
-        if (photoChanges.isEmpty()) {
-            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateAtVersion(adId, h.version()) : null;
-            String photoText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + photoText, true);
-        } else {
-            for (ChangeEntry pc : photoChanges) addHistorySpan(container, activityPanel.format(pc), false);
-        }
-        for (ChangeEntry oc : otherChanges) addHistorySpan(container, activityPanel.format(oc), false);
-
-        return container;
+        return new AdvChanges(titleChange, descChange, photoChanges, otherChanges);
     }
 
     // Inlined from TimeZoneUtil — intentional copy; TimeZoneUtil stays in advertisement-app.

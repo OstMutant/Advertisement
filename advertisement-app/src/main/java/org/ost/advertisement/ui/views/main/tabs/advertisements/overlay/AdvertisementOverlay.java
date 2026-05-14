@@ -34,7 +34,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, ad, onSaved, true); }
     }
 
-    @Getter private final EntityOverlaySupport                        support;
+    @Getter private final transient EntityOverlaySupport               support;
     private final transient AdvertisementService              advertisementService;
     private final transient AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
     private final transient AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
@@ -135,7 +135,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                     switchTo();
                 });
             }
-        } catch (Exception e) {
+        } catch (Exception _) {
             notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
         }
     }

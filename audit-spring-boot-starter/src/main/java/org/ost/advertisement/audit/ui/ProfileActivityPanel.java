@@ -33,6 +33,7 @@ public class ProfileActivityPanel implements AuditI18nSupport {
     private final        AuditQueryService                      auditQueryService;
     private final        ObjectProvider<ActivityRowRenderer>    rendererProvider;
 
+    @SuppressWarnings("java:S4276")
     public Div build(Long userId, String userName, Role userRole,
                      UserSettings currentSettings,
                      Consumer<Long> onRestoreUser,
@@ -49,36 +50,45 @@ public class ProfileActivityPanel implements AuditI18nSupport {
         }
 
         ActivityRowRenderer renderer = rendererProvider.getObject();
-
         for (ActivityItemDto item : items) {
             Div row = renderer.buildRow(item, userId);
-
-            if (ActivityRowRenderer.isSettingChange(item) && item.snapshotId() != null && item.snapshotId() > 0) {
-                auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
-                    row.add(renderer.buildSettingsFieldsList(item, snapSettings));
-                    boolean matchesCurrent = snapSettings.getAdsPageSize() == currentSettings.getAdsPageSize()
-                            && snapSettings.getUsersPageSize() == currentSettings.getUsersPageSize();
-                    if (matchesCurrent) {
-                        row.add(currentBadge());
-                    } else if (onRestoreSettings != null) {
-                        row.add(restoreBtn(msg(AuditKeys.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
-                    }
-                });
-            } else if (item.entityType() == EntityType.USER && item.snapshotId() != null && item.snapshotId() > 0
-                    && (item.actionType() != ActionType.CREATED || items.size() > 1)) {
-                boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
-                        .map(state -> state.name().equals(userName) && state.role() == userRole)
-                        .orElse(false);
-                if (matchesCurrent) {
-                    row.add(currentBadge());
-                } else if (onRestoreUser != null) {
-                    row.add(restoreBtn(msg(AuditKeys.USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
-                }
-            }
-
+            addSettingsRestore(row, item, renderer, currentSettings, onRestoreSettings);
+            addUserRestore(row, item, userName, userRole, onRestoreUser, items.size());
             container.add(row);
         }
         return container;
+    }
+
+    private void addSettingsRestore(Div row, ActivityItemDto item, ActivityRowRenderer renderer,
+                                     UserSettings currentSettings, Consumer<UserSettings> onRestoreSettings) {
+        if (!ActivityRowRenderer.isSettingChange(item) || item.snapshotId() == null || item.snapshotId() <= 0) return;
+        auditQueryService.getSettingsFromSnapshot(item.snapshotId()).ifPresent(snapSettings -> {
+            row.add(renderer.buildSettingsFieldsList(item, snapSettings));
+            boolean matchesCurrent = snapSettings.getAdsPageSize() == currentSettings.getAdsPageSize()
+                    && snapSettings.getUsersPageSize() == currentSettings.getUsersPageSize();
+            if (matchesCurrent) {
+                row.add(currentBadge());
+            } else if (onRestoreSettings != null) {
+                row.add(restoreBtn(msg(AuditKeys.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
+            }
+        });
+    }
+
+    @SuppressWarnings("java:S4276")
+    private void addUserRestore(Div row, ActivityItemDto item,
+                                 String userName, Role userRole,
+                                 Consumer<Long> onRestoreUser, int itemsSize) {
+        if (item.entityType() != EntityType.USER) return;
+        if (item.snapshotId() == null || item.snapshotId() <= 0) return;
+        if (item.actionType() == ActionType.CREATED && itemsSize <= 1) return;
+        boolean matchesCurrent = auditQueryService.getUserStateAt(item.snapshotId())
+                .map(state -> state.name().equals(userName) && state.role() == userRole)
+                .orElse(false);
+        if (matchesCurrent) {
+            row.add(currentBadge());
+        } else if (onRestoreUser != null) {
+            row.add(restoreBtn(msg(AuditKeys.USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
+        }
     }
 
     private Span currentBadge() {

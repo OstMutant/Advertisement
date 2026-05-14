@@ -26,6 +26,7 @@ public class AuditDiffEngine {
                 if (Objects.equals(prev, next)) continue;
                 changes.add(toEntry(f, prev, next));
             } catch (IllegalAccessException _) {
+                // setAccessible(true) called by AuditFieldCache — should not happen
             }
         }
         return changes;

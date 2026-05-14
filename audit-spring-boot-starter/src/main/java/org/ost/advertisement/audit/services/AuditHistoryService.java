@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -60,7 +61,7 @@ public class AuditHistoryService {
         if (resolver == null) return items;
         Set<Long> ids = items.stream()
                 .map(AdvertisementHistoryDto::actorId)
-                .filter(id -> id != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (ids.isEmpty()) return items;
         Map<Long, String> names = resolver.resolveNames(ids);
