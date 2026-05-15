@@ -12,7 +12,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.rules.Configurable;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 

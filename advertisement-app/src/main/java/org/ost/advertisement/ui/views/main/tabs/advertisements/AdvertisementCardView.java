@@ -19,7 +19,7 @@ import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;

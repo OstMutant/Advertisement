@@ -282,6 +282,27 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 
 ---
 
+## SonarQube Analysis
+
+All config lives in `/app/sonar/`. SonarQube server runs in Docker on `localhost:9099`.
+
+### Start server manually (if needed)
+```bash
+docker compose -f sonar/docker-compose.sonar.yml up -d
+```
+
+### Run analysis
+```bash
+bash /app/sonar/run.sh        # Linux / WSL
+sonar\run.bat                 # Windows
+```
+
+The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`.
+
+**IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
+
+---
+
 ## Architectural Decisions Log
 
 Significant decisions are recorded in per-module `DECISIONS.md` files:
@@ -289,6 +310,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
+- `/app/sonar/DECISIONS.md`
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.

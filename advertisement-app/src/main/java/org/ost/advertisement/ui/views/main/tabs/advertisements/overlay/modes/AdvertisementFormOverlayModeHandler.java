@@ -28,7 +28,7 @@ import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.advertisement.ui.rules.ComponentBuilder;
 import org.ost.advertisement.ui.rules.Configurable;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

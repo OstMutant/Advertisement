@@ -26,7 +26,7 @@ import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.BaseOverlay;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.events.spi.AuditUiExtension;
 import org.springframework.beans.factory.ObjectProvider;

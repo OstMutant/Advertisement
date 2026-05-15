@@ -18,13 +18,13 @@ public class NoOpAuditPort implements AuditPort {
     }
 
     @Override
-    public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {}
+    public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) { /* audit disabled */ }
 
     @Override
-    public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {}
+    public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) { /* audit disabled */ }
 
     @Override
-    public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {}
+    public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) { /* audit disabled */ }
 
     @Override
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {

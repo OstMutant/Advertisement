@@ -10,7 +10,7 @@ import org.ost.advertisement.dto.SignUpDto;
 import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.services.user.UserService;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.views.components.dialogs.BaseDialog;
 import org.ost.advertisement.ui.views.components.dialogs.DialogLayout;
 import org.ost.advertisement.ui.views.components.fields.UiEmailField;

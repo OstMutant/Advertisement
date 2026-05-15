@@ -41,24 +41,24 @@ public class ActivityPanel {
 
     public String format(ChangeEntry entry) {
         return switch (entry) {
-            case ChangeEntry.FieldChange f -> {
-                String label = i18n.get(AuditMessages.fieldLabel(f.field()));
-                if (f.from() == null || f.from().isBlank()) {
-                    yield label + ": \"" + f.to() + "\"";
+            case ChangeEntry.FieldChange(var field, var from, var to) -> {
+                String label = i18n.get(AuditMessages.fieldLabel(field));
+                if (from == null || from.isBlank()) {
+                    yield label + ": \"" + to + "\"";
                 }
-                yield label + ": \"" + f.from() + "\" → \"" + f.to() + "\"";
+                yield label + ": \"" + from + "\" → \"" + to + "\"";
             }
-            case ChangeEntry.SettingChange s -> {
-                String label = i18n.get(AuditMessages.settingLabel(s.key()));
-                yield label + ": " + s.from() + " → " + s.to();
+            case ChangeEntry.SettingChange(var key, var from, var to) -> {
+                String label = i18n.get(AuditMessages.settingLabel(key));
+                yield label + ": " + from + " → " + to;
             }
-            case ChangeEntry.NoteEntry n -> n.text();
-            case ChangeEntry.GenericChange g -> {
-                String label = i18n.get(g.labelI18nKey());
-                if (g.before() == null || g.before().isBlank()) {
-                    yield label + ": \"" + g.after() + "\"";
+            case ChangeEntry.NoteEntry(var text) -> text;
+            case ChangeEntry.GenericChange(var labelI18nKey, var before, var after) -> {
+                String label = i18n.get(labelI18nKey);
+                if (before == null || before.isBlank()) {
+                    yield label + ": \"" + after + "\"";
                 }
-                yield label + ": " + g.before() + " → " + g.after();
+                yield label + ": " + before + " → " + after;
             }
         };
     }

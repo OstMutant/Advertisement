@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.i18n.I18nService;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.ost.advertisement.ui.rules.Provider;
 import org.springframework.beans.factory.ObjectProvider;

@@ -9,7 +9,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.ost.advertisement.i18n.I18nService;
-import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;

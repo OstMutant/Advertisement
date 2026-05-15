@@ -100,7 +100,9 @@
       "Bash(/tmp/final_count.sh)",
       "Bash(mvn clean *)",
       "Bash(awk -F: '{print $3}')",
-      "Bash(grep -v \"^--$\")"
+      "Bash(grep -v \"^--$\")",
+      "Bash([ -d \"/app/$module/target/classes\" ])",
+      "Bash(awk '{print $2}')"
     ]
   },
   "hooks": {

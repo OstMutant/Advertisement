@@ -81,23 +81,32 @@ public class AdvertisementHistoryPanel extends Div
             return this;
         }
 
-        String currentTitle = p.getCurrentTitle();
-        String currentDesc  = p.getCurrentDesc();
+        RowContext ctx = new RowContext(
+                p.getAdId(), p.getCurrentTitle(), p.getCurrentDesc(), history.size(),
+                p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
+                p.getOnRestoreRequested());
         ActivityRowRenderer renderer = rendererProvider.getObject();
 
         for (AdvertisementHistoryDto h : history) {
-            add(buildRow(h, p.getAdId(), currentTitle, currentDesc, history.size(),
-                    p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
-                    renderer, p.getOnRestoreRequested()));
+            add(buildRow(h, renderer, ctx));
         }
         return this;
     }
 
-    private Div buildRow(AdvertisementHistoryDto h, Long adId,
-                          String currentTitle, String currentDesc, int historySize,
-                          boolean canOperate, String labelCurrentState, String labelRestore,
-                          ActivityRowRenderer renderer,
-                          BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested) {
+    private record RowContext(
+            Long adId, String currentTitle, String currentDesc, int historySize,
+            boolean canOperate, String labelCurrentState, String labelRestore,
+            BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested) {}
+
+    private Div buildRow(AdvertisementHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
+        Long adId               = ctx.adId();
+        String currentTitle     = ctx.currentTitle();
+        String currentDesc      = ctx.currentDesc();
+        int historySize         = ctx.historySize();
+        boolean canOperate      = ctx.canOperate();
+        String labelCurrentState = ctx.labelCurrentState();
+        String labelRestore     = ctx.labelRestore();
+        BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested = ctx.onRestoreRequested();
         Div row = new Div();
         row.addClassName("adv-history-row");
 
