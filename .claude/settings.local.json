@@ -102,7 +102,9 @@
       "Bash(awk -F: '{print $3}')",
       "Bash(grep -v \"^--$\")",
       "Bash([ -d \"/app/$module/target/classes\" ])",
-      "Bash(awk '{print $2}')"
+      "Bash(awk '{print $2}')",
+      "Bash(sort find *)",
+      "Bash(xargs -I{} basename {})"
     ]
   },
   "hooks": {
