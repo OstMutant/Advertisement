@@ -2,8 +2,12 @@ package org.ost.advertisement.audit.services;
 
 import org.ost.advertisement.audit.AuditPort;
 import org.ost.advertisement.audit.AuditableSnapshot;
+import org.ost.advertisement.audit.SnapshotContent;
+import org.ost.advertisement.audit.UserSnapshotState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 public class NoOpAuditPort implements AuditPort {
 
@@ -14,17 +18,26 @@ public class NoOpAuditPort implements AuditPort {
     }
 
     @Override
-    public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
-        // no-op: audit subsystem is disabled
+    public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {}
+
+    @Override
+    public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {}
+
+    @Override
+    public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {}
+
+    @Override
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
+        return Optional.empty();
     }
 
     @Override
-    public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
-        // no-op: audit subsystem is disabled
+    public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
+        return Optional.empty();
     }
 
     @Override
-    public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
-        // no-op: audit subsystem is disabled
+    public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
+        return Optional.empty();
     }
 }

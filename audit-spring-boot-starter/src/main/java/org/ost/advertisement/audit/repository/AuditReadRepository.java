@@ -1,6 +1,7 @@
 package org.ost.advertisement.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.ost.advertisement.audit.UserSnapshotState;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.model.EntityType;
@@ -12,8 +13,6 @@ import java.util.List;
 import java.util.Optional;
 
 public class AuditReadRepository extends AuditLogRepository {
-
-    public record UserSnapshotState(Long userId, String name, Role role) {}
 
     private final AdvertisementHistoryProjection historyQuery;
 

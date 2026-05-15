@@ -1,6 +1,5 @@
-package org.ost.advertisement.ui.views.rules;
+package org.ost.advertisement.ui.rules;
 
 public interface Initialization<T> {
-
     T init();
 }

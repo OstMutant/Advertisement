@@ -59,6 +59,78 @@ advertisement-parent (root pom)
 
 ---
 
+## UI Component Patterns
+
+### Configurable prototype beans
+
+Vaadin UI components that require runtime data use the `Configurable<T, P>` pattern:
+
+```java
+@SpringComponent
+@Scope("prototype")
+public class MyPanel extends Div
+        implements Configurable<MyPanel, MyPanel.Parameters>, Initialization<MyPanel> {
+
+    // Parameters: Java record for ≤4 simple fields; Lombok @Builder for 5+ or any callback
+    @Value @lombok.Builder
+    public static class Parameters {
+        @NonNull Long entityId;
+        Runnable onSave;
+        Runnable onCancel;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder extends ComponentBuilder<MyPanel, Parameters> {
+        @Getter private final ObjectProvider<MyPanel> provider;
+    }
+
+    @Override @PostConstruct
+    public MyPanel init() {
+        // structural setup only: CSS classes, layout skeleton — no data, no service calls
+        addClassName("my-panel");
+        return this;
+    }
+
+    @Override
+    public MyPanel configure(Parameters p) {
+        // data loading, button wiring, value binding — called once per use
+        return this;
+    }
+}
+```
+
+**Rules:**
+- `init()` — structural setup only. No data, no service calls.
+- `configure()` — data + behavior. Called once after `init()`.
+- `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
+- `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
+- Inner `Builder` class is required for all `Configurable` beans — wraps `ObjectProvider` via `ComponentBuilder`.
+- `Configurable`, `ComponentBuilder`, `Initialization` live in `advertisement-contracts` so all modules can use them.
+
+**When NOT to use Configurable:**
+- Component has distinct modes with different UI structure → use explicit named methods:
+  `configureForView(Long id)`, `configureForEdit(Long id)`, `configureForCreate(String sessionId)`.
+- Component needs only 1–2 simple setters → plain setters, no `Parameters`.
+- Do NOT use positional-argument methods with 4+ parameters in any module — use `Parameters` instead.
+
+**Cross-module rule:** audit-starter and attachment-starter must follow the same pattern as advertisement-app.
+A `build(Long id, String name, Role role, ...)` method with 4+ positional args is a pattern violation.
+
+### I18n in UI components
+
+Each module owns its translation key enum implementing `TranslationKey` (defined in `advertisement-contracts`):
+- `advertisement-app` → `CommonMessages implements TranslationKey`
+- `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
+- `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
+
+**Rules:**
+- Never use raw `MessageSource` directly in UI components — use `I18nService.get(TranslationKey)`.
+- Never use `msg(String key, String fallback)` — missing keys must fail fast, not silently fall back.
+- Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping.
+
+---
+
 ## sql-engine API
 
 Two patterns for repositories depending on query complexity:

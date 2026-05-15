@@ -1,7 +1,5 @@
 package org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.modes;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
@@ -15,23 +13,19 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.I18nService;
-import org.ost.advertisement.audit.services.AuditHistoryService;
+import org.ost.advertisement.events.spi.AuditUiExtension;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
-import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.advertisement.ui.views.rules.Configurable;
-import org.ost.advertisement.ui.views.rules.ComponentBuilder;
-import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.audit.ui.ActivityRowRenderer;
-import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
+import org.ost.advertisement.ui.rules.Configurable;
+import org.ost.advertisement.ui.rules.ComponentBuilder;
+import org.ost.advertisement.ui.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -67,17 +61,12 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final AccessEvaluator               access;
     @Getter
     private final I18nService                   i18nService;
-    private final AuditHistoryService           auditHistoryService;
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final ObjectProvider<AdvertisementGalleryExtension>  galleryExtension;
-    private final ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
-    private final ObjectProvider<ActivityRowRenderer>            rendererProvider;
-    private final ConfirmActionDialog.Builder                    confirmDialogBuilder;
-
-    @org.springframework.beans.factory.annotation.Value("${audit.enabled:true}")
-    private boolean auditEnabled;
+    private final ObjectProvider<AdvertisementGalleryExtension> galleryExtension;
+    private final ObjectProvider<AuditUiExtension>              auditUiExtensionProvider;
+    private final ConfirmActionDialog.Builder                   confirmDialogBuilder;
 
     private Parameters params;
 
@@ -97,7 +86,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         Div mainContent;
 
-        if (auditEnabled && access.canOperate(params.getAd())) {
+        AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
+        if (auditUi != null && access.canOperate(params.getAd())) {
             Div historyContent = new Div();
             historyContent.addClassName("adv-history-content");
             historyContent.setVisible(false);
@@ -110,7 +100,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                 viewContent.setVisible(isView);
                 historyContent.setVisible(!isView);
                 if (!isView && historyContent.getChildren().findFirst().isEmpty()) {
-                    historyContent.add(buildHistoryContent(params.getAd().getId()));
+                    historyContent.add(buildHistoryContent(params.getAd(), auditUi));
                 }
             });
 
@@ -158,79 +148,20 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         return viewBody;
     }
 
-    private Div buildHistoryContent(Long adId) {
-        List<AdvertisementHistoryDto> history = auditHistoryService.getAdvertisementHistory(
-                adId, access.getCurrentUserId(), access.isPrivileged());
-        Div container = new Div();
-        container.addClassName("adv-history-list");
-
-        if (history.isEmpty()) {
-            Span empty = new Span(getValue(ADVERTISEMENT_HISTORY_EMPTY));
-            empty.addClassName("adv-history-empty");
-            container.add(empty);
-            return container;
-        }
-
-        String currentTitle = params.getAd().getTitle();
-        String currentDesc  = params.getAd().getDescription();
-
-        ActivityRowRenderer renderer = rendererProvider.getObject();
-
-        for (AdvertisementHistoryDto h : history) {
-            Div row = new Div();
-            row.addClassName("adv-history-row");
-
-            Span versionBadge = new Span("v" + h.version());
-            versionBadge.addClassName("adv-history-version");
-
-            Span actionBadge = new Span(formatAction(h.actionType()));
-            actionBadge.addClassName("adv-history-action");
-            actionBadge.addClassName("adv-history-action--" + h.actionType().name().toLowerCase());
-
-            Span changedBy = new Span(h.changedByUserName());
-            changedBy.addClassName("adv-history-user");
-
-            Span time = new Span(TimeZoneUtil.formatInstantHuman(h.createdAt()));
-            time.addClassName("adv-history-time");
-
-            Div meta = new Div(versionBadge, actionBadge, changedBy, time);
-            meta.addClassName("adv-history-meta");
-            row.add(meta);
-
-            row.add(renderer.buildAdvHistoryFieldsList(h, adId));
-
-            // Show restore button for text-based rows; CREATED rows only when history has multiple entries
-            boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
-            if (access.canOperate(params.getAd()) && isTextRow
-                    && (h.actionType() != ActionType.CREATED || history.size() > 1)) {
-
-                boolean textMatches = Objects.equals(h.title(), currentTitle)
-                        && Objects.equals(h.description(), currentDesc);
-                boolean matchesCurrent = textMatches && mediaMatchCurrent(params.getAd().getId(), h.version());
-
-                if (matchesCurrent) {
-                    Span badge = new Span(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE));
-                    badge.addClassName("adv-history-current-badge");
-                    row.add(badge);
-                } else {
-                    Button restoreBtn = new Button(getValue(ADVERTISEMENT_RESTORE_BUTTON));
-                    restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                    restoreBtn.addClassName("adv-history-restore-btn");
-                    long snapId = h.snapshotId();
-                    restoreBtn.addClickListener(_ -> showRestoreConfirm(h, snapId));
-                    row.add(restoreBtn);
-                }
-            }
-
-            container.add(row);
-        }
-
-        return container;
-    }
-
-    private boolean mediaMatchCurrent(Long adId, int version) {
-        AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.mediaMatchCurrent(adId, version);
+    private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad,
+                                                                     AuditUiExtension auditUi) {
+        return auditUi.buildAdvertisementHistoryPanel(AuditUiExtension.AdvertisementHistoryParams.builder()
+                .adId(ad.getId())
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .currentTitle(ad.getTitle())
+                .currentDesc(ad.getDescription())
+                .canOperate(access.canOperate(ad))
+                .onRestoreRequested(this::showRestoreConfirm)
+                .labelEmpty(getValue(ADVERTISEMENT_HISTORY_EMPTY))
+                .labelCurrentState(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE))
+                .labelRestore(getValue(ADVERTISEMENT_RESTORE_BUTTON))
+                .build());
     }
 
     private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {

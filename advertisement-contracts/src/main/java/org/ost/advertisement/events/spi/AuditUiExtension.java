@@ -1,0 +1,43 @@
+package org.ost.advertisement.events.spi;
+
+import com.vaadin.flow.component.Component;
+import lombok.Value;
+import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
+
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
+public interface AuditUiExtension {
+
+    @Value
+    @lombok.Builder
+    class UserActivityParams {
+        Long                   userId;
+        String                 userName;
+        Role                   userRole;
+        UserSettings           currentSettings;
+        Consumer<Long>         onRestoreUser;
+        Consumer<UserSettings> onRestoreSettings;
+    }
+
+    @Value
+    @lombok.Builder
+    class AdvertisementHistoryParams {
+        Long                                      adId;
+        Long                                      userId;
+        boolean                                   isPrivileged;
+        String                                    currentTitle;
+        String                                    currentDesc;
+        boolean                                   canOperate;
+        BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested;
+        String                                    labelEmpty;
+        String                                    labelCurrentState;
+        String                                    labelRestore;
+    }
+
+    Component buildUserActivityPanel(UserActivityParams params);
+
+    Component buildAdvertisementHistoryPanel(AdvertisementHistoryParams params);
+}

@@ -13,7 +13,6 @@ import org.ost.advertisement.entities.User;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.services.audit.SettingsSnapshot;
 import org.ost.advertisement.services.audit.UserSnapshot;
 import org.ost.advertisement.services.auth.AuthContextService;
@@ -36,7 +35,6 @@ public class UserService {
     private final AccessEvaluator     access;
     private final PasswordEncoder     passwordEncoder;
     private final AuditPort           auditPort;
-    private final AuditQueryService   auditQueryService;
     private final AuthContextService  authContextService;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
@@ -97,7 +95,7 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreBeforeSnapshot(Long snapshotId, Long actingUserId) {
-        return auditQueryService.getUserStateBefore(snapshotId).flatMap(state -> {
+        return auditPort.getUserStateBefore(snapshotId).flatMap(state -> {
             User before = repository.findById(state.userId()).orElse(null);
             repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {
@@ -112,7 +110,7 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreToSnapshot(Long snapshotId, Long actingUserId) {
-        return auditQueryService.getUserStateAt(snapshotId).flatMap(state -> {
+        return auditPort.getUserStateAt(snapshotId).flatMap(state -> {
             User before = repository.findById(state.userId()).orElse(null);
             repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {

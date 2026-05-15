@@ -1,37 +1,28 @@
 /.idea
 
+# Maven build output
+/advertisement-app/target/
+/advertisement-contracts/target/
+/attachment-spring-boot-starter/target/
+/audit-spring-boot-starter/target/
+/sql-engine/target/
 
-
-/src/main/bundles
-/node_modules
+# Vaadin frontend generated files
 /advertisement-app/src/main/frontend/generated/
 /advertisement-app/src/main/frontend/index.html
-/tsconfig.json
-/types.d.ts
-/vite.config.ts
-/vite.generated.ts
-/package.json
-/package-lock.json
-/examples.iml
-/advertisement-app/src/main/frontend
-/advertisement.iml
-/advertisement-app/target/
-/sql-engine/target/
-/storage-s3-spring-boot-starter/target/
-/storage-api/target/
 /advertisement-app/src/main/bundles/
-/advertisement-app/node_modules
-/advertisement-app/package-lock.json
+/advertisement-app/node_modules/
 /advertisement-app/package.json
+/advertisement-app/package-lock.json
 /advertisement-app/tsconfig.json
 /advertisement-app/types.d.ts
-/playwright/screenshots/
-/attachment-spring-boot-starter/target
-/advertisement-events/target
-/advertisement-app/.vaadin-node-tasks.lock
-/advertisement-app/vite.generated.ts
 /advertisement-app/vite.config.ts
-/advertisement-contracts/target/
-/audit-spring-boot-starter/target/
+/advertisement-app/vite.generated.ts
+/advertisement-app/.vaadin-node-tasks.lock
+
+# Playwright artifacts
+/playwright/screenshots/
 /playwright/pw-report/
+
+# SonarQube
 /target/sonar

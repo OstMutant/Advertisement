@@ -7,7 +7,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.ui.views.rules.Initialization;
+import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent

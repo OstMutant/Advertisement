@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.AuditPort;
 import org.ost.advertisement.audit.AuditUserProvider;
 import org.ost.advertisement.audit.AuditableSnapshot;
+import org.ost.advertisement.audit.SnapshotContent;
+import org.ost.advertisement.audit.UserSnapshotState;
 import org.ost.advertisement.audit.model.AuditDiffEngine;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
@@ -21,6 +24,7 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditSnapshotMapper               snapshotMapper;
     private final AuditLogRepository                auditLogRepository;
     private final ObjectProvider<AuditUserProvider> auditUserProvider;
+    private final AuditQueryService                 auditQueryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
@@ -64,5 +68,20 @@ public class DefaultAuditPort implements AuditPort {
                 snapshotMapper.toJson(snapshot),
                 null,
                 resolveActor(actorId));
+    }
+
+    @Override
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
+        return auditQueryService.getSnapshotContent(snapshotId);
+    }
+
+    @Override
+    public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
+        return auditQueryService.getUserStateBefore(snapshotId);
+    }
+
+    @Override
+    public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
+        return auditQueryService.getUserStateAt(snapshotId);
     }
 }

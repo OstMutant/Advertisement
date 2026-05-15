@@ -20,10 +20,10 @@ import org.ost.advertisement.ui.views.components.fields.UiLabeledField;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.advertisement.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.advertisement.ui.views.components.overlay.OverlayLayout;
-import org.ost.advertisement.ui.views.rules.Configurable;
-import org.ost.advertisement.ui.views.rules.ComponentBuilder;
-import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.audit.ui.ProfileActivityPanel;
+import org.ost.advertisement.ui.rules.Configurable;
+import org.ost.advertisement.ui.rules.ComponentBuilder;
+import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.events.spi.AuditUiExtension;
 import org.ost.advertisement.services.user.UserSettingsService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
@@ -62,10 +62,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiLabeledField.Builder                     labeledFieldBuilder;
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
-    private final ObjectProvider<ProfileActivityPanel> activityContentBuilderProvider;
-
-    @org.springframework.beans.factory.annotation.Value("${audit.enabled:true}")
-    private boolean auditEnabled;
+    private final ObjectProvider<AuditUiExtension> auditUiExtensionProvider;
 
     private Parameters params;
 
@@ -120,7 +117,8 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
 
         Div layoutContent;
 
-        if (auditEnabled) {
+        AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
+        if (auditUi != null) {
             Div activityContent = new Div();
             activityContent.addClassName("user-activity-content");
             activityContent.setVisible(false);
@@ -133,7 +131,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                 card.setVisible(isProfile);
                 activityContent.setVisible(!isProfile);
                 if (!isProfile && activityContent.getChildren().findFirst().isEmpty()) {
-                    activityContent.add(buildActivityContent(user));
+                    activityContent.add(buildActivityContent(user, auditUi));
                 }
             });
 
@@ -158,11 +156,14 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
-    private Div buildActivityContent(User user) {
-        return activityContentBuilderProvider.getObject()
-                .build(user.getId(), user.getName(), user.getRole(),
-                       userSettingsService.load(user.getId()),
-                       params.getOnRestoreUser(), null);
+    private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiExtension auditUi) {
+        return auditUi.buildUserActivityPanel(AuditUiExtension.UserActivityParams.builder()
+                .userId(user.getId())
+                .userName(user.getName())
+                .userRole(user.getRole())
+                .currentSettings(userSettingsService.load(user.getId()))
+                .onRestoreUser(params.getOnRestoreUser())
+                .build());
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {

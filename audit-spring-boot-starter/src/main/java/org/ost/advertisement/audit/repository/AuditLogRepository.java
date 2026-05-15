@@ -1,5 +1,6 @@
 package org.ost.advertisement.audit.repository;
 
+import org.ost.advertisement.audit.SnapshotContent;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
@@ -9,8 +10,6 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.Optional;
 
 public class AuditLogRepository {
-
-    public record SnapshotContent(String title, String description, int version) {}
 
     private static final SqlWriteCommand INSERT = SqlWriteCommand.of(
             "INSERT INTO " + AuditLogDescriptor.Write.TABLE +

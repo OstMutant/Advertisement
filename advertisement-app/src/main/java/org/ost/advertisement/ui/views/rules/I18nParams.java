@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.rules;
+package org.ost.advertisement.ui.rules;
 
 import org.ost.advertisement.common.I18nKey;
 import org.ost.advertisement.events.model.ActionType;

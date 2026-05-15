@@ -3,6 +3,7 @@ package org.ost.advertisement.services;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.AuditPort;
+import org.ost.advertisement.audit.SnapshotContent;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.Advertisement;
@@ -12,10 +13,8 @@ import org.ost.advertisement.events.AdvertisementDeletedEvent;
 import org.ost.advertisement.events.AdvertisementRestoredEvent;
 import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepository;
-import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.audit.AdvertisementSnapshot;
-import org.ost.advertisement.audit.services.AuditQueryService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
@@ -35,7 +34,6 @@ public class AdvertisementService {
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
     private final AuditPort                  auditPort;
-    private final AuditQueryService          auditQueryService;
     private final AuthContextService         authContextService;
     private final ApplicationEventPublisher  context;
 
@@ -76,7 +74,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        AuditLogRepository.SnapshotContent content = auditQueryService.getSnapshotContent(snapshotId).orElse(null);
+        SnapshotContent content = auditPort.getSnapshotContent(snapshotId).orElse(null);
         if (content == null) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())

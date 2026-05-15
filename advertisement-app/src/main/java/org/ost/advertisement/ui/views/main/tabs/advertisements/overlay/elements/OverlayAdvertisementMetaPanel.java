@@ -11,9 +11,9 @@ import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.services.I18nService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.views.rules.Configurable;
-import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.views.rules.Initialization;
+import org.ost.advertisement.ui.rules.Configurable;
+import org.ost.advertisement.ui.rules.I18nParams;
+import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;

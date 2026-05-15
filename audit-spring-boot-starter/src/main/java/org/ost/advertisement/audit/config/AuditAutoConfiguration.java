@@ -57,9 +57,10 @@ public class AuditAutoConfiguration {
             AuditDiffEngine diffEngine,
             AuditSnapshotMapper snapshotMapper,
             AuditLogRepository auditLogRepository,
-            ObjectProvider<AuditUserProvider> auditUserProvider) {
+            ObjectProvider<AuditUserProvider> auditUserProvider,
+            AuditQueryService auditQueryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,
-                                    auditLogRepository, auditUserProvider);
+                                    auditLogRepository, auditUserProvider, auditQueryService);
     }
 
     @Bean

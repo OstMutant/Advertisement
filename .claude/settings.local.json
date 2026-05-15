@@ -93,7 +93,12 @@
       "Bash(mvn sonar:sonar -Dsonar.projectKey=advertisement -Dsonar.host.url=http://localhost:9099 -Dsonar.token=sqa_ec792c2e6be0741c98073afe59ce17a70a2236f1 -Dsonar.java.source=25 -pl sql-engine,advertisement-contracts,audit-spring-boot-starter,attachment-spring-boot-starter,advertisement-app --also-make -q)",
       "Bash(mvn sonar:sonar -Dsonar.projectKey=advertisement -Dsonar.host.url=http://localhost:9099 -Dsonar.token=sqa_ec792c2e6be0741c98073afe59ce17a70a2236f1 -Dsonar.java.source=25 -pl attachment-spring-boot-starter -q)",
       "Bash(rm /app/advertisement-app/src/main/resources/db/changelog/changes/02-main-content-type.xml)",
-      "Bash(rm /app/attachment-spring-boot-starter/src/main/resources/db/attachment-changelog/changes/02-rename-snapshot.xml)"
+      "Bash(rm /app/attachment-spring-boot-starter/src/main/resources/db/attachment-changelog/changes/02-rename-snapshot.xml)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(/tmp/count_configurable.sh)",
+      "Bash(/tmp/precise_count.sh)",
+      "Bash(/tmp/final_count.sh)",
+      "Bash(mvn clean *)"
     ]
   },
   "hooks": {

@@ -1,4 +1,4 @@
-package org.ost.advertisement.ui.views.rules;
+package org.ost.advertisement.ui.rules;
 
 import org.springframework.beans.factory.ObjectProvider;
 
