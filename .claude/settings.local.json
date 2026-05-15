@@ -98,7 +98,8 @@
       "Bash(/tmp/count_configurable.sh)",
       "Bash(/tmp/precise_count.sh)",
       "Bash(/tmp/final_count.sh)",
-      "Bash(mvn clean *)"
+      "Bash(mvn clean *)",
+      "Bash(awk -F: '{print $3}')"
     ]
   },
   "hooks": {
