@@ -14,22 +14,16 @@ import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.i18n.InstantFormatter;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.function.BiConsumer;
-
-import com.vaadin.flow.server.VaadinSession;
 
 @ConditionalOnAuditEnabled
 @SpringComponent
@@ -63,6 +57,7 @@ public class AdvertisementHistoryPanel extends Div
     }
 
     private final I18nService                                  i18n;
+    private final InstantFormatter                             formatter;
     private final AuditHistoryService                          auditHistoryService;
     private final ObjectProvider<ActivityRowRenderer>          rendererProvider;
     private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
@@ -116,7 +111,7 @@ public class AdvertisementHistoryPanel extends Div
         Span changedBy = new Span(h.changedByUserName());
         changedBy.addClassName("adv-history-user");
 
-        Span time = new Span(formatInstantHuman(h.createdAt()));
+        Span time = new Span(formatter.formatInstantHuman(h.createdAt()));
         time.addClassName("adv-history-time");
 
         Div meta = new Div(versionBadge, actionBadge, changedBy, time);
@@ -160,14 +155,4 @@ public class AdvertisementHistoryPanel extends Div
         };
     }
 
-    // Inlined from TimeZoneUtil — TimeZoneUtil stays in advertisement-app.
-    private static String formatInstantHuman(Instant instant) {
-        if (instant == null) return "N/A";
-        VaadinSession session = VaadinSession.getCurrent();
-        String tzId = session != null ? (String) session.getAttribute("clientTimeZoneId") : null;
-        ZoneId zone = tzId != null ? ZoneId.of(tzId) : ZoneId.systemDefault();
-        Locale locale = session != null && session.getLocale() != null ? session.getLocale() : Locale.getDefault();
-        return LocalDateTime.ofInstant(instant, zone)
-                .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm").withLocale(locale));
-    }
 }

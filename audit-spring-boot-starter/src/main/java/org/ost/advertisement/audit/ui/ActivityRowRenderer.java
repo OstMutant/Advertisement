@@ -3,7 +3,6 @@ package org.ost.advertisement.audit.ui;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
@@ -13,16 +12,12 @@ import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.model.EntityType;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.i18n.InstantFormatter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 @CssImport("./adv-history.css")
 @SpringComponent
@@ -33,6 +28,7 @@ public class ActivityRowRenderer {
     private static final String CSS_CHANGES = "user-activity-changes";
 
     private final I18nService                                  i18n;
+    private final InstantFormatter                             formatter;
     private final ActivityPanel                                activityPanel;
     private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
 
@@ -62,7 +58,7 @@ public class ActivityRowRenderer {
         Span name = new Span(nameText);
         name.addClassName("user-activity-name");
 
-        Span time = new Span(formatInstantHuman(item.createdAt()));
+        Span time = new Span(formatter.formatInstantHuman(item.createdAt()));
         time.addClassName("user-activity-time");
 
         row.add(action, type, name, time);
@@ -262,17 +258,6 @@ public class ActivityRowRenderer {
             }
         }
         return new AdvChanges(titleChange, descChange, mediaChanges, otherChanges);
-    }
-
-    // Inlined from TimeZoneUtil — intentional copy; TimeZoneUtil stays in advertisement-app.
-    private static String formatInstantHuman(Instant instant) {
-        if (instant == null) return "N/A";
-        VaadinSession session = VaadinSession.getCurrent();
-        String tzId = session != null ? (String) session.getAttribute("clientTimeZoneId") : null;
-        ZoneId zone = (tzId != null) ? ZoneId.of(tzId) : ZoneId.systemDefault();
-        Locale locale = (session != null && session.getLocale() != null) ? session.getLocale() : Locale.getDefault();
-        return LocalDateTime.ofInstant(instant, zone)
-                .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm").withLocale(locale));
     }
 
     private void addHistorySpan(Div container, String text, boolean unchanged) {
