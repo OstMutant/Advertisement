@@ -37,3 +37,19 @@
 **Why:** The starter previously coupled directly to `user_information` and `advertisement` tables, making it unusable in any context that does not have those tables. The SPI pattern mirrors `AuditUserProvider` — the starter knows nothing about the domain schema and calls back to the host application for any domain-specific data.
 
 **Rejected:** Per-row secondary queries (`getActorIdForSnapshot`) — single bulk SELECT with `ANY(:ids)` is one round-trip vs N.
+
+---
+
+## Goal (not yet done) — Full decoupling from advertisement domain
+
+**Target state:** `audit-spring-boot-starter` must contain zero knowledge of advertisement-specific entities, field names, or business logic. The module must be reusable in any Spring Boot + Vaadin project without modification.
+
+**What is still coupled (as of 2026-05-15):**
+- `AdvertisementHistoryProjection` — SQL hardcodes `entity_type = 'ADVERTISEMENT'` and extracts `title`, `description` from snapshot JSON. Belongs in `advertisement-app`.
+- `AuditHistoryService` — service method `getAdvertisementHistory()` is advertisement-specific. Belongs in `advertisement-app`.
+- `AdvertisementHistoryPanel` — Vaadin UI component for advertisement history. Belongs in `advertisement-app`.
+- `ActivityProjection` — UNION SQL hardcodes `'ADVERTISEMENT'`, `'USER'`, `'USER_SETTINGS'` and their snapshot field names (`title`, `name`, `email`, `role`). Must become configurable via SPI.
+- `AuditLogRepository.getSnapshotContent()` — extracts `title` and `description` from snapshot JSON, hardcodes `entity_type = 'ADVERTISEMENT'`. Must be removed; callers use raw `getSnapshotData()` and parse themselves.
+- `ActivityRowRenderer` — contains `EntityType.ADVERTISEMENT`-specific UI rendering logic. Must delegate to a per-entity-type SPI.
+
+**How to achieve this is not yet decided.**

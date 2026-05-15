@@ -65,4 +65,6 @@
 
 **Why:** Symmetry with `attachment-spring-boot-starter`. Audit is infrastructure, not domain. Enables deploying audit-free variants by setting `audit.enabled=false`. `AuditableSnapshot` marker interface eliminates stringly-typed entity-type strings. `NoOpAuditPort` is the fallback when `audit.enabled=false`, wiring never fails.
 
-**Update 2026-05-13:** `AuditHistoryService`, `AuditQueryService`, `ActivityService`, and all Vaadin audit UI components were subsequently moved to `audit-spring-boot-starter` when `audit-read-spring-boot-starter` was merged in. The concern about domain JOINs against `advertisements`/`users` tables is accepted as pragmatic coupling — the starter is already Vaadin-scoped (app-level), so SQL coupling to app tables is acceptable.
+**Update 2026-05-13:** `AuditHistoryService`, `AuditQueryService`, `ActivityService`, and all Vaadin audit UI components were subsequently moved to `audit-spring-boot-starter` when `audit-read-spring-boot-starter` was merged in.
+
+**Update 2026-05-15:** The goal is full decoupling — `audit-spring-boot-starter` should contain zero advertisement-specific knowledge. See `audit-spring-boot-starter/DECISIONS.md` → "Goal: Full decoupling from advertisement domain".

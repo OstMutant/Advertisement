@@ -286,7 +286,11 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 
 Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/advertisement-app/DECISIONS.md`
+- `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 
-Record any new substantial architectural or technical decision there immediately.
+**Rules:**
+- Record any new substantial architectural or technical decision there immediately — before the conversation ends.
+- When a decision contradicts or supersedes an existing entry, update or annotate the existing entry rather than only adding a new one.
+- Each `DECISIONS.md` also tracks open goals (work not yet done). When implementing something that realizes a stated goal, mark it done in the same PR.
