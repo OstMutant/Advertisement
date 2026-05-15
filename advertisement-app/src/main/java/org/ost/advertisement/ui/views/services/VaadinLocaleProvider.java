@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.auth.AuthContextService;
-import org.ost.advertisement.services.auth.LocaleProvider;
+import org.ost.advertisement.i18n.LocaleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

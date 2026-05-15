@@ -15,7 +15,7 @@ import lombok.*;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;

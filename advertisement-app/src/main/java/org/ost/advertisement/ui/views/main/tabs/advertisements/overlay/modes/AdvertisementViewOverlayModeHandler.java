@@ -14,7 +14,7 @@ import lombok.Value;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.events.spi.AuditUiExtension;
 import org.ost.advertisement.ui.views.components.buttons.UiIconButton;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;

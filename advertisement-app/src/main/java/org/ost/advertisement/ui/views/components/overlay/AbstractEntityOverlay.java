@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.views.components.overlay;
 
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.services.NotificationService;
 

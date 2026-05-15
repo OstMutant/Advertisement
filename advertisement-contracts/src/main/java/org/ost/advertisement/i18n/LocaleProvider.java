@@ -1,4 +1,4 @@
-package org.ost.advertisement.services.auth;
+package org.ost.advertisement.i18n;
 
 import java.util.Locale;
 

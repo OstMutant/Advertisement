@@ -15,7 +15,7 @@ import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.components.EmptyStateView;
 import org.ost.advertisement.ui.views.components.PaginationBar;
 import org.ost.advertisement.ui.views.components.buttons.UiPrimaryButton;

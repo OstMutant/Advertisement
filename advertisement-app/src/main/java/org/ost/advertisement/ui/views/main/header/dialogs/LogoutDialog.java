@@ -7,7 +7,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.services.auth.AuthService;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.services.VaadinLocaleProvider;
 
 import static org.ost.advertisement.common.I18nKey.*;

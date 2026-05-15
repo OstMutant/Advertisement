@@ -11,7 +11,7 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;

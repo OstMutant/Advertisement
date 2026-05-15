@@ -5,7 +5,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
@@ -13,8 +12,8 @@ import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ChangeEntry;
 import org.ost.advertisement.events.model.EntityType;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
+import org.ost.advertisement.i18n.I18nService;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -29,13 +28,13 @@ import java.util.Locale;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ActivityRowRenderer implements AuditI18nSupport {
+public class ActivityRowRenderer {
 
     private static final String CSS_CHANGES = "user-activity-changes";
 
-    @Getter private final MessageSource                                  messageSource;
-    private final        ActivityPanel                                   activityPanel;
-    private final        ObjectProvider<AdvertisementHistoryExtension>   historyExtensionProvider;
+    private final I18nService                                  i18n;
+    private final ActivityPanel                                activityPanel;
+    private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
 
     public static boolean isSettingChange(ActivityItemDto item) {
         return item.entityType() == EntityType.USER_SETTINGS
@@ -52,7 +51,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         String typeLabel  = settingChange ? "SETTINGS"  : item.entityType().name();
         String typeCssKey = settingChange ? "settings"  : item.entityType().name().toLowerCase();
 
-        Span action = new Span(formatAction(item.actionType()));
+        Span action = new Span(i18n.get(formatActionKey(item.actionType())));
         action.addClassName("user-activity-action");
 
         Span type = new Span(typeLabel);
@@ -92,7 +91,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         if (c.title() != null) {
             addActivitySpan(container, activityPanel.format(c.title()), false);
         } else if (item.snapshotTitle() != null) {
-            addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
         }
 
         if (c.desc() != null) {
@@ -100,7 +99,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         } else if (item.snapshotDescription() != null) {
             String desc = item.snapshotDescription().length() > 60
                     ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
-            addActivitySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
         renderActivityMediaSection(container, item, c.media());
@@ -115,7 +114,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
                     ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId())
                     : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addActivitySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + mediaText, true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
             mediaChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
         }
@@ -142,19 +141,19 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         if (nameChange != null) {
             addActivitySpan(container, activityPanel.format(nameChange), false);
         } else if (item.displayName() != null) {
-            addActivitySpan(container, msg("changes.field.name") + ": " + item.displayName(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_NAME) + ": " + item.displayName(), true);
         }
 
         if (emailChange != null) {
             addActivitySpan(container, activityPanel.format(emailChange), false);
         } else if (item.snapshotEmail() != null) {
-            addActivitySpan(container, msg("changes.field.email") + ": " + item.snapshotEmail(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_EMAIL) + ": " + item.snapshotEmail(), true);
         }
 
         if (roleChange != null) {
             addActivitySpan(container, activityPanel.format(roleChange), false);
         } else if (item.snapshotRole() != null) {
-            addActivitySpan(container, msg("changes.field.role") + ": " + item.snapshotRole(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_ROLE) + ": " + item.snapshotRole(), true);
         }
 
         for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
@@ -181,13 +180,13 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         if (adsChange != null) {
             addActivitySpan(container, activityPanel.format(adsChange), false);
         } else {
-            addActivitySpan(container, msg("changes.setting.adsPageSize") + ": " + snapSettings.getAdsPageSize(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_SETTING_ADS_PAGE_SIZE) + ": " + snapSettings.getAdsPageSize(), true);
         }
 
         if (usersChange != null) {
             addActivitySpan(container, activityPanel.format(usersChange), false);
         } else {
-            addActivitySpan(container, msg("changes.setting.usersPageSize") + ": " + snapSettings.getUsersPageSize(), true);
+            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_SETTING_USERS_PAGE_SIZE) + ": " + snapSettings.getUsersPageSize(), true);
         }
 
         for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
@@ -203,14 +202,14 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         if (c.title() != null) {
             addHistorySpan(container, activityPanel.format(c.title()), false);
         } else if (h.title() != null) {
-            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
+            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
         }
 
         if (c.desc() != null) {
             addHistorySpan(container, activityPanel.format(c.desc()), false);
         } else if (h.description() != null) {
             String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
-            addHistorySpan(container, msg(AuditKeys.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
         }
 
         renderHistoryMediaSection(container, c.media(), adId, h.version());
@@ -223,7 +222,7 @@ public class ActivityRowRenderer implements AuditI18nSupport {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(adId, version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, msg(AuditKeys.CHANGES_PHOTOS) + ": " + mediaText, true);
+            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
             mediaChanges.forEach(pc -> addHistorySpan(container, activityPanel.format(pc), false));
         }
@@ -235,7 +234,15 @@ public class ActivityRowRenderer implements AuditI18nSupport {
         }
         return item.entityExists()
                 ? item.displayName()
-                : item.displayName() + " " + msg(AuditKeys.ACTIVITY_ENTITY_DELETED);
+                : item.displayName() + " " + i18n.get(AuditMessages.ACTIVITY_ENTITY_DELETED);
+    }
+
+    private static AuditMessages formatActionKey(org.ost.advertisement.events.model.ActionType actionType) {
+        return switch (actionType) {
+            case CREATED -> AuditMessages.ACTIVITY_ACTION_CREATED;
+            case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;
+            case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
+        };
     }
 
     private record AdvChanges(ChangeEntry title, ChangeEntry desc,

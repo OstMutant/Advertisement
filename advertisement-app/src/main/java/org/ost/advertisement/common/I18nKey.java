@@ -1,6 +1,8 @@
 package org.ost.advertisement.common;
 
-public enum I18nKey {
+import org.ost.advertisement.i18n.TranslationKey;
+
+public enum I18nKey implements TranslationKey {
     // === Header ===
     HEADER_SIGNED_IN("header.signedIn"),
     HEADER_NOT_SIGNED_IN("header.notSignedIn"),

@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.AuditPort;
 import org.ost.advertisement.dto.UserSettings;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.services.audit.SettingsSnapshot;
 import org.ost.advertisement.services.user.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;

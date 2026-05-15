@@ -3,19 +3,17 @@ package org.ost.advertisement.audit.ui;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.events.model.ChangeEntry;
-import org.springframework.context.MessageSource;
+import org.ost.advertisement.i18n.I18nService;
 
 import java.util.List;
 
 @SpringComponent
 @RequiredArgsConstructor
-public class ActivityPanel implements AuditI18nSupport {
+public class ActivityPanel {
 
-    @Getter
-    private final MessageSource messageSource;
+    private final I18nService i18n;
 
     public static Span buildEditorBadge(Long changedByUserId, String changedByName, Long viewerUserId) {
         if (changedByUserId == null || changedByUserId == 0 || changedByUserId.equals(viewerUserId)) {
@@ -44,19 +42,19 @@ public class ActivityPanel implements AuditI18nSupport {
     public String format(ChangeEntry entry) {
         return switch (entry) {
             case ChangeEntry.FieldChange f -> {
-                String label = msg("changes.field." + f.field());
+                String label = i18n.get(AuditMessages.fieldLabel(f.field()));
                 if (f.from() == null || f.from().isBlank()) {
                     yield label + ": \"" + f.to() + "\"";
                 }
                 yield label + ": \"" + f.from() + "\" → \"" + f.to() + "\"";
             }
             case ChangeEntry.SettingChange s -> {
-                String label = msg("changes.setting." + s.key());
+                String label = i18n.get(AuditMessages.settingLabel(s.key()));
                 yield label + ": " + s.from() + " → " + s.to();
             }
             case ChangeEntry.NoteEntry n -> n.text();
             case ChangeEntry.GenericChange g -> {
-                String label = msg(g.labelI18nKey());
+                String label = i18n.get(g.labelI18nKey());
                 if (g.before() == null || g.before().isBlank()) {
                     yield label + ": \"" + g.after() + "\"";
                 }

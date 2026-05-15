@@ -13,11 +13,11 @@ import org.ost.advertisement.audit.services.AuditHistoryService;
 import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -37,8 +37,7 @@ import com.vaadin.flow.server.VaadinSession;
 @RequiredArgsConstructor
 public class AdvertisementHistoryPanel extends Div
         implements Configurable<AdvertisementHistoryPanel, AdvertisementHistoryPanel.Parameters>,
-                   Initialization<AdvertisementHistoryPanel>,
-                   AuditI18nSupport {
+                   Initialization<AdvertisementHistoryPanel> {
 
     @lombok.Value
     @lombok.Builder
@@ -63,10 +62,10 @@ public class AdvertisementHistoryPanel extends Div
         private final ObjectProvider<AdvertisementHistoryPanel> provider;
     }
 
-    @Getter private final MessageSource                                  messageSource;
-    private final        AuditHistoryService                            auditHistoryService;
-    private final        ObjectProvider<ActivityRowRenderer>            rendererProvider;
-    private final        ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
+    private final I18nService                                  i18n;
+    private final AuditHistoryService                          auditHistoryService;
+    private final ObjectProvider<ActivityRowRenderer>          rendererProvider;
+    private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
 
     @Override
     @PostConstruct
@@ -110,7 +109,7 @@ public class AdvertisementHistoryPanel extends Div
         Span versionBadge = new Span("v" + h.version());
         versionBadge.addClassName("adv-history-version");
 
-        Span actionBadge = new Span(formatAction(h.actionType()));
+        Span actionBadge = new Span(i18n.get(formatActionKey(h.actionType())));
         actionBadge.addClassName("adv-history-action");
         actionBadge.addClassName("adv-history-action--" + h.actionType().name().toLowerCase());
 
@@ -151,6 +150,14 @@ public class AdvertisementHistoryPanel extends Div
     private boolean mediaMatchCurrent(Long adId, int version) {
         AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
         return ext == null || ext.mediaMatchCurrent(adId, version);
+    }
+
+    private static AuditMessages formatActionKey(ActionType actionType) {
+        return switch (actionType) {
+            case CREATED -> AuditMessages.ACTIVITY_ACTION_CREATED;
+            case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;
+            case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
+        };
     }
 
     // Inlined from TimeZoneUtil — TimeZoneUtil stays in advertisement-app.

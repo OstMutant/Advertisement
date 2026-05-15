@@ -14,7 +14,6 @@ import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.component.upload.Upload;
-import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
@@ -25,14 +24,13 @@ import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
-import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import com.vaadin.flow.server.streams.UploadEvent;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.UUID;
 
 @Slf4j
@@ -50,7 +48,7 @@ public class AttachmentGallery extends Div {
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
     private final transient AttachmentService attachmentService;
-    private final transient MessageSource     messageSource;
+    private final transient I18nService       i18n;
 
     private Div              thumbnailsRow;
     private Span             emptyState;
@@ -69,13 +67,13 @@ public class AttachmentGallery extends Div {
     private void init() {
         addClassName("attachment-gallery");
 
-        Span title = new Span(msg("attachment.gallery.title", "Gallery"));
+        Span title = new Span(i18n.get(AttachmentMessages.GALLERY_TITLE));
         title.addClassName("attachment-gallery__title");
 
         thumbnailsRow = new Div();
         thumbnailsRow.addClassName("attachment-gallery__thumbnails");
 
-        emptyState = new Span(msg("attachment.gallery.empty", "Gallery is empty"));
+        emptyState = new Span(i18n.get(AttachmentMessages.GALLERY_EMPTY));
         emptyState.addClassName("attachment-gallery__empty");
         emptyState.setVisible(false);
 
@@ -240,7 +238,7 @@ public class AttachmentGallery extends Div {
                     }
                 } catch (Exception e) {
                     log.error("Failed to upload attachment: {}", filename, e);
-                    ui.access(() -> showError(msg("attachment.gallery.upload.error", "Upload failed")));
+                    ui.access(() -> showError(i18n.get(AttachmentMessages.GALLERY_UPLOAD_ERROR)));
                 }
             }
         };
@@ -257,7 +255,7 @@ public class AttachmentGallery extends Div {
 
     private HorizontalLayout buildVideoInput() {
         TextField urlField = new TextField();
-        urlField.setPlaceholder(msg("attachment.video.placeholder", "Video URL (YouTube, Facebook...)"));
+        urlField.setPlaceholder(i18n.get(AttachmentMessages.VIDEO_PLACEHOLDER));
         urlField.setWidthFull();
 
         Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
@@ -276,7 +274,7 @@ public class AttachmentGallery extends Div {
                 }
                 urlField.clear();
             } catch (Exception _) {
-                showError(msg("attachment.video.invalid", "Invalid video URL"));
+                showError(i18n.get(AttachmentMessages.VIDEO_INVALID));
             }
         });
 
@@ -375,16 +373,5 @@ public class AttachmentGallery extends Div {
     private static void showError(String message) {
         Notification n = Notification.show(message, 5000, Notification.Position.TOP_END);
         n.addThemeVariants(NotificationVariant.LUMO_ERROR);
-    }
-
-    private String msg(String key, String fallback) {
-        Locale locale = VaadinSession.getCurrent() != null
-                ? VaadinSession.getCurrent().getLocale()
-                : Locale.getDefault();
-        try {
-            return messageSource.getMessage(key, null, locale);
-        } catch (Exception _) {
-            return fallback;
-        }
     }
 }

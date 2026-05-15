@@ -9,7 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.services.I18nService;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.rules.I18nParams;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.ost.advertisement.ui.rules.Provider;

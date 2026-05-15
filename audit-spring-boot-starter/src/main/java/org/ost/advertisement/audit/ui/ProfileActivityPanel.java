@@ -18,11 +18,11 @@ import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.events.dto.ActivityItemDto;
 import org.ost.advertisement.events.model.ActionType;
 import org.ost.advertisement.events.model.EntityType;
+import org.ost.advertisement.i18n.I18nService;
 import org.ost.advertisement.ui.rules.Configurable;
 import org.ost.advertisement.ui.rules.ComponentBuilder;
 import org.ost.advertisement.ui.rules.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -35,8 +35,7 @@ import java.util.function.Consumer;
 @RequiredArgsConstructor
 public class ProfileActivityPanel extends Div
         implements Configurable<ProfileActivityPanel, ProfileActivityPanel.Parameters>,
-                   Initialization<ProfileActivityPanel>,
-                   AuditI18nSupport {
+                   Initialization<ProfileActivityPanel> {
 
     @Value
     @lombok.Builder
@@ -57,10 +56,10 @@ public class ProfileActivityPanel extends Div
         private final ObjectProvider<ProfileActivityPanel> provider;
     }
 
-    @Getter private final MessageSource                      messageSource;
-    private final        ActivityService                     activityService;
-    private final        AuditQueryService                   auditQueryService;
-    private final        ObjectProvider<ActivityRowRenderer> rendererProvider;
+    private final I18nService                        i18n;
+    private final ActivityService                    activityService;
+    private final AuditQueryService                  auditQueryService;
+    private final ObjectProvider<ActivityRowRenderer> rendererProvider;
 
     @Override
     @PostConstruct
@@ -75,7 +74,7 @@ public class ProfileActivityPanel extends Div
         List<ActivityItemDto> items = activityService.getForUser(p.getUserId());
 
         if (items.isEmpty()) {
-            Span empty = new Span(msg(AuditKeys.ACTIVITY_EMPTY));
+            Span empty = new Span(i18n.get(AuditMessages.ACTIVITY_EMPTY));
             empty.addClassName("user-activity-empty");
             add(empty);
             return this;
@@ -101,7 +100,7 @@ public class ProfileActivityPanel extends Div
             if (matchesCurrent) {
                 row.add(currentBadge());
             } else if (onRestoreSettings != null) {
-                row.add(restoreBtn(msg(AuditKeys.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
+                row.add(restoreBtn(i18n.get(AuditMessages.SETTINGS_RESTORE_BUTTON), () -> onRestoreSettings.accept(snapSettings)));
             }
         });
     }
@@ -119,12 +118,12 @@ public class ProfileActivityPanel extends Div
         if (matchesCurrent) {
             row.add(currentBadge());
         } else if (onRestoreUser != null) {
-            row.add(restoreBtn(msg(AuditKeys.USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
+            row.add(restoreBtn(i18n.get(AuditMessages.USER_RESTORE_BUTTON), () -> onRestoreUser.accept(item.snapshotId())));
         }
     }
 
     private Span currentBadge() {
-        Span badge = new Span(msg(AuditKeys.USER_ACTIVITY_CURRENT_STATE));
+        Span badge = new Span(i18n.get(AuditMessages.USER_ACTIVITY_CURRENT_STATE));
         badge.addClassName("user-activity-current-badge");
         return badge;
     }
