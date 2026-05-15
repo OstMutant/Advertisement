@@ -1,10 +1,12 @@
 package org.ost.advertisement.repository.user;
 
 import org.jetbrains.annotations.NotNull;
+import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.advertisement.entities.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlEntityProjection;
+import org.ost.sqlengine.writer.SqlEntityWriter;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -13,6 +15,8 @@ import java.util.List;
 
 import static org.ost.advertisement.entities.User.Fields.*;
 import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.writer.SqlEntityWriter.col;
+import static org.ost.sqlengine.writer.SqlEntityWriter.colExpr;
 
 public class UserDescriptor extends SqlEntityProjection<User> {
 
@@ -33,6 +37,18 @@ public class UserDescriptor extends SqlEntityProjection<User> {
         private Write() {}
         public static final String TABLE    = UserDescriptor.TABLE;
         public static final String SETTINGS = "settings";
+
+        public static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
+                TABLE,
+                col("name",       UserProfileDto::name),
+                col("role",       u -> u.role().name()),
+                colExpr("updated_at", "NOW()")
+        );
+
+        public static final SqlEntityWriter<String> LOCALE_WRITER = SqlEntityWriter.of(
+                TABLE,
+                col("locale", s -> s)
+        );
     }
 
     public UserDescriptor() {

@@ -4,15 +4,11 @@ import org.ost.advertisement.dto.filter.UserFilterDto;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.dto.UserProfileDto;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.writer.SqlEntityWriter;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
-
-import static org.ost.sqlengine.writer.SqlEntityWriter.col;
-import static org.ost.sqlengine.writer.SqlEntityWriter.colExpr;
 
 @Repository
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
@@ -22,20 +18,8 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
     private static final UserFilterBuilder      FILTER_BUILDER       = new UserFilterBuilder();
     private static final UserEmailFilterBuilder EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
 
-    private static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
-            UserDescriptor.TABLE,
-            col("name", UserProfileDto::name),
-            col("role", u -> u.role().name()),
-            colExpr("updated_at", "NOW()")
-    );
-
-    private static final SqlEntityWriter<String> LOCALE_WRITER = SqlEntityWriter.of(
-            UserDescriptor.TABLE,
-            col("locale", s -> s)
-    );
-
-    private static final SqlWriteCommand UPDATE_PROFILE = SqlWriteCommand.of(PROFILE_WRITER.updateWhere("id = :id"));
-    private static final SqlWriteCommand UPDATE_LOCALE  = SqlWriteCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
+    private static final SqlWriteCommand UPDATE_PROFILE = SqlWriteCommand.of(UserDescriptor.Write.PROFILE_WRITER.updateWhere("id = :id"));
+    private static final SqlWriteCommand UPDATE_LOCALE  = SqlWriteCommand.of(UserDescriptor.Write.LOCALE_WRITER.updateWhere("id = :id"));
 
     public UserRepositoryCustomImpl(JdbcClient jdbcClient) {
         super(jdbcClient, PROJECTION, FILTER_BUILDER);
@@ -48,11 +32,11 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
 
     @Override
     public void updateLocale(Long userId, String locale) {
-        execute(UPDATE_LOCALE, LOCALE_WRITER.params(locale).addValue("id", userId));
+        execute(UPDATE_LOCALE, UserDescriptor.Write.LOCALE_WRITER.params(locale).addValue("id", userId));
     }
 
     @Override
     public void updateProfile(UserProfileDto dto) {
-        execute(UPDATE_PROFILE, PROFILE_WRITER.params(dto).addValue("id", dto.id()));
+        execute(UPDATE_PROFILE, UserDescriptor.Write.PROFILE_WRITER.params(dto).addValue("id", dto.id()));
     }
 }
