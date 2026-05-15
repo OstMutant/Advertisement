@@ -24,6 +24,21 @@
 
 ---
 
+## Hard limit — Do not extend the sql-engine DSL beyond its current scope
+
+**Decision:** The sql-engine API is frozen at its current abstraction level. The following are explicitly out of scope and must never be added:
+- JOIN DSL (fluent join builders, relationship traversal)
+- Expression AST (composable expressions, operator trees)
+- Automatic query rewriting or optimization
+- Generic pagination abstractions beyond what already exists
+- Dirty tracking, change detection, or relationship persistence in `SqlEntityWriter`
+
+**Why:** The current API covers exactly two cases: simple filterable queries (`SqlEntityProjection`) and complex structural queries (`SqlFixedQuery` with raw SQL). Any query that does not fit the first case belongs in the second — the developer writes SQL directly. Adding a JOIN DSL or expression layer would recreate the problems of JPA/QueryDSL: hidden complexity, leaky abstractions, and SQL that is harder to read than the raw version.
+
+**Rule:** If you feel the urge to add a new abstraction to sql-engine, write raw SQL in `SqlFixedQuery` instead.
+
+---
+
 ## Ongoing — Null-safe conditions via applyIfPresent
 
 **Decision:** All `SqlCondition` factory methods (`like`, `equalsTo`, `after`, `before`, `inSet`) are null-safe and applied via `.applyIfPresent()` in `SqlFilterBuilder` subclasses. A null filter value silently skips the condition rather than generating `WHERE field = NULL`.

@@ -14,6 +14,7 @@ import org.ost.advertisement.exceptions.authorization.AccessDeniedException;
 import org.ost.advertisement.repository.user.UserRepository;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.audit.SettingsSnapshot;
+import org.ost.advertisement.audit.UserSnapshotState;
 import org.ost.advertisement.services.audit.UserSnapshot;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.data.domain.PageRequest;
@@ -95,22 +96,16 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreBeforeSnapshot(Long snapshotId, Long actingUserId) {
-        return auditPort.getUserStateBefore(snapshotId).flatMap(state -> {
-            User before = repository.findById(state.userId()).orElse(null);
-            repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
-            return repository.findById(state.userId()).map(updated -> {
-                auditPort.captureUpdate(updated.getId(),
-                        UserSnapshot.from(before),
-                        UserSnapshot.from(updated),
-                        actingUserId);
-                return updated;
-            });
-        });
+        return applyUserRestore(auditPort.getUserStateBefore(snapshotId), actingUserId);
     }
 
     @Transactional
     public Optional<User> restoreToSnapshot(Long snapshotId, Long actingUserId) {
-        return auditPort.getUserStateAt(snapshotId).flatMap(state -> {
+        return applyUserRestore(auditPort.getUserStateAt(snapshotId), actingUserId);
+    }
+
+    private Optional<User> applyUserRestore(Optional<UserSnapshotState> stateOpt, Long actingUserId) {
+        return stateOpt.flatMap(state -> {
             User before = repository.findById(state.userId()).orElse(null);
             repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
             return repository.findById(state.userId()).map(updated -> {

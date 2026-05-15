@@ -64,7 +64,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     }
 
     private void setTitle() {
-        setHeaderTitle(getValue(USER_DIALOG_TITLE));
+        setHeaderTitle(getValue(LOGIN_HEADER_TITLE));
     }
 
     private void addContent() {
