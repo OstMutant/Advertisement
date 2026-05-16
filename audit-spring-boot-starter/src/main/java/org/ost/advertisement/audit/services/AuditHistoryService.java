@@ -1,10 +1,12 @@
 package org.ost.advertisement.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditReadRepository;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.core.spi.AuditActorNameResolver;
 import org.springframework.beans.factory.ObjectProvider;
@@ -14,6 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -25,9 +28,9 @@ public class AuditHistoryService {
     private final ObjectProvider<AdvertisementHistoryExtension> historyExtension;
     private final ObjectProvider<AuditActorNameResolver>        actorNameResolver;
 
-    public List<AdvertisementHistoryDto> getAdvertisementHistory(Long advertisementId, Long currentUserId, boolean showAll) {
-        List<AdvertisementHistoryDto> history = auditReadRepository.getAdvertisementHistory(
-                advertisementId, showAll ? null : currentUserId);
+    public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
+        List<EntityHistoryDto> history = auditReadRepository.getEntityHistory(
+                entityType, entityId, showAll ? null : currentUserId);
 
         history = resolveActorNames(history);
 
@@ -35,20 +38,20 @@ public class AuditHistoryService {
         if (ext == null) return history;
         return history.stream()
                 .map(h -> {
-                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(advertisementId, h.version());
+                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(entityId, h.version());
                     if (mediaChanges.isEmpty()) return h;
                     List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());
-                    return new AdvertisementHistoryDto(h.snapshotId(), h.version(), h.actionType(),
-                            h.actorId(), h.changedByUserName(), h.createdAt(), h.title(), h.description(),
-                            combined, h.prevSnapshotId(), h.prevTitle(), h.prevDescription());
+                    return new EntityHistoryDto(h.snapshotId(), h.version(), h.actionType(),
+                            h.actorId(), h.changedByUserName(), h.createdAt(),
+                            combined, h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData());
                 })
                 .toList();
     }
 
     @Transactional
-    public void appendNoteToLastSnapshot(Long advertisementId, String note) {
-        Long snapshotId = auditReadRepository.findLastSnapshotId(advertisementId).orElse(null);
+    public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) {
+        Long snapshotId = auditReadRepository.findLastSnapshotId(entityType, entityId).orElse(null);
         if (snapshotId == null) return;
         String currentJson = auditReadRepository.getChangesSummary(snapshotId);
         List<ChangeEntry> entries = new ArrayList<>(mapper.fromJsonList(currentJson));
@@ -56,21 +59,26 @@ public class AuditHistoryService {
         auditReadRepository.updateChangesSummary(snapshotId, mapper.toJson(entries));
     }
 
-    private List<AdvertisementHistoryDto> resolveActorNames(List<AdvertisementHistoryDto> items) {
+    public Optional<SnapshotPayload> getLastSnapshotPayload(EntityType entityType, Long entityId) {
+        return auditReadRepository.getLastSnapshotData(entityType, entityId)
+                .map(SnapshotPayload::new);
+    }
+
+    private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {
         AuditActorNameResolver resolver = actorNameResolver.getIfAvailable();
         if (resolver == null) return items;
         Set<Long> ids = items.stream()
-                .map(AdvertisementHistoryDto::actorId)
+                .map(EntityHistoryDto::actorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (ids.isEmpty()) return items;
         Map<Long, String> names = resolver.resolveNames(ids);
         return items.stream()
                 .map(h -> h.actorId() == null ? h
-                        : new AdvertisementHistoryDto(h.snapshotId(), h.version(), h.actionType(),
+                        : new EntityHistoryDto(h.snapshotId(), h.version(), h.actionType(),
                                 h.actorId(), names.getOrDefault(h.actorId(), "—"),
-                                h.createdAt(), h.title(), h.description(),
-                                h.changes(), h.prevSnapshotId(), h.prevTitle(), h.prevDescription()))
+                                h.createdAt(),
+                                h.changes(), h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData()))
                 .toList();
     }
 }

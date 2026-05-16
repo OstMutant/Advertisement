@@ -16,8 +16,8 @@ public class AuditQueryService {
     private final AuditReadRepository  auditReadRepository;
     private final AuditSnapshotMapper  mapper;
 
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
-        return auditReadRepository.getSnapshotContent(snapshotId);
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+        return auditReadRepository.getSnapshotContent(snapshotId, entityType);
     }
 
     public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
@@ -33,7 +33,7 @@ public class AuditQueryService {
                 .map(json -> mapper.fromJson(json, UserSettings.class));
     }
 
-    public Optional<Long> findLastSnapshotId(Long advertisementId) {
-        return auditReadRepository.findLastSnapshotId(advertisementId);
+    public Optional<Long> findLastSnapshotId(EntityType entityType, Long entityId) {
+        return auditReadRepository.findLastSnapshotId(entityType, entityId);
     }
 }

@@ -11,7 +11,8 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.core.i18n.I18nService;
@@ -29,9 +30,6 @@ import org.ost.advertisement.ui.views.rules.I18nParams;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 import static org.ost.advertisement.common.I18nKey.*;
@@ -150,12 +148,11 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
     private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad,
                                                                      AuditUiExtension auditUi) {
-        return auditUi.buildAdvertisementHistoryPanel(AuditUiExtension.AdvertisementHistoryParams.builder()
-                .adId(ad.getId())
+        return auditUi.buildEntityHistoryPanel(AuditUiExtension.EntityHistoryParams.builder()
+                .entityType(EntityType.ADVERTISEMENT)
+                .entityId(ad.getId())
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
-                .currentTitle(ad.getTitle())
-                .currentDesc(ad.getDescription())
                 .canOperate(access.canOperate(ad))
                 .onRestoreRequested(this::showRestoreConfirm)
                 .labelEmpty(getValue(ADVERTISEMENT_HISTORY_EMPTY))
@@ -164,28 +161,11 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                 .build());
     }
 
-    private void showRestoreConfirm(AdvertisementHistoryDto h, long snapshotId) {
-        List<String> lines = new ArrayList<>();
-
-        String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
-
-        if (Objects.equals(params.getAd().getTitle(), h.title())) {
-            lines.add(getValue(CHANGES_FIELD_TITLE) + ": " + noChange);
-        } else {
-            lines.add(getValue(CHANGES_FIELD_TITLE) + ": \"" + truncate(params.getAd().getTitle())
-                    + "\" → \"" + truncate(h.title()) + "\"");
-        }
-
-        if (Objects.equals(params.getAd().getDescription(), h.description())) {
-            lines.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + noChange);
-        } else {
-            lines.add(getValue(CHANGES_FIELD_DESCRIPTION) + ": " + getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED));
-        }
-
+    private void showRestoreConfirm(EntityHistoryDto h, long snapshotId) {
         confirmDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
-                        .message(String.join("\n", lines))
+                        .message(getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED))
                         .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
                         .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
                         .onConfirm(() -> params.getOnRestore().accept(snapshotId))

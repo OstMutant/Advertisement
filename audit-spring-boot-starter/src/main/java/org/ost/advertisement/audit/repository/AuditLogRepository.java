@@ -1,6 +1,7 @@
 package org.ost.advertisement.audit.repository;
 
 import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
 import org.ost.advertisement.core.model.ActionType;
 import org.ost.advertisement.core.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
@@ -69,29 +70,32 @@ public class AuditLogRepository {
                 .optional();
     }
 
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql("""
-                SELECT a.snapshot_data->>'title'       AS title,
-                       a.snapshot_data->>'description' AS description,
+                SELECT snapshot_data::text AS snapshot_data,
                        (SELECT COUNT(*) FROM audit_log b
-                        WHERE b.entity_type = 'ADVERTISEMENT' AND b.entity_id = a.entity_id
+                        WHERE b.entity_type = a.entity_type
+                          AND b.entity_id   = a.entity_id
                           AND b.created_at <= a.created_at)::int AS version
                 FROM audit_log a
-                WHERE a.id = :id AND a.entity_type = 'ADVERTISEMENT'
+                WHERE a.id = :id AND a.entity_type = :entityType
                 """)
-                .paramSource(new MapSqlParameterSource("id", snapshotId))
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("id", snapshotId)
+                        .addValue("entityType", entityType.name()))
                 .query((rs, row) -> new SnapshotContent(
-                        rs.getString("title"),
-                        rs.getString("description"),
+                        new SnapshotPayload(rs.getString("snapshot_data")),
                         rs.getInt("version")
                 ))
                 .optional();
     }
 
-    public Optional<Long> findLastSnapshotId(Long adId) {
+    public Optional<Long> findLastSnapshotId(EntityType entityType, Long entityId) {
         return jdbcClient.sql(
-                "SELECT id FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId ORDER BY created_at DESC LIMIT 1")
-                .paramSource(new MapSqlParameterSource("adId", adId))
+                "SELECT id FROM audit_log WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("type", entityType.name())
+                        .addValue("id", entityId))
                 .query(Long.class)
                 .optional();
     }

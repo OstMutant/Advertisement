@@ -144,6 +144,27 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-co
 
 ---
 
+## Helper Scripts
+
+All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/README.md) for full details.
+
+| Script | Purpose |
+|---|---|
+| `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
+| `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
+| `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
+| `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
+
+```bash
+bash scripts/deploy.sh                  # default: skip already-running containers
+bash scripts/deploy.sh --reset          # wipe everything and start from scratch
+bash scripts/deploy.sh --restart-infra  # restart DB + MinIO, redeploy app
+```
+
+All scripts resolve the project root automatically — run them from any directory.
+
+---
+
 ## Database Scripts
 
 All database scripts live in `database/`:

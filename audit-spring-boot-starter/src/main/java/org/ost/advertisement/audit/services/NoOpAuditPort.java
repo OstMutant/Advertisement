@@ -4,6 +4,7 @@ import org.ost.advertisement.audit.api.AuditPort;
 import org.ost.advertisement.audit.api.AuditableSnapshot;
 import org.ost.advertisement.audit.dto.SnapshotContent;
 import org.ost.advertisement.audit.dto.UserSnapshotState;
+import org.ost.advertisement.core.model.EntityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +28,12 @@ public class NoOpAuditPort implements AuditPort {
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) { /* audit disabled */ }
 
     @Override
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return Optional.empty();
     }
+
+    @Override
+    public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) { /* audit disabled */ }
 
     @Override
     public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {

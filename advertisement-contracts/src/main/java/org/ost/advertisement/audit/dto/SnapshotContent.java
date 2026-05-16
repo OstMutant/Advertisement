@@ -1,3 +1,3 @@
 package org.ost.advertisement.audit.dto;
 
-public record SnapshotContent(String title, String description, int version) {}
+public record SnapshotContent(SnapshotPayload snapshotData, int version) {}

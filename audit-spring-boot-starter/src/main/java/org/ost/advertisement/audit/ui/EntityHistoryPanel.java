@@ -1,5 +1,6 @@
 package org.ost.advertisement.audit.ui;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
@@ -9,9 +10,11 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.api.ConditionalOnAuditEnabled;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
 import org.ost.advertisement.audit.services.AuditHistoryService;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.core.i18n.InstantFormatter;
@@ -22,57 +25,60 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.function.BiConsumer;
 
 @ConditionalOnAuditEnabled
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementHistoryPanel extends Div
-        implements Configurable<AdvertisementHistoryPanel, AdvertisementHistoryPanel.Parameters>,
-                   Initialization<AdvertisementHistoryPanel> {
+public class EntityHistoryPanel extends Div
+        implements Configurable<EntityHistoryPanel, EntityHistoryPanel.Parameters>,
+                   Initialization<EntityHistoryPanel> {
 
     @lombok.Value
     @lombok.Builder
     public static class Parameters {
-        Long    adId;
-        Long    userId;
-        boolean isPrivileged;
-        String  currentTitle;
-        String  currentDesc;
-        boolean                                    canOperate;
-        BiConsumer<AdvertisementHistoryDto, Long>  onRestoreRequested;
-        String  labelEmpty;
-        String  labelCurrentState;
-        String  labelRestore;
+        EntityType entityType;
+        Long       entityId;
+        Long       userId;
+        boolean    isPrivileged;
+        boolean                                canOperate;
+        BiConsumer<EntityHistoryDto, Long>     onRestoreRequested;
+        String     labelEmpty;
+        String     labelCurrentState;
+        String     labelRestore;
     }
 
     @ConditionalOnAuditEnabled
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementHistoryPanel, Parameters> {
+    public static class Builder extends ComponentBuilder<EntityHistoryPanel, Parameters> {
         @Getter
-        private final ObjectProvider<AdvertisementHistoryPanel> provider;
+        private final ObjectProvider<EntityHistoryPanel> provider;
     }
 
-    private final I18nService                                  i18n;
-    private final InstantFormatter                             formatter;
-    private final AuditHistoryService                          auditHistoryService;
-    private final ObjectProvider<ActivityRowRenderer>          rendererProvider;
+    private final I18nService                                   i18n;
+    private final InstantFormatter                              formatter;
+    private final AuditHistoryService                           auditHistoryService;
+    private final ObjectMapper                                  objectMapper;
+    private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
     private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
 
     @Override
     @PostConstruct
-    public AdvertisementHistoryPanel init() {
+    public EntityHistoryPanel init() {
         addClassName("adv-history-list");
         return this;
     }
 
     @Override
-    public AdvertisementHistoryPanel configure(Parameters p) {
-        List<AdvertisementHistoryDto> history = auditHistoryService.getAdvertisementHistory(
-                p.getAdId(), p.getUserId(), p.isPrivileged());
+    public EntityHistoryPanel configure(Parameters p) {
+        SnapshotPayload currentSnapshot = auditHistoryService
+                .getLastSnapshotPayload(p.getEntityType(), p.getEntityId())
+                .orElse(null);
+
+        List<EntityHistoryDto> history = auditHistoryService
+                .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
 
         if (history.isEmpty()) {
             Span empty = new Span(p.getLabelEmpty());
@@ -82,31 +88,31 @@ public class AdvertisementHistoryPanel extends Div
         }
 
         RowContext ctx = new RowContext(
-                p.getAdId(), p.getCurrentTitle(), p.getCurrentDesc(), history.size(),
+                p.getEntityId(), currentSnapshot, history.size(),
                 p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
                 p.getOnRestoreRequested());
         ActivityRowRenderer renderer = rendererProvider.getObject();
 
-        for (AdvertisementHistoryDto h : history) {
+        for (EntityHistoryDto h : history) {
             add(buildRow(h, renderer, ctx));
         }
         return this;
     }
 
     private record RowContext(
-            Long adId, String currentTitle, String currentDesc, int historySize,
+            Long entityId, SnapshotPayload currentSnapshot, int historySize,
             boolean canOperate, String labelCurrentState, String labelRestore,
-            BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested) {}
+            BiConsumer<EntityHistoryDto, Long> onRestoreRequested) {}
 
-    private Div buildRow(AdvertisementHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
-        Long adId               = ctx.adId();
-        String currentTitle     = ctx.currentTitle();
-        String currentDesc      = ctx.currentDesc();
-        int historySize         = ctx.historySize();
-        boolean canOperate      = ctx.canOperate();
-        String labelCurrentState = ctx.labelCurrentState();
-        String labelRestore     = ctx.labelRestore();
-        BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested = ctx.onRestoreRequested();
+    private Div buildRow(EntityHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
+        Long entityId                = ctx.entityId();
+        SnapshotPayload currentSnap  = ctx.currentSnapshot();
+        int historySize              = ctx.historySize();
+        boolean canOperate           = ctx.canOperate();
+        String labelCurrentState     = ctx.labelCurrentState();
+        String labelRestore          = ctx.labelRestore();
+        BiConsumer<EntityHistoryDto, Long> onRestoreRequested = ctx.onRestoreRequested();
+
         Div row = new Div();
         row.addClassName("adv-history-row");
 
@@ -127,13 +133,12 @@ public class AdvertisementHistoryPanel extends Div
         meta.addClassName("adv-history-meta");
         row.add(meta);
 
-        row.add(renderer.buildAdvHistoryFieldsList(h, adId));
+        row.add(renderer.buildAdvHistoryFieldsList(h, entityId));
 
         boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
         if (canOperate && isTextRow && (h.actionType() != ActionType.CREATED || historySize > 1)) {
-            boolean textMatches = Objects.equals(h.title(), currentTitle)
-                    && Objects.equals(h.description(), currentDesc);
-            boolean matchesCurrent = textMatches && mediaMatchCurrent(adId, h.version());
+            boolean snapshotMatches = jsonEquals(h.snapshotData(), currentSnap);
+            boolean matchesCurrent  = snapshotMatches && mediaMatchCurrent(entityId, h.version());
 
             if (matchesCurrent) {
                 Span badge = new Span(labelCurrentState);
@@ -151,9 +156,18 @@ public class AdvertisementHistoryPanel extends Div
         return row;
     }
 
-    private boolean mediaMatchCurrent(Long adId, int version) {
+    private boolean jsonEquals(SnapshotPayload a, SnapshotPayload b) {
+        if (a == null || b == null || a.isEmpty() || b.isEmpty()) return false;
+        try {
+            return objectMapper.readTree(a.json()).equals(objectMapper.readTree(b.json()));
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private boolean mediaMatchCurrent(Long entityId, int version) {
         AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.mediaMatchCurrent(adId, version);
+        return ext == null || ext.mediaMatchCurrent(entityId, version);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {
@@ -163,5 +177,4 @@ public class AdvertisementHistoryPanel extends Div
             case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
         };
     }
-
 }

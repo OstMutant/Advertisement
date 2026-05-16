@@ -37,6 +37,14 @@ test.describe('User edit diff', () => {
       const text = await page.locator('.user-activity-list').first().textContent();
       if (!text.includes('→')) throw new Error('No diff arrow → in user edit activity');
     });
+
+    await test.step('Unchanged fields (email, role) also shown in user activity row', async () => {
+      const firstRow = page.locator('.user-activity-row').first();
+      const unchangedItems = firstRow.locator('.user-activity-changes-item--unchanged');
+      const count = await unchangedItems.count();
+      if (count === 0)
+        throw new Error('Unchanged fields (email, role) not shown in user activity row');
+    });
     await screenshot(page, 'user-edit-diff-01-activity');
   });
 });

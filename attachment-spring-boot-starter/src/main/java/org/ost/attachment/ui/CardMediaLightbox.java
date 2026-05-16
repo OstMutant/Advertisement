@@ -132,7 +132,8 @@ public class CardMediaLightbox {
         String     ct = a.getContentType();
 
         if (MediaContentType.isEmbedded(ct)) {
-            videoEl.executeJs("this.pause(); this.src='';");
+            UI.getCurrent().getPage().executeJs(
+                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}");
             String embedUrl = embedSrc(a);
             iframe.getElement().setAttribute("src", embedUrl);
             UI.getCurrent().getPage().executeJs(
@@ -153,8 +154,8 @@ public class CardMediaLightbox {
         } else {
             iframe.getElement().setAttribute("src", "about:blank");
             UI.getCurrent().getPage().executeJs(
-                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';");
-            videoEl.executeJs("this.pause(); this.src='';");
+                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';" +
+                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}");
             mainVideo.setVisible(false);
             iframe.setVisible(false);
             mainImg.setSrc(a.getUrl());

@@ -88,6 +88,25 @@ public class AttachmentSnapshotRepository {
                 .optional();
     }
 
+    public Optional<String> getChangesJsonForSnapshot(Long adId, Long snapshotId) {
+        return jdbcClient.sql(
+                "SELECT changes_summary::text" +
+                FROM_TABLE +
+                " WHERE advertisement_id = :adId" +
+                "   AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
+                "   AND created_at < COALESCE((" +
+                "       SELECT created_at FROM audit_log" +
+                "       WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "         AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
+                "       ORDER BY created_at ASC LIMIT 1" +
+                "   ), 'infinity'::timestamptz)" +
+                "   AND changes_summary IS NOT NULL" +
+                " ORDER BY created_at ASC LIMIT 1")
+                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapshotId", snapshotId))
+                .query((rs, row) -> rs.getString(1))
+                .optional();
+    }
+
     public Optional<String> getChangesJson(Long adId, int version) {
         String thisAuditTs =
                 "SELECT al.created_at FROM (" +

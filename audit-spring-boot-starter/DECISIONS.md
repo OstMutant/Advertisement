@@ -40,16 +40,48 @@
 
 ---
 
-## Goal (not yet done) — Full decoupling from advertisement domain
+## 2026-05-16 — Full decoupling from advertisement domain DONE
 
-**Target state:** `audit-spring-boot-starter` must contain zero knowledge of advertisement-specific entities, field names, or business logic. The module must be reusable in any Spring Boot + Vaadin project without modification.
+**Target state achieved:** `audit-spring-boot-starter` contains zero knowledge of advertisement-specific entities, field names, or business logic. The module is reusable in any Spring Boot + Vaadin project without modification.
 
-**What is still coupled (as of 2026-05-15):**
-- `AdvertisementHistoryProjection` — SQL hardcodes `entity_type = 'ADVERTISEMENT'` and extracts `title`, `description` from snapshot JSON. Belongs in `advertisement-app`.
-- `AuditHistoryService` — service method `getAdvertisementHistory()` is advertisement-specific. Belongs in `advertisement-app`.
-- `AdvertisementHistoryPanel` — Vaadin UI component for advertisement history. Belongs in `advertisement-app`.
-- `ActivityProjection` — UNION SQL hardcodes `'ADVERTISEMENT'`, `'USER'`, `'USER_SETTINGS'` and their snapshot field names (`title`, `name`, `email`, `role`). Must become configurable via SPI.
-- `AuditLogRepository.getSnapshotContent()` — extracts `title` and `description` from snapshot JSON, hardcodes `entity_type = 'ADVERTISEMENT'`. Must be removed; callers use raw `getSnapshotData()` and parse themselves.
-- `ActivityRowRenderer` — contains `EntityType.ADVERTISEMENT`-specific UI rendering logic. Must delegate to a per-entity-type SPI.
+**What was changed:**
+- `AdvertisementHistoryProjection` → deleted; replaced with generic `EntityHistoryProjection` (PARTITION BY entity_type + entity_id, returns raw `snapshot_data` JSON).
+- `AdvertisementHistoryDto` → renamed to `EntityHistoryDto`; `title`/`description`/`prevTitle`/`prevDescription` replaced by `SnapshotPayload snapshotData` / `SnapshotPayload prevSnapshotData`.
+- `AuditHistoryService.getAdvertisementHistory()` → renamed to `getEntityHistory(EntityType, Long, Long, boolean)`.
+- `AdvertisementHistoryPanel` → renamed to `EntityHistoryPanel`; `currentTitle`/`currentDesc` removed; current-state comparison done via `jsonEquals(SnapshotPayload, SnapshotPayload)` using `ObjectMapper.readTree`.
+- `ActivityProjection` — UNION SQL replaced with single generic query; `display_name` / typed snapshot fields removed; `snapshot_data::text` added; display name resolution delegated to `EntityDisplayNameResolver` SPI (new interface in `advertisement-contracts`).
+- `ActivityItemDto` — `snapshotTitle`, `snapshotDescription`, `snapshotEmail`, `snapshotRole` removed; `SnapshotPayload snapshotData` added.
+- `SnapshotContent` — `title`/`description` replaced by `SnapshotPayload snapshotData`.
+- `AuditLogRepository.getSnapshotContent()` — now generic: takes `(Long snapshotId, EntityType entityType)`, returns raw JSON in `SnapshotPayload`.
+- `AuditLogRepository.findLastSnapshotId()` — now generic: takes `(EntityType, Long)`.
+- `AuditPort` — two new methods: `appendNoteToLastSnapshot(EntityType, Long, String)` and `getSnapshotContent(Long, EntityType)`.
+- `AuditUiExtension` — `buildAdvertisementHistoryPanel(AdvertisementHistoryParams)` → `buildEntityHistoryPanel(EntityHistoryParams)`; `currentTitle`/`currentDesc` removed from params.
+- `ActivityRowRenderer` — advertisement-specific field rendering removed; `buildRow()` delegates to `activityPanel.buildChangesList()` for all entity types.
+- `AdvertisementDisplayNameResolver` (`advertisement-app`) implements `EntityDisplayNameResolver` for ADVERTISEMENT / USER / USER_SETTINGS.
+- `AdvertisementService` — `getSnapshotContent(Long, EntityType.ADVERTISEMENT)` now returns `SnapshotPayload`; `ObjectMapper` used to parse title/description.
 
-**How to achieve this is not yet decided.**
+---
+
+## 2026-05-16 — ActivityItemFieldsProvider SPI: expanded field display in activity feed
+
+**Decision:** Added `ActivityItemFieldsProvider` SPI (contracts `core.spi`). `ActivityRowRenderer.buildRow` calls it for non-settings items: if a provider supports the entity type AND `snapshotData` is non-empty, the provider returns a merged `List<ChangeEntry>` (changed fields with diff + unchanged fields as `FieldChange(field, null, currentValue)`). Falls back to raw `changes` when no provider registered. `UserActivityFieldsProvider` in `advertisement-app` implements this for `EntityType.USER`.
+
+**Why:** Activity feed was showing only changed fields. Unchanged fields (e.g. email, role when only name changed) were invisible. Domain-specific field lists must not be hardcoded in audit-starter — the SPI keeps the starter generic and reusable.
+
+**Rejected:** Hardcoding `"name"`, `"email"`, `"role"` in `ActivityRowRenderer` or adding `email` to `UserSnapshotState` — both introduce domain coupling into the starter.
+
+---
+
+## Deferred backlog
+
+- SnapshotPayload: add schemaVersion + metadata when snapshot versioning is needed
+- EntityType: migrate from enum to string registry/descriptor when second consumer project appears
+- SnapshotCodec: centralize ObjectMapper.readValue calls; eliminates leakage across layers
+- ActivityProjection: JSON deserialization per row — negligible at 20 rows; revisit with cursor pagination
+- jsonEquals readTree: expensive for large history lists — add parsed snapshot cache in EntityHistoryPanel.configure()
+- EntityDisplayNameResolver.supports(): replace linear scan with map lookup when resolvers > 5
+- LIMIT 20/100: replace with cursor pagination when needed
+- mediaMatchCurrent: remaining domain coupling, accepted — goes through AdvertisementHistoryExtension SPI
+- EntityHistoryPanel: thin via presenter/view-model layer in future UI refactoring
+- Snapshot schema migration strategy: needed before first AdvertisementSnapshot field rename
+- SnapshotPayload.isEmpty(): consider treating "{}" as empty semantic snapshot

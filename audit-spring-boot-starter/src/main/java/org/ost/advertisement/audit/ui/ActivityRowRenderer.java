@@ -1,16 +1,19 @@
 package org.ost.advertisement.audit.ui;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.core.config.UserSettings;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.audit.dto.ActivityItemDto;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
 import org.ost.advertisement.core.model.ActionType;
 import org.ost.advertisement.core.model.ChangeEntry;
 import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.spi.ActivityItemFieldsProvider;
 import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
 import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.core.i18n.InstantFormatter;
@@ -19,6 +22,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @CssImport("./adv-history.css")
 @SpringComponent
@@ -28,10 +32,12 @@ public class ActivityRowRenderer {
 
     private static final String CSS_CHANGES = "user-activity-changes";
 
-    private final I18nService                                  i18n;
-    private final InstantFormatter                             formatter;
-    private final ActivityPanel                                activityPanel;
-    private final ObjectProvider<AdvertisementHistoryExtension> historyExtensionProvider;
+    private final I18nService                                    i18n;
+    private final InstantFormatter                               formatter;
+    private final ActivityPanel                                  activityPanel;
+    private final List<ActivityItemFieldsProvider>               fieldsProviders;
+    private final ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
+    private final ObjectMapper                                   objectMapper;
 
     public static boolean isSettingChange(ActivityItemDto item) {
         return item.entityType() == EntityType.USER_SETTINGS
@@ -55,8 +61,7 @@ public class ActivityRowRenderer {
         type.addClassName("user-activity-type");
         type.addClassName("user-activity-type--" + typeCssKey);
 
-        String nameText = resolveNameText(item);
-        Span name = new Span(nameText);
+        Span name = new Span(item.displayName());
         name.addClassName("user-activity-name");
 
         Span time = new Span(formatter.formatInstantHuman(item.createdAt()));
@@ -71,90 +76,68 @@ public class ActivityRowRenderer {
             if (item.snapshotId() == null || item.snapshotId() <= 0) {
                 row.add(activityPanel.buildChangesList(item.changes(), CSS_CHANGES));
             }
-        } else if (item.entityType() == EntityType.ADVERTISEMENT) {
-            row.add(buildAdvFieldsList(item));
-        } else if (item.entityType() == EntityType.USER) {
-            row.add(buildUserFieldsList(item));
+            // else: full fields list rendered by ProfileActivityPanel.addSettingsRestore
+        } else {
+            row.add(buildActivityFieldsList(item));
         }
 
         return row;
     }
 
-    public Div buildAdvFieldsList(ActivityItemDto item) {
-        Div container = new Div();
-        container.addClassName(CSS_CHANGES);
-        AdvChanges c = categorizeAdvChanges(item.changes());
-
-        if (c.title() != null) {
-            addActivitySpan(container, activityPanel.format(c.title()), false);
-        } else if (item.snapshotTitle() != null) {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_TITLE) + ": " + item.snapshotTitle(), true);
+    private Div buildActivityFieldsList(ActivityItemDto item) {
+        if (item.entityType() == EntityType.ADVERTISEMENT) {
+            return buildAdvertisementActivityFieldsList(item);
         }
-
-        if (c.desc() != null) {
-            addActivitySpan(container, activityPanel.format(c.desc()), false);
-        } else if (item.snapshotDescription() != null) {
-            String desc = item.snapshotDescription().length() > 60
-                    ? item.snapshotDescription().substring(0, 60) + "…" : item.snapshotDescription();
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+        ActivityItemFieldsProvider provider = fieldsProviders.stream()
+                .filter(p -> p.supports(item.entityType()))
+                .findFirst().orElse(null);
+        if (provider != null && !item.snapshotData().isEmpty()) {
+            List<ChangeEntry> expanded = provider.expandFields(item);
+            return buildActivityChangesDiv(expanded);
         }
-
-        renderActivityMediaSection(container, item, c.media());
-        c.others().forEach(oc -> addActivitySpan(container, activityPanel.format(oc), false));
-        return container;
+        return activityPanel.buildChangesList(item.changes(), CSS_CHANGES);
     }
 
-    private void renderActivityMediaSection(Div container, ActivityItemDto item, List<ChangeEntry> mediaChanges) {
-        if (mediaChanges.isEmpty() && item.snapshotId() != null) {
+    private Div buildAdvertisementActivityFieldsList(ActivityItemDto item) {
+        Div container = new Div();
+        container.addClassName(CSS_CHANGES);
+
+        List<ChangeEntry> mediaChanges = new ArrayList<>();
+        List<ChangeEntry> textChanges  = new ArrayList<>();
+        for (ChangeEntry entry : item.changes()) {
+            if (entry instanceof ChangeEntry.GenericChange) {
+                mediaChanges.add(entry);
+            } else {
+                textChanges.add(entry);
+            }
+        }
+
+        List<ChangeEntry> expanded = expandTextFields(item.snapshotData(), textChanges);
+        for (ChangeEntry entry : expanded) {
+            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
+            addActivitySpan(container, activityPanel.format(entry), unchanged);
+        }
+
+        if (mediaChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null
-                    ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId())
-                    : null;
+            String state = ext != null ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
             mediaChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
         }
+
+        return container;
     }
 
-    public Div buildUserFieldsList(ActivityItemDto item) {
+    private Div buildActivityChangesDiv(List<ChangeEntry> entries) {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
-
-        ChangeEntry nameChange  = null;
-        ChangeEntry emailChange = null;
-        ChangeEntry roleChange  = null;
-        List<ChangeEntry> otherChanges = new ArrayList<>();
-
-        for (ChangeEntry entry : item.changes()) {
-            switch (entry) {
-                case ChangeEntry.FieldChange f when "name".equals(f.field())  -> nameChange  = f;
-                case ChangeEntry.FieldChange f when "email".equals(f.field()) -> emailChange = f;
-                case ChangeEntry.FieldChange f when "role".equals(f.field())  -> roleChange  = f;
-                default                                                        -> otherChanges.add(entry);
-            }
+        for (ChangeEntry entry : entries) {
+            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
+            String text = activityPanel.format(entry);
+            addActivitySpan(container, text, unchanged);
         }
-
-        if (nameChange != null) {
-            addActivitySpan(container, activityPanel.format(nameChange), false);
-        } else if (item.displayName() != null) {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_NAME) + ": " + item.displayName(), true);
-        }
-
-        if (emailChange != null) {
-            addActivitySpan(container, activityPanel.format(emailChange), false);
-        } else if (item.snapshotEmail() != null) {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_EMAIL) + ": " + item.snapshotEmail(), true);
-        }
-
-        if (roleChange != null) {
-            addActivitySpan(container, activityPanel.format(roleChange), false);
-        } else if (item.snapshotRole() != null) {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_ROLE) + ": " + item.snapshotRole(), true);
-        }
-
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
-
         return container;
     }
 
@@ -191,26 +174,27 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    public Div buildAdvHistoryFieldsList(AdvertisementHistoryDto h, Long adId) {
+    public Div buildAdvHistoryFieldsList(EntityHistoryDto h, Long adId) {
         Div container = new Div();
         container.addClassName("adv-history-changes");
-        AdvChanges c = categorizeAdvChanges(h.changes());
 
-        if (c.title() != null) {
-            addHistorySpan(container, activityPanel.format(c.title()), false);
-        } else if (h.title() != null) {
-            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_TITLE) + ": " + h.title(), true);
+        List<ChangeEntry> mediaChanges = new ArrayList<>();
+        List<ChangeEntry> textChanges  = new ArrayList<>();
+        for (ChangeEntry entry : h.changes()) {
+            if (entry instanceof ChangeEntry.GenericChange) {
+                mediaChanges.add(entry);
+            } else {
+                textChanges.add(entry);
+            }
         }
 
-        if (c.desc() != null) {
-            addHistorySpan(container, activityPanel.format(c.desc()), false);
-        } else if (h.description() != null) {
-            String desc = h.description().length() > 60 ? h.description().substring(0, 60) + "…" : h.description();
-            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_FIELD_DESCRIPTION) + ": " + desc, true);
+        List<ChangeEntry> expanded = expandTextFields(h.snapshotData(), textChanges);
+        for (ChangeEntry entry : expanded) {
+            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
+            addHistorySpan(container, activityPanel.format(entry), unchanged);
         }
 
-        renderHistoryMediaSection(container, c.media(), adId, h.version());
-        c.others().forEach(oc -> addHistorySpan(container, activityPanel.format(oc), false));
+        renderHistoryMediaSection(container, mediaChanges, adId, h.version());
         return container;
     }
 
@@ -225,13 +209,24 @@ public class ActivityRowRenderer {
         }
     }
 
-    private String resolveNameText(ActivityItemDto item) {
-        if (item.entityType() == EntityType.ADVERTISEMENT) {
-            return item.changedByName() != null ? item.changedByName() : item.displayName();
+    @SuppressWarnings("unchecked")
+    private List<ChangeEntry> expandTextFields(SnapshotPayload payload, List<ChangeEntry> changedFields) {
+        if (payload == null || payload.isEmpty()) return changedFields;
+        try {
+            Map<String, Object> snap = objectMapper.readValue(payload.json(), Map.class);
+            List<ChangeEntry> result = new ArrayList<>();
+            for (Map.Entry<String, Object> e : snap.entrySet()) {
+                String key = e.getKey();
+                String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
+                ChangeEntry existing = changedFields.stream()
+                        .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
+                        .findFirst().orElse(null);
+                result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
+            }
+            return result;
+        } catch (Exception ignored) {
+            return changedFields;
         }
-        return item.entityExists()
-                ? item.displayName()
-                : item.displayName() + " " + i18n.get(AuditMessages.ACTIVITY_ENTITY_DELETED);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {
@@ -240,25 +235,6 @@ public class ActivityRowRenderer {
             case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;
             case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
         };
-    }
-
-    private record AdvChanges(ChangeEntry title, ChangeEntry desc,
-                               List<ChangeEntry> media, List<ChangeEntry> others) {}
-
-    private static AdvChanges categorizeAdvChanges(List<ChangeEntry> entries) {
-        ChangeEntry titleChange = null;
-        ChangeEntry descChange  = null;
-        List<ChangeEntry> mediaChanges = new ArrayList<>();
-        List<ChangeEntry> otherChanges = new ArrayList<>();
-        for (ChangeEntry entry : entries) {
-            switch (entry) {
-                case ChangeEntry.FieldChange f when "title".equals(f.field())       -> titleChange = f;
-                case ChangeEntry.FieldChange f when "description".equals(f.field()) -> descChange  = f;
-                case ChangeEntry.GenericChange gc                                    -> mediaChanges.add(gc);
-                default                                                              -> otherChanges.add(entry);
-            }
-        }
-        return new AdvChanges(titleChange, descChange, mediaChanges, otherChanges);
     }
 
     private void addHistorySpan(Div container, String text, boolean unchanged) {

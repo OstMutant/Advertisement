@@ -59,6 +59,16 @@
 **Rejected:** Keeping `storage-s3-spring-boot-starter` as a separate module — two modules with a mandatory one-way dependency and no realistic decoupling scenario.
 
 
+## 2026-05-16 — Developer scripts moved to scripts/
+
+**Decision:** All root-level `.bat` and `.sh` helper scripts (except `mvn.bat`) moved to `scripts/`. Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname "$0")/..` (sh), so they work correctly when run from any directory.
+
+**Why:** Root was accumulating unrelated files; grouping scripts improves discoverability and keeps the root clean.
+
+**Rejected:** Keeping `mvn.bat` in `scripts/` — it is invoked constantly during development and is more ergonomic at the root.
+
+---
+
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
 **Decision:** The write side of the audit subsystem (`AuditCaptureService`, `AuditDiffEngine`, `AuditFieldCache`, `AuditSnapshotMapper`, `AuditLogRepository` generic operations) was extracted into a new `audit-spring-boot-starter` module. Domain services (`AdvertisementService`, `UserService`, `SettingsOverlay`) now call `AuditPort` (contract interface) instead of `AuditCaptureService` (concrete service). History/activity read side (domain JOINs) stays in `advertisement-app`.

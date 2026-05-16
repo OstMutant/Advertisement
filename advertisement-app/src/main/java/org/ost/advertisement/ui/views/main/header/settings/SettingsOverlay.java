@@ -166,6 +166,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     SettingsSnapshot.from(newSettings),
                     currentUser.getId());
             if (activityPanel != null) activityPanel.removeAll();
+            if (tabs != null) tabs.setSelectedTab(settingsTab);
 
             notifications.success(SETTINGS_SAVED_SUCCESS);
         } catch (Exception e) {

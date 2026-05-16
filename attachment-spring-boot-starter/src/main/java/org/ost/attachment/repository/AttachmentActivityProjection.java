@@ -2,6 +2,7 @@ package org.ost.attachment.repository;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.audit.dto.ActivityItemDto;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
 import org.ost.advertisement.core.model.ActionType;
 import org.ost.advertisement.core.model.EntityType;
 import org.ost.attachment.service.AttachmentSnapshotService;
@@ -47,10 +48,7 @@ public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto>
                 attachmentSnapshotService.parseMediaChanges(CHANGES_SUMMARY.extract(rs)),
                 CHANGED_BY_USER_ID.extract(rs),
                 "—",
-                "—",
-                null,
-                null,
-                null
+                new SnapshotPayload(null)
         );
     }
 }

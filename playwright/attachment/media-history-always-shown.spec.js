@@ -41,17 +41,17 @@ function makePng(filePath, r, g, b) {
     Buffer.concat([sig, mkchunk('IHDR', ihdr), mkchunk('IDAT', idat), mkchunk('IEND', Buffer.alloc(0))]));
 }
 
-test.describe('Photo line always shown in history', () => {
+test.describe('Media line always shown in history', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, 'user1@example.com');
   });
 
-  test('photo field shows — in text-only edit after photo deletion', async ({ page }) => {
-    const imgPath = '/tmp/photo-always-shown.png';
+  test('media field shows — in text-only edit after image deletion', async ({ page }) => {
+    const imgPath = '/tmp/media-always-shown.png';
     makePng(imgPath, 100, 150, 200);
-    const TITLE = `Photo Always Shown ${Date.now()}`;
+    const TITLE = `Media Always Shown ${Date.now()}`;
 
-    // v1: create ad with photo
+    // v1: create ad with image
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
@@ -62,7 +62,7 @@ test.describe('Photo line always shown in history', () => {
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);
 
-    // v2: delete photo
+    // v2: delete image
     await page.locator('.advertisement-card')
       .filter({ has: page.locator('.advertisement-title', { hasText: TITLE }) })
       .first().click();
@@ -96,26 +96,26 @@ test.describe('Photo line always shown in history', () => {
 
     const latestRow = rows.first();
 
-    await test.step('Latest row (text-only edit) still has photo line', async () => {
+    await test.step('Latest row (text-only edit) still has media line', async () => {
       const changes = latestRow.locator('.adv-history-changes-item');
       const texts = await changes.allTextContents();
-      const photoLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
-      if (!photoLine) {
+      const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
+      if (!mediaLine) {
         throw new Error(
-          'Photo line missing in text-only edit row. Changes found: ' + JSON.stringify(texts)
+          'Media line missing in text-only edit row. Changes found: ' + JSON.stringify(texts)
         );
       }
     });
 
-    await test.step('Photo line contains — (photos were deleted in v2)', async () => {
+    await test.step('Media line contains — (images were deleted in v2)', async () => {
       const changes = latestRow.locator('.adv-history-changes-item');
       const texts = await changes.allTextContents();
-      const photoLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
-      if (!photoLine.includes('—')) {
-        throw new Error('Expected — in photo line, got: ' + photoLine);
+      const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
+      if (!mediaLine.includes('—')) {
+        throw new Error('Expected — in media line, got: ' + mediaLine);
       }
     });
-    await screenshot(page, 'photo-always-shown-01-v3-has-photo-line');
+    await screenshot(page, 'media-always-shown-01-v3-has-media-line');
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   });

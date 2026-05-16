@@ -11,8 +11,8 @@ import org.ost.advertisement.audit.spi.AuditUiExtension;
 @RequiredArgsConstructor
 public class AuditUiExtensionImpl implements AuditUiExtension {
 
-    private final ProfileActivityPanel.Builder      userActivityBuilder;
-    private final AdvertisementHistoryPanel.Builder historyBuilder;
+    private final ProfileActivityPanel.Builder userActivityBuilder;
+    private final EntityHistoryPanel.Builder   historyBuilder;
 
     @Override
     public Component buildUserActivityPanel(UserActivityParams p) {
@@ -27,13 +27,12 @@ public class AuditUiExtensionImpl implements AuditUiExtension {
     }
 
     @Override
-    public Component buildAdvertisementHistoryPanel(AdvertisementHistoryParams p) {
-        return historyBuilder.build(AdvertisementHistoryPanel.Parameters.builder()
-                .adId(p.getAdId())
+    public Component buildEntityHistoryPanel(EntityHistoryParams p) {
+        return historyBuilder.build(EntityHistoryPanel.Parameters.builder()
+                .entityType(p.getEntityType())
+                .entityId(p.getEntityId())
                 .userId(p.getUserId())
                 .isPrivileged(p.isPrivileged())
-                .currentTitle(p.getCurrentTitle())
-                .currentDesc(p.getCurrentDesc())
                 .canOperate(p.isCanOperate())
                 .onRestoreRequested(p.getOnRestoreRequested())
                 .labelEmpty(p.getLabelEmpty())

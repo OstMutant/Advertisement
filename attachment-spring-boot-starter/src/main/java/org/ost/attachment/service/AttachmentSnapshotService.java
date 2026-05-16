@@ -66,6 +66,12 @@ public class AttachmentSnapshotService {
                 .orElse(List.of());
     }
 
+    public List<ChangeEntry> getChangesForSnapshot(Long adId, Long snapshotId) {
+        return attachmentSnapshotRepository.getChangesJsonForSnapshot(adId, snapshotId)
+                .map(this::parseMediaChanges)
+                .orElse(List.of());
+    }
+
     @SuppressWarnings("unchecked")
     public List<ChangeEntry> parseMediaChanges(String json) {
         if (json == null || json.isBlank()) return List.of();

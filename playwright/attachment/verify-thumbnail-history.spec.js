@@ -5,12 +5,12 @@ const fs = require('fs');
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4`;
 
-test.describe('Thumbnail and photo history', () => {
+test.describe('Thumbnail and media history', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page);
   });
 
-  test('cards show real thumbnails; history tab shows photo changes', async ({ page }) => {
+  test('cards show real thumbnails; history tab shows media changes', async ({ page }) => {
     const imgPath = '/tmp/vth-thumb.png';
     await downloadPng(avatar('thumbnail-test'), imgPath);
 
@@ -39,10 +39,10 @@ test.describe('Thumbnail and photo history', () => {
     await waitForOverlay(page);
     await openHistory(page);
 
-    await test.step('History tab shows photo changes', async () => {
+    await test.step('History tab shows media changes', async () => {
       const text = await page.locator('.adv-history-list').textContent();
       if (!/(зображення|image)/i.test(text))
-        throw new Error('No photo entry in history for thumbnail ad: ' + text.slice(0, 200));
+        throw new Error('No media entry in history for thumbnail ad: ' + text.slice(0, 200));
     });
     await screenshot(page, 'thumbnail-02-history');
 

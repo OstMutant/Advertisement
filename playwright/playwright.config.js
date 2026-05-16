@@ -3,7 +3,7 @@ const { defineConfig } = require('@playwright/test');
 module.exports = defineConfig({
   // Spec files are copied alongside this config into /tmp inside pw-runner.
   testDir: '.',
-  testMatch: '*.spec.js',
+  testMatch: '**/*.spec.js',
 
   // Vaadin + shared DB — parallel runs cause race conditions.
   fullyParallel: false,

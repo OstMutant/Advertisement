@@ -6,17 +6,15 @@ import org.ost.advertisement.core.model.ChangeEntry;
 import java.time.Instant;
 import java.util.List;
 
-public record AdvertisementHistoryDto(
+public record EntityHistoryDto(
         Long              snapshotId,
         int               version,
         ActionType        actionType,
         Long              actorId,
         String            changedByUserName,
         Instant           createdAt,
-        String            title,
-        String            description,
         List<ChangeEntry> changes,
         Long              prevSnapshotId,
-        String            prevTitle,
-        String            prevDescription
+        SnapshotPayload   snapshotData,
+        SnapshotPayload   prevSnapshotData
 ) {}

@@ -1,5 +1,6 @@
 @echo off
 setlocal
+cd /d "%~dp0.."
 
 :: Get login (email) from argument
 set LOGIN=%1

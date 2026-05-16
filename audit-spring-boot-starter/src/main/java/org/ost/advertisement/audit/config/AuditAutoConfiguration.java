@@ -10,6 +10,7 @@ import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.ActivityRepository;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.ost.advertisement.audit.repository.AuditReadRepository;
+import org.ost.advertisement.core.spi.EntityDisplayNameResolver;
 import org.ost.advertisement.audit.services.ActivityService;
 import org.ost.advertisement.audit.services.AuditHistoryService;
 import org.ost.advertisement.audit.services.AuditQueryService;
@@ -29,6 +30,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 import javax.sql.DataSource;
+import java.util.List;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -58,9 +60,10 @@ public class AuditAutoConfiguration {
             AuditSnapshotMapper snapshotMapper,
             AuditLogRepository auditLogRepository,
             ObjectProvider<AuditUserProvider> auditUserProvider,
-            AuditQueryService auditQueryService) {
+            AuditQueryService auditQueryService,
+            AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,
-                                    auditLogRepository, auditUserProvider, auditQueryService);
+                                    auditLogRepository, auditUserProvider, auditQueryService, auditHistoryService);
     }
 
     @Bean
@@ -81,8 +84,9 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(ActivityRepository.class)
     ActivityRepository activityRepository(
             JdbcClient jdbcClient,
-            @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
-        return new ActivityRepository(jdbcClient, objectMapper);
+            @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper,
+            List<EntityDisplayNameResolver> resolvers) {
+        return new ActivityRepository(jdbcClient, objectMapper, resolvers);
     }
 
     @Bean

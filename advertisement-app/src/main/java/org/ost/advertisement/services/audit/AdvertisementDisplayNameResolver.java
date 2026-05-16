@@ -1,0 +1,38 @@
+package org.ost.advertisement.services.audit;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.ost.advertisement.audit.dto.SnapshotPayload;
+import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.spi.EntityDisplayNameResolver;
+import org.springframework.stereotype.Component;
+
+@Component
+public class AdvertisementDisplayNameResolver implements EntityDisplayNameResolver {
+
+    private final ObjectMapper objectMapper;
+
+    public AdvertisementDisplayNameResolver(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public boolean supports(EntityType entityType) {
+        return entityType == EntityType.ADVERTISEMENT
+                || entityType == EntityType.USER
+                || entityType == EntityType.USER_SETTINGS;
+    }
+
+    @Override
+    public String resolveDisplayName(EntityType entityType, SnapshotPayload snapshot) {
+        if (snapshot == null || snapshot.isEmpty()) return "";
+        try {
+            return switch (entityType) {
+                case ADVERTISEMENT -> objectMapper.readValue(snapshot.json(), AdvertisementSnapshot.class).title();
+                case USER          -> objectMapper.readValue(snapshot.json(), UserSnapshot.class).name();
+                case USER_SETTINGS -> "Settings";
+            };
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+}

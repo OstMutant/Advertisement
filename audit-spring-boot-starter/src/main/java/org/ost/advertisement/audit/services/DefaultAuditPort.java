@@ -11,6 +11,7 @@ import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
 import org.ost.advertisement.core.model.ActionType;
 import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.advertisement.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditLogRepository                auditLogRepository;
     private final ObjectProvider<AuditUserProvider> auditUserProvider;
     private final AuditQueryService                 auditQueryService;
+    private final AuditHistoryService               auditHistoryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
@@ -71,8 +73,13 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId) {
-        return auditQueryService.getSnapshotContent(snapshotId);
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+        return auditQueryService.getSnapshotContent(snapshotId, entityType);
+    }
+
+    @Override
+    public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) {
+        auditHistoryService.appendNoteToLastSnapshot(entityType, entityId, note);
     }
 
     @Override

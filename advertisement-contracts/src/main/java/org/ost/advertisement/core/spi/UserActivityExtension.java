@@ -6,5 +6,5 @@ import java.util.List;
 
 public interface UserActivityExtension {
 
-    List<ActivityItemDto> getMediaActivity(Long userId);
+    List<ActivityItemDto> merge(Long userId, List<ActivityItemDto> baseItems);
 }

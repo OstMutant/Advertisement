@@ -1,9 +1,11 @@
 package org.ost.advertisement.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.api.AuditPort;
 import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.entities.Advertisement;
@@ -36,6 +38,7 @@ public class AdvertisementService {
     private final AuditPort                  auditPort;
     private final AuthContextService         authContextService;
     private final ApplicationEventPublisher  context;
+    private final ObjectMapper               objectMapper;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -74,12 +77,18 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        SnapshotContent content = auditPort.getSnapshotContent(snapshotId).orElse(null);
+        SnapshotContent content = auditPort.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT).orElse(null);
         if (content == null) return false;
+        AdvertisementSnapshot restoredSnapshot;
+        try {
+            restoredSnapshot = objectMapper.readValue(content.snapshotData().json(), AdvertisementSnapshot.class);
+        } catch (Exception e) {
+            return false;
+        }
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
-                .title(content.title())
-                .description(content.description())
+                .title(restoredSnapshot.title())
+                .description(restoredSnapshot.description())
                 .createdAt(current.getCreatedAt())
                 .createdByUserId(current.getCreatedByUserId())
                 .build();

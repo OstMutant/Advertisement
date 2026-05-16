@@ -4,7 +4,7 @@ const { test, expect, loginAs,
 const fs   = require('fs');
 const zlib = require('zlib');
 
-const AD_TITLE = 'Photo Activity Smoke';
+const AD_TITLE = `Media Activity Smoke ${Date.now()}`;
 
 function makePng(path, r, g, b) {
   const w = 64, h = 64;
@@ -56,17 +56,17 @@ async function closeAdOverlay(page) {
   await expect(page.locator('.advertisement-overlay.overlay--visible')).toBeHidden({ timeout: 8000 });
 }
 
-function checkPhotoInText(text, label) {
+function checkMediaInText(text, label) {
   const count = (text.match(/зображення|image/gi) || []).length;
-  if (count === 0) throw new Error(`No photo change in ${label}: ` + text.slice(0, 200));
+  if (count === 0) throw new Error(`No media change in ${label}: ` + text.slice(0, 200));
 }
 
-test.describe('Photo activity', () => {
+test.describe('Media activity', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page, 'user3@example.com');
   });
 
-  test('create/edit/restore photos shows photo diffs in history and activity', async ({ page }) => {
+  test('create/edit/restore images shows media diffs in history and activity', async ({ page }) => {
     const paths = ['/tmp/phact-1.png', '/tmp/phact-2.png', '/tmp/phact-3.png'];
     makePng(paths[0], 100, 150, 200);
     makePng(paths[1], 200, 100, 150);
@@ -76,7 +76,7 @@ test.describe('Photo activity', () => {
     await waitForOverlay(page);
     const overlay = page.locator('.advertisement-overlay');
     await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(AD_TITLE);
-    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Photo activity test description');
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Media activity test description');
     await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(paths[0]);
     await page.locator('.attachment-gallery__item').waitFor({ timeout: 10000 });
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
@@ -85,22 +85,28 @@ test.describe('Photo activity', () => {
     await openAdDetail(page, AD_TITLE);
     await openHistory(page);
 
-    await test.step('History shows photo change after create', async () => {
-      checkPhotoInText(await page.locator('.adv-history-list').textContent(), 'history-after-create');
+    await test.step('History shows media change after create', async () => {
+      checkMediaInText(await page.locator('.adv-history-list').textContent(), 'history-after-create');
     });
-    await screenshot(page, 'photo-activity-01-history');
+    await screenshot(page, 'media-activity-01-history');
 
     await closeAdOverlay(page);
 
     await openSettings(page);
     await openActivityTab(page);
 
-    await test.step('Settings activity shows photo change after create', async () => {
-      checkPhotoInText(
+    await test.step('Settings activity shows media change after create', async () => {
+      checkMediaInText(
         await page.locator('.base-overlay.overlay--visible .user-activity-list').textContent(),
         'settings-activity-after-create');
     });
-    await screenshot(page, 'photo-activity-02-settings');
+
+    await test.step('Create with title+image shows as single activity row, not two', async () => {
+      const adRowCount = await page.locator('.base-overlay.overlay--visible .user-activity-row')
+        .filter({ hasText: AD_TITLE }).count();
+      if (adRowCount !== 1) throw new Error(`Expected 1 activity row for "${AD_TITLE}", got ${adRowCount} — text and image changes must be merged`);
+    });
+    await screenshot(page, 'media-activity-02-settings');
 
     await page.keyboard.press('Escape');
     await waitForOverlayClosed(page);
@@ -117,12 +123,12 @@ test.describe('Photo activity', () => {
 
     await openHistory(page);
 
-    await test.step('History shows photo diff after adding second photo', async () => {
-      checkPhotoInText(await page.locator('.adv-history-list').textContent(), 'history-after-edit');
+    await test.step('History shows media diff after adding second image', async () => {
+      checkMediaInText(await page.locator('.adv-history-list').textContent(), 'history-after-edit');
       if (!(await page.locator('.adv-history-list').textContent()).includes('→'))
         throw new Error('No diff arrow → in history');
     });
-    await screenshot(page, 'photo-activity-03-history-diff');
+    await screenshot(page, 'media-activity-03-history-diff');
 
     await test.step('Restore button on older entry', async () => {
       if (await page.locator('.adv-history-restore-btn').count() === 0)
@@ -143,9 +149,9 @@ test.describe('Photo activity', () => {
       await openHistory(page);
       const rows = await page.locator('.adv-history-row').count();
       if (rows < 3) throw new Error(`Expected >=3 rows after restore, got ${rows}`);
-      checkPhotoInText(await page.locator('.adv-history-list').textContent(), 'history-after-restore');
+      checkMediaInText(await page.locator('.adv-history-list').textContent(), 'history-after-restore');
     });
-    await screenshot(page, 'photo-activity-04-after-restore');
+    await screenshot(page, 'media-activity-04-after-restore');
 
     paths.forEach(p => { if (fs.existsSync(p)) fs.unlinkSync(p); });
   });

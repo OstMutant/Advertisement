@@ -40,27 +40,27 @@ function makePng(filePath, r, g, b) {
   fs.writeFileSync(filePath, Buffer.concat([sig, mkchunk('IHDR', ihdr), mkchunk('IDAT', idat), mkchunk('IEND', Buffer.alloc(0))]));
 }
 
-test.describe('Verify photo history', () => {
+test.describe('Verify media history', () => {
   test.beforeEach(async ({ page }) => {
     await loginAs(page);
   });
 
-  test('create with photo → photo change visible in history', async ({ page }) => {
-    const imgPath = '/tmp/vph-create.png';
+  test('create with image → media change visible in history', async ({ page }) => {
+    const imgPath = '/tmp/vmh-create.png';
     makePng(imgPath, 80, 120, 200);
 
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Photo History');
-    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Photo history verify');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Media History');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Media history verify');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);
 
     await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: 'Verify Photo History' }) })
+      .filter({ has: page.locator('.advertisement-title', { hasText: 'Verify Media History' }) })
       .first().click();
     await waitForOverlay(page);
     await openHistory(page);
@@ -70,32 +70,32 @@ test.describe('Verify photo history', () => {
       if (rows < 1) throw new Error(`Expected >=1 history row, got ${rows}`);
     });
 
-    await test.step('Photo changes visible in CREATED row', async () => {
+    await test.step('Media changes visible in CREATED row', async () => {
       const text = await page.locator('.adv-history-list').textContent();
       if (!/(зображення|image)/i.test(text))
-        throw new Error('No photo change entry in history after create: ' + text.slice(0, 200));
+        throw new Error('No media change entry in history after create: ' + text.slice(0, 200));
     });
-    await screenshot(page, 'verify-photo-01-history');
+    await screenshot(page, 'verify-media-01-history');
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
   });
 
-  test('delete photo → photo deletion visible in history', async ({ page }) => {
-    const imgPath = '/tmp/vph-delete.png';
+  test('delete image → media deletion visible in history', async ({ page }) => {
+    const imgPath = '/tmp/vmh-delete.png';
     makePng(imgPath, 200, 80, 80);
 
     await page.locator('.add-advertisement-button').click();
     await waitForOverlay(page);
     const ov = page.locator('.advertisement-overlay');
-    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Photo Delete History');
-    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Delete photo test');
+    await ov.locator('[data-testid="advertisement-overlay-field-title"] input').fill('Verify Media Delete History');
+    await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Delete image test');
     await ov.locator('vaadin-upload input[type="file"]').setInputFiles(imgPath);
     await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await waitForOverlayClosed(page);
 
     await page.locator('.advertisement-card')
-      .filter({ has: page.locator('.advertisement-title', { hasText: 'Verify Photo Delete History' }) })
+      .filter({ has: page.locator('.advertisement-title', { hasText: 'Verify Media Delete History' }) })
       .first().click();
     await waitForOverlay(page);
     await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
@@ -110,23 +110,23 @@ test.describe('Verify photo history', () => {
 
       await openHistory(page);
 
-      await test.step('Photo deletion visible in history', async () => {
+      await test.step('Media deletion visible in history', async () => {
         const text = await page.locator('.adv-history-list').textContent();
         if (!/(зображення|image)/i.test(text))
-          throw new Error('No photo deletion entry in history: ' + text.slice(0, 200));
+          throw new Error('No media deletion entry in history: ' + text.slice(0, 200));
       });
-      await screenshot(page, 'verify-photo-02-delete-history');
+      await screenshot(page, 'verify-media-02-delete-history');
     } else {
-      await test.step('Photo deletion visible in history', async () => {
+      await test.step('Media deletion visible in history', async () => {
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
         await page.locator('.overlay__view-title').waitFor();
         await openHistory(page);
         const text = await page.locator('.adv-history-list').textContent();
         if (!/(зображення|image)/i.test(text))
-          throw new Error('No photo entry in history: ' + text.slice(0, 200));
+          throw new Error('No media entry in history: ' + text.slice(0, 200));
       });
-      await screenshot(page, 'verify-photo-02-delete-history');
+      await screenshot(page, 'verify-media-02-delete-history');
     }
 
     if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);

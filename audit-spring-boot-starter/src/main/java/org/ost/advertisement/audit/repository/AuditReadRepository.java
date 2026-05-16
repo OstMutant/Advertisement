@@ -1,10 +1,10 @@
 package org.ost.advertisement.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
 import org.ost.advertisement.audit.dto.UserSnapshotState;
-import org.ost.advertisement.core.model.Role;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
 import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.model.Role;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -14,12 +14,12 @@ import java.util.Optional;
 
 public class AuditReadRepository extends AuditLogRepository {
 
-    private final AdvertisementHistoryProjection historyQuery;
+    private final EntityHistoryProjection historyQuery;
 
     public AuditReadRepository(JdbcClient jdbcClient,
                                @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         super(jdbcClient);
-        this.historyQuery = new AdvertisementHistoryProjection(objectMapper);
+        this.historyQuery = new EntityHistoryProjection(objectMapper);
     }
 
     public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
@@ -58,10 +58,11 @@ public class AuditReadRepository extends AuditLogRepository {
                 .optional();
     }
 
-    public List<AdvertisementHistoryDto> getAdvertisementHistory(Long adId, Long filterUserId) {
+    public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
         return historyQuery.queryAll(jdbcClient(),
                 new MapSqlParameterSource()
-                        .addValue("adId",         adId)
+                        .addValue("entityType",   entityType.name())
+                        .addValue("entityId",     entityId)
                         .addValue("filterUserId", filterUserId));
     }
 }

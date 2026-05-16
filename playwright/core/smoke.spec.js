@@ -294,7 +294,7 @@ test.describe('Smoke: YouTube lightbox', () => {
       await waitForOverlayClosed(page);
     });
 
-    await test.step('Open CardPhotoLightbox via card thumbnail', async () => {
+    await test.step('Open CardMediaLightbox via card thumbnail', async () => {
       await page.locator('.advertisement-card')
         .filter({ has: page.locator('.advertisement-title', { hasText: 'Smoke YouTube Ad' }) })
         .first().locator('.advertisement-thumbnail-wrapper').click();

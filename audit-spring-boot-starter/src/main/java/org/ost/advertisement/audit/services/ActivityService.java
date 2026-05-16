@@ -9,8 +9,6 @@ import org.ost.advertisement.core.spi.AuditEntityExistenceChecker;
 import org.ost.advertisement.core.spi.UserActivityExtension;
 import org.springframework.beans.factory.ObjectProvider;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -29,12 +27,7 @@ public class ActivityService {
         List<ActivityItemDto> base = repository.findByUserId(userId);
 
         UserActivityExtension ext = activityExtension.getIfAvailable();
-        List<ActivityItemDto> combined = new ArrayList<>(base);
-        if (ext != null) {
-            combined.addAll(ext.getMediaActivity(userId));
-            combined.sort(Comparator.comparing(ActivityItemDto::createdAt).reversed());
-            if (combined.size() > 20) combined = combined.subList(0, 20);
-        }
+        List<ActivityItemDto> combined = ext != null ? ext.merge(userId, base) : base;
 
         combined = resolveActorNames(combined);
         combined = resolveEntityExistence(combined);
@@ -56,8 +49,7 @@ public class ActivityService {
                                 i.displayName(), i.actionType(), i.createdAt(), i.entityExists(),
                                 i.changes(), i.changedByUserId(),
                                 names.getOrDefault(i.changedByUserId(), "—"),
-                                i.snapshotTitle(), i.snapshotDescription(),
-                                i.snapshotEmail(), i.snapshotRole()))
+                                i.snapshotData()))
                 .toList();
     }
 
@@ -78,8 +70,7 @@ public class ActivityService {
                     return new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
                             i.displayName(), i.actionType(), i.createdAt(), exists,
                             i.changes(), i.changedByUserId(), i.changedByName(),
-                            i.snapshotTitle(), i.snapshotDescription(),
-                            i.snapshotEmail(), i.snapshotRole());
+                            i.snapshotData());
                 })
                 .toList();
     }

@@ -2,8 +2,9 @@ package org.ost.advertisement.audit.spi;
 
 import com.vaadin.flow.component.Component;
 import lombok.Value;
-import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.audit.dto.EntityHistoryDto;
 import org.ost.advertisement.core.config.UserSettings;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.advertisement.core.model.Role;
 
 import java.util.function.BiConsumer;
@@ -24,20 +25,19 @@ public interface AuditUiExtension {
 
     @Value
     @lombok.Builder
-    class AdvertisementHistoryParams {
-        Long                                      adId;
-        Long                                      userId;
-        boolean                                   isPrivileged;
-        String                                    currentTitle;
-        String                                    currentDesc;
-        boolean                                   canOperate;
-        BiConsumer<AdvertisementHistoryDto, Long> onRestoreRequested;
-        String                                    labelEmpty;
-        String                                    labelCurrentState;
-        String                                    labelRestore;
+    class EntityHistoryParams {
+        EntityType                             entityType;
+        Long                                   entityId;
+        Long                                   userId;
+        boolean                                isPrivileged;
+        boolean                                canOperate;
+        BiConsumer<EntityHistoryDto, Long>     onRestoreRequested;
+        String                                 labelEmpty;
+        String                                 labelCurrentState;
+        String                                 labelRestore;
     }
 
     Component buildUserActivityPanel(UserActivityParams params);
 
-    Component buildAdvertisementHistoryPanel(AdvertisementHistoryParams params);
+    Component buildEntityHistoryPanel(EntityHistoryParams params);
 }

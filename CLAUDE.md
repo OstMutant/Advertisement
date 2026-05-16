@@ -13,10 +13,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
-Before doing anything, provide a precise plan:
-- Exactly which files will be changed (full paths)
-- Exactly what will be changed in each file (method/class/field/SQL/config)
+
+Before doing anything, generate and present a detailed prompt — the exact instruction you would give yourself to execute the action. This prompt must include:
+- Full file paths
+- Exact changes (method signatures, SQL, config values, field names)
 - Any side-effects or follow-up steps
+
+Present the prompt, then **STOP and wait for explicit confirmation** before executing.
+
+Example format:
+> "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
 
 Wait for explicit confirmation before making any change.
 
@@ -277,7 +283,7 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 1. Make code changes
 2. Rebuild image: `docker rm -f advertisement-app && docker build -f Dockerfile -t advertisement-app .`
 3. Start app (command above)
-4. Wait for start: `docker logs advertisement-app | grep "Started Application"`
+4. Wait for start: run `docker logs -f advertisement-app` with `run_in_background: true`, then use Monitor tool — it streams stdout and notifies when `"Started Application"` appears
 5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
 6. For UX analysis add `--ux` flag → read screenshots from `/app/playwright/screenshots/` with `Read` tool
 

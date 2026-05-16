@@ -59,6 +59,15 @@ test.describe('Advertisement history', () => {
       if (await restoreBtns.count() === 0) throw new Error('No restore buttons');
     });
 
+    await test.step('Restore button is left-aligned in history row', async () => {
+      const row = page.locator('.adv-history-row').filter({ has: page.locator('.adv-history-restore-btn') }).first();
+      const btn = row.locator('.adv-history-restore-btn');
+      const rowBox = await row.boundingBox();
+      const btnBox = await btn.boundingBox();
+      if (btnBox.x - rowBox.x > 48)
+        throw new Error(`Restore button not left-aligned in history: offset=${btnBox.x - rowBox.x}px`);
+    });
+
     await restoreBtns.last().click();
 
     await test.step('Restore confirm dialog shown', async () => {

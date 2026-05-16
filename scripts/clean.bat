@@ -1,7 +1,8 @@
 @echo off
 setlocal
+cd /d "%~dp0.."
 
-set ROOT=%~dp0
+set ROOT=%CD%\
 
 echo Cleaning Maven build artifacts...
 for %%d in (
