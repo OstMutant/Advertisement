@@ -1,7 +1,7 @@
 package org.ost.advertisement.ui.dto;
 
 import lombok.*;
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 
 @NoArgsConstructor
 @AllArgsConstructor

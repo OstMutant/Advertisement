@@ -1,7 +1,7 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.spi.AttachmentEntityDisplayNameResolver;
+import org.ost.advertisement.attachment.spi.AttachmentEntityDisplayNameResolver;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 

@@ -1,6 +1,6 @@
 package org.ost.advertisement.audit.ui;
 
-import org.ost.advertisement.i18n.TranslationKey;
+import org.ost.advertisement.core.i18n.TranslationKey;
 
 public enum AuditMessages implements TranslationKey {
     ACTIVITY_ACTION_CREATED("activity.action.created"),

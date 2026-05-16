@@ -1,7 +1,7 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.AuditUserProvider;
+import org.ost.advertisement.audit.spi.AuditUserProvider;
 import org.ost.advertisement.entities.User;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;

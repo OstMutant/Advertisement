@@ -1,6 +1,6 @@
 package org.ost.advertisement.common;
 
-import org.ost.advertisement.i18n.TranslationKey;
+import org.ost.advertisement.core.i18n.TranslationKey;
 
 public enum I18nKey implements TranslationKey {
     // === Header ===

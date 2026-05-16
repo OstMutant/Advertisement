@@ -22,6 +22,37 @@
 
 ## Ongoing — Domain events as records
 
-**Decision:** Domain events (`AdvertisementCreatedEvent`, `AdvertisementUpdatedEvent`, etc.) are Java records published via Spring's `ApplicationEventPublisher`. Listeners live in the modules that react to them (e.g. `AttachmentEventListener` in `attachment-spring-boot-starter`).
+**Decision:** Domain events (`AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`) are Java records published via Spring's `ApplicationEventPublisher`. Listeners live in the modules that react to them (e.g. `AttachmentEventListener` in `attachment-spring-boot-starter`). Events live in `attachment.event` since only the attachment module reacts to them.
 
 **Why:** Records are immutable by default, require no boilerplate, and make event payloads explicit. `ApplicationEventPublisher` decouples the publisher from the listener without requiring a message broker for in-process events.
+
+**Note:** `AdvertisementCreatedEvent` and `AdvertisementUpdatedEvent` were removed — unused in all modules.
+
+---
+
+## 2026-05-16 — Package restructure: core / audit / attachment
+
+**Decision:** Replaced flat scattered packages (`events/`, `events/dto/`, `events/spi/`, `events/model/`, `audit/`, `config/`, `dto/`, `entities/`, `i18n/`, `ui/rules/`, `spi/storage/`) with three semantic groups:
+
+```
+core.config    — CleanupProperties, UserSettings
+core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
+core.model     — ActionType, ChangeEntry, EntityType, Role
+core.spi       — AuditActorNameResolver, AuditEntityExistenceChecker,
+                 UserActivityExtension, AdvertisementHistoryExtension
+core.ui        — Configurable, ComponentBuilder, Initialization, Provider
+
+audit.api      — AuditPort, AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
+audit.dto      — ActivityItemDto, AdvertisementHistoryDto, SnapshotContent, UserSnapshotState
+audit.spi      — AuditUserProvider, AuditUiExtension
+
+attachment.event   — AdvertisementDeletedEvent, AdvertisementRestoredEvent,
+                     AdvertisementMediaUpdatedEvent
+attachment.spi     — AdvertisementGalleryExtension, AttachmentCurrentUserProvider,
+                     AttachmentEntityDisplayNameResolver
+attachment.storage — StorageService, @ConditionalOnStorageEnabled
+```
+
+`PaginationDefaults` moved to `advertisement-app` (only used there).
+
+**Why:** The old structure mixed audit, attachment, and shared types in `events.*` with no clear ownership. The new structure makes it immediately obvious which package belongs to which subsystem and where SPIs live.

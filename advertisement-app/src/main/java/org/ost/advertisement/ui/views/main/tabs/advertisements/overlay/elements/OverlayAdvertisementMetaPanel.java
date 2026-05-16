@@ -9,11 +9,11 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
-import org.ost.advertisement.ui.rules.Configurable;
+import org.ost.advertisement.core.ui.Configurable;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.rules.Initialization;
+import org.ost.advertisement.core.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;

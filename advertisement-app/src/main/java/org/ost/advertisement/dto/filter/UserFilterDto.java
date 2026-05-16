@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 import org.ost.advertisement.validation.ValidRange;
 
 import java.time.Instant;

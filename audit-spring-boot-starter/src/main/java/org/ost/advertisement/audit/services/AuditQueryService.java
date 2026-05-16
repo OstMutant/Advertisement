@@ -1,12 +1,12 @@
 package org.ost.advertisement.audit.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.SnapshotContent;
-import org.ost.advertisement.audit.UserSnapshotState;
+import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.audit.dto.UserSnapshotState;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditReadRepository;
-import org.ost.advertisement.events.model.EntityType;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.config.UserSettings;
 
 import java.util.Optional;
 

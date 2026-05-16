@@ -2,7 +2,7 @@ package org.ost.advertisement;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.advertisement.config.CleanupProperties;
+import org.ost.advertisement.core.config.CleanupProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;

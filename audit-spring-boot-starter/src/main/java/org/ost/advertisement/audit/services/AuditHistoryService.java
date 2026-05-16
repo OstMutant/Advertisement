@@ -3,10 +3,10 @@ package org.ost.advertisement.audit.services;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditReadRepository;
-import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
-import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
-import org.ost.advertisement.events.spi.AuditActorNameResolver;
+import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
+import org.ost.advertisement.core.spi.AuditActorNameResolver;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 

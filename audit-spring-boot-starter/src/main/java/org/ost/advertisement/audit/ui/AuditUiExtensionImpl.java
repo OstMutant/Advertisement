@@ -3,8 +3,8 @@ package org.ost.advertisement.audit.ui;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.ConditionalOnAuditEnabled;
-import org.ost.advertisement.events.spi.AuditUiExtension;
+import org.ost.advertisement.audit.api.ConditionalOnAuditEnabled;
+import org.ost.advertisement.audit.spi.AuditUiExtension;
 
 @SpringComponent
 @ConditionalOnAuditEnabled

@@ -1,6 +1,6 @@
 package org.ost.attachment.ui;
 
-import org.ost.advertisement.i18n.TranslationKey;
+import org.ost.advertisement.core.i18n.TranslationKey;
 
 public enum AttachmentMessages implements TranslationKey {
     GALLERY_TITLE("attachment.gallery.title"),

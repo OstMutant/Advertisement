@@ -1,6 +1,6 @@
 package org.ost.advertisement.audit.model;
 
-import org.ost.advertisement.audit.AuditedField;
+import org.ost.advertisement.audit.api.AuditedField;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Field;

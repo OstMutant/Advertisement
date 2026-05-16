@@ -1,8 +1,8 @@
 package org.ost.advertisement.audit.repository;
 
-import org.ost.advertisement.audit.SnapshotContent;
-import org.ost.advertisement.events.model.ActionType;
-import org.ost.advertisement.events.model.EntityType;
+import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

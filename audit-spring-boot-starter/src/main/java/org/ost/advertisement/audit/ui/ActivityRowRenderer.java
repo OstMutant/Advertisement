@@ -5,14 +5,15 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.UserSettings;
-import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
-import org.ost.advertisement.events.dto.ActivityItemDto;
-import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.advertisement.events.model.EntityType;
-import org.ost.advertisement.events.spi.AdvertisementHistoryExtension;
-import org.ost.advertisement.i18n.I18nService;
-import org.ost.advertisement.i18n.InstantFormatter;
+import org.ost.advertisement.core.config.UserSettings;
+import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.audit.dto.ActivityItemDto;
+import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
+import org.ost.advertisement.core.i18n.I18nService;
+import org.ost.advertisement.core.i18n.InstantFormatter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -233,7 +234,7 @@ public class ActivityRowRenderer {
                 : item.displayName() + " " + i18n.get(AuditMessages.ACTIVITY_ENTITY_DELETED);
     }
 
-    private static AuditMessages formatActionKey(org.ost.advertisement.events.model.ActionType actionType) {
+    private static AuditMessages formatActionKey(ActionType actionType) {
         return switch (actionType) {
             case CREATED -> AuditMessages.ACTIVITY_ACTION_CREATED;
             case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;

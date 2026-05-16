@@ -15,12 +15,12 @@ import lombok.*;
 import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.security.AccessEvaluator;
 import org.ost.advertisement.services.AdvertisementService;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.ui.views.services.NotificationService;
-import org.ost.advertisement.ui.rules.Configurable;
-import org.ost.advertisement.ui.rules.ComponentBuilder;
+import org.ost.advertisement.core.ui.Configurable;
+import org.ost.advertisement.core.ui.ComponentBuilder;
 import org.ost.advertisement.ui.views.rules.I18nParams;
-import org.ost.advertisement.ui.rules.Initialization;
+import org.ost.advertisement.core.ui.Initialization;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.advertisement.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.advertisement.ui.views.components.buttons.action.DeleteActionButton;
@@ -28,7 +28,7 @@ import org.ost.advertisement.ui.views.components.buttons.action.EditActionButton
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.attachment.entities.MediaContentType;
-import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
+import org.ost.advertisement.attachment.spi.AdvertisementGalleryExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

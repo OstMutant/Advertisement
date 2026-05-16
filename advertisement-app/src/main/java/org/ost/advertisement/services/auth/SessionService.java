@@ -1,7 +1,7 @@
 package org.ost.advertisement.services.auth;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.i18n.LocaleProvider;
+import org.ost.advertisement.core.i18n.LocaleProvider;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;

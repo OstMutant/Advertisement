@@ -1,6 +1,6 @@
 package org.ost.advertisement.ui.views.services;
 
-import org.ost.advertisement.i18n.InstantFormatter;
+import org.ost.advertisement.core.i18n.InstantFormatter;
 import org.ost.advertisement.ui.views.utils.TimeZoneUtil;
 import org.springframework.stereotype.Service;
 

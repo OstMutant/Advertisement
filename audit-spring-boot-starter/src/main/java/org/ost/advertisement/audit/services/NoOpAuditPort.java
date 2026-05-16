@@ -1,9 +1,9 @@
 package org.ost.advertisement.audit.services;
 
-import org.ost.advertisement.audit.AuditPort;
-import org.ost.advertisement.audit.AuditableSnapshot;
-import org.ost.advertisement.audit.SnapshotContent;
-import org.ost.advertisement.audit.UserSnapshotState;
+import org.ost.advertisement.audit.api.AuditPort;
+import org.ost.advertisement.audit.api.AuditableSnapshot;
+import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.audit.dto.UserSnapshotState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

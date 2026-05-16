@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.common.I18nKey;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.advertisement.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.advertisement.ui.views.services.NotificationService;

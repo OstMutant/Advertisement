@@ -6,7 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 import org.ost.advertisement.ui.views.components.query.QueryBlock;
 import org.ost.advertisement.ui.views.components.query.elements.SortIcon;
 import org.ost.advertisement.ui.views.components.query.elements.action.QueryActionBlock;

@@ -2,7 +2,7 @@ package org.ost.advertisement.repository.user;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.advertisement.dto.UserProfileDto;
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 import org.ost.advertisement.entities.User;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlEntityProjection;

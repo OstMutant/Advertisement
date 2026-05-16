@@ -1,9 +1,9 @@
 package org.ost.advertisement.services.audit;
 
-import org.ost.advertisement.audit.AuditableSnapshot;
-import org.ost.advertisement.audit.AuditedField;
+import org.ost.advertisement.audit.api.AuditableSnapshot;
+import org.ost.advertisement.audit.api.AuditedField;
 import org.ost.advertisement.entities.Advertisement;
-import org.ost.advertisement.events.model.EntityType;
+import org.ost.advertisement.core.model.EntityType;
 
 public record AdvertisementSnapshot(
         @AuditedField String title,

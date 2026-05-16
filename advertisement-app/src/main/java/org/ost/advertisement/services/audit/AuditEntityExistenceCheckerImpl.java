@@ -1,8 +1,8 @@
 package org.ost.advertisement.services.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.model.EntityType;
-import org.ost.advertisement.events.spi.AuditEntityExistenceChecker;
+import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.spi.AuditEntityExistenceChecker;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 

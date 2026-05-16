@@ -11,6 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 import java.util.Locale;
+import org.ost.advertisement.core.model.Role;
 
 @Value
 @Builder

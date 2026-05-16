@@ -1,0 +1,12 @@
+package org.ost.advertisement.core.ui;
+
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
+public abstract class ComponentBuilder<T extends Configurable<T, P>, P> implements Provider<T> {
+
+    public T build(@NonNull P params) {
+        return build().configure(params);
+    }
+}

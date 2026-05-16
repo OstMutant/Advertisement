@@ -48,7 +48,10 @@ advertisement-parent (root pom)
 
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
-**advertisement-contracts** defines the cross-module contracts: domain events (`AdvertisementCreatedEvent`, etc.), SPI interfaces (`StorageService`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `AdvertisementGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentCurrentUserProvider`), shared DTOs, and `@ConditionalOnStorageEnabled`.
+**advertisement-contracts** defines the cross-module contracts, organized into three semantic packages:
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`, `Role`), `core.config` (`CleanupProperties`, `UserSettings`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (shared SPIs: `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `UserActivityExtension`, `AdvertisementHistoryExtension`)
+- `audit.*` — audit subsystem contract: `audit.api` (`AuditPort`, `AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `AdvertisementHistoryDto`, `SnapshotContent`, `UserSnapshotState`), `audit.spi` (`AuditUserProvider`, `AuditUiExtension`)
+- `attachment.*` — attachment subsystem contract: `attachment.event` (domain events: `AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`), `attachment.spi` (`AdvertisementGalleryExtension`, `AttachmentCurrentUserProvider`, `AttachmentEntityDisplayNameResolver`), `attachment.storage` (`StorageService`, `@ConditionalOnStorageEnabled`)
 
 **audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`.
 
@@ -60,7 +63,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
-3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts`; `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
+3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts` (`attachment.storage`); `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
@@ -115,7 +118,7 @@ public class MyPanel extends Div
 - `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
 - Inner `Builder` class is required for all `Configurable` beans — wraps `ObjectProvider` via `ComponentBuilder`.
-- `Configurable`, `ComponentBuilder`, `Initialization` live in `advertisement-contracts` so all modules can use them.
+- `Configurable`, `ComponentBuilder`, `Initialization` live in `advertisement-contracts` (`core.ui`) so all modules can use them.
 
 **When NOT to use Configurable:**
 - Component has distinct modes with different UI structure → use explicit named methods:
@@ -128,7 +131,7 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 
 ### I18n in UI components
 
-Each module owns its translation key enum implementing `TranslationKey` (defined in `advertisement-contracts`):
+Each module owns its translation key enum implementing `TranslationKey` (defined in `advertisement-contracts`, package `core.i18n`):
 - `advertisement-app` → `CommonMessages implements TranslationKey`
 - `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
 - `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`

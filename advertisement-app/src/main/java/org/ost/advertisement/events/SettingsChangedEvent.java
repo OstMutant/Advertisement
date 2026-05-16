@@ -1,7 +1,7 @@
 package org.ost.advertisement.events;
 
 import lombok.Getter;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.config.UserSettings;
 import org.springframework.context.ApplicationEvent;
 
 @Getter

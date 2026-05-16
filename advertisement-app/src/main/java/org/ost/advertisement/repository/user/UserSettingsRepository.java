@@ -2,7 +2,7 @@ package org.ost.advertisement.repository.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.config.UserSettings;
 import org.ost.advertisement.exceptions.persistence.SettingsPersistenceException;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.slf4j.Logger;

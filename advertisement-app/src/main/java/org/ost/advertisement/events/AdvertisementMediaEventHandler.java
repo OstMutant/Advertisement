@@ -1,6 +1,7 @@
 package org.ost.advertisement.events;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.advertisement.attachment.event.AdvertisementMediaUpdatedEvent;
 import org.ost.advertisement.repository.advertisement.AdvertisementDescriptor;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.context.event.EventListener;

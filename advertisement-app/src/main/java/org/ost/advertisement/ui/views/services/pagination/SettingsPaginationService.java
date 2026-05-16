@@ -3,7 +3,7 @@ package org.ost.advertisement.ui.views.services.pagination;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.config.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.services.user.UserSettingsService;
 import org.ost.advertisement.services.auth.AuthContextService;

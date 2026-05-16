@@ -3,7 +3,7 @@ package org.ost.advertisement.ui.views.main.tabs.users.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.advertisement.dto.filter.UserFilterDto;
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.query.processor.FilterFieldMeta;
 import org.ost.advertisement.ui.views.components.query.processor.ValidationPredicates;

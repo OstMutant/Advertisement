@@ -1,8 +1,8 @@
 package org.ost.advertisement.audit.model;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.AuditableSnapshot;
-import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.audit.api.AuditableSnapshot;
+import org.ost.advertisement.core.model.ChangeEntry;
 import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;

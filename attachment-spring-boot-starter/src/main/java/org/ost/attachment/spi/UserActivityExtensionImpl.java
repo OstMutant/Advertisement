@@ -1,13 +1,13 @@
 package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.dto.ActivityItemDto;
-import org.ost.advertisement.events.model.EntityType;
-import org.ost.advertisement.events.spi.AuditActorNameResolver;
-import org.ost.advertisement.events.spi.AuditEntityExistenceChecker;
-import org.ost.advertisement.events.spi.AttachmentEntityDisplayNameResolver;
-import org.ost.advertisement.events.spi.UserActivityExtension;
-import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
+import org.ost.advertisement.audit.dto.ActivityItemDto;
+import org.ost.advertisement.core.model.EntityType;
+import org.ost.advertisement.core.spi.AuditActorNameResolver;
+import org.ost.advertisement.core.spi.AuditEntityExistenceChecker;
+import org.ost.advertisement.attachment.spi.AttachmentEntityDisplayNameResolver;
+import org.ost.advertisement.core.spi.UserActivityExtension;
+import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.attachment.repository.AttachmentActivityProjection;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.springframework.beans.factory.ObjectProvider;

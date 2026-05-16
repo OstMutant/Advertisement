@@ -1,10 +1,10 @@
 package org.ost.advertisement.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.ost.advertisement.audit.UserSnapshotState;
-import org.ost.advertisement.entities.Role;
-import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
-import org.ost.advertisement.events.model.EntityType;
+import org.ost.advertisement.audit.dto.UserSnapshotState;
+import org.ost.advertisement.core.model.Role;
+import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.core.model.EntityType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

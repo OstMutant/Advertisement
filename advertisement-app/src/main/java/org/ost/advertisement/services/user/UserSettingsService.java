@@ -1,7 +1,7 @@
 package org.ost.advertisement.services.user;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.config.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.repository.user.UserSettingsRepository;
 import org.springframework.context.ApplicationEventPublisher;

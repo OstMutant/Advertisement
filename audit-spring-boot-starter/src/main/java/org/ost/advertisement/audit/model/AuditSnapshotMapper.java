@@ -3,7 +3,7 @@ package org.ost.advertisement.audit.model;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.core.model.ChangeEntry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 

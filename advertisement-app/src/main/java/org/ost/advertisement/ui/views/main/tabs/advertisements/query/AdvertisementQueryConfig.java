@@ -6,7 +6,7 @@ import org.ost.advertisement.dto.AdvertisementInfoDto;
 import org.ost.advertisement.dto.filter.AdvertisementFilterDto;
 import org.ost.advertisement.dto.sort.CustomSort;
 import org.ost.advertisement.mappers.filters.AdvertisementFilterMapper;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.services.ValidationService;
 import org.ost.advertisement.ui.views.components.query.QueryStatusBar;
 import org.ost.advertisement.ui.views.components.query.processor.FilterProcessor;

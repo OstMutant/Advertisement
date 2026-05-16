@@ -2,7 +2,7 @@ package org.ost.advertisement.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.config.CleanupProperties;
+import org.ost.advertisement.core.config.CleanupProperties;
 import org.ost.advertisement.repository.advertisement.AdvertisementRepositoryCustom;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

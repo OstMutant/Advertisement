@@ -1,7 +1,7 @@
 package org.ost.advertisement.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.ost.advertisement.events.dto.ActivityItemDto;
+import org.ost.advertisement.audit.dto.ActivityItemDto;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

@@ -4,8 +4,8 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.model.ChangeEntry;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.advertisement.core.i18n.I18nService;
 
 import java.util.List;
 

@@ -1,9 +1,9 @@
 package org.ost.advertisement.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.i18n.I18nService;
-import org.ost.advertisement.i18n.LocaleProvider;
-import org.ost.advertisement.i18n.TranslationKey;
+import org.ost.advertisement.core.i18n.I18nService;
+import org.ost.advertisement.core.i18n.LocaleProvider;
+import org.ost.advertisement.core.i18n.TranslationKey;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 

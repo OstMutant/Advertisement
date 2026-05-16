@@ -16,7 +16,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.security.AccessEvaluator;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryDateTimeField;
 import org.ost.advertisement.ui.views.components.query.elements.fields.QueryNumberField;
 import org.ost.advertisement.ui.views.main.header.HeaderBar;

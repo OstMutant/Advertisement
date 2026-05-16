@@ -12,7 +12,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entities.User;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.services.auth.AuthContextService;
 import org.ost.advertisement.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.advertisement.ui.views.main.header.dialogs.LogoutDialog;

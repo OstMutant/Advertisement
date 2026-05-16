@@ -3,9 +3,9 @@ package org.ost.advertisement.audit.repository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.events.dto.AdvertisementHistoryDto;
-import org.ost.advertisement.events.model.ActionType;
-import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.audit.dto.AdvertisementHistoryDto;
+import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.ChangeEntry;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlFixedQuery;
 

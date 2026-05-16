@@ -1,16 +1,16 @@
 package org.ost.advertisement.audit.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.AuditPort;
-import org.ost.advertisement.audit.AuditUserProvider;
-import org.ost.advertisement.audit.AuditableSnapshot;
-import org.ost.advertisement.audit.SnapshotContent;
-import org.ost.advertisement.audit.UserSnapshotState;
+import org.ost.advertisement.audit.api.AuditPort;
+import org.ost.advertisement.audit.spi.AuditUserProvider;
+import org.ost.advertisement.audit.api.AuditableSnapshot;
+import org.ost.advertisement.audit.dto.SnapshotContent;
+import org.ost.advertisement.audit.dto.UserSnapshotState;
 import org.ost.advertisement.audit.model.AuditDiffEngine;
 import org.ost.advertisement.audit.model.AuditSnapshotMapper;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
-import org.ost.advertisement.events.model.ActionType;
-import org.ost.advertisement.events.model.ChangeEntry;
+import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.ChangeEntry;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 

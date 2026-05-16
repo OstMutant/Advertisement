@@ -1,6 +1,6 @@
 package org.ost.advertisement.security;
 
-import org.ost.advertisement.entities.Role;
+import org.ost.advertisement.core.model.Role;
 import org.ost.advertisement.entities.User;
 import org.springframework.stereotype.Component;
 

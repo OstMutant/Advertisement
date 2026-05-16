@@ -2,7 +2,7 @@ package org.ost.advertisement.ui.views.services.pagination;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.dto.UserSettings;
+import org.ost.advertisement.core.config.UserSettings;
 import org.ost.advertisement.events.SettingsChangedEvent;
 import org.ost.advertisement.ui.views.components.PaginationBar;
 import org.springframework.context.ApplicationListener;

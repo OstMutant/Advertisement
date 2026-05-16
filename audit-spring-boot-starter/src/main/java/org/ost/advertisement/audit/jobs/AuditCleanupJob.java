@@ -2,9 +2,9 @@ package org.ost.advertisement.audit.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.audit.ConditionalOnAuditEnabled;
+import org.ost.advertisement.audit.api.ConditionalOnAuditEnabled;
 import org.ost.advertisement.audit.repository.AuditLogRepository;
-import org.ost.advertisement.config.CleanupProperties;
+import org.ost.advertisement.core.config.CleanupProperties;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 

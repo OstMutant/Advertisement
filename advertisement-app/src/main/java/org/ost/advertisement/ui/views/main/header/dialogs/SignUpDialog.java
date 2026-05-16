@@ -7,7 +7,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.advertisement.dto.SignUpDto;
-import org.ost.advertisement.i18n.I18nService;
+import org.ost.advertisement.core.i18n.I18nService;
 import org.ost.advertisement.services.user.UserService;
 import org.ost.advertisement.ui.views.services.NotificationService;
 import org.ost.advertisement.ui.views.rules.I18nParams;

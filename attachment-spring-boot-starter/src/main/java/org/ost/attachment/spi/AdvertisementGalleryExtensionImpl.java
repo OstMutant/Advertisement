@@ -2,11 +2,11 @@ package org.ost.attachment.spi;
 
 import com.vaadin.flow.component.Component;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.events.spi.AdvertisementGalleryExtension;
+import org.ost.advertisement.attachment.spi.AdvertisementGalleryExtension;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
-import org.ost.advertisement.spi.storage.ConditionalOnStorageEnabled;
+import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 

@@ -11,9 +11,9 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.advertisement.ui.rules.Configurable;
-import org.ost.advertisement.ui.rules.ComponentBuilder;
-import org.ost.advertisement.ui.rules.Initialization;
+import org.ost.advertisement.core.ui.Configurable;
+import org.ost.advertisement.core.ui.ComponentBuilder;
+import org.ost.advertisement.core.ui.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

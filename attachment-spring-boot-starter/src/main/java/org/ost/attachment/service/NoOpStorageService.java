@@ -1,6 +1,6 @@
 package org.ost.attachment.service;
 
-import org.ost.advertisement.spi.storage.StorageService;
+import org.ost.advertisement.attachment.storage.StorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

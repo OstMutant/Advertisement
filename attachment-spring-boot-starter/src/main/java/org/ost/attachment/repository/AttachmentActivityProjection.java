@@ -1,9 +1,9 @@
 package org.ost.attachment.repository;
 
 import org.jetbrains.annotations.NotNull;
-import org.ost.advertisement.events.dto.ActivityItemDto;
-import org.ost.advertisement.events.model.ActionType;
-import org.ost.advertisement.events.model.EntityType;
+import org.ost.advertisement.audit.dto.ActivityItemDto;
+import org.ost.advertisement.core.model.ActionType;
+import org.ost.advertisement.core.model.EntityType;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.sqlengine.projection.SqlFixedQuery;
 
