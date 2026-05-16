@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+---
+
+> ## ⛔ NEVER commit without explicit user request
+> `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
+> `git add` runs automatically after every file change — commit does NOT.
+> Violating this rule has happened multiple times. No exceptions.
+
+---
+
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 Before doing anything, provide a precise plan:
@@ -13,7 +22,7 @@ Wait for explicit confirmation before making any change.
 
 ## Git Workflow
 - `git add` — run automatically after every file change
-- `git commit` — only when the user explicitly asks to commit
+- `git commit` — **ONLY** when the user explicitly says to commit — never otherwise
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
