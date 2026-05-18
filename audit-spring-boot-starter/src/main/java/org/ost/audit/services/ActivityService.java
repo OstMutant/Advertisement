@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.ost.audit.repository.ActivityRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.AuditActorNameResolver;
-import org.ost.platform.core.spi.AuditEntityExistenceChecker;
-import org.ost.platform.core.spi.UserActivityExtension;
+import org.ost.platform.audit.spi.AuditActorNameResolver;
+import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
+import org.ost.platform.audit.spi.UserActivityExtension;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;

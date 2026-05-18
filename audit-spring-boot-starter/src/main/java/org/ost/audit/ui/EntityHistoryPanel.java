@@ -15,7 +15,7 @@ import org.ost.platform.audit.dto.SnapshotPayload;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.ui.Configurable;

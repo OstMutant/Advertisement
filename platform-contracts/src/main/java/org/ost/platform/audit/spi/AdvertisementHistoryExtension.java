@@ -1,4 +1,4 @@
-package org.ost.platform.core.spi;
+package org.ost.platform.audit.spi;
 
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;

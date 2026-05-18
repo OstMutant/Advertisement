@@ -2,7 +2,7 @@ package org.ost.marketplace.services.audit;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.AuditEntityExistenceChecker;
+import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 

@@ -12,7 +12,7 @@
 - `@ConditionalOnAuditEnabled` gates `DefaultAuditPort` bean creation
 - `NoOpAuditPort` is the unconditional fallback via `@ConditionalOnMissingBean` — wiring never fails
 - `AuditableSnapshot` marker interface (in contracts) carries `entityType()` — eliminates stringly-typed entity-type strings
-- `AuditUserProvider` SPI (in contracts) — the starter calls it without knowing about Spring Security or session context
+- `CurrentUserProvider` SPI (in contracts, `core.spi`) — the starter calls it without knowing about Spring Security or session context (unified with attachment-starter on 2026-05-18 — see `platform-contracts/DECISIONS.md`)
 
 **Rejected:** `@ConditionalOnAuditEnabled` in `platform-contracts` — contracts must be Spring-free pure Java.
 

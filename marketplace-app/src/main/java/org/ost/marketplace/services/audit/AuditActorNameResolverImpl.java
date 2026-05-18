@@ -1,7 +1,7 @@
 package org.ost.marketplace.services.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.spi.AuditActorNameResolver;
+import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 

@@ -6,7 +6,7 @@ import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
-import org.ost.platform.attachment.spi.AttachmentCurrentUserProvider;
+import org.ost.platform.core.spi.CurrentUserProvider;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
 import org.ost.platform.attachment.spi.MediaSummary;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
@@ -33,7 +33,7 @@ public class AttachmentService {
     private final StorageService                                  storageService;
     private final AttachmentRepository                            attachmentRepository;
     private final AttachmentSnapshotService                       attachmentSnapshotService;
-    private final ObjectProvider<AttachmentCurrentUserProvider>   currentUserProvider;
+    private final ObjectProvider<CurrentUserProvider>   currentUserProvider;
     private final ObjectProvider<MediaChangeConsumer>             mediaChangeConsumer;
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
@@ -205,7 +205,7 @@ public class AttachmentService {
     }
 
     private Long resolveCurrentUserId() {
-        AttachmentCurrentUserProvider p = currentUserProvider.getIfAvailable();
+        CurrentUserProvider p = currentUserProvider.getIfAvailable();
         return p == null ? null : p.getCurrentUserId().orElse(null);
     }
 }

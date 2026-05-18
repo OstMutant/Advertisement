@@ -3,7 +3,7 @@ package org.ost.marketplace.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.AuditPort;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;

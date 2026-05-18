@@ -1,4 +1,4 @@
-package org.ost.platform.core.spi;
+package org.ost.platform.audit.spi;
 
 import java.util.Map;
 import java.util.Set;

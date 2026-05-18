@@ -34,25 +34,40 @@
 
 ---
 
+## 2026-05-18 — Audit/attachment contract symmetry cleanup
+
+**Decision:** Reorganised cross-module SPIs so audit and attachment contracts now mirror each other exactly:
+
+- **Audit-only SPIs** (`AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`) moved from `core.spi/` to `audit.spi/`. They are not cross-cutting — only the audit subsystem consumes them.
+- **`AuditPort`** moved from `audit.api/` to `audit.spi/` — symmetric with `attachment.spi.AttachmentPort`. `audit.api/` now holds only annotations and snapshot markers (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`).
+- **`CurrentUserProvider`** (new, in `core.spi/`) replaces both `audit.spi.AuditUserProvider` and `attachment.spi.AttachmentCurrentUserProvider` — both had the identical signature `Optional<Long> getCurrentUserId()`. "Current user" is an auth concern, not subsystem-specific; both starters now inject the same SPI via `ObjectProvider<CurrentUserProvider>`. Marketplace-app collapses two implementations (`AuditUserProviderImpl` + `AttachmentUserProviderConfig`) into one `CurrentUserProviderImpl` in `services/auth/`.
+- **`AttachmentEntityDisplayNameResolver`** deleted — was dead code with no starter consumer; `EntityDisplayNameResolver` (`core.spi/`, with `supports(EntityType) + resolveDisplayName(EntityType, SnapshotPayload)`) is the single canonical form.
+
+**Why:** Incremental growth left asymmetric layouts (two ports under different package families, two identical user-provider SPIs, an audit-only SPI living in `core.spi/`). A reader skimming `core.spi/` could not tell which interfaces were cross-cutting vs audit-only. The cleaned-up layout makes ownership obvious: `core.spi/` = used by ≥2 subsystems, `audit.spi/` = audit only, `attachment.spi/` = attachment only.
+
+**Rejected:** Renaming both user providers to `*CurrentUserProvider` and keeping them as separate interfaces — keeps duplicated implementation in marketplace-app while fixing only the cosmetic asymmetry.
+
+---
+
 ## 2026-05-16 — Package restructure: core / audit / attachment
 
-**Decision:** Replaced flat scattered packages (`events/`, `events/dto/`, `events/spi/`, `events/model/`, `audit/`, `config/`, `dto/`, `entities/`, `i18n/`, `ui/rules/`, `spi/storage/`) with three semantic groups:
+**Decision:** Replaced flat scattered packages (`events/`, `events/dto/`, `events/spi/`, `events/model/`, `audit/`, `config/`, `dto/`, `entities/`, `i18n/`, `ui/rules/`, `spi/storage/`) with three semantic groups (final layout after the 2026-05-18 symmetry cleanup):
 
 ```
 core.config    — CleanupProperties, UserSettings
 core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
 core.model     — ActionType, ChangeEntry, EntityType, Role
-core.spi       — AuditActorNameResolver, AuditEntityExistenceChecker,
-                 UserActivityExtension, AdvertisementHistoryExtension
+core.spi       — CurrentUserProvider, EntityDisplayNameResolver
 core.ui        — Configurable, ComponentBuilder, Initialization, Provider
 
-audit.api      — AuditPort, AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
-audit.dto      — ActivityItemDto, AdvertisementHistoryDto, SnapshotContent, UserSnapshotState
-audit.spi      — AuditUserProvider, AuditUiExtension
+audit.api      — AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
+audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContent,
+                 SnapshotPayload, UserSnapshotState
+audit.spi      — AuditPort, AuditActorNameResolver, AuditEntityExistenceChecker,
+                 ActivityItemFieldsProvider, UserActivityExtension,
+                 AdvertisementHistoryExtension, AuditUiExtension
 
 attachment.spi     — AttachmentPort, AttachmentGalleryExtension,
-                     AttachmentCurrentUserProvider,
-                     AttachmentEntityDisplayNameResolver,
                      MediaChangeConsumer, MediaSummary
 attachment.storage — StorageService, @ConditionalOnStorageEnabled
 ```

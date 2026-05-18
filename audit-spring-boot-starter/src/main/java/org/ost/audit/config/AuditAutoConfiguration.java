@@ -2,9 +2,9 @@ package org.ost.audit.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
-import org.ost.platform.audit.api.AuditPort;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
-import org.ost.platform.audit.spi.AuditUserProvider;
+import org.ost.platform.core.spi.CurrentUserProvider;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.ActivityRepository;
@@ -16,10 +16,10 @@ import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.services.NoOpAuditPort;
-import org.ost.platform.core.spi.AdvertisementHistoryExtension;
-import org.ost.platform.core.spi.AuditActorNameResolver;
-import org.ost.platform.core.spi.AuditEntityExistenceChecker;
-import org.ost.platform.core.spi.UserActivityExtension;
+import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.AuditActorNameResolver;
+import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
+import org.ost.platform.audit.spi.UserActivityExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -59,7 +59,7 @@ public class AuditAutoConfiguration {
             AuditDiffEngine diffEngine,
             AuditSnapshotMapper snapshotMapper,
             AuditLogRepository auditLogRepository,
-            ObjectProvider<AuditUserProvider> auditUserProvider,
+            ObjectProvider<CurrentUserProvider> auditUserProvider,
             AuditQueryService auditQueryService,
             AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,

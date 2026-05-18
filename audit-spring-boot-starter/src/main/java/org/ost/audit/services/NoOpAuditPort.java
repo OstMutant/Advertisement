@@ -1,6 +1,6 @@
 package org.ost.audit.services;
 
-import org.ost.platform.audit.api.AuditPort;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.audit.dto.UserSnapshotState;

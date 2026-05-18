@@ -3,7 +3,7 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.spi.UserActivityExtension;
+import org.ost.platform.audit.spi.UserActivityExtension;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.springframework.stereotype.Component;

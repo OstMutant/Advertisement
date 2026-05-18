@@ -13,7 +13,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.AuditPort;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.UserSettings;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.core.i18n.I18nService;

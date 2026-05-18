@@ -1,5 +1,6 @@
-package org.ost.platform.audit.api;
+package org.ost.platform.audit.spi;
 
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.audit.dto.UserSnapshotState;
 import org.ost.platform.core.model.EntityType;

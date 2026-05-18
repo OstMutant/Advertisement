@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.ActivityItemFieldsProvider;
+import org.ost.platform.audit.spi.ActivityItemFieldsProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;

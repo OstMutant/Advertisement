@@ -7,8 +7,8 @@ import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditReadRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.AdvertisementHistoryExtension;
-import org.ost.platform.core.spi.AuditActorNameResolver;
+import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -2,7 +2,7 @@ package org.ost.marketplace.services.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.AuditPort;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.dto.SignUpDto;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.platform.core.config.UserSettings;

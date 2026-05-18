@@ -1,8 +1,8 @@
-package org.ost.platform.attachment.spi;
+package org.ost.platform.core.spi;
 
 import java.util.Optional;
 
 @FunctionalInterface
-public interface AttachmentCurrentUserProvider {
+public interface CurrentUserProvider {
     Optional<Long> getCurrentUserId();
 }
