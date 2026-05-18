@@ -17,7 +17,8 @@ import static org.ost.attachment.repository.AttachmentSnapshotDescriptor.*;
 public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 
     private static final String QUERY =
-            "SELECT ps.id AS ps_id, ps.advertisement_id, ps.changes_summary::text AS changes_summary, ps.created_at, ps.changed_by_user_id" +
+            "SELECT ps.id AS ps_id, ps.entity_type, ps.entity_id," +
+            " ps.changes_summary::text AS changes_summary, ps.created_at, ps.changed_by_user_id" +
             " FROM " + SOURCE +
             " WHERE ps.changed_by_user_id = :userId" +
             " AND ps.changes_summary IS NOT NULL" +
@@ -26,7 +27,7 @@ public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto>
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     public AttachmentActivityProjection(AttachmentSnapshotService attachmentSnapshotService) {
-        super(List.of(ID, ADVERTISEMENT_ID, CHANGES_SUMMARY, CREATED_AT, CHANGED_BY_USER_ID));
+        super(List.of(ID, ENTITY_TYPE, ENTITY_ID, CHANGES_SUMMARY, CREATED_AT, CHANGED_BY_USER_ID));
         this.attachmentSnapshotService = attachmentSnapshotService;
     }
 
@@ -39,8 +40,8 @@ public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto>
     public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
         return new ActivityItemDto(
                 ID.extract(rs),
-                ADVERTISEMENT_ID.extract(rs),
-                EntityType.ADVERTISEMENT,
+                ENTITY_ID.extract(rs),
+                EntityType.valueOf(ENTITY_TYPE.extract(rs)),
                 "—",
                 ActionType.UPDATED,
                 CREATED_AT.extract(rs),

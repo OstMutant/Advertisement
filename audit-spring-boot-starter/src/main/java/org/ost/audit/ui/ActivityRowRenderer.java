@@ -120,7 +120,7 @@ public class ActivityRowRenderer {
 
         if (mediaChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateForAdvSnapshot(item.entityId(), item.snapshotId()) : null;
+            String state = ext != null ? ext.getMediaStateForAdvSnapshot(item.entityType(), item.entityId(), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
@@ -174,7 +174,7 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    public Div buildAdvHistoryFieldsList(EntityHistoryDto h, Long adId) {
+    public Div buildAdvHistoryFieldsList(EntityHistoryDto h, EntityType entityType, Long entityId) {
         Div container = new Div();
         container.addClassName("adv-history-changes");
 
@@ -194,14 +194,15 @@ public class ActivityRowRenderer {
             addHistorySpan(container, activityPanel.format(entry), unchanged);
         }
 
-        renderHistoryMediaSection(container, mediaChanges, adId, h.version());
+        renderHistoryMediaSection(container, mediaChanges, entityType, entityId, h.version());
         return container;
     }
 
-    private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges, Long adId, int version) {
+    private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges,
+                                           EntityType entityType, Long entityId, int version) {
         if (mediaChanges.isEmpty()) {
             AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateAtVersion(adId, version) : null;
+            String state = ext != null ? ext.getMediaStateAtVersion(entityType, entityId, version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {

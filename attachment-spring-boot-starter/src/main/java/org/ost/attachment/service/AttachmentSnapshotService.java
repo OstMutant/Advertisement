@@ -5,6 +5,7 @@ import org.ost.attachment.util.YoutubeUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
 import org.springframework.stereotype.Service;
@@ -27,47 +28,47 @@ public class AttachmentSnapshotService {
     private final ObjectMapper                 objectMapper;
 
     @Transactional
-    public void capture(Long adId, Long userId) {
-        List<String> currentUrls = attachmentRepository.getActiveUrls(adId);
-        List<String> prevUrls    = attachmentSnapshotRepository.getPrevUrls(adId);
+    public void capture(EntityType entityType, Long entityId, Long userId) {
+        List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
+        List<String> prevUrls    = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         MediaChange  diff        = buildDiff(prevUrls, currentUrls);
         if (diff == null) return;
 
-        attachmentSnapshotRepository.insert(adId, currentUrls.toArray(new String[0]), toJson(diff), userId);
+        attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), toJson(diff), userId);
     }
 
-    public String getMediaStateAtVersion(Long adId, int version) {
-        String[] urls = attachmentSnapshotRepository.getUrlsAtVersion(adId, version);
+    public String getMediaStateAtVersion(EntityType entityType, Long entityId, int version) {
+        String[] urls = attachmentSnapshotRepository.getUrlsAtVersion(entityType, entityId, version);
         if (urls.length == 0) return "";
         return Arrays.stream(urls).map(AttachmentSnapshotService::filename).collect(Collectors.joining(", "));
     }
 
-    public String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId) {
-        return attachmentSnapshotRepository.getUrlsForAdvSnapshot(adId, advSnapshotId)
+    public String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
+        return attachmentSnapshotRepository.getUrlsForAdvSnapshot(entityType, entityId, advSnapshotId)
                 .map(l -> l.stream().map(AttachmentSnapshotService::filename).collect(Collectors.joining(", ")))
                 .orElse("");
     }
 
-    public String[] getUrlsAtVersion(Long adId, int version) {
-        return attachmentSnapshotRepository.getUrlsAtVersion(adId, version);
+    public String[] getUrlsAtVersion(EntityType entityType, Long entityId, int version) {
+        return attachmentSnapshotRepository.getUrlsAtVersion(entityType, entityId, version);
     }
 
-    public boolean mediaMatchCurrent(Long adId, int version) {
-        List<String> atVersion = List.of(attachmentSnapshotRepository.getUrlsAtVersion(adId, version));
-        List<String> current   = attachmentRepository.getActiveUrls(adId);
+    public boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
+        List<String> atVersion = List.of(attachmentSnapshotRepository.getUrlsAtVersion(entityType, entityId, version));
+        List<String> current   = attachmentRepository.getActiveUrls(entityType, entityId);
         List<String> atNames   = atVersion.stream().map(AttachmentSnapshotService::filename).sorted().toList();
         List<String> curNames  = current.stream().map(AttachmentSnapshotService::filename).sorted().toList();
         return atNames.equals(curNames);
     }
 
-    public List<ChangeEntry> getChangesForVersion(Long adId, int version) {
-        return attachmentSnapshotRepository.getChangesJson(adId, version)
+    public List<ChangeEntry> getChangesForVersion(EntityType entityType, Long entityId, int version) {
+        return attachmentSnapshotRepository.getChangesJson(entityType, entityId, version)
                 .map(this::parseMediaChanges)
                 .orElse(List.of());
     }
 
-    public List<ChangeEntry> getChangesForSnapshot(Long adId, Long snapshotId) {
-        return attachmentSnapshotRepository.getChangesJsonForSnapshot(adId, snapshotId)
+    public List<ChangeEntry> getChangesForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+        return attachmentSnapshotRepository.getChangesJsonForSnapshot(entityType, entityId, snapshotId)
                 .map(this::parseMediaChanges)
                 .orElse(List.of());
     }

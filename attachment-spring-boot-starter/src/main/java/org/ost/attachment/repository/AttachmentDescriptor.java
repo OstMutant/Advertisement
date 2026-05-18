@@ -2,6 +2,7 @@ package org.ost.attachment.repository;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.attachment.entities.Attachment;
+import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlEntityProjection;
 
@@ -18,6 +19,7 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
     public static final String SOURCE = TABLE;
 
     public static final SqlSelectField<Long>    ID                  = longVal("id",                     "id");
+    public static final SqlSelectField<String>  ENTITY_TYPE         = str("entity_type",             "entity_type");
     public static final SqlSelectField<Long>    ENTITY_ID           = longVal("entity_id",          "entity_id");
     public static final SqlSelectField<String>  URL                 = str("url",                    "url");
     public static final SqlSelectField<String>  FILENAME            = str("filename",                "filename");
@@ -30,6 +32,7 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
     public static final class Write {
         private Write() {}
         public static final String TABLE              = AttachmentDescriptor.TABLE;
+        public static final String ENTITY_TYPE        = AttachmentDescriptor.ENTITY_TYPE.columnName();
         public static final String ENTITY_ID          = AttachmentDescriptor.ENTITY_ID.columnName();
         public static final String URL                = AttachmentDescriptor.URL.columnName();
         public static final String FILENAME           = AttachmentDescriptor.FILENAME.columnName();
@@ -40,14 +43,16 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
     }
 
     public AttachmentDescriptor() {
-        super(List.of(ID, ENTITY_ID, URL, FILENAME, CONTENT_TYPE, SIZE,
+        super(List.of(ID, ENTITY_TYPE, ENTITY_ID, URL, FILENAME, CONTENT_TYPE, SIZE,
                       CREATED_AT, DELETED_AT, DELETED_BY_USER_ID), SOURCE);
     }
 
     @Override
     public Attachment mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+        String typeName = ENTITY_TYPE.extract(rs);
         return Attachment.builder()
                 .id(ID.extract(rs))
+                .entityType(typeName == null ? null : EntityType.valueOf(typeName))
                 .entityId(ENTITY_ID.extract(rs))
                 .url(URL.extract(rs))
                 .filename(FILENAME.extract(rs))

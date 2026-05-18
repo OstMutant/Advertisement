@@ -2,6 +2,7 @@ package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.AdvertisementHistoryExtension;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
@@ -17,22 +18,22 @@ public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryEx
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     @Override
-    public List<ChangeEntry> getMediaChanges(Long adId, int version) {
-        return attachmentSnapshotService.getChangesForVersion(adId, version);
+    public List<ChangeEntry> getMediaChanges(EntityType entityType, Long entityId, int version) {
+        return attachmentSnapshotService.getChangesForVersion(entityType, entityId, version);
     }
 
     @Override
-    public boolean mediaMatchCurrent(Long adId, int version) {
-        return attachmentSnapshotService.mediaMatchCurrent(adId, version);
+    public boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
+        return attachmentSnapshotService.mediaMatchCurrent(entityType, entityId, version);
     }
 
     @Override
-    public String getMediaStateAtVersion(Long adId, int version) {
-        return attachmentSnapshotService.getMediaStateAtVersion(adId, version);
+    public String getMediaStateAtVersion(EntityType entityType, Long entityId, int version) {
+        return attachmentSnapshotService.getMediaStateAtVersion(entityType, entityId, version);
     }
 
     @Override
-    public String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId) {
-        return attachmentSnapshotService.getMediaStateForAdvSnapshot(adId, advSnapshotId);
+    public String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
+        return attachmentSnapshotService.getMediaStateForAdvSnapshot(entityType, entityId, advSnapshotId);
     }
 }

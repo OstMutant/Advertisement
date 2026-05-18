@@ -11,14 +11,12 @@ import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.User;
-import org.ost.platform.attachment.event.AdvertisementDeletedEvent;
-import org.ost.platform.attachment.event.AdvertisementRestoredEvent;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.audit.AdvertisementSnapshot;
 import org.ost.marketplace.services.auth.AuthContextService;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -36,8 +34,8 @@ public class AdvertisementService {
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
     private final AuditPort                  auditPort;
+    private final AttachmentPort             attachmentPort;
     private final AuthContextService         authContextService;
-    private final ApplicationEventPublisher  context;
     private final ObjectMapper               objectMapper;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
@@ -97,7 +95,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
-            context.publishEvent(new AdvertisementRestoredEvent(saved.getId(), content.version(), currentUserId));
+            attachmentPort.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId);
         }
         return true;
     }
@@ -113,7 +111,7 @@ public class AdvertisementService {
                     auditPort.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId));
         }
         if (currentUserId != null) {
-            context.publishEvent(new AdvertisementDeletedEvent(ad.getId(), currentUserId));
+            attachmentPort.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId);
         }
         repository.softDelete(ad.getId(), currentUserId);
     }

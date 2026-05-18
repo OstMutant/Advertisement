@@ -88,7 +88,7 @@ public class EntityHistoryPanel extends Div
         }
 
         RowContext ctx = new RowContext(
-                p.getEntityId(), currentSnapshot, history.size(),
+                p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
                 p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
                 p.getOnRestoreRequested());
         ActivityRowRenderer renderer = rendererProvider.getObject();
@@ -100,11 +100,12 @@ public class EntityHistoryPanel extends Div
     }
 
     private record RowContext(
-            Long entityId, SnapshotPayload currentSnapshot, int historySize,
+            EntityType entityType, Long entityId, SnapshotPayload currentSnapshot, int historySize,
             boolean canOperate, String labelCurrentState, String labelRestore,
             ObjLongConsumer<EntityHistoryDto> onRestoreRequested) {}
 
     private Div buildRow(EntityHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
+        EntityType entityType        = ctx.entityType();
         Long entityId                = ctx.entityId();
         SnapshotPayload currentSnap  = ctx.currentSnapshot();
         int historySize              = ctx.historySize();
@@ -133,12 +134,12 @@ public class EntityHistoryPanel extends Div
         meta.addClassName("adv-history-meta");
         row.add(meta);
 
-        row.add(renderer.buildAdvHistoryFieldsList(h, entityId));
+        row.add(renderer.buildAdvHistoryFieldsList(h, entityType, entityId));
 
         boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
         if (canOperate && isTextRow && (h.actionType() != ActionType.CREATED || historySize > 1)) {
             boolean snapshotMatches = jsonEquals(h.snapshotData(), currentSnap);
-            boolean matchesCurrent  = snapshotMatches && mediaMatchCurrent(entityId, h.version());
+            boolean matchesCurrent  = snapshotMatches && mediaMatchCurrent(entityType, entityId, h.version());
 
             if (matchesCurrent) {
                 Span badge = new Span(labelCurrentState);
@@ -165,9 +166,9 @@ public class EntityHistoryPanel extends Div
         }
     }
 
-    private boolean mediaMatchCurrent(Long entityId, int version) {
+    private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
         AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.mediaMatchCurrent(entityId, version);
+        return ext == null || ext.mediaMatchCurrent(entityType, entityId, version);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

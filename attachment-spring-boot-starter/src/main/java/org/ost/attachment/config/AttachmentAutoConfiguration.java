@@ -1,11 +1,16 @@
 package org.ost.attachment.config;
 
 import liquibase.integration.spring.SpringLiquibase;
-import org.ost.platform.core.config.CleanupProperties;
-import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
-import org.ost.platform.attachment.storage.StorageService;
+import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.service.AttachmentSnapshotService;
+import org.ost.attachment.service.DefaultAttachmentPort;
+import org.ost.attachment.service.NoOpAttachmentPort;
 import org.ost.attachment.service.NoOpStorageService;
 import org.ost.attachment.service.S3StorageService;
+import org.ost.platform.attachment.spi.AttachmentPort;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.attachment.storage.StorageService;
+import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -72,5 +77,20 @@ public class AttachmentAutoConfiguration {
     @ConditionalOnProperty(name = "storage.s3.enabled", havingValue = "false")
     public StorageService noOpStorageService() {
         return new NoOpStorageService();
+    }
+
+    @Bean
+    @ConditionalOnStorageEnabled
+    @ConditionalOnMissingBean(AttachmentPort.class)
+    DefaultAttachmentPort defaultAttachmentPort(
+            AttachmentService attachmentService,
+            AttachmentSnapshotService attachmentSnapshotService) {
+        return new DefaultAttachmentPort(attachmentService, attachmentSnapshotService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AttachmentPort.class)
+    AttachmentPort noOpAttachmentPort() {
+        return new NoOpAttachmentPort();
     }
 }

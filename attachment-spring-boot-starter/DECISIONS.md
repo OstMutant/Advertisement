@@ -40,6 +40,23 @@
 
 ---
 
+## 2026-05-18 — Decoupled from the advertisement domain (generic over EntityType)
+
+**Decision:** The starter now operates on arbitrary entities, not just `ADVERTISEMENT`. Every public API — `AttachmentService`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository`, `AttachmentGallery`, `CardMediaLightbox`, the activity projection — takes `(EntityType entityType, Long entityId)` instead of a hard-coded advertisement id. The `attachment` and `attachment_snapshot` tables grew an `entity_type` column. Domain Spring events (`AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`) were replaced by SPI calls: `AttachmentPort` (domain → starter) and `MediaChangeConsumer` (starter → domain). S3 folder layout is canonical singular `entityType.name().toLowerCase() + "/" + entityId` (e.g. `advertisement/42`, `user/17`).
+
+**Why:** The original starter compiled only against an advertisement-shaped world (event types, field names, S3 path constants). Adding photo galleries to USER, COMMENT, or any future entity required either renaming everything or branching by name. SPI symmetry with `audit-spring-boot-starter` (which already uses `AuditPort` + `AuditUserProvider`) was the second driver — both starters now follow the same pattern: domain calls a port, starter notifies the domain via an `ObjectProvider`-injected SPI.
+
+**Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `AdvertisementMediaChangeConsumer` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
+
+**Deferred:**
+- `EntityRef(EntityType, Long)` record — would collapse the repeated `(entityType, entityId)` pair argument; deferred as cosmetic.
+- `EntityType.storageKey()` method — currently the S3 folder uses `name().toLowerCase()`; a typed method would let entities customize their storage segment if ever needed.
+- `AttachmentGalleryExtension`/`AdvertisementHistoryExtension` naming — the latter still carries "Advertisement" in its name but is generic over `EntityType`; rename deferred until a second consumer exists.
+
+**Rejected:** Keeping the event-based flow alongside the SPI — splits the contract surface and forces consumers to choose. The starter speaks SPI and only SPI.
+
+---
+
 ## 2026-05-12 — Vaadin IFrame src patching via `Page.executeJs`
 
 **Decision:** In `CardMediaLightbox`, iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.

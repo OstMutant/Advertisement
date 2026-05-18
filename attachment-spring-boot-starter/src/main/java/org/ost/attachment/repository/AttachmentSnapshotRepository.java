@@ -1,6 +1,7 @@
 package org.ost.attachment.repository;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -16,33 +17,39 @@ public class AttachmentSnapshotRepository {
 
     private static final SqlWriteCommand INSERT = SqlWriteCommand.of(
             "INSERT INTO " + AttachmentSnapshotDescriptor.Write.TABLE +
-            " (" + AttachmentSnapshotDescriptor.Write.ADVERTISEMENT_ID + "," +
+            " (" + AttachmentSnapshotDescriptor.Write.ENTITY_TYPE + "," +
+            " "  + AttachmentSnapshotDescriptor.Write.ENTITY_ID + "," +
             " "  + AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
             " "  + AttachmentSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
             " "  + AttachmentSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
-            " VALUES (:adId," +
+            " VALUES (:entityType, :entityId," +
             " :urls, CAST(:changes AS JSONB), :userId, NOW())"
     );
 
     private static final String FROM_TABLE = " FROM " + AttachmentSnapshotDescriptor.TABLE;
 
+    private static final String WHERE_BY_ENTITY =
+            " WHERE entity_type = :entityType AND entity_id = :entityId";
+
     private final JdbcClient jdbcClient;
 
-    public void insert(Long adId, String[] urls, String changesJson, Long userId) {
+    public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long userId) {
         INSERT.execute(jdbcClient,
                 new MapSqlParameterSource()
-                        .addValue("adId",    adId)
-                        .addValue("urls",    urls)
-                        .addValue("changes", changesJson)
-                        .addValue("userId",  userId));
+                        .addValue("entityType", entityType.name())
+                        .addValue("entityId",   entityId)
+                        .addValue("urls",       urls)
+                        .addValue("changes",    changesJson)
+                        .addValue("userId",     userId));
     }
 
-    public List<String> getPrevUrls(Long adId) {
+    public List<String> getPrevUrls(EntityType entityType, Long entityId) {
         return jdbcClient.sql(
                 "SELECT " + AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS +
                 FROM_TABLE +
-                " WHERE advertisement_id = :adId ORDER BY created_at DESC LIMIT 1")
-                .paramSource(new MapSqlParameterSource("adId", adId))
+                WHERE_BY_ENTITY +
+                " ORDER BY created_at DESC LIMIT 1")
+                .paramSource(entityParams(entityType, entityId))
                 .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional().orElse(List.of());
     }
@@ -54,77 +61,83 @@ public class AttachmentSnapshotRepository {
             "SELECT al.created_at FROM (" +
             "    SELECT created_at," +
             "           ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn" +
-            "    FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+            "    FROM audit_log WHERE entity_type = :entityType AND entity_id = :entityId" +
             ") al WHERE al.rn = :version + 1";
 
-    public String[] getUrlsAtVersion(Long adId, int version) {
+    public String[] getUrlsAtVersion(EntityType entityType, Long entityId, int version) {
         return jdbcClient.sql(
                 "SELECT attachment_urls" +
                 FROM_TABLE +
-                " WHERE advertisement_id = :adId" +
+                WHERE_BY_ENTITY +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
+                .paramSource(entityParams(entityType, entityId).addValue("version", version))
                 .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional()
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
     }
 
-    public Optional<List<String>> getUrlsForAdvSnapshot(Long adId, Long advSnapshotId) {
+    public Optional<List<String>> getUrlsForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
         return jdbcClient.sql(
                 "SELECT attachment_urls" +
                 FROM_TABLE +
-                " WHERE advertisement_id = :adId" +
+                WHERE_BY_ENTITY +
                 "   AND created_at < COALESCE((" +
                 "       SELECT created_at FROM audit_log" +
-                "       WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "       WHERE entity_type = :entityType AND entity_id = :entityId" +
                 "         AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapId)" +
                 "       ORDER BY created_at ASC LIMIT 1" +
                 "   ), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapId", advSnapshotId))
+                .paramSource(entityParams(entityType, entityId).addValue("snapId", advSnapshotId))
                 .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional();
     }
 
-    public Optional<String> getChangesJsonForSnapshot(Long adId, Long snapshotId) {
+    public Optional<String> getChangesJsonForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
         return jdbcClient.sql(
                 "SELECT changes_summary::text" +
                 FROM_TABLE +
-                " WHERE advertisement_id = :adId" +
+                WHERE_BY_ENTITY +
                 "   AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
                 "   AND created_at < COALESCE((" +
                 "       SELECT created_at FROM audit_log" +
-                "       WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "       WHERE entity_type = :entityType AND entity_id = :entityId" +
                 "         AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
                 "       ORDER BY created_at ASC LIMIT 1" +
                 "   ), 'infinity'::timestamptz)" +
                 "   AND changes_summary IS NOT NULL" +
                 " ORDER BY created_at ASC LIMIT 1")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("snapshotId", snapshotId))
+                .paramSource(entityParams(entityType, entityId).addValue("snapshotId", snapshotId))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
     }
 
-    public Optional<String> getChangesJson(Long adId, int version) {
+    public Optional<String> getChangesJson(EntityType entityType, Long entityId, int version) {
         String thisAuditTs =
                 "SELECT al.created_at FROM (" +
                 "    SELECT created_at," +
                 "           ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn" +
-                "    FROM audit_log WHERE entity_type = 'ADVERTISEMENT' AND entity_id = :adId" +
+                "    FROM audit_log WHERE entity_type = :entityType AND entity_id = :entityId" +
                 ") al WHERE al.rn = :version";
         return jdbcClient.sql(
                 "SELECT changes_summary::text" +
                 FROM_TABLE +
-                " WHERE advertisement_id = :adId" +
+                WHERE_BY_ENTITY +
                 "   AND created_at >= (" + thisAuditTs + ")" +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS + "), 'infinity'::timestamptz)" +
                 "   AND changes_summary IS NOT NULL" +
                 " ORDER BY created_at ASC LIMIT 1")
-                .paramSource(new MapSqlParameterSource().addValue("adId", adId).addValue("version", version))
+                .paramSource(entityParams(entityType, entityId).addValue("version", version))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
+    }
+
+    private static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
+        return new MapSqlParameterSource()
+                .addValue("entityType", entityType.name())
+                .addValue("entityId",   entityId);
     }
 
     private static List<String> toStringList(ResultSet rs, String col) {

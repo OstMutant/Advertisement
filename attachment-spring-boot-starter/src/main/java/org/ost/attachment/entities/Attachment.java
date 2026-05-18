@@ -3,6 +3,7 @@ package org.ost.attachment.entities;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.core.model.EntityType;
 
 import java.time.Instant;
 
@@ -11,13 +12,14 @@ import java.time.Instant;
 @FieldNameConstants
 public class Attachment {
 
-    Long    id;
-    Long    entityId;
-    String  url;
-    String  filename;
-    String  contentType;
-    Long    size;
-    Instant createdAt;
-    Instant deletedAt;
-    Long    deletedByUserId;
+    Long       id;
+    EntityType entityType;
+    Long       entityId;
+    String     url;
+    String     filename;
+    String     contentType;
+    Long       size;
+    Instant    createdAt;
+    Instant    deletedAt;
+    Long       deletedByUserId;
 }

@@ -1,16 +1,17 @@
 package org.ost.platform.core.spi;
 
 import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityType;
 
 import java.util.List;
 
 public interface AdvertisementHistoryExtension {
 
-    List<ChangeEntry> getMediaChanges(Long adId, int version);
+    List<ChangeEntry> getMediaChanges(EntityType entityType, Long entityId, int version);
 
-    boolean mediaMatchCurrent(Long adId, int version);
+    boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version);
 
-    String getMediaStateAtVersion(Long adId, int version);
+    String getMediaStateAtVersion(EntityType entityType, Long entityId, int version);
 
-    String getMediaStateForAdvSnapshot(Long adId, Long advSnapshotId);
+    String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId);
 }

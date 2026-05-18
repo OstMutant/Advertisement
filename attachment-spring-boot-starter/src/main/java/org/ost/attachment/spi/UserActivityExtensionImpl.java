@@ -3,7 +3,6 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.UserActivityExtension;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.attachment.service.AttachmentSnapshotService;
@@ -23,9 +22,8 @@ public class UserActivityExtensionImpl implements UserActivityExtension {
     public List<ActivityItemDto> merge(Long userId, List<ActivityItemDto> baseItems) {
         return baseItems.stream()
                 .map(item -> {
-                    if (item.entityType() != EntityType.ADVERTISEMENT) return item;
                     List<ChangeEntry> mediaChanges = attachmentSnapshotService
-                            .getChangesForSnapshot(item.entityId(), item.snapshotId());
+                            .getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());
                     if (mediaChanges.isEmpty()) return item;
                     List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
                     merged.addAll(item.changes());

@@ -7,12 +7,12 @@ import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.attachment.spi.AttachmentCurrentUserProvider;
-import org.ost.attachment.service.AttachmentSnapshotService;
-import org.ost.platform.attachment.event.AdvertisementMediaUpdatedEvent;
+import org.ost.platform.attachment.spi.MediaChangeConsumer;
+import org.ost.platform.attachment.spi.MediaSummary;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.platform.attachment.storage.StorageService;
+import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,19 +34,35 @@ public class AttachmentService {
     private final AttachmentRepository                            attachmentRepository;
     private final AttachmentSnapshotService                       attachmentSnapshotService;
     private final ObjectProvider<AttachmentCurrentUserProvider>   currentUserProvider;
-    private final ApplicationEventPublisher                       eventPublisher;
+    private final ObjectProvider<MediaChangeConsumer>             mediaChangeConsumer;
 
-    public List<Attachment> getByEntityId(Long entityId) {
-        return attachmentRepository.getByEntityId(entityId);
+    public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
+        return attachmentRepository.getByEntityId(entityType, entityId);
     }
 
-    public Attachment upload(Long entityId, String filename,
+    public MediaSummary getMediaSummary(EntityType entityType, Long entityId) {
+        AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityType, entityId);
+        return new MediaSummary(
+                resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
+                stats.mainContentType(),
+                stats.count());
+    }
+
+    private static String resolveDisplayUrl(String url, String contentType) {
+        if (url == null) return null;
+        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (CT_EMBED.equals(contentType))   return null;
+        if (MediaContentType.isUploadedVideo(contentType)) return url;
+        return url;
+    }
+
+    public Attachment upload(EntityType entityType, Long entityId, String filename,
                              InputStream inputStream, long contentLength, String contentType) {
-        String url = storageService.upload("advertisements/" + entityId, filename, inputStream, contentLength, contentType);
+        String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
         try {
-            Attachment saved = attachmentRepository.insert(entityId, url, filename, contentType, contentLength);
-            captureMediaChanges(entityId);
-            publishMediaUpdate(entityId);
+            Attachment saved = attachmentRepository.insert(entityType, entityId, url, filename, contentType, contentLength);
+            captureMediaChanges(entityType, entityId);
+            notifyMediaChanged(entityType, entityId);
             return saved;
         } catch (Exception e) {
             storageService.delete(url);
@@ -60,8 +76,8 @@ public class AttachmentService {
         if (attachment == null) return;
         Long userId = resolveCurrentUserId();
         attachmentRepository.softDelete(attachmentId, userId);
-        captureMediaChanges(attachment.getEntityId());
-        publishMediaUpdate(attachment.getEntityId());
+        captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
+        notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
     }
 
     @Transactional
@@ -81,20 +97,20 @@ public class AttachmentService {
     }
 
     @Transactional
-    public Attachment addVideo(Long entityId, String url) {
+    public Attachment addVideo(EntityType entityType, Long entityId, String url) {
         String ytId = YoutubeUtil.extractId(url);
         if (ytId != null) {
             String watchUrl = "https://www.youtube.com/watch?v=" + ytId;
-            Attachment saved = attachmentRepository.insert(entityId, watchUrl, "YouTube-" + ytId, CT_YOUTUBE, 0L);
-            captureMediaChanges(entityId);
-            publishMediaUpdate(entityId);
+            Attachment saved = attachmentRepository.insert(entityType, entityId, watchUrl, "YouTube-" + ytId, CT_YOUTUBE, 0L);
+            captureMediaChanges(entityType, entityId);
+            notifyMediaChanged(entityType, entityId);
             return saved;
         }
         if (url == null || url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
         String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
-        Attachment saved = attachmentRepository.insert(entityId, url, filename, CT_EMBED, 0L);
-        captureMediaChanges(entityId);
-        publishMediaUpdate(entityId);
+        Attachment saved = attachmentRepository.insert(entityType, entityId, url, filename, CT_EMBED, 0L);
+        captureMediaChanges(entityType, entityId);
+        notifyMediaChanged(entityType, entityId);
         return saved;
     }
 
@@ -104,25 +120,26 @@ public class AttachmentService {
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
-    public void commitTempUploads(Long entityId, List<TempAttachment> temps) {
-        commitTempUploadsQuiet(entityId, temps);
-        captureMediaChanges(entityId);
-        publishMediaUpdate(entityId);
+    public void commitTempUploads(EntityType entityType, Long entityId, List<TempAttachment> temps) {
+        commitTempUploadsQuiet(entityType, entityId, temps);
+        captureMediaChanges(entityType, entityId);
+        notifyMediaChanged(entityType, entityId);
     }
 
-    public void captureSnapshot(Long entityId) {
-        captureMediaChanges(entityId);
+    public void captureSnapshot(EntityType entityType, Long entityId) {
+        captureMediaChanges(entityType, entityId);
     }
 
-    public void commitTempUploadsQuiet(Long entityId, List<TempAttachment> temps) {
+    public void commitTempUploadsQuiet(EntityType entityType, Long entityId, List<TempAttachment> temps) {
         if (temps.isEmpty()) return;
-        String folder = "advertisements/" + entityId;
+        String folder = folder(entityType, entityId);
         List<Attachment> toSave = temps.stream()
                 .map(t -> {
                     String finalUrl = isVideo(t.contentType())
                             ? t.tempUrl()
                             : storageService.move(t.tempUrl(), folder, t.filename());
                     return Attachment.builder()
+                            .entityType(entityType)
                             .entityId(entityId)
                             .url(finalUrl)
                             .filename(t.filename())
@@ -132,7 +149,8 @@ public class AttachmentService {
                 })
                 .toList();
         try {
-            toSave.forEach(a -> attachmentRepository.insert(a.getEntityId(), a.getUrl(), a.getFilename(), a.getContentType(), a.getSize()));
+            toSave.forEach(a -> attachmentRepository.insert(a.getEntityType(), a.getEntityId(),
+                    a.getUrl(), a.getFilename(), a.getContentType(), a.getSize()));
         } catch (Exception e) {
             toSave.stream()
                     .filter(a -> !isVideo(a.getContentType()))
@@ -142,20 +160,21 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void restoreToUrls(Long adId, String[] targetUrls, Long userId) {
+    public void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long userId) {
         if (targetUrls == null || targetUrls.length == 0) {
-            attachmentRepository.restoreDeleteAll(adId, userId);
+            attachmentRepository.restoreDeleteAll(entityType, entityId, userId);
+            notifyMediaChanged(entityType, entityId);
             return;
         }
-        attachmentRepository.restoreUndelete(adId, targetUrls);
-        attachmentRepository.restoreMarkDeleted(adId, userId, targetUrls);
-        publishMediaUpdate(adId);
+        attachmentRepository.restoreUndelete(entityType, entityId, targetUrls);
+        attachmentRepository.restoreMarkDeleted(entityType, entityId, userId, targetUrls);
+        notifyMediaChanged(entityType, entityId);
     }
 
     @Transactional
-    public void softDeleteAll(Long entityId, Long deletedByUserId) {
-        attachmentRepository.softDeleteAll(entityId, deletedByUserId);
-        publishMediaUpdate(entityId);
+    public void softDeleteAll(EntityType entityType, Long entityId, Long deletedByUserId) {
+        attachmentRepository.softDeleteAll(entityType, entityId, deletedByUserId);
+        notifyMediaChanged(entityType, entityId);
     }
 
     public void discardTempUploads(List<TempAttachment> temps) {
@@ -170,25 +189,18 @@ public class AttachmentService {
         return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
     }
 
-    private void publishMediaUpdate(Long entityId) {
-        AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityId);
-        String displayUrl = resolveDisplayUrl(stats.mainUrl(), stats.mainContentType());
-        eventPublisher.publishEvent(new AdvertisementMediaUpdatedEvent(
-                entityId, displayUrl, stats.mainContentType(), stats.count()));
+    private static String folder(EntityType entityType, Long entityId) {
+        return entityType.name().toLowerCase() + "/" + entityId;
     }
 
-    private static String resolveDisplayUrl(String url, String contentType) {
-        if (url == null) return null;
-        if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (CT_EMBED.equals(contentType)) return null;
-        if (MediaContentType.isUploadedVideo(contentType)) return url;
-        return url;
+    private void notifyMediaChanged(EntityType entityType, Long entityId) {
+        mediaChangeConsumer.ifAvailable(c -> c.onMediaChanged(entityType, entityId));
     }
 
-    private void captureMediaChanges(Long entityId) {
+    private void captureMediaChanges(EntityType entityType, Long entityId) {
         Long userId = resolveCurrentUserId();
         if (userId != null) {
-            attachmentSnapshotService.capture(entityId, userId);
+            attachmentSnapshotService.capture(entityType, entityId, userId);
         }
     }
 

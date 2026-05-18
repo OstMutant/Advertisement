@@ -22,7 +22,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.platform.attachment.spi.AdvertisementGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
@@ -62,7 +62,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final ObjectProvider<AdvertisementGalleryExtension> galleryExtension;
+    private final ObjectProvider<AttachmentGalleryExtension>    galleryExtension;
     private final ObjectProvider<AuditUiExtension>              auditUiExtensionProvider;
     private final ConfirmActionDialog.Builder                   confirmDialogBuilder;
 
@@ -138,7 +138,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         Div viewBody = new Div(textCard);
 
-        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(params.getAd().getId())));
+        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(EntityType.ADVERTISEMENT, params.getAd().getId())));
 
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");

@@ -28,7 +28,8 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.attachment.entities.MediaContentType;
-import org.ost.platform.attachment.spi.AdvertisementGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -67,7 +68,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
-    private final transient ObjectProvider<AdvertisementGalleryExtension> galleryExtension;
+    private final transient ObjectProvider<AttachmentGalleryExtension> galleryExtension;
 
     @Override
     @PostConstruct
@@ -122,7 +123,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(ad.getId()))
+                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(EntityType.ADVERTISEMENT, ad.getId()))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }

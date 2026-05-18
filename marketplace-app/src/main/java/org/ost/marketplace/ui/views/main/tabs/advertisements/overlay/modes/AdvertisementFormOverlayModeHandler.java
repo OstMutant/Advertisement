@@ -24,7 +24,8 @@ import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.platform.attachment.spi.AdvertisementGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.platform.core.ui.Configurable;
@@ -69,13 +70,13 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
-    private final ObjectProvider<AdvertisementGalleryExtension>   galleryExtension;
+    private final ObjectProvider<AttachmentGalleryExtension>      galleryExtension;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
     @Getter
     private Advertisement savedAdvertisement;
-    private AdvertisementGalleryExtension.FormHandle activeHandle;
+    private AttachmentGalleryExtension.FormHandle activeHandle;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -116,8 +117,8 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         Div content = new Div(fieldsCard);
         galleryExtension.ifAvailable(ext -> {
             this.activeHandle = isCreate
-                    ? ext.buildGalleryForCreate(UUID.randomUUID().toString())
-                    : ext.buildGalleryForEdit(params.getAd().getId());
+                    ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
+                    : ext.buildGalleryForEdit(EntityType.ADVERTISEMENT, params.getAd().getId());
             content.add(activeHandle.getComponent());
         });
 
@@ -150,7 +151,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
             if (this.activeHandle != null) {
-                this.activeHandle.commit(savedAdvertisement.getId());
+                this.activeHandle.commit(EntityType.ADVERTISEMENT, savedAdvertisement.getId());
             }
         });
     }

@@ -25,6 +25,7 @@ import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.annotation.Scope;
 
@@ -56,7 +57,8 @@ public class AttachmentGallery extends Div {
     private HorizontalLayout videoInput;
     private boolean          editMode;
 
-    private Long entityId;
+    private EntityType entityType;
+    private Long       entityId;
 
     private final List<TempAttachment> tempUploads        = new ArrayList<>();
     private final List<Attachment>     currentAttachments = new ArrayList<>();
@@ -80,15 +82,17 @@ public class AttachmentGallery extends Div {
         add(title, thumbnailsRow, emptyState);
     }
 
-    public void configureForView(Long entityId) {
-        this.entityId = entityId;
-        this.editMode = false;
+    public void configureForView(EntityType entityType, Long entityId) {
+        this.entityType = entityType;
+        this.entityId   = entityId;
+        this.editMode   = false;
         refresh();
     }
 
-    public void configureForEdit(Long entityId) {
-        this.entityId = entityId;
-        this.editMode = true;
+    public void configureForEdit(EntityType entityType, Long entityId) {
+        this.entityType = entityType;
+        this.entityId   = entityId;
+        this.editMode   = true;
         this.tempSessionId = UUID.randomUUID().toString();
         tempUploads.clear();
         hasPendingDeletion = false;
@@ -99,9 +103,10 @@ public class AttachmentGallery extends Div {
         add(uploadButton, videoInput);
     }
 
-    public void configureForCreate(String tempSessionId) {
-        this.entityId = null;
-        this.editMode = true;
+    public void configureForCreate(EntityType entityType, String tempSessionId) {
+        this.entityType = entityType;
+        this.entityId   = null;
+        this.editMode   = true;
         this.tempSessionId = tempSessionId;
         tempUploads.clear();
         removeEditControlsIfPresent();
@@ -112,13 +117,13 @@ public class AttachmentGallery extends Div {
         add(uploadButton, videoInput);
     }
 
-    public void commitTempUploads(Long entityId) {
+    public void commitTempUploads(EntityType entityType, Long entityId) {
         boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && !hasPendingDeletion) return;
         if (!tempUploads.isEmpty()) {
-            attachmentService.commitTempUploads(entityId, tempUploads);
+            attachmentService.commitTempUploads(entityType, entityId, tempUploads);
         } else if (hasPendingDeletion && !isCreate) {
-            attachmentService.captureSnapshot(entityId);
+            attachmentService.captureSnapshot(entityType, entityId);
         }
         tempUploads.clear();
         hasPendingDeletion = false;
@@ -137,7 +142,7 @@ public class AttachmentGallery extends Div {
             return;
         }
         currentAttachments.clear();
-        currentAttachments.addAll(attachmentService.getByEntityId(entityId));
+        currentAttachments.addAll(attachmentService.getByEntityId(entityType, entityId));
         if (currentAttachments.isEmpty()) {
             showEmpty();
         } else {
@@ -229,7 +234,7 @@ public class AttachmentGallery extends Div {
                         });
                     } else if (entityId != null) {
                         Attachment saved = attachmentService.upload(
-                                entityId, filename, event.getInputStream(), size, contentType);
+                                entityType, entityId, filename, event.getInputStream(), size, contentType);
                         ui.access(() -> {
                             currentAttachments.add(saved);
                             hideEmpty();
@@ -267,7 +272,7 @@ public class AttachmentGallery extends Div {
                     hideEmpty();
                     thumbnailsRow.add(buildTempThumbnail(temp));
                 } else if (entityId != null) {
-                    Attachment saved = attachmentService.addVideo(entityId, val);
+                    Attachment saved = attachmentService.addVideo(entityType, entityId, val);
                     currentAttachments.add(saved);
                     hideEmpty();
                     thumbnailsRow.add(buildThumbnail(saved));
