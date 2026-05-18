@@ -2,8 +2,8 @@ package org.ost.attachment.jobs;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.advertisement.core.config.CleanupProperties;
-import org.ost.advertisement.attachment.storage.StorageService;
+import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.attachment.storage.StorageService;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;

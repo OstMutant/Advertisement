@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.ost.attachment.util.YoutubeUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.core.model.ChangeEntry;
+import org.ost.platform.core.model.ChangeEntry;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
 import org.springframework.stereotype.Service;

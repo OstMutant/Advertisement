@@ -6,8 +6,8 @@ set ROOT=%CD%\
 
 echo Cleaning Maven build artifacts...
 for %%d in (
-    advertisement-app\target
-    advertisement-contracts\target
+    marketplace-app\target
+    platform-contracts\target
     attachment-spring-boot-starter\target
     audit-spring-boot-starter\target
     sql-engine\target
@@ -20,16 +20,16 @@ for %%d in (
 
 echo Cleaning Vaadin frontend generated files...
 for %%f in (
-    advertisement-app\src\main\frontend\generated
-    advertisement-app\node_modules
-    advertisement-app\package.json
-    advertisement-app\package-lock.json
-    advertisement-app\tsconfig.json
-    advertisement-app\types.d.ts
-    advertisement-app\vite.config.ts
-    advertisement-app\vite.generated.ts
-    advertisement-app\src\main\frontend\index.html
-    advertisement-app\src\main\bundles
+    marketplace-app\src\main\frontend\generated
+    marketplace-app\node_modules
+    marketplace-app\package.json
+    marketplace-app\package-lock.json
+    marketplace-app\tsconfig.json
+    marketplace-app\types.d.ts
+    marketplace-app\vite.config.ts
+    marketplace-app\vite.generated.ts
+    marketplace-app\src\main\frontend\index.html
+    marketplace-app\src\main\bundles
 ) do (
     if exist "%ROOT%%%f" (
         if exist "%ROOT%%%f\" (

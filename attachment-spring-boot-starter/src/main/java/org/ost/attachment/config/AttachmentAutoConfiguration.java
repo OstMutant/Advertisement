@@ -1,9 +1,9 @@
 package org.ost.attachment.config;
 
 import liquibase.integration.spring.SpringLiquibase;
-import org.ost.advertisement.core.config.CleanupProperties;
-import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
-import org.ost.advertisement.attachment.storage.StorageService;
+import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.attachment.storage.StorageService;
 import org.ost.attachment.service.NoOpStorageService;
 import org.ost.attachment.service.S3StorageService;
 import org.springframework.beans.factory.annotation.Value;

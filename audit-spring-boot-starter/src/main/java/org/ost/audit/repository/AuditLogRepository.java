@@ -1,0 +1,123 @@
+package org.ost.audit.repository;
+
+import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.EntityType;
+import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.simple.JdbcClient;
+
+import java.util.Optional;
+
+public class AuditLogRepository {
+
+    private static final SqlWriteCommand INSERT = SqlWriteCommand.of(
+            "INSERT INTO " + AuditLogDescriptor.Write.TABLE +
+            " (" + AuditLogDescriptor.Write.ENTITY_TYPE + ", " +
+                   AuditLogDescriptor.Write.ENTITY_ID + ", " +
+                   AuditLogDescriptor.Write.ACTION_TYPE + ", " +
+                   AuditLogDescriptor.Write.SNAPSHOT_DATA + ", " +
+                   AuditLogDescriptor.Write.CHANGES_SUMMARY + ", " +
+                   AuditLogDescriptor.Write.ACTOR_ID + ")" +
+            " VALUES (:entityType, :entityId, :actionType," +
+            " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)"
+    );
+
+    private static final SqlWriteCommand UPDATE_CHANGES_SUMMARY = SqlWriteCommand.of(
+            "UPDATE " + AuditLogDescriptor.Write.TABLE +
+            " SET " + AuditLogDescriptor.Write.CHANGES_SUMMARY + " = CAST(:s AS JSONB) WHERE id = :id"
+    );
+
+    private final JdbcClient jdbcClient;
+
+    public AuditLogRepository(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
+    }
+
+    protected JdbcClient jdbcClient() {
+        return jdbcClient;
+    }
+
+    public void insert(EntityType entityType, Long entityId, ActionType actionType,
+                       String snapshotData, String changesSummary, Long actorId) {
+        INSERT.execute(jdbcClient,
+                new MapSqlParameterSource()
+                        .addValue("entityType",   entityType.name())
+                        .addValue("entityId",     entityId)
+                        .addValue("actionType",   actionType.name())
+                        .addValue("snapshotData", snapshotData)
+                        .addValue("changes",      changesSummary)
+                        .addValue("actorId",      actorId));
+    }
+
+    public Optional<String> getSnapshotData(Long snapshotId, EntityType entityType) {
+        return jdbcClient.sql(
+                "SELECT " + AuditLogDescriptor.Write.SNAPSHOT_DATA + "::text" +
+                " FROM " + AuditLogDescriptor.Write.TABLE + " WHERE id = :id AND entity_type = :type")
+                .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("type", entityType.name()))
+                .query((rs, row) -> rs.getString(1))
+                .optional();
+    }
+
+    public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {
+        return jdbcClient.sql(
+                "SELECT " + AuditLogDescriptor.Write.SNAPSHOT_DATA + "::text" +
+                " FROM " + AuditLogDescriptor.Write.TABLE +
+                " WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource().addValue("type", entityType.name()).addValue("id", entityId))
+                .query((rs, row) -> rs.getString(1))
+                .optional();
+    }
+
+    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+        return jdbcClient.sql("""
+                SELECT snapshot_data::text AS snapshot_data,
+                       (SELECT COUNT(*) FROM audit_log b
+                        WHERE b.entity_type = a.entity_type
+                          AND b.entity_id   = a.entity_id
+                          AND b.created_at <= a.created_at)::int AS version
+                FROM audit_log a
+                WHERE a.id = :id AND a.entity_type = :entityType
+                """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("id", snapshotId)
+                        .addValue("entityType", entityType.name()))
+                .query((rs, row) -> new SnapshotContent(
+                        new SnapshotPayload(rs.getString("snapshot_data")),
+                        rs.getInt("version")
+                ))
+                .optional();
+    }
+
+    public Optional<Long> findLastSnapshotId(EntityType entityType, Long entityId) {
+        return jdbcClient.sql(
+                "SELECT id FROM audit_log WHERE entity_type = :type AND entity_id = :id ORDER BY created_at DESC LIMIT 1")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("type", entityType.name())
+                        .addValue("id", entityId))
+                .query(Long.class)
+                .optional();
+    }
+
+    public String getChangesSummary(Long snapshotId) {
+        return jdbcClient.sql(
+                "SELECT changes_summary::text FROM audit_log WHERE id = :id")
+                .paramSource(new MapSqlParameterSource("id", snapshotId))
+                .query(String.class)
+                .single();
+    }
+
+    public void updateChangesSummary(Long snapshotId, String json) {
+        UPDATE_CHANGES_SUMMARY.execute(jdbcClient,
+                new MapSqlParameterSource().addValue("id", snapshotId).addValue("s", json));
+    }
+
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql(
+                "DELETE FROM " + AuditLogDescriptor.Write.TABLE +
+                " WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", days))
+                .update();
+    }
+}

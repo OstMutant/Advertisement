@@ -24,8 +24,8 @@ import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
-import org.ost.advertisement.core.i18n.I18nService;
-import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.annotation.Scope;
 
 import com.vaadin.flow.server.streams.UploadEvent;

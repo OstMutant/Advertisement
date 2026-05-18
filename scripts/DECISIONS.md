@@ -16,7 +16,7 @@
 
 **Decision:** `deploy.sh` waits for `"Started Application"` via:
 ```bash
-timeout 180 bash -c 'docker logs -f advertisement-app 2>&1 | grep -qm1 "Started Application"'
+timeout 180 bash -c 'docker logs -f marketplace-app 2>&1 | grep -qm1 "Started Application"'
 ```
 
 **Why:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays. `docker logs -f` streams stdout continuously; `grep -qm1` exits immediately on first match. `timeout 180` prevents hanging indefinitely if startup fails.

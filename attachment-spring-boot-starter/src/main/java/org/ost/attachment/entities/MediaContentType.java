@@ -27,7 +27,7 @@ public enum MediaContentType {
         return isEmbedded(contentType) || isUploadedVideo(contentType);
     }
 
-    public static final String[] ACCEPTED_VIDEO_TYPES = { MP4.value, WEBM.value };
+    protected static final String[] ACCEPTED_VIDEO_TYPES = { MP4.value, WEBM.value };
 
     public static final String VIDEO_THUMBNAIL =
         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E" +

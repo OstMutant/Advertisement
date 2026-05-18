@@ -19,7 +19,7 @@
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>advertisement-contracts</artifactId>
+            <artifactId>platform-contracts</artifactId>
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>

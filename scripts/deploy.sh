@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 DB_CONTAINER="advertisement-db-1"
 MINIO_CONTAINER="advertisement-minio-1"
-APP_CONTAINER="advertisement-app"
+APP_CONTAINER="marketplace-app"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 MODE="default"
@@ -119,7 +119,7 @@ configure_minio
 echo ""
 echo "=== Step 2: Build image ==="
 docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-docker build -f "$ROOT/Dockerfile" -t advertisement-app "$ROOT"
+docker build -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
 
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
@@ -132,7 +132,7 @@ docker run -d --name "$APP_CONTAINER" --network host \
   -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
   -e S3_REGION=us-east-1 \
   -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
-  advertisement-app
+  marketplace-app
 
 echo "Waiting for application to start..."
 end=$((SECONDS + 180))

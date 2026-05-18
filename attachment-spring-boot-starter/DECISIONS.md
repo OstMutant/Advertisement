@@ -2,13 +2,13 @@
 
 ---
 
-## 2026-05-07 — Attachment logic extracted from advertisement-app
+## 2026-05-07 — Attachment logic extracted from marketplace-app
 
-**Decision:** All attachment/photo domain logic (entity, repository, UI components `AttachmentGallery`, `CardMediaLightbox`) lives in this module, not in `advertisement-app`.
+**Decision:** All attachment/photo domain logic (entity, repository, UI components `AttachmentGallery`, `CardMediaLightbox`) lives in this module, not in `marketplace-app`.
 
 **Why:** Enables two independent deployments — the attachment module can be used without the advertisement app. The starter is auto-configured via Spring Boot's autoconfiguration mechanism.
 
-**Rejected:** Keeping UI components in `advertisement-app` — would couple the UI to the app module and prevent reuse.
+**Rejected:** Keeping UI components in `marketplace-app` — would couple the UI to the app module and prevent reuse.
 
 ---
 
@@ -18,7 +18,7 @@
 
 **Why:** The two classes independently duplicated the same string literals. Centralizing eliminates the risk of inconsistency and makes the `isVideo()` check a single-source-of-truth call.
 
-**Rejected:** Placing the enum in `advertisement-contracts` — the content types are an internal attachment-module concept, not a cross-module contract.
+**Rejected:** Placing the enum in `platform-contracts` — the content types are an internal attachment-module concept, not a cross-module contract.
 
 ---
 

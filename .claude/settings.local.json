@@ -168,7 +168,21 @@
       "Bash(sed -i 's|import org\\\\.ost\\\\.advertisement\\\\.spi\\\\.storage\\\\.ConditionalOnStorageEnabled;|import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;|g' /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentGallery.java)",
       "Bash(sed -i 's|import org\\\\.ost\\\\.advertisement\\\\.i18n\\\\.TranslationKey;|import org.ost.advertisement.core.i18n.TranslationKey;|g' /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentMessages.java)",
       "Bash(mvn compile *)",
-      "Bash(mvn test *)"
+      "Bash(mvn test *)",
+      "Bash(docker --version)",
+      "Bash(docker compose *)",
+      "Bash(docker-compose --version)",
+      "Bash(jq --version)",
+      "Bash(java -version)",
+      "Bash(sed -n '82,88p' /app/marketplace-app/src/main/java/org/ost/marketplace/services/AdvertisementService.java)",
+      "Bash(sed -n '31,37p' /app/marketplace-app/src/main/java/org/ost/marketplace/services/audit/UserActivityFieldsProvider.java)",
+      "Bash(sed -n '107,115p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/header/dialogs/SignUpDialog.java)",
+      "Bash(sed -n '18,35p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java)",
+      "Bash(sed -n '110,120p' /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/EntityHistoryPanel.java)",
+      "Bash(sed -n '26,35p' /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/entities/MediaContentType.java)",
+      "Bash(sed -i 's/catch \\(Exception ignored\\)/catch \\(Exception _\\)/g; s/catch \\(Exception e\\) {\\\\n/catch \\(Exception _\\) {\\\\n/g' /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/ActivityRowRenderer.java /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/EntityHistoryPanel.java /app/marketplace-app/src/main/java/org/ost/marketplace/services/audit/AdvertisementDisplayNameResolver.java)",
+      "Bash(sed -i 's/} catch \\(Exception e\\) {$/} catch \\(Exception _\\) {/' /app/marketplace-app/src/main/java/org/ost/marketplace/services/audit/UserActivityFieldsProvider.java /app/marketplace-app/src/main/java/org/ost/marketplace/services/AdvertisementService.java)",
+      "Bash(docker stop *)"
     ]
   },
   "hooks": {

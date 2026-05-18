@@ -1,1 +1,1 @@
-org.ost.advertisement.audit.config.AuditAutoConfiguration
+org.ost.audit.config.AuditAutoConfiguration

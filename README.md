@@ -46,10 +46,10 @@ declaratively and kept strongly typed.
 ```
 advertisement-parent
 ├── sql-engine                      — framework-agnostic SQL query-building library
-├── advertisement-contracts         — shared kernel: DTOs, domain events, SPI interfaces
+├── platform-contracts              — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
 ├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation
-└── advertisement-app               — Vaadin application (depends on all modules above)
+└── marketplace-app                 — Vaadin application (depends on all modules above)
 ```
 
 Significant architectural decisions for each module are recorded in per-module `DECISIONS.md` files.
@@ -121,7 +121,7 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
 ```
 
 Then run the application from your IDE with the `dev` Spring profile active.  
-The `dev` profile connects to `localhost:5432` and `localhost:9000`, and loads test seed data via Liquibase.
+The `dev` profile connects to `localhost:5432` and `localhost:9000`.
 
 MinIO console: http://localhost:9001 — login: `admin` / `admin12345`  
 The `advertisement` bucket is created automatically on first start.
@@ -151,6 +151,10 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | Script | Purpose |
 |---|---|
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
+| `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright tests (delegates to `playwright/run.sh`) |
+| `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube analysis (delegates to `scripts/sonar/run.sh`) |
+| `scripts/reset-db.sh` / `scripts/reset-db.bat` | Reset DB to clean state with 3 minimal users (delegates to `scripts/database/reset.sh`) |
+| `scripts/seed-db.sh` / `scripts/seed-db.bat` | Insert 50 dev users + advertisements (delegates to `scripts/database/seed.sh`) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
@@ -167,18 +171,18 @@ All scripts resolve the project root automatically — run them from any directo
 
 ## Database Scripts
 
-All database scripts live in `database/`:
+All database scripts live in `scripts/database/`:
 
 | File | Purpose |
 |---|---|
-| `database/seed.sql` | 50 dev users (USER / MODERATOR / ADMIN) + advertisements. Loaded automatically by Liquibase on first `dev` profile startup. |
-| `database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
-| `database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
-
-To reset the database before running Playwright tests:
+| `scripts/database/seed.sql` | 50 dev users (USER / MODERATOR / ADMIN mix) + advertisements. Run manually via `seed-db.sh`. |
+| `scripts/database/seed.sh` | Shell wrapper for `seed.sql`. Safe to run multiple times — uses `ON CONFLICT DO NOTHING`. |
+| `scripts/database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
+| `scripts/database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
 
 ```bash
-bash database/reset.sh
+bash scripts/seed-db.sh    # populate with 50 dev users (first time or after clean)
+bash scripts/reset-db.sh   # wipe and re-seed minimal data before Playwright tests
 ```
 
 ---

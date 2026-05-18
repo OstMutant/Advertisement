@@ -1,11 +1,11 @@
 package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.audit.dto.ActivityItemDto;
-import org.ost.advertisement.core.model.ChangeEntry;
-import org.ost.advertisement.core.model.EntityType;
-import org.ost.advertisement.core.spi.UserActivityExtension;
-import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.spi.UserActivityExtension;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.springframework.stereotype.Component;
 

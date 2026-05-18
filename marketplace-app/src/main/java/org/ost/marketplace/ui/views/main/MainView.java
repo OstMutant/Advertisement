@@ -1,0 +1,97 @@
+package org.ost.marketplace.ui.views.main;
+
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.datepicker.DatePicker;
+import com.vaadin.flow.component.dependency.Uses;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.SvgIcon;
+import com.vaadin.flow.component.notification.Notification;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.component.textfield.NumberField;
+import com.vaadin.flow.component.timepicker.TimePicker;
+import com.vaadin.flow.router.Route;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.security.AccessEvaluator;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.ui.views.components.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.views.components.query.elements.fields.QueryNumberField;
+import org.ost.marketplace.ui.views.main.header.HeaderBar;
+import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.marketplace.ui.views.main.tabs.users.UserView;
+import org.ost.marketplace.ui.views.utils.TimeZoneUtil;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.ost.marketplace.common.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.marketplace.common.I18nKey.MAIN_TAB_USERS;
+
+@Route("")
+@RequiredArgsConstructor
+@Uses(Notification.class)
+@Uses(Icon.class)
+@Uses(SvgIcon.class)
+@Uses(DatePicker.class)
+@Uses(TimePicker.class)
+@Uses(QueryDateTimeField.class)
+@Uses(NumberField.class)
+@Uses(QueryNumberField.class)
+public class MainView extends VerticalLayout {
+
+    private final transient HeaderBar headerBar;
+    private final transient AdvertisementsView advertisementsView;
+    private final transient UserView usersView;
+    private final transient AccessEvaluator access;
+    private final transient I18nService i18n;
+
+    @PostConstruct
+    public void init() {
+        TimeZoneUtil.detectTimeZone();
+
+        addClassName("main-view-root");
+        setSizeFull();
+
+        Map<Tab, Component> tabsToPages = new HashMap<>();
+
+        Tab advertisementTab = new Tab(i18n.get(MAIN_TAB_ADVERTISEMENTS));
+        Tabs tabs = buildTabs(advertisementTab);
+        Div pages = buildPages();
+
+        tabsToPages.put(advertisementTab, advertisementsView);
+
+        if (access.canView()) {
+            Tab usersTab = new Tab(i18n.get(MAIN_TAB_USERS));
+            tabs.add(usersTab);
+            pages.add(usersView);
+            tabsToPages.put(usersTab, usersView);
+            usersView.setVisible(false);
+        }
+
+        tabs.addSelectedChangeListener(_ -> {
+            tabsToPages.values().forEach(page -> page.setVisible(false));
+            tabsToPages.get(tabs.getSelectedTab()).setVisible(true);
+        });
+
+        headerBar.addClassName("main-header");
+        add(headerBar, tabs, pages);
+    }
+
+    private Tabs buildTabs(Tab initialTab) {
+        Tabs tabs = new Tabs(initialTab);
+        tabs.setSelectedTab(initialTab);
+        tabs.addClassName("main-tabs");
+        return tabs;
+    }
+
+    private Div buildPages() {
+        Div pages = new Div(advertisementsView);
+        pages.setSizeFull();
+        pages.addClassName("main-pages");
+        advertisementsView.setVisible(true);
+        return pages;
+    }
+}

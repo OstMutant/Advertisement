@@ -5,10 +5,10 @@ Automated E2E tests using `@playwright/test` (headless Chromium).
 ## Requirements
 
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
-- App image already built: `docker build -f Dockerfile -t advertisement-app .`
+- App image already built: `docker build -f Dockerfile -t marketplace-app .`
 - DB + MinIO containers running: `docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d`
 
-The `advertisement-app` container is started automatically if stopped. Test accounts are seeded automatically before each run.
+The `marketplace-app` container is started automatically if stopped. Test accounts are seeded automatically before each run.
 
 ## Running
 
@@ -48,7 +48,7 @@ After run:
 
 ## What run.sh does automatically
 
-1. **App readiness** — if `advertisement-app` is stopped, starts it and waits for `Started Application` in Docker logs (up to 120 s). If the container doesn't exist, prints the exact `docker run` command and exits.
+1. **App readiness** — if `marketplace-app` is stopped, starts it and waits for `Started Application` in Docker logs (up to 120 s). If the container doesn't exist, prints the exact `docker run` command and exits.
 2. **Test account seeding** — runs `/app/database/seed.sql` against the postgres container (detected by port 5432). Creates `user1–user3@example.com` with password `password` if they don't exist. Safe to run repeatedly (`ON CONFLICT DO NOTHING`).
 
 ## Test accounts

@@ -16,51 +16,51 @@ for arg in "$@"; do
   if [ "$arg" = "--ux" ]; then UX=1; else SCENARIO="$arg"; fi
 done
 
-# ── Ensure advertisement-app is running ──────────────────────────────────────
+# ── Ensure marketplace-app is running ──────────────────────────────────────
 APP_URL="${APP_URL:-http://localhost:8080}"
 
-if ! docker inspect advertisement-app &>/dev/null; then
-  echo "ERROR: Container 'advertisement-app' not found. Build and start it:"
-  echo "  docker build -f Dockerfile -t advertisement-app ."
+if ! docker inspect marketplace-app &>/dev/null; then
+  echo "ERROR: Container 'marketplace-app' not found. Build and start it:"
+  echo "  docker build -f Dockerfile -t marketplace-app ."
   echo "  docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d"
-  echo "  docker run -d --name advertisement-app --network host \\"
+  echo "  docker run -d --name marketplace-app --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"
   echo "    -e DB_PASSWORD=experiments_user_password \\"
   echo "    -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \\"
   echo "    -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \\"
   echo "    -e S3_REGION=us-east-1 \\"
-  echo "    -e S3_PUBLIC_URL=http://localhost:9000/advertisement advertisement-app"
+  echo "    -e S3_PUBLIC_URL=http://localhost:9000/advertisement marketplace-app"
   exit 1
 fi
 
-STATUS=$(docker inspect -f '{{.State.Status}}' advertisement-app)
+STATUS=$(docker inspect -f '{{.State.Status}}' marketplace-app)
 if [ "$STATUS" != "running" ]; then
-  echo "Starting advertisement-app..."
-  docker start advertisement-app
+  echo "Starting marketplace-app..."
+  docker start marketplace-app
   echo "Waiting for startup (tailing logs)..."
   end=$((SECONDS + 120))
   while true; do
-    if docker logs advertisement-app 2>&1 | grep -q "Started Application"; then
+    if docker logs marketplace-app 2>&1 | grep -q "Started Application"; then
       echo "App ready."
       break
     fi
     if [ $SECONDS -ge $end ]; then
       echo "ERROR: startup timed out"
-      docker logs --tail=40 advertisement-app
+      docker logs --tail=40 marketplace-app
       exit 1
     fi
     sleep 2
   done
 else
   curl -s --max-time 5 "$APP_URL" >/dev/null 2>&1 \
-    || { echo "ERROR: advertisement-app running but not responding"; docker logs --tail=30 advertisement-app; exit 1; }
+    || { echo "ERROR: marketplace-app running but not responding"; docker logs --tail=30 marketplace-app; exit 1; }
 fi
 
 # ── Seed test accounts ────────────────────────────────────────────────────────
 DB_CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
 if [ -n "$DB_CONTAINER" ]; then
-  docker cp /app/database/seed.sql "$DB_CONTAINER":/tmp/pw-seed.sql 2>/dev/null
+  docker cp /app/scripts/database/seed.sql "$DB_CONTAINER":/tmp/pw-seed.sql 2>/dev/null
   docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
     -f /tmp/pw-seed.sql -q 2>/dev/null && echo "Test accounts seeded." || true
 else

@@ -20,10 +20,10 @@
 
     <modules>
         <module>sql-engine</module>
-        <module>advertisement-contracts</module>
+        <module>platform-contracts</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
-        <module>advertisement-app</module>
+        <module>marketplace-app</module>
     </modules>
 
     <properties>
@@ -51,7 +51,7 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
-                <artifactId>advertisement-contracts</artifactId>
+                <artifactId>platform-contracts</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

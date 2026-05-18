@@ -1,0 +1,57 @@
+package org.ost.marketplace.ui.views.components.query.elements.fields;
+
+import com.vaadin.flow.component.combobox.ComboBox;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
+import lombok.*;
+import org.ost.marketplace.common.I18nKey;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.core.ui.Configurable;
+import org.ost.platform.core.ui.ComponentBuilder;
+import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.platform.core.ui.Initialization;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.annotation.Scope;
+
+import static org.ost.marketplace.ui.views.utils.HighlighterUtil.setDefaultBorder;
+
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+@SuppressWarnings("java:S110")
+public class QueryComboField<T> extends ComboBox<T>
+        implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, I18nParams, Initialization<QueryComboField<T>> {
+
+    @Value
+    @lombok.Builder
+    public static class Parameters<T> {
+        @NonNull I18nKey placeholderKey;
+        @NonNull T[]     items;
+    }
+
+    @SpringComponent
+    @RequiredArgsConstructor
+    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
+        @Getter
+        private final ObjectProvider<QueryComboField<T>> provider;
+    }
+
+    @Getter
+    private final transient I18nService i18nService;
+
+    @Override
+    @PostConstruct
+    public QueryComboField<T> init() {
+        addClassName("query-combo");
+        setClearButtonVisible(true);
+        setDefaultBorder(this);
+        return this;
+    }
+
+    @Override
+    public QueryComboField<T> configure(Parameters<T> p) {
+        setPlaceholder(getValue(p.getPlaceholderKey()));
+        setItems(p.getItems());
+        return this;
+    }
+}

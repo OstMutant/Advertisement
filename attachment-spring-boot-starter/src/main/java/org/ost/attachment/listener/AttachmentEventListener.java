@@ -1,11 +1,11 @@
 package org.ost.attachment.listener;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.attachment.event.AdvertisementDeletedEvent;
-import org.ost.advertisement.attachment.event.AdvertisementRestoredEvent;
+import org.ost.platform.attachment.event.AdvertisementDeletedEvent;
+import org.ost.platform.attachment.event.AdvertisementRestoredEvent;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
-import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionalEventListener;

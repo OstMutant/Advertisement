@@ -46,22 +46,22 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 ```
 advertisement-parent (root pom)
 ├── sql-engine                       — framework-agnostic SQL query-building library
-├── advertisement-contracts          — shared kernel: DTOs, domain events, SPI interfaces
+├── platform-contracts               — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
 ├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
-└── advertisement-app                — main Vaadin application
+└── marketplace-app                  — main Vaadin application
 ```
 
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
-**advertisement-contracts** defines the cross-module contracts, organized into three semantic packages:
+**platform-contracts** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`, `Role`), `core.config` (`CleanupProperties`, `UserSettings`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (shared SPIs: `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `UserActivityExtension`, `AdvertisementHistoryExtension`)
 - `audit.*` — audit subsystem contract: `audit.api` (`AuditPort`, `AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `AdvertisementHistoryDto`, `SnapshotContent`, `UserSnapshotState`), `audit.spi` (`AuditUserProvider`, `AuditUiExtension`)
 - `attachment.*` — attachment subsystem contract: `attachment.event` (domain events: `AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`), `attachment.spi` (`AdvertisementGalleryExtension`, `AttachmentCurrentUserProvider`, `AttachmentEntityDisplayNameResolver`), `attachment.storage` (`StorageService`, `@ConditionalOnStorageEnabled`)
 
-**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), `AttachmentCleanupJob`, `S3StorageService`, and `NoOpStorageService`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), `AttachmentCleanupJob`, `S3StorageService`, and `NoOpStorageService`. Java package root: `org.ost.attachment`.
 
 ---
 
@@ -69,7 +69,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
-3. **Modular Storage:** `StorageService` interface lives in `advertisement-contracts` (`attachment.storage`); `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
+3. **Modular Storage:** `StorageService` interface lives in `platform-contracts` (`attachment.storage`); `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
@@ -124,7 +124,7 @@ public class MyPanel extends Div
 - `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
 - Inner `Builder` class is required for all `Configurable` beans — wraps `ObjectProvider` via `ComponentBuilder`.
-- `Configurable`, `ComponentBuilder`, `Initialization` live in `advertisement-contracts` (`core.ui`) so all modules can use them.
+- `Configurable`, `ComponentBuilder`, `Initialization` live in `platform-contracts` (`core.ui`) so all modules can use them.
 
 **When NOT to use Configurable:**
 - Component has distinct modes with different UI structure → use explicit named methods:
@@ -132,13 +132,13 @@ public class MyPanel extends Div
 - Component needs only 1–2 simple setters → plain setters, no `Parameters`.
 - Do NOT use positional-argument methods with 4+ parameters in any module — use `Parameters` instead.
 
-**Cross-module rule:** audit-starter and attachment-starter must follow the same pattern as advertisement-app.
+**Cross-module rule:** audit-starter and attachment-starter must follow the same pattern as marketplace-app.
 A `build(Long id, String name, Role role, ...)` method with 4+ positional args is a pattern violation.
 
 ### I18n in UI components
 
-Each module owns its translation key enum implementing `TranslationKey` (defined in `advertisement-contracts`, package `core.i18n`):
-- `advertisement-app` → `CommonMessages implements TranslationKey`
+Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-contracts`, package `core.i18n`):
+- `marketplace-app` → `CommonMessages implements TranslationKey`
 - `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
 - `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
 
@@ -223,7 +223,7 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
 
-### Package structure (advertisement-app)
+### Package structure (marketplace-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
 - `services/audit/` — entire audit subsystem: services + snapshots + diff engine + annotation
 - `services/auth/` — authentication context (interface + impl)
@@ -254,17 +254,17 @@ After making UI changes, verify them by running the Playwright script inside Doc
 
 ### Prerequisites
 - DB and MinIO already running (started separately via docker-compose.db.yml / docker-compose.minio.yml)
-- App image built with: `docker build -f Dockerfile -t advertisement-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
+- App image built with: `docker build -f Dockerfile -t marketplace-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
 - App must be running:
 ```bash
-docker run -d --name advertisement-app --network host \
+docker run -d --name marketplace-app --network host \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments \
   -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
   -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \
   -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
   -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
-  advertisement-app
+  marketplace-app
 ```
 
 ### Scripts location
@@ -281,9 +281,9 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 
 ### Workflow for UI changes
 1. Make code changes
-2. Rebuild image: `docker rm -f advertisement-app && docker build -f Dockerfile -t advertisement-app .`
+2. Rebuild image: `docker rm -f marketplace-app && docker build -f Dockerfile -t marketplace-app .`
 3. Start app (command above)
-4. Wait for start: run `docker logs -f advertisement-app` with `run_in_background: true`, then use Monitor tool — it streams stdout and notifies when `"Started Application"` appears
+4. Wait for start: run `docker logs -f marketplace-app` with `run_in_background: true`, then use Monitor tool — it streams stdout and notifies when `"Started Application"` appears
 5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
 6. For UX analysis add `--ux` flag → read screenshots from `/app/playwright/screenshots/` with `Read` tool
 
@@ -302,17 +302,17 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 
 ## SonarQube Analysis
 
-All config lives in `/app/sonar/`. SonarQube server runs in Docker on `localhost:9099`.
+All config lives in `/app/scripts/sonar/`. SonarQube server runs in Docker on `localhost:9099`.
 
 ### Start server manually (if needed)
 ```bash
-docker compose -f sonar/docker-compose.sonar.yml up -d
+docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
 ```
 
 ### Run analysis
 ```bash
-bash /app/sonar/run.sh        # Linux / WSL
-sonar\run.bat                 # Windows
+bash scripts/sonar.sh        # Linux / WSL
+scripts\sonar.bat            # Windows
 ```
 
 The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`.
@@ -324,11 +324,11 @@ The script starts SonarQube automatically if not running, copies source files in
 ## Architectural Decisions Log
 
 Significant decisions are recorded in per-module `DECISIONS.md` files:
-- `/app/advertisement-app/DECISIONS.md`
+- `/app/marketplace-app/DECISIONS.md`
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
-- `/app/sonar/DECISIONS.md`
+- `/app/scripts/sonar/DECISIONS.md`
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.

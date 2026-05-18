@@ -1,10 +1,10 @@
 package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.advertisement.core.model.ChangeEntry;
-import org.ost.advertisement.core.spi.AdvertisementHistoryExtension;
+import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.spi.AdvertisementHistoryExtension;
 import org.ost.attachment.service.AttachmentSnapshotService;
-import org.ost.advertisement.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
