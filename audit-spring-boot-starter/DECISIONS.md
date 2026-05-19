@@ -62,6 +62,58 @@
 
 ---
 
+## 2026-05-19 — Profile activity decoration through `SnapshotBinder<T>` + `ActivityRowBinding` SPI
+
+**Decision:** `ProfileActivityPanel` no longer parses snapshot payloads. Per-row decorations (current-state badges, restore buttons) are produced by `ActivityRowBinding` instances supplied by the host application through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. The canonical generic implementation `SnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>` per the CLAUDE.md UI Component Patterns) lives in this module so consumers do not have to reinvent the deserialize-and-decorate dance.
+
+`SnapshotBinder<T>` accepts: `entityType`, `Class<T> snapshotClass`, `Predicate<T> isCurrent`, optional `BiConsumer<Long, T> onRestore` (null → no restore button), `currentLabel`, `restoreLabel`. It deserializes `ActivityItemDto.snapshotData` (via `userSettingsObjectMapper`), tests `isCurrent`, and emits either a "current state" badge, a "restore" button, or nothing. The `Builder<T>` mirrors the `OverlayFormBinder<T>.Builder` pattern.
+
+`ProfileActivityPanel.Parameters` now carries a `List<ActivityRowBinding> bindings`. `decorateRow` looks up the first binding whose `entityType()` matches the row and appends `binding.decorate(item)` if non-null.
+
+**Why:** Previously the panel hardcoded "if entityType == USER, parse `UserSnapshotState`, compare to current `User`" — a domain leak into the starter. The SPI puts shape knowledge on the consumer side; the starter only iterates bindings.
+
+**Rejected:** Decorator pattern (extra panel wrapper) and abstract `ActivityRowDecorator<T>` (forces inheritance per shape). Builder+Parameters mirrors the established `Configurable<T, P>` pattern.
+
+---
+
+## 2026-05-19 — Starter owns `auditObjectMapper`; Liquibase gated by `audit.enabled`
+
+**Decision:** `AuditAutoConfiguration` now defines `@Bean("auditObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "auditObjectMapper")` for override. All audit-side consumers — `ActivityProjection`, `EntityHistoryProjection`, `AuditReadRepository`, `ActivityRepository`, `AuditSnapshotMapper`, `ActivityRowRenderer`, `EntityHistoryPanel`, `SnapshotBinder` — qualify their `ObjectMapper` injection with `@Qualifier("auditObjectMapper")` (lombok.copyableAnnotations propagates the qualifier from field to generated constructor parameter). The `auditLiquibase` bean is now `@ConditionalOnAuditEnabled` so `audit.enabled=false` produces no schema apply attempt.
+
+**Why:** Previously the starter relied on the host's `userSettingsObjectMapper` bean — a marketplace-specific name — and silently consumed it. The starter must work in any Spring Boot context, including ones with zero `ObjectMapper` beans or several. Naming the bean prevents collisions, qualifying every injection site keeps wiring explicit, and gating Liquibase mirrors the existing `attachmentLiquibase` pattern: disabling the subsystem leaves no residue.
+
+**Rejected:** `@Primary` on the starter's `ObjectMapper` (user feedback: explicit `@Qualifier` over `@Primary` everywhere — auto-memory entry). Adding `JavaTimeModule` to the starter mapper — `jackson-datatype-jsr310` is not in the starter's pom and the audit JSON shapes do not need it.
+
+---
+
+## 2026-05-19 — CSS classes renamed to domain-neutral vocabulary
+
+**Decision:** Stylesheet `adv-history.css` → `entity-history.css`; CSS class prefix `adv-history-*` → `entity-history-*` and `user-activity-*` → `activity-feed-*` across every Java component, marketplace theme stylesheet, Playwright selector, README excerpt, and helper. `@CssImport("./entity-history.css")` in `ActivityRowRenderer`; `@import url("./activity-feed.css")` in marketplace `styles.css`.
+
+**Why:** The audit subsystem renders histories and feeds for arbitrary entities; "adv-" hardcoded "advertisement" in selector vocabulary, and "user-activity" baked the marketplace's user concept into a generic feed. New names describe the surface (entity history list, activity feed row) rather than a specific consumer.
+
+**Rejected:** Leaving the old CSS file as a forwarder shim — no production version uses it yet, so a flat rename keeps the starter clean.
+
+---
+
+## 2026-05-19 — Actor-centric SPI vocabulary; user-domain types purged
+
+**Decision:** Audit subsystem speaks about actors and subjects, not users. Renames and removals:
+
+- `AuditUserProvider` (later `CurrentUserProvider`) → `CurrentActorProvider` (`getCurrentActorId()`).
+- `UserActivityExtension` → `ActivityFeedExtension`.
+- `AdvertisementHistoryExtension` → `MediaHistoryExtension`.
+- `UserSnapshotState` deleted (was the only typed snapshot in the contract surface).
+- `AuditPort.getUserStateBefore(Long)` / `getUserStateAt(Long)` deleted in favor of the already-generic `getPreviousSnapshotContent(Long, EntityType)` / `getSnapshotContent(Long, EntityType)`.
+- DB columns renamed: `user_id` → `actor_id` in audit log + related projections; field descriptors updated.
+- `ActorSnapshot(displayName)` record introduced in `audit.dto` to carry display-ready actor metadata.
+
+**Why:** "User" is a marketplace-specific concept and was the last domain leak in the contract surface. Renaming to "actor" makes the starter usable in any system whose acting principal is not a human user (workflow, bot, service account). Consumers in `marketplace-app` (e.g. `UserService.restoreToSnapshot`) now load `SnapshotContent` and deserialize their own `UserSnapshot` via `ObjectMapper` — domain JSON parsing stays on the domain side.
+
+**Rejected:** Keeping `UserSnapshotState` "for convenience" — confirmed unused after consumers were migrated to `SnapshotContent` + per-domain snapshot record.
+
+---
+
 ## 2026-05-16 — ActivityItemFieldsProvider SPI: expanded field display in activity feed
 
 **Decision:** Added `ActivityItemFieldsProvider` SPI (contracts `core.spi`). `ActivityRowRenderer.buildRow` calls it for non-settings items: if a provider supports the entity type AND `snapshotData` is non-empty, the provider returns a merged `List<ChangeEntry>` (changed fields with diff + unchanged fields as `FieldChange(field, null, currentValue)`). Falls back to raw `changes` when no provider registered. `UserActivityFieldsProvider` in `marketplace-app` implements this for `EntityType.USER`.

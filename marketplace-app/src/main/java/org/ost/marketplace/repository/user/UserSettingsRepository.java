@@ -2,7 +2,7 @@ package org.ost.marketplace.repository.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.exceptions.persistence.SettingsPersistenceException;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.slf4j.Logger;

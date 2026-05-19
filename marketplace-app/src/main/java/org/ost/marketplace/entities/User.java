@@ -11,7 +11,7 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 import java.util.Locale;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 
 @Value
 @Builder

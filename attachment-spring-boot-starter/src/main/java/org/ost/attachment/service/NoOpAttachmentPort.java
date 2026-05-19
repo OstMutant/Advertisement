@@ -15,10 +15,10 @@ public class NoOpAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public void softDeleteAll(EntityType entityType, Long entityId, Long userId) { /* storage disabled */ }
+    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) { /* storage disabled */ }
 
     @Override
-    public void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long userId) { /* storage disabled */ }
+    public void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long actorId) { /* storage disabled */ }
 
     @Override
     public MediaSummary getMediaSummary(EntityType entityType, Long entityId) {

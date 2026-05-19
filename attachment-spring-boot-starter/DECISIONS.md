@@ -57,6 +57,28 @@
 
 ---
 
+## 2026-05-19 — Starter owns `attachmentObjectMapper`; Liquibase gated by storage flag
+
+**Decision:** `AttachmentAutoConfiguration` defines `@Bean("attachmentObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "attachmentObjectMapper")` for override. `AttachmentSnapshotService.objectMapper` is annotated `@Qualifier("attachmentObjectMapper")` so it does not collide with `userSettingsObjectMapper` / `auditObjectMapper` in a context that has all three. The `attachmentLiquibase` bean is now `@ConditionalOnStorageEnabled` so `storage.s3.enabled=false` leaves no schema apply.
+
+**Why:** The starter previously consumed the host application's `userSettingsObjectMapper` — a marketplace-specific name — which broke contexts with multiple `ObjectMapper` beans (the audit starter introduced a second one, surfacing `NoUniqueBeanDefinitionException`). Owning a named mapper and explicit qualifier on every injection site eliminates the ambiguity without using `@Primary`. Gating Liquibase by `@ConditionalOnStorageEnabled` matches the audit pattern: disabling the subsystem leaves the database untouched.
+
+**Rejected:** `@Primary` on either mapper (user preference recorded as durable feedback: always qualify, never `@Primary`). Pulling `JavaTimeModule` in — `jackson-datatype-jsr310` is not on the starter's classpath and the attachment JSON shapes do not require it.
+
+---
+
+## 2026-05-19 — Actor-centric public API; user-domain naming purged
+
+**Decision:** Every public method that previously named a `userId` parameter (e.g. `AttachmentPort.softDeleteAll`, `restoreToSnapshot`, gallery upload callbacks) was renamed to `actorId`. The starter no longer references "user" in any contract method, log message, or DTO field.
+
+**Why:** Symmetry with the audit-starter's actor-centric rename and the contract-level shift from `CurrentUserProvider` → `CurrentActorProvider`. "User" implied a marketplace-specific principal; "actor" is neutral and applies to bots, workflows, or service accounts that may upload or remove attachments in non-marketplace deployments.
+
+**Migration:** Hard cutover — no aliases or wrapper methods. Marketplace-app call sites updated in the same commit. SPI `MediaChangeConsumer` already carried only `(entityType, entityId)` and required no change.
+
+**Rejected:** Keeping `userId` aliases for backwards compatibility — there are no external consumers; aliases would persist the user-domain vocabulary forever.
+
+---
+
 ## 2026-05-12 — Vaadin IFrame src patching via `Page.executeJs`
 
 **Decision:** In `CardMediaLightbox`, iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.

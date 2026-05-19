@@ -14,7 +14,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.audit.SettingsSnapshot;
@@ -27,8 +27,10 @@ import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiExtension;
+import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 
 import org.ost.marketplace.common.PaginationDefaults;
@@ -50,6 +52,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiExtension>               auditUiExtensionProvider;
+    private final transient SnapshotBinder.Builder<UserSettings>           settingsBinderBuilder;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -107,7 +110,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 settingsPanel.setVisible(isSettings);
                 activityPanel.setVisible(!isSettings);
                 if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
-                    activityPanel.add(buildActivityContent(currentUser.getId(), auditUi));
+                    activityPanel.add(buildActivityContent(auditUi));
                 }
             });
 
@@ -176,14 +179,24 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         }
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(Long userId, AuditUiExtension auditUi) {
-        UserSettings current = settingsService.load(userId);
-        return auditUi.buildUserActivityPanel(AuditUiExtension.UserActivityParams.builder()
-                .userId(currentUser.getId())
-                .userName(currentUser.getName())
-                .userRole(currentUser.getRole())
-                .currentSettings(current)
-                .onRestoreSettings(this::showSettingsRestoreConfirm)
+    private com.vaadin.flow.component.Component buildActivityContent(AuditUiExtension auditUi) {
+        UserSettings current = settingsService.load(currentUser.getId());
+        SnapshotBinder<UserSettings> settingsBinding = settingsBinderBuilder.build(
+                SnapshotBinder.Parameters.<UserSettings>builder()
+                        .entityType(EntityType.USER_SETTINGS)
+                        .snapshotClass(UserSettings.class)
+                        .isCurrent(snap -> snap.getAdsPageSize() == current.getAdsPageSize()
+                                        && snap.getUsersPageSize() == current.getUsersPageSize())
+                        .onRestore((snapshotId, snap) -> showSettingsRestoreConfirm(snap))
+                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
+                        .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
+                        .build());
+        return auditUi.buildProfileActivityPanel(AuditUiExtension.ProfileActivityParams.builder()
+                .subjectType(EntityType.USER)
+                .subjectId(currentUser.getId())
+                .viewerActorId(currentUser.getId())
+                .emptyLabel(getValue(ACTIVITY_EMPTY))
+                .bindings(java.util.List.of(settingsBinding))
                 .build());
     }
 

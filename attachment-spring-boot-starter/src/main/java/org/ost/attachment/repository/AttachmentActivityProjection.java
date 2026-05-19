@@ -18,16 +18,16 @@ public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto>
 
     private static final String QUERY =
             "SELECT ps.id AS ps_id, ps.entity_type, ps.entity_id," +
-            " ps.changes_summary::text AS changes_summary, ps.created_at, ps.changed_by_user_id" +
+            " ps.changes_summary::text AS changes_summary, ps.created_at, ps.changed_by_actor_id" +
             " FROM " + SOURCE +
-            " WHERE ps.changed_by_user_id = :userId" +
+            " WHERE ps.changed_by_actor_id = :actorId" +
             " AND ps.changes_summary IS NOT NULL" +
             " ORDER BY ps.created_at DESC LIMIT 20";
 
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     public AttachmentActivityProjection(AttachmentSnapshotService attachmentSnapshotService) {
-        super(List.of(ID, ENTITY_TYPE, ENTITY_ID, CHANGES_SUMMARY, CREATED_AT, CHANGED_BY_USER_ID));
+        super(List.of(ID, ENTITY_TYPE, ENTITY_ID, CHANGES_SUMMARY, CREATED_AT, CHANGED_BY_ACTOR_ID));
         this.attachmentSnapshotService = attachmentSnapshotService;
     }
 
@@ -47,7 +47,7 @@ public class AttachmentActivityProjection extends SqlFixedQuery<ActivityItemDto>
                 CREATED_AT.extract(rs),
                 false,
                 attachmentSnapshotService.parseMediaChanges(CHANGES_SUMMARY.extract(rs)),
-                CHANGED_BY_USER_ID.extract(rs),
+                CHANGED_BY_ACTOR_ID.extract(rs),
                 "—",
                 new SnapshotPayload(null)
         );

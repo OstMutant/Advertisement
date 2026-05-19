@@ -3,6 +3,7 @@ package org.ost.marketplace.services;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.core.model.EntityType;
@@ -36,6 +37,7 @@ public class AdvertisementService {
     private final AuditPort                  auditPort;
     private final AttachmentPort             attachmentPort;
     private final AuthContextService         authContextService;
+    @Qualifier("userSettingsObjectMapper")
     private final ObjectMapper               objectMapper;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {

@@ -33,7 +33,7 @@ public class AttachmentRepository {
 
     private static final String SET_DELETED_NOW =
             " SET " + AttachmentDescriptor.Write.DELETED_AT + " = NOW()," +
-            " "     + AttachmentDescriptor.Write.DELETED_BY_USER_ID;
+            " "     + AttachmentDescriptor.Write.DELETED_BY_ACTOR_ID;
 
     private static final String SQL_SELECT = "SELECT ";
     private static final String SQL_FROM   = " FROM ";
@@ -45,19 +45,19 @@ public class AttachmentRepository {
             SQL_SELECT + AttachmentDescriptor.Write.URL + SQL_FROM + AttachmentDescriptor.Write.TABLE;
 
     private static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
-            UPDATE_TABLE + SET_DELETED_NOW + " = :deletedBy" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :actorId" +
             " WHERE " + AttachmentDescriptor.ID.columnName() + " = :id"
     );
 
     private static final SqlWriteCommand SOFT_DELETE_ALL = SqlWriteCommand.of(
-            UPDATE_TABLE + SET_DELETED_NOW + " = :deletedBy" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :actorId" +
             " WHERE " + AttachmentDescriptor.Write.ENTITY_TYPE + " = :entityType" +
             " AND "   + AttachmentDescriptor.Write.ENTITY_ID + " = :entityId" +
             " AND "   + AttachmentDescriptor.Write.DELETED_AT + " IS NULL"
     );
 
     private static final SqlWriteCommand RESTORE_DELETE_ALL = SqlWriteCommand.of(
-            UPDATE_TABLE + SET_DELETED_NOW + " = :userId" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :actorId" +
             " WHERE " + AttachmentDescriptor.Write.ENTITY_TYPE + " = :entityType" +
             " AND "   + AttachmentDescriptor.Write.ENTITY_ID + " = :entityId" +
             " AND "   + AttachmentDescriptor.Write.DELETED_AT + " IS NULL"
@@ -66,14 +66,14 @@ public class AttachmentRepository {
     private static final SqlWriteCommand RESTORE_UNDELETE = SqlWriteCommand.of(
             UPDATE_TABLE +
             " SET "   + AttachmentDescriptor.Write.DELETED_AT + " = NULL," +
-            " "       + AttachmentDescriptor.Write.DELETED_BY_USER_ID + " = NULL" +
+            " "       + AttachmentDescriptor.Write.DELETED_BY_ACTOR_ID + " = NULL" +
             " WHERE " + AttachmentDescriptor.Write.ENTITY_TYPE + " = :entityType" +
             " AND "   + AttachmentDescriptor.Write.ENTITY_ID + " = :entityId" +
             " AND "   + AttachmentDescriptor.Write.URL + " = ANY(:urls)"
     );
 
     private static final SqlWriteCommand RESTORE_MARK_DELETED = SqlWriteCommand.of(
-            UPDATE_TABLE + SET_DELETED_NOW + " = :userId" +
+            UPDATE_TABLE + SET_DELETED_NOW + " = :actorId" +
             " WHERE " + AttachmentDescriptor.Write.ENTITY_TYPE + " = :entityType" +
             " AND "   + AttachmentDescriptor.Write.ENTITY_ID + " = :entityId" +
             " AND "   + AttachmentDescriptor.Write.DELETED_AT + " IS NULL" +
@@ -96,19 +96,19 @@ public class AttachmentRepository {
                 .contentType(contentType).size(size).build();
     }
 
-    public void softDelete(Long id, Long deletedBy) {
+    public void softDelete(Long id, Long actorId) {
         SOFT_DELETE.execute(jdbcClient,
-                new MapSqlParameterSource().addValue(Attachment.Fields.id, id).addValue("deletedBy", deletedBy));
+                new MapSqlParameterSource().addValue(Attachment.Fields.id, id).addValue("actorId", actorId));
     }
 
-    public void softDeleteAll(EntityType entityType, Long entityId, Long deletedByUserId) {
+    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
         SOFT_DELETE_ALL.execute(jdbcClient,
-                entityParams(entityType, entityId).addValue("deletedBy", deletedByUserId));
+                entityParams(entityType, entityId).addValue("actorId", actorId));
     }
 
-    public void restoreDeleteAll(EntityType entityType, Long entityId, Long userId) {
+    public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
         RESTORE_DELETE_ALL.execute(jdbcClient,
-                entityParams(entityType, entityId).addValue("userId", userId));
+                entityParams(entityType, entityId).addValue("actorId", actorId));
     }
 
     public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
@@ -116,9 +116,9 @@ public class AttachmentRepository {
                 entityParams(entityType, entityId).addValue("urls", urls));
     }
 
-    public void restoreMarkDeleted(EntityType entityType, Long entityId, Long userId, String[] urls) {
+    public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
         RESTORE_MARK_DELETED.execute(jdbcClient,
-                entityParams(entityType, entityId).addValue("userId", userId).addValue("urls", urls));
+                entityParams(entityType, entityId).addValue("actorId", actorId).addValue("urls", urls));
     }
 
     public Attachment findById(Long id) {

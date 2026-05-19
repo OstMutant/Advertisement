@@ -3,7 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.users.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.services.ValidationService;
 import org.ost.marketplace.ui.views.components.query.processor.FilterFieldMeta;
 import org.ost.marketplace.ui.views.components.query.processor.ValidationPredicates;

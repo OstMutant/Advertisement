@@ -21,9 +21,9 @@ public class AttachmentSnapshotRepository {
             " "  + AttachmentSnapshotDescriptor.Write.ENTITY_ID + "," +
             " "  + AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS + "," +
             " "  + AttachmentSnapshotDescriptor.Write.CHANGES_SUMMARY + "," +
-            " "  + AttachmentSnapshotDescriptor.Write.CHANGED_BY_USER_ID + ", created_at)" +
+            " "  + AttachmentSnapshotDescriptor.Write.CHANGED_BY_ACTOR_ID + ", created_at)" +
             " VALUES (:entityType, :entityId," +
-            " :urls, CAST(:changes AS JSONB), :userId, NOW())"
+            " :urls, CAST(:changes AS JSONB), :actorId, NOW())"
     );
 
     private static final String FROM_TABLE = " FROM " + AttachmentSnapshotDescriptor.TABLE;
@@ -33,14 +33,14 @@ public class AttachmentSnapshotRepository {
 
     private final JdbcClient jdbcClient;
 
-    public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long userId) {
+    public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long actorId) {
         INSERT.execute(jdbcClient,
                 new MapSqlParameterSource()
                         .addValue("entityType", entityType.name())
                         .addValue("entityId",   entityId)
                         .addValue("urls",       urls)
                         .addValue("changes",    changesJson)
-                        .addValue("userId",     userId));
+                        .addValue("actorId",    actorId));
     }
 
     public List<String> getPrevUrls(EntityType entityType, Long entityId) {
@@ -78,7 +78,7 @@ public class AttachmentSnapshotRepository {
                 .orElse(new String[0]);
     }
 
-    public Optional<List<String>> getUrlsForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
+    public Optional<List<String>> getUrlsForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
         return jdbcClient.sql(
                 "SELECT attachment_urls" +
                 FROM_TABLE +
@@ -90,7 +90,7 @@ public class AttachmentSnapshotRepository {
                 "       ORDER BY created_at ASC LIMIT 1" +
                 "   ), 'infinity'::timestamptz)" +
                 " ORDER BY created_at DESC LIMIT 1")
-                .paramSource(entityParams(entityType, entityId).addValue("snapId", advSnapshotId))
+                .paramSource(entityParams(entityType, entityId).addValue("snapId", snapshotId))
                 .query((rs, row) -> toStringList(rs, AttachmentSnapshotDescriptor.Write.ATTACHMENT_URLS))
                 .optional();
     }

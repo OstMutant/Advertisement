@@ -87,7 +87,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
         if (auditUi != null && access.canOperate(params.getAd())) {
             Div historyContent = new Div();
-            historyContent.addClassName("adv-history-content");
+            historyContent.addClassName("entity-history-content");
             historyContent.setVisible(false);
 
             Tab historyTab = new Tab(getValue(ADVERTISEMENT_HISTORY_TAB));

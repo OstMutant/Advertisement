@@ -54,12 +54,12 @@ test.describe('Activity types', () => {
     await openActivityTab(page);
 
     await test.step('ADVERTISEMENT entity type badge present', async () => {
-      if (await page.locator('.user-activity-type--advertisement').count() === 0)
+      if (await page.locator('.activity-feed-type--advertisement').count() === 0)
         throw new Error('No ADVERTISEMENT type badge');
     });
 
     await test.step('CREATED action badge present', async () => {
-      const rows = page.locator('.user-activity-row');
+      const rows = page.locator('.activity-feed-row');
       const count = await rows.count();
       let found = false;
       for (let i = 0; i < count; i++) {
@@ -69,7 +69,7 @@ test.describe('Activity types', () => {
     });
 
     await test.step('UPDATED action badge present', async () => {
-      const rows = page.locator('.user-activity-row');
+      const rows = page.locator('.activity-feed-row');
       const count = await rows.count();
       let found = false;
       for (let i = 0; i < count; i++) {
@@ -80,7 +80,7 @@ test.describe('Activity types', () => {
 
     if (deleteExists) {
       await test.step('Deleted entity shows (deleted) marker', async () => {
-        const rows = page.locator('.user-activity-row--deleted');
+        const rows = page.locator('.activity-feed-row--deleted');
         if (await rows.count() === 0) throw new Error('No deleted-row marker found');
         const text = await rows.first().textContent();
         if (!text.includes('видалено') && !text.includes('deleted'))
@@ -89,7 +89,7 @@ test.describe('Activity types', () => {
     }
 
     await test.step('Activity rows contain timestamp', async () => {
-      const times = page.locator('.user-activity-time');
+      const times = page.locator('.activity-feed-time');
       if (await times.count() === 0) throw new Error('No timestamps found in activity');
       const first = await times.first().textContent();
       if (!first || first === 'N/A') throw new Error('Empty or N/A timestamp');

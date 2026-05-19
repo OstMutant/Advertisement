@@ -91,7 +91,7 @@ test.describe('Admin media edit — single current-state badge', () => {
 
       await screenshot(page, 'admin-media-edit-history');
 
-      const badgeCount = await page.locator('.adv-history-current-badge').count();
+      const badgeCount = await page.locator('.entity-history-current-badge').count();
       if (badgeCount !== 1) {
         throw new Error(`Expected exactly 1 current-state badge, got ${badgeCount} — bug: multiple versions incorrectly marked as current`);
       }

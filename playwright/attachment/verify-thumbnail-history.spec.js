@@ -40,7 +40,7 @@ test.describe('Thumbnail and media history', () => {
     await openHistory(page);
 
     await test.step('History tab shows media changes', async () => {
-      const text = await page.locator('.adv-history-list').textContent();
+      const text = await page.locator('.entity-history-list').textContent();
       if (!/(зображення|image)/i.test(text))
         throw new Error('No media entry in history for thumbnail ad: ' + text.slice(0, 200));
     });

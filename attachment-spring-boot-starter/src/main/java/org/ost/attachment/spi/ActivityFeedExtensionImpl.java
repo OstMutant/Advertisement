@@ -3,7 +3,8 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.audit.spi.UserActivityExtension;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.audit.spi.ActivityFeedExtension;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.springframework.stereotype.Component;
@@ -14,12 +15,12 @@ import java.util.List;
 @Component
 @ConditionalOnStorageEnabled
 @RequiredArgsConstructor
-public class UserActivityExtensionImpl implements UserActivityExtension {
+public class ActivityFeedExtensionImpl implements ActivityFeedExtension {
 
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     @Override
-    public List<ActivityItemDto> merge(Long userId, List<ActivityItemDto> baseItems) {
+    public List<ActivityItemDto> merge(EntityType subjectType, Long subjectId, List<ActivityItemDto> baseItems) {
         return baseItems.stream()
                 .map(item -> {
                     List<ChangeEntry> mediaChanges = attachmentSnapshotService
@@ -30,7 +31,7 @@ public class UserActivityExtensionImpl implements UserActivityExtension {
                     return new ActivityItemDto(
                             item.snapshotId(), item.entityId(), item.entityType(),
                             item.displayName(), item.actionType(), item.createdAt(),
-                            item.entityExists(), merged, item.changedByUserId(),
+                            item.entityExists(), merged, item.changedByActorId(),
                             item.changedByName(), item.snapshotData());
                 })
                 .toList();

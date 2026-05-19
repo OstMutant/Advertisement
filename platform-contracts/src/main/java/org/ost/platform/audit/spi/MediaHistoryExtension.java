@@ -5,7 +5,7 @@ import org.ost.platform.core.model.EntityType;
 
 import java.util.List;
 
-public interface AdvertisementHistoryExtension {
+public interface MediaHistoryExtension {
 
     List<ChangeEntry> getMediaChanges(EntityType entityType, Long entityId, int version);
 
@@ -13,5 +13,5 @@ public interface AdvertisementHistoryExtension {
 
     String getMediaStateAtVersion(EntityType entityType, Long entityId, int version);
 
-    String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId);
+    String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId);
 }

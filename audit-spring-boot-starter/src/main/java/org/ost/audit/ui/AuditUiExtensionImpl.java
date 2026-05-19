@@ -11,20 +11,8 @@ import org.ost.platform.audit.spi.AuditUiExtension;
 @RequiredArgsConstructor
 public class AuditUiExtensionImpl implements AuditUiExtension {
 
-    private final ProfileActivityPanel.Builder userActivityBuilder;
-    private final EntityHistoryPanel.Builder   historyBuilder;
-
-    @Override
-    public Component buildUserActivityPanel(UserActivityParams p) {
-        return userActivityBuilder.build(ProfileActivityPanel.Parameters.builder()
-                .userId(p.getUserId())
-                .userName(p.getUserName())
-                .userRole(p.getUserRole())
-                .currentSettings(p.getCurrentSettings())
-                .onRestoreUser(p.getOnRestoreUser())
-                .onRestoreSettings(p.getOnRestoreSettings())
-                .build());
-    }
+    private final EntityHistoryPanel.Builder    historyBuilder;
+    private final ProfileActivityPanel.Builder  profileActivityBuilder;
 
     @Override
     public Component buildEntityHistoryPanel(EntityHistoryParams p) {
@@ -38,6 +26,17 @@ public class AuditUiExtensionImpl implements AuditUiExtension {
                 .labelEmpty(p.getLabelEmpty())
                 .labelCurrentState(p.getLabelCurrentState())
                 .labelRestore(p.getLabelRestore())
+                .build());
+    }
+
+    @Override
+    public Component buildProfileActivityPanel(ProfileActivityParams p) {
+        return profileActivityBuilder.build(ProfileActivityPanel.Parameters.builder()
+                .subjectType(p.getSubjectType())
+                .subjectId(p.getSubjectId())
+                .viewerActorId(p.getViewerActorId())
+                .emptyLabel(p.getEmptyLabel())
+                .bindings(p.getBindings())
                 .build());
     }
 }

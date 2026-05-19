@@ -213,8 +213,8 @@ test.describe('Upload video', () => {
             const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Іс|Hist/i });
             if (await historyTab.isVisible()) {
                 await historyTab.click();
-                await page.locator('.adv-history-list').waitFor({ timeout: 5000 });
-                const historyText = await page.locator('.adv-history-list').textContent();
+                await page.locator('.entity-history-list').waitFor({ timeout: 5000 });
+                const historyText = await page.locator('.entity-history-list').textContent();
                 // Should contain media change info (test-history filename or "images" label)
                 expect(historyText.length).toBeGreaterThan(0);
                 await screenshot(page, 'upload-video-04-history');

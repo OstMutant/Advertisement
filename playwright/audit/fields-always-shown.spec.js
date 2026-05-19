@@ -26,8 +26,8 @@ test.describe('All fields always shown in history and activity', () => {
 
     await test.step('CREATED row shows both title and description fields', async () => {
       await openHistory(page);
-      const createdRow = page.locator('.adv-history-row').first();
-      const items = createdRow.locator('.adv-history-changes-item');
+      const createdRow = page.locator('.entity-history-row').first();
+      const items = createdRow.locator('.entity-history-changes-item');
       const count = await items.count();
       if (count < 2) throw new Error(`CREATED row should have >=2 field items (title + description), got ${count}`);
       const texts = await items.allTextContents();
@@ -49,8 +49,8 @@ test.describe('All fields always shown in history and activity', () => {
     await openHistory(page);
 
     await test.step('UPDATED row (description only) shows unchanged title and changed description', async () => {
-      const updatedRow = page.locator('.adv-history-row').first();
-      const items = updatedRow.locator('.adv-history-changes-item');
+      const updatedRow = page.locator('.entity-history-row').first();
+      const items = updatedRow.locator('.entity-history-changes-item');
       const count = await items.count();
       if (count < 2) throw new Error(`UPDATED row should have >=2 field items (title unchanged + description diff), got ${count}`);
 
@@ -61,7 +61,7 @@ test.describe('All fields always shown in history and activity', () => {
       const hasDiff = texts.some(t => t.includes('→'));
       if (!hasDiff) throw new Error(`Diff arrow → not found in UPDATED row — changed description should show diff: ${JSON.stringify(texts)}`);
 
-      const unchangedItems = updatedRow.locator('.adv-history-changes-item--unchanged');
+      const unchangedItems = updatedRow.locator('.entity-history-changes-item--unchanged');
       const unchangedCount = await unchangedItems.count();
       if (unchangedCount === 0) throw new Error('No unchanged-styled items in UPDATED row — title should be styled as unchanged');
     });
@@ -85,9 +85,9 @@ test.describe('All fields always shown in history and activity', () => {
     await openActivityTab(page);
 
     await test.step('CREATED activity row shows both title and description', async () => {
-      const createdRow = page.locator('.user-activity-row')
+      const createdRow = page.locator('.activity-feed-row')
         .filter({ hasText: TITLE_V1 }).first();
-      const items = createdRow.locator('.user-activity-changes-item');
+      const items = createdRow.locator('.activity-feed-changes-item');
       const count = await items.count();
       if (count < 2) throw new Error(`CREATED activity row should have >=2 field items, got ${count}`);
       const texts = await items.allTextContents();
@@ -119,9 +119,9 @@ test.describe('All fields always shown in history and activity', () => {
     await openActivityTab(page);
 
     await test.step('UPDATED activity row (title only) shows title diff and unchanged description', async () => {
-      const updatedRow = page.locator('.user-activity-row')
+      const updatedRow = page.locator('.activity-feed-row')
         .filter({ hasText: TITLE_V2 }).first();
-      const items = updatedRow.locator('.user-activity-changes-item');
+      const items = updatedRow.locator('.activity-feed-changes-item');
       const count = await items.count();
       if (count < 2) throw new Error(`UPDATED activity row should have >=2 field items, got ${count}`);
 
@@ -132,7 +132,7 @@ test.describe('All fields always shown in history and activity', () => {
       const hasDesc = texts.some(t => t.includes(DESC));
       if (!hasDesc) throw new Error(`Unchanged description "${DESC}" not found in UPDATED activity row: ${JSON.stringify(texts)}`);
 
-      const unchangedItems = updatedRow.locator('.user-activity-changes-item--unchanged');
+      const unchangedItems = updatedRow.locator('.activity-feed-changes-item--unchanged');
       const unchangedCount = await unchangedItems.count();
       if (unchangedCount === 0) throw new Error('No unchanged-styled items — description should be styled as unchanged');
     });

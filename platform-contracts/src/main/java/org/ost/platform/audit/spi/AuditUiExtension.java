@@ -3,25 +3,12 @@ package org.ost.platform.audit.spi;
 import com.vaadin.flow.component.Component;
 import lombok.Value;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.core.config.UserSettings;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.model.Role;
 
+import java.util.List;
 import java.util.function.ObjLongConsumer;
-import java.util.function.Consumer;
 
 public interface AuditUiExtension {
-
-    @Value
-    @lombok.Builder
-    class UserActivityParams {
-        Long                   userId;
-        String                 userName;
-        Role                   userRole;
-        UserSettings           currentSettings;
-        Consumer<Long>         onRestoreUser;
-        Consumer<UserSettings> onRestoreSettings;
-    }
 
     @Value
     @lombok.Builder
@@ -37,7 +24,18 @@ public interface AuditUiExtension {
         String                                 labelRestore;
     }
 
-    Component buildUserActivityPanel(UserActivityParams params);
+    @Value
+    @lombok.Builder
+    class ProfileActivityParams {
+        EntityType                 subjectType;
+        Long                       subjectId;
+        Long                       viewerActorId;
+        String                     emptyLabel;
+        @lombok.Builder.Default
+        List<ActivityRowBinding>   bindings = List.of();
+    }
 
     Component buildEntityHistoryPanel(EntityHistoryParams params);
+
+    Component buildProfileActivityPanel(ProfileActivityParams params);
 }

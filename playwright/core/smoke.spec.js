@@ -231,10 +231,10 @@ test.describe('Smoke: advertisement history', () => {
 
     await test.step('History tab has 2+ entries and changes summary', async () => {
       await openHistory(page);
-      await expect(page.locator('.adv-history-list')).toBeVisible();
-      const rows = await page.locator('.adv-history-row').count();
+      await expect(page.locator('.entity-history-list')).toBeVisible();
+      const rows = await page.locator('.entity-history-row').count();
       if (rows < 2) throw new Error(`Expected >=2 history rows, got ${rows}`);
-      if (await page.locator('.adv-history-changes').count() === 0)
+      if (await page.locator('.entity-history-changes').count() === 0)
         throw new Error('No changes summary in history');
       await screenshot(page, 'smoke-history');
     });
@@ -262,8 +262,8 @@ test.describe('Smoke: activity feed', () => {
       const tabs = await page.locator('.base-overlay.overlay--visible vaadin-tab').allTextContents();
       if (!tabs.some(t => /activ|активн/i.test(t))) throw new Error('No activity tab in settings');
       await openActivityTab(page);
-      await expect(page.locator('.user-activity-list').first()).toBeVisible();
-      if (await page.locator('.user-activity-row').count() === 0)
+      await expect(page.locator('.activity-feed-list').first()).toBeVisible();
+      if (await page.locator('.activity-feed-row').count() === 0)
         throw new Error('No activity rows');
       await screenshot(page, 'smoke-activity');
     });

@@ -1,5 +1,7 @@
 package org.ost.attachment.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
@@ -39,7 +41,15 @@ public class AttachmentAutoConfiguration {
         return new CleanupProperties(90);
     }
 
+    @Bean("attachmentObjectMapper")
+    @ConditionalOnMissingBean(name = "attachmentObjectMapper")
+    ObjectMapper attachmentObjectMapper() {
+        return new ObjectMapper()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+
     @Bean("attachmentLiquibase")
+    @ConditionalOnStorageEnabled
     @ConditionalOnMissingBean(name = "attachmentLiquibase")
     public SpringLiquibase attachmentLiquibase(DataSource dataSource) {
         SpringLiquibase liq = new SpringLiquibase();

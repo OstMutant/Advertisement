@@ -1,7 +1,7 @@
 package org.ost.marketplace.events;
 
 import lombok.Getter;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.springframework.context.ApplicationEvent;
 
 @Getter

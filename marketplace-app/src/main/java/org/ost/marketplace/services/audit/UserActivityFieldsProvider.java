@@ -6,6 +6,7 @@ import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityItemFieldsProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -15,6 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserActivityFieldsProvider implements ActivityItemFieldsProvider {
 
+    @Qualifier("userSettingsObjectMapper")
     private final ObjectMapper objectMapper;
 
     @Override

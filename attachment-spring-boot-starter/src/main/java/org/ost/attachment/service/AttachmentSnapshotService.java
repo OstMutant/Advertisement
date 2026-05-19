@@ -8,6 +8,7 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +26,17 @@ public class AttachmentSnapshotService {
 
     private final AttachmentRepository         attachmentRepository;
     private final AttachmentSnapshotRepository attachmentSnapshotRepository;
+    @Qualifier("attachmentObjectMapper")
     private final ObjectMapper                 objectMapper;
 
     @Transactional
-    public void capture(EntityType entityType, Long entityId, Long userId) {
+    public void capture(EntityType entityType, Long entityId, Long actorId) {
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         List<String> prevUrls    = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         MediaChange  diff        = buildDiff(prevUrls, currentUrls);
         if (diff == null) return;
 
-        attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), toJson(diff), userId);
+        attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), toJson(diff), actorId);
     }
 
     public String getMediaStateAtVersion(EntityType entityType, Long entityId, int version) {
@@ -43,8 +45,8 @@ public class AttachmentSnapshotService {
         return Arrays.stream(urls).map(AttachmentSnapshotService::filename).collect(Collectors.joining(", "));
     }
 
-    public String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
-        return attachmentSnapshotRepository.getUrlsForAdvSnapshot(entityType, entityId, advSnapshotId)
+    public String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+        return attachmentSnapshotRepository.getUrlsForSnapshot(entityType, entityId, snapshotId)
                 .map(l -> l.stream().map(AttachmentSnapshotService::filename).collect(Collectors.joining(", ")))
                 .orElse("");
     }

@@ -1,10 +1,11 @@
 package org.ost.audit.config;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
-import org.ost.platform.core.spi.CurrentUserProvider;
+import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.ActivityRepository;
@@ -16,10 +17,10 @@ import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.services.NoOpAuditPort;
-import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
-import org.ost.platform.audit.spi.UserActivityExtension;
+import org.ost.platform.audit.spi.ActivityFeedExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -37,7 +38,15 @@ import java.util.List;
 @ComponentScan("org.ost.audit")
 public class AuditAutoConfiguration {
 
+    @Bean("auditObjectMapper")
+    @ConditionalOnMissingBean(name = "auditObjectMapper")
+    ObjectMapper auditObjectMapper() {
+        return new ObjectMapper()
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+
     @Bean("auditLiquibase")
+    @ConditionalOnAuditEnabled
     @ConditionalOnMissingBean(name = "auditLiquibase")
     public SpringLiquibase auditLiquibase(DataSource dataSource) {
         SpringLiquibase liq = new SpringLiquibase();
@@ -59,11 +68,11 @@ public class AuditAutoConfiguration {
             AuditDiffEngine diffEngine,
             AuditSnapshotMapper snapshotMapper,
             AuditLogRepository auditLogRepository,
-            ObjectProvider<CurrentUserProvider> auditUserProvider,
+            ObjectProvider<CurrentActorProvider> currentActorProvider,
             AuditQueryService auditQueryService,
             AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,
-                                    auditLogRepository, auditUserProvider, auditQueryService, auditHistoryService);
+                                    auditLogRepository, currentActorProvider, auditQueryService, auditHistoryService);
     }
 
     @Bean
@@ -76,7 +85,7 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(AuditReadRepository.class)
     AuditReadRepository auditReadRepository(
             JdbcClient jdbcClient,
-            @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
+            @Qualifier("auditObjectMapper") ObjectMapper objectMapper) {
         return new AuditReadRepository(jdbcClient, objectMapper);
     }
 
@@ -84,7 +93,7 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(ActivityRepository.class)
     ActivityRepository activityRepository(
             JdbcClient jdbcClient,
-            @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper,
+            @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
             List<EntityDisplayNameResolver> resolvers) {
         return new ActivityRepository(jdbcClient, objectMapper, resolvers);
     }
@@ -94,7 +103,7 @@ public class AuditAutoConfiguration {
     AuditHistoryService auditHistoryService(
             AuditReadRepository auditReadRepository,
             AuditSnapshotMapper snapshotMapper,
-            ObjectProvider<AdvertisementHistoryExtension> historyExtension,
+            ObjectProvider<MediaHistoryExtension> historyExtension,
             ObjectProvider<AuditActorNameResolver> actorNameResolver) {
         return new AuditHistoryService(auditReadRepository, snapshotMapper,
                                        historyExtension, actorNameResolver);
@@ -102,17 +111,15 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditQueryService.class)
-    AuditQueryService auditQueryService(
-            AuditReadRepository auditReadRepository,
-            AuditSnapshotMapper snapshotMapper) {
-        return new AuditQueryService(auditReadRepository, snapshotMapper);
+    AuditQueryService auditQueryService(AuditReadRepository auditReadRepository) {
+        return new AuditQueryService(auditReadRepository);
     }
 
     @Bean
     @ConditionalOnMissingBean(ActivityService.class)
     ActivityService activityService(
             ActivityRepository activityRepository,
-            ObjectProvider<UserActivityExtension> activityExtension,
+            ObjectProvider<ActivityFeedExtension> activityExtension,
             ObjectProvider<AuditActorNameResolver> actorNameResolver,
             ObjectProvider<AuditEntityExistenceChecker> existenceChecker) {
         return new ActivityService(activityRepository, activityExtension,

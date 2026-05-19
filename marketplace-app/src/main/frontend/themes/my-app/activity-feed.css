@@ -1,8 +1,8 @@
-.user-activity-content {
+.activity-feed-content {
     padding: 4px 0;
 }
 
-.user-activity-list {
+.activity-feed-list {
     display:        flex;
     flex-direction: column;
     gap:            6px;
@@ -11,7 +11,7 @@
     padding-right:  4px;
 }
 
-.user-activity-row {
+.activity-feed-row {
     display:       flex;
     align-items:   center;
     flex-wrap:     wrap;
@@ -22,12 +22,12 @@
     border:        1px solid #f1f5f9;
 }
 
-.user-activity-row--deleted {
+.activity-feed-row--deleted {
     opacity: 0.55;
     text-decoration: line-through;
 }
 
-.user-activity-action {
+.activity-feed-action {
     font-size:   0.75rem;
     font-weight: 600;
     color:       #ffffff;
@@ -38,7 +38,7 @@
     flex-shrink: 0;
 }
 
-.user-activity-type {
+.activity-feed-type {
     font-size:   0.7rem;
     font-weight: 500;
     border-radius: 4px;
@@ -47,22 +47,22 @@
     flex-shrink: 0;
 }
 
-.user-activity-type--advertisement {
+.activity-feed-type--advertisement {
     background: #fef3c7;
     color:      #92400e;
 }
 
-.user-activity-type--user {
+.activity-feed-type--user {
     background: #dbeafe;
     color:      #1e40af;
 }
 
-.user-activity-type--settings {
+.activity-feed-type--settings {
     background: #d1fae5;
     color:      #065f46;
 }
 
-.user-activity-name {
+.activity-feed-name {
     font-size: 0.85rem;
     color:     #334155;
     flex:      1;
@@ -71,21 +71,21 @@
     white-space:   nowrap;
 }
 
-.user-activity-time {
+.activity-feed-time {
     font-size:  0.75rem;
     color:      #94a3b8;
     white-space: nowrap;
     flex-shrink: 0;
 }
 
-.user-activity-empty {
+.activity-feed-empty {
     font-size:  0.9rem;
     color:      #94a3b8;
     font-style: italic;
     padding:    12px 0;
 }
 
-.user-activity-changes {
+.activity-feed-changes {
     display:      flex;
     flex-direction: column;
     gap:          2px;
@@ -95,17 +95,17 @@
     margin-top:   2px;
 }
 
-.user-activity-changes-item {
+.activity-feed-changes-item {
     font-size:  0.75rem;
     color:      #64748b;
     font-style: italic;
 }
 
-.user-activity-changes-item--unchanged {
+.activity-feed-changes-item--unchanged {
     opacity: 0.6;
 }
 
-.user-activity-current-badge {
+.activity-feed-current-badge {
     font-size: 0.72rem;
     font-weight: 600;
     color: #166534;
@@ -116,7 +116,7 @@
     flex-shrink: 0;
 }
 
-.user-activity-editor {
+.activity-feed-editor {
     font-size: 0.72rem;
     font-weight: 500;
     color: #475569;

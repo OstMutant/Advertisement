@@ -20,10 +20,13 @@ import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
+import org.ost.audit.ui.SnapshotBinder;
+import org.ost.marketplace.entities.UserSettings;
+import org.ost.marketplace.services.audit.UserSnapshot;
+import org.ost.platform.audit.spi.AuditUiExtension;
 import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.audit.spi.AuditUiExtension;
 import org.ost.marketplace.services.user.UserSettingsService;
 import org.ost.marketplace.ui.views.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
@@ -62,7 +65,9 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiLabeledField.Builder                     labeledFieldBuilder;
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
-    private final ObjectProvider<AuditUiExtension> auditUiExtensionProvider;
+    private final ObjectProvider<AuditUiExtension>             auditUiExtensionProvider;
+    private final SnapshotBinder.Builder<UserSnapshot>         userBinderBuilder;
+    private final SnapshotBinder.Builder<UserSettings>         settingsBinderBuilder;
 
     private Parameters params;
 
@@ -120,7 +125,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
         if (auditUi != null) {
             Div activityContent = new Div();
-            activityContent.addClassName("user-activity-content");
+            activityContent.addClassName("activity-feed-content");
             activityContent.setVisible(false);
 
             Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
@@ -157,12 +162,38 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiExtension auditUi) {
-        return auditUi.buildUserActivityPanel(AuditUiExtension.UserActivityParams.builder()
-                .userId(user.getId())
-                .userName(user.getName())
-                .userRole(user.getRole())
-                .currentSettings(userSettingsService.load(user.getId()))
-                .onRestoreUser(params.getOnRestoreUser())
+        String currentName = user.getName();
+        org.ost.marketplace.entities.Role currentRole = user.getRole();
+        UserSettings currentSettings = userSettingsService.load(user.getId());
+
+        SnapshotBinder<UserSnapshot> userBinding = userBinderBuilder.build(
+                SnapshotBinder.Parameters.<UserSnapshot>builder()
+                        .entityType(org.ost.platform.core.model.EntityType.USER)
+                        .snapshotClass(UserSnapshot.class)
+                        .isCurrent(snap -> snap.name().equals(currentName)
+                                        && currentRole != null && currentRole.name().equals(snap.role()))
+                        .onRestore((snapshotId, _) -> params.getOnRestoreUser().accept(snapshotId))
+                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
+                        .restoreLabel(getValue(USER_RESTORE_BUTTON))
+                        .build());
+
+        SnapshotBinder<UserSettings> settingsBinding = settingsBinderBuilder.build(
+                SnapshotBinder.Parameters.<UserSettings>builder()
+                        .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
+                        .snapshotClass(UserSettings.class)
+                        .isCurrent(snap -> snap.getAdsPageSize() == currentSettings.getAdsPageSize()
+                                        && snap.getUsersPageSize() == currentSettings.getUsersPageSize())
+                        .onRestore((snapshotId, snap) -> { /* admin view: no settings restore here */ })
+                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
+                        .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
+                        .build());
+
+        return auditUi.buildProfileActivityPanel(AuditUiExtension.ProfileActivityParams.builder()
+                .subjectType(org.ost.platform.core.model.EntityType.USER)
+                .subjectId(user.getId())
+                .viewerActorId(user.getId())
+                .emptyLabel(getValue(ACTIVITY_EMPTY))
+                .bindings(java.util.List.of(userBinding, settingsBinding))
                 .build());
     }
 

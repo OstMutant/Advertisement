@@ -6,7 +6,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.ui.views.components.query.QueryBlock;
 import org.ost.marketplace.ui.views.components.query.elements.SortIcon;
 import org.ost.marketplace.ui.views.components.query.elements.action.QueryActionBlock;

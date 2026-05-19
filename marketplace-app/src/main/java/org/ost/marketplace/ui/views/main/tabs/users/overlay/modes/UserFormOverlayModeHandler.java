@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;

@@ -11,7 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;

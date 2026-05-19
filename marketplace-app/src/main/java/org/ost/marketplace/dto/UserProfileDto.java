@@ -1,7 +1,7 @@
 package org.ost.marketplace.dto;
 
 import lombok.experimental.FieldNameConstants;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.security.UserIdMarker;
 
 @FieldNameConstants

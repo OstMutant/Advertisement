@@ -1,7 +1,7 @@
 package org.ost.marketplace.services.user;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.events.SettingsChangedEvent;
 import org.ost.marketplace.repository.user.UserSettingsRepository;
 import org.springframework.context.ApplicationEventPublisher;

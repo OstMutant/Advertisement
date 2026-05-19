@@ -1,7 +1,7 @@
 package org.ost.marketplace.ui.dto;
 
 import lombok.*;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 
 @NoArgsConstructor
 @AllArgsConstructor

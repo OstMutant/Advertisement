@@ -7,7 +7,7 @@ import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditReadRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +25,7 @@ public class AuditHistoryService {
 
     private final AuditReadRepository                            auditReadRepository;
     private final AuditSnapshotMapper                           mapper;
-    private final ObjectProvider<AdvertisementHistoryExtension> historyExtension;
+    private final ObjectProvider<MediaHistoryExtension> historyExtension;
     private final ObjectProvider<AuditActorNameResolver>        actorNameResolver;
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
@@ -34,7 +34,7 @@ public class AuditHistoryService {
 
         history = resolveActorNames(history);
 
-        AdvertisementHistoryExtension ext = historyExtension.getIfAvailable();
+        MediaHistoryExtension ext = historyExtension.getIfAvailable();
         if (ext == null) return history;
         return history.stream()
                 .map(h -> {

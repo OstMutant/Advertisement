@@ -27,24 +27,24 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
     public static final SqlSelectField<Long>    SIZE                = longVal("size",                "size");
     public static final SqlSelectField<Instant> CREATED_AT          = instant("created_at",          "created_at");
     public static final SqlSelectField<Instant> DELETED_AT          = instant("deleted_at",          "deleted_at");
-    public static final SqlSelectField<Long>    DELETED_BY_USER_ID  = longVal("deleted_by_user_id",  "deleted_by_user_id");
+    public static final SqlSelectField<Long>    DELETED_BY_ACTOR_ID = longVal("deleted_by_actor_id", "deleted_by_actor_id");
 
     public static final class Write {
         private Write() {}
-        public static final String TABLE              = AttachmentDescriptor.TABLE;
-        public static final String ENTITY_TYPE        = AttachmentDescriptor.ENTITY_TYPE.columnName();
-        public static final String ENTITY_ID          = AttachmentDescriptor.ENTITY_ID.columnName();
-        public static final String URL                = AttachmentDescriptor.URL.columnName();
-        public static final String FILENAME           = AttachmentDescriptor.FILENAME.columnName();
-        public static final String CONTENT_TYPE       = AttachmentDescriptor.CONTENT_TYPE.columnName();
-        public static final String SIZE               = AttachmentDescriptor.SIZE.columnName();
-        public static final String DELETED_AT         = AttachmentDescriptor.DELETED_AT.columnName();
-        public static final String DELETED_BY_USER_ID = AttachmentDescriptor.DELETED_BY_USER_ID.columnName();
+        public static final String TABLE               = AttachmentDescriptor.TABLE;
+        public static final String ENTITY_TYPE         = AttachmentDescriptor.ENTITY_TYPE.columnName();
+        public static final String ENTITY_ID           = AttachmentDescriptor.ENTITY_ID.columnName();
+        public static final String URL                 = AttachmentDescriptor.URL.columnName();
+        public static final String FILENAME            = AttachmentDescriptor.FILENAME.columnName();
+        public static final String CONTENT_TYPE        = AttachmentDescriptor.CONTENT_TYPE.columnName();
+        public static final String SIZE                = AttachmentDescriptor.SIZE.columnName();
+        public static final String DELETED_AT          = AttachmentDescriptor.DELETED_AT.columnName();
+        public static final String DELETED_BY_ACTOR_ID = AttachmentDescriptor.DELETED_BY_ACTOR_ID.columnName();
     }
 
     public AttachmentDescriptor() {
         super(List.of(ID, ENTITY_TYPE, ENTITY_ID, URL, FILENAME, CONTENT_TYPE, SIZE,
-                      CREATED_AT, DELETED_AT, DELETED_BY_USER_ID), SOURCE);
+                      CREATED_AT, DELETED_AT, DELETED_BY_ACTOR_ID), SOURCE);
     }
 
     @Override
@@ -60,7 +60,7 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
                 .size(SIZE.extract(rs))
                 .createdAt(CREATED_AT.extract(rs))
                 .deletedAt(DELETED_AT.extract(rs))
-                .deletedByUserId(DELETED_BY_USER_ID.extract(rs))
+                .deletedByActorId(DELETED_BY_ACTOR_ID.extract(rs))
                 .build();
     }
 }

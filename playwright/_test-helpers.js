@@ -46,7 +46,7 @@ async function openHistory(page) {
   const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Іс|Hist/i });
   if (!await historyTab.isVisible()) return false;
   await historyTab.click();
-  await page.locator('.adv-history-list').waitFor({ timeout: 5000 });
+  await page.locator('.entity-history-list').waitFor({ timeout: 5000 });
   return true;
 }
 
@@ -58,7 +58,7 @@ async function openSettings(page) {
 async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
   await page.locator(`${overlaySelector} vaadin-tab`)
     .filter({ hasText: /activ|активн/i }).click();
-  await page.locator('.user-activity-list').first().waitFor({ timeout: 5000 });
+  await page.locator('.activity-feed-list').first().waitFor({ timeout: 5000 });
 }
 
 async function confirmDialog(page, textSource = 'Оновити|Update') {

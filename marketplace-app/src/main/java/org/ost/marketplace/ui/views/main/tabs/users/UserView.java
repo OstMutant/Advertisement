@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.User;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.ui.views.components.PaginationBar;

@@ -7,7 +7,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.validation.ValidRange;
 
 import java.time.Instant;

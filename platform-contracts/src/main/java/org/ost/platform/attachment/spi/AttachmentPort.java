@@ -11,10 +11,10 @@ import org.ost.platform.core.model.EntityType;
 public interface AttachmentPort {
 
     /** Soft-delete all attachments of an entity. Called on entity soft-delete. */
-    void softDeleteAll(EntityType entityType, Long entityId, Long userId);
+    void softDeleteAll(EntityType entityType, Long entityId, Long actorId);
 
     /** Restore attachments to the state captured at the given snapshot version. */
-    void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long userId);
+    void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long actorId);
 
     /** Display-ready summary of the entity's current attachment state. */
     MediaSummary getMediaSummary(EntityType entityType, Long entityId);

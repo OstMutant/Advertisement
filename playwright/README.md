@@ -290,7 +290,7 @@ Run with: `bash run.sh attachment`
 3. Click edit button for first user — overlay opens.
 4. Read current name; toggle ` Edited` suffix; click Save.
 5. Open Settings → Activity tab.
-6. Verify `.user-activity-changes` rows exist.
+6. Verify `.activity-feed-changes` rows exist.
 7. Verify `→` arrow is present in the activity text (diff shown).
 8. Verify unchanged fields (email, role) appear with `--unchanged` CSS class.
 
@@ -309,11 +309,11 @@ Run with: `bash run.sh attachment`
 2. Create advertisement `User Activity Test Ad`.
 3. Open Settings.
 4. Verify an Activity tab is present (tab label matches `activ|активн`).
-5. Click Activity tab — verify `.user-activity-list` is visible with at least one row.
+5. Click Activity tab — verify `.activity-feed-list` is visible with at least one row.
 
 **Validation:**
 - Settings overlay has an Activity tab.
-- At least one `.user-activity-row` is visible after creating an ad.
+- At least one `.activity-feed-row` is visible after creating an ad.
 
 **Screenshots:** `activity-01-ad-created`
 
@@ -327,11 +327,11 @@ Run with: `bash run.sh attachment`
 3. Open it, edit description to `Updated content`, save.
 4. If delete button is available on the card, delete the ad and confirm.
 5. Open Settings → Activity tab.
-6. Verify `.user-activity-type--advertisement` badge is present.
+6. Verify `.activity-feed-type--advertisement` badge is present.
 7. Verify CREATED action text (`Створ|Creat`) appears in some row.
 8. Verify UPDATED action text (`Оновл|Updat`) appears in some row.
-9. If ad was deleted: verify `.user-activity-row--deleted` marker exists and contains "видалено|deleted".
-10. Verify `.user-activity-time` exists and is non-empty.
+9. If ad was deleted: verify `.activity-feed-row--deleted` marker exists and contains "видалено|deleted".
+10. Verify `.activity-feed-time` exists and is non-empty.
 
 **Validation:**
 - Each action type (CREATED, UPDATED, optionally DELETED) is represented in the activity feed.
@@ -349,19 +349,19 @@ Run with: `bash run.sh attachment`
 2. Create advertisement `History Test Ad` with description `Original description v1`.
 3. Open it, open History tab — verify list is visible and has at least 1 row.
 4. Switch to view tab, click Edit, change description to `Updated description v2`, save.
-5. Open History — verify at least 2 rows, at least one `.adv-history-changes` element.
-6. Verify at least one `.adv-history-restore-btn` is present.
+5. Open History — verify at least 2 rows, at least one `.entity-history-changes` element.
+6. Verify at least one `.entity-history-restore-btn` is present.
 7. Click last restore button — confirm dialog appears, confirm it.
 8. Verify view overlay is shown after restore.
-9. Re-open History — verify no `.adv-history-action--restored` badges, at least one `.adv-history-action--updated`.
+9. Re-open History — verify no `.entity-history-action--restored` badges, at least one `.entity-history-action--updated`.
 
 **Validation:**
 - History tab shows entries for both CREATED and UPDATED events.
-- Changes summary (`.adv-history-changes`) is present.
+- Changes summary (`.entity-history-changes`) is present.
 - Restore button triggers a dialog and then shows the view.
 - Restore creates a new UPDATED entry (no "RESTORED" badge).
 
-**Screenshots:** `adv-history-01-after-edit`, `adv-history-02-after-restore`
+**Screenshots:** `entity-history-01-after-edit`, `entity-history-02-after-restore`
 
 ---
 
@@ -374,7 +374,7 @@ Run with: `bash run.sh attachment`
 4. Edit twice: description → `Version 2` (v2), `Version 3` (v3). Re-open History after each edit.
 5. Verify 3+ rows; version labels include `v3`; UPDATED badges present.
 6. Verify newest row (v3) has no restore button; older rows have restore buttons.
-7. Verify `.adv-history-changes` elements exist.
+7. Verify `.entity-history-changes` elements exist.
 8. Click last restore button (v1) — confirm dialog — confirm.
 9. Verify view shown after restore; re-open History and verify row count increased.
 
@@ -538,10 +538,10 @@ Screenshots: `upload-video-04-history`
 2. Log out; login as `user3@example.com` (admin).
 3. Open the ad in edit mode, upload an image — save (creates audit v3 + attachment snapshot rn=1).
 4. Open edit mode again, delete the existing image, upload a different image — save (creates audit v4 + attachment snapshot rn=2).
-5. Open History tab; count `.adv-history-current-badge` elements.
+5. Open History tab; count `.entity-history-current-badge` elements.
 
 **Validation:**
-- Exactly 1 `.adv-history-current-badge` is present.
+- Exactly 1 `.entity-history-current-badge` is present.
 - Multiple attachment snapshots from different edit sessions must not all be marked as current.
 
 **Screenshots:** `admin-media-edit-history`
@@ -556,7 +556,7 @@ Screenshots: `upload-video-04-history`
 3. Open edit mode, delete the image, save (v2 — image deleted).
 4. Open edit mode again, change the title, save (v3 — text-only edit, no media change).
 5. Open History tab; verify at least 3 rows.
-6. In the latest row (v3), check all `.adv-history-changes-item` texts.
+6. In the latest row (v3), check all `.entity-history-changes-item` texts.
 7. Verify a line matching `зображення|images:` exists.
 8. Verify that line contains `—` (em dash — no images at current state).
 
@@ -579,7 +579,7 @@ Screenshots: `upload-video-04-history`
 6. Verify the ad appears as exactly **1** row in activity (not 2 separate rows for text + image).
 7. Close settings; open the ad in edit mode, add a second image (paths[1]), save.
 8. Open History tab — verify media diff arrow `→` is present.
-9. Verify at least one `.adv-history-restore-btn` exists.
+9. Verify at least one `.entity-history-restore-btn` exists.
 10. Close overlay; open the ad, open History, click the last restore button, confirm.
 11. Re-open History — verify 3+ rows; verify media change is in history text.
 
@@ -602,9 +602,9 @@ Steps:
 3. Change to a different value (toggle between 10 and 15), save. Wait 1100 ms (debounce).
 4. Change back to original value, save.
 5. Verify an Activity tab exists in the settings overlay.
-6. Open Activity tab — verify `.user-activity-row` rows exist; text contains `сторінці|page`.
-7. Verify `.user-activity-changes` elements exist and `→` arrow is present in activity text.
-8. Verify `.adv-history-restore-btn` is present.
+6. Open Activity tab — verify `.activity-feed-row` rows exist; text contains `сторінці|page`.
+7. Verify `.activity-feed-changes` elements exist and `→` arrow is present in activity text.
+8. Verify `.entity-history-restore-btn` is present.
 9. Click restore button — confirm dialog — confirm.
 10. Verify settings overlay stays open after restore (`.overlay--visible`, `.overlay__form-fields-card` both visible).
 11. Verify ads page size equals the `newSize` value from step 3 (restore brought it back).
@@ -621,7 +621,7 @@ Steps:
 1. Login as `user3@example.com`.
 2. Create advertisement `Settings Activity Merge Test {timestamp}` with a generated PNG.
 3. Open Settings → Activity tab.
-4. Find all `.user-activity-row` elements that contain the ad title.
+4. Find all `.activity-feed-row` elements that contain the ad title.
 5. Verify count === 1 (text + image changes merged into one row).
 6. In that single row, verify both `зображення|image` and the ad title are present.
 
@@ -673,13 +673,13 @@ Screenshots: `settings-activity-03-merge-check`
 Steps:
 1. Login as `user1@example.com`.
 2. Create advertisement `Fields Always Shown {timestamp}` with title + description `Original description v1`.
-3. Open History tab — check CREATED row has ≥ 2 `.adv-history-changes-item` elements containing both title text and description text.
+3. Open History tab — check CREATED row has ≥ 2 `.entity-history-changes-item` elements containing both title text and description text.
 4. Edit description to `Updated description v2` (title unchanged), save.
 5. Open History tab — check the newest UPDATED row:
-   - ≥ 2 `.adv-history-changes-item` elements.
+   - ≥ 2 `.entity-history-changes-item` elements.
    - At least one item contains the original title (unchanged).
    - At least one item contains `→` (changed description).
-   - At least one item has `.adv-history-changes-item--unchanged` CSS class.
+   - At least one item has `.entity-history-changes-item--unchanged` CSS class.
 
 Validation:
 - CREATED row always shows all fields, not just the non-empty ones.
@@ -693,14 +693,14 @@ Steps:
 1. Login as `user1@example.com`.
 2. Create advertisement `Activity Fields Test {timestamp}` with title + description `Description stays the same`.
 3. Open Settings → Activity tab; find the CREATED row for this ad:
-   - ≥ 2 `.user-activity-changes-item` elements.
+   - ≥ 2 `.activity-feed-changes-item` elements.
    - Contains title text and description text.
 4. Edit the title to `{TITLE_V1} edited` (description unchanged), save.
 5. Open Settings → Activity tab; find the UPDATED row:
-   - ≥ 2 `.user-activity-changes-item` elements.
+   - ≥ 2 `.activity-feed-changes-item` elements.
    - At least one contains `→` (title diff).
    - At least one contains the original description text (unchanged).
-   - At least one has `.user-activity-changes-item--unchanged` CSS class.
+   - At least one has `.activity-feed-changes-item--unchanged` CSS class.
 
 Validation:
 - Activity CREATED row shows all fields (not just non-empty ones).

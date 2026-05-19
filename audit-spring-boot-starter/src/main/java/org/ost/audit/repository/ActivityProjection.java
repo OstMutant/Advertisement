@@ -33,7 +33,7 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
                    NULL::text              AS changed_by_name,
                    s.snapshot_data::text   AS snapshot_data
             FROM audit_log s
-            WHERE s.actor_id = :userId
+            WHERE s.actor_id = :actorId
             ORDER BY s.created_at DESC
             LIMIT 20
             """;

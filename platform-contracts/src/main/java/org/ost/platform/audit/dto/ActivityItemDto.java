@@ -16,7 +16,7 @@ public record ActivityItemDto(
         Instant           createdAt,
         boolean           entityExists,
         List<ChangeEntry> changes,
-        Long              changedByUserId,
+        Long              changedByActorId,
         String            changedByName,
         SnapshotPayload   snapshotData
 ) {}

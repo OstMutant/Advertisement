@@ -12,15 +12,15 @@ public class DefaultAttachmentPort implements AttachmentPort {
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     @Override
-    public void softDeleteAll(EntityType entityType, Long entityId, Long userId) {
-        attachmentService.softDeleteAll(entityType, entityId, userId);
+    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
+        attachmentService.softDeleteAll(entityType, entityId, actorId);
     }
 
     @Override
-    public void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long userId) {
+    public void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long actorId) {
         String[] targetUrls = attachmentSnapshotService.getUrlsAtVersion(entityType, entityId, snapshotVersion);
-        attachmentService.restoreToUrls(entityType, entityId, targetUrls, userId);
-        attachmentSnapshotService.capture(entityType, entityId, userId);
+        attachmentService.restoreToUrls(entityType, entityId, targetUrls, actorId);
+        attachmentSnapshotService.capture(entityType, entityId, actorId);
     }
 
     @Override

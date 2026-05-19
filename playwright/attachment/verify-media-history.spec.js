@@ -66,12 +66,12 @@ test.describe('Verify media history', () => {
     await openHistory(page);
 
     await test.step('1 history row on create', async () => {
-      const rows = await page.locator('.adv-history-row').count();
+      const rows = await page.locator('.entity-history-row').count();
       if (rows < 1) throw new Error(`Expected >=1 history row, got ${rows}`);
     });
 
     await test.step('Media changes visible in CREATED row', async () => {
-      const text = await page.locator('.adv-history-list').textContent();
+      const text = await page.locator('.entity-history-list').textContent();
       if (!/(зображення|image)/i.test(text))
         throw new Error('No media change entry in history after create: ' + text.slice(0, 200));
     });
@@ -111,7 +111,7 @@ test.describe('Verify media history', () => {
       await openHistory(page);
 
       await test.step('Media deletion visible in history', async () => {
-        const text = await page.locator('.adv-history-list').textContent();
+        const text = await page.locator('.entity-history-list').textContent();
         if (!/(зображення|image)/i.test(text))
           throw new Error('No media deletion entry in history: ' + text.slice(0, 200));
       });
@@ -122,7 +122,7 @@ test.describe('Verify media history', () => {
           .filter({ hasText: /зберегти|save/i }).click();
         await page.locator('.overlay__view-title').waitFor();
         await openHistory(page);
-        const text = await page.locator('.adv-history-list').textContent();
+        const text = await page.locator('.entity-history-list').textContent();
         if (!/(зображення|image)/i.test(text))
           throw new Error('No media entry in history: ' + text.slice(0, 200));
       });

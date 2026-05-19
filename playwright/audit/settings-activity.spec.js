@@ -78,26 +78,26 @@ test.describe('Settings activity', () => {
     await openActivityTab(page);
 
     await test.step('Settings change appears in activity', async () => {
-      if (await page.locator('.user-activity-row').count() === 0) throw new Error('No activity rows');
-      const body = await page.locator('.user-activity-list').first().textContent();
+      if (await page.locator('.activity-feed-row').count() === 0) throw new Error('No activity rows');
+      const body = await page.locator('.activity-feed-list').first().textContent();
       if (!body.includes('сторінці') && !body.includes('page'))
         throw new Error('Settings change summary not found in activity');
     });
 
     await test.step('Page size diff shown in activity', async () => {
-      if (await page.locator('.user-activity-changes').count() === 0) throw new Error('No changes summary found');
-      if (!(await page.locator('.user-activity-list').first().textContent()).includes('→'))
+      if (await page.locator('.activity-feed-changes').count() === 0) throw new Error('No changes summary found');
+      if (!(await page.locator('.activity-feed-list').first().textContent()).includes('→'))
         throw new Error('No diff arrow → found in activity');
     });
 
     await test.step('Restore settings button present', async () => {
-      if (await page.locator('.user-activity-list .adv-history-restore-btn').count() === 0)
+      if (await page.locator('.activity-feed-list .entity-history-restore-btn').count() === 0)
         throw new Error('No restore button for settings');
     });
 
     await test.step('Restore button is left-aligned in activity row', async () => {
-      const row = page.locator('.user-activity-row').filter({ has: page.locator('.adv-history-restore-btn') }).first();
-      const btn = row.locator('.adv-history-restore-btn');
+      const row = page.locator('.activity-feed-row').filter({ has: page.locator('.entity-history-restore-btn') }).first();
+      const btn = row.locator('.entity-history-restore-btn');
       const rowBox = await row.boundingBox();
       const btnBox = await btn.boundingBox();
       if (btnBox.x - rowBox.x > 48)
@@ -105,7 +105,7 @@ test.describe('Settings activity', () => {
     });
     await screenshot(page, 'settings-activity-01-activity-list');
 
-    await page.locator('.user-activity-list .adv-history-restore-btn').nth(0).click();
+    await page.locator('.activity-feed-list .entity-history-restore-btn').nth(0).click();
     await confirmDialog(page, 'Оновити|Update');
     await page.waitForLoadState('networkidle');
 
@@ -130,7 +130,7 @@ test.describe('Settings activity', () => {
     await openActivityTab(page);
 
     await test.step('Activity panel visible before save', async () => {
-      await expect(page.locator('.base-overlay.overlay--visible .user-activity-list').first()).toBeVisible();
+      await expect(page.locator('.base-overlay.overlay--visible .activity-feed-list').first()).toBeVisible();
     });
 
     await page.locator('.base-overlay.overlay--visible vaadin-button')
@@ -139,7 +139,7 @@ test.describe('Settings activity', () => {
 
     await test.step('Settings panel visible after save (not activity)', async () => {
       await expect(page.locator('.settings-overlay .overlay__form-fields-card')).toBeVisible();
-      await expect(page.locator('.settings-overlay .user-activity-list')).toBeHidden();
+      await expect(page.locator('.settings-overlay .activity-feed-list')).toBeHidden();
     });
     await screenshot(page, 'settings-activity-04-settings-tab-after-save');
   });
@@ -155,13 +155,13 @@ test.describe('Settings activity', () => {
     await openActivityTab(page);
 
     await test.step('Ad with image shows as one row in settings activity, not two', async () => {
-      const adRowCount = await page.locator('.base-overlay.overlay--visible .user-activity-row')
+      const adRowCount = await page.locator('.base-overlay.overlay--visible .activity-feed-row')
         .filter({ hasText: adTitle }).count();
       if (adRowCount !== 1) throw new Error(`Expected 1 activity row for ad, got ${adRowCount} — text and image changes must be merged`);
     });
 
     await test.step('Single row contains both field change and image change', async () => {
-      const rows = page.locator('.base-overlay.overlay--visible .user-activity-row');
+      const rows = page.locator('.base-overlay.overlay--visible .activity-feed-row');
       const firstAdRow = rows.filter({ hasText: adTitle }).first();
       const rowText = await firstAdRow.textContent();
       if (!rowText.includes('зображення') && !rowText.includes('image'))

@@ -15,12 +15,12 @@ public class ActivityPanel {
 
     private final I18nService i18n;
 
-    public static Span buildEditorBadge(Long changedByUserId, String changedByName, Long viewerUserId) {
-        if (changedByUserId == null || changedByUserId == 0 || changedByUserId.equals(viewerUserId)) {
+    public static Span buildEditorBadge(Long changedByActorId, String changedByName, Long viewerActorId) {
+        if (changedByActorId == null || changedByActorId == 0 || changedByActorId.equals(viewerActorId)) {
             return null;
         }
         Span badge = new Span("↳ " + changedByName);
-        badge.addClassName("user-activity-editor");
+        badge.addClassName("activity-feed-editor");
         return badge;
     }
 

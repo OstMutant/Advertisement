@@ -6,7 +6,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.config.UserSettings;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayload;
@@ -14,73 +13,60 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityItemFieldsProvider;
-import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-@CssImport("./adv-history.css")
+@CssImport("./entity-history.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
 public class ActivityRowRenderer {
 
-    private static final String CSS_CHANGES = "user-activity-changes";
+    private static final String CSS_CHANGES = "activity-feed-changes";
 
-    private final I18nService                                    i18n;
-    private final InstantFormatter                               formatter;
-    private final ActivityPanel                                  activityPanel;
-    private final List<ActivityItemFieldsProvider>               fieldsProviders;
-    private final ObjectProvider<AdvertisementHistoryExtension>  historyExtensionProvider;
-    private final ObjectMapper                                   objectMapper;
+    private final I18nService                              i18n;
+    private final InstantFormatter                         formatter;
+    private final ActivityPanel                            activityPanel;
+    private final List<ActivityItemFieldsProvider>         fieldsProviders;
+    private final ObjectProvider<MediaHistoryExtension>    historyExtensionProvider;
+    @Qualifier("auditObjectMapper")
+    private final ObjectMapper                             objectMapper;
 
-    public static boolean isSettingChange(ActivityItemDto item) {
-        return item.entityType() == EntityType.USER_SETTINGS
-                || (item.entityType() == EntityType.USER
-                    && item.changes().stream().anyMatch(e -> e instanceof ChangeEntry.SettingChange));
-    }
-
-    public Div buildRow(ActivityItemDto item, Long viewerUserId) {
+    public Div buildRow(ActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
-        row.addClassName("user-activity-row");
-        if (!item.entityExists()) row.addClassName("user-activity-row--deleted");
+        row.addClassName("activity-feed-row");
+        if (!item.entityExists()) row.addClassName("activity-feed-row--deleted");
 
-        boolean settingChange = isSettingChange(item);
-        String typeLabel  = settingChange ? "SETTINGS"  : item.entityType().name();
-        String typeCssKey = settingChange ? "settings"  : item.entityType().name().toLowerCase();
+        String typeLabel  = item.entityType().name();
+        String typeCssKey = item.entityType().name().toLowerCase();
 
         Span action = new Span(i18n.get(formatActionKey(item.actionType())));
-        action.addClassName("user-activity-action");
+        action.addClassName("activity-feed-action");
 
         Span type = new Span(typeLabel);
-        type.addClassName("user-activity-type");
-        type.addClassName("user-activity-type--" + typeCssKey);
+        type.addClassName("activity-feed-type");
+        type.addClassName("activity-feed-type--" + typeCssKey);
 
         Span name = new Span(item.displayName());
-        name.addClassName("user-activity-name");
+        name.addClassName("activity-feed-name");
 
         Span time = new Span(formatter.formatInstantHuman(item.createdAt()));
-        time.addClassName("user-activity-time");
+        time.addClassName("activity-feed-time");
 
         row.add(action, type, name, time);
 
-        Span editor = ActivityPanel.buildEditorBadge(item.changedByUserId(), item.changedByName(), viewerUserId);
+        Span editor = ActivityPanel.buildEditorBadge(item.changedByActorId(), item.changedByName(), viewerActorId);
         if (editor != null) row.add(editor);
 
-        if (settingChange) {
-            if (item.snapshotId() == null || item.snapshotId() <= 0) {
-                row.add(activityPanel.buildChangesList(item.changes(), CSS_CHANGES));
-            }
-            // else: full fields list rendered by ProfileActivityPanel.addSettingsRestore
-        } else {
-            row.add(buildActivityFieldsList(item));
-        }
-
+        row.add(buildActivityFieldsList(item));
         return row;
     }
 
@@ -119,8 +105,8 @@ public class ActivityRowRenderer {
         }
 
         if (mediaChanges.isEmpty()) {
-            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateForAdvSnapshot(item.entityType(), item.entityId(), item.snapshotId()) : null;
+            MediaHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            String state = ext != null ? ext.getMediaStateForSnapshot(item.entityType(), item.entityId(), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
@@ -141,42 +127,9 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    public Div buildSettingsFieldsList(ActivityItemDto item, UserSettings snapSettings) {
-        Div container = new Div();
-        container.addClassName(CSS_CHANGES);
-
-        ChangeEntry adsChange   = null;
-        ChangeEntry usersChange = null;
-        List<ChangeEntry> otherChanges = new ArrayList<>();
-
-        for (ChangeEntry entry : item.changes()) {
-            switch (entry) {
-                case ChangeEntry.SettingChange s when "adsPageSize".equals(s.key())   -> adsChange   = s;
-                case ChangeEntry.SettingChange s when "usersPageSize".equals(s.key()) -> usersChange = s;
-                default                                                                -> otherChanges.add(entry);
-            }
-        }
-
-        if (adsChange != null) {
-            addActivitySpan(container, activityPanel.format(adsChange), false);
-        } else {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_SETTING_ADS_PAGE_SIZE) + ": " + snapSettings.getAdsPageSize(), true);
-        }
-
-        if (usersChange != null) {
-            addActivitySpan(container, activityPanel.format(usersChange), false);
-        } else {
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_SETTING_USERS_PAGE_SIZE) + ": " + snapSettings.getUsersPageSize(), true);
-        }
-
-        for (ChangeEntry oc : otherChanges) addActivitySpan(container, activityPanel.format(oc), false);
-
-        return container;
-    }
-
     public Div buildAdvHistoryFieldsList(EntityHistoryDto h, EntityType entityType, Long entityId) {
         Div container = new Div();
-        container.addClassName("adv-history-changes");
+        container.addClassName("entity-history-changes");
 
         List<ChangeEntry> mediaChanges = new ArrayList<>();
         List<ChangeEntry> textChanges  = new ArrayList<>();
@@ -201,7 +154,7 @@ public class ActivityRowRenderer {
     private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges,
                                            EntityType entityType, Long entityId, int version) {
         if (mediaChanges.isEmpty()) {
-            AdvertisementHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            MediaHistoryExtension ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(entityType, entityId, version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
@@ -241,16 +194,16 @@ public class ActivityRowRenderer {
     private void addHistorySpan(Div container, String text, boolean unchanged) {
         if (text == null || text.isBlank()) return;
         Span span = new Span("• " + text);
-        span.addClassName("adv-history-changes-item");
-        if (unchanged) span.addClassName("adv-history-changes-item--unchanged");
+        span.addClassName("entity-history-changes-item");
+        if (unchanged) span.addClassName("entity-history-changes-item--unchanged");
         container.add(span);
     }
 
     private void addActivitySpan(Div container, String text, boolean unchanged) {
         if (text == null || text.isBlank()) return;
         Span span = new Span("• " + text);
-        span.addClassName("user-activity-changes-item");
-        if (unchanged) span.addClassName("user-activity-changes-item--unchanged");
+        span.addClassName("activity-feed-changes-item");
+        if (unchanged) span.addClassName("activity-feed-changes-item--unchanged");
         container.add(span);
     }
 }

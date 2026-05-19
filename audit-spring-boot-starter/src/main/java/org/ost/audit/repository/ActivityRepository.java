@@ -15,13 +15,13 @@ public class ActivityRepository {
     private final ActivityProjection query;
 
     public ActivityRepository(JdbcClient jdbcClient,
-                              @Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper,
+                              @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
                               List<EntityDisplayNameResolver> resolvers) {
         this.jdbcClient = jdbcClient;
         this.query      = new ActivityProjection(objectMapper, resolvers);
     }
 
-    public List<ActivityItemDto> findByUserId(Long userId) {
-        return query.queryAll(jdbcClient, new MapSqlParameterSource("userId", userId));
+    public List<ActivityItemDto> findByActorId(Long actorId) {
+        return query.queryAll(jdbcClient, new MapSqlParameterSource("actorId", actorId));
     }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ost.platform.audit.dto.SnapshotPayload;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -11,7 +12,7 @@ public class AdvertisementDisplayNameResolver implements EntityDisplayNameResolv
 
     private final ObjectMapper objectMapper;
 
-    public AdvertisementDisplayNameResolver(ObjectMapper objectMapper) {
+    public AdvertisementDisplayNameResolver(@Qualifier("userSettingsObjectMapper") ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 

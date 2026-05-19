@@ -1,20 +1,23 @@
 package org.ost.marketplace.services.user;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.SignUpDto;
 import org.ost.marketplace.dto.UserProfileDto;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.EntityMarker;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.user.UserRepository;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.audit.SettingsSnapshot;
-import org.ost.platform.audit.dto.UserSnapshotState;
 import org.ost.marketplace.services.audit.UserSnapshot;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.data.domain.PageRequest;
@@ -37,6 +40,8 @@ public class UserService {
     private final PasswordEncoder     passwordEncoder;
     private final AuditPort           auditPort;
     private final AuthContextService  authContextService;
+    @Qualifier("userSettingsObjectMapper")
+    private final ObjectMapper        objectMapper;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -95,20 +100,20 @@ public class UserService {
     }
 
     @Transactional
-    public Optional<User> restoreBeforeSnapshot(Long snapshotId, Long actingUserId) {
-        return applyUserRestore(auditPort.getUserStateBefore(snapshotId), actingUserId);
+    public Optional<User> restoreBeforeSnapshot(Long userId, Long snapshotId, Long actingUserId) {
+        return applyUserRestore(userId, auditPort.getPreviousSnapshotContent(snapshotId, EntityType.USER), actingUserId);
     }
 
     @Transactional
-    public Optional<User> restoreToSnapshot(Long snapshotId, Long actingUserId) {
-        return applyUserRestore(auditPort.getUserStateAt(snapshotId), actingUserId);
+    public Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId) {
+        return applyUserRestore(userId, auditPort.getSnapshotContent(snapshotId, EntityType.USER), actingUserId);
     }
 
-    private Optional<User> applyUserRestore(Optional<UserSnapshotState> stateOpt, Long actingUserId) {
-        return stateOpt.flatMap(state -> {
-            User before = repository.findById(state.userId()).orElse(null);
-            repository.updateProfile(new UserProfileDto(state.userId(), state.name(), state.role()));
-            return repository.findById(state.userId()).map(updated -> {
+    private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContent> contentOpt, Long actingUserId) {
+        return contentOpt.flatMap(content -> parseUserSnapshot(content)).flatMap(snap -> {
+            User before = repository.findById(userId).orElse(null);
+            repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
+            return repository.findById(userId).map(updated -> {
                 auditPort.captureUpdate(updated.getId(),
                         UserSnapshot.from(before),
                         UserSnapshot.from(updated),
@@ -116,6 +121,14 @@ public class UserService {
                 return updated;
             });
         });
+    }
+
+    private Optional<UserSnapshot> parseUserSnapshot(SnapshotContent content) {
+        try {
+            return Optional.of(objectMapper.readValue(content.snapshotData().json(), UserSnapshot.class));
+        } catch (Exception _) {
+            return Optional.empty();
+        }
     }
 
     public Optional<User> findByEmail(String email) {

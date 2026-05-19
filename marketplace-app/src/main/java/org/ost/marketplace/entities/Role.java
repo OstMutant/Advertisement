@@ -1,4 +1,4 @@
-package org.ost.platform.core.model;
+package org.ost.marketplace.entities;
 
 public enum Role {
     USER,

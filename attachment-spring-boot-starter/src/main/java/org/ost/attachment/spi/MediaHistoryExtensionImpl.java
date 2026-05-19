@@ -3,7 +3,7 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.AdvertisementHistoryExtension;
+import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.springframework.stereotype.Component;
@@ -13,7 +13,7 @@ import java.util.List;
 @Component
 @ConditionalOnStorageEnabled
 @RequiredArgsConstructor
-public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryExtension {
+public class MediaHistoryExtensionImpl implements MediaHistoryExtension {
 
     private final AttachmentSnapshotService attachmentSnapshotService;
 
@@ -33,7 +33,7 @@ public class AdvertisementHistoryExtensionImpl implements AdvertisementHistoryEx
     }
 
     @Override
-    public String getMediaStateForAdvSnapshot(EntityType entityType, Long entityId, Long advSnapshotId) {
-        return attachmentSnapshotService.getMediaStateForAdvSnapshot(entityType, entityId, advSnapshotId);
+    public String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+        return attachmentSnapshotService.getMediaStateForSnapshot(entityType, entityId, snapshotId);
     }
 }

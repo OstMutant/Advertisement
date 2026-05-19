@@ -6,7 +6,7 @@ import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.entities.MediaContentType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
-import org.ost.platform.core.spi.CurrentUserProvider;
+import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
 import org.ost.platform.attachment.spi.MediaSummary;
 import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
@@ -33,7 +33,7 @@ public class AttachmentService {
     private final StorageService                                  storageService;
     private final AttachmentRepository                            attachmentRepository;
     private final AttachmentSnapshotService                       attachmentSnapshotService;
-    private final ObjectProvider<CurrentUserProvider>   currentUserProvider;
+    private final ObjectProvider<CurrentActorProvider>   currentActorProvider;
     private final ObjectProvider<MediaChangeConsumer>             mediaChangeConsumer;
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
@@ -74,16 +74,16 @@ public class AttachmentService {
     public void delete(Long attachmentId) {
         Attachment attachment = attachmentRepository.findById(attachmentId);
         if (attachment == null) return;
-        Long userId = resolveCurrentUserId();
-        attachmentRepository.softDelete(attachmentId, userId);
+        Long actorId = resolveCurrentActorId();
+        attachmentRepository.softDelete(attachmentId, actorId);
         captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
         notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
     }
 
     @Transactional
     public void deleteSkipSnapshot(Long attachmentId) {
-        Long userId = resolveCurrentUserId();
-        attachmentRepository.softDelete(attachmentId, userId);
+        Long actorId = resolveCurrentActorId();
+        attachmentRepository.softDelete(attachmentId, actorId);
     }
 
     public TempAttachment addVideoTemp(String url) {
@@ -160,20 +160,20 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long userId) {
+    public void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long actorId) {
         if (targetUrls == null || targetUrls.length == 0) {
-            attachmentRepository.restoreDeleteAll(entityType, entityId, userId);
+            attachmentRepository.restoreDeleteAll(entityType, entityId, actorId);
             notifyMediaChanged(entityType, entityId);
             return;
         }
         attachmentRepository.restoreUndelete(entityType, entityId, targetUrls);
-        attachmentRepository.restoreMarkDeleted(entityType, entityId, userId, targetUrls);
+        attachmentRepository.restoreMarkDeleted(entityType, entityId, actorId, targetUrls);
         notifyMediaChanged(entityType, entityId);
     }
 
     @Transactional
-    public void softDeleteAll(EntityType entityType, Long entityId, Long deletedByUserId) {
-        attachmentRepository.softDeleteAll(entityType, entityId, deletedByUserId);
+    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
+        attachmentRepository.softDeleteAll(entityType, entityId, actorId);
         notifyMediaChanged(entityType, entityId);
     }
 
@@ -198,14 +198,14 @@ public class AttachmentService {
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {
-        Long userId = resolveCurrentUserId();
-        if (userId != null) {
-            attachmentSnapshotService.capture(entityType, entityId, userId);
+        Long actorId = resolveCurrentActorId();
+        if (actorId != null) {
+            attachmentSnapshotService.capture(entityType, entityId, actorId);
         }
     }
 
-    private Long resolveCurrentUserId() {
-        CurrentUserProvider p = currentUserProvider.getIfAvailable();
-        return p == null ? null : p.getCurrentUserId().orElse(null);
+    private Long resolveCurrentActorId() {
+        CurrentActorProvider p = currentActorProvider.getIfAvailable();
+        return p == null ? null : p.getCurrentActorId().orElse(null);
     }
 }

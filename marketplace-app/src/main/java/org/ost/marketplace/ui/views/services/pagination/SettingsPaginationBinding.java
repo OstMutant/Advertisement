@@ -2,7 +2,7 @@ package org.ost.marketplace.ui.views.services.pagination;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.config.UserSettings;
+import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.events.SettingsChangedEvent;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.springframework.context.ApplicationListener;

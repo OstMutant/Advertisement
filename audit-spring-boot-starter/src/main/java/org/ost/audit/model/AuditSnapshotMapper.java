@@ -15,7 +15,7 @@ public class AuditSnapshotMapper {
 
     static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
-    @Qualifier("userSettingsObjectMapper") private final ObjectMapper objectMapper;
+    @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
 
     public String toJson(Object obj) {
         if (obj == null) return null;

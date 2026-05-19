@@ -89,7 +89,7 @@ test.describe('Media line always shown in history', () => {
     // verify history
     await openHistory(page);
 
-    const rows = page.locator('.adv-history-row');
+    const rows = page.locator('.entity-history-row');
     await test.step('3 history rows present', async () => {
       expect(await rows.count()).toBeGreaterThanOrEqual(3);
     });
@@ -97,7 +97,7 @@ test.describe('Media line always shown in history', () => {
     const latestRow = rows.first();
 
     await test.step('Latest row (text-only edit) still has media line', async () => {
-      const changes = latestRow.locator('.adv-history-changes-item');
+      const changes = latestRow.locator('.entity-history-changes-item');
       const texts = await changes.allTextContents();
       const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
       if (!mediaLine) {
@@ -108,7 +108,7 @@ test.describe('Media line always shown in history', () => {
     });
 
     await test.step('Media line contains — (images were deleted in v2)', async () => {
-      const changes = latestRow.locator('.adv-history-changes-item');
+      const changes = latestRow.locator('.entity-history-changes-item');
       const texts = await changes.allTextContents();
       const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
       if (!mediaLine.includes('—')) {

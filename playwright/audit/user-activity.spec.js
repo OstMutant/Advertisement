@@ -28,13 +28,13 @@ test.describe('User activity', () => {
     await openActivityTab(page);
 
     await test.step('Activity list visible with entries', async () => {
-      await expect(page.locator('.user-activity-list').first()).toBeVisible();
-      if (await page.locator('.user-activity-row').count() === 0)
+      await expect(page.locator('.activity-feed-list').first()).toBeVisible();
+      if (await page.locator('.activity-feed-row').count() === 0)
         throw new Error('No activity rows in settings');
     });
 
     await test.step('My activity section visible in settings', async () => {
-      const text = await page.locator('.user-activity-list').first().textContent();
+      const text = await page.locator('.activity-feed-list').first().textContent();
       if (!text) throw new Error('Activity list is empty');
     });
 

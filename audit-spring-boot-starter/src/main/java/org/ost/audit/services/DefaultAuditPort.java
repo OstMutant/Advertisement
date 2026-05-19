@@ -2,10 +2,9 @@ package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.spi.CurrentUserProvider;
+import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContent;
-import org.ost.platform.audit.dto.UserSnapshotState;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
@@ -21,17 +20,17 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
-    private final AuditDiffEngine                   diffEngine;
-    private final AuditSnapshotMapper               snapshotMapper;
-    private final AuditLogRepository                auditLogRepository;
-    private final ObjectProvider<CurrentUserProvider> auditUserProvider;
-    private final AuditQueryService                 auditQueryService;
-    private final AuditHistoryService               auditHistoryService;
+    private final AuditDiffEngine                      diffEngine;
+    private final AuditSnapshotMapper                  snapshotMapper;
+    private final AuditLogRepository                   auditLogRepository;
+    private final ObjectProvider<CurrentActorProvider> currentActorProvider;
+    private final AuditQueryService                    auditQueryService;
+    private final AuditHistoryService                  auditHistoryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
-        CurrentUserProvider provider = auditUserProvider.getIfAvailable();
-        return provider != null ? provider.getCurrentUserId().orElse(null) : null;
+        CurrentActorProvider provider = currentActorProvider.getIfAvailable();
+        return provider != null ? provider.getCurrentActorId().orElse(null) : null;
     }
 
     @Override
@@ -78,17 +77,12 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
+    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+        return auditQueryService.getPreviousSnapshotContent(snapshotId, entityType);
+    }
+
+    @Override
     public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) {
         auditHistoryService.appendNoteToLastSnapshot(entityType, entityId, note);
-    }
-
-    @Override
-    public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
-        return auditQueryService.getUserStateBefore(snapshotId);
-    }
-
-    @Override
-    public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
-        return auditQueryService.getUserStateAt(snapshotId);
     }
 }

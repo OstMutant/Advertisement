@@ -2,7 +2,7 @@ package org.ost.marketplace.repository.user;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.UserProfileDto;
-import org.ost.platform.core.model.Role;
+import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.sqlengine.projection.SqlSelectField;
 import org.ost.sqlengine.projection.SqlEntityProjection;

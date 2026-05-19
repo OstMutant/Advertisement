@@ -21,5 +21,5 @@ public class Attachment {
     Long       size;
     Instant    createdAt;
     Instant    deletedAt;
-    Long       deletedByUserId;
+    Long       deletedByActorId;
 }

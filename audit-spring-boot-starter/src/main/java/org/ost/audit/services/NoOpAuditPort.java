@@ -3,7 +3,6 @@ package org.ost.audit.services;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContent;
-import org.ost.platform.audit.dto.UserSnapshotState;
 import org.ost.platform.core.model.EntityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,15 +32,10 @@ public class NoOpAuditPort implements AuditPort {
     }
 
     @Override
+    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+        return Optional.empty();
+    }
+
+    @Override
     public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) { /* audit disabled */ }
-
-    @Override
-    public Optional<UserSnapshotState> getUserStateBefore(Long snapshotId) {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<UserSnapshotState> getUserStateAt(Long snapshotId) {
-        return Optional.empty();
-    }
 }

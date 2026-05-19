@@ -4,9 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.ost.audit.repository.ActivityRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.audit.spi.ActivityFeedExtension;
 import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
-import org.ost.platform.audit.spi.UserActivityExtension;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
@@ -19,15 +19,15 @@ import java.util.stream.Collectors;
 public class ActivityService {
 
     private final ActivityRepository                          repository;
-    private final ObjectProvider<UserActivityExtension>       activityExtension;
+    private final ObjectProvider<ActivityFeedExtension>       activityExtension;
     private final ObjectProvider<AuditActorNameResolver>      actorNameResolver;
     private final ObjectProvider<AuditEntityExistenceChecker> existenceChecker;
 
-    public List<ActivityItemDto> getForUser(Long userId) {
-        List<ActivityItemDto> base = repository.findByUserId(userId);
+    public List<ActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
+        List<ActivityItemDto> base = repository.findByActorId(subjectId);
 
-        UserActivityExtension ext = activityExtension.getIfAvailable();
-        List<ActivityItemDto> combined = ext != null ? ext.merge(userId, base) : base;
+        ActivityFeedExtension ext = activityExtension.getIfAvailable();
+        List<ActivityItemDto> combined = ext != null ? ext.merge(subjectType, subjectId, base) : base;
 
         combined = resolveActorNames(combined);
         combined = resolveEntityExistence(combined);
@@ -38,17 +38,17 @@ public class ActivityService {
         AuditActorNameResolver resolver = actorNameResolver.getIfAvailable();
         if (resolver == null) return items;
         Set<Long> ids = items.stream()
-                .map(ActivityItemDto::changedByUserId)
+                .map(ActivityItemDto::changedByActorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         if (ids.isEmpty()) return items;
         Map<Long, String> names = resolver.resolveNames(ids);
         return items.stream()
-                .map(i -> i.changedByUserId() == null ? i
+                .map(i -> i.changedByActorId() == null ? i
                         : new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
                                 i.displayName(), i.actionType(), i.createdAt(), i.entityExists(),
-                                i.changes(), i.changedByUserId(),
-                                names.getOrDefault(i.changedByUserId(), "—"),
+                                i.changes(), i.changedByActorId(),
+                                names.getOrDefault(i.changedByActorId(), "—"),
                                 i.snapshotData()))
                 .toList();
     }
@@ -69,7 +69,7 @@ public class ActivityService {
                     boolean exists = existingByType.getOrDefault(i.entityType(), Set.of()).contains(i.entityId());
                     return new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
                             i.displayName(), i.actionType(), i.createdAt(), exists,
-                            i.changes(), i.changedByUserId(), i.changedByName(),
+                            i.changes(), i.changedByActorId(), i.changedByName(),
                             i.snapshotData());
                 })
                 .toList();
