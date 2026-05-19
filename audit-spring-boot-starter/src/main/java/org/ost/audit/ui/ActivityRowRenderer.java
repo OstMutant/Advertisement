@@ -6,6 +6,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayload;
@@ -26,6 +27,7 @@ import java.util.Map;
 
 @CssImport("./entity-history.css")
 @SpringComponent
+@ConditionalOnAuditEnabled
 @Scope("prototype")
 @RequiredArgsConstructor
 public class ActivityRowRenderer {

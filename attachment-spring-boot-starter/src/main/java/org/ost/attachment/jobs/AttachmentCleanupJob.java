@@ -3,6 +3,7 @@ package org.ost.attachment.jobs;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.platform.attachment.storage.StorageService;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.springframework.beans.factory.ObjectProvider;
@@ -18,6 +19,7 @@ import java.util.Set;
 
 @Slf4j
 @Component
+@ConditionalOnStorageEnabled
 @RequiredArgsConstructor
 public class AttachmentCleanupJob {
 

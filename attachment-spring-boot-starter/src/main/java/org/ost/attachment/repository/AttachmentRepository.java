@@ -2,6 +2,7 @@ package org.ost.attachment.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
+import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
+@ConditionalOnStorageEnabled
 @RequiredArgsConstructor
 public class AttachmentRepository {
 

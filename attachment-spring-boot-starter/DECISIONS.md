@@ -57,6 +57,16 @@
 
 ---
 
+## 2026-05-19 — Every starter-owned bean gated by `@ConditionalOnStorageEnabled`
+
+**Decision:** `AttachmentCleanupJob`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository` are now annotated with `@ConditionalOnStorageEnabled`. Previously only the higher-level beans (`AttachmentService`, `DefaultAttachmentPort`, `AttachmentGalleryExtensionImpl`, `MediaHistoryExtensionImpl`, `attachmentLiquibase`, `S3Client`, `s3StorageService`) carried the conditional; the lower-level component-scanned classes were instantiated unconditionally.
+
+**Why:** With `storage.s3.enabled=false` the starter must leave no residue. The critical violation was `AttachmentCleanupJob`: it carries `@Scheduled(cron = "0 0 2 * * *")` and was active regardless of the flag — at 02:00 it would walk a disabled storage. The repositories and snapshot service had no scheduled effect, but their presence in the application context broke the symmetry promise: "subsystem off" should mean "no subsystem beans". The audit starter already followed this rule (`AuditCleanupJob` carries `@ConditionalOnAuditEnabled`); attachment now matches.
+
+**Rejected:** Leaving the repositories/service unconditional with the argument "they have no side effects" — symmetry with the audit starter is a usability contract, not a micro-optimization. A future maintainer reading "subsystem disabled" expects an empty subsystem.
+
+---
+
 ## 2026-05-19 — Starter owns `attachmentObjectMapper`; Liquibase gated by storage flag
 
 **Decision:** `AttachmentAutoConfiguration` defines `@Bean("attachmentObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "attachmentObjectMapper")` for override. `AttachmentSnapshotService.objectMapper` is annotated `@Qualifier("attachmentObjectMapper")` so it does not collide with `userSettingsObjectMapper` / `auditObjectMapper` in a context that has all three. The `attachmentLiquibase` bean is now `@ConditionalOnStorageEnabled` so `storage.s3.enabled=false` leaves no schema apply.

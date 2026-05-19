@@ -76,6 +76,16 @@
 
 ---
 
+## 2026-05-19 — UI components symmetrically gated by `@ConditionalOnAuditEnabled`
+
+**Decision:** `ActivityRowRenderer` and `ActivityPanel` now carry `@ConditionalOnAuditEnabled` to match the other audit UI beans (`EntityHistoryPanel`, `ProfileActivityPanel`, `SnapshotBinder`, `AuditUiExtensionImpl`). Previously these two were the only `@SpringComponent` UI beans in `org.ost.audit.ui` without the conditional, so they would be instantiated even with `audit.enabled=false`.
+
+**Why:** No functional effect (Vaadin prototypes were only resolved through `AuditUiExtension`, which is itself gated), but the inconsistency was a maintenance hazard — a future caller wiring `ActivityPanel` directly would silently bypass the disable flag. Uniform gating eliminates that risk.
+
+**Rejected:** Promoting the conditional to a package-level `@ComponentScan` filter — `@ConditionalOnAuditEnabled` on each `@SpringComponent` is more discoverable and matches the existing per-bean style.
+
+---
+
 ## 2026-05-19 — Starter owns `auditObjectMapper`; Liquibase gated by `audit.enabled`
 
 **Decision:** `AuditAutoConfiguration` now defines `@Bean("auditObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "auditObjectMapper")` for override. All audit-side consumers — `ActivityProjection`, `EntityHistoryProjection`, `AuditReadRepository`, `ActivityRepository`, `AuditSnapshotMapper`, `ActivityRowRenderer`, `EntityHistoryPanel`, `SnapshotBinder` — qualify their `ObjectMapper` injection with `@Qualifier("auditObjectMapper")` (lombok.copyableAnnotations propagates the qualifier from field to generated constructor parameter). The `auditLiquibase` bean is now `@ConditionalOnAuditEnabled` so `audit.enabled=false` produces no schema apply attempt.

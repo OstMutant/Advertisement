@@ -4,12 +4,14 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.i18n.I18nService;
 
 import java.util.List;
 
 @SpringComponent
+@ConditionalOnAuditEnabled
 @RequiredArgsConstructor
 public class ActivityPanel {
 
