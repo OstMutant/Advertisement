@@ -10,8 +10,8 @@ import org.ost.attachment.service.NoOpAttachmentPort;
 import org.ost.attachment.service.NoOpStorageService;
 import org.ost.attachment.service.S3StorageService;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
-import org.ost.platform.attachment.storage.StorageService;
+import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
+import org.ost.attachment.storage.StorageService;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -49,7 +49,7 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean("attachmentLiquibase")
-    @ConditionalOnStorageEnabled
+    @ConditionalOnAttachmentEnabled
     @ConditionalOnMissingBean(name = "attachmentLiquibase")
     public SpringLiquibase attachmentLiquibase(DataSource dataSource) {
         SpringLiquibase liq = new SpringLiquibase();
@@ -59,7 +59,7 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnStorageEnabled
+    @ConditionalOnAttachmentEnabled
     @ConditionalOnMissingBean
     public S3Client s3Client(
             @Value("${storage.s3.endpoint}") String endpoint,
@@ -75,7 +75,7 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnStorageEnabled
+    @ConditionalOnAttachmentEnabled
     @ConditionalOnMissingBean(StorageService.class)
     public StorageService s3StorageService(S3Client s3Client,
                                            @Value("${storage.s3.bucket}") String bucket,
@@ -84,13 +84,13 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(name = "storage.s3.enabled", havingValue = "false")
+    @ConditionalOnProperty(name = "attachment.enabled", havingValue = "false")
     public StorageService noOpStorageService() {
         return new NoOpStorageService();
     }
 
     @Bean
-    @ConditionalOnStorageEnabled
+    @ConditionalOnAttachmentEnabled
     @ConditionalOnMissingBean(AttachmentPort.class)
     DefaultAttachmentPort defaultAttachmentPort(
             AttachmentService attachmentService,

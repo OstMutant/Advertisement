@@ -57,7 +57,7 @@ advertisement-parent (root pom)
 **platform-contracts** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`, `Role`), `core.config` (`CleanupProperties`, `UserSettings`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (cross-cutting SPIs: `CurrentUserProvider`, `EntityDisplayNameResolver`)
 - `audit.*` — audit subsystem contract: `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContent`, `SnapshotPayload`, `UserSnapshotState`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`, `AuditUiExtension`)
-- `attachment.*` — attachment subsystem contract: `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`, `MediaSummary`), `attachment.storage` (`StorageService`, `@ConditionalOnStorageEnabled`)
+- `attachment.*` — attachment subsystem contract: `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`, `MediaSummary`). The storage SPI (`StorageService`) and the subsystem conditional (`@ConditionalOnAttachmentEnabled`) are internal to `attachment-spring-boot-starter` — no other module consumes them.
 
 **audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
 
@@ -69,7 +69,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
-3. **Modular Storage:** `StorageService` interface lives in `platform-contracts` (`attachment.storage`); `S3StorageService` and `NoOpStorageService` live in `attachment-spring-boot-starter`. UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `storage.s3.enabled=false`.
+3. **Modular Storage:** `StorageService` interface and its implementations (`S3StorageService`, `NoOpStorageService`) all live in `attachment-spring-boot-starter` (package `org.ost.attachment.storage`). The attachment subsystem is gated by `attachment.enabled` (default `true`); UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `attachment.enabled=false`. The S3-specific properties (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) are S3-implementation config and stay under `storage.s3.*`.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 

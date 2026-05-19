@@ -5,7 +5,7 @@ import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityFeedExtension;
-import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-@ConditionalOnStorageEnabled
+@ConditionalOnAttachmentEnabled
 @RequiredArgsConstructor
 public class ActivityFeedExtensionImpl implements ActivityFeedExtension {
 

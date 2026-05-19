@@ -2,19 +2,29 @@
 
 ---
 
+## 2026-05-19 — Storage SPI moved out of contracts
+
+**Decision:** `StorageService` and `@ConditionalOnStorageEnabled` were removed from `platform-contracts` (package `attachment.storage`) and moved into `attachment-spring-boot-starter` (package `org.ost.attachment.storage`). The conditional was renamed to `@ConditionalOnAttachmentEnabled` and reads the property `attachment.enabled`. The `attachment.storage` package no longer exists in contracts; the `attachment.*` contract surface is now SPI-only (`attachment.spi`).
+
+**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` or the conditional. They were contracts in name only — no cross-module consumer. `platform-contracts` is reserved for types crossed by ≥2 modules; single-consumer interfaces belong with their consumer. The rename also matches reality: there is one subsystem flag (`attachment.enabled`), not separate `storage.s3.enabled` and `attachment.enabled` toggles.
+
+**Rejected:** Keeping the SPI in contracts "in case" a future module wanted a `StorageService` — speculative. If a non-attachment module ever needs blob storage, the interface can be promoted back at that time.
+
+---
+
 ## Ongoing — Shared kernel: contracts, not implementations
 
 **Decision:** `platform-contracts` contains only pure Java: DTOs, domain events, SPI interfaces, annotations, and conditional markers. No Spring Boot autoconfiguration, no Spring beans, no framework annotations beyond `@interface`.
 
 **Why:** Every module depends on `platform-contracts`. If it pulled in Spring Boot or any framework, every module would inherit that transitive dependency — including `sql-engine` which is intentionally framework-free. Keeping contracts pure Java preserves the dependency hierarchy.
 
-**Rejected:** Placing `@ConditionalOnAuditEnabled` or `@ConditionalOnStorageEnabled` in Spring config classes inside this module — confirmed that `@ConditionalOnProperty` requires Spring context, which contracts must not have.
+**Rejected:** Placing `@ConditionalOnAuditEnabled` in Spring config classes inside this module — confirmed that `@ConditionalOnProperty` requires Spring context, which contracts must not have. (`@ConditionalOnAttachmentEnabled` was relocated to `attachment-spring-boot-starter` itself on 2026-05-19 — see top entry.)
 
 ---
 
 ## Ongoing — SPI pattern for cross-module extension
 
-**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-contracts` (e.g. `AttachmentGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `StorageService`, `AttachmentPort`, `MediaChangeConsumer`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`.
+**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-contracts` (e.g. `AttachmentGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentPort`, `MediaChangeConsumer`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
 
 **Why:** Modules must not know about each other — only about contracts. The SPI pattern lets `attachment-spring-boot-starter` extend audit history without `audit-spring-boot-starter` importing attachment types.
 
@@ -102,10 +112,9 @@ audit.spi      — AuditPort, AuditActorNameResolver, AuditEntityExistenceChecke
 
 attachment.spi     — AttachmentPort, AttachmentGalleryExtension,
                      MediaChangeConsumer, MediaSummary
-attachment.storage — StorageService, @ConditionalOnStorageEnabled
 ```
 
-The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above.
+The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above. The `attachment.storage` package was removed on 2026-05-19 — `StorageService` and the subsystem conditional moved into `attachment-spring-boot-starter`.
 
 `PaginationDefaults` moved to `marketplace-app` (only used there).
 

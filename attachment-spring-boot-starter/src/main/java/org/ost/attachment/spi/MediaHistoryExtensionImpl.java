@@ -5,13 +5,13 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.attachment.service.AttachmentSnapshotService;
-import org.ost.platform.attachment.storage.ConditionalOnStorageEnabled;
+import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-@ConditionalOnStorageEnabled
+@ConditionalOnAttachmentEnabled
 @RequiredArgsConstructor
 public class MediaHistoryExtensionImpl implements MediaHistoryExtension {
 
