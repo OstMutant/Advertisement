@@ -75,6 +75,18 @@ advertisement-parent (root pom)
 
 **Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. Symmetry with existing code is a first-class goal.
 
+### Repository pattern
+
+**Policy:** Spring Data JDBC `CrudRepository` for trivial save/find; `JdbcClient` (via `*Descriptor` + `RepositoryCustom`) for bespoke queries.
+
+- Entity classes annotated with `@Table`, `@Id`, `@CreatedDate`, `@LastModifiedDate` where applicable. `@CreatedDate` / `@LastModifiedDate` rely on the project-wide `AuditorAware<Long>` bean in `marketplace-app/JdbcAuditingConfig`.
+- Repository = interface that extends `CrudRepository<T, Long>` and a `*Custom` interface.
+- `*Custom` interface declares bespoke method signatures; `*CustomImpl` extends `RepositoryCustom<T, F>` (when filtering/paging applies) and holds the `JdbcClient` calls + `*Descriptor` lookups.
+- Hand-rolled `INSERT` / `findById` SQL is removed whenever it duplicates what `CrudRepository.save` / `.findById` already provides.
+- Starters that ship their own repositories must declare `@EnableJdbcRepositories(basePackages = "...")` in their `@AutoConfiguration`, because the marketplace `@SpringBootApplication` scan only covers `org.ost.marketplace`.
+
+Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
+
 ---
 
 ## UI Component Patterns

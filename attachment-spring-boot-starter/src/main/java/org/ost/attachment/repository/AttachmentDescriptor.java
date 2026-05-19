@@ -55,13 +55,6 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
             " SET " + Write.DELETED_AT + " = NOW()," +
             " "     + Write.DELETED_BY_ACTOR_ID + " = :actorId";
 
-    public static final SqlWriteCommand INSERT = SqlWriteCommand.of(
-            "INSERT INTO " + Write.TABLE +
-            " (" + Write.ENTITY_TYPE + ", " + Write.ENTITY_ID + ", " + Write.URL + ", " +
-            Write.FILENAME + ", " + Write.CONTENT_TYPE + ", " + Write.SIZE + ", created_at)" +
-            " VALUES (:entityType, :entityId, :url, :filename, :contentType, :size, NOW())" +
-            " RETURNING " + ID.columnName());
-
     public static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
             "UPDATE " + Write.TABLE + SET_DELETED_NOW +
             " WHERE " + ID.columnName() + " = :id");
@@ -89,9 +82,6 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
             " AND "   + Write.ENTITY_ID + " = :entityId" +
             " AND "   + Write.DELETED_AT + " IS NULL" +
             " AND NOT (" + Write.URL + " = ANY(:urls))");
-
-    public static final String FIND_BY_ID_SQL =
-            "SELECT * FROM " + TABLE + " WHERE " + ID.columnName() + " = :id";
 
     public static final String SELECT_ACTIVE_BY_ENTITY_SQL =
             "SELECT * FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY;
@@ -123,18 +113,6 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
                 .addValue("entityId",   entityId);
     }
 
-    public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
-                                                     String url, String filename,
-                                                     String contentType, long size) {
-        return new MapSqlParameterSource()
-                .addValue("entityType",  entityType.name())
-                .addValue("entityId",    entityId)
-                .addValue("url",         url)
-                .addValue("filename",    filename)
-                .addValue("contentType", contentType)
-                .addValue("size",        size);
-    }
-
     public static MapSqlParameterSource softDeleteParams(Long id, Long actorId) {
         return new MapSqlParameterSource()
                 .addValue("id",      id)
@@ -154,10 +132,6 @@ public class AttachmentDescriptor extends SqlEntityProjection<Attachment> {
         return entityParams(entityType, entityId)
                 .addValue("actorId", actorId)
                 .addValue("urls",    urls);
-    }
-
-    public static MapSqlParameterSource findByIdParams(Long id) {
-        return new MapSqlParameterSource("id", id);
     }
 
     public static MapSqlParameterSource findUrlsDeletedOlderThanParams(int days) {

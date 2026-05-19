@@ -21,6 +21,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
@@ -32,6 +33,7 @@ import java.net.URI;
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan("org.ost.attachment")
+@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")
 @EnableConfigurationProperties(CleanupProperties.class)
 public class AttachmentAutoConfiguration {
 

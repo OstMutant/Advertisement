@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-05-19 — AttachmentRepository migrated to CrudRepository + Custom split
+
+**Decision:** Aligned attachment-starter with the project-wide repository policy (see `CLAUDE.md` → Repository pattern):
+- `Attachment` entity gained `@Table("attachment")`, `@Id`, `@CreatedDate`.
+- `AttachmentRepository` is now an interface extending `CrudRepository<Attachment, Long> + AttachmentRepositoryCustom`.
+- `AttachmentRepositoryCustomImpl` keeps the bespoke soft-delete / restore / cleanup / media-stats queries against `AttachmentDescriptor`.
+- Removed `INSERT` SqlWriteCommand, `insertParams`, `FIND_BY_ID_SQL`, `findByIdParams` from `AttachmentDescriptor` — superseded by `save()` / `findById()`.
+- `AttachmentAutoConfiguration` declares `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` so the starter is self-contained; the marketplace `@SpringBootApplication` scan does not cover `org.ost.attachment.*`.
+
+**Why:** Eliminates a duplicated INSERT/SELECT-by-id path that Spring Data JDBC already provides, and brings attachment-starter in line with the `User` / `Advertisement` repository structure so future contributors meet one pattern across the codebase.
+
+**Rejected:** Migrating bespoke soft-delete / restore / cleanup / media-stats queries to derived repository methods — those queries depend on PostgreSQL-specific features (`ANY(:urls)`, `MAKE_INTERVAL`, `ROW_NUMBER()` etc.) and stay on `JdbcClient`.
+
+---
+
 ## 2026-05-07 — Attachment logic extracted from marketplace-app
 
 **Decision:** All attachment/photo domain logic (entity, repository, UI components `AttachmentGallery`, `CardMediaLightbox`) lives in this module, not in `marketplace-app`.
