@@ -4,8 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
-import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.read.SqlEntityProjection;
+import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.write.SqlEntityWriter;
 
 import java.sql.ResultSet;
@@ -18,7 +19,7 @@ import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.fieldExpr;
 
-public class UserDescriptor extends SqlEntityProjection<User> {
+public final class UserDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "user_information";
     public static final String ALIAS  = "u";
@@ -32,6 +33,27 @@ public class UserDescriptor extends SqlEntityProjection<User> {
     public static final SqlSelectField<Instant> CREATED_AT    = instant(ALIAS + ".created_at", createdAt);
     public static final SqlSelectField<Instant> UPDATED_AT    = instant(ALIAS + ".updated_at", updatedAt);
     public static final SqlSelectField<String>  LOCALE        = str(ALIAS + ".locale",         locale);
+
+    public static final class Read {
+        private Read() {}
+
+        public static final SqlEntityProjection<User> PROJECTION = new SqlEntityProjection<>(
+                List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE) {
+            @Override
+            public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+                return User.builder()
+                        .id(ID.extract(rs))
+                        .name(NAME.extract(rs))
+                        .email(EMAIL.extract(rs))
+                        .role(Role.valueOf(ROLE.extract(rs)))
+                        .passwordHash(PASSWORD_HASH.extract(rs))
+                        .createdAt(CREATED_AT.extract(rs))
+                        .updatedAt(UPDATED_AT.extract(rs))
+                        .locale(LOCALE.extract(rs))
+                        .build();
+            }
+        };
+    }
 
     public static final class Write {
         private Write() {}
@@ -51,21 +73,5 @@ public class UserDescriptor extends SqlEntityProjection<User> {
         );
     }
 
-    public UserDescriptor() {
-        super(List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE);
-    }
-
-    @Override
-    public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-        return User.builder()
-                .id(ID.extract(rs))
-                .name(NAME.extract(rs))
-                .email(EMAIL.extract(rs))
-                .role(Role.valueOf(ROLE.extract(rs)))
-                .passwordHash(PASSWORD_HASH.extract(rs))
-                .createdAt(CREATED_AT.extract(rs))
-                .updatedAt(UPDATED_AT.extract(rs))
-                .locale(LOCALE.extract(rs))
-                .build();
-    }
+    private UserDescriptor() {}
 }

@@ -15,7 +15,6 @@ public class AdvertisementRepositoryCustomImpl
         extends RepositoryCustom<AdvertisementInfoDto, AdvertisementFilterDto>
         implements AdvertisementRepositoryCustom {
 
-    private static final AdvertisementDescriptor    PROJECTION    = new AdvertisementDescriptor();
     private static final AdvertisementFilterBuilder FILTER_BUILDER = new AdvertisementFilterBuilder();
 
     private static final String BY_ID = "a.id = :id AND a.deleted_at IS NULL";
@@ -28,7 +27,7 @@ public class AdvertisementRepositoryCustomImpl
     );
 
     public AdvertisementRepositoryCustomImpl(JdbcClient jdbcClient) {
-        super(jdbcClient, PROJECTION, FILTER_BUILDER);
+        super(jdbcClient, AdvertisementDescriptor.Read.PROJECTION, FILTER_BUILDER);
     }
 
     @Override

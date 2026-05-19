@@ -97,7 +97,7 @@ Reference implementations: `UserRepository` / `AdvertisementRepository` in marke
 
 Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
 
-Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`. Older descriptors (`UserDescriptor`, `AdvertisementDescriptor`, `AuditLogDescriptor`) still `extend SqlEntityProjection<T>` directly and are migrated in follow-up commits — both styles coexist during the transition.
+Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
 
 ---
 

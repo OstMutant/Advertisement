@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-05-19 — AuditLogDescriptor marked as SqlEntityDescriptor
+
+**Decision:** `AuditLogDescriptor` now `implements SqlEntityDescriptor`. No structural change otherwise — it was already `final class` with a private constructor + `Write` namespace; read-side SQL stays inline in `AuditLogRepository` and the `*Projection` `SqlFixedQuery` subclasses (no shared `Read.PROJECTION` to extract).
+
+**Why:** Make all descriptors discoverable as a single family via the marker, completing the migration to the namespace pattern.
+
+---
+
 ## 2026-05-13 — Module created: write-side audit extracted from marketplace-app
 
 **Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `NoOpAuditPort`, `AuditDiffEngine`, `AuditFieldCache`, `AuditSnapshotMapper`, `AuditLogRepository`) and read side (`AuditReadRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, `ActivityPanel`, `ProfileActivityPanel`). Auto-configured via a single `AuditAutoConfiguration`. Enabled by default (`audit.enabled=true`).

@@ -14,7 +14,6 @@ import java.util.Optional;
 public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterDto>
         implements UserRepositoryCustom {
 
-    private static final UserDescriptor        PROJECTION           = new UserDescriptor();
     private static final UserFilterBuilder      FILTER_BUILDER       = new UserFilterBuilder();
     private static final UserEmailFilterBuilder EMAIL_FILTER_BUILDER = new UserEmailFilterBuilder();
 
@@ -22,7 +21,7 @@ public class UserRepositoryCustomImpl extends RepositoryCustom<User, UserFilterD
     private static final SqlWriteCommand UPDATE_LOCALE  = SqlWriteCommand.of(UserDescriptor.Write.LOCALE_WRITER.updateWhere("id = :id"));
 
     public UserRepositoryCustomImpl(JdbcClient jdbcClient) {
-        super(jdbcClient, PROJECTION, FILTER_BUILDER);
+        super(jdbcClient, UserDescriptor.Read.PROJECTION, FILTER_BUILDER);
     }
 
     @Override

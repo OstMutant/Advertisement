@@ -2,6 +2,16 @@
 
 ---
 
+## 2026-05-19 — UserDescriptor / AdvertisementDescriptor migrated to Read/Write namespace pattern
+
+**Decision:** Both descriptors are now `final class implements SqlEntityDescriptor` with a private constructor. Their `SqlEntityProjection<T>` (with inline `mapRow`) lives inside an inner `Read` namespace as `Read.PROJECTION`; the existing `Write` namespace stays. Call sites pass `Descriptor.Read.PROJECTION` directly to `RepositoryCustom` instead of instantiating the descriptor.
+
+**Why:** Match the `AttachmentDescriptor` reference pattern across all modules, removing the read/write asymmetry and making the SQL boundary explicit at every call site.
+
+**How to apply:** New descriptors follow this shape; never `extend SqlEntityProjection<T>` directly.
+
+---
+
 ## 2026-05-12 — Dependency versions locked
 
 **Decision:** Spring Boot 4.0.6, Vaadin 25.1.5, AWS S3 SDK 2.44.4.

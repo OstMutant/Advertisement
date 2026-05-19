@@ -1,10 +1,11 @@
 package org.ost.audit.repository;
 
+import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.read.SqlSelectField;
 
 import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
-public final class AuditLogDescriptor {
+public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE = "audit_log";
 
