@@ -188,7 +188,16 @@
       "Bash(docker-compose -f docker-compose.db.yml down -v)",
       "Bash(docker-compose -f docker-compose.minio.yml down -v)",
       "Bash(docker network *)",
-      "Bash(mvn -q -pl platform-contracts,audit-spring-boot-starter,attachment-spring-boot-starter,marketplace-app -am clean compile -DskipTests)"
+      "Bash(mvn -q -pl platform-contracts,audit-spring-boot-starter,attachment-spring-boot-starter,marketplace-app -am clean compile -DskipTests)",
+      "Bash(mvn -q -pl platform-contracts,audit-spring-boot-starter,marketplace-app -am compile)",
+      "Bash(mvn -q -pl marketplace-app -am compile)",
+      "Bash(mvn -q clean compile)",
+      "Bash(mvn -q test)",
+      "Bash(docker-compose -f /app/docker-compose.db.yml down -v)",
+      "Bash(docker-compose -f /app/docker-compose.minio.yml down -v)",
+      "Bash(docker info *)",
+      "Bash(mvn -q -pl audit-spring-boot-starter,marketplace-app -am compile)",
+      "Bash(mvn -q clean test)"
     ]
   },
   "hooks": {
