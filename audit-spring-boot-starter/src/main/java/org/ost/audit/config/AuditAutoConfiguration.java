@@ -8,9 +8,7 @@ import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
-import org.ost.audit.repository.ActivityRepository;
 import org.ost.audit.repository.AuditLogRepository;
-import org.ost.audit.repository.AuditReadRepository;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.ost.audit.services.ActivityService;
 import org.ost.audit.services.AuditHistoryService;
@@ -57,8 +55,11 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditLogRepository.class)
-    AuditLogRepository auditLogRepository(JdbcClient jdbcClient) {
-        return new AuditLogRepository(jdbcClient);
+    AuditLogRepository auditLogRepository(
+            JdbcClient jdbcClient,
+            @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
+            List<EntityDisplayNameResolver> resolvers) {
+        return new AuditLogRepository(jdbcClient, objectMapper, resolvers);
     }
 
     @Bean
@@ -82,47 +83,30 @@ public class AuditAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnMissingBean(AuditReadRepository.class)
-    AuditReadRepository auditReadRepository(
-            JdbcClient jdbcClient,
-            @Qualifier("auditObjectMapper") ObjectMapper objectMapper) {
-        return new AuditReadRepository(jdbcClient, objectMapper);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(ActivityRepository.class)
-    ActivityRepository activityRepository(
-            JdbcClient jdbcClient,
-            @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
-            List<EntityDisplayNameResolver> resolvers) {
-        return new ActivityRepository(jdbcClient, objectMapper, resolvers);
-    }
-
-    @Bean
     @ConditionalOnMissingBean(AuditHistoryService.class)
     AuditHistoryService auditHistoryService(
-            AuditReadRepository auditReadRepository,
+            AuditLogRepository auditLogRepository,
             AuditSnapshotMapper snapshotMapper,
             ObjectProvider<MediaHistoryExtension> historyExtension,
             ObjectProvider<AuditActorNameResolver> actorNameResolver) {
-        return new AuditHistoryService(auditReadRepository, snapshotMapper,
+        return new AuditHistoryService(auditLogRepository, snapshotMapper,
                                        historyExtension, actorNameResolver);
     }
 
     @Bean
     @ConditionalOnMissingBean(AuditQueryService.class)
-    AuditQueryService auditQueryService(AuditReadRepository auditReadRepository) {
-        return new AuditQueryService(auditReadRepository);
+    AuditQueryService auditQueryService(AuditLogRepository auditLogRepository) {
+        return new AuditQueryService(auditLogRepository);
     }
 
     @Bean
     @ConditionalOnMissingBean(ActivityService.class)
     ActivityService activityService(
-            ActivityRepository activityRepository,
+            AuditLogRepository auditLogRepository,
             ObjectProvider<ActivityFeedExtension> activityExtension,
             ObjectProvider<AuditActorNameResolver> actorNameResolver,
             ObjectProvider<AuditEntityExistenceChecker> existenceChecker) {
-        return new ActivityService(activityRepository, activityExtension,
+        return new ActivityService(auditLogRepository, activityExtension,
                                    actorNameResolver, existenceChecker);
     }
 }

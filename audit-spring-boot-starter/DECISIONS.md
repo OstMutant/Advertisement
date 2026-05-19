@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-05-19 — All audit SQL folded into a single AuditLogDescriptor
+
+**Decision:** `ActivityProjection` and `EntityHistoryProjection` standalone classes were deleted; the short-lived `ActivityDescriptor` / `EntityHistoryDescriptor` siblings were also deleted. Their SQL, `SqlSelectField` constants, `mapRow` implementations and parameter factories live inside `AuditLogDescriptor.Read.Activity` and `AuditLogDescriptor.Read.History` — nested namespaces alongside the simple-select constants. Each holds a `Projection` inner class extending `SqlFixedQuery<T>`. `AuditLogDescriptor.Read` also gained a `mapSnapshotContent(ResultSet)` helper to remove the duplicated row mapper between two former repositories.
+
+**Why:** One database table (`audit_log`) should have one descriptor — same convention as `AttachmentDescriptor` (one per `attachment`/`attachment_snapshot` table). Activity and history are read views on `audit_log`, so they nest as `Read.Activity` / `Read.History` rather than living in sibling top-level descriptors. `SqlFixedQuery` projections carry runtime dependencies (`ObjectMapper`, resolvers), so they remain instantiable inner classes rather than `static final` constants, but they live next to the SQL they own.
+
+---
+
+## 2026-05-19 — Audit repositories consolidated into a single AuditLogRepository
+
+**Decision:** `AuditReadRepository` and `ActivityRepository` were deleted. All read/write methods now live on a single `AuditLogRepository` that owns `JdbcClient`, an `ActivityDescriptor.Read.Projection`, and an `EntityHistoryDescriptor.Read.Projection`. The `AuditLogRepository` ↔ `AuditReadRepository` inheritance (a leftover from the original `audit-core` / `audit-read` split, see 2026-05-13) and the `protected jdbcClient()` accessor are gone. `ActivityRepository.findByActorId(...)` becomes `AuditLogRepository.findActivityByActor(...)`. `AuditAutoConfiguration` defines a single `auditLogRepository` bean; `AuditHistoryService`, `AuditQueryService`, `ActivityService` all depend on `AuditLogRepository`.
+
+**Why:** One database table (`audit_log`) had three repository classes — pure historical accident. `attachment-spring-boot-starter` keeps one repository per table; matching that convention removes a layer of indirection.
+
+---
+
 ## 2026-05-19 — AuditLogDescriptor marked as SqlEntityDescriptor
 
 **Decision:** `AuditLogDescriptor` now `implements SqlEntityDescriptor`. No structural change otherwise — it was already `final class` with a private constructor + `Write` namespace; read-side SQL stays inline in `AuditLogRepository` and the `*Projection` `SqlFixedQuery` subclasses (no shared `Read.PROJECTION` to extract).

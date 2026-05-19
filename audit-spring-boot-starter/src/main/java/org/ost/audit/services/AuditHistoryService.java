@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayload;
 import org.ost.audit.model.AuditSnapshotMapper;
-import org.ost.audit.repository.AuditReadRepository;
+import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.MediaHistoryExtension;
@@ -23,13 +23,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuditHistoryService {
 
-    private final AuditReadRepository                            auditReadRepository;
+    private final AuditLogRepository                            auditLogRepository;
     private final AuditSnapshotMapper                           mapper;
     private final ObjectProvider<MediaHistoryExtension> historyExtension;
     private final ObjectProvider<AuditActorNameResolver>        actorNameResolver;
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
-        List<EntityHistoryDto> history = auditReadRepository.getEntityHistory(
+        List<EntityHistoryDto> history = auditLogRepository.getEntityHistory(
                 entityType, entityId, showAll ? null : currentUserId);
 
         history = resolveActorNames(history);
@@ -51,16 +51,16 @@ public class AuditHistoryService {
 
     @Transactional
     public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) {
-        Long snapshotId = auditReadRepository.findLastSnapshotId(entityType, entityId).orElse(null);
+        Long snapshotId = auditLogRepository.findLastSnapshotId(entityType, entityId).orElse(null);
         if (snapshotId == null) return;
-        String currentJson = auditReadRepository.getChangesSummary(snapshotId);
+        String currentJson = auditLogRepository.getChangesSummary(snapshotId);
         List<ChangeEntry> entries = new ArrayList<>(mapper.fromJsonList(currentJson));
         entries.add(new ChangeEntry.NoteEntry(note));
-        auditReadRepository.updateChangesSummary(snapshotId, mapper.toJson(entries));
+        auditLogRepository.updateChangesSummary(snapshotId, mapper.toJson(entries));
     }
 
     public Optional<SnapshotPayload> getLastSnapshotPayload(EntityType entityType, Long entityId) {
-        return auditReadRepository.getLastSnapshotData(entityType, entityId)
+        return auditLogRepository.getLastSnapshotData(entityType, entityId)
                 .map(SnapshotPayload::new);
     }
 

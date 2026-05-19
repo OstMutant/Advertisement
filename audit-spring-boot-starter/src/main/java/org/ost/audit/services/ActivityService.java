@@ -1,7 +1,7 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.audit.repository.ActivityRepository;
+import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityFeedExtension;
@@ -18,13 +18,13 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ActivityService {
 
-    private final ActivityRepository                          repository;
+    private final AuditLogRepository                          repository;
     private final ObjectProvider<ActivityFeedExtension>       activityExtension;
     private final ObjectProvider<AuditActorNameResolver>      actorNameResolver;
     private final ObjectProvider<AuditEntityExistenceChecker> existenceChecker;
 
     public List<ActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
-        List<ActivityItemDto> base = repository.findByActorId(subjectId);
+        List<ActivityItemDto> base = repository.findActivityByActor(subjectId);
 
         ActivityFeedExtension ext = activityExtension.getIfAvailable();
         List<ActivityItemDto> combined = ext != null ? ext.merge(subjectType, subjectId, base) : base;
