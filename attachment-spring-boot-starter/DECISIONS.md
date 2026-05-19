@@ -2,6 +2,23 @@
 
 ---
 
+## 2026-05-19 — Attachment descriptors migrated to Read/Write namespace pattern
+
+**Decision:** `AttachmentDescriptor` and `AttachmentSnapshotDescriptor` are `final` namespace classes (private constructor) that implement the new `SqlEntityDescriptor` marker interface from `sql-engine`. Each descriptor splits its body into two symmetric inner classes:
+
+- `Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param factories. `AttachmentSnapshotDescriptor.Read` additionally hosts the `extractUrls(ResultSet)` row helper.
+- `Write` — `SqlWriteCommand` constants and write-side param factories. `DELETE_BY_URLS` moved from "read" mix to `Write` (it is a delete command).
+
+`AttachmentDescriptor` no longer extends `SqlEntityProjection<Attachment>` — the projection is owned via `Read.PROJECTION`. Callers obtain it explicitly (`AttachmentDescriptor.Read.PROJECTION`) instead of relying on `new AttachmentDescriptor()` doubling as projection + RowMapper.
+
+**Why:** The previous "flat descriptor + tiny `Write` bucket for column names" arrangement intermixed UPDATE/DELETE/SELECT SQL and param factories with no visual separation. The new layout makes the SQL boundary side explicit at the call site (`AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`) and gives a single grep target (`SqlEntityDescriptor`) for finding all dual-side descriptors in the project.
+
+**Rejected:**
+- Generic marker (`SqlEntityDescriptor<T>`) — does not fit `AttachmentSnapshotDescriptor` which has no full-row projection (queries return `String[]` and JSON text directly). Non-generic marker keeps both descriptors uniform.
+- Reworking `SqlEntityProjection` / `RepositoryCustom` in sql-engine to remove the read-side coupling — out of scope; older descriptors (`UserDescriptor`, `AdvertisementDescriptor`, `AuditLogDescriptor`) continue to `extend SqlEntityProjection<T>` until they are migrated in follow-up commits.
+
+---
+
 ## 2026-05-19 — AttachmentRepository migrated to CrudRepository + Custom split
 
 **Decision:** Aligned attachment-starter with the project-wide repository policy (see `CLAUDE.md` → Repository pattern):

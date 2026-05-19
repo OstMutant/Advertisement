@@ -14,78 +14,76 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentRepositoryCustomImpl implements AttachmentRepositoryCustom {
 
-    private static final AttachmentDescriptor PROJECTION = new AttachmentDescriptor();
-
     private final JdbcClient jdbcClient;
 
     @Override
     public void softDelete(Long id, Long actorId) {
-        AttachmentDescriptor.SOFT_DELETE.execute(jdbcClient,
-                AttachmentDescriptor.softDeleteParams(id, actorId));
+        AttachmentDescriptor.Write.SOFT_DELETE.execute(jdbcClient,
+                AttachmentDescriptor.Write.softDeleteParams(id, actorId));
     }
 
     @Override
     public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        AttachmentDescriptor.SOFT_DELETE_ALL.execute(jdbcClient,
-                AttachmentDescriptor.softDeleteAllParams(entityType, entityId, actorId));
+        AttachmentDescriptor.Write.SOFT_DELETE_ALL.execute(jdbcClient,
+                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     @Override
     public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        AttachmentDescriptor.RESTORE_DELETE_ALL.execute(jdbcClient,
-                AttachmentDescriptor.softDeleteAllParams(entityType, entityId, actorId));
+        AttachmentDescriptor.Write.RESTORE_DELETE_ALL.execute(jdbcClient,
+                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     @Override
     public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
-        AttachmentDescriptor.RESTORE_UNDELETE.execute(jdbcClient,
-                AttachmentDescriptor.restoreUndeleteParams(entityType, entityId, urls));
+        AttachmentDescriptor.Write.RESTORE_UNDELETE.execute(jdbcClient,
+                AttachmentDescriptor.Write.restoreUndeleteParams(entityType, entityId, urls));
     }
 
     @Override
     public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
-        AttachmentDescriptor.RESTORE_MARK_DELETED.execute(jdbcClient,
-                AttachmentDescriptor.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
+        AttachmentDescriptor.Write.RESTORE_MARK_DELETED.execute(jdbcClient,
+                AttachmentDescriptor.Write.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
     }
 
     @Override
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
-        return jdbcClient.sql(AttachmentDescriptor.SELECT_ACTIVE_BY_ENTITY_SQL)
-                .paramSource(AttachmentDescriptor.entityParams(entityType, entityId))
-                .query(PROJECTION).list();
+        return jdbcClient.sql(AttachmentDescriptor.Read.SELECT_ACTIVE_BY_ENTITY)
+                .paramSource(AttachmentDescriptor.Read.entityParams(entityType, entityId))
+                .query(AttachmentDescriptor.Read.PROJECTION).list();
     }
 
     @Override
     public List<String> getActiveUrls(EntityType entityType, Long entityId) {
-        return jdbcClient.sql(AttachmentDescriptor.SELECT_ACTIVE_URLS_SQL)
-                .paramSource(AttachmentDescriptor.entityParams(entityType, entityId))
+        return jdbcClient.sql(AttachmentDescriptor.Read.SELECT_ACTIVE_URLS)
+                .paramSource(AttachmentDescriptor.Read.entityParams(entityType, entityId))
                 .query(String.class).list();
     }
 
     @Override
     public List<String> findUrlsDeletedOlderThan(int days) {
-        return jdbcClient.sql(AttachmentDescriptor.FIND_URLS_DELETED_OLDER_THAN_SQL)
-                .paramSource(AttachmentDescriptor.findUrlsDeletedOlderThanParams(days))
+        return jdbcClient.sql(AttachmentDescriptor.Read.FIND_URLS_DELETED_OLDER_THAN)
+                .paramSource(AttachmentDescriptor.Read.findUrlsDeletedOlderThanParams(days))
                 .query(String.class).list();
     }
 
     @Override
     public int deleteByUrls(List<String> urls) {
-        return jdbcClient.sql(AttachmentDescriptor.DELETE_BY_URLS_SQL)
-                .paramSource(AttachmentDescriptor.deleteByUrlsParams(urls))
+        return jdbcClient.sql(AttachmentDescriptor.Write.DELETE_BY_URLS)
+                .paramSource(AttachmentDescriptor.Write.deleteByUrlsParams(urls))
                 .update();
     }
 
     @Override
     public MediaStats loadMediaStats(EntityType entityType, Long entityId) {
         record Row(String url, String contentType) {}
-        var params = AttachmentDescriptor.entityParams(entityType, entityId);
-        var main = jdbcClient.sql(AttachmentDescriptor.SELECT_MAIN_MEDIA_SQL)
+        var params = AttachmentDescriptor.Read.entityParams(entityType, entityId);
+        var main = jdbcClient.sql(AttachmentDescriptor.Read.SELECT_MAIN_MEDIA)
                 .paramSource(params)
-                .query((rs, n) -> new Row(rs.getString(AttachmentDescriptor.Write.URL),
-                                          rs.getString(AttachmentDescriptor.Write.CONTENT_TYPE)))
+                .query((rs, n) -> new Row(rs.getString(AttachmentDescriptor.URL.columnName()),
+                                          rs.getString(AttachmentDescriptor.CONTENT_TYPE.columnName())))
                 .optional();
-        Integer countVal = jdbcClient.sql(AttachmentDescriptor.COUNT_ACTIVE_SQL)
+        Integer countVal = jdbcClient.sql(AttachmentDescriptor.Read.COUNT_ACTIVE)
                 .paramSource(params)
                 .query(Integer.class).single();
         int count = countVal != null ? countVal : 0;

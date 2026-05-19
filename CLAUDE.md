@@ -87,6 +87,18 @@ advertisement-parent (root pom)
 
 Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
 
+### Descriptor pattern (Read / Write namespaces)
+
+**Policy:** Descriptors are `final` namespace classes that implement `SqlEntityDescriptor` (marker, lives in `sql-engine`). They split SQL and param construction into two symmetric inner classes:
+
+- `public static final class Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param-factory methods.
+- `public static final class Write` — `SqlWriteCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
+- Shared column-name strings and `SqlSelectField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
+
+Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
+
+Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`. Older descriptors (`UserDescriptor`, `AdvertisementDescriptor`, `AuditLogDescriptor`) still `extend SqlEntityProjection<T>` directly and are migrated in follow-up commits — both styles coexist during the transition.
+
 ---
 
 ## UI Component Patterns

@@ -17,43 +17,43 @@ public class AttachmentSnapshotRepository {
     private final JdbcClient jdbcClient;
 
     public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long actorId) {
-        AttachmentSnapshotDescriptor.INSERT.execute(jdbcClient,
-                AttachmentSnapshotDescriptor.insertParams(entityType.name(), entityId, urls, changesJson, actorId));
+        AttachmentSnapshotDescriptor.Write.INSERT.execute(jdbcClient,
+                AttachmentSnapshotDescriptor.Write.insertParams(entityType.name(), entityId, urls, changesJson, actorId));
     }
 
     public List<String> getPrevUrls(EntityType entityType, Long entityId) {
-        return jdbcClient.sql(AttachmentSnapshotDescriptor.SELECT_PREV_URLS_SQL)
-                .paramSource(AttachmentSnapshotDescriptor.entityParams(entityType.name(), entityId))
-                .query((rs, row) -> AttachmentSnapshotDescriptor.extractUrls(rs))
+        return jdbcClient.sql(AttachmentSnapshotDescriptor.Read.SELECT_PREV_URLS)
+                .paramSource(AttachmentSnapshotDescriptor.Read.entityParams(entityType.name(), entityId))
+                .query((rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs))
                 .optional().orElse(List.of());
     }
 
     public String[] getUrlsAtVersion(EntityType entityType, Long entityId, int version) {
-        return jdbcClient.sql(AttachmentSnapshotDescriptor.SELECT_URLS_AT_VERSION_SQL)
-                .paramSource(AttachmentSnapshotDescriptor.versionParams(entityType.name(), entityId, version))
-                .query((rs, row) -> AttachmentSnapshotDescriptor.extractUrls(rs))
+        return jdbcClient.sql(AttachmentSnapshotDescriptor.Read.SELECT_URLS_AT_VERSION)
+                .paramSource(AttachmentSnapshotDescriptor.Read.versionParams(entityType.name(), entityId, version))
+                .query((rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs))
                 .optional()
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
     }
 
     public Optional<List<String>> getUrlsForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
-        return jdbcClient.sql(AttachmentSnapshotDescriptor.SELECT_URLS_FOR_SNAPSHOT_SQL)
-                .paramSource(AttachmentSnapshotDescriptor.snapshotParams(entityType.name(), entityId, snapshotId))
-                .query((rs, row) -> AttachmentSnapshotDescriptor.extractUrls(rs))
+        return jdbcClient.sql(AttachmentSnapshotDescriptor.Read.SELECT_URLS_FOR_SNAPSHOT)
+                .paramSource(AttachmentSnapshotDescriptor.Read.snapshotParams(entityType.name(), entityId, snapshotId))
+                .query((rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs))
                 .optional();
     }
 
     public Optional<String> getChangesJsonForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
-        return jdbcClient.sql(AttachmentSnapshotDescriptor.SELECT_CHANGES_JSON_FOR_SNAPSHOT_SQL)
-                .paramSource(AttachmentSnapshotDescriptor.snapshotParams(entityType.name(), entityId, snapshotId))
+        return jdbcClient.sql(AttachmentSnapshotDescriptor.Read.SELECT_CHANGES_JSON_FOR_SNAPSHOT)
+                .paramSource(AttachmentSnapshotDescriptor.Read.snapshotParams(entityType.name(), entityId, snapshotId))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
     }
 
     public Optional<String> getChangesJson(EntityType entityType, Long entityId, int version) {
-        return jdbcClient.sql(AttachmentSnapshotDescriptor.SELECT_CHANGES_JSON_AT_VERSION_SQL)
-                .paramSource(AttachmentSnapshotDescriptor.versionParams(entityType.name(), entityId, version))
+        return jdbcClient.sql(AttachmentSnapshotDescriptor.Read.SELECT_CHANGES_JSON_AT_VERSION)
+                .paramSource(AttachmentSnapshotDescriptor.Read.versionParams(entityType.name(), entityId, version))
                 .query((rs, row) -> rs.getString(1))
                 .optional();
     }
