@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.exceptions.persistence.SettingsPersistenceException;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;

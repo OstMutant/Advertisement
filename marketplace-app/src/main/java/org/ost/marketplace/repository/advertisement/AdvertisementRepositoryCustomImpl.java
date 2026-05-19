@@ -3,7 +3,7 @@ package org.ost.marketplace.repository.advertisement;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;

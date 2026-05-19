@@ -1,7 +1,7 @@
 package org.ost.sqlengine.filter;
 
-import org.ost.sqlengine.projection.SqlField;
-import org.ost.sqlengine.projection.SqlSelectField;
+import org.ost.sqlengine.read.SqlField;
+import org.ost.sqlengine.read.SqlSelectField;
 
 import java.util.function.BiFunction;
 

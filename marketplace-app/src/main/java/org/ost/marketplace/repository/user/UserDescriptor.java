@@ -4,9 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
-import org.ost.sqlengine.projection.SqlSelectField;
-import org.ost.sqlengine.projection.SqlEntityProjection;
-import org.ost.sqlengine.writer.SqlEntityWriter;
+import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.read.SqlEntityProjection;
+import org.ost.sqlengine.write.SqlEntityWriter;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,9 +14,9 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.entities.User.Fields.*;
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
-import static org.ost.sqlengine.writer.SqlEntityWriter.col;
-import static org.ost.sqlengine.writer.SqlEntityWriter.colExpr;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
+import static org.ost.sqlengine.write.SqlWriteFieldFactory.fieldExpr;
 
 public class UserDescriptor extends SqlEntityProjection<User> {
 
@@ -40,14 +40,14 @@ public class UserDescriptor extends SqlEntityProjection<User> {
 
         public static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
                 TABLE,
-                col("name",       UserProfileDto::name),
-                col("role",       u -> u.role().name()),
-                colExpr("updated_at", "NOW()")
+                field("name",       UserProfileDto::name),
+                field("role",       u -> u.role().name()),
+                fieldExpr("updated_at", "NOW()")
         );
 
         public static final SqlEntityWriter<String> LOCALE_WRITER = SqlEntityWriter.of(
                 TABLE,
-                col("locale", s -> s)
+                field("locale", s -> s)
         );
     }
 

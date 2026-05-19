@@ -4,7 +4,7 @@ import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.User;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 

@@ -19,18 +19,20 @@ filter/
   SqlCondition<R>       — a single WHERE condition (expression, param name, value, operator)
     SqlOperator         — EQUALS, LIKE_IGNORE_CASE, IN, LESS_OR_EQUAL, GREATER_OR_EQUAL
 
-projection/
-  SqlFieldProjection    — interface: sqlExpression + alias
-  SqlFieldDefinition<T> — record: expression + alias + SqlFieldReader extractor
+read/
+  SqlField              — interface: sqlExpression + alias
+  SqlSelectField<T>     — record: expression + alias + SqlFieldReader extractor
   SqlFieldReader<T>     — @FunctionalInterface (ResultSet, alias) → T
-  SqlFieldBuilder       — static factory: str, id, longVal, bool, instant, intVal, strArray
-  SqlProjection<T>      — abstract RowMapper; owns SELECT clause and ORDER BY from Sort
-  SqlFixedProjection<T> — extends SqlProjection; for fixed/complex queries (CTEs, UNIONs);
+  SqlSelectFieldFactory — static factory: str, longVal, bool, instant, intVal
+  SqlEntityProjection<T>— abstract RowMapper; owns SELECT clause and ORDER BY from Sort
+  SqlFixedQuery<T>      — extends SqlBaseProjection; for fixed/complex queries (CTEs, UNIONs);
                           subclass provides querySql()
 
-writer/
-  SqlColumnDefinition<E> — maps one entity field to a named SQL parameter
-  SqlEntityWriter<E>     — builds INSERT / UPDATE SQL and MapSqlParameterSource from entity
+write/
+  SqlWriteField<E>      — sealed interface: SqlMappedField | SqlExpressionField
+  SqlWriteFieldFactory  — static factory: field, fieldExpr
+  SqlEntityWriter<E>    — builds UPDATE SQL and MapSqlParameterSource from entity
+  SqlWriteCommand       — functional interface wrapping a write SQL string + execute helpers
 
 RepositoryCustom<T,F>   — base class for repositories; wires projection + filter + executor;
                           provides findByFilter(filter, pageable) + countByFilter(filter) + find(...)
@@ -56,7 +58,7 @@ For complex fixed queries (CTEs, UNION ALL), extend `SqlFixedProjection<T>` inst
 
 ### Writing (INSERT / UPDATE)
 
-Use `SqlEntityWriter.of(col(...), col(...))` to declare columns once. Call `insertInto(table)` or `updateWhere(table, where)` to get the SQL, and `params(entity)` for the parameter source.
+Use `SqlEntityWriter.of(table, field(...), field(...))` (importing `field` / `fieldExpr` from `SqlWriteFieldFactory`) to declare write fields once. Call `updateWhere(where)` to get the SQL, and `params(entity)` for the parameter source.
 
 ---
 

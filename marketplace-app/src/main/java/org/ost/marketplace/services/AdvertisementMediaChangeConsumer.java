@@ -6,7 +6,7 @@ import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.platform.core.model.EntityType;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;

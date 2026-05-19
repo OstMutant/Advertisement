@@ -2,8 +2,8 @@ package org.ost.marketplace.repository.advertisement;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.sqlengine.projection.SqlSelectField;
-import org.ost.sqlengine.projection.SqlEntityProjection;
+import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.read.SqlEntityProjection;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.dto.AdvertisementInfoDto.Fields.*;
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public class AdvertisementDescriptor extends SqlEntityProjection<AdvertisementInfoDto> {
 

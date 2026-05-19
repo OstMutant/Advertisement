@@ -4,7 +4,7 @@ import org.ost.platform.audit.dto.SnapshotContent;
 import org.ost.platform.audit.dto.SnapshotPayload;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 

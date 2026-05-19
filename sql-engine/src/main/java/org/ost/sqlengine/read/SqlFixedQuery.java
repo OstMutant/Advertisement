@@ -1,4 +1,4 @@
-package org.ost.sqlengine.projection;
+package org.ost.sqlengine.read;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

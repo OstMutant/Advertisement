@@ -1,15 +1,15 @@
 package org.ost.attachment.repository;
 
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.projection.SqlSelectField;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
 

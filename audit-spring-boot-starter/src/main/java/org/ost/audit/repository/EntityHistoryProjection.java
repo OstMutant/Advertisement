@@ -7,15 +7,15 @@ import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayload;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.sqlengine.projection.SqlSelectField;
-import org.ost.sqlengine.projection.SqlFixedQuery;
+import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.read.SqlFixedQuery;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public class EntityHistoryProjection extends SqlFixedQuery<EntityHistoryDto> {
 

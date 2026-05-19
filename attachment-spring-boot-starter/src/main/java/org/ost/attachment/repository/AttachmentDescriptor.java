@@ -4,9 +4,9 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.projection.SqlEntityProjection;
-import org.ost.sqlengine.projection.SqlSelectField;
-import org.ost.sqlengine.writer.SqlWriteCommand;
+import org.ost.sqlengine.read.SqlEntityProjection;
+import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -14,7 +14,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public final class AttachmentDescriptor implements SqlEntityDescriptor {
 

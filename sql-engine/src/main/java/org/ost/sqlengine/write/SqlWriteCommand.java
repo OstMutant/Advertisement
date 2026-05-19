@@ -1,4 +1,4 @@
-package org.ost.sqlengine.writer;
+package org.ost.sqlengine.write;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;

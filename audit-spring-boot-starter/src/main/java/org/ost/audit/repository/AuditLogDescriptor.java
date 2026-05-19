@@ -1,8 +1,8 @@
 package org.ost.audit.repository;
 
-import org.ost.sqlengine.projection.SqlSelectField;
+import org.ost.sqlengine.read.SqlSelectField;
 
-import static org.ost.sqlengine.projection.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public final class AuditLogDescriptor {
 
