@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.repository.advertisement.AdvertisementDescriptor;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
-import org.ost.platform.attachment.spi.MediaSummary;
+import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.writer.SqlWriteCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -29,7 +29,7 @@ public class AdvertisementMediaChangeConsumer implements MediaChangeConsumer {
     @Override
     public void onMediaChanged(EntityType entityType, Long entityId) {
         if (entityType != EntityType.ADVERTISEMENT) return;
-        MediaSummary summary = attachmentPort.getMediaSummary(entityType, entityId);
+        MediaSummaryDto summary = attachmentPort.getMediaSummary(entityType, entityId);
         UPDATE_MEDIA.execute(jdbcClient,
                 new MapSqlParameterSource()
                         .addValue("url",         summary.displayUrl())

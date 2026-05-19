@@ -2,7 +2,7 @@ package org.ost.attachment.service;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.attachment.spi.MediaSummary;
+import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.platform.core.model.EntityType;
 
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public MediaSummary getMediaSummary(EntityType entityType, Long entityId) {
+    public MediaSummaryDto getMediaSummary(EntityType entityType, Long entityId) {
         return attachmentService.getMediaSummary(entityType, entityId);
     }
 }

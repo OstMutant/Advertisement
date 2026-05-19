@@ -8,7 +8,7 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
-import org.ost.platform.attachment.spi.MediaSummary;
+import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.attachment.storage.StorageService;
 import org.ost.platform.core.model.EntityType;
@@ -40,9 +40,9 @@ public class AttachmentService {
         return attachmentRepository.getByEntityId(entityType, entityId);
     }
 
-    public MediaSummary getMediaSummary(EntityType entityType, Long entityId) {
+    public MediaSummaryDto getMediaSummary(EntityType entityType, Long entityId) {
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityType, entityId);
-        return new MediaSummary(
+        return new MediaSummaryDto(
                 resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
                 stats.mainContentType(),
                 stats.count());

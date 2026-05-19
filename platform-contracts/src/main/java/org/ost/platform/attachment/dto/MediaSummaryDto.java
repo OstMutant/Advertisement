@@ -1,4 +1,4 @@
-package org.ost.platform.attachment.spi;
+package org.ost.platform.attachment.dto;
 
 /**
  * Display-ready summary of an entity's current attachment state.
@@ -6,9 +6,9 @@ package org.ost.platform.attachment.spi;
  * YouTube content, original URL for images/uploaded video, {@code null} for
  * generic embedded video).
  */
-public record MediaSummary(String displayUrl, String contentType, int count) {
+public record MediaSummaryDto(String displayUrl, String contentType, int count) {
 
-    public static MediaSummary empty() {
-        return new MediaSummary(null, null, 0);
+    public static MediaSummaryDto empty() {
+        return new MediaSummaryDto(null, null, 0);
     }
 }
