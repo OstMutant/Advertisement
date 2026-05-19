@@ -197,7 +197,8 @@
       "Bash(docker-compose -f /app/docker-compose.minio.yml down -v)",
       "Bash(docker info *)",
       "Bash(mvn -q -pl audit-spring-boot-starter,marketplace-app -am compile)",
-      "Bash(mvn -q clean test)"
+      "Bash(mvn -q clean test)",
+      "Bash(xargs -I {} bash -c 'echo \"{}\"; head -1 {}')"
     ]
   },
   "hooks": {
