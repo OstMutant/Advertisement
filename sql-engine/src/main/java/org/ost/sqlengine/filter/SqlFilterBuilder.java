@@ -7,11 +7,11 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public abstract class SqlFilterBuilder<F> {
+public class SqlFilterBuilder<F> {
 
     protected final List<SqlFilterBinding<F, ?>> bindings;
 
-    protected SqlFilterBuilder(List<SqlFilterBinding<F, ?>> bindings) {
+    public SqlFilterBuilder(List<SqlFilterBinding<F, ?>> bindings) {
         this.bindings = List.copyOf(bindings);
     }
 

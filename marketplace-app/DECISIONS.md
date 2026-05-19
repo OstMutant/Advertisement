@@ -10,6 +10,12 @@
 
 **How to apply:** New descriptors follow this shape; never `extend SqlEntityProjection<T>` directly.
 
+**Update 2026-05-19:** Standalone `*FilterBuilder` classes folded into their descriptors as `Read.FILTER` (and `Read.EMAIL_FILTER` for the single-field email lookup) — `SqlFilterBuilder` was made concrete in `sql-engine` so descriptors can instantiate it directly. For filters that need a base predicate (e.g. `AdvertisementFilterDto` always anchors `deleted_at IS NULL`), `Read.FILTER` is an anonymous subclass overriding `build()`. `UserFilterBuilder`, `UserEmailFilterBuilder`, `AdvertisementFilterBuilder` are deleted. Filter field name references use fully-qualified `XxxFilterDto.Fields.X` to avoid wildcard-import clashes with `Entity.Fields.*`.
+
+**Update 2026-05-19 (later):** All remaining inline SQL/SqlWriteCommand constants and param construction in `UserRepositoryCustomImpl`, `AdvertisementRepositoryCustomImpl`, and `AdvertisementMediaChangeConsumer` were folded into their descriptors. `UserDescriptor.Write` now owns `UPDATE_PROFILE`, `UPDATE_LOCALE` SqlWriteCommands + `updateProfileParams` / `updateLocaleParams`. `AdvertisementDescriptor.Read` owns `WHERE_BY_ID_ACTIVE` + `byIdParams`. `AdvertisementDescriptor.Write` owns `SOFT_DELETE`, `DELETE_OLDER_THAN`, `UPDATE_MEDIA` + matching param-factories (`updateMediaParams` takes a `MediaSummaryDto`). Call sites are now one-liners. Out of scope for this iteration (still hold inline SQL): `UserSettingsRepository`, `AuditLogRepository`, `AuditEntityExistenceCheckerImpl`, `AuditActorNameResolverImpl`.
+
+**How to apply:** No inline SQL strings, no inline `SqlWriteCommand.of(...)` constants, and no inline `MapSqlParameterSource` construction at repository/consumer call sites — all of these belong on the descriptor (Read/Write namespace + matching `*Params` factory method).
+
 ---
 
 ## 2026-05-12 — Dependency versions locked

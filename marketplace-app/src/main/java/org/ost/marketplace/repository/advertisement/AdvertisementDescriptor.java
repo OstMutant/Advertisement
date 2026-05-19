@@ -2,9 +2,14 @@ package org.ost.marketplace.repository.advertisement;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
+import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.write.SqlWriteCommand;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -12,6 +17,10 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.dto.AdvertisementInfoDto.Fields.*;
+import static org.ost.sqlengine.filter.SqlBoundFilter.of;
+import static org.ost.sqlengine.filter.SqlCondition.after;
+import static org.ost.sqlengine.filter.SqlCondition.before;
+import static org.ost.sqlengine.filter.SqlCondition.like;
 import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 
 public final class AdvertisementDescriptor implements SqlEntityDescriptor {
@@ -59,6 +68,28 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                         .build();
             }
         };
+
+        public static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
+                of(AdvertisementFilterDto.Fields.title,           TITLE,      (m, v) -> like(m, v.getTitle())),
+                of(AdvertisementFilterDto.Fields.createdAtStart,  CREATED_AT, (m, v) -> after(m, v.getCreatedAtStart())),
+                of(AdvertisementFilterDto.Fields.createdAtEnd,    CREATED_AT, (m, v) -> before(m, v.getCreatedAtEnd())),
+                of(AdvertisementFilterDto.Fields.updatedAtStart,  UPDATED_AT, (m, v) -> after(m, v.getUpdatedAtStart())),
+                of(AdvertisementFilterDto.Fields.updatedAtEnd,    UPDATED_AT, (m, v) -> before(m, v.getUpdatedAtEnd()))
+        )) {
+            @Override
+            public String build(MapSqlParameterSource params, AdvertisementFilterDto filter) {
+                String dynamic = super.build(params, filter);
+                String base    = DELETED_AT.sqlExpression() + " IS NULL";
+                return dynamic.isEmpty() ? base : base + " AND " + dynamic;
+            }
+        };
+
+        public static final String WHERE_BY_ID_ACTIVE =
+                ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
+
+        public static MapSqlParameterSource byIdParams(Long id) {
+            return new MapSqlParameterSource("id", id);
+        }
     }
 
     public static final class Write {
@@ -69,6 +100,41 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         public static final String MEDIA_URL          = AdvertisementDescriptor.MEDIA_URL.columnName();
         public static final String MEDIA_CONTENT_TYPE = AdvertisementDescriptor.MEDIA_CONTENT_TYPE.columnName();
         public static final String MEDIA_COUNT        = AdvertisementDescriptor.MEDIA_COUNT.columnName();
+
+        public static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
+                "UPDATE " + TABLE +
+                " SET "   + DELETED_AT + " = NOW(), " +
+                " "       + DELETED_BY_USER_ID + " = :deletedBy" +
+                " WHERE id = :id");
+
+        public static final String DELETE_OLDER_THAN =
+                "DELETE FROM " + TABLE +
+                " WHERE " + DELETED_AT + " < NOW() - MAKE_INTERVAL(days => :days)";
+
+        public static final SqlWriteCommand UPDATE_MEDIA = SqlWriteCommand.of(
+                "UPDATE " + TABLE +
+                " SET " + MEDIA_URL          + " = :url," +
+                " "     + MEDIA_CONTENT_TYPE + " = :contentType," +
+                " "     + MEDIA_COUNT        + " = :count" +
+                " WHERE id = :id");
+
+        public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
+            return new MapSqlParameterSource()
+                    .addValue("id",        id)
+                    .addValue("deletedBy", deletedByUserId);
+        }
+
+        public static MapSqlParameterSource deleteOlderThanParams(int days) {
+            return new MapSqlParameterSource("days", days);
+        }
+
+        public static MapSqlParameterSource updateMediaParams(Long entityId, MediaSummaryDto summary) {
+            return new MapSqlParameterSource()
+                    .addValue("url",         summary.displayUrl())
+                    .addValue("contentType", summary.contentType())
+                    .addValue("count",       summary.count())
+                    .addValue("id",          entityId);
+        }
     }
 
     private AdvertisementDescriptor() {}

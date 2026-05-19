@@ -2,12 +2,17 @@ package org.ost.marketplace.repository.user;
 
 import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.UserProfileDto;
+import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.filter.SqlCondition;
+import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.write.SqlEntityWriter;
+import org.ost.sqlengine.write.SqlWriteCommand;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -15,6 +20,12 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.entities.User.Fields.*;
+import static org.ost.sqlengine.filter.SqlBoundFilter.of;
+import static org.ost.sqlengine.filter.SqlCondition.after;
+import static org.ost.sqlengine.filter.SqlCondition.before;
+import static org.ost.sqlengine.filter.SqlCondition.equalsTo;
+import static org.ost.sqlengine.filter.SqlCondition.inSet;
+import static org.ost.sqlengine.filter.SqlCondition.like;
 import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.fieldExpr;
@@ -53,6 +64,22 @@ public final class UserDescriptor implements SqlEntityDescriptor {
                         .build();
             }
         };
+
+        public static final SqlFilterBuilder<UserFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
+                of(UserFilterDto.Fields.name,           NAME,       (m, v) -> like(m, v.getName())),
+                of(UserFilterDto.Fields.email,          EMAIL,      (m, v) -> like(m, v.getEmail())),
+                of(UserFilterDto.Fields.roles,          ROLE,       (m, v) -> inSet(m, v.getRoles())),
+                of(UserFilterDto.Fields.createdAtStart, CREATED_AT, (m, v) -> after(m, v.getCreatedAtStart())),
+                of(UserFilterDto.Fields.createdAtEnd,   CREATED_AT, (m, v) -> before(m, v.getCreatedAtEnd())),
+                of(UserFilterDto.Fields.updatedAtStart, UPDATED_AT, (m, v) -> after(m, v.getUpdatedAtStart())),
+                of(UserFilterDto.Fields.updatedAtEnd,   UPDATED_AT, (m, v) -> before(m, v.getUpdatedAtEnd())),
+                of(UserFilterDto.Fields.startId,        ID,         (m, v) -> after(m, v.getStartId())),
+                of(UserFilterDto.Fields.endId,          ID,         (m, v) -> before(m, v.getEndId()))
+        ));
+
+        public static final SqlFilterBuilder<String> EMAIL_FILTER = new SqlFilterBuilder<>(List.of(
+                of(UserFilterDto.Fields.email, EMAIL, SqlCondition::equalsTo)
+        ));
     }
 
     public static final class Write {
@@ -71,6 +98,17 @@ public final class UserDescriptor implements SqlEntityDescriptor {
                 TABLE,
                 field("locale", s -> s)
         );
+
+        public static final SqlWriteCommand UPDATE_PROFILE = SqlWriteCommand.of(PROFILE_WRITER.updateWhere("id = :id"));
+        public static final SqlWriteCommand UPDATE_LOCALE  = SqlWriteCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
+
+        public static MapSqlParameterSource updateProfileParams(UserProfileDto dto) {
+            return PROFILE_WRITER.params(dto).addValue("id", dto.id());
+        }
+
+        public static MapSqlParameterSource updateLocaleParams(Long userId, String locale) {
+            return LOCALE_WRITER.params(locale).addValue("id", userId);
+        }
     }
 
     private UserDescriptor() {}
