@@ -29,16 +29,20 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
     public static final String TABLE = "audit_log";
     public static final String ALIAS = "al";
 
-    public static final SqlSelectField<Long>    ID              = longVal(ALIAS + ".id",              "id");
-    public static final SqlSelectField<Long>    ENTITY_ID       = longVal(ALIAS + ".entity_id",      "entity_id");
-    public static final SqlSelectField<String>  ENTITY_TYPE     = str(ALIAS + ".entity_type",         "entity_type");
-    public static final SqlSelectField<String>  ACTION_TYPE     = str(ALIAS + ".action_type",         "action_type");
-    public static final SqlSelectField<Instant> CREATED_AT      = instant(ALIAS + ".created_at",      "created_at");
-    public static final SqlSelectField<String>  SNAPSHOT_DATA   = str(ALIAS + ".snapshot_data",       "snapshot_data");
-    public static final SqlSelectField<String>  CHANGES_SUMMARY = str(ALIAS + ".changes_summary",     "changes_summary");
+    public static final SqlSelectField<Long>    ID              = longCol(ALIAS,    "id");
+    public static final SqlSelectField<Long>    ENTITY_ID       = longCol(ALIAS,    "entity_id");
+    public static final SqlSelectField<String>  ENTITY_TYPE     = strCol(ALIAS,     "entity_type");
+    public static final SqlSelectField<String>  ACTION_TYPE     = strCol(ALIAS,     "action_type");
+    public static final SqlSelectField<Instant> CREATED_AT      = instantCol(ALIAS, "created_at");
+    public static final SqlSelectField<String>  SNAPSHOT_DATA   = strCol(ALIAS,     "snapshot_data");
+    public static final SqlSelectField<String>  CHANGES_SUMMARY = strCol(ALIAS,     "changes_summary");
+    public static final SqlSelectField<Long>    ACTOR_ID        = longCol(ALIAS,    "actor_id");
+    public static final SqlSelectField<String>  CHANGED_BY_NAME = str("changed_by_name", "changed_by_name");
 
     public static final class Read {
         private Read() {}
+
+        private static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
         public static final String SELECT_SNAPSHOT_DATA_BY_ID =
                 "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
@@ -118,36 +122,44 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     rs.getInt("version"));
         }
 
+        private static abstract class JsonProjection<T> extends SqlFixedQuery<T> {
+            protected final ObjectMapper objectMapper;
+
+            protected JsonProjection(List<SqlSelectField<?>> fields, ObjectMapper objectMapper) {
+                super(fields);
+                this.objectMapper = objectMapper;
+            }
+
+            protected List<ChangeEntry> parseChanges(String json) {
+                if (json == null || json.isBlank()) return List.of();
+                try {
+                    return objectMapper.readValue(json, CHANGES_TYPE);
+                } catch (Exception _) {
+                    return List.of();
+                }
+            }
+        }
+
         public static final class Activity {
             private Activity() {}
 
-            public static final String ALIAS = "s";
-
-            public static final SqlSelectField<Long>    SNAPSHOT_ID     = longVal(ALIAS + ".id",              "snapshot_id");
-            public static final SqlSelectField<Long>    ENTITY_ID       = longVal(ALIAS + ".entity_id",      "entity_id");
-            public static final SqlSelectField<String>  ENTITY_TYPE     = str(ALIAS + ".entity_type",         "entity_type");
-            public static final SqlSelectField<String>  ACTION_TYPE     = str(ALIAS + ".action_type",         "action_type");
-            public static final SqlSelectField<Instant> CREATED_AT      = instant(ALIAS + ".created_at",      "created_at");
-            public static final SqlSelectField<Boolean> ENTITY_EXISTS   = bool("entity_exists",               "entity_exists");
-            public static final SqlSelectField<String>  CHANGES_SUMMARY = str(ALIAS + ".changes_summary",     "changes_summary");
-            public static final SqlSelectField<Long>    ACTOR_ID        = longVal(ALIAS + ".actor_id",        "actor_id");
-            public static final SqlSelectField<String>  CHANGED_BY_NAME = str("changed_by_name",              "changed_by_name");
-            public static final SqlSelectField<String>  SNAPSHOT_DATA   = str(ALIAS + ".snapshot_data",       "snapshot_data");
+            public static final SqlSelectField<Long>    SNAPSHOT_ID   = longVal(ALIAS + ".id", "snapshot_id");
+            public static final SqlSelectField<Boolean> ENTITY_EXISTS = bool("entity_exists", "entity_exists");
 
             public static final String QUERY = """
-                    SELECT s.id                    AS snapshot_id,
-                           s.entity_id             AS entity_id,
-                           s.entity_type           AS entity_type,
-                           s.action_type,
-                           s.created_at,
-                           FALSE                   AS entity_exists,
-                           s.changes_summary::text AS changes_summary,
-                           s.actor_id,
-                           NULL::text              AS changed_by_name,
-                           s.snapshot_data::text   AS snapshot_data
-                    FROM audit_log s
-                    WHERE s.actor_id = :actorId
-                    ORDER BY s.created_at DESC
+                    SELECT al.id                    AS snapshot_id,
+                           al.entity_id             AS entity_id,
+                           al.entity_type           AS entity_type,
+                           al.action_type,
+                           al.created_at,
+                           FALSE                    AS entity_exists,
+                           al.changes_summary::text AS changes_summary,
+                           al.actor_id,
+                           NULL::text               AS changed_by_name,
+                           al.snapshot_data::text   AS snapshot_data
+                    FROM audit_log al
+                    WHERE al.actor_id = :actorId
+                    ORDER BY al.created_at DESC
                     LIMIT 20
                     """;
 
@@ -159,14 +171,12 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 return new MapSqlParameterSource("actorId", actorId);
             }
 
-            public static final class Projection extends SqlFixedQuery<ActivityItemDto> {
+            public static final class Projection extends JsonProjection<ActivityItemDto> {
 
-                private final ObjectMapper objectMapper;
                 private final List<EntityDisplayNameResolver> resolvers;
 
                 public Projection(ObjectMapper objectMapper, List<EntityDisplayNameResolver> resolvers) {
-                    super(FIELDS);
-                    this.objectMapper = objectMapper;
+                    super(FIELDS, objectMapper);
                     this.resolvers = resolvers;
                 }
 
@@ -177,9 +187,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
                 @Override
                 public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-                    String snapshotJson   = SNAPSHOT_DATA.extract(rs);
                     EntityType entityType = EntityType.valueOf(ENTITY_TYPE.extract(rs));
-                    SnapshotPayload payload = new SnapshotPayload(snapshotJson);
+                    SnapshotPayload payload = new SnapshotPayload(SNAPSHOT_DATA.extract(rs));
                     String displayName = resolvers.stream()
                             .filter(r -> r.supports(entityType))
                             .findFirst()
@@ -199,33 +208,15 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                             payload
                     );
                 }
-
-                private List<ChangeEntry> parseChanges(String json) {
-                    if (json == null || json.isBlank()) return List.of();
-                    try {
-                        return objectMapper.readValue(json, new TypeReference<>() {});
-                    } catch (Exception _) {
-                        return List.of();
-                    }
-                }
             }
         }
 
         public static final class History {
             private History() {}
 
-            public static final String ALIAS = "n";
-
-            public static final SqlSelectField<Long>    SNAPSHOT_ID        = longVal(ALIAS + ".id",                  "id");
-            public static final SqlSelectField<Integer> VERSION            = intVal(ALIAS + ".version",              "version");
-            public static final SqlSelectField<String>  ACTION_TYPE        = str(ALIAS + ".action_type",             "action_type");
-            public static final SqlSelectField<Long>    ACTOR_ID           = longVal(ALIAS + ".actor_id",            "actor_id");
-            public static final SqlSelectField<String>  CHANGED_BY_NAME    = str("changed_by_name",                  "changed_by_name");
-            public static final SqlSelectField<Instant> CREATED_AT         = instant(ALIAS + ".created_at",          "created_at");
-            public static final SqlSelectField<String>  SNAPSHOT_DATA      = str(ALIAS + ".snapshot_data",           "snapshot_data");
-            public static final SqlSelectField<String>  CHANGES_SUMMARY    = str(ALIAS + ".changes_summary",         "changes_summary");
-            public static final SqlSelectField<Long>    PREV_ID            = longVal(ALIAS + ".prev_id",             "prev_id");
-            public static final SqlSelectField<String>  PREV_SNAPSHOT_DATA = str(ALIAS + ".prev_snapshot_data",      "prev_snapshot_data");
+            public static final SqlSelectField<Integer> VERSION            = intCol(ALIAS, "version");
+            public static final SqlSelectField<Long>    PREV_ID            = longCol(ALIAS, "prev_id");
+            public static final SqlSelectField<String>  PREV_SNAPSHOT_DATA = strCol(ALIAS, "prev_snapshot_data");
 
             public static final String QUERY = """
                     WITH numbered AS (
@@ -241,22 +232,22 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                         FROM audit_log
                         WHERE entity_type = :entityType AND entity_id = :entityId
                     )
-                    SELECT n.id, n.version::int, n.action_type,
-                           n.actor_id,
+                    SELECT al.id, al.version::int, al.action_type,
+                           al.actor_id,
                            NULL::text AS changed_by_name,
-                           n.created_at,
-                           n.snapshot_data,
-                           n.changes_summary,
-                           n.prev_id,
-                           n.prev_snapshot_data
-                    FROM numbered n
-                    WHERE CAST(:filterUserId AS BIGINT) IS NULL OR n.actor_id = :filterUserId
-                    ORDER BY n.version DESC
+                           al.created_at,
+                           al.snapshot_data,
+                           al.changes_summary,
+                           al.prev_id,
+                           al.prev_snapshot_data
+                    FROM numbered al
+                    WHERE CAST(:filterUserId AS BIGINT) IS NULL OR al.actor_id = :filterUserId
+                    ORDER BY al.version DESC
                     LIMIT 100
                     """;
 
             public static final List<SqlSelectField<?>> FIELDS = List.of(
-                    SNAPSHOT_ID, VERSION, ACTION_TYPE, ACTOR_ID, CHANGED_BY_NAME, CREATED_AT,
+                    ID, VERSION, ACTION_TYPE, ACTOR_ID, CHANGED_BY_NAME, CREATED_AT,
                     SNAPSHOT_DATA, CHANGES_SUMMARY, PREV_ID, PREV_SNAPSHOT_DATA);
 
             public static MapSqlParameterSource params(EntityType entityType, Long entityId, Long filterUserId) {
@@ -266,13 +257,10 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                         .addValue("filterUserId", filterUserId);
             }
 
-            public static final class Projection extends SqlFixedQuery<EntityHistoryDto> {
-
-                private final ObjectMapper objectMapper;
+            public static final class Projection extends JsonProjection<EntityHistoryDto> {
 
                 public Projection(ObjectMapper objectMapper) {
-                    super(FIELDS);
-                    this.objectMapper = objectMapper;
+                    super(FIELDS, objectMapper);
                 }
 
                 @Override
@@ -282,10 +270,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
                 @Override
                 public EntityHistoryDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-                    String snapshotJson     = SNAPSHOT_DATA.extract(rs);
-                    String prevSnapshotJson = PREV_SNAPSHOT_DATA.extract(rs);
                     return new EntityHistoryDto(
-                            SNAPSHOT_ID.extract(rs),
+                            ID.extract(rs),
                             VERSION.extract(rs),
                             ActionType.valueOf(ACTION_TYPE.extract(rs)),
                             ACTOR_ID.extract(rs),
@@ -293,18 +279,9 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                             CREATED_AT.extract(rs),
                             parseChanges(CHANGES_SUMMARY.extract(rs)),
                             PREV_ID.extract(rs),
-                            new SnapshotPayload(snapshotJson),
-                            new SnapshotPayload(prevSnapshotJson)
+                            new SnapshotPayload(SNAPSHOT_DATA.extract(rs)),
+                            new SnapshotPayload(PREV_SNAPSHOT_DATA.extract(rs))
                     );
-                }
-
-                private List<ChangeEntry> parseChanges(String json) {
-                    if (json == null || json.isBlank()) return List.of();
-                    try {
-                        return objectMapper.readValue(json, new TypeReference<>() {});
-                    } catch (Exception _) {
-                        return List.of();
-                    }
                 }
             }
         }
@@ -312,28 +289,21 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
     public static final class Write {
         private Write() {}
-        public static final String TABLE              = AuditLogDescriptor.TABLE;
-        public static final String ENTITY_TYPE        = AuditLogDescriptor.ENTITY_TYPE.columnName();
-        public static final String ENTITY_ID          = AuditLogDescriptor.ENTITY_ID.columnName();
-        public static final String ACTION_TYPE        = AuditLogDescriptor.ACTION_TYPE.columnName();
-        public static final String SNAPSHOT_DATA      = AuditLogDescriptor.SNAPSHOT_DATA.columnName();
-        public static final String CHANGES_SUMMARY    = AuditLogDescriptor.CHANGES_SUMMARY.columnName();
-        public static final String ACTOR_ID           = "actor_id";
 
         public static final SqlWriteCommand INSERT = SqlWriteCommand.of(
                 "INSERT INTO " + TABLE +
-                " (" + ENTITY_TYPE + ", " + ENTITY_ID + ", " + ACTION_TYPE + ", " +
-                       SNAPSHOT_DATA + ", " + CHANGES_SUMMARY + ", " + ACTOR_ID + ")" +
+                " (" + ENTITY_TYPE.columnName() + ", " + ENTITY_ID.columnName() + ", " + ACTION_TYPE.columnName() + ", " +
+                       SNAPSHOT_DATA.columnName() + ", " + CHANGES_SUMMARY.columnName() + ", " + ACTOR_ID.columnName() + ")" +
                 " VALUES (:entityType, :entityId, :actionType," +
                 " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)");
 
         public static final SqlWriteCommand UPDATE_CHANGES_SUMMARY = SqlWriteCommand.of(
                 "UPDATE " + TABLE +
-                " SET " + CHANGES_SUMMARY + " = CAST(:s AS JSONB) WHERE id = :id");
+                " SET " + CHANGES_SUMMARY.columnName() + " = CAST(:s AS JSONB) WHERE id = :id");
 
         public static final String DELETE_OLDER_THAN =
                 "DELETE FROM " + TABLE +
-                " WHERE " + AuditLogDescriptor.CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)";
+                " WHERE " + CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)";
 
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                           String actionType, String snapshotData,

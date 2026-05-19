@@ -33,6 +33,12 @@ public class SqlSelectFieldFactory {
         return build(sqlExpression, sqlAlias, ResultSet::getInt);
     }
 
+    public static SqlSelectField<String>  strCol    (String tableAlias, String column) { return str    (tableAlias + "." + column, column); }
+    public static SqlSelectField<Long>    longCol   (String tableAlias, String column) { return longVal(tableAlias + "." + column, column); }
+    public static SqlSelectField<Boolean> boolCol   (String tableAlias, String column) { return bool   (tableAlias + "." + column, column); }
+    public static SqlSelectField<Instant> instantCol(String tableAlias, String column) { return instant(tableAlias + "." + column, column); }
+    public static SqlSelectField<Integer> intCol    (String tableAlias, String column) { return intVal (tableAlias + "." + column, column); }
+
     public static <T> SqlSelectField<T> build(String sqlExpression, String alias, SqlFieldReader<T> extractor) {
         return SqlSelectField.<T>builder().sqlExpression(sqlExpression).alias(alias).extractor(extractor).build();
     }
