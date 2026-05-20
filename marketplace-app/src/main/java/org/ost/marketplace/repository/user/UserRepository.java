@@ -17,7 +17,7 @@ public class UserRepository {
     private final FilterableRepository<User, UserFilterDto> query;
     private final UserCrudRepository crud;
 
-    public UserRepository(JdbcClient jdbcClient, UserCrudRepository crud) {
+    UserRepository(JdbcClient jdbcClient, UserCrudRepository crud) {
         this.query = new FilterableRepository<>(jdbcClient,
                 UserDescriptor.Read.PROJECTION,
                 UserDescriptor.Read.FILTER);
@@ -49,12 +49,12 @@ public class UserRepository {
     }
 
     public void updateProfile(UserProfileDto dto) {
-        query.execute(UserDescriptor.Write.UPDATE_PROFILE,
+        query.executeUpdate(UserDescriptor.Write.UPDATE_PROFILE,
                 UserDescriptor.Write.updateProfileParams(dto));
     }
 
     public void updateLocale(Long userId, String locale) {
-        query.execute(UserDescriptor.Write.UPDATE_LOCALE,
+        query.executeUpdate(UserDescriptor.Write.UPDATE_LOCALE,
                 UserDescriptor.Write.updateLocaleParams(userId, locale));
     }
 }

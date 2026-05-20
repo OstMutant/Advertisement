@@ -1,6 +1,5 @@
 package org.ost.attachment.repository;
 
-import org.ost.attachment.entities.AttachmentSnapshot;
 import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.RepositoryCustom;
@@ -16,15 +15,13 @@ import java.util.Optional;
 public class AttachmentSnapshotRepository {
 
     private final RepositoryCustom repo;
-    private final AttachmentSnapshotCrudRepository crud;
 
-    public AttachmentSnapshotRepository(JdbcClient jdbcClient, AttachmentSnapshotCrudRepository crud) {
+    public AttachmentSnapshotRepository(JdbcClient jdbcClient) {
         this.repo = new RepositoryCustom(jdbcClient);
-        this.crud = crud;
     }
 
     public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long actorId) {
-        repo.execute(AttachmentSnapshotDescriptor.Write.INSERT,
+        repo.executeUpdate(AttachmentSnapshotDescriptor.Write.INSERT,
                 AttachmentSnapshotDescriptor.Write.insertParams(entityType.name(), entityId, urls, changesJson, actorId));
     }
 

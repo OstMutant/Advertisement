@@ -122,7 +122,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 " WHERE id = :id");
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
-            return SqlParams.with("id", id).add("deletedBy", deletedByUserId).build();
+            return SqlParams.with("id", id).add("deletedBy", deletedByUserId);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
@@ -133,8 +133,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
             return SqlParams.with("url",         summary.displayUrl())
                             .add("contentType", summary.contentType())
                             .add("count",       summary.count())
-                            .add("id",          entityId)
-                            .build();
+                            .add("id",          entityId);
         }
     }
 

@@ -2,7 +2,6 @@ package org.ost.sqlengine;
 
 import org.ost.sqlengine.exec.SqlCommand;
 import org.ost.sqlengine.exec.SqlQueryBuilder;
-import org.ost.sqlengine.exec.SqlQueryExecutor;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.springframework.data.domain.Pageable;
@@ -12,21 +11,25 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Extends {@link RepositoryCustom} with dynamic filter + pagination support.
+ * Combines an {@link SqlEntityProjection} (SELECT clause + FROM source) with a
+ * {@link SqlFilterBuilder} (WHERE clause) to produce pageable queries at runtime.
+ *
+ * @param <T> the result DTO type
+ * @param <F> the filter DTO type
+ */
 public class FilterableRepository<T, F> extends RepositoryCustom {
 
     private final SqlEntityProjection<T> sqlProjection;
     private final SqlFilterBuilder<F>    filterBuilder;
-    private final SqlQueryBuilder        sqlQueryBuilder;
-    private final SqlQueryExecutor       executor;
-
+    private final SqlQueryBuilder sqlQueryBuilder = new SqlQueryBuilder();
     public FilterableRepository(JdbcClient jdbcClient,
                                 SqlEntityProjection<T> projection,
                                 SqlFilterBuilder<F> filterBuilder) {
         super(jdbcClient);
         this.sqlProjection   = projection;
         this.filterBuilder   = filterBuilder;
-        this.sqlQueryBuilder = new SqlQueryBuilder();
-        this.executor        = new SqlQueryExecutor(jdbcClient);
     }
 
     public List<T> findByFilter(F filter, Pageable pageable) {

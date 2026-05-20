@@ -80,7 +80,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + CONTENT_TYPE.columnName() + " NOT IN ('video/youtube', 'video/embed')";
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId).build();
+            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource findUrlsDeletedOlderThanParams(int days) {
@@ -123,7 +123,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 "DELETE FROM " + TABLE + " WHERE " + URL.columnName() + " IN (:urls)";
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long actorId) {
-            return SqlParams.with("id", id).add("actorId", actorId).build();
+            return SqlParams.with("id", id).add("actorId", actorId);
         }
 
         public static MapSqlParameterSource softDeleteAllParams(EntityType entityType, Long entityId, Long actorId) {

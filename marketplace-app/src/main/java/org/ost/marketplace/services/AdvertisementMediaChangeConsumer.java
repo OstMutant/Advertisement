@@ -24,7 +24,7 @@ public class AdvertisementMediaChangeConsumer implements MediaChangeConsumer {
     public void onMediaChanged(EntityType entityType, Long entityId) {
         if (entityType != EntityType.ADVERTISEMENT) return;
         MediaSummaryDto summary = attachmentPort.getMediaSummary(entityType, entityId);
-        repo.execute(AdvertisementDescriptor.Write.UPDATE_MEDIA,
+        repo.executeUpdate(AdvertisementDescriptor.Write.UPDATE_MEDIA,
                 AdvertisementDescriptor.Write.updateMediaParams(entityId, summary));
     }
 }

@@ -8,6 +8,15 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 
+/**
+ * Projection for entity queries that can be assembled dynamically (filter, sort, pagination).
+ * Carries the FROM source ({@code sqlSource}) used for SELECT and an optional separate
+ * {@code countSource} used for COUNT(*) — useful when the SELECT source contains joins
+ * that would inflate the count.
+ *
+ * <p>Use the static {@code of()} factories when {@code mapRow} fits in a lambda;
+ * subclass directly when the mapping logic is more involved.</p>
+ */
 public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
 
     @Getter private final String sqlSource;

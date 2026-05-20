@@ -8,6 +8,14 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.function.Function;
 
+/**
+ * A single, resolved WHERE condition: the SQL expression to test, the named parameter,
+ * its value, and the comparison operator. Null-safe factory methods ({@code like},
+ * {@code equalsTo}, {@code after}, {@code before}, {@code inSet}) return {@code null}
+ * when the value is absent so {@link SqlFilterBuilder} can skip the condition silently.
+ *
+ * @param <R> the parameter value type after any necessary conversion
+ */
 public record SqlCondition<R>(
         String sqlExpression,
         String filterProperty,

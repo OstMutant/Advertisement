@@ -7,6 +7,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+/**
+ * Translates a filter DTO into a SQL WHERE fragment and populates the corresponding
+ * named parameters. Each {@link SqlFilterBinding} in the binding list inspects the filter
+ * and returns a {@link SqlCondition} (or {@code null} if the field is absent/empty).
+ * Only non-null conditions are joined with {@code AND} and added to the params.
+ *
+ * @param <F> the filter DTO type
+ */
 public class SqlFilterBuilder<F> {
 
     protected final List<SqlFilterBinding<F, ?>> bindings;

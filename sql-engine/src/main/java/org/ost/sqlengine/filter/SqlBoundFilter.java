@@ -5,6 +5,14 @@ import org.ost.sqlengine.read.SqlSelectField;
 
 import java.util.function.BiFunction;
 
+/**
+ * Concrete {@link SqlFilterBinding} that binds a filter DTO field to a {@link SqlSelectField}
+ * via a user-supplied condition function. The SQL expression is taken from the field so
+ * it stays in sync with the SELECT clause automatically.
+ *
+ * @param <F> the filter DTO type
+ * @param <R> the parameter value type
+ */
 public record SqlBoundFilter<F, R>(
         String filterProperty,
         SqlField sqlField,

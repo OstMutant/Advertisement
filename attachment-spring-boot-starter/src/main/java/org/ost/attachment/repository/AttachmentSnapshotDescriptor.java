@@ -88,7 +88,7 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
                 " ORDER BY created_at ASC LIMIT 1";
 
         public static MapSqlParameterSource entityParams(String entityTypeName, Long entityId) {
-            return SqlParams.with("entityType", entityTypeName).add("entityId", entityId).build();
+            return SqlParams.with("entityType", entityTypeName).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource versionParams(String entityTypeName, Long entityId, int version) {

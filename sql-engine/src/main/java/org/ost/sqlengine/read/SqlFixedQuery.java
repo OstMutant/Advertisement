@@ -6,11 +6,12 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.List;
 
 /**
- * A projection that owns its complete SQL query.
- * Use for fixed or structurally complex queries (CTEs, UNION ALL, self-joins)
- * that cannot be assembled dynamically by RepositoryCustom.
+ * Projection that owns its complete, hand-written SQL query.
+ * Use for structurally complex queries (CTEs, UNION ALL, self-joins) that cannot be
+ * assembled dynamically by {@link org.ost.sqlengine.FilterableRepository}.
  *
- * Subclasses define field constants, implement mapRow(), and provide querySql().
+ * <p>Subclasses declare {@link SqlSelectField} constants, implement {@code mapRow()},
+ * and provide the full SQL via {@code querySql()}.</p>
  */
 public abstract class SqlFixedQuery<T> extends SqlBaseProjection<T> {
 

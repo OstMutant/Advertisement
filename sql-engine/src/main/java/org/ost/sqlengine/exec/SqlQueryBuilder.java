@@ -4,6 +4,10 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.Arrays;
 
+/**
+ * Assembles SELECT and COUNT SQL strings from parts (fields, source, WHERE, ORDER BY, LIMIT/OFFSET).
+ * Blank parts are silently omitted so callers never emit trailing keywords.
+ */
 public class SqlQueryBuilder {
 
     public String select(String fields, String source) {

@@ -96,11 +96,11 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static MapSqlParameterSource snapshotByIdParams(Long id, EntityType entityType) {
-            return SqlParams.with("id", id).add("entityType", entityType.name()).build();
+            return SqlParams.with("id", id).add("entityType", entityType.name());
         }
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId).build();
+            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource idParams(Long id) {
@@ -108,7 +108,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource previousSnapshotContentParams(Long snapshotId, EntityType entityType) {
-            return SqlParams.with("snapshotId", snapshotId).add("entityType", entityType.name()).build();
+            return SqlParams.with("snapshotId", snapshotId).add("entityType", entityType.name());
         }
 
         public static SnapshotContent mapSnapshotContent(ResultSet rs) throws SQLException {
@@ -248,8 +248,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
             public static MapSqlParameterSource params(EntityType entityType, Long entityId, Long filterUserId) {
                 return SqlParams.with("entityType",   entityType.name())
                                 .add("entityId",     entityId)
-                                .add("filterUserId", filterUserId)
-                                .build();
+                                .add("filterUserId", filterUserId);
             }
 
             public static final class Projection extends JsonProjection<EntityHistoryDto> {
@@ -308,12 +307,11 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                             .add("actionType",   actionType)
                             .add("snapshotData", snapshotData)
                             .add("changes",      changesSummary)
-                            .add("actorId",      actorId)
-                            .build();
+                            .add("actorId",      actorId);
         }
 
         public static MapSqlParameterSource updateChangesSummaryParams(Long snapshotId, String json) {
-            return SqlParams.with("id", snapshotId).add("s", json).build();
+            return SqlParams.with("id", snapshotId).add("s", json);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {

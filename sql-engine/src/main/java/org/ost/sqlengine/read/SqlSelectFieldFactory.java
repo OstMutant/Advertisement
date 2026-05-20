@@ -7,6 +7,15 @@ import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.Instant;
 
+/**
+ * Factory methods for creating {@link SqlSelectField} instances by Java type.
+ * Two naming conventions are provided:
+ * <ul>
+ *   <li>{@code str/longVal/bool/instant/intVal} — explicit SQL expression + alias.</li>
+ *   <li>{@code strCol/longCol/boolCol/instantCol/intCol} — shorthand for {@code tableAlias.column},
+ *       where the column name is reused as the alias.</li>
+ * </ul>
+ */
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SqlSelectFieldFactory {
 

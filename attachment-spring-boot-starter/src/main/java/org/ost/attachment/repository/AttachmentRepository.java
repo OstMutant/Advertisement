@@ -20,7 +20,7 @@ public class AttachmentRepository {
     private final RepositoryCustom repo;
     private final AttachmentCrudRepository crud;
 
-    public AttachmentRepository(JdbcClient jdbcClient, AttachmentCrudRepository crud) {
+    AttachmentRepository(JdbcClient jdbcClient, AttachmentCrudRepository crud) {
         this.repo = new RepositoryCustom(jdbcClient);
         this.crud = crud;
     }
@@ -38,27 +38,27 @@ public class AttachmentRepository {
     }
 
     public void softDelete(Long id, Long actorId) {
-        repo.execute(AttachmentDescriptor.Write.SOFT_DELETE,
+        repo.executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE,
                 AttachmentDescriptor.Write.softDeleteParams(id, actorId));
     }
 
     public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        repo.execute(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
+        repo.executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
                 AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        repo.execute(AttachmentDescriptor.Write.RESTORE_DELETE_ALL,
+        repo.executeUpdate(AttachmentDescriptor.Write.RESTORE_DELETE_ALL,
                 AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
-        repo.execute(AttachmentDescriptor.Write.RESTORE_UNDELETE,
+        repo.executeUpdate(AttachmentDescriptor.Write.RESTORE_UNDELETE,
                 AttachmentDescriptor.Write.restoreUndeleteParams(entityType, entityId, urls));
     }
 
     public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
-        repo.execute(AttachmentDescriptor.Write.RESTORE_MARK_DELETED,
+        repo.executeUpdate(AttachmentDescriptor.Write.RESTORE_MARK_DELETED,
                 AttachmentDescriptor.Write.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
     }
 

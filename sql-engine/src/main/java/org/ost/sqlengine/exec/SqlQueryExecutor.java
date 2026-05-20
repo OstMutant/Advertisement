@@ -7,6 +7,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Thin, stateless wrapper around {@link JdbcClient} that executes typed {@link SqlCommand}s.
+ * All repositories delegate actual JDBC calls here.
+ */
 public record SqlQueryExecutor(JdbcClient jdbcClient) {
 
     // ── READ ──────────────────────────────────────────────────────────────────
@@ -29,7 +33,7 @@ public record SqlQueryExecutor(JdbcClient jdbcClient) {
 
     // ── WRITE ─────────────────────────────────────────────────────────────────
 
-    public void execute(SqlCommand command, MapSqlParameterSource params) {
-        jdbcClient.sql(command.sql()).paramSource(params).update();
+    public int executeUpdate(SqlCommand command, MapSqlParameterSource params) {
+        return jdbcClient.sql(command.sql()).paramSource(params).update();
     }
 }

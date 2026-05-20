@@ -6,6 +6,14 @@ import lombok.NonNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
+/**
+ * Describes a single SELECT column: the SQL expression (e.g. {@code "a.title"}),
+ * the alias used in the SELECT clause and ResultSet, and the typed extractor that reads
+ * the value back from a {@link java.sql.ResultSet}.
+ * Create instances via {@link SqlSelectFieldFactory} factory methods.
+ *
+ * @param <T> the Java type this field maps to
+ */
 @Builder
 public record SqlSelectField<T>(
         @NonNull String sqlExpression,

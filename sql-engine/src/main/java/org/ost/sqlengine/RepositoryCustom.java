@@ -9,20 +9,21 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Base repository for hand-written SQL queries. Composes {@link SqlQueryExecutor} and exposes
+ * typed read/write methods. Use directly for simple bespoke queries; extend via
+ * {@link FilterableRepository} when dynamic filtering and pagination are needed.
+ */
 public class RepositoryCustom {
 
-    private final SqlQueryExecutor executor;
+    protected final SqlQueryExecutor executor;
 
     public RepositoryCustom(JdbcClient jdbcClient) {
         this.executor = new SqlQueryExecutor(jdbcClient);
     }
 
-    public void execute(SqlCommand command, MapSqlParameterSource params) {
-        executor.execute(command, params);
-    }
-
     public int executeUpdate(SqlCommand command, MapSqlParameterSource params) {
-        return executor.jdbcClient().sql(command.sql()).paramSource(params).update();
+        return executor.executeUpdate(command, params);
     }
 
     public <R> Optional<R> findOne(SqlCommand command, MapSqlParameterSource params, RowMapper<R> mapper) {

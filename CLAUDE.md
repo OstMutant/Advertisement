@@ -38,6 +38,7 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 - Spring Boot 4.0.6, Vaadin 25.1.5.
 - Pure SQL via `JdbcClient` / `NamedParameterJdbcTemplate` (NO JPA, NO HIBERNATE).
 - Liquibase for all schema changes.
+- **Lombok first:** if a Lombok annotation can replace manual boilerplate (constructors, getters, builders, etc.), it MUST be used — hand-written boilerplate is not acceptable when a Lombok equivalent exists.
 
 ---
 

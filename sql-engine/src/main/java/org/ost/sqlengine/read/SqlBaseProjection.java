@@ -13,6 +13,11 @@ import java.util.stream.Stream;
 
 import static java.util.Optional.ofNullable;
 
+/**
+ * Base class for all SQL projections. Holds the ordered alias→sqlExpression map derived from
+ * {@link SqlSelectField} declarations and builds the SELECT clause and ORDER BY fragment.
+ * Not intended to be used directly — extend {@link SqlEntityProjection} or {@link SqlFixedQuery}.
+ */
 abstract class SqlBaseProjection<T> implements RowMapper<T> {
 
     private final Map<String, String> aliasToSqlMap;

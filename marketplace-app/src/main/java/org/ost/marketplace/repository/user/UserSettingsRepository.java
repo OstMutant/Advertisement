@@ -42,7 +42,7 @@ public class UserSettingsRepository {
     @Transactional
     public void save(Long userId, UserSettings settings) {
         try {
-            repo.execute(SAVE_SETTINGS,
+            repo.executeUpdate(SAVE_SETTINGS,
                     new MapSqlParameterSource()
                             .addValue("settings", mapper.writeValueAsString(settings))
                             .addValue("userId",   userId));

@@ -2,49 +2,40 @@ package org.ost.sqlengine.write;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
-public class SqlEntityWriter<E> {
+/**
+ * Generates a dynamic UPDATE SQL string and the corresponding named parameters for a given source object.
+ * Constructed once per descriptor via {@code SqlEntityWriter.of(table, fields...)} and reused
+ * across requests.
+ *
+ * @param <T> the source type (entity, DTO, or any object fields are extracted from)
+ */
+public class SqlEntityWriter<T> {
 
     private final String table;
-    private final List<SqlWriteField<E>> fields;
+    private final List<SqlWriteField<T>> fields;
 
-    private SqlEntityWriter(String table, List<SqlWriteField<E>> fields) {
+    private SqlEntityWriter(String table, List<SqlWriteField<T>> fields) {
         this.table  = table;
         this.fields = fields;
     }
 
     @SafeVarargs
-    public static <E> SqlEntityWriter<E> of(String table, SqlWriteField<E>... fields) {
+    public static <T> SqlEntityWriter<T> of(String table, SqlWriteField<T>... fields) {
         return new SqlEntityWriter<>(table, Arrays.asList(fields));
     }
 
     public String updateWhere(String where) {
-        List<String> setClauses = new ArrayList<>();
-        for (SqlWriteField<E> f : fields) {
-            switch (f) {
-                case SqlMappedField<E>(var column, var param, _) ->
-                        setClauses.add(column + " = :" + param);
-                case SqlExpressionField<E>(var column, var sqlExpression) ->
-                        setClauses.add(column + " = " + sqlExpression);
-            }
-        }
-        return "UPDATE " + table + " SET " + String.join(", ", setClauses) + " WHERE " + where;
+        String set = fields.stream().map(SqlWriteField::toSetClause).collect(Collectors.joining(", "));
+        return "UPDATE " + table + " SET " + set + " WHERE " + where;
     }
 
-    public MapSqlParameterSource params(E entity) {
+    public MapSqlParameterSource params(T source) {
         MapSqlParameterSource params = new MapSqlParameterSource();
-        for (SqlWriteField<E> f : fields) {
-            switch (f) {
-                case SqlMappedField<E>(_, var param, var extractor) ->
-                        params.addValue(param, extractor.apply(entity));
-                case SqlExpressionField<E> _ -> {
-                    // SQL expression has no named parameter — skip
-                }
-            }
-        }
+        fields.forEach(f -> f.applyTo(source, params));
         return params;
     }
 }

@@ -17,7 +17,7 @@ public class AdvertisementRepository {
     private final FilterableRepository<AdvertisementInfoDto, AdvertisementFilterDto> query;
     private final AdvertisementCrudRepository crud;
 
-    public AdvertisementRepository(JdbcClient jdbcClient, AdvertisementCrudRepository crud) {
+    AdvertisementRepository(JdbcClient jdbcClient, AdvertisementCrudRepository crud) {
         this.query = new FilterableRepository<>(jdbcClient,
                 AdvertisementDescriptor.Read.PROJECTION,
                 AdvertisementDescriptor.Read.FILTER);
@@ -46,12 +46,12 @@ public class AdvertisementRepository {
     }
 
     public void softDelete(Long id, Long deletedByUserId) {
-        query.execute(AdvertisementDescriptor.Write.SOFT_DELETE,
+        query.executeUpdate(AdvertisementDescriptor.Write.SOFT_DELETE,
                 AdvertisementDescriptor.Write.softDeleteParams(id, deletedByUserId));
     }
 
     public void deleteOlderThan(int days) {
-        query.execute(AdvertisementDescriptor.Write.DELETE_OLDER_THAN,
+        query.executeUpdate(AdvertisementDescriptor.Write.DELETE_OLDER_THAN,
                 AdvertisementDescriptor.Write.deleteOlderThanParams(days));
     }
 }

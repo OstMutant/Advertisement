@@ -1,7 +1,6 @@
 package org.ost.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.ost.audit.entities.AuditLog;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotContent;
@@ -20,35 +19,22 @@ import java.util.Optional;
 public class AuditLogRepository {
 
     private final RepositoryCustom repo;
-    private final AuditLogCrudRepository  crud;
     private final AuditLogDescriptor.Read.Activity.Projection activityProjection;
     private final AuditLogDescriptor.Read.History.Projection  historyProjection;
 
     public AuditLogRepository(JdbcClient jdbcClient,
-                              AuditLogCrudRepository crud,
                               @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
                               List<EntityDisplayNameResolver> resolvers) {
         this.repo               = new RepositoryCustom(jdbcClient);
-        this.crud               = crud;
         this.activityProjection = new AuditLogDescriptor.Read.Activity.Projection(objectMapper, resolvers);
         this.historyProjection  = new AuditLogDescriptor.Read.History.Projection(objectMapper);
     }
 
     public void insert(EntityType entityType, Long entityId, ActionType actionType,
                        String snapshotData, String changesSummary, Long actorId) {
-        repo.execute(AuditLogDescriptor.Write.INSERT,
+        repo.executeUpdate(AuditLogDescriptor.Write.INSERT,
                 AuditLogDescriptor.Write.insertParams(entityType, entityId, actionType.name(),
                         snapshotData, changesSummary, actorId));
-    }
-
-    public Optional<AuditLog> findById(Long id) {
-        return crud.findById(id);
-    }
-
-    public Optional<String> getSnapshotData(Long snapshotId, EntityType entityType) {
-        return repo.findOne(AuditLogDescriptor.Read.SELECT_SNAPSHOT_DATA_BY_ID,
-                AuditLogDescriptor.Read.snapshotByIdParams(snapshotId, entityType),
-                (rs, row) -> rs.getString(1));
     }
 
     public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {
@@ -82,12 +68,12 @@ public class AuditLogRepository {
     }
 
     public void updateChangesSummary(Long snapshotId, String json) {
-        repo.execute(AuditLogDescriptor.Write.UPDATE_CHANGES_SUMMARY,
+        repo.executeUpdate(AuditLogDescriptor.Write.UPDATE_CHANGES_SUMMARY,
                 AuditLogDescriptor.Write.updateChangesSummaryParams(snapshotId, json));
     }
 
     public void deleteOlderThan(int days) {
-        repo.execute(AuditLogDescriptor.Write.DELETE_OLDER_THAN,
+        repo.executeUpdate(AuditLogDescriptor.Write.DELETE_OLDER_THAN,
                 AuditLogDescriptor.Write.deleteOlderThanParams(days));
     }
 

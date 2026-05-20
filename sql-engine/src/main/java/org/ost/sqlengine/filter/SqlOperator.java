@@ -1,5 +1,9 @@
 package org.ost.sqlengine.filter;
 
+/**
+ * SQL comparison operators used by {@link SqlCondition} to format WHERE clause fragments.
+ * Each variant holds a printf-style template: {@code %s} is the SQL expression, {@code :%s} the named param.
+ */
 enum SqlOperator {
     EQUALS          ("%s = :%s"),
     LESS_OR_EQUAL   ("%s <= :%s"),
