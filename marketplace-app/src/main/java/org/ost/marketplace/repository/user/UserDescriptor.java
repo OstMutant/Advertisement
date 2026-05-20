@@ -5,6 +5,7 @@ import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.filter.SqlCondition;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
@@ -73,6 +74,18 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         public static final SqlFilterBuilder<String> EMAIL_FILTER = new SqlFilterBuilder<>(List.of(
                 of(UserFilterDto.Fields.email, EMAIL, SqlCondition::equalsTo)
         ));
+
+        public static final SqlCommand SELECT_EXISTING_IDS = SqlCommand.of(
+                "SELECT " + ID.columnName() + " FROM " + TABLE +
+                " WHERE " + ID.columnName() + " = ANY(:ids)");
+
+        public static final SqlCommand SELECT_ACTOR_NAMES = SqlCommand.of(
+                "SELECT " + ID.columnName() + ", " + NAME.columnName() + " FROM " + TABLE +
+                " WHERE " + ID.columnName() + " = ANY(:ids)");
+
+        public static MapSqlParameterSource idsParams(Long[] ids) {
+            return SqlParams.of("ids", ids);
+        }
     }
 
     public static final class Write {

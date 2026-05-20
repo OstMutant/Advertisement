@@ -78,11 +78,20 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
             }
         };
 
+        public static final SqlCommand SELECT_EXISTING_IDS = SqlCommand.of(
+                "SELECT " + ID.columnName() + " FROM " + TABLE +
+                " WHERE " + ID.columnName() + " = ANY(:ids)" +
+                " AND "   + DELETED_AT.columnName() + " IS NULL");
+
         public static final String WHERE_BY_ID_ACTIVE =
                 ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
 
         public static MapSqlParameterSource byIdParams(Long id) {
             return SqlParams.of("id", id);
+        }
+
+        public static MapSqlParameterSource existingIdsParams(Long[] ids) {
+            return SqlParams.of("ids", ids);
         }
     }
 
