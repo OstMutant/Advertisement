@@ -6,7 +6,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.write.SqlWriteCommand;
+import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -97,20 +97,20 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
     public static final class Write {
         private Write() {}
 
-        public static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
+        public static final SqlCommand SOFT_DELETE = SqlCommand.of(
                 "UPDATE " + TABLE + SET_DELETED_NOW +
                 " WHERE " + ID.columnName() + " = :id");
 
-        public static final SqlWriteCommand SOFT_DELETE_ALL = SqlWriteCommand.of(
+        public static final SqlCommand SOFT_DELETE_ALL = SqlCommand.of(
                 "UPDATE " + TABLE + SET_DELETED_NOW +
                 " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
                 " AND "   + ENTITY_ID.columnName() + " = :entityId" +
                 " AND "   + DELETED_AT.columnName() + " IS NULL");
 
         /** Identical to SOFT_DELETE_ALL today; kept as a separate name for caller-side clarity. */
-        public static final SqlWriteCommand RESTORE_DELETE_ALL = SOFT_DELETE_ALL;
+        public static final SqlCommand RESTORE_DELETE_ALL = SOFT_DELETE_ALL;
 
-        public static final SqlWriteCommand RESTORE_UNDELETE = SqlWriteCommand.of(
+        public static final SqlCommand RESTORE_UNDELETE = SqlCommand.of(
                 "UPDATE " + TABLE +
                 " SET "   + DELETED_AT.columnName() + " = NULL," +
                 " "       + DELETED_BY_ACTOR_ID.columnName() + " = NULL" +
@@ -118,7 +118,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + ENTITY_ID.columnName() + " = :entityId" +
                 " AND "   + URL.columnName() + " = ANY(:urls)");
 
-        public static final SqlWriteCommand RESTORE_MARK_DELETED = SqlWriteCommand.of(
+        public static final SqlCommand RESTORE_MARK_DELETED = SqlCommand.of(
                 "UPDATE " + TABLE + SET_DELETED_NOW +
                 " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
                 " AND "   + ENTITY_ID.columnName() + " = :entityId" +

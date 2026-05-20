@@ -14,7 +14,7 @@ import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.read.SqlFixedQuery;
 import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.write.SqlWriteCommand;
+import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -44,19 +44,19 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
         private static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
-        public static final String SELECT_SNAPSHOT_DATA_BY_ID =
+        public static final SqlCommand SELECT_SNAPSHOT_DATA_BY_ID = SqlCommand.of(
                 "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
                 " FROM "  + TABLE +
-                " WHERE id = :id AND " + ENTITY_TYPE.columnName() + " = :entityType";
+                " WHERE id = :id AND " + ENTITY_TYPE.columnName() + " = :entityType");
 
-        public static final String SELECT_LAST_SNAPSHOT_DATA =
+        public static final SqlCommand SELECT_LAST_SNAPSHOT_DATA = SqlCommand.of(
                 "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
                 " FROM "  + TABLE +
                 " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
                 " AND "   + ENTITY_ID.columnName()   + " = :entityId" +
-                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1";
+                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1");
 
-        public static final String SELECT_SNAPSHOT_CONTENT_BY_ID = """
+        public static final SqlCommand SELECT_SNAPSHOT_CONTENT_BY_ID = SqlCommand.of("""
                 SELECT a.snapshot_data::text AS snapshot_data,
                        (SELECT COUNT(*) FROM audit_log b
                         WHERE b.entity_type = a.entity_type
@@ -64,19 +64,19 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                           AND b.created_at <= a.created_at)::int AS version
                 FROM audit_log a
                 WHERE a.id = :id AND a.entity_type = :entityType
-                """;
+                """);
 
-        public static final String SELECT_LAST_SNAPSHOT_ID =
+        public static final SqlCommand SELECT_LAST_SNAPSHOT_ID = SqlCommand.of(
                 "SELECT id FROM " + TABLE +
                 " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
                 " AND "   + ENTITY_ID.columnName()   + " = :entityId" +
-                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1";
+                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1");
 
-        public static final String SELECT_CHANGES_SUMMARY =
+        public static final SqlCommand SELECT_CHANGES_SUMMARY = SqlCommand.of(
                 "SELECT " + CHANGES_SUMMARY.columnName() + "::text" +
-                " FROM "  + TABLE + " WHERE id = :id";
+                " FROM "  + TABLE + " WHERE id = :id");
 
-        public static final String SELECT_PREVIOUS_SNAPSHOT_CONTENT = """
+        public static final SqlCommand SELECT_PREVIOUS_SNAPSHOT_CONTENT = SqlCommand.of("""
                 SELECT prev.snapshot_data::text AS snapshot_data,
                        (SELECT COUNT(*) FROM audit_log b
                         WHERE b.entity_type = prev.entity_type
@@ -92,7 +92,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     ORDER BY created_at DESC LIMIT 1
                 ) prev ON true
                 WHERE cur.id = :snapshotId AND cur.entity_type = :entityType
-                """;
+                """);
 
         public static MapSqlParameterSource snapshotByIdParams(Long id, EntityType entityType) {
             return new MapSqlParameterSource()
@@ -290,20 +290,20 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
     public static final class Write {
         private Write() {}
 
-        public static final SqlWriteCommand INSERT = SqlWriteCommand.of(
+        public static final SqlCommand INSERT = SqlCommand.of(
                 "INSERT INTO " + TABLE +
                 " (" + ENTITY_TYPE.columnName() + ", " + ENTITY_ID.columnName() + ", " + ACTION_TYPE.columnName() + ", " +
                        SNAPSHOT_DATA.columnName() + ", " + CHANGES_SUMMARY.columnName() + ", " + ACTOR_ID.columnName() + ")" +
                 " VALUES (:entityType, :entityId, :actionType," +
                 " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)");
 
-        public static final SqlWriteCommand UPDATE_CHANGES_SUMMARY = SqlWriteCommand.of(
+        public static final SqlCommand UPDATE_CHANGES_SUMMARY = SqlCommand.of(
                 "UPDATE " + TABLE +
                 " SET " + CHANGES_SUMMARY.columnName() + " = CAST(:s AS JSONB) WHERE id = :id");
 
-        public static final String DELETE_OLDER_THAN =
+        public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
                 "DELETE FROM " + TABLE +
-                " WHERE " + CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)";
+                " WHERE " + CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)");
 
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                           String actionType, String snapshotData,

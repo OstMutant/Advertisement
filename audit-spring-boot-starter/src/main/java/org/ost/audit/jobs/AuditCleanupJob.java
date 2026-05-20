@@ -19,7 +19,7 @@ public class AuditCleanupJob {
 
     @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
     public void run() {
-        int pruned = auditLogRepository.deleteOlderThan(cleanupProperties.retentionDays());
-        log.info("Pruned {} audit log entries", pruned);
+        auditLogRepository.deleteOlderThan(cleanupProperties.retentionDays());
+        log.info("Audit cleanup job finished");
     }
 }

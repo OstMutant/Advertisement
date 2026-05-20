@@ -8,7 +8,7 @@ import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.write.SqlWriteCommand;
+import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -101,17 +101,17 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         public static final String MEDIA_CONTENT_TYPE = AdvertisementDescriptor.MEDIA_CONTENT_TYPE.columnName();
         public static final String MEDIA_COUNT        = AdvertisementDescriptor.MEDIA_COUNT.columnName();
 
-        public static final SqlWriteCommand SOFT_DELETE = SqlWriteCommand.of(
+        public static final SqlCommand SOFT_DELETE = SqlCommand.of(
                 "UPDATE " + TABLE +
                 " SET "   + DELETED_AT + " = NOW(), " +
                 " "       + DELETED_BY_USER_ID + " = :deletedBy" +
                 " WHERE id = :id");
 
-        public static final String DELETE_OLDER_THAN =
+        public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
                 "DELETE FROM " + TABLE +
-                " WHERE " + DELETED_AT + " < NOW() - MAKE_INTERVAL(days => :days)";
+                " WHERE " + DELETED_AT + " < NOW() - MAKE_INTERVAL(days => :days)");
 
-        public static final SqlWriteCommand UPDATE_MEDIA = SqlWriteCommand.of(
+        public static final SqlCommand UPDATE_MEDIA = SqlCommand.of(
                 "UPDATE " + TABLE +
                 " SET " + MEDIA_URL          + " = :url," +
                 " "     + MEDIA_CONTENT_TYPE + " = :contentType," +

@@ -9,7 +9,7 @@ package org.ost.sqlengine;
  *       (shared between {@code Read} and {@code Write}).</li>
  *   <li>{@code public static final class Read} — {@code PROJECTION} for full-row
  *       mapping, {@code SELECT_*} SQL constants, and param-factory methods.</li>
- *   <li>{@code public static final class Write} — {@code SqlWriteCommand} constants
+ *   <li>{@code public static final class Write} — {@code SqlCommand} constants
  *       and matching param-factory methods.</li>
  * </ul>
  *

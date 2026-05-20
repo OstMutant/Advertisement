@@ -1,9 +1,9 @@
 package org.ost.sqlengine.exec;
 
-import org.ost.sqlengine.write.SqlWriteCommand;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -11,25 +11,25 @@ public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
 
     // ── READ ──────────────────────────────────────────────────────────────────
 
-    public List<T> findAll(String sql, MapSqlParameterSource params, RowMapper<T> rowMapper) {
-        return jdbcClient.sql(sql).paramSource(params).query(rowMapper).list();
+    public <R> Optional<R> findOne(SqlCommand command, MapSqlParameterSource params, RowMapper<R> mapper) {
+        return jdbcClient.sql(command.sql()).paramSource(params).query(mapper).optional();
     }
 
-    public Optional<T> findOne(String sql, MapSqlParameterSource params, RowMapper<T> rowMapper) {
-        return jdbcClient.sql(sql).paramSource(params).query(rowMapper).optional();
+    public <R> List<R> findAll(SqlCommand command, MapSqlParameterSource params, RowMapper<R> mapper) {
+        return jdbcClient.sql(command.sql()).paramSource(params).query(mapper).list();
     }
 
-    public Long count(String sql, MapSqlParameterSource params) {
-        return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
+    public <R> Optional<R> findOne(SqlCommand command, MapSqlParameterSource params, Class<R> type) {
+        return jdbcClient.sql(command.sql()).paramSource(params).query(type).optional();
+    }
+
+    public Long count(SqlCommand command, MapSqlParameterSource params) {
+        return jdbcClient.sql(command.sql()).paramSource(params).query(Long.class).single();
     }
 
     // ── WRITE ─────────────────────────────────────────────────────────────────
 
-    public int execute(String sql, MapSqlParameterSource params) {
-        return jdbcClient.sql(sql).paramSource(params).update();
-    }
-
-    public void execute(SqlWriteCommand command, MapSqlParameterSource params) {
-        command.execute(jdbcClient, params);
+    public void execute(SqlCommand command, MapSqlParameterSource params) {
+        jdbcClient.sql(command.sql()).paramSource(params).update();
     }
 }

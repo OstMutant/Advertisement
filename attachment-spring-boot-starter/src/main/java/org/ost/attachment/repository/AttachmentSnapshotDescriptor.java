@@ -2,7 +2,7 @@ package org.ost.attachment.repository;
 
 import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.write.SqlWriteCommand;
+import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -115,7 +115,7 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
     public static final class Write {
         private Write() {}
 
-        public static final SqlWriteCommand INSERT = SqlWriteCommand.of(
+        public static final SqlCommand INSERT = SqlCommand.of(
                 "INSERT INTO " + TABLE +
                 " (" + ENTITY_TYPE.columnName() + ", " + ENTITY_ID.columnName() + ", " +
                 ATTACHMENT_URLS + ", " + CHANGES_SUMMARY.columnName() + ", " +

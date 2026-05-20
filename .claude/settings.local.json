@@ -198,7 +198,10 @@
       "Bash(docker info *)",
       "Bash(mvn -q -pl audit-spring-boot-starter,marketplace-app -am compile)",
       "Bash(mvn -q clean test)",
-      "Bash(xargs -I {} bash -c 'echo \"{}\"; head -1 {}')"
+      "Bash(xargs -I {} bash -c 'echo \"{}\"; head -1 {}')",
+      "Bash(mvn -pl sql-engine -am -q -DskipTests compile)",
+      "Bash(mvn -q -DskipTests compile)",
+      "Bash(mvn -pl sql-engine test)"
     ]
   },
   "hooks": {

@@ -9,7 +9,6 @@ import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
-import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.ost.audit.services.ActivityService;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
@@ -20,20 +19,19 @@ import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
 import org.ost.platform.audit.spi.ActivityFeedExtension;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 
 import javax.sql.DataSource;
-import java.util.List;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
 @ComponentScan("org.ost.audit")
+@EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
 public class AuditAutoConfiguration {
 
     @Bean("auditObjectMapper")
@@ -51,15 +49,6 @@ public class AuditAutoConfiguration {
         liq.setDataSource(dataSource);
         liq.setChangeLog("classpath:db/audit-changelog/audit-changelog-master.xml");
         return liq;
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(AuditLogRepository.class)
-    AuditLogRepository auditLogRepository(
-            JdbcClient jdbcClient,
-            @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
-            List<EntityDisplayNameResolver> resolvers) {
-        return new AuditLogRepository(jdbcClient, objectMapper, resolvers);
     }
 
     @Bean

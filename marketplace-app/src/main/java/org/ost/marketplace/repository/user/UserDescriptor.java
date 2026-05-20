@@ -11,7 +11,7 @@ import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.write.SqlEntityWriter;
-import org.ost.sqlengine.write.SqlWriteCommand;
+import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -99,8 +99,8 @@ public final class UserDescriptor implements SqlEntityDescriptor {
                 field("locale", s -> s)
         );
 
-        public static final SqlWriteCommand UPDATE_PROFILE = SqlWriteCommand.of(PROFILE_WRITER.updateWhere("id = :id"));
-        public static final SqlWriteCommand UPDATE_LOCALE  = SqlWriteCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
+        public static final SqlCommand UPDATE_PROFILE = SqlCommand.of(PROFILE_WRITER.updateWhere("id = :id"));
+        public static final SqlCommand UPDATE_LOCALE  = SqlCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
 
         public static MapSqlParameterSource updateProfileParams(UserProfileDto dto) {
             return PROFILE_WRITER.params(dto).addValue("id", dto.id());
