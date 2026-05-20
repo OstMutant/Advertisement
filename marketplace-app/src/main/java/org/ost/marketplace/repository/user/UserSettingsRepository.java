@@ -14,7 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-public class UserSettingsRepository extends RepositoryCustom<UserSettings, Void> {
+public class UserSettingsRepository {
 
     private static final Logger log = LoggerFactory.getLogger(UserSettingsRepository.class);
 
@@ -30,18 +30,19 @@ public class UserSettingsRepository extends RepositoryCustom<UserSettings, Void>
             " WHERE id = :userId"
     );
 
-    private final ObjectMapper mapper;
+    private final RepositoryCustom repo;
+    private final ObjectMapper     mapper;
 
     public UserSettingsRepository(JdbcClient jdbcClient,
                                   @Qualifier("userSettingsObjectMapper") ObjectMapper mapper) {
-        super(jdbcClient);
+        this.repo   = new RepositoryCustom(jdbcClient);
         this.mapper = mapper;
     }
 
     @Transactional
     public void save(Long userId, UserSettings settings) {
         try {
-            execute(SAVE_SETTINGS,
+            repo.execute(SAVE_SETTINGS,
                     new MapSqlParameterSource()
                             .addValue("settings", mapper.writeValueAsString(settings))
                             .addValue("userId",   userId));
@@ -53,7 +54,7 @@ public class UserSettingsRepository extends RepositoryCustom<UserSettings, Void>
 
     public UserSettings load(Long userId) {
         try {
-            return findOne(SELECT_SETTINGS,
+            return repo.findOne(SELECT_SETTINGS,
                            new MapSqlParameterSource("userId", userId),
                            String.class)
                     .map(json -> {

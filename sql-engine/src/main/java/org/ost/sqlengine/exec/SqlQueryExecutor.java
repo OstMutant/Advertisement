@@ -7,7 +7,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import java.util.List;
 import java.util.Optional;
 
-public record SqlQueryExecutor<T>(JdbcClient jdbcClient) {
+public record SqlQueryExecutor(JdbcClient jdbcClient) {
 
     // ── READ ──────────────────────────────────────────────────────────────────
 

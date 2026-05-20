@@ -15,11 +15,11 @@ import java.util.Optional;
 @ConditionalOnAttachmentEnabled
 public class AttachmentSnapshotRepository {
 
-    private final RepositoryCustom<AttachmentSnapshot, Void>  repo;
-    private final AttachmentSnapshotCrudRepository             crud;
+    private final RepositoryCustom repo;
+    private final AttachmentSnapshotCrudRepository crud;
 
     public AttachmentSnapshotRepository(JdbcClient jdbcClient, AttachmentSnapshotCrudRepository crud) {
-        this.repo = new RepositoryCustom<AttachmentSnapshot, Void>(jdbcClient);
+        this.repo = new RepositoryCustom(jdbcClient);
         this.crud = crud;
     }
 

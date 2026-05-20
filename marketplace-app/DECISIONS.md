@@ -14,6 +14,8 @@
 
 **Update 2026-05-19 (later):** All remaining inline SQL/SqlWriteCommand constants and param construction in `UserRepositoryCustomImpl`, `AdvertisementRepositoryCustomImpl`, and `AdvertisementMediaChangeConsumer` were folded into their descriptors. `UserDescriptor.Write` now owns `UPDATE_PROFILE`, `UPDATE_LOCALE` SqlWriteCommands + `updateProfileParams` / `updateLocaleParams`. `AdvertisementDescriptor.Read` owns `WHERE_BY_ID_ACTIVE` + `byIdParams`. `AdvertisementDescriptor.Write` owns `SOFT_DELETE`, `DELETE_OLDER_THAN`, `UPDATE_MEDIA` + matching param-factories (`updateMediaParams` takes a `MediaSummaryDto`). Call sites are now one-liners. Out of scope for this iteration (still hold inline SQL): `UserSettingsRepository`, `AuditLogRepository`, `AuditEntityExistenceCheckerImpl`, `AuditActorNameResolverImpl`.
 
+**Update 2026-05-20:** `UserSettingsRepository` no longer extends `RepositoryCustom` — switched to composition (`private final RepositoryCustom repo`), matching the pattern used by all other repositories. See `sql-engine/DECISIONS.md` → "RepositoryCustom / FilterableRepository split".
+
 **How to apply:** No inline SQL strings, no inline `SqlWriteCommand.of(...)` constants, and no inline `MapSqlParameterSource` construction at repository/consumer call sites — all of these belong on the descriptor (Read/Write namespace + matching `*Params` factory method).
 
 ---

@@ -15,12 +15,22 @@
 ## Ongoing — Two query patterns: SqlEntityProjection vs SqlFixedQuery
 
 **Decision:** Repositories choose between two patterns depending on query complexity:
-- `SqlEntityProjection` + `RepositoryCustom` — for filterable/pageable queries with dynamic WHERE clauses
+- `SqlEntityProjection` + `FilterableRepository` — for filterable/pageable queries with dynamic WHERE clauses
 - `SqlFixedQuery<T>` — for CTEs, UNION ALL, self-joins where the developer writes the full SQL
 
 **Why:** A single abstraction for both cases either over-constrains simple queries (forcing unnecessary indirection) or under-constrains complex ones (hiding SQL behind inadequate builders). The two-pattern split keeps each use case clean.
 
 **Rejected:** A single `SqlQuery` abstraction covering both — the impedance mismatch between dynamic filtering and structural queries made a unified API awkward.
+
+---
+
+## 2026-05-20 — RepositoryCustom / FilterableRepository split
+
+**Decision:** `RepositoryCustom` is a non-generic class that wraps `JdbcClient` and exposes only `SqlCommand`-based methods (`execute`, `executeUpdate`, `findOne`, `findAll`, `jdbcClient()`). `FilterableRepository<T, F>` extends it and adds `sqlProjection`, `filterBuilder`, `SqlQueryBuilder`, and the projection-based methods (`findByFilter`, `countByFilter`, `find`, `findOne(where, params)`). `SqlQueryExecutor` lost its vestigial `<T>` type parameter (none of its methods used it). Repositories that only execute hand-written SQL hold `private final RepositoryCustom repo` via composition; repositories that need filtering hold `private final FilterableRepository<T, F> query` via composition. No repository extends either class.
+
+**Why:** The old `RepositoryCustom<T, F>` carried nullable `sqlProjection`/`filterBuilder` fields and a `requireProjection()` guard, making the constructor choice invisible at call sites and both type parameters meaningless for pure-SQL repositories. The split removes all null fields, eliminates the guard, and makes the two use cases structurally distinct.
+
+**How to apply:** Repositories that do `execute`/`findOne` with raw SQL → `new RepositoryCustom(jdbcClient)`. Repositories that do `findByFilter`/`countByFilter` → `new FilterableRepository<>(jdbcClient, projection, filterBuilder)`. Never extend either class.
 
 ---
 

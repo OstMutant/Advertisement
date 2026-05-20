@@ -1,6 +1,6 @@
 package org.ost.sqlengine.filter;
 
-public enum SqlOperator {
+enum SqlOperator {
     EQUALS          ("%s = :%s"),
     LESS_OR_EQUAL   ("%s <= :%s"),
     GREATER_OR_EQUAL("%s >= :%s"),

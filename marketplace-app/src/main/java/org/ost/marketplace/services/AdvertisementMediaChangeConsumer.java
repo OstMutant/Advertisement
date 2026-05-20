@@ -12,11 +12,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class AdvertisementMediaChangeConsumer implements MediaChangeConsumer {
 
-    private final RepositoryCustom<Void, Void> repo;
+    private final RepositoryCustom repo;
     private final AttachmentPort         attachmentPort;
 
     public AdvertisementMediaChangeConsumer(JdbcClient jdbcClient, AttachmentPort attachmentPort) {
-        this.repo          = new RepositoryCustom<Void, Void>(jdbcClient);
+        this.repo          = new RepositoryCustom(jdbcClient);
         this.attachmentPort = attachmentPort;
     }
 

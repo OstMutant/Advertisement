@@ -19,7 +19,7 @@ import java.util.Optional;
 @Repository
 public class AuditLogRepository {
 
-    private final RepositoryCustom<AuditLog, Void> repo;
+    private final RepositoryCustom repo;
     private final AuditLogCrudRepository  crud;
     private final AuditLogDescriptor.Read.Activity.Projection activityProjection;
     private final AuditLogDescriptor.Read.History.Projection  historyProjection;
@@ -28,7 +28,7 @@ public class AuditLogRepository {
                               AuditLogCrudRepository crud,
                               @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
                               List<EntityDisplayNameResolver> resolvers) {
-        this.repo               = new RepositoryCustom<AuditLog, Void>(jdbcClient);
+        this.repo               = new RepositoryCustom(jdbcClient);
         this.crud               = crud;
         this.activityProjection = new AuditLogDescriptor.Read.Activity.Projection(objectMapper, resolvers);
         this.historyProjection  = new AuditLogDescriptor.Read.History.Projection(objectMapper);

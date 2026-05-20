@@ -17,11 +17,11 @@ public class AttachmentRepository {
 
     public record MediaStats(String mainUrl, String mainContentType, int count) {}
 
-    private final RepositoryCustom<Attachment, Void> repo;
+    private final RepositoryCustom repo;
     private final AttachmentCrudRepository crud;
 
     public AttachmentRepository(JdbcClient jdbcClient, AttachmentCrudRepository crud) {
-        this.repo = new RepositoryCustom<Attachment, Void>(jdbcClient);
+        this.repo = new RepositoryCustom(jdbcClient);
         this.crud = crud;
     }
 

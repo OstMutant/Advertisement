@@ -7,35 +7,19 @@ import java.util.Arrays;
 public class SqlQueryBuilder {
 
     public String select(String fields, String source) {
-        return concat("SELECT",
-                normalizeFields(fields),
-                "FROM",
-                source
-        );
+        return concat("SELECT", normalizeFields(fields), "FROM", source);
     }
 
     public String select(String fields, String source, String where) {
-        return concat(
-                select(fields, source),
-                wrap("WHERE", where)
-        );
+        return concat(select(fields, source), wrap("WHERE", where));
     }
 
     public String select(String fields, String source, String where, String orderBy, String limit) {
-        return concat(
-                select(fields, source, where),
-                wrap(orderBy),
-                wrap(limit)
-        );
+        return concat(select(fields, source, where), wrap(orderBy), wrap(limit));
     }
 
     public String count(String source, String where) {
-        return concat(
-                "SELECT COUNT(*)",
-                "FROM",
-                source,
-                wrap("WHERE", where)
-        );
+        return concat("SELECT COUNT(*)", "FROM", source, wrap("WHERE", where));
     }
 
     private String normalizeFields(String fields) {
@@ -43,9 +27,7 @@ public class SqlQueryBuilder {
     }
 
     private String wrap(String prefix, String part) {
-        if (StringUtils.isBlank(part)) {
-            return "";
-        }
+        if (StringUtils.isBlank(part)) return "";
         return StringUtils.isNotBlank(prefix) ? prefix + " " + part : part;
     }
 
@@ -54,9 +36,6 @@ public class SqlQueryBuilder {
     }
 
     private String concat(String... parts) {
-        return String.join(" ",
-                Arrays.stream(parts)
-                        .filter(StringUtils::isNotBlank)
-                        .toList());
+        return String.join(" ", Arrays.stream(parts).filter(StringUtils::isNotBlank).toList());
     }
 }
