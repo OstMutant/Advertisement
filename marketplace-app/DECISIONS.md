@@ -2,21 +2,17 @@
 
 ---
 
-## 2026-05-19 — UserDescriptor / AdvertisementDescriptor migrated to Read/Write namespace pattern
+## Ongoing — Descriptor + repository pattern (Read/Write namespaces)
 
-**Decision:** Both descriptors are now `final class implements SqlEntityDescriptor` with a private constructor. Their `SqlEntityProjection<T>` (with inline `mapRow`) lives inside an inner `Read` namespace as `Read.PROJECTION`; the existing `Write` namespace stays. Call sites pass `Descriptor.Read.PROJECTION` directly to `RepositoryCustom` instead of instantiating the descriptor.
+**Decision:** Every table has one `final class implements SqlEntityDescriptor` with a private constructor. SQL, field constants, and param factories are split into two inner namespaces:
+- `Read` — `PROJECTION` (`SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*`/`BY_*_WHERE` constants, read-side param factories, `FILTER` (`SqlFilterBuilder` instance).
+- `Write` — `SqlCommand` constants for INSERT/UPDATE/DELETE, write-side param factories.
 
-**Why:** Match the `AttachmentDescriptor` reference pattern across all modules, removing the read/write asymmetry and making the SQL boundary explicit at every call site.
+Repositories hold `private final RepositoryCustom repo` or `private final FilterableRepository<T,F> query` via composition — never extend either class. No inline SQL strings, no inline `MapSqlParameterSource` construction at call sites — all of these belong on the descriptor.
 
-**How to apply:** New descriptors follow this shape; never `extend SqlEntityProjection<T>` directly.
+**Why:** One grep target (`SqlEntityDescriptor`) finds all dual-side descriptors. The namespace makes the SQL boundary explicit (`Descriptor.Read.PROJECTION` ↔ `Descriptor.Write.SOFT_DELETE`). Composition over inheritance keeps repository constructors package-private (avoids leaking package-private CrudRepository types into the public API).
 
-**Update 2026-05-19:** Standalone `*FilterBuilder` classes folded into their descriptors as `Read.FILTER` (and `Read.EMAIL_FILTER` for the single-field email lookup) — `SqlFilterBuilder` was made concrete in `sql-engine` so descriptors can instantiate it directly. For filters that need a base predicate (e.g. `AdvertisementFilterDto` always anchors `deleted_at IS NULL`), `Read.FILTER` is an anonymous subclass overriding `build()`. `UserFilterBuilder`, `UserEmailFilterBuilder`, `AdvertisementFilterBuilder` are deleted. Filter field name references use fully-qualified `XxxFilterDto.Fields.X` to avoid wildcard-import clashes with `Entity.Fields.*`.
-
-**Update 2026-05-19 (later):** All remaining inline SQL/SqlWriteCommand constants and param construction in `UserRepositoryCustomImpl`, `AdvertisementRepositoryCustomImpl`, and `AdvertisementMediaChangeConsumer` were folded into their descriptors. `UserDescriptor.Write` now owns `UPDATE_PROFILE`, `UPDATE_LOCALE` SqlWriteCommands + `updateProfileParams` / `updateLocaleParams`. `AdvertisementDescriptor.Read` owns `WHERE_BY_ID_ACTIVE` + `byIdParams`. `AdvertisementDescriptor.Write` owns `SOFT_DELETE`, `DELETE_OLDER_THAN`, `UPDATE_MEDIA` + matching param-factories (`updateMediaParams` takes a `MediaSummaryDto`). Call sites are now one-liners. Out of scope for this iteration (still hold inline SQL): `UserSettingsRepository`, `AuditLogRepository`, `AuditEntityExistenceCheckerImpl`, `AuditActorNameResolverImpl`.
-
-**Update 2026-05-20:** `UserSettingsRepository` no longer extends `RepositoryCustom` — switched to composition (`private final RepositoryCustom repo`), matching the pattern used by all other repositories. See `sql-engine/DECISIONS.md` → "RepositoryCustom / FilterableRepository split".
-
-**How to apply:** No inline SQL strings, no inline `SqlWriteCommand.of(...)` constants, and no inline `MapSqlParameterSource` construction at repository/consumer call sites — all of these belong on the descriptor (Read/Write namespace + matching `*Params` factory method).
+**How to apply:** New descriptors follow this shape. `SqlFilterBuilder` is concrete — instantiate directly as `Read.FILTER`; for filters with a base predicate (e.g. always `deleted_at IS NULL`) use an anonymous subclass overriding `build()`.
 
 ---
 
@@ -32,9 +28,9 @@
 
 ## Ongoing — No JPA / no Hibernate
 
-**Decision:** All database access via `NamedParameterJdbcTemplate` with custom `*Projection` query objects. No JPA, no Hibernate, no Spring Data JPA.
+**Decision:** All database access via `JdbcClient` with custom `*Descriptor` + `RepositoryCustom`/`FilterableRepository`. No JPA, no Hibernate, no Spring Data JPA. `CrudRepository<T, Long>` is used only for trivial `save`/`findById`/`deleteById` — never for custom queries.
 
-**Why:** Explicit SQL gives full control over queries, avoids N+1, and eliminates hidden lazy-loading bugs. The `SqlFixedQuery<T>` abstraction (`sql-engine` module) enforces a consistent pattern.
+**Why:** Explicit SQL gives full control over queries, avoids N+1, and eliminates hidden lazy-loading bugs. `SqlFixedQuery<T>` and `SqlEntityProjection<T>` in `sql-engine` enforce a consistent pattern.
 
 **Rejected:** Spring Data JPA — too much hidden magic, incompatible with the "explicit over implicit" architecture principle.
 
@@ -44,7 +40,7 @@
 
 **Decision:** `@EnableMethodSecurity` added to `SecurityConfig`. `@PreAuthorize("isAuthenticated()")` is NOT applied at class level on services.
 
-**Why:** Vaadin view beans (`advertisementsView` etc.) are initialized on first HTTP request — before the user authenticates. Class-level `@PreAuthorize` on services breaks this initialization with `AuthorizationDeniedException`. The `/health` REST endpoint is intentionally public (load balancer / monitoring). Any future non-public REST endpoints should use `@PreAuthorize` at the method level directly on the controller.
+**Why:** Vaadin view beans are initialized on first HTTP request — before the user authenticates. Class-level `@PreAuthorize` on services breaks this initialization with `AuthorizationDeniedException`. The `/health` REST endpoint is intentionally public (load balancer / monitoring). Future non-public REST endpoints should use `@PreAuthorize` at the method level on the controller.
 
 **Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `ActivityService`, `AuditHistoryService`, `AuditQueryService`, `UserSettingsService` — confirmed broken via smoke tests.
 
@@ -70,29 +66,18 @@
 
 ## Ongoing — Modular storage: contract vs implementation
 
-**Decision:** `StorageService` interface lives in `platform-contracts`. `S3StorageService` and `NoOpStorageService` implementations live in `attachment-spring-boot-starter` (merged from the former `storage-s3-spring-boot-starter` on 2026-05-13). UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `storage.s3.enabled=false`.
+**Decision:** `StorageService` interface lives in `attachment-spring-boot-starter`. `S3StorageService` and `NoOpStorageService` implementations live in the same module. UI components use `ObjectProvider.ifAvailable()` to degrade gracefully when `attachment.enabled=false`.
 
-**Why:** Allows running the app locally without S3. The contract/implementation split keeps domain logic independent of infrastructure. Storage was merged into `attachment-spring-boot-starter` because storage only exists to serve attachments — there is no use case for storage without attachments.
+**Why:** Storage only exists to serve attachments — there is no use case for storage without attachments. Contract/implementation split keeps domain logic independent of infrastructure.
 
 **Rejected:** Keeping `storage-s3-spring-boot-starter` as a separate module — two modules with a mandatory one-way dependency and no realistic decoupling scenario.
-
-
-## 2026-05-16 — Developer scripts moved to scripts/
-
-**Decision:** All root-level `.bat` and `.sh` helper scripts (except `mvn.bat`) moved to `scripts/`. Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname "$0")/..` (sh), so they work correctly when run from any directory.
-
-**Why:** Root was accumulating unrelated files; grouping scripts improves discoverability and keeps the root clean.
-
-**Rejected:** Keeping `mvn.bat` in `scripts/` — it is invoked constantly during development and is more ergonomic at the root.
 
 ---
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
-**Decision:** The write side of the audit subsystem (`AuditCaptureService`, `AuditDiffEngine`, `AuditFieldCache`, `AuditSnapshotMapper`, `AuditLogRepository` generic operations) was extracted into a new `audit-spring-boot-starter` module. Domain services (`AdvertisementService`, `UserService`, `SettingsOverlay`) now call `AuditPort` (contract interface) instead of `AuditCaptureService` (concrete service). History/activity read side (domain JOINs) stays in `marketplace-app`.
+**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`; read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). `NoOpAuditPort` is the fallback when `audit.enabled=false`. The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditActorNameResolver`, `AuditEntityExistenceChecker`, `EntityDisplayNameResolver`) implemented in `marketplace-app`.
 
-**Why:** Symmetry with `attachment-spring-boot-starter`. Audit is infrastructure, not domain. Enables deploying audit-free variants by setting `audit.enabled=false`. `AuditableSnapshot` marker interface eliminates stringly-typed entity-type strings. `NoOpAuditPort` is the fallback when `audit.enabled=false`, wiring never fails.
+**Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
-**Update 2026-05-13:** `AuditHistoryService`, `AuditQueryService`, `ActivityService`, and all Vaadin audit UI components were subsequently moved to `audit-spring-boot-starter` when `audit-read-spring-boot-starter` was merged in.
-
-**Update 2026-05-15:** The goal is full decoupling — `audit-spring-boot-starter` should contain zero advertisement-specific knowledge. See `audit-spring-boot-starter/DECISIONS.md` → "Goal: Full decoupling from advertisement domain".
+**Rejected:** `@ConditionalOnAuditEnabled` in `platform-contracts` — contracts must be Spring-free pure Java.
