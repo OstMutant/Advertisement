@@ -1,18 +1,16 @@
 package org.ost.marketplace.repository.advertisement;
 
-import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -47,13 +45,11 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
     public static final class Read {
         private Read() {}
 
-        public static final SqlEntityProjection<AdvertisementInfoDto> PROJECTION = new SqlEntityProjection<>(
+        public static final SqlEntityProjection<AdvertisementInfoDto> PROJECTION = SqlEntityProjection.of(
                 List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT,
                         USER_ID, USER_NAME, USER_EMAIL, MEDIA_URL, MEDIA_CONTENT_TYPE, MEDIA_COUNT),
-                SOURCE, COUNT_SOURCE) {
-            @Override
-            public AdvertisementInfoDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-                return AdvertisementInfoDto.builder()
+                SOURCE, COUNT_SOURCE,
+                (rs, rowNum) -> AdvertisementInfoDto.builder()
                         .id(ID.extract(rs))
                         .title(TITLE.extract(rs))
                         .description(DESCRIPTION.extract(rs))
@@ -65,9 +61,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                         .mediaUrl(MEDIA_URL.extract(rs))
                         .mediaContentType(MEDIA_CONTENT_TYPE.extract(rs))
                         .mediaCount(MEDIA_COUNT.extract(rs))
-                        .build();
-            }
-        };
+                        .build());
 
         public static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
                 of(AdvertisementFilterDto.Fields.title,           TITLE,      (m, v) -> like(m, v.getTitle())),
@@ -88,7 +82,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
 
         public static MapSqlParameterSource byIdParams(Long id) {
-            return new MapSqlParameterSource("id", id);
+            return SqlParams.of("id", id);
         }
     }
 
@@ -119,21 +113,19 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 " WHERE id = :id");
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
-            return new MapSqlParameterSource()
-                    .addValue("id",        id)
-                    .addValue("deletedBy", deletedByUserId);
+            return SqlParams.with("id", id).add("deletedBy", deletedByUserId).build();
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
-            return new MapSqlParameterSource("days", days);
+            return SqlParams.of("days", days);
         }
 
         public static MapSqlParameterSource updateMediaParams(Long entityId, MediaSummaryDto summary) {
-            return new MapSqlParameterSource()
-                    .addValue("url",         summary.displayUrl())
-                    .addValue("contentType", summary.contentType())
-                    .addValue("count",       summary.count())
-                    .addValue("id",          entityId);
+            return SqlParams.with("url",         summary.displayUrl())
+                            .add("contentType", summary.contentType())
+                            .add("count",       summary.count())
+                            .add("id",          entityId)
+                            .build();
         }
     }
 

@@ -1,6 +1,7 @@
 package org.ost.attachment.repository;
 
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -87,9 +88,7 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
                 " ORDER BY created_at ASC LIMIT 1";
 
         public static MapSqlParameterSource entityParams(String entityTypeName, Long entityId) {
-            return new MapSqlParameterSource()
-                    .addValue("entityType", entityTypeName)
-                    .addValue("entityId",   entityId);
+            return SqlParams.with("entityType", entityTypeName).add("entityId", entityId).build();
         }
 
         public static MapSqlParameterSource versionParams(String entityTypeName, Long entityId, int version) {

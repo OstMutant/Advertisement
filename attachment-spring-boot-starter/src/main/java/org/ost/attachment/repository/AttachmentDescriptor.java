@@ -1,16 +1,14 @@
 package org.ost.attachment.repository;
 
-import org.jetbrains.annotations.NotNull;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -43,26 +41,24 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
     public static final class Read {
         private Read() {}
 
-        public static final SqlEntityProjection<Attachment> PROJECTION = new SqlEntityProjection<>(
+        public static final SqlEntityProjection<Attachment> PROJECTION = SqlEntityProjection.of(
                 List.of(ID, ENTITY_TYPE, ENTITY_ID, URL, FILENAME, CONTENT_TYPE, SIZE,
-                        CREATED_AT, DELETED_AT, DELETED_BY_ACTOR_ID), TABLE) {
-            @Override
-            public Attachment mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-                String typeName = ENTITY_TYPE.extract(rs);
-                return Attachment.builder()
-                        .id(ID.extract(rs))
-                        .entityType(typeName == null ? null : EntityType.valueOf(typeName))
-                        .entityId(ENTITY_ID.extract(rs))
-                        .url(URL.extract(rs))
-                        .filename(FILENAME.extract(rs))
-                        .contentType(CONTENT_TYPE.extract(rs))
-                        .size(SIZE.extract(rs))
-                        .createdAt(CREATED_AT.extract(rs))
-                        .deletedAt(DELETED_AT.extract(rs))
-                        .deletedByActorId(DELETED_BY_ACTOR_ID.extract(rs))
-                        .build();
-            }
-        };
+                        CREATED_AT, DELETED_AT, DELETED_BY_ACTOR_ID), TABLE,
+                (rs, rowNum) -> {
+                    String typeName = ENTITY_TYPE.extract(rs);
+                    return Attachment.builder()
+                            .id(ID.extract(rs))
+                            .entityType(typeName == null ? null : EntityType.valueOf(typeName))
+                            .entityId(ENTITY_ID.extract(rs))
+                            .url(URL.extract(rs))
+                            .filename(FILENAME.extract(rs))
+                            .contentType(CONTENT_TYPE.extract(rs))
+                            .size(SIZE.extract(rs))
+                            .createdAt(CREATED_AT.extract(rs))
+                            .deletedAt(DELETED_AT.extract(rs))
+                            .deletedByActorId(DELETED_BY_ACTOR_ID.extract(rs))
+                            .build();
+                });
 
         public static final String SELECT_ACTIVE_BY_ENTITY =
                 "SELECT * FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY;
@@ -84,13 +80,11 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + CONTENT_TYPE.columnName() + " NOT IN ('video/youtube', 'video/embed')";
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return new MapSqlParameterSource()
-                    .addValue("entityType", entityType.name())
-                    .addValue("entityId",   entityId);
+            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId).build();
         }
 
         public static MapSqlParameterSource findUrlsDeletedOlderThanParams(int days) {
-            return new MapSqlParameterSource("days", days);
+            return SqlParams.of("days", days);
         }
     }
 
@@ -129,9 +123,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 "DELETE FROM " + TABLE + " WHERE " + URL.columnName() + " IN (:urls)";
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long actorId) {
-            return new MapSqlParameterSource()
-                    .addValue("id",      id)
-                    .addValue("actorId", actorId);
+            return SqlParams.with("id", id).add("actorId", actorId).build();
         }
 
         public static MapSqlParameterSource softDeleteAllParams(EntityType entityType, Long entityId, Long actorId) {
@@ -150,7 +142,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource deleteByUrlsParams(List<String> urls) {
-            return new MapSqlParameterSource("urls", urls);
+            return SqlParams.of("urls", urls);
         }
     }
 

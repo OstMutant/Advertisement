@@ -12,6 +12,7 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.ost.sqlengine.SqlEntityDescriptor;
+import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.read.SqlFixedQuery;
 import org.ost.sqlengine.read.SqlSelectField;
 import org.ost.sqlengine.exec.SqlCommand;
@@ -47,7 +48,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         public static final SqlCommand SELECT_SNAPSHOT_DATA_BY_ID = SqlCommand.of(
                 "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
                 " FROM "  + TABLE +
-                " WHERE id = :id AND " + ENTITY_TYPE.columnName() + " = :entityType");
+                " WHERE " + ID.columnName() + " = :id AND " + ENTITY_TYPE.columnName() + " = :entityType");
 
         public static final SqlCommand SELECT_LAST_SNAPSHOT_DATA = SqlCommand.of(
                 "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
@@ -67,14 +68,14 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static final SqlCommand SELECT_LAST_SNAPSHOT_ID = SqlCommand.of(
-                "SELECT id FROM " + TABLE +
+                "SELECT " + ID.columnName() + " FROM " + TABLE +
                 " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
                 " AND "   + ENTITY_ID.columnName()   + " = :entityId" +
                 " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1");
 
         public static final SqlCommand SELECT_CHANGES_SUMMARY = SqlCommand.of(
                 "SELECT " + CHANGES_SUMMARY.columnName() + "::text" +
-                " FROM "  + TABLE + " WHERE id = :id");
+                " FROM "  + TABLE + " WHERE " + ID.columnName() + " = :id");
 
         public static final SqlCommand SELECT_PREVIOUS_SNAPSHOT_CONTENT = SqlCommand.of("""
                 SELECT prev.snapshot_data::text AS snapshot_data,
@@ -95,25 +96,19 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static MapSqlParameterSource snapshotByIdParams(Long id, EntityType entityType) {
-            return new MapSqlParameterSource()
-                    .addValue("id",         id)
-                    .addValue("entityType", entityType.name());
+            return SqlParams.with("id", id).add("entityType", entityType.name()).build();
         }
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return new MapSqlParameterSource()
-                    .addValue("entityType", entityType.name())
-                    .addValue("entityId",   entityId);
+            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId).build();
         }
 
         public static MapSqlParameterSource idParams(Long id) {
-            return new MapSqlParameterSource("id", id);
+            return SqlParams.of("id", id);
         }
 
         public static MapSqlParameterSource previousSnapshotContentParams(Long snapshotId, EntityType entityType) {
-            return new MapSqlParameterSource()
-                    .addValue("snapshotId", snapshotId)
-                    .addValue("entityType", entityType.name());
+            return SqlParams.with("snapshotId", snapshotId).add("entityType", entityType.name()).build();
         }
 
         public static SnapshotContent mapSnapshotContent(ResultSet rs) throws SQLException {
@@ -168,7 +163,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, ACTOR_ID, CHANGED_BY_NAME, SNAPSHOT_DATA);
 
             public static MapSqlParameterSource byActorParams(Long actorId) {
-                return new MapSqlParameterSource("actorId", actorId);
+                return SqlParams.of("actorId", actorId);
             }
 
             public static final class Projection extends JsonProjection<ActivityItemDto> {
@@ -251,10 +246,10 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     SNAPSHOT_DATA, CHANGES_SUMMARY, PREV_ID, PREV_SNAPSHOT_DATA);
 
             public static MapSqlParameterSource params(EntityType entityType, Long entityId, Long filterUserId) {
-                return new MapSqlParameterSource()
-                        .addValue("entityType",   entityType.name())
-                        .addValue("entityId",     entityId)
-                        .addValue("filterUserId", filterUserId);
+                return SqlParams.with("entityType",   entityType.name())
+                                .add("entityId",     entityId)
+                                .add("filterUserId", filterUserId)
+                                .build();
             }
 
             public static final class Projection extends JsonProjection<EntityHistoryDto> {
@@ -308,23 +303,21 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                           String actionType, String snapshotData,
                                                           String changesSummary, Long actorId) {
-            return new MapSqlParameterSource()
-                    .addValue("entityType",   entityType.name())
-                    .addValue("entityId",     entityId)
-                    .addValue("actionType",   actionType)
-                    .addValue("snapshotData", snapshotData)
-                    .addValue("changes",      changesSummary)
-                    .addValue("actorId",      actorId);
+            return SqlParams.with("entityType",   entityType.name())
+                            .add("entityId",     entityId)
+                            .add("actionType",   actionType)
+                            .add("snapshotData", snapshotData)
+                            .add("changes",      changesSummary)
+                            .add("actorId",      actorId)
+                            .build();
         }
 
         public static MapSqlParameterSource updateChangesSummaryParams(Long snapshotId, String json) {
-            return new MapSqlParameterSource()
-                    .addValue("id", snapshotId)
-                    .addValue("s",  json);
+            return SqlParams.with("id", snapshotId).add("s", json).build();
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
-            return new MapSqlParameterSource("days", days);
+            return SqlParams.of("days", days);
         }
     }
 

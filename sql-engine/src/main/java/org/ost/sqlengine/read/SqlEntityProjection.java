@@ -1,7 +1,10 @@
 package org.ost.sqlengine.read;
 
 import lombok.Getter;
+import org.springframework.jdbc.core.RowMapper;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;
 
@@ -20,5 +23,23 @@ public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
         super(items);
         this.sqlSource   = sqlSource;
         this.countSource = countSource;
+    }
+
+    public static <T> SqlEntityProjection<T> of(List<SqlSelectField<?>> items, String sqlSource, RowMapper<T> mapper) {
+        return new SqlEntityProjection<>(items, sqlSource) {
+            @Override
+            public T mapRow(ResultSet rs, int rowNum) throws SQLException {
+                return mapper.mapRow(rs, rowNum);
+            }
+        };
+    }
+
+    public static <T> SqlEntityProjection<T> of(List<SqlSelectField<?>> items, String sqlSource, String countSource, RowMapper<T> mapper) {
+        return new SqlEntityProjection<>(items, sqlSource, countSource) {
+            @Override
+            public T mapRow(ResultSet rs, int rowNum) throws SQLException {
+                return mapper.mapRow(rs, rowNum);
+            }
+        };
     }
 }

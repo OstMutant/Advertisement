@@ -1,6 +1,5 @@
 package org.ost.marketplace.repository.user;
 
-import org.jetbrains.annotations.NotNull;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
@@ -14,8 +13,6 @@ import org.ost.sqlengine.write.SqlEntityWriter;
 import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
@@ -48,11 +45,9 @@ public final class UserDescriptor implements SqlEntityDescriptor {
     public static final class Read {
         private Read() {}
 
-        public static final SqlEntityProjection<User> PROJECTION = new SqlEntityProjection<>(
-                List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE) {
-            @Override
-            public User mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-                return User.builder()
+        public static final SqlEntityProjection<User> PROJECTION = SqlEntityProjection.of(
+                List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE,
+                (rs, rowNum) -> User.builder()
                         .id(ID.extract(rs))
                         .name(NAME.extract(rs))
                         .email(EMAIL.extract(rs))
@@ -61,9 +56,7 @@ public final class UserDescriptor implements SqlEntityDescriptor {
                         .createdAt(CREATED_AT.extract(rs))
                         .updatedAt(UPDATED_AT.extract(rs))
                         .locale(LOCALE.extract(rs))
-                        .build();
-            }
-        };
+                        .build());
 
         public static final SqlFilterBuilder<UserFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
                 of(UserFilterDto.Fields.name,           NAME,       (m, v) -> like(m, v.getName())),
