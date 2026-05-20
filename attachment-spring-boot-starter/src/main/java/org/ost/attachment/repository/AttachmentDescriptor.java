@@ -3,31 +3,31 @@ package org.ost.attachment.repository;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.SqlParams;
+import static org.ost.sqlengine.SqlEntityDescriptor.Params;
 import org.ost.sqlengine.read.SqlEntityProjection;
-import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.exec.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
 public final class AttachmentDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "attachment";
 
-    public static final SqlSelectField<Long>    ID                  = longVal("id",                  "id");
-    public static final SqlSelectField<String>  ENTITY_TYPE         = str("entity_type",             "entity_type");
-    public static final SqlSelectField<Long>    ENTITY_ID           = longVal("entity_id",           "entity_id");
-    public static final SqlSelectField<String>  URL                 = str("url",                     "url");
-    public static final SqlSelectField<String>  FILENAME            = str("filename",                "filename");
-    public static final SqlSelectField<String>  CONTENT_TYPE        = str("content_type",            "content_type");
-    public static final SqlSelectField<Long>    SIZE                = longVal("size",                "size");
-    public static final SqlSelectField<Instant> CREATED_AT          = instant("created_at",          "created_at");
-    public static final SqlSelectField<Instant> DELETED_AT          = instant("deleted_at",          "deleted_at");
-    public static final SqlSelectField<Long>    DELETED_BY_ACTOR_ID = longVal("deleted_by_actor_id", "deleted_by_actor_id");
+    public static final SqlDescriptorField<Long>    ID                  = longVal("id",                  "id");
+    public static final SqlDescriptorField<String>  ENTITY_TYPE         = str("entity_type",             "entity_type");
+    public static final SqlDescriptorField<Long>    ENTITY_ID           = longVal("entity_id",           "entity_id");
+    public static final SqlDescriptorField<String>  URL                 = str("url",                     "url");
+    public static final SqlDescriptorField<String>  FILENAME            = str("filename",                "filename");
+    public static final SqlDescriptorField<String>  CONTENT_TYPE        = str("content_type",            "content_type");
+    public static final SqlDescriptorField<Long>    SIZE                = longVal("size",                "size");
+    public static final SqlDescriptorField<Instant> CREATED_AT          = instant("created_at",          "created_at");
+    public static final SqlDescriptorField<Instant> DELETED_AT          = instant("deleted_at",          "deleted_at");
+    public static final SqlDescriptorField<Long>    DELETED_BY_ACTOR_ID = longVal("deleted_by_actor_id", "deleted_by_actor_id");
 
     private static final String WHERE_ACTIVE_BY_ENTITY =
             " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
@@ -80,11 +80,11 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + CONTENT_TYPE.columnName() + " NOT IN ('video/youtube', 'video/embed')");
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
+            return Params.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource findUrlsDeletedOlderThanParams(int days) {
-            return SqlParams.of("days", days);
+            return Params.of("days", days);
         }
     }
 
@@ -120,7 +120,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 "DELETE FROM " + TABLE + " WHERE " + URL.columnName() + " IN (:urls)");
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long actorId) {
-            return SqlParams.with("id", id).add("actorId", actorId);
+            return Params.with("id", id).add("actorId", actorId);
         }
 
         public static MapSqlParameterSource softDeleteAllParams(EntityType entityType, Long entityId, Long actorId) {
@@ -139,7 +139,7 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource deleteByUrlsParams(List<String> urls) {
-            return SqlParams.of("urls", urls);
+            return Params.of("urls", urls);
         }
     }
 

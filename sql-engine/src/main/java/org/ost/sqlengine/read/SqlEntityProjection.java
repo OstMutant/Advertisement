@@ -1,6 +1,7 @@
 package org.ost.sqlengine.read;
 
 import lombok.Getter;
+import org.ost.sqlengine.common.SqlDescriptorField;
 import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
@@ -22,11 +23,11 @@ public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
     @Getter private final String sqlSource;
     @Getter private final String countSource;
 
-    protected SqlEntityProjection(List<SqlSelectField<?>> items, String sqlSource) {
+    protected SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource) {
         this(items, sqlSource, sqlSource);
     }
 
-    protected SqlEntityProjection(List<SqlSelectField<?>> items, String sqlSource, String countSource) {
+    protected SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource, String countSource) {
         Objects.requireNonNull(sqlSource,    "Parameter 'sqlSource' must not be null.");
         Objects.requireNonNull(countSource,  "Parameter 'countSource' must not be null.");
         super(items);
@@ -34,7 +35,7 @@ public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
         this.countSource = countSource;
     }
 
-    public static <T> SqlEntityProjection<T> of(List<SqlSelectField<?>> items, String sqlSource, RowMapper<T> mapper) {
+    public static <T> SqlEntityProjection<T> of(List<SqlDescriptorField<?>> items, String sqlSource, RowMapper<T> mapper) {
         return new SqlEntityProjection<>(items, sqlSource) {
             @Override
             public T mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -43,7 +44,7 @@ public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
         };
     }
 
-    public static <T> SqlEntityProjection<T> of(List<SqlSelectField<?>> items, String sqlSource, String countSource, RowMapper<T> mapper) {
+    public static <T> SqlEntityProjection<T> of(List<SqlDescriptorField<?>> items, String sqlSource, String countSource, RowMapper<T> mapper) {
         return new SqlEntityProjection<>(items, sqlSource, countSource) {
             @Override
             public T mapRow(ResultSet rs, int rowNum) throws SQLException {

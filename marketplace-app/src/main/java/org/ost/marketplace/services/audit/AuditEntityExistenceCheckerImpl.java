@@ -5,8 +5,6 @@ import org.ost.marketplace.repository.user.UserDescriptor;
 import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.exec.SqlCommand;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
 

@@ -1,4 +1,4 @@
-package org.ost.sqlengine.read;
+package org.ost.sqlengine.common;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class SqlSelectFieldTest {
+class SqlDescriptorFieldTest {
 
     @Test
     void columnName_simpleExpression_returnsExpression() {
@@ -58,7 +58,7 @@ class SqlSelectFieldTest {
         ResultSet rs = mock(ResultSet.class);
         when(rs.getString("title")).thenReturn("Hello");
 
-        var field = SqlSelectField.<String>builder()
+        var field = SqlDescriptorField.<String>builder()
                 .sqlExpression("a.title")
                 .alias("title")
                 .extractor(ResultSet::getString)
@@ -67,8 +67,8 @@ class SqlSelectFieldTest {
         assertThat(field.extract(rs)).isEqualTo("Hello");
     }
 
-    private static SqlSelectField<String> field(String expr, String alias) {
-        return SqlSelectField.<String>builder()
+    private static SqlDescriptorField<String> field(String expr, String alias) {
+        return SqlDescriptorField.<String>builder()
                 .sqlExpression(expr)
                 .alias(alias)
                 .extractor(ResultSet::getString)

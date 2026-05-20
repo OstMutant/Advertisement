@@ -2,7 +2,7 @@ package org.ost.sqlengine.write;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.common.SqlDescriptorField;
 
 import java.util.function.Function;
 
@@ -11,12 +11,12 @@ import java.util.function.Function;
  *
  * <p>Two overload families:
  * <ul>
- *   <li>{@code field(SqlSelectField, extractor)} / {@code fieldExpr(SqlSelectField, sql)} —
- *       preferred when a Read-side {@link SqlSelectField} constant exists in the same descriptor;
- *       column name is taken from {@link SqlSelectField#columnName()}, making Read and Write
+ *   <li>{@code field(SqlDescriptorField, extractor)} / {@code fieldExpr(SqlDescriptorField, sql)} —
+ *       preferred when a {@link SqlDescriptorField} constant exists in the same descriptor;
+ *       column name is taken from {@link SqlDescriptorField#columnName()}, making Read and Write
  *       share a single source of truth.</li>
  *   <li>{@code field(String, extractor)} / {@code fieldExpr(String, sql)} —
- *       fallback for fields without a matching Read constant; accepts camelCase Java names
+ *       fallback for fields without a matching descriptor constant; accepts camelCase Java names
  *       (e.g. {@code Fields.*} from {@code @FieldNameConstants}) and converts them to
  *       snake_case automatically ({@code updatedAt} → {@code updated_at}).</li>
  * </ul>
@@ -24,12 +24,12 @@ import java.util.function.Function;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SqlWriteFieldFactory {
 
-    public static <T> SqlMappedField<T> field(SqlSelectField<?> readField, Function<T, Object> extractor) {
-        return new SqlMappedField<>(readField.columnName(), extractor);
+    public static <T> SqlMappedField<T> field(SqlDescriptorField<?> descriptorField, Function<T, Object> extractor) {
+        return new SqlMappedField<>(descriptorField.columnName(), extractor);
     }
 
-    public static <T> SqlExpressionField<T> fieldExpr(SqlSelectField<?> readField, String sqlExpression) {
-        return new SqlExpressionField<>(readField.columnName(), sqlExpression);
+    public static <T> SqlExpressionField<T> fieldExpr(SqlDescriptorField<?> descriptorField, String sqlExpression) {
+        return new SqlExpressionField<>(descriptorField.columnName(), sqlExpression);
     }
 
     public static <T> SqlMappedField<T> field(String javaFieldName, Function<T, Object> extractor) {

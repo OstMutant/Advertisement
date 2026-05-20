@@ -5,7 +5,7 @@ import java.sql.SQLException;
 
 /**
  * Reads a typed value from a {@link ResultSet} column identified by its alias.
- * Used as the extraction strategy in {@link SqlSelectField}.
+ * Used as the extraction strategy in {@link org.ost.sqlengine.common.SqlDescriptorField}.
  *
  * @param <T> the Java type to extract
  */

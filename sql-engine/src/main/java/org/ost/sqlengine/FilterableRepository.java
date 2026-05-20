@@ -1,7 +1,7 @@
 package org.ost.sqlengine;
 
-import org.ost.sqlengine.exec.SqlCommand;
-import org.ost.sqlengine.exec.SqlQueryBuilder;
+import org.ost.sqlengine.common.SqlCommand;
+import org.ost.sqlengine.common.SqlQueryBuilder;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
 import org.springframework.data.domain.Pageable;

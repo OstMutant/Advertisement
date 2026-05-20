@@ -4,11 +4,11 @@ import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.SqlParams;
+import static org.ost.sqlengine.SqlEntityDescriptor.Params;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
-import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.exec.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;
@@ -19,7 +19,7 @@ import static org.ost.sqlengine.filter.SqlBoundFilter.of;
 import static org.ost.sqlengine.filter.SqlCondition.after;
 import static org.ost.sqlengine.filter.SqlCondition.before;
 import static org.ost.sqlengine.filter.SqlCondition.like;
-import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
 public final class AdvertisementDescriptor implements SqlEntityDescriptor {
 
@@ -29,18 +29,18 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
             " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id";
     public static final String COUNT_SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlSelectField<Long>    ID                 = longVal(ALIAS + ".id",                id);
-    public static final SqlSelectField<String>  TITLE              = str(ALIAS + ".title",             title);
-    public static final SqlSelectField<String>  DESCRIPTION        = str(ALIAS + ".description",       description);
-    public static final SqlSelectField<Instant> CREATED_AT         = instant(ALIAS + ".created_at",    createdAt);
-    public static final SqlSelectField<Instant> UPDATED_AT         = instant(ALIAS + ".updated_at",    updatedAt);
-    public static final SqlSelectField<Instant> DELETED_AT         = instant(ALIAS + ".deleted_at",    "deleted_at");
-    public static final SqlSelectField<String>  MEDIA_URL          = str(ALIAS + ".media_url",          mediaUrl);
-    public static final SqlSelectField<String>  MEDIA_CONTENT_TYPE = str(ALIAS + ".media_content_type", mediaContentType);
-    public static final SqlSelectField<Integer> MEDIA_COUNT        = intVal(ALIAS + ".media_count",      mediaCount);
-    public static final SqlSelectField<Long>    USER_ID            = longVal("u.id",                   createdByUserId);
-    public static final SqlSelectField<String>  USER_NAME          = str("u.name",                     createdByUserName);
-    public static final SqlSelectField<String>  USER_EMAIL         = str("u.email",                    createdByUserEmail);
+    public static final SqlDescriptorField<Long>    ID                 = longVal(ALIAS + ".id",                id);
+    public static final SqlDescriptorField<String>  TITLE              = str(ALIAS + ".title",             title);
+    public static final SqlDescriptorField<String>  DESCRIPTION        = str(ALIAS + ".description",       description);
+    public static final SqlDescriptorField<Instant> CREATED_AT         = instant(ALIAS + ".created_at",    createdAt);
+    public static final SqlDescriptorField<Instant> UPDATED_AT         = instant(ALIAS + ".updated_at",    updatedAt);
+    public static final SqlDescriptorField<Instant> DELETED_AT         = instant(ALIAS + ".deleted_at",    "deleted_at");
+    public static final SqlDescriptorField<String>  MEDIA_URL          = str(ALIAS + ".media_url",          mediaUrl);
+    public static final SqlDescriptorField<String>  MEDIA_CONTENT_TYPE = str(ALIAS + ".media_content_type", mediaContentType);
+    public static final SqlDescriptorField<Integer> MEDIA_COUNT        = intVal(ALIAS + ".media_count",      mediaCount);
+    public static final SqlDescriptorField<Long>    USER_ID            = longVal("u.id",                   createdByUserId);
+    public static final SqlDescriptorField<String>  USER_NAME          = str("u.name",                     createdByUserName);
+    public static final SqlDescriptorField<String>  USER_EMAIL         = str("u.email",                    createdByUserEmail);
 
     public static final class Read {
         private Read() {}
@@ -87,11 +87,11 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
 
         public static MapSqlParameterSource byIdParams(Long id) {
-            return SqlParams.of("id", id);
+            return Params.of("id", id);
         }
 
         public static MapSqlParameterSource existingIdsParams(Long[] ids) {
-            return SqlParams.of("ids", ids);
+            return Params.of("ids", ids);
         }
     }
 
@@ -122,15 +122,15 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 " WHERE id = :id");
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
-            return SqlParams.with("id", id).add("deletedBy", deletedByUserId);
+            return Params.with("id", id).add("deletedBy", deletedByUserId);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
-            return SqlParams.of("days", days);
+            return Params.of("days", days);
         }
 
         public static MapSqlParameterSource updateMediaParams(Long entityId, MediaSummaryDto summary) {
-            return SqlParams.with("url",         summary.displayUrl())
+            return Params.with("url",         summary.displayUrl())
                             .add("contentType", summary.contentType())
                             .add("count",       summary.count())
                             .add("id",          entityId);

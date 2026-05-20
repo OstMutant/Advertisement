@@ -5,13 +5,13 @@ import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.SqlParams;
+import static org.ost.sqlengine.SqlEntityDescriptor.Params;
 import org.ost.sqlengine.filter.SqlCondition;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
-import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.common.SqlDescriptorField;
 import org.ost.sqlengine.write.SqlEntityWriter;
-import org.ost.sqlengine.exec.SqlCommand;
+import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;
@@ -24,7 +24,7 @@ import static org.ost.sqlengine.filter.SqlCondition.before;
 import static org.ost.sqlengine.filter.SqlCondition.equalsTo;
 import static org.ost.sqlengine.filter.SqlCondition.inSet;
 import static org.ost.sqlengine.filter.SqlCondition.like;
-import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.fieldExpr;
 
@@ -34,14 +34,14 @@ public final class UserDescriptor implements SqlEntityDescriptor {
     public static final String ALIAS  = "u";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlSelectField<Long>    ID            = longVal(ALIAS + ".id",            id);
-    public static final SqlSelectField<String>  NAME          = str(ALIAS + ".name",          name);
-    public static final SqlSelectField<String>  EMAIL         = str(ALIAS + ".email",         email);
-    public static final SqlSelectField<String>  ROLE          = str(ALIAS + ".role",          role);
-    public static final SqlSelectField<String>  PASSWORD_HASH = str(ALIAS + ".password_hash", passwordHash);
-    public static final SqlSelectField<Instant> CREATED_AT    = instant(ALIAS + ".created_at", createdAt);
-    public static final SqlSelectField<Instant> UPDATED_AT    = instant(ALIAS + ".updated_at", updatedAt);
-    public static final SqlSelectField<String>  LOCALE        = str(ALIAS + ".locale",         locale);
+    public static final SqlDescriptorField<Long>    ID            = longVal(ALIAS + ".id",            id);
+    public static final SqlDescriptorField<String>  NAME          = str(ALIAS + ".name",          name);
+    public static final SqlDescriptorField<String>  EMAIL         = str(ALIAS + ".email",         email);
+    public static final SqlDescriptorField<String>  ROLE          = str(ALIAS + ".role",          role);
+    public static final SqlDescriptorField<String>  PASSWORD_HASH = str(ALIAS + ".password_hash", passwordHash);
+    public static final SqlDescriptorField<Instant> CREATED_AT    = instant(ALIAS + ".created_at", createdAt);
+    public static final SqlDescriptorField<Instant> UPDATED_AT    = instant(ALIAS + ".updated_at", updatedAt);
+    public static final SqlDescriptorField<String>  LOCALE        = str(ALIAS + ".locale",         locale);
 
     public static final class Read {
         private Read() {}
@@ -84,7 +84,7 @@ public final class UserDescriptor implements SqlEntityDescriptor {
                 " WHERE " + ID.columnName() + " = ANY(:ids)");
 
         public static MapSqlParameterSource idsParams(Long[] ids) {
-            return SqlParams.of("ids", ids);
+            return Params.of("ids", ids);
         }
     }
 
@@ -108,12 +108,30 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         public static final SqlCommand UPDATE_PROFILE = SqlCommand.of(PROFILE_WRITER.updateWhere("id = :id"));
         public static final SqlCommand UPDATE_LOCALE  = SqlCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
 
+        public static final SqlCommand SAVE_SETTINGS = SqlCommand.of(
+                "UPDATE " + TABLE +
+                " SET "   + SETTINGS + " = :settings::jsonb" +
+                " WHERE id = :userId");
+
+        public static final SqlCommand SELECT_SETTINGS = SqlCommand.of(
+                "SELECT " + SETTINGS +
+                " FROM "  + TABLE +
+                " WHERE id = :userId");
+
         public static MapSqlParameterSource updateProfileParams(UserProfileDto dto) {
             return PROFILE_WRITER.params(dto).addValue("id", dto.id());
         }
 
         public static MapSqlParameterSource updateLocaleParams(Long userId, String locale) {
             return LOCALE_WRITER.params(locale).addValue("id", userId);
+        }
+
+        public static MapSqlParameterSource saveSettingsParams(Long userId, String settingsJson) {
+            return Params.with("settings", settingsJson).add("userId", userId);
+        }
+
+        public static MapSqlParameterSource loadSettingsParams(Long userId) {
+            return Params.of("userId", userId);
         }
     }
 

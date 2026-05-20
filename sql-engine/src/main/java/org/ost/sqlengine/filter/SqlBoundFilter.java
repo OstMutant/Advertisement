@@ -1,12 +1,12 @@
 package org.ost.sqlengine.filter;
 
-import org.ost.sqlengine.read.SqlField;
-import org.ost.sqlengine.read.SqlSelectField;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlField;
 
 import java.util.function.BiFunction;
 
 /**
- * Concrete {@link SqlFilterBinding} that binds a filter DTO field to a {@link SqlSelectField}
+ * Concrete {@link SqlFilterBinding} that binds a filter DTO field to a {@link SqlDescriptorField}
  * via a user-supplied condition function. The SQL expression is taken from the field so
  * it stays in sync with the SELECT clause automatically.
  *
@@ -21,7 +21,7 @@ public record SqlBoundFilter<F, R>(
 
     public static <F1, R1> SqlBoundFilter<F1, R1> of(
             String filterField,
-            SqlSelectField<?> sqlField,
+            SqlDescriptorField<?> sqlField,
             BiFunction<SqlFilterMapping, F1, SqlCondition<R1>> conditionFunction
     ) {
         return new SqlBoundFilter<>(filterField, sqlField, conditionFunction);

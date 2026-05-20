@@ -1,4 +1,4 @@
-package org.ost.sqlengine.exec;
+package org.ost.sqlengine.common;
 
 /**
  * A named SQL statement. Wraps a raw SQL string so call sites pass a typed constant

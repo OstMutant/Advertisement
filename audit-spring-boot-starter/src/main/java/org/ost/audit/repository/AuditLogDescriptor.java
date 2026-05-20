@@ -12,10 +12,10 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.SqlParams;
+import static org.ost.sqlengine.SqlEntityDescriptor.Params;
 import org.ost.sqlengine.read.SqlFixedQuery;
-import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.exec.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -23,22 +23,22 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
 public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE = "audit_log";
     public static final String ALIAS = "al";
 
-    public static final SqlSelectField<Long>    ID              = longCol(ALIAS,    "id");
-    public static final SqlSelectField<Long>    ENTITY_ID       = longCol(ALIAS,    "entity_id");
-    public static final SqlSelectField<String>  ENTITY_TYPE     = strCol(ALIAS,     "entity_type");
-    public static final SqlSelectField<String>  ACTION_TYPE     = strCol(ALIAS,     "action_type");
-    public static final SqlSelectField<Instant> CREATED_AT      = instantCol(ALIAS, "created_at");
-    public static final SqlSelectField<String>  SNAPSHOT_DATA   = strCol(ALIAS,     "snapshot_data");
-    public static final SqlSelectField<String>  CHANGES_SUMMARY = strCol(ALIAS,     "changes_summary");
-    public static final SqlSelectField<Long>    ACTOR_ID        = longCol(ALIAS,    "actor_id");
-    public static final SqlSelectField<String>  CHANGED_BY_NAME = str("changed_by_name", "changed_by_name");
+    public static final SqlDescriptorField<Long>    ID              = longCol(ALIAS,    "id");
+    public static final SqlDescriptorField<Long>    ENTITY_ID       = longCol(ALIAS,    "entity_id");
+    public static final SqlDescriptorField<String>  ENTITY_TYPE     = strCol(ALIAS,     "entity_type");
+    public static final SqlDescriptorField<String>  ACTION_TYPE     = strCol(ALIAS,     "action_type");
+    public static final SqlDescriptorField<Instant> CREATED_AT      = instantCol(ALIAS, "created_at");
+    public static final SqlDescriptorField<String>  SNAPSHOT_DATA   = strCol(ALIAS,     "snapshot_data");
+    public static final SqlDescriptorField<String>  CHANGES_SUMMARY = strCol(ALIAS,     "changes_summary");
+    public static final SqlDescriptorField<Long>    ACTOR_ID        = longCol(ALIAS,    "actor_id");
+    public static final SqlDescriptorField<String>  CHANGED_BY_NAME = str("changed_by_name", "changed_by_name");
 
     public static final class Read {
         private Read() {}
@@ -96,19 +96,19 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static MapSqlParameterSource snapshotByIdParams(Long id, EntityType entityType) {
-            return SqlParams.with("id", id).add("entityType", entityType.name());
+            return Params.with("id", id).add("entityType", entityType.name());
         }
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
+            return Params.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource idParams(Long id) {
-            return SqlParams.of("id", id);
+            return Params.of("id", id);
         }
 
         public static MapSqlParameterSource previousSnapshotContentParams(Long snapshotId, EntityType entityType) {
-            return SqlParams.with("snapshotId", snapshotId).add("entityType", entityType.name());
+            return Params.with("snapshotId", snapshotId).add("entityType", entityType.name());
         }
 
         public static SnapshotContent mapSnapshotContent(ResultSet rs) throws SQLException {
@@ -120,7 +120,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         private static abstract class JsonProjection<T> extends SqlFixedQuery<T> {
             protected final ObjectMapper objectMapper;
 
-            protected JsonProjection(List<SqlSelectField<?>> fields, ObjectMapper objectMapper) {
+            protected JsonProjection(List<SqlDescriptorField<?>> fields, ObjectMapper objectMapper) {
                 super(fields);
                 this.objectMapper = objectMapper;
             }
@@ -138,8 +138,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         public static final class Activity {
             private Activity() {}
 
-            public static final SqlSelectField<Long>    SNAPSHOT_ID   = longVal(ALIAS + ".id", "snapshot_id");
-            public static final SqlSelectField<Boolean> ENTITY_EXISTS = bool("entity_exists", "entity_exists");
+            public static final SqlDescriptorField<Long>    SNAPSHOT_ID   = longVal(ALIAS + ".id", "snapshot_id");
+            public static final SqlDescriptorField<Boolean> ENTITY_EXISTS = bool("entity_exists", "entity_exists");
 
             public static final String QUERY = """
                     SELECT al.id                    AS snapshot_id,
@@ -158,12 +158,12 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     LIMIT 20
                     """;
 
-            public static final List<SqlSelectField<?>> FIELDS = List.of(
+            public static final List<SqlDescriptorField<?>> FIELDS = List.of(
                     SNAPSHOT_ID, ENTITY_ID, ENTITY_TYPE, ACTION_TYPE,
                     CREATED_AT, ENTITY_EXISTS, CHANGES_SUMMARY, ACTOR_ID, CHANGED_BY_NAME, SNAPSHOT_DATA);
 
             public static MapSqlParameterSource byActorParams(Long actorId) {
-                return SqlParams.of("actorId", actorId);
+                return Params.of("actorId", actorId);
             }
 
             public static final class Projection extends JsonProjection<ActivityItemDto> {
@@ -209,9 +209,9 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         public static final class History {
             private History() {}
 
-            public static final SqlSelectField<Integer> VERSION            = intCol(ALIAS, "version");
-            public static final SqlSelectField<Long>    PREV_ID            = longCol(ALIAS, "prev_id");
-            public static final SqlSelectField<String>  PREV_SNAPSHOT_DATA = strCol(ALIAS, "prev_snapshot_data");
+            public static final SqlDescriptorField<Integer> VERSION            = intCol(ALIAS, "version");
+            public static final SqlDescriptorField<Long>    PREV_ID            = longCol(ALIAS, "prev_id");
+            public static final SqlDescriptorField<String>  PREV_SNAPSHOT_DATA = strCol(ALIAS, "prev_snapshot_data");
 
             public static final String QUERY = """
                     WITH numbered AS (
@@ -241,12 +241,12 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                     LIMIT 100
                     """;
 
-            public static final List<SqlSelectField<?>> FIELDS = List.of(
+            public static final List<SqlDescriptorField<?>> FIELDS = List.of(
                     ID, VERSION, ACTION_TYPE, ACTOR_ID, CHANGED_BY_NAME, CREATED_AT,
                     SNAPSHOT_DATA, CHANGES_SUMMARY, PREV_ID, PREV_SNAPSHOT_DATA);
 
             public static MapSqlParameterSource params(EntityType entityType, Long entityId, Long filterUserId) {
-                return SqlParams.with("entityType",   entityType.name())
+                return Params.with("entityType",   entityType.name())
                                 .add("entityId",     entityId)
                                 .add("filterUserId", filterUserId);
             }
@@ -302,7 +302,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                           ActionType actionType, String snapshotData,
                                                           String changesSummary, Long actorId) {
-            return SqlParams.with("entityType",   entityType.name())
+            return Params.with("entityType",   entityType.name())
                             .add("entityId",     entityId)
                             .add("actionType",   actionType.name())
                             .add("snapshotData", snapshotData)
@@ -311,11 +311,11 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource updateChangesSummaryParams(Long snapshotId, String json) {
-            return SqlParams.with("id", snapshotId).add("s", json);
+            return Params.with("id", snapshotId).add("s", json);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
-            return SqlParams.of("days", days);
+            return Params.of("days", days);
         }
     }
 

@@ -1,6 +1,7 @@
 package org.ost.sqlengine.read;
 
 import org.apache.commons.lang3.StringUtils;
+import org.ost.sqlengine.common.SqlDescriptorField;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -15,19 +16,19 @@ import static java.util.Optional.ofNullable;
 
 /**
  * Base class for all SQL projections. Holds the ordered alias→sqlExpression map derived from
- * {@link SqlSelectField} declarations and builds the SELECT clause and ORDER BY fragment.
+ * {@link SqlDescriptorField} declarations and builds the SELECT clause and ORDER BY fragment.
  * Not intended to be used directly — extend {@link SqlEntityProjection} or {@link SqlFixedQuery}.
  */
 abstract class SqlBaseProjection<T> implements RowMapper<T> {
 
     private final Map<String, String> aliasToSqlMap;
 
-    protected SqlBaseProjection(List<SqlSelectField<?>> items) {
+    protected SqlBaseProjection(List<SqlDescriptorField<?>> items) {
         Objects.requireNonNull(items, "Parameter 'items' must not be null.");
         this.aliasToSqlMap = items.stream()
                 .collect(Collectors.toMap(
-                        SqlSelectField::alias,
-                        SqlSelectField::sqlExpression,
+                        SqlDescriptorField::alias,
+                        SqlDescriptorField::sqlExpression,
                         (existing, replacement) -> existing,
                         LinkedHashMap::new
                 ));

@@ -2,16 +2,16 @@ package org.ost.attachment.repository;
 
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import org.ost.sqlengine.SqlParams;
-import org.ost.sqlengine.read.SqlSelectField;
-import org.ost.sqlengine.exec.SqlCommand;
+import static org.ost.sqlengine.SqlEntityDescriptor.Params;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 
-import static org.ost.sqlengine.read.SqlSelectFieldFactory.*;
+import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
 public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
 
@@ -19,12 +19,12 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
     public static final String ALIAS  = "ps";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlSelectField<Long>    ID                  = longVal(ALIAS + ".id",                  "ps_id");
-    public static final SqlSelectField<String>  ENTITY_TYPE         = str(ALIAS + ".entity_type",             "entity_type");
-    public static final SqlSelectField<Long>    ENTITY_ID           = longVal(ALIAS + ".entity_id",           "entity_id");
-    public static final SqlSelectField<String>  CHANGES_SUMMARY     = str(ALIAS + ".changes_summary",         "changes_summary");
-    public static final SqlSelectField<Long>    CHANGED_BY_ACTOR_ID = longVal(ALIAS + ".changed_by_actor_id", "changed_by_actor_id");
-    public static final SqlSelectField<Instant> CREATED_AT          = instant(ALIAS + ".created_at",          "created_at");
+    public static final SqlDescriptorField<Long>    ID                  = longVal(ALIAS + ".id",                  "ps_id");
+    public static final SqlDescriptorField<String>  ENTITY_TYPE         = str(ALIAS + ".entity_type",             "entity_type");
+    public static final SqlDescriptorField<Long>    ENTITY_ID           = longVal(ALIAS + ".entity_id",           "entity_id");
+    public static final SqlDescriptorField<String>  CHANGES_SUMMARY     = str(ALIAS + ".changes_summary",         "changes_summary");
+    public static final SqlDescriptorField<Long>    CHANGED_BY_ACTOR_ID = longVal(ALIAS + ".changed_by_actor_id", "changed_by_actor_id");
+    public static final SqlDescriptorField<Instant> CREATED_AT          = instant(ALIAS + ".created_at",          "created_at");
 
     public static final String ATTACHMENT_URLS = "attachment_urls";
 
@@ -60,36 +60,36 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
     public static final class Read {
         private Read() {}
 
-        public static final String SELECT_PREV_URLS =
+        public static final SqlCommand SELECT_PREV_URLS = SqlCommand.of(
                 "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
-                " ORDER BY created_at DESC LIMIT 1";
+                " ORDER BY created_at DESC LIMIT 1");
 
-        public static final String SELECT_URLS_AT_VERSION =
+        public static final SqlCommand SELECT_URLS_AT_VERSION = SqlCommand.of(
                 "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_BY_VERSION + "), 'infinity'::timestamptz)" +
-                " ORDER BY created_at DESC LIMIT 1";
+                " ORDER BY created_at DESC LIMIT 1");
 
-        public static final String SELECT_URLS_FOR_SNAPSHOT =
+        public static final SqlCommand SELECT_URLS_FOR_SNAPSHOT = SqlCommand.of(
                 "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_AFTER_SNAPSHOT + "), 'infinity'::timestamptz)" +
-                " ORDER BY created_at DESC LIMIT 1";
+                " ORDER BY created_at DESC LIMIT 1");
 
-        public static final String SELECT_CHANGES_JSON_FOR_SNAPSHOT =
-                "SELECT " + CHANGES_SUMMARY.columnName() + "::text" + FROM_TABLE + WHERE_BY_ENTITY +
+        public static final SqlCommand SELECT_CHANGES_JSON_FOR_SNAPSHOT = SqlCommand.of(
+                "SELECT " + CHANGES_SUMMARY.columnName() + "::text AS " + CHANGES_SUMMARY.alias() + FROM_TABLE + WHERE_BY_ENTITY +
                 "   AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_AFTER_SNAPSHOT + "), 'infinity'::timestamptz)" +
                 "   AND " + CHANGES_SUMMARY.columnName() + " IS NOT NULL" +
-                " ORDER BY created_at ASC LIMIT 1";
+                " ORDER BY created_at ASC LIMIT 1");
 
-        public static final String SELECT_CHANGES_JSON_AT_VERSION =
-                "SELECT " + CHANGES_SUMMARY.columnName() + "::text" + FROM_TABLE + WHERE_BY_ENTITY +
+        public static final SqlCommand SELECT_CHANGES_JSON_AT_VERSION = SqlCommand.of(
+                "SELECT " + CHANGES_SUMMARY.columnName() + "::text AS " + CHANGES_SUMMARY.alias() + FROM_TABLE + WHERE_BY_ENTITY +
                 "   AND created_at >= (" + THIS_AUDIT_TS_BY_VERSION + ")" +
                 "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_BY_VERSION + "), 'infinity'::timestamptz)" +
                 "   AND " + CHANGES_SUMMARY.columnName() + " IS NOT NULL" +
-                " ORDER BY created_at ASC LIMIT 1";
+                " ORDER BY created_at ASC LIMIT 1");
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
-            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
+            return Params.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
         public static MapSqlParameterSource versionParams(EntityType entityType, Long entityId, int version) {

@@ -1,5 +1,7 @@
-package org.ost.sqlengine.exec;
+package org.ost.sqlengine;
 
+import org.ost.sqlengine.common.SqlCommand;
+import org.ost.sqlengine.read.SqlFixedQuery;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -11,7 +13,7 @@ import java.util.Optional;
  * Thin, stateless wrapper around {@link JdbcClient} that executes typed {@link SqlCommand}s.
  * All repositories delegate actual JDBC calls here.
  */
-public record SqlQueryExecutor(JdbcClient jdbcClient) {
+record SqlQueryExecutor(JdbcClient jdbcClient) {
 
     // ── READ ──────────────────────────────────────────────────────────────────
 
@@ -29,6 +31,10 @@ public record SqlQueryExecutor(JdbcClient jdbcClient) {
 
     public Long count(SqlCommand command, MapSqlParameterSource params) {
         return jdbcClient.sql(command.sql()).paramSource(params).query(Long.class).single();
+    }
+
+    <R> List<R> queryAll(SqlFixedQuery<R> query, MapSqlParameterSource params) {
+        return jdbcClient.sql(query.querySql()).paramSource(params).query(query).list();
     }
 
     // ── WRITE ─────────────────────────────────────────────────────────────────

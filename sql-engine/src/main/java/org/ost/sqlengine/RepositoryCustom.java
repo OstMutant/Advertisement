@@ -1,7 +1,6 @@
 package org.ost.sqlengine;
 
-import org.ost.sqlengine.exec.SqlCommand;
-import org.ost.sqlengine.exec.SqlQueryExecutor;
+import org.ost.sqlengine.common.SqlCommand;
 import org.ost.sqlengine.read.SqlFixedQuery;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -40,6 +39,6 @@ public class RepositoryCustom {
     }
 
     public <R> List<R> queryAll(SqlFixedQuery<R> query, MapSqlParameterSource params) {
-        return query.queryAll(executor.jdbcClient(), params);
+        return executor.queryAll(query, params);
     }
 }
