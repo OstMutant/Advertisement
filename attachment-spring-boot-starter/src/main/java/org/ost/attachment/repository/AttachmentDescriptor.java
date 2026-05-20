@@ -101,9 +101,6 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + ENTITY_ID.columnName() + " = :entityId" +
                 " AND "   + DELETED_AT.columnName() + " IS NULL");
 
-        /** Identical to SOFT_DELETE_ALL today; kept as a separate name for caller-side clarity. */
-        public static final SqlCommand RESTORE_DELETE_ALL = SOFT_DELETE_ALL;
-
         public static final SqlCommand RESTORE_UNDELETE = SqlCommand.of(
                 "UPDATE " + TABLE +
                 " SET "   + DELETED_AT.columnName() + " = NULL," +

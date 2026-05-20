@@ -47,7 +47,7 @@ public class AttachmentRepository {
     }
 
     public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        repo.executeUpdate(AttachmentDescriptor.Write.RESTORE_DELETE_ALL,
+        repo.executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
                 AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
