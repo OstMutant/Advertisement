@@ -4,22 +4,19 @@ import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import static org.ost.sqlengine.SqlEntityDescriptor.Params;
+import org.ost.sqlengine.common.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
-import org.ost.sqlengine.common.SqlDescriptorField;
-import org.ost.sqlengine.common.SqlCommand;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.dto.AdvertisementInfoDto.Fields.*;
-import static org.ost.sqlengine.filter.SqlBoundFilter.of;
-import static org.ost.sqlengine.filter.SqlCondition.after;
-import static org.ost.sqlengine.filter.SqlCondition.before;
-import static org.ost.sqlengine.filter.SqlCondition.like;
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
+import static org.ost.sqlengine.filter.SqlBoundFilter.of;
+import static org.ost.sqlengine.filter.SqlCondition.*;
 
 public final class AdvertisementDescriptor implements SqlEntityDescriptor {
 

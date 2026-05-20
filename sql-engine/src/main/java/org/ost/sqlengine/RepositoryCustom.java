@@ -16,7 +16,7 @@ import java.util.Optional;
  */
 public class RepositoryCustom {
 
-    protected final SqlQueryExecutor executor;
+    final SqlQueryExecutor executor;
 
     public RepositoryCustom(JdbcClient jdbcClient) {
         this.executor = new SqlQueryExecutor(jdbcClient);

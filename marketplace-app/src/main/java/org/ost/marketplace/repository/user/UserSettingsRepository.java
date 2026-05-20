@@ -12,23 +12,22 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
-public class UserSettingsRepository {
+public class UserSettingsRepository extends RepositoryCustom {
 
     private static final Logger log = LoggerFactory.getLogger(UserSettingsRepository.class);
 
-    private final RepositoryCustom repo;
-    private final ObjectMapper     mapper;
+    private final ObjectMapper mapper;
 
     public UserSettingsRepository(JdbcClient jdbcClient,
                                   @Qualifier("userSettingsObjectMapper") ObjectMapper mapper) {
-        this.repo   = new RepositoryCustom(jdbcClient);
+        super(jdbcClient);
         this.mapper = mapper;
     }
 
     @Transactional
     public void save(Long userId, UserSettings settings) {
         try {
-            repo.executeUpdate(UserDescriptor.Write.SAVE_SETTINGS,
+            executeUpdate(UserDescriptor.Write.SAVE_SETTINGS,
                     UserDescriptor.Write.saveSettingsParams(userId, mapper.writeValueAsString(settings)));
         } catch (Exception ex) {
             log.error("Failed to save settings for userId={}", userId, ex);
@@ -38,7 +37,7 @@ public class UserSettingsRepository {
 
     public UserSettings load(Long userId) {
         try {
-            return repo.findOne(UserDescriptor.Write.SELECT_SETTINGS,
+            return findOne(UserDescriptor.Write.SELECT_SETTINGS,
                            UserDescriptor.Write.loadSettingsParams(userId), String.class)
                     .map(json -> {
                         try { return mapper.readValue(json, UserSettings.class); }

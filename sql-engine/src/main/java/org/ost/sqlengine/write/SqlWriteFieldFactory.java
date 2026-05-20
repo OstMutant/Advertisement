@@ -36,10 +36,6 @@ public class SqlWriteFieldFactory {
         return new SqlMappedField<>(toSnakeCase(javaFieldName), extractor);
     }
 
-    public static <T> SqlMappedField<T> field(String javaFieldName, String param, Function<T, Object> extractor) {
-        return new SqlMappedField<>(toSnakeCase(javaFieldName), param, extractor);
-    }
-
     public static <T> SqlExpressionField<T> fieldExpr(String javaFieldName, String sqlExpression) {
         return new SqlExpressionField<>(toSnakeCase(javaFieldName), sqlExpression);
     }

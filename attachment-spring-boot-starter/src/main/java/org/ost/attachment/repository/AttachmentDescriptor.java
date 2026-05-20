@@ -3,10 +3,9 @@ package org.ost.attachment.repository;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import static org.ost.sqlengine.SqlEntityDescriptor.Params;
-import org.ost.sqlengine.read.SqlEntityProjection;
-import org.ost.sqlengine.common.SqlDescriptorField;
 import org.ost.sqlengine.common.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.read.SqlEntityProjection;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.time.Instant;

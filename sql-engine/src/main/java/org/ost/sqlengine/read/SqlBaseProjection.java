@@ -29,7 +29,7 @@ abstract class SqlBaseProjection<T> implements RowMapper<T> {
                 .collect(Collectors.toMap(
                         SqlDescriptorField::alias,
                         SqlDescriptorField::sqlExpression,
-                        (existing, replacement) -> existing,
+                        (existing, _) -> existing,
                         LinkedHashMap::new
                 ));
     }

@@ -4,24 +4,22 @@ import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.User;
 import org.ost.sqlengine.FilterableRepository;
-import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Repository
-public class UserRepository {
+public class UserRepository extends FilterableRepository<User, UserFilterDto> {
 
-    private final FilterableRepository<User, UserFilterDto> query;
     private final UserCrudRepository crud;
 
     UserRepository(JdbcClient jdbcClient, UserCrudRepository crud) {
-        this.query = new FilterableRepository<>(jdbcClient,
-                UserDescriptor.Read.PROJECTION,
-                UserDescriptor.Read.FILTER);
-        this.crud  = crud;
+        super(jdbcClient, UserDescriptor.Read.PROJECTION, UserDescriptor.Read.FILTER);
+        this.crud = crud;
     }
 
     public User save(User user) {
@@ -36,25 +34,31 @@ public class UserRepository {
         crud.deleteById(id);
     }
 
-    public List<User> findByFilter(UserFilterDto filter, Pageable pageable) {
-        return query.findByFilter(filter, pageable);
-    }
-
-    public Long countByFilter(UserFilterDto filter) {
-        return query.countByFilter(filter);
-    }
-
     public Optional<User> findByEmail(String email) {
-        return query.find(UserDescriptor.Read.EMAIL_FILTER, email);
+        return find(UserDescriptor.Read.EMAIL_FILTER, email);
     }
 
     public void updateProfile(UserProfileDto dto) {
-        query.executeUpdate(UserDescriptor.Write.UPDATE_PROFILE,
+        executeUpdate(UserDescriptor.Write.UPDATE_PROFILE,
                 UserDescriptor.Write.updateProfileParams(dto));
     }
 
     public void updateLocale(Long userId, String locale) {
-        query.executeUpdate(UserDescriptor.Write.UPDATE_LOCALE,
+        executeUpdate(UserDescriptor.Write.UPDATE_LOCALE,
                 UserDescriptor.Write.updateLocaleParams(userId, locale));
+    }
+
+    public List<Long> findExistingIds(Long[] ids) {
+        return findAll(UserDescriptor.Read.SELECT_EXISTING_IDS,
+                UserDescriptor.Read.idsParams(ids),
+                (rs, _) -> rs.getLong("id"));
+    }
+
+    public Map<Long, String> findActorNames(Long[] ids) {
+        return findAll(UserDescriptor.Read.SELECT_ACTOR_NAMES,
+                        UserDescriptor.Read.idsParams(ids),
+                        (rs, _) -> Map.entry(rs.getLong("id"), rs.getString("name")))
+                .stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

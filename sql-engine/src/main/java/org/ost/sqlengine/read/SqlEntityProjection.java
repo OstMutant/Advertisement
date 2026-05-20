@@ -1,6 +1,7 @@
 package org.ost.sqlengine.read;
 
 import lombok.Getter;
+import org.jspecify.annotations.NonNull;
 import org.ost.sqlengine.common.SqlDescriptorField;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -14,42 +15,36 @@ import java.util.Objects;
  * Carries the FROM source ({@code sqlSource}) used for SELECT and an optional separate
  * {@code countSource} used for COUNT(*) — useful when the SELECT source contains joins
  * that would inflate the count.
- *
- * <p>Use the static {@code of()} factories when {@code mapRow} fits in a lambda;
- * subclass directly when the mapping logic is more involved.</p>
  */
-public abstract class SqlEntityProjection<T> extends SqlBaseProjection<T> {
+public class SqlEntityProjection<T> extends SqlBaseProjection<T> {
 
     @Getter private final String sqlSource;
     @Getter private final String countSource;
+    private final RowMapper<T> mapper;
 
-    protected SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource) {
-        this(items, sqlSource, sqlSource);
+    public SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource, RowMapper<T> mapper) {
+        this(items, sqlSource, sqlSource, mapper);
     }
 
-    protected SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource, String countSource) {
-        Objects.requireNonNull(sqlSource,    "Parameter 'sqlSource' must not be null.");
-        Objects.requireNonNull(countSource,  "Parameter 'countSource' must not be null.");
+    public SqlEntityProjection(List<SqlDescriptorField<?>> items, String sqlSource, String countSource, RowMapper<T> mapper) {
+        Objects.requireNonNull(sqlSource,   "Parameter 'sqlSource' must not be null.");
+        Objects.requireNonNull(countSource, "Parameter 'countSource' must not be null.");
         super(items);
         this.sqlSource   = sqlSource;
         this.countSource = countSource;
+        this.mapper      = mapper;
+    }
+
+    @Override
+    public T mapRow(@NonNull ResultSet rs, int rowNum) throws SQLException {
+        return mapper.mapRow(rs, rowNum);
     }
 
     public static <T> SqlEntityProjection<T> of(List<SqlDescriptorField<?>> items, String sqlSource, RowMapper<T> mapper) {
-        return new SqlEntityProjection<>(items, sqlSource) {
-            @Override
-            public T mapRow(ResultSet rs, int rowNum) throws SQLException {
-                return mapper.mapRow(rs, rowNum);
-            }
-        };
+        return new SqlEntityProjection<>(items, sqlSource, mapper);
     }
 
     public static <T> SqlEntityProjection<T> of(List<SqlDescriptorField<?>> items, String sqlSource, String countSource, RowMapper<T> mapper) {
-        return new SqlEntityProjection<>(items, sqlSource, countSource) {
-            @Override
-            public T mapRow(ResultSet rs, int rowNum) throws SQLException {
-                return mapper.mapRow(rs, rowNum);
-            }
-        };
+        return new SqlEntityProjection<>(items, sqlSource, countSource, mapper);
     }
 }

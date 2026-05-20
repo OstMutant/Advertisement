@@ -23,7 +23,7 @@ public record SqlCondition<R>(
         SqlOperator operator
 ) {
 
-    public static <R> SqlCondition<R> of(String sqlExpression, String filterProperty, R value, SqlOperator operator) {
+    static <R> SqlCondition<R> of(String sqlExpression, String filterProperty, R value, SqlOperator operator) {
         return new SqlCondition<>(sqlExpression, filterProperty, value, operator);
     }
 
