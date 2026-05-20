@@ -63,11 +63,11 @@ public class FilterableRepository<T, F> extends RepositoryCustom {
         return executor.findOne(sql, params, sqlProjection);
     }
 
-    public Optional<T> findOne(String where, MapSqlParameterSource params) {
+    public Optional<T> findOneWhere(String whereClause, MapSqlParameterSource params) {
         SqlCommand sql = SqlCommand.of(sqlQueryBuilder.select(
                 sqlProjection.getSelectClause(),
                 sqlProjection.getSqlSource(),
-                where
+                whereClause
         ));
         return executor.findOne(sql, params, sqlProjection);
     }

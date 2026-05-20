@@ -60,24 +60,24 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                             .build();
                 });
 
-        public static final String SELECT_ACTIVE_BY_ENTITY =
-                "SELECT * FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY;
+        public static final SqlCommand SELECT_ACTIVE_BY_ENTITY = SqlCommand.of(
+                "SELECT * FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY);
 
-        public static final String SELECT_ACTIVE_URLS =
-                "SELECT " + URL.columnName() + " FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY;
+        public static final SqlCommand SELECT_ACTIVE_URLS = SqlCommand.of(
+                "SELECT " + URL.columnName() + " FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY);
 
-        public static final String SELECT_MAIN_MEDIA =
+        public static final SqlCommand SELECT_MAIN_MEDIA = SqlCommand.of(
                 "SELECT " + URL.columnName() + ", " + CONTENT_TYPE.columnName() +
                 " FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY +
-                " ORDER BY created_at ASC LIMIT 1";
+                " ORDER BY created_at ASC LIMIT 1");
 
-        public static final String COUNT_ACTIVE =
-                "SELECT COUNT(*) FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY;
+        public static final SqlCommand COUNT_ACTIVE = SqlCommand.of(
+                "SELECT COUNT(*) FROM " + TABLE + WHERE_ACTIVE_BY_ENTITY);
 
-        public static final String FIND_URLS_DELETED_OLDER_THAN =
+        public static final SqlCommand FIND_URLS_DELETED_OLDER_THAN = SqlCommand.of(
                 "SELECT " + URL.columnName() + " FROM " + TABLE +
                 " WHERE " + DELETED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)" +
-                " AND "   + CONTENT_TYPE.columnName() + " NOT IN ('video/youtube', 'video/embed')";
+                " AND "   + CONTENT_TYPE.columnName() + " NOT IN ('video/youtube', 'video/embed')");
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
             return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
@@ -119,8 +119,8 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
                 " AND "   + DELETED_AT.columnName() + " IS NULL" +
                 " AND NOT (" + URL.columnName() + " = ANY(:urls))");
 
-        public static final String DELETE_BY_URLS =
-                "DELETE FROM " + TABLE + " WHERE " + URL.columnName() + " IN (:urls)";
+        public static final SqlCommand DELETE_BY_URLS = SqlCommand.of(
+                "DELETE FROM " + TABLE + " WHERE " + URL.columnName() + " IN (:urls)");
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long actorId) {
             return SqlParams.with("id", id).add("actorId", actorId);

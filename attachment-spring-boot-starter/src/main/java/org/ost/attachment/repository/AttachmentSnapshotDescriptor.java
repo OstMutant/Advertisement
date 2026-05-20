@@ -1,5 +1,6 @@
 package org.ost.attachment.repository;
 
+import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
 import org.ost.sqlengine.SqlParams;
 import org.ost.sqlengine.read.SqlSelectField;
@@ -87,16 +88,16 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
                 "   AND " + CHANGES_SUMMARY.columnName() + " IS NOT NULL" +
                 " ORDER BY created_at ASC LIMIT 1";
 
-        public static MapSqlParameterSource entityParams(String entityTypeName, Long entityId) {
-            return SqlParams.with("entityType", entityTypeName).add("entityId", entityId);
+        public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
+            return SqlParams.with("entityType", entityType.name()).add("entityId", entityId);
         }
 
-        public static MapSqlParameterSource versionParams(String entityTypeName, Long entityId, int version) {
-            return entityParams(entityTypeName, entityId).addValue("version", version);
+        public static MapSqlParameterSource versionParams(EntityType entityType, Long entityId, int version) {
+            return entityParams(entityType, entityId).addValue("version", version);
         }
 
-        public static MapSqlParameterSource snapshotParams(String entityTypeName, Long entityId, Long snapshotId) {
-            return entityParams(entityTypeName, entityId).addValue("snapshotId", snapshotId);
+        public static MapSqlParameterSource snapshotParams(EntityType entityType, Long entityId, Long snapshotId) {
+            return entityParams(entityType, entityId).addValue("snapshotId", snapshotId);
         }
 
         public static List<String> extractUrls(ResultSet rs) {
@@ -121,9 +122,9 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
                 CHANGED_BY_ACTOR_ID.columnName() + ", created_at)" +
                 " VALUES (:entityType, :entityId, :urls, CAST(:changes AS JSONB), :actorId, NOW())");
 
-        public static MapSqlParameterSource insertParams(String entityTypeName, Long entityId,
+        public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                          String[] urls, String changesJson, Long actorId) {
-            return Read.entityParams(entityTypeName, entityId)
+            return Read.entityParams(entityType, entityId)
                     .addValue("urls",    urls)
                     .addValue("changes", changesJson)
                     .addValue("actorId", actorId);

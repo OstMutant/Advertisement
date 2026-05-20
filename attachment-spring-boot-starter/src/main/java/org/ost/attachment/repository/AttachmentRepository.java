@@ -4,7 +4,6 @@ import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.RepositoryCustom;
-import org.ost.sqlengine.exec.SqlCommand;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
@@ -63,36 +62,36 @@ public class AttachmentRepository {
     }
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
-        return repo.findAll(SqlCommand.of(AttachmentDescriptor.Read.SELECT_ACTIVE_BY_ENTITY),
+        return repo.findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_BY_ENTITY,
                 AttachmentDescriptor.Read.entityParams(entityType, entityId),
                 AttachmentDescriptor.Read.PROJECTION);
     }
 
     public List<String> getActiveUrls(EntityType entityType, Long entityId) {
-        return repo.findAll(SqlCommand.of(AttachmentDescriptor.Read.SELECT_ACTIVE_URLS),
+        return repo.findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_URLS,
                 AttachmentDescriptor.Read.entityParams(entityType, entityId),
                 (rs, n) -> rs.getString(1));
     }
 
     public List<String> findUrlsDeletedOlderThan(int days) {
-        return repo.findAll(SqlCommand.of(AttachmentDescriptor.Read.FIND_URLS_DELETED_OLDER_THAN),
+        return repo.findAll(AttachmentDescriptor.Read.FIND_URLS_DELETED_OLDER_THAN,
                 AttachmentDescriptor.Read.findUrlsDeletedOlderThanParams(days),
                 (rs, n) -> rs.getString(1));
     }
 
     public int deleteByUrls(List<String> urls) {
-        return repo.executeUpdate(SqlCommand.of(AttachmentDescriptor.Write.DELETE_BY_URLS),
+        return repo.executeUpdate(AttachmentDescriptor.Write.DELETE_BY_URLS,
                 AttachmentDescriptor.Write.deleteByUrlsParams(urls));
     }
 
     public MediaStats loadMediaStats(EntityType entityType, Long entityId) {
         record Row(String url, String contentType) {}
         var params = AttachmentDescriptor.Read.entityParams(entityType, entityId);
-        var main = repo.findOne(SqlCommand.of(AttachmentDescriptor.Read.SELECT_MAIN_MEDIA),
+        var main = repo.findOne(AttachmentDescriptor.Read.SELECT_MAIN_MEDIA,
                 params,
                 (rs, n) -> new Row(rs.getString(AttachmentDescriptor.URL.columnName()),
                                     rs.getString(AttachmentDescriptor.CONTENT_TYPE.columnName())));
-        int count = repo.findOne(SqlCommand.of(AttachmentDescriptor.Read.COUNT_ACTIVE),
+        int count = repo.findOne(AttachmentDescriptor.Read.COUNT_ACTIVE,
                 params, Integer.class).orElse(0);
         return main
                 .map(m -> new MediaStats(m.url(), m.contentType(), count))

@@ -22,19 +22,19 @@ public class AttachmentSnapshotRepository {
 
     public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long actorId) {
         repo.executeUpdate(AttachmentSnapshotDescriptor.Write.INSERT,
-                AttachmentSnapshotDescriptor.Write.insertParams(entityType.name(), entityId, urls, changesJson, actorId));
+                AttachmentSnapshotDescriptor.Write.insertParams(entityType, entityId, urls, changesJson, actorId));
     }
 
     public List<String> getPrevUrls(EntityType entityType, Long entityId) {
         return repo.findOne(SqlCommand.of(AttachmentSnapshotDescriptor.Read.SELECT_PREV_URLS),
-                AttachmentSnapshotDescriptor.Read.entityParams(entityType.name(), entityId),
+                AttachmentSnapshotDescriptor.Read.entityParams(entityType, entityId),
                 (rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs))
                 .orElse(List.of());
     }
 
     public String[] getUrlsAtVersion(EntityType entityType, Long entityId, int version) {
         return repo.findOne(SqlCommand.of(AttachmentSnapshotDescriptor.Read.SELECT_URLS_AT_VERSION),
-                AttachmentSnapshotDescriptor.Read.versionParams(entityType.name(), entityId, version),
+                AttachmentSnapshotDescriptor.Read.versionParams(entityType, entityId, version),
                 (rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs))
                 .map(l -> l.toArray(new String[0]))
                 .orElse(new String[0]);
@@ -42,19 +42,19 @@ public class AttachmentSnapshotRepository {
 
     public Optional<List<String>> getUrlsForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
         return repo.findOne(SqlCommand.of(AttachmentSnapshotDescriptor.Read.SELECT_URLS_FOR_SNAPSHOT),
-                AttachmentSnapshotDescriptor.Read.snapshotParams(entityType.name(), entityId, snapshotId),
+                AttachmentSnapshotDescriptor.Read.snapshotParams(entityType, entityId, snapshotId),
                 (rs, row) -> AttachmentSnapshotDescriptor.Read.extractUrls(rs));
     }
 
     public Optional<String> getChangesJsonForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
         return repo.findOne(SqlCommand.of(AttachmentSnapshotDescriptor.Read.SELECT_CHANGES_JSON_FOR_SNAPSHOT),
-                AttachmentSnapshotDescriptor.Read.snapshotParams(entityType.name(), entityId, snapshotId),
+                AttachmentSnapshotDescriptor.Read.snapshotParams(entityType, entityId, snapshotId),
                 (rs, row) -> rs.getString(1));
     }
 
     public Optional<String> getChangesJson(EntityType entityType, Long entityId, int version) {
         return repo.findOne(SqlCommand.of(AttachmentSnapshotDescriptor.Read.SELECT_CHANGES_JSON_AT_VERSION),
-                AttachmentSnapshotDescriptor.Read.versionParams(entityType.name(), entityId, version),
+                AttachmentSnapshotDescriptor.Read.versionParams(entityType, entityId, version),
                 (rs, row) -> rs.getString(1));
     }
 }

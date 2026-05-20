@@ -83,7 +83,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 " WHERE " + ID.columnName() + " = ANY(:ids)" +
                 " AND "   + DELETED_AT.columnName() + " IS NULL");
 
-        public static final String WHERE_BY_ID_ACTIVE =
+        public static final String BY_ID_ACTIVE_WHERE =
                 ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
 
         public static MapSqlParameterSource byIdParams(Long id) {

@@ -300,11 +300,11 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 " WHERE " + CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)");
 
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
-                                                          String actionType, String snapshotData,
+                                                          ActionType actionType, String snapshotData,
                                                           String changesSummary, Long actorId) {
             return SqlParams.with("entityType",   entityType.name())
                             .add("entityId",     entityId)
-                            .add("actionType",   actionType)
+                            .add("actionType",   actionType.name())
                             .add("snapshotData", snapshotData)
                             .add("changes",      changesSummary)
                             .add("actorId",      actorId);

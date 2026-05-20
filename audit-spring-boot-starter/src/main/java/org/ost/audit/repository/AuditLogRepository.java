@@ -33,7 +33,7 @@ public class AuditLogRepository {
     public void insert(EntityType entityType, Long entityId, ActionType actionType,
                        String snapshotData, String changesSummary, Long actorId) {
         repo.executeUpdate(AuditLogDescriptor.Write.INSERT,
-                AuditLogDescriptor.Write.insertParams(entityType, entityId, actionType.name(),
+                AuditLogDescriptor.Write.insertParams(entityType, entityId, actionType,
                         snapshotData, changesSummary, actorId));
     }
 
@@ -78,12 +78,12 @@ public class AuditLogRepository {
     }
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
-        return historyProjection.queryAll(repo.jdbcClient(),
+        return repo.queryAll(historyProjection,
                 AuditLogDescriptor.Read.History.params(entityType, entityId, filterUserId));
     }
 
     public List<ActivityItemDto> findActivityByActor(Long actorId) {
-        return activityProjection.queryAll(repo.jdbcClient(),
+        return repo.queryAll(activityProjection,
                 AuditLogDescriptor.Read.Activity.byActorParams(actorId));
     }
 }

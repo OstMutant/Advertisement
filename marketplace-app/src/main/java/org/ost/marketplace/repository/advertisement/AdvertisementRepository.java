@@ -41,7 +41,7 @@ public class AdvertisementRepository {
     }
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
-        return query.findOne(AdvertisementDescriptor.Read.WHERE_BY_ID_ACTIVE,
+        return query.findOneWhere(AdvertisementDescriptor.Read.BY_ID_ACTIVE_WHERE,
                 AdvertisementDescriptor.Read.byIdParams(id));
     }
 
