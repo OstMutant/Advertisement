@@ -95,14 +95,14 @@ public final class UserDescriptor implements SqlEntityDescriptor {
 
         public static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
                 TABLE,
-                field("name",       UserProfileDto::name),
-                field("role",       u -> u.role().name()),
-                fieldExpr("updated_at", "NOW()")
+                field(NAME,       UserProfileDto::name),
+                field(ROLE,       u -> u.role().name()),
+                fieldExpr(UPDATED_AT, "NOW()")
         );
 
         public static final SqlEntityWriter<String> LOCALE_WRITER = SqlEntityWriter.of(
                 TABLE,
-                field("locale", s -> s)
+                field(LOCALE, s -> s)
         );
 
         public static final SqlCommand UPDATE_PROFILE = SqlCommand.of(PROFILE_WRITER.updateWhere("id = :id"));

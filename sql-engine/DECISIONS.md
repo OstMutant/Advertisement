@@ -73,3 +73,14 @@ Five boundaries to enforce as the codebase grows:
 4. **`SqlParams` stays minimal.** `with().add()` is the complete API. Any call site that needs conditional params, JSON encoding, or array conversion handles it in the descriptor's param-factory method — not in `SqlParams`.
 
 5. **`RepositoryCustom` is not a God Service.** It must never acquire: transactions (use `@Transactional` on the service), caching, retry logic, metrics, auditing, or authorization. It is a thin `JdbcClient` wrapper. The day it grows past its current method count is the day it starts becoming infrastructure middleware.
+
+---
+
+## Convention — Two accepted patterns for Write column names
+
+**Decision:** Descriptors must never use raw string literals for column names when a typed constant exists. Two patterns are accepted:
+
+- **`SqlEntityWriter` path** (`field()` / `fieldExpr()`): pass `@FieldNameConstants`-generated `Fields.*` constants — `SqlWriteFieldFactory.toSnakeCase()` converts camelCase to the DB column name automatically (`updatedAt` → `updated_at`). Reference: `UserDescriptor.Write`.
+- **Raw SQL path** (`SqlCommand` strings): reference column names via `READ_FIELD.columnName()` — e.g. `DELETED_AT.columnName()`. Reference: `AdvertisementDescriptor.Write`, `AttachmentDescriptor.Write`, `AuditLogDescriptor.Write`.
+
+**Why:** Eliminates string literals scattered across Write descriptors. Column name changes in the DB (via Liquibase) only need to be updated in the `SqlSelectField` declaration — Write side follows automatically via `columnName()` or `Fields.*`.
