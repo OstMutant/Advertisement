@@ -34,7 +34,7 @@
 
 ## Ongoing — SPI pattern for cross-module extension
 
-**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-contracts` (e.g. `AttachmentGalleryExtension`, `AdvertisementHistoryExtension`, `UserActivityExtension`, `AttachmentPort`, `MediaChangeConsumer`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
+**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-contracts` (e.g. `AttachmentGalleryExtension`, `MediaHistoryExtension`, `ActivityFeedExtension`, `AttachmentPort`, `MediaChangeConsumer`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
 
 **Why:** Modules must not know about each other — only about contracts. The SPI pattern lets `attachment-spring-boot-starter` extend audit history without `audit-spring-boot-starter` importing attachment types.
 
@@ -107,18 +107,17 @@
 **Decision:** Replaced flat scattered packages (`events/`, `events/dto/`, `events/spi/`, `events/model/`, `audit/`, `config/`, `dto/`, `entities/`, `i18n/`, `ui/rules/`, `spi/storage/`) with three semantic groups (final layout after the 2026-05-18 symmetry cleanup):
 
 ```
-core.config    — CleanupProperties, UserSettings
+core.config    — CleanupProperties
 core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
-core.model     — ActionType, ChangeEntry, EntityType, Role
-core.spi       — CurrentUserProvider, EntityDisplayNameResolver
+core.model     — ActionType, ChangeEntry, EntityType
+core.spi       — CurrentActorProvider, EntityDisplayNameResolver
 core.ui        — Configurable, ComponentBuilder, Initialization, Provider
 
 audit.api      — AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
-audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContent,
-                 SnapshotPayload, UserSnapshotState
+audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContent, SnapshotPayload
 audit.spi      — AuditPort, AuditActorNameResolver, AuditEntityExistenceChecker,
-                 ActivityItemFieldsProvider, UserActivityExtension,
-                 AdvertisementHistoryExtension, AuditUiExtension
+                 ActivityItemFieldsProvider, ActivityFeedExtension,
+                 MediaHistoryExtension, AuditUiExtension
 
 attachment.dto     — MediaSummaryDto
 attachment.spi     — AttachmentPort, AttachmentGalleryExtension,

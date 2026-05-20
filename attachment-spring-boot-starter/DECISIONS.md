@@ -13,9 +13,7 @@
 
 **Why:** The previous "flat descriptor + tiny `Write` bucket for column names" arrangement intermixed UPDATE/DELETE/SELECT SQL and param factories with no visual separation. The new layout makes the SQL boundary side explicit at the call site (`AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`) and gives a single grep target (`SqlEntityDescriptor`) for finding all dual-side descriptors in the project.
 
-**Rejected:**
-- Generic marker (`SqlEntityDescriptor<T>`) — does not fit `AttachmentSnapshotDescriptor` which has no full-row projection (queries return `String[]` and JSON text directly). Non-generic marker keeps both descriptors uniform.
-- Reworking `SqlEntityProjection` / `RepositoryCustom` in sql-engine to remove the read-side coupling — out of scope; older descriptors (`UserDescriptor`, `AdvertisementDescriptor`, `AuditLogDescriptor`) continue to `extend SqlEntityProjection<T>` until they are migrated in follow-up commits.
+**Rejected:** Generic marker (`SqlEntityDescriptor<T>`) — does not fit `AttachmentSnapshotDescriptor` which has no full-row projection (queries return `String[]` and JSON text directly). Non-generic marker keeps both descriptors uniform.
 
 ---
 
@@ -41,16 +39,6 @@
 **Why:** Enables two independent deployments — the attachment module can be used without the advertisement app. The starter is auto-configured via Spring Boot's autoconfiguration mechanism.
 
 **Rejected:** Keeping UI components in `marketplace-app` — would couple the UI to the app module and prevent reuse.
-
----
-
-## 2026-05-13 — MediaContentType enum centralizes video content type constants
-
-**Decision:** `"video/youtube"` and `"video/embed"` are defined once in `MediaContentType` enum (`org.ost.attachment.entity`). Both `AttachmentGallery` and `CardMediaLightbox` reference it instead of using raw strings or private constants.
-
-**Why:** The two classes independently duplicated the same string literals. Centralizing eliminates the risk of inconsistency and makes the `isVideo()` check a single-source-of-truth call.
-
-**Rejected:** Placing the enum in `platform-contracts` — the content types are an internal attachment-module concept, not a cross-module contract.
 
 ---
 
@@ -99,15 +87,7 @@
 
 **Migration:** Hard cutover. Repo had no `storage.s3.enabled=false` configuration files; the prop was only mentioned in docs. Anyone on an external config setting `storage.s3.enabled=false` must rename to `attachment.enabled=false`.
 
----
-
-## 2026-05-19 — Every starter-owned bean gated by `@ConditionalOnAttachmentEnabled`
-
-**Decision:** `AttachmentCleanupJob`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository` are now annotated with `@ConditionalOnAttachmentEnabled`. Previously only the higher-level beans (`AttachmentService`, `DefaultAttachmentPort`, `AttachmentGalleryExtensionImpl`, `MediaHistoryExtensionImpl`, `attachmentLiquibase`, `S3Client`, `s3StorageService`) carried the conditional; the lower-level component-scanned classes were instantiated unconditionally.
-
-**Why:** With `attachment.enabled=false` the starter must leave no residue. The critical violation was `AttachmentCleanupJob`: it carries `@Scheduled(cron = "0 0 2 * * *")` and was active regardless of the flag — at 02:00 it would walk a disabled storage. The repositories and snapshot service had no scheduled effect, but their presence in the application context broke the symmetry promise: "subsystem off" should mean "no subsystem beans". The audit starter already followed this rule (`AuditCleanupJob` carries `@ConditionalOnAuditEnabled`); attachment now matches.
-
-**Rejected:** Leaving the repositories/service unconditional with the argument "they have no side effects" — symmetry with the audit starter is a usability contract, not a micro-optimization. A future maintainer reading "subsystem disabled" expects an empty subsystem.
+Every starter-owned bean carries `@ConditionalOnAttachmentEnabled` — including lower-level classes (`AttachmentCleanupJob`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository`). The critical case is `AttachmentCleanupJob` which carries `@Scheduled(cron = "0 0 2 * * *")` — without the conditional it would walk a disabled storage at 02:00. Mirrors `AuditCleanupJob` carrying `@ConditionalOnAuditEnabled`.
 
 ---
 
