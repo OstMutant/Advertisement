@@ -10,7 +10,10 @@ import org.ost.sqlengine.common.SqlCommand;
 import org.ost.sqlengine.common.SqlDescriptorField;
 import org.ost.sqlengine.filter.SqlFilterBuilder;
 import org.ost.sqlengine.read.SqlEntityProjection;
+import org.ost.sqlengine.write.SqlEntityWriter;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+
+import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
 
 import java.time.Instant;
 import java.util.List;
@@ -26,9 +29,14 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE        = "advertisement";
     public static final String ALIAS        = "a";
-    public static final String SOURCE       = TABLE + " " + ALIAS +
-            " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id";
-    public static final String COUNT_SOURCE = TABLE + " " + ALIAS;
+    public static final String SOURCE = sql(
+            "{table} {alias} LEFT JOIN user_information u ON {alias}.created_by_user_id = u.id",
+            "table", TABLE,
+            "alias", ALIAS);
+    public static final String COUNT_SOURCE = sql(
+            "{table} {alias}",
+            "table", TABLE,
+            "alias", ALIAS);
 
     public static final SqlDescriptorField<Long>    ID                 = longCol(ALIAS, id);
     public static final SqlDescriptorField<String>  TITLE              = strCol(ALIAS, title);
@@ -113,12 +121,13 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
                 "table",     TABLE,
                 "deletedAt", DELETED_AT.columnName());
 
-        public static final SqlCommand UPDATE_MEDIA = SqlCommand.of(
-                "UPDATE {table} SET {mediaUrl} = :url, {mediaContentType} = :contentType, {mediaCount} = :count WHERE id = :id",
-                "table",            TABLE,
-                "mediaUrl",         MEDIA_URL.columnName(),
-                "mediaContentType", MEDIA_CONTENT_TYPE.columnName(),
-                "mediaCount",       MEDIA_COUNT.columnName());
+        public static final SqlEntityWriter<MediaSummaryDto> MEDIA_WRITER = SqlEntityWriter.of(
+                TABLE,
+                field(MEDIA_URL,          MediaSummaryDto::displayUrl),
+                field(MEDIA_CONTENT_TYPE, MediaSummaryDto::contentType),
+                field(MEDIA_COUNT,        MediaSummaryDto::count));
+
+        public static final SqlCommand UPDATE_MEDIA = SqlCommand.of(MEDIA_WRITER.updateWhere("id = :id"));
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
             return Params.with(ID.columnName(), id).add("deletedBy", deletedByUserId);
@@ -129,10 +138,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource updateMediaParams(Long entityId, MediaSummaryDto summary) {
-            return Params.with("url",         summary.displayUrl())
-                            .add("contentType", summary.contentType())
-                            .add("count",       summary.count())
-                            .add(ID.columnName(), entityId);
+            return MEDIA_WRITER.params(summary).addValue(ID.columnName(), entityId);
         }
     }
 

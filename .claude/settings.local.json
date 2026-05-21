@@ -201,7 +201,9 @@
       "Bash(xargs -I {} bash -c 'echo \"{}\"; head -1 {}')",
       "Bash(mvn -pl sql-engine -am -q -DskipTests compile)",
       "Bash(mvn -q -DskipTests compile)",
-      "Bash(mvn -pl sql-engine test)"
+      "Bash(mvn -pl sql-engine test)",
+      "Bash(mvn test-compile *)",
+      "Bash(docker-compose -f /app/docker-compose.db.yml -f /app/docker-compose.minio.yml up -d)"
     ]
   },
   "hooks": {

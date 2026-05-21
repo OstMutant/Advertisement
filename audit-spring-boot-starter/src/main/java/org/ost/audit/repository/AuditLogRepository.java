@@ -34,7 +34,7 @@ public class AuditLogRepository extends RepositoryCustom {
     public void insert(EntityType entityType, Long entityId, ActionType actionType,
                        String snapshotData, String changesSummary, Long actorId) {
         executeUpdate(Write.INSERT,
-                Write.insertParams(entityType, entityId, actionType, snapshotData, changesSummary, actorId));
+                Write.insertParams(new Write.InsertEntry(entityType, entityId, actionType, snapshotData, changesSummary, actorId)));
     }
 
     public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {

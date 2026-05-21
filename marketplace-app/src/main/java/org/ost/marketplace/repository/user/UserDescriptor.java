@@ -30,7 +30,10 @@ public final class UserDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "user_information";
     public static final String ALIAS  = "u";
-    public static final String SOURCE = TABLE + " " + ALIAS;
+    public static final String SOURCE = SqlCommand.sql(
+            "{table} {alias}",
+            "table", TABLE,
+            "alias", ALIAS);
 
     public static final SqlDescriptorField<Long>    ID            = longCol(ALIAS, id);
     public static final SqlDescriptorField<String>  NAME          = strCol(ALIAS, name);

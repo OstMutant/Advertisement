@@ -4,9 +4,8 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
-import static org.ost.sqlengine.SqlEntityDescriptor.Params;
-import org.ost.sqlengine.common.SqlDescriptorField;
 import org.ost.sqlengine.common.SqlCommand;
+import org.ost.sqlengine.common.SqlDescriptorField;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.sql.ResultSet;
@@ -21,7 +20,10 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "attachment_snapshot";
     public static final String ALIAS  = "ps";
-    public static final String SOURCE = TABLE + " " + ALIAS;
+    public static final String SOURCE = SqlCommand.sql(
+            "{table} {alias}",
+            "table", TABLE,
+            "alias", ALIAS);
 
     public static final SqlDescriptorField<Long>    ID                  = longVal(ALIAS + ".id", "ps_id");
     public static final SqlDescriptorField<String>  ENTITY_TYPE         = strCol(ALIAS, "entity_type");

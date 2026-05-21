@@ -115,9 +115,40 @@ private static final String WHERE_ACTIVE = SqlCommand.sql(
 ```
 Both forms are fail-fast: they throw `IllegalArgumentException` at class-load time if a key has no matching `{placeholder}` or a `{placeholder}` has no matching key.
 
+Text blocks (CTEs, LATERAL joins, multi-table queries) follow the same rule — `{placeholder}` for every column reference, inline `String.replace` replaces all occurrences:
+```java
+public static final SqlCommand SELECT_SNAPSHOT_CONTENT_BY_ID = SqlCommand.of("""
+        SELECT a.{snapshotData}::text AS {snapshotData},
+               (SELECT COUNT(*) FROM audit_log b
+                WHERE b.{entityType} = a.{entityType}
+                  AND b.{entityId}   = a.{entityId}
+                  AND b.{createdAt} <= a.{createdAt})::int AS version
+        FROM audit_log a
+        WHERE a.{id} = :id AND a.{entityType} = :entityType
+        """,
+        "snapshotData", SNAPSHOT_DATA.columnName(),
+        "entityType",   ENTITY_TYPE.columnName(),
+        "entityId",     ENTITY_ID.columnName(),
+        "createdAt",    CREATED_AT.columnName(),
+        "id",           ID.columnName());
+```
+
+**`columnName()` vs `sqlExpression()` in template args:**
+- Use `FIELD.columnName()` (bare column, e.g. `"snapshot_data"`) when the placeholder appears without a table-alias prefix — inside CTE bodies, `FROM`-less fragments, or `SELECT` lists of aliasless tables.
+- Use `FIELD.sqlExpression()` (alias-qualified, e.g. `"al.snapshot_data"`) when the placeholder appears with a table alias — outer `SELECT` lists, `WHERE` and `ORDER BY` clauses that reference an aliased CTE or joined table.
+- When the same column appears both ways in one query, use two different placeholder names (e.g. `{snapshotData}` → bare, `{alSnapshotData}` → alias-qualified).
+
 **Named parameter convention:**
-- `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name. Single-word identifiers (`id`, `url`, `size`) always qualify.
-- Multi-word parameters that use camelCase in Spring named-param syntax (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional for readability and does not match the snake_case `columnName()`.
+- `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — applies to both single-word (`id`, `url`) and snake_case multi-word (`snapshot_data`, `changes_summary`) identifiers.
+- Multi-word parameters that do NOT match a column name use camelCase string literals (`:entityType`, `:actorId`, `:filterUserId`) — their camelCase form is intentional for readability.
+
+**Param-factory methods with 4+ arguments** must use a `record` inside `Write`:
+```java
+public record InsertEntry(EntityType entityType, Long entityId, ActionType actionType,
+                          String snapshotData, String changesSummary, Long actorId) {}
+
+public static MapSqlParameterSource insertParams(InsertEntry e) { ... }
+```
 
 Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
 
