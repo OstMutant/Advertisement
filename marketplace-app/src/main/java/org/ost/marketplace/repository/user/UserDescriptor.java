@@ -1,5 +1,7 @@
 package org.ost.marketplace.repository.user;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
@@ -23,6 +25,7 @@ import static org.ost.sqlengine.filter.SqlCondition.*;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.field;
 import static org.ost.sqlengine.write.SqlWriteFieldFactory.fieldExpr;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class UserDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "user_information";
@@ -38,8 +41,8 @@ public final class UserDescriptor implements SqlEntityDescriptor {
     public static final SqlDescriptorField<Instant> UPDATED_AT    = instantCol(ALIAS, updatedAt);
     public static final SqlDescriptorField<String>  LOCALE        = strCol(ALIAS, locale);
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
-        private Read() {}
 
         public static final SqlEntityProjection<User> PROJECTION = SqlEntityProjection.of(
                 List.of(ID, NAME, EMAIL, ROLE, PASSWORD_HASH, CREATED_AT, UPDATED_AT, LOCALE), SOURCE,
@@ -86,8 +89,8 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         }
     }
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        private Write() {}
         public static final String TABLE    = UserDescriptor.TABLE;
         public static final String SETTINGS = "settings";
 
@@ -133,5 +136,4 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         }
     }
 
-    private UserDescriptor() {}
 }

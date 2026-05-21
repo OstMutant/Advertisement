@@ -1,5 +1,7 @@
 package org.ost.audit.repository;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
@@ -25,6 +27,7 @@ import java.util.List;
 
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE = "audit_log";
@@ -40,8 +43,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
     public static final SqlDescriptorField<Long>    ACTOR_ID        = longCol(ALIAS,    "actor_id");
     public static final SqlDescriptorField<String>  CHANGED_BY_NAME = strCol("changed_by_name");
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
-        private Read() {}
 
         private static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
@@ -144,8 +147,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
             }
         }
 
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
         public static final class Activity {
-            private Activity() {}
 
             public static final SqlDescriptorField<Long>    SNAPSHOT_ID   = longVal(ALIAS + ".id", "snapshot_id");
             public static final SqlDescriptorField<Boolean> ENTITY_EXISTS = boolCol("entity_exists");
@@ -215,8 +218,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
             }
         }
 
+        @NoArgsConstructor(access = AccessLevel.PRIVATE)
         public static final class History {
-            private History() {}
 
             public static final SqlDescriptorField<Integer> VERSION            = intCol(ALIAS, "version");
             public static final SqlDescriptorField<Long>    PREV_ID            = longCol(ALIAS, "prev_id");
@@ -290,8 +293,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
     }
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        private Write() {}
 
         public static final SqlCommand INSERT = SqlCommand.of(
                 "INSERT INTO {table} ({entityType}, {entityId}, {actionType}, {snapshotData}, {changesSummary}, {actorId})" +
@@ -334,5 +337,4 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
     }
 
-    private AuditLogDescriptor() {}
 }

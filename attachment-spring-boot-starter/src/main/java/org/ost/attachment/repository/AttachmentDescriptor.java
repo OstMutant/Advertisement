@@ -1,5 +1,7 @@
 package org.ost.attachment.repository;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
@@ -14,6 +16,7 @@ import java.util.List;
 import static org.ost.sqlengine.common.SqlCommand.sql;
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AttachmentDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "attachment";
@@ -40,8 +43,8 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
             "deletedAt",        DELETED_AT.columnName(),
             "deletedByActorId", DELETED_BY_ACTOR_ID.columnName());
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
-        private Read() {}
 
         public static final SqlEntityProjection<Attachment> PROJECTION = SqlEntityProjection.of(
                 List.of(ID, ENTITY_TYPE, ENTITY_ID, URL, FILENAME, CONTENT_TYPE, SIZE,
@@ -102,8 +105,8 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
         }
     }
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        private Write() {}
 
         public static final SqlCommand SOFT_DELETE = SqlCommand.of(
                 "UPDATE {table}{set} WHERE {id} = :id",
@@ -166,5 +169,4 @@ public final class AttachmentDescriptor implements SqlEntityDescriptor {
         }
     }
 
-    private AttachmentDescriptor() {}
 }

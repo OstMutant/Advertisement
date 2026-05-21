@@ -1,5 +1,7 @@
 package org.ost.marketplace.repository.advertisement;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
@@ -19,6 +21,7 @@ import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 import static org.ost.sqlengine.filter.SqlBoundFilter.of;
 import static org.ost.sqlengine.filter.SqlCondition.*;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AdvertisementDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE        = "advertisement";
@@ -40,8 +43,8 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
     public static final SqlDescriptorField<String>  USER_NAME          = str("u.name",                     createdByUserName);
     public static final SqlDescriptorField<String>  USER_EMAIL         = str("u.email",                    createdByUserEmail);
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
-        private Read() {}
 
         public static final SqlEntityProjection<AdvertisementInfoDto> PROJECTION = SqlEntityProjection.of(
                 List.of(ID, TITLE, DESCRIPTION, CREATED_AT, UPDATED_AT,
@@ -96,8 +99,8 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         }
     }
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        private Write() {}
 
         public static final SqlCommand SOFT_DELETE = SqlCommand.of(
                 "UPDATE {table} SET {deletedAt} = NOW(), {deletedByUserId} = :deletedBy WHERE id = :id",
@@ -133,5 +136,4 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         }
     }
 
-    private AdvertisementDescriptor() {}
 }

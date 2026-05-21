@@ -1,5 +1,7 @@
 package org.ost.attachment.repository;
 
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 import org.ost.platform.core.model.EntityType;
 import org.ost.sqlengine.SqlEntityDescriptor;
 import static org.ost.sqlengine.SqlEntityDescriptor.Params;
@@ -14,6 +16,7 @@ import java.util.List;
 import static org.ost.sqlengine.common.SqlCommand.sql;
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
 
     public static final String TABLE  = "attachment_snapshot";
@@ -59,8 +62,8 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
             "   AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
             " ORDER BY created_at ASC LIMIT 1";
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
-        private Read() {}
 
         public static final SqlCommand SELECT_PREV_URLS = SqlCommand.of(
                 "SELECT {urls}{from}{where} ORDER BY created_at DESC LIMIT 1",
@@ -131,8 +134,8 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
         }
     }
 
+    @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        private Write() {}
 
         public static final SqlCommand INSERT = SqlCommand.of(
                 "INSERT INTO {table} ({entityType}, {entityId}, {urls}, {changesSummary}, {changedBy}, created_at)" +
@@ -153,5 +156,4 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
         }
     }
 
-    private AttachmentSnapshotDescriptor() {}
 }
