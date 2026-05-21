@@ -43,6 +43,7 @@ public final class UserDescriptor implements SqlEntityDescriptor {
     public static final SqlDescriptorField<Instant> CREATED_AT    = instantCol(ALIAS, createdAt);
     public static final SqlDescriptorField<Instant> UPDATED_AT    = instantCol(ALIAS, updatedAt);
     public static final SqlDescriptorField<String>  LOCALE        = strCol(ALIAS, locale);
+    public static final SqlDescriptorField<String>  SETTINGS      = strCol("settings");
 
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Read {
@@ -94,8 +95,6 @@ public final class UserDescriptor implements SqlEntityDescriptor {
 
     @NoArgsConstructor(access = AccessLevel.PRIVATE)
     public static final class Write {
-        public static final String TABLE    = UserDescriptor.TABLE;
-        public static final String SETTINGS = "settings";
 
         public static final SqlEntityWriter<UserProfileDto> PROFILE_WRITER = SqlEntityWriter.of(
                 TABLE,
@@ -115,12 +114,12 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         public static final SqlCommand SAVE_SETTINGS = SqlCommand.of(
                 "UPDATE {table} SET {settings} = :settings::jsonb WHERE id = :userId",
                 "table",    TABLE,
-                "settings", SETTINGS);
+                "settings", SETTINGS.columnName());
 
         public static final SqlCommand SELECT_SETTINGS = SqlCommand.of(
                 "SELECT {settings} FROM {table} WHERE id = :userId",
                 "table",    TABLE,
-                "settings", SETTINGS);
+                "settings", SETTINGS.columnName());
 
         public static MapSqlParameterSource updateProfileParams(UserProfileDto dto) {
             return PROFILE_WRITER.params(dto).addValue(ID.columnName(), dto.id());
