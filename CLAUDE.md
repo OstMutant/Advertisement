@@ -98,8 +98,24 @@ Reference implementations: `UserRepository` / `AdvertisementRepository` in marke
 
 Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
 
+**SqlCommand template API:**
+All SQL string constants use `SqlCommand.of(template, key, value, ...)` with named `{placeholder}` substitution — never raw string concatenation with `.columnName()` / `.sqlExpression()` inline calls:
+```java
+public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
+        "DELETE FROM {table} WHERE {deletedAt} < NOW() - MAKE_INTERVAL(days => :days)",
+        "table",     TABLE,
+        "deletedAt", DELETED_AT.columnName());
+```
+For reusable SQL fragments (helper strings shared across multiple commands) use the static `SqlCommand.sql(template, key, value, ...)` overload, which returns a `String`:
+```java
+private static final String WHERE_ACTIVE = SqlCommand.sql(
+        " WHERE {entityType} = :entityType AND {deletedAt} IS NULL",
+        "entityType", ENTITY_TYPE.columnName(),
+        "deletedAt",  DELETED_AT.columnName());
+```
+Both forms are fail-fast: they throw `IllegalArgumentException` at class-load time if a key has no matching `{placeholder}` or a `{placeholder}` has no matching key.
+
 **Named parameter convention:**
-- Column references in SQL string constants use `FIELD.columnName()` (no alias) or `FIELD.sqlExpression()` (with alias) — never inline string literals.
 - `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name. Single-word identifiers (`id`, `url`, `size`) always qualify.
 - Multi-word parameters that use camelCase in Spring named-param syntax (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional for readability and does not match the snake_case `columnName()`.
 

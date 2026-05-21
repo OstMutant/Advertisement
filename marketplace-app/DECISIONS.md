@@ -16,7 +16,9 @@ Repositories hold `private final RepositoryCustom repo` or `private final Filter
 
 **Field factory convention (`*Col`):** Use `strCol(ALIAS, fieldName)` / `longCol(ALIAS, fieldName)` etc. for standard table fields — `SqlNamingUtil.toSnakeCase` is applied automatically, so camelCase `@FieldNameConstants` values (e.g. `passwordHash` → `password_hash`) work directly. Use the single-arg `strCol(column)` form for tables queried without an alias. Fall back to explicit `str(sqlExpression, alias)` only when the alias differs from the column name (e.g. join fields like `longVal("u.id", "created_by_user_id")`).
 
-**Named parameter convention:** Column references in SQL string constants use `FIELD.columnName()` or `FIELD.sqlExpression()`. `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — single-word identifiers (`id`, `url`) always qualify. Multi-word camelCase params (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional and does not match the snake_case `columnName()`.
+**SqlCommand template API:** All `SqlCommand` constants use `SqlCommand.of(template, key, value, ...)` with named `{placeholder}` substitution — never raw `+` concatenation with inline `.columnName()` calls. Reusable SQL fragments (shared across multiple commands) use `SqlCommand.sql(template, key, value, ...)` which returns a `String`. Both throw `IllegalArgumentException` at class-load time on any placeholder mismatch.
+
+**Named parameter convention:** `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — single-word identifiers (`id`, `url`) always qualify. Multi-word camelCase params (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional and does not match the snake_case `columnName()`.
 
 ---
 
