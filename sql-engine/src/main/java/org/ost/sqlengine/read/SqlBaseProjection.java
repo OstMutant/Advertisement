@@ -2,6 +2,7 @@ package org.ost.sqlengine.read;
 
 import org.apache.commons.lang3.StringUtils;
 import org.ost.sqlengine.common.SqlDescriptorField;
+import org.ost.sqlengine.common.SqlNamingUtil;
 import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -45,7 +46,7 @@ abstract class SqlBaseProjection<T> implements RowMapper<T> {
                 .filter(s -> !s.isEmpty())
                 .map(Sort::stream)
                 .orElseGet(Stream::empty)
-                .map(order -> ofNullable(aliasToSqlMap.get(order.getProperty()))
+                .map(order -> ofNullable(aliasToSqlMap.get(SqlNamingUtil.toSnakeCase(order.getProperty())))
                         .map(col -> col + " " + order.getDirection().name() + " NULLS LAST")
                         .orElse(null))
                 .filter(Objects::nonNull)
