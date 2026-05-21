@@ -15,74 +15,75 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import static org.ost.audit.repository.AuditLogDescriptor.*;
+
 @Repository
 public class AuditLogRepository extends RepositoryCustom {
 
-    private final AuditLogDescriptor.Read.Activity.Projection activityProjection;
-    private final AuditLogDescriptor.Read.History.Projection  historyProjection;
+    private final Read.Activity.Projection activityProjection;
+    private final Read.History.Projection  historyProjection;
 
     public AuditLogRepository(JdbcClient jdbcClient,
                               @Qualifier("auditObjectMapper") ObjectMapper objectMapper,
                               List<EntityDisplayNameResolver> resolvers) {
         super(jdbcClient);
-        this.activityProjection = new AuditLogDescriptor.Read.Activity.Projection(objectMapper, resolvers);
-        this.historyProjection  = new AuditLogDescriptor.Read.History.Projection(objectMapper);
+        this.activityProjection = new Read.Activity.Projection(objectMapper, resolvers);
+        this.historyProjection  = new Read.History.Projection(objectMapper);
     }
 
     public void insert(EntityType entityType, Long entityId, ActionType actionType,
                        String snapshotData, String changesSummary, Long actorId) {
-        executeUpdate(AuditLogDescriptor.Write.INSERT,
-                AuditLogDescriptor.Write.insertParams(entityType, entityId, actionType,
-                        snapshotData, changesSummary, actorId));
+        executeUpdate(Write.INSERT,
+                Write.insertParams(entityType, entityId, actionType, snapshotData, changesSummary, actorId));
     }
 
     public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {
-        return findOne(AuditLogDescriptor.Read.SELECT_LAST_SNAPSHOT_DATA,
-                AuditLogDescriptor.Read.entityParams(entityType, entityId),
-                (rs, row) -> rs.getString(1));
+        return findOne(Read.SELECT_LAST_SNAPSHOT_DATA,
+                Read.entityParams(entityType, entityId),
+                (rs, row) -> SNAPSHOT_DATA.extract(rs));
     }
 
     public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
-        return findOne(AuditLogDescriptor.Read.SELECT_SNAPSHOT_CONTENT_BY_ID,
-                AuditLogDescriptor.Read.snapshotByIdParams(snapshotId, entityType),
-                (rs, row) -> AuditLogDescriptor.Read.mapSnapshotContent(rs));
+        return findOne(Read.SELECT_SNAPSHOT_CONTENT_BY_ID,
+                Read.snapshotByIdParams(snapshotId, entityType),
+                (rs, row) -> Read.mapSnapshotContent(rs));
     }
 
     public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
-        return findOne(AuditLogDescriptor.Read.SELECT_PREVIOUS_SNAPSHOT_CONTENT,
-                AuditLogDescriptor.Read.previousSnapshotContentParams(snapshotId, entityType),
-                (rs, row) -> AuditLogDescriptor.Read.mapSnapshotContent(rs));
+        return findOne(Read.SELECT_PREVIOUS_SNAPSHOT_CONTENT,
+                Read.previousSnapshotContentParams(snapshotId, entityType),
+                (rs, row) -> Read.mapSnapshotContent(rs));
     }
 
     public Optional<Long> findLastSnapshotId(EntityType entityType, Long entityId) {
-        return findOne(AuditLogDescriptor.Read.SELECT_LAST_SNAPSHOT_ID,
-                AuditLogDescriptor.Read.entityParams(entityType, entityId),
+        return findOne(Read.SELECT_LAST_SNAPSHOT_ID,
+                Read.entityParams(entityType, entityId),
                 Long.class);
     }
 
     public String getChangesSummary(Long snapshotId) {
-        return findOne(AuditLogDescriptor.Read.SELECT_CHANGES_SUMMARY,
-                AuditLogDescriptor.Read.idParams(snapshotId),
+        return findOne(Read.SELECT_CHANGES_SUMMARY,
+                Read.idParams(snapshotId),
                 String.class).orElseThrow();
     }
 
     public void updateChangesSummary(Long snapshotId, String json) {
-        executeUpdate(AuditLogDescriptor.Write.UPDATE_CHANGES_SUMMARY,
-                AuditLogDescriptor.Write.updateChangesSummaryParams(snapshotId, json));
+        executeUpdate(Write.UPDATE_CHANGES_SUMMARY,
+                Write.updateChangesSummaryParams(snapshotId, json));
     }
 
     public void deleteOlderThan(int days) {
-        executeUpdate(AuditLogDescriptor.Write.DELETE_OLDER_THAN,
-                AuditLogDescriptor.Write.deleteOlderThanParams(days));
+        executeUpdate(Write.DELETE_OLDER_THAN,
+                Write.deleteOlderThanParams(days));
     }
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
         return queryAll(historyProjection,
-                AuditLogDescriptor.Read.History.params(entityType, entityId, filterUserId));
+                Read.History.params(entityType, entityId, filterUserId));
     }
 
     public List<ActivityItemDto> findActivityByActor(Long actorId) {
         return queryAll(activityProjection,
-                AuditLogDescriptor.Read.Activity.byActorParams(actorId));
+                Read.Activity.byActorParams(actorId));
     }
 }

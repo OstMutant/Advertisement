@@ -29,14 +29,14 @@ public final class UserDescriptor implements SqlEntityDescriptor {
     public static final String ALIAS  = "u";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlDescriptorField<Long>    ID            = longVal(ALIAS + ".id",            id);
-    public static final SqlDescriptorField<String>  NAME          = str(ALIAS + ".name",          name);
-    public static final SqlDescriptorField<String>  EMAIL         = str(ALIAS + ".email",         email);
-    public static final SqlDescriptorField<String>  ROLE          = str(ALIAS + ".role",          role);
-    public static final SqlDescriptorField<String>  PASSWORD_HASH = str(ALIAS + ".password_hash", passwordHash);
-    public static final SqlDescriptorField<Instant> CREATED_AT    = instant(ALIAS + ".created_at", createdAt);
-    public static final SqlDescriptorField<Instant> UPDATED_AT    = instant(ALIAS + ".updated_at", updatedAt);
-    public static final SqlDescriptorField<String>  LOCALE        = str(ALIAS + ".locale",         locale);
+    public static final SqlDescriptorField<Long>    ID            = longCol(ALIAS, id);
+    public static final SqlDescriptorField<String>  NAME          = strCol(ALIAS, name);
+    public static final SqlDescriptorField<String>  EMAIL         = strCol(ALIAS, email);
+    public static final SqlDescriptorField<String>  ROLE          = strCol(ALIAS, role);
+    public static final SqlDescriptorField<String>  PASSWORD_HASH = strCol(ALIAS, passwordHash);
+    public static final SqlDescriptorField<Instant> CREATED_AT    = instantCol(ALIAS, createdAt);
+    public static final SqlDescriptorField<Instant> UPDATED_AT    = instantCol(ALIAS, updatedAt);
+    public static final SqlDescriptorField<String>  LOCALE        = strCol(ALIAS, locale);
 
     public static final class Read {
         private Read() {}
@@ -71,12 +71,15 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         ));
 
         public static final SqlCommand SELECT_EXISTING_IDS = SqlCommand.of(
-                "SELECT " + ID.columnName() + " FROM " + TABLE +
-                " WHERE " + ID.columnName() + " = ANY(:ids)");
+                "SELECT {id} FROM {table} WHERE {id} = ANY(:ids)",
+                "id",    ID.columnName(),
+                "table", TABLE);
 
         public static final SqlCommand SELECT_ACTOR_NAMES = SqlCommand.of(
-                "SELECT " + ID.columnName() + ", " + NAME.columnName() + " FROM " + TABLE +
-                " WHERE " + ID.columnName() + " = ANY(:ids)");
+                "SELECT {id}, {name} FROM {table} WHERE {id} = ANY(:ids)",
+                "id",    ID.columnName(),
+                "name",  NAME.columnName(),
+                "table", TABLE);
 
         public static MapSqlParameterSource idsParams(Long[] ids) {
             return Params.of("ids", ids);
@@ -104,21 +107,21 @@ public final class UserDescriptor implements SqlEntityDescriptor {
         public static final SqlCommand UPDATE_LOCALE  = SqlCommand.of(LOCALE_WRITER.updateWhere("id = :id"));
 
         public static final SqlCommand SAVE_SETTINGS = SqlCommand.of(
-                "UPDATE " + TABLE +
-                " SET "   + SETTINGS + " = :settings::jsonb" +
-                " WHERE id = :userId");
+                "UPDATE {table} SET {settings} = :settings::jsonb WHERE id = :userId",
+                "table",    TABLE,
+                "settings", SETTINGS);
 
         public static final SqlCommand SELECT_SETTINGS = SqlCommand.of(
-                "SELECT " + SETTINGS +
-                " FROM "  + TABLE +
-                " WHERE id = :userId");
+                "SELECT {settings} FROM {table} WHERE id = :userId",
+                "table",    TABLE,
+                "settings", SETTINGS);
 
         public static MapSqlParameterSource updateProfileParams(UserProfileDto dto) {
-            return PROFILE_WRITER.params(dto).addValue("id", dto.id());
+            return PROFILE_WRITER.params(dto).addValue(ID.columnName(), dto.id());
         }
 
         public static MapSqlParameterSource updateLocaleParams(Long userId, String locale) {
-            return LOCALE_WRITER.params(locale).addValue("id", userId);
+            return LOCALE_WRITER.params(locale).addValue(ID.columnName(), userId);
         }
 
         public static MapSqlParameterSource saveSettingsParams(Long userId, String settingsJson) {

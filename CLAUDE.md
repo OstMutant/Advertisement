@@ -57,10 +57,10 @@ advertisement-parent (root pom)
 
 **platform-contracts** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`, `Role`), `core.config` (`CleanupProperties`, `UserSettings`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (cross-cutting SPIs: `CurrentUserProvider`, `EntityDisplayNameResolver`)
-- `audit.*` — audit subsystem contract: `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContent`, `SnapshotPayload`, `UserSnapshotState`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`, `AuditUiExtension`)
+- `audit.*` — audit subsystem contract: `audit.api` (`AuditableSnapshot`, `AuditedField`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContent`, `SnapshotPayload`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `ActivityFeedExtension`, `MediaHistoryExtension`, `AuditUiExtension`)
 - `attachment.*` — attachment subsystem contract: `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`), `attachment.dto` (`MediaSummaryDto`). The storage SPI (`StorageService`) and the subsystem conditional (`@ConditionalOnAttachmentEnabled`) are internal to `attachment-spring-boot-starter` — no other module consumes them.
 
-**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. All SQL (read + write) lives in the single `AuditLogRepository`. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
 
 **attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), `AttachmentCleanupJob`, `S3StorageService`, and `NoOpStorageService`. Java package root: `org.ost.attachment`.
 
@@ -93,10 +93,15 @@ Reference implementations: `UserRepository` / `AdvertisementRepository` in marke
 **Policy:** Descriptors are `final` namespace classes that implement `SqlEntityDescriptor` (marker, lives in `sql-engine`). They split SQL and param construction into two symmetric inner classes:
 
 - `public static final class Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param-factory methods.
-- `public static final class Write` — `SqlWriteCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
-- Shared column-name strings and `SqlSelectField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
+- `public static final class Write` — `SqlCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
+- Shared `SqlDescriptorField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
 
 Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
+
+**Named parameter convention:**
+- Column references in SQL string constants use `FIELD.columnName()` (no alias) or `FIELD.sqlExpression()` (with alias) — never inline string literals.
+- `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name. Single-word identifiers (`id`, `url`, `size`) always qualify.
+- Multi-word parameters that use camelCase in Spring named-param syntax (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional for readability and does not match the snake_case `columnName()`.
 
 Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
 
@@ -180,12 +185,18 @@ Two patterns for repositories depending on query complexity:
 
 ### Simple/filterable queries — `SqlEntityProjection` + `RepositoryCustom`
 
-Define `SqlSelectField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
+Define `SqlDescriptorField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
 
 ```java
 // 1. Define fields
-static final SqlSelectField<Long> ID    = longVal("a.id", "id");
-static final SqlSelectField<String> TITLE = str("a.title", "title");
+// *Col shorthand: SqlNamingUtil.toSnakeCase(column) for expression and alias — accepts camelCase or snake_case
+static final SqlDescriptorField<Long>   ID    = longCol("a", "id");     // → "a.id", alias "id"
+static final SqlDescriptorField<String> TITLE = strCol("a", "title");   // → "a.title", alias "title"
+static final SqlDescriptorField<String> UPDATED_AT = instantCol("a", updatedAt); // camelCase → "updated_at"
+// No-alias form for tables queried without a table alias:
+static final SqlDescriptorField<String> ENTITY_TYPE = strCol("entity_type");
+// Explicit form when alias ≠ column name:
+static final SqlDescriptorField<Long> SNAPSHOT_ID = longVal("al.id", "snapshot_id");
 
 // 2. Projection (FROM source)
 SqlEntityProjection<AdvertisementDto> projection =
@@ -208,7 +219,7 @@ For CTEs, UNION ALL, self-joins — the developer writes the full SQL:
 
 ```java
 public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
-    static final SqlSelectField<Long> ID = longVal("s.id", "snapshot_id");
+    static final SqlDescriptorField<Long> ID = longVal("s.id", "snapshot_id"); // alias ≠ column → explicit form
 
     public ActivityProjection(ObjectMapper om) {
         super(List.of(ID, ...));

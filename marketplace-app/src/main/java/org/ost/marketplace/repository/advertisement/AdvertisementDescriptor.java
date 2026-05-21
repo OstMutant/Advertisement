@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.ost.marketplace.dto.AdvertisementInfoDto.Fields.*;
+import static org.ost.sqlengine.common.SqlCommand.sql;
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 import static org.ost.sqlengine.filter.SqlBoundFilter.of;
 import static org.ost.sqlengine.filter.SqlCondition.*;
@@ -26,15 +27,15 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
             " LEFT JOIN user_information u ON " + ALIAS + ".created_by_user_id = u.id";
     public static final String COUNT_SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlDescriptorField<Long>    ID                 = longVal(ALIAS + ".id",                id);
-    public static final SqlDescriptorField<String>  TITLE              = str(ALIAS + ".title",             title);
-    public static final SqlDescriptorField<String>  DESCRIPTION        = str(ALIAS + ".description",       description);
-    public static final SqlDescriptorField<Instant> CREATED_AT         = instant(ALIAS + ".created_at",    createdAt);
-    public static final SqlDescriptorField<Instant> UPDATED_AT         = instant(ALIAS + ".updated_at",    updatedAt);
-    public static final SqlDescriptorField<Instant> DELETED_AT         = instant(ALIAS + ".deleted_at",    "deleted_at");
-    public static final SqlDescriptorField<String>  MEDIA_URL          = str(ALIAS + ".media_url",          mediaUrl);
-    public static final SqlDescriptorField<String>  MEDIA_CONTENT_TYPE = str(ALIAS + ".media_content_type", mediaContentType);
-    public static final SqlDescriptorField<Integer> MEDIA_COUNT        = intVal(ALIAS + ".media_count",      mediaCount);
+    public static final SqlDescriptorField<Long>    ID                 = longCol(ALIAS, id);
+    public static final SqlDescriptorField<String>  TITLE              = strCol(ALIAS, title);
+    public static final SqlDescriptorField<String>  DESCRIPTION        = strCol(ALIAS, description);
+    public static final SqlDescriptorField<Instant> CREATED_AT         = instantCol(ALIAS, createdAt);
+    public static final SqlDescriptorField<Instant> UPDATED_AT         = instantCol(ALIAS, updatedAt);
+    public static final SqlDescriptorField<Instant> DELETED_AT         = instantCol(ALIAS, "deleted_at");
+    public static final SqlDescriptorField<String>  MEDIA_URL          = strCol(ALIAS, mediaUrl);
+    public static final SqlDescriptorField<String>  MEDIA_CONTENT_TYPE = strCol(ALIAS, mediaContentType);
+    public static final SqlDescriptorField<Integer> MEDIA_COUNT        = intCol(ALIAS, mediaCount);
     public static final SqlDescriptorField<Long>    USER_ID            = longVal("u.id",                   createdByUserId);
     public static final SqlDescriptorField<String>  USER_NAME          = str("u.name",                     createdByUserName);
     public static final SqlDescriptorField<String>  USER_EMAIL         = str("u.email",                    createdByUserEmail);
@@ -76,15 +77,18 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
         };
 
         public static final SqlCommand SELECT_EXISTING_IDS = SqlCommand.of(
-                "SELECT " + ID.columnName() + " FROM " + TABLE +
-                " WHERE " + ID.columnName() + " = ANY(:ids)" +
-                " AND "   + DELETED_AT.columnName() + " IS NULL");
+                "SELECT {id} FROM {table} WHERE {id} = ANY(:ids) AND {deletedAt} IS NULL",
+                "id",        ID.columnName(),
+                "table",     TABLE,
+                "deletedAt", DELETED_AT.columnName());
 
-        public static final String BY_ID_ACTIVE_WHERE =
-                ALIAS + ".id = :id AND " + DELETED_AT.sqlExpression() + " IS NULL";
+        public static final String BY_ID_ACTIVE_WHERE = sql(
+                "{id} = :id AND {deletedAt} IS NULL",
+                "id",        ID.sqlExpression(),
+                "deletedAt", DELETED_AT.sqlExpression());
 
         public static MapSqlParameterSource byIdParams(Long id) {
-            return Params.of("id", id);
+            return Params.of(ID.columnName(), id);
         }
 
         public static MapSqlParameterSource existingIdsParams(Long[] ids) {
@@ -94,32 +98,27 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
 
     public static final class Write {
         private Write() {}
-        public static final String TABLE              = AdvertisementDescriptor.TABLE;
-        public static final String DELETED_AT         = AdvertisementDescriptor.DELETED_AT.columnName();
-        public static final String DELETED_BY_USER_ID = "deleted_by_user_id";
-        public static final String MEDIA_URL          = AdvertisementDescriptor.MEDIA_URL.columnName();
-        public static final String MEDIA_CONTENT_TYPE = AdvertisementDescriptor.MEDIA_CONTENT_TYPE.columnName();
-        public static final String MEDIA_COUNT        = AdvertisementDescriptor.MEDIA_COUNT.columnName();
 
         public static final SqlCommand SOFT_DELETE = SqlCommand.of(
-                "UPDATE " + TABLE +
-                " SET "   + DELETED_AT + " = NOW(), " +
-                " "       + DELETED_BY_USER_ID + " = :deletedBy" +
-                " WHERE id = :id");
+                "UPDATE {table} SET {deletedAt} = NOW(), {deletedByUserId} = :deletedBy WHERE id = :id",
+                "table",           TABLE,
+                "deletedAt",       DELETED_AT.columnName(),
+                "deletedByUserId", "deleted_by_user_id");
 
         public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
-                "DELETE FROM " + TABLE +
-                " WHERE " + DELETED_AT + " < NOW() - MAKE_INTERVAL(days => :days)");
+                "DELETE FROM {table} WHERE {deletedAt} < NOW() - MAKE_INTERVAL(days => :days)",
+                "table",     TABLE,
+                "deletedAt", DELETED_AT.columnName());
 
         public static final SqlCommand UPDATE_MEDIA = SqlCommand.of(
-                "UPDATE " + TABLE +
-                " SET " + MEDIA_URL          + " = :url," +
-                " "     + MEDIA_CONTENT_TYPE + " = :contentType," +
-                " "     + MEDIA_COUNT        + " = :count" +
-                " WHERE id = :id");
+                "UPDATE {table} SET {mediaUrl} = :url, {mediaContentType} = :contentType, {mediaCount} = :count WHERE id = :id",
+                "table",            TABLE,
+                "mediaUrl",         MEDIA_URL.columnName(),
+                "mediaContentType", MEDIA_CONTENT_TYPE.columnName(),
+                "mediaCount",       MEDIA_COUNT.columnName());
 
         public static MapSqlParameterSource softDeleteParams(Long id, Long deletedByUserId) {
-            return Params.with("id", id).add("deletedBy", deletedByUserId);
+            return Params.with(ID.columnName(), id).add("deletedBy", deletedByUserId);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {
@@ -130,7 +129,7 @@ public final class AdvertisementDescriptor implements SqlEntityDescriptor {
             return Params.with("url",         summary.displayUrl())
                             .add("contentType", summary.contentType())
                             .add("count",       summary.count())
-                            .add("id",          entityId);
+                            .add(ID.columnName(), entityId);
         }
     }
 

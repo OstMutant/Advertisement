@@ -6,6 +6,8 @@ import org.ost.sqlengine.common.SqlDescriptorField;
 
 import java.util.function.Function;
 
+import static org.ost.sqlengine.common.SqlNamingUtil.toSnakeCase;
+
 /**
  * Factory methods for {@link SqlWriteField} instances used in {@link SqlEntityWriter}.
  *
@@ -40,7 +42,4 @@ public class SqlWriteFieldFactory {
         return new SqlExpressionField<>(toSnakeCase(javaFieldName), sqlExpression);
     }
 
-    private static String toSnakeCase(String name) {
-        return name.replaceAll("([A-Z])", "_$1").toLowerCase();
-    }
 }

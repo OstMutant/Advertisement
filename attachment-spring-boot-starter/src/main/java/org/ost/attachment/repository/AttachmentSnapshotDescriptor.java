@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.time.Instant;
 import java.util.List;
 
+import static org.ost.sqlengine.common.SqlCommand.sql;
 import static org.ost.sqlengine.common.SqlDescriptorFieldFactory.*;
 
 public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
@@ -19,20 +20,21 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
     public static final String ALIAS  = "ps";
     public static final String SOURCE = TABLE + " " + ALIAS;
 
-    public static final SqlDescriptorField<Long>    ID                  = longVal(ALIAS + ".id",                  "ps_id");
-    public static final SqlDescriptorField<String>  ENTITY_TYPE         = str(ALIAS + ".entity_type",             "entity_type");
-    public static final SqlDescriptorField<Long>    ENTITY_ID           = longVal(ALIAS + ".entity_id",           "entity_id");
-    public static final SqlDescriptorField<String>  CHANGES_SUMMARY     = str(ALIAS + ".changes_summary",         "changes_summary");
-    public static final SqlDescriptorField<Long>    CHANGED_BY_ACTOR_ID = longVal(ALIAS + ".changed_by_actor_id", "changed_by_actor_id");
-    public static final SqlDescriptorField<Instant> CREATED_AT          = instant(ALIAS + ".created_at",          "created_at");
+    public static final SqlDescriptorField<Long>    ID                  = longVal(ALIAS + ".id", "ps_id");
+    public static final SqlDescriptorField<String>  ENTITY_TYPE         = strCol(ALIAS, "entity_type");
+    public static final SqlDescriptorField<Long>    ENTITY_ID           = longCol(ALIAS, "entity_id");
+    public static final SqlDescriptorField<String>  CHANGES_SUMMARY     = strCol(ALIAS, "changes_summary");
+    public static final SqlDescriptorField<Long>    CHANGED_BY_ACTOR_ID = longCol(ALIAS, "changed_by_actor_id");
+    public static final SqlDescriptorField<Instant> CREATED_AT          = instantCol(ALIAS, "created_at");
 
     public static final String ATTACHMENT_URLS = "attachment_urls";
 
     private static final String FROM_TABLE = " FROM " + TABLE;
 
-    private static final String WHERE_BY_ENTITY =
-            " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
-            " AND "   + ENTITY_ID.columnName()   + " = :entityId";
+    private static final String WHERE_BY_ENTITY = sql(
+            " WHERE {entityType} = :entityType AND {entityId} = :entityId",
+            "entityType", ENTITY_TYPE.columnName(),
+            "entityId",   ENTITY_ID.columnName());
 
     /** created_at of the audit_log entry at position (:version + 1) for the entity — upper bound for that version's attachments. */
     private static final String NEXT_AUDIT_TS_BY_VERSION =
@@ -61,32 +63,49 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
         private Read() {}
 
         public static final SqlCommand SELECT_PREV_URLS = SqlCommand.of(
-                "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
-                " ORDER BY created_at DESC LIMIT 1");
+                "SELECT {urls}{from}{where} ORDER BY created_at DESC LIMIT 1",
+                "urls",  ATTACHMENT_URLS,
+                "from",  FROM_TABLE,
+                "where", WHERE_BY_ENTITY);
 
         public static final SqlCommand SELECT_URLS_AT_VERSION = SqlCommand.of(
-                "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
-                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_BY_VERSION + "), 'infinity'::timestamptz)" +
-                " ORDER BY created_at DESC LIMIT 1");
+                "SELECT {urls}{from}{where}" +
+                "   AND created_at < COALESCE(({nextAuditTs}), 'infinity'::timestamptz) ORDER BY created_at DESC LIMIT 1",
+                "urls",        ATTACHMENT_URLS,
+                "from",        FROM_TABLE,
+                "where",       WHERE_BY_ENTITY,
+                "nextAuditTs", NEXT_AUDIT_TS_BY_VERSION);
 
         public static final SqlCommand SELECT_URLS_FOR_SNAPSHOT = SqlCommand.of(
-                "SELECT " + ATTACHMENT_URLS + FROM_TABLE + WHERE_BY_ENTITY +
-                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_AFTER_SNAPSHOT + "), 'infinity'::timestamptz)" +
-                " ORDER BY created_at DESC LIMIT 1");
+                "SELECT {urls}{from}{where}" +
+                "   AND created_at < COALESCE(({nextAuditTs}), 'infinity'::timestamptz) ORDER BY created_at DESC LIMIT 1",
+                "urls",        ATTACHMENT_URLS,
+                "from",        FROM_TABLE,
+                "where",       WHERE_BY_ENTITY,
+                "nextAuditTs", NEXT_AUDIT_TS_AFTER_SNAPSHOT);
 
         public static final SqlCommand SELECT_CHANGES_JSON_FOR_SNAPSHOT = SqlCommand.of(
-                "SELECT " + CHANGES_SUMMARY.columnName() + "::text AS " + CHANGES_SUMMARY.alias() + FROM_TABLE + WHERE_BY_ENTITY +
+                "SELECT {col}::text AS {alias}{from}{where}" +
                 "   AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)" +
-                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_AFTER_SNAPSHOT + "), 'infinity'::timestamptz)" +
-                "   AND " + CHANGES_SUMMARY.columnName() + " IS NOT NULL" +
-                " ORDER BY created_at ASC LIMIT 1");
+                "   AND created_at < COALESCE(({nextAuditTs}), 'infinity'::timestamptz)" +
+                "   AND {col} IS NOT NULL ORDER BY created_at ASC LIMIT 1",
+                "col",         CHANGES_SUMMARY.columnName(),
+                "alias",       CHANGES_SUMMARY.alias(),
+                "from",        FROM_TABLE,
+                "where",       WHERE_BY_ENTITY,
+                "nextAuditTs", NEXT_AUDIT_TS_AFTER_SNAPSHOT);
 
         public static final SqlCommand SELECT_CHANGES_JSON_AT_VERSION = SqlCommand.of(
-                "SELECT " + CHANGES_SUMMARY.columnName() + "::text AS " + CHANGES_SUMMARY.alias() + FROM_TABLE + WHERE_BY_ENTITY +
-                "   AND created_at >= (" + THIS_AUDIT_TS_BY_VERSION + ")" +
-                "   AND created_at < COALESCE((" + NEXT_AUDIT_TS_BY_VERSION + "), 'infinity'::timestamptz)" +
-                "   AND " + CHANGES_SUMMARY.columnName() + " IS NOT NULL" +
-                " ORDER BY created_at ASC LIMIT 1");
+                "SELECT {col}::text AS {alias}{from}{where}" +
+                "   AND created_at >= ({thisAuditTs})" +
+                "   AND created_at < COALESCE(({nextAuditTs}), 'infinity'::timestamptz)" +
+                "   AND {col} IS NOT NULL ORDER BY created_at ASC LIMIT 1",
+                "col",         CHANGES_SUMMARY.columnName(),
+                "alias",       CHANGES_SUMMARY.alias(),
+                "from",        FROM_TABLE,
+                "where",       WHERE_BY_ENTITY,
+                "thisAuditTs", THIS_AUDIT_TS_BY_VERSION,
+                "nextAuditTs", NEXT_AUDIT_TS_BY_VERSION);
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
             return Params.with("entityType", entityType.name()).add("entityId", entityId);
@@ -116,11 +135,14 @@ public final class AttachmentSnapshotDescriptor implements SqlEntityDescriptor {
         private Write() {}
 
         public static final SqlCommand INSERT = SqlCommand.of(
-                "INSERT INTO " + TABLE +
-                " (" + ENTITY_TYPE.columnName() + ", " + ENTITY_ID.columnName() + ", " +
-                ATTACHMENT_URLS + ", " + CHANGES_SUMMARY.columnName() + ", " +
-                CHANGED_BY_ACTOR_ID.columnName() + ", created_at)" +
-                " VALUES (:entityType, :entityId, :urls, CAST(:changes AS JSONB), :actorId, NOW())");
+                "INSERT INTO {table} ({entityType}, {entityId}, {urls}, {changesSummary}, {changedBy}, created_at)" +
+                " VALUES (:entityType, :entityId, :urls, CAST(:changes AS JSONB), :actorId, NOW())",
+                "table",          TABLE,
+                "entityType",     ENTITY_TYPE.columnName(),
+                "entityId",       ENTITY_ID.columnName(),
+                "urls",           ATTACHMENT_URLS,
+                "changesSummary", CHANGES_SUMMARY.columnName(),
+                "changedBy",      CHANGED_BY_ACTOR_ID.columnName());
 
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                          String[] urls, String changesJson, Long actorId) {

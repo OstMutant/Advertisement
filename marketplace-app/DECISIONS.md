@@ -14,6 +14,10 @@ Repositories hold `private final RepositoryCustom repo` or `private final Filter
 
 **How to apply:** New descriptors follow this shape. `SqlFilterBuilder` is concrete — instantiate directly as `Read.FILTER`; for filters with a base predicate (e.g. always `deleted_at IS NULL`) use an anonymous subclass overriding `build()`.
 
+**Field factory convention (`*Col`):** Use `strCol(ALIAS, fieldName)` / `longCol(ALIAS, fieldName)` etc. for standard table fields — `SqlNamingUtil.toSnakeCase` is applied automatically, so camelCase `@FieldNameConstants` values (e.g. `passwordHash` → `password_hash`) work directly. Use the single-arg `strCol(column)` form for tables queried without an alias. Fall back to explicit `str(sqlExpression, alias)` only when the alias differs from the column name (e.g. join fields like `longVal("u.id", "created_by_user_id")`).
+
+**Named parameter convention:** Column references in SQL string constants use `FIELD.columnName()` or `FIELD.sqlExpression()`. `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — single-word identifiers (`id`, `url`) always qualify. Multi-word camelCase params (`:entityType`, `:actorId`) stay as string literals — their camelCase form is intentional and does not match the snake_case `columnName()`.
+
 ---
 
 ## 2026-05-12 — Dependency versions locked

@@ -12,13 +12,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.ost.marketplace.repository.user.UserDescriptor.*;
+
 @Repository
 public class UserRepository extends FilterableRepository<User, UserFilterDto> {
 
     private final UserCrudRepository crud;
 
     UserRepository(JdbcClient jdbcClient, UserCrudRepository crud) {
-        super(jdbcClient, UserDescriptor.Read.PROJECTION, UserDescriptor.Read.FILTER);
+        super(jdbcClient, Read.PROJECTION, Read.FILTER);
         this.crud = crud;
     }
 
@@ -35,29 +37,25 @@ public class UserRepository extends FilterableRepository<User, UserFilterDto> {
     }
 
     public Optional<User> findByEmail(String email) {
-        return find(UserDescriptor.Read.EMAIL_FILTER, email);
+        return find(Read.EMAIL_FILTER, email);
     }
 
     public void updateProfile(UserProfileDto dto) {
-        executeUpdate(UserDescriptor.Write.UPDATE_PROFILE,
-                UserDescriptor.Write.updateProfileParams(dto));
+        executeUpdate(Write.UPDATE_PROFILE, Write.updateProfileParams(dto));
     }
 
     public void updateLocale(Long userId, String locale) {
-        executeUpdate(UserDescriptor.Write.UPDATE_LOCALE,
-                UserDescriptor.Write.updateLocaleParams(userId, locale));
+        executeUpdate(Write.UPDATE_LOCALE, Write.updateLocaleParams(userId, locale));
     }
 
     public List<Long> findExistingIds(Long[] ids) {
-        return findAll(UserDescriptor.Read.SELECT_EXISTING_IDS,
-                UserDescriptor.Read.idsParams(ids),
-                (rs, _) -> rs.getLong("id"));
+        return findAll(Read.SELECT_EXISTING_IDS, Read.idsParams(ids),
+                (rs, _) -> ID.extract(rs));
     }
 
     public Map<Long, String> findActorNames(Long[] ids) {
-        return findAll(UserDescriptor.Read.SELECT_ACTOR_NAMES,
-                        UserDescriptor.Read.idsParams(ids),
-                        (rs, _) -> Map.entry(rs.getLong("id"), rs.getString("name")))
+        return findAll(Read.SELECT_ACTOR_NAMES, Read.idsParams(ids),
+                        (rs, _) -> Map.entry(ID.extract(rs), NAME.extract(rs)))
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }

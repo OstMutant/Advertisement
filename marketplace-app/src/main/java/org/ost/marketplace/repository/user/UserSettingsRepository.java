@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.ost.marketplace.repository.user.UserDescriptor.*;
+
 @Repository
 public class UserSettingsRepository extends RepositoryCustom {
 
@@ -27,8 +29,8 @@ public class UserSettingsRepository extends RepositoryCustom {
     @Transactional
     public void save(Long userId, UserSettings settings) {
         try {
-            executeUpdate(UserDescriptor.Write.SAVE_SETTINGS,
-                    UserDescriptor.Write.saveSettingsParams(userId, mapper.writeValueAsString(settings)));
+            executeUpdate(Write.SAVE_SETTINGS,
+                    Write.saveSettingsParams(userId, mapper.writeValueAsString(settings)));
         } catch (Exception ex) {
             log.error("Failed to save settings for userId={}", userId, ex);
             throw new SettingsPersistenceException("Failed to save settings for userId=" + userId, ex);
@@ -37,8 +39,7 @@ public class UserSettingsRepository extends RepositoryCustom {
 
     public UserSettings load(Long userId) {
         try {
-            return findOne(UserDescriptor.Write.SELECT_SETTINGS,
-                           UserDescriptor.Write.loadSettingsParams(userId), String.class)
+            return findOne(Write.SELECT_SETTINGS, Write.loadSettingsParams(userId), String.class)
                     .map(json -> {
                         try { return mapper.readValue(json, UserSettings.class); }
                         catch (Exception e) { throw new RuntimeException(e); }

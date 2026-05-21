@@ -38,7 +38,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
     public static final SqlDescriptorField<String>  SNAPSHOT_DATA   = strCol(ALIAS,     "snapshot_data");
     public static final SqlDescriptorField<String>  CHANGES_SUMMARY = strCol(ALIAS,     "changes_summary");
     public static final SqlDescriptorField<Long>    ACTOR_ID        = longCol(ALIAS,    "actor_id");
-    public static final SqlDescriptorField<String>  CHANGED_BY_NAME = str("changed_by_name", "changed_by_name");
+    public static final SqlDescriptorField<String>  CHANGED_BY_NAME = strCol("changed_by_name");
 
     public static final class Read {
         private Read() {}
@@ -46,16 +46,20 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         private static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
         public static final SqlCommand SELECT_SNAPSHOT_DATA_BY_ID = SqlCommand.of(
-                "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
-                " FROM "  + TABLE +
-                " WHERE " + ID.columnName() + " = :id AND " + ENTITY_TYPE.columnName() + " = :entityType");
+                "SELECT {snapshotData}::text FROM {table} WHERE {id} = :id AND {entityType} = :entityType",
+                "snapshotData", SNAPSHOT_DATA.columnName(),
+                "table",        TABLE,
+                "id",           ID.columnName(),
+                "entityType",   ENTITY_TYPE.columnName());
 
         public static final SqlCommand SELECT_LAST_SNAPSHOT_DATA = SqlCommand.of(
-                "SELECT " + SNAPSHOT_DATA.columnName() + "::text" +
-                " FROM "  + TABLE +
-                " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
-                " AND "   + ENTITY_ID.columnName()   + " = :entityId" +
-                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1");
+                "SELECT {snapshotData}::text FROM {table}" +
+                " WHERE {entityType} = :entityType AND {entityId} = :entityId ORDER BY {createdAt} DESC LIMIT 1",
+                "snapshotData", SNAPSHOT_DATA.columnName(),
+                "table",        TABLE,
+                "entityType",   ENTITY_TYPE.columnName(),
+                "entityId",     ENTITY_ID.columnName(),
+                "createdAt",    CREATED_AT.columnName());
 
         public static final SqlCommand SELECT_SNAPSHOT_CONTENT_BY_ID = SqlCommand.of("""
                 SELECT a.snapshot_data::text AS snapshot_data,
@@ -68,14 +72,19 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static final SqlCommand SELECT_LAST_SNAPSHOT_ID = SqlCommand.of(
-                "SELECT " + ID.columnName() + " FROM " + TABLE +
-                " WHERE " + ENTITY_TYPE.columnName() + " = :entityType" +
-                " AND "   + ENTITY_ID.columnName()   + " = :entityId" +
-                " ORDER BY " + CREATED_AT.columnName() + " DESC LIMIT 1");
+                "SELECT {id} FROM {table}" +
+                " WHERE {entityType} = :entityType AND {entityId} = :entityId ORDER BY {createdAt} DESC LIMIT 1",
+                "id",         ID.columnName(),
+                "table",      TABLE,
+                "entityType", ENTITY_TYPE.columnName(),
+                "entityId",   ENTITY_ID.columnName(),
+                "createdAt",  CREATED_AT.columnName());
 
         public static final SqlCommand SELECT_CHANGES_SUMMARY = SqlCommand.of(
-                "SELECT " + CHANGES_SUMMARY.columnName() + "::text" +
-                " FROM "  + TABLE + " WHERE " + ID.columnName() + " = :id");
+                "SELECT {changesSummary}::text FROM {table} WHERE {id} = :id",
+                "changesSummary", CHANGES_SUMMARY.columnName(),
+                "table",          TABLE,
+                "id",             ID.columnName());
 
         public static final SqlCommand SELECT_PREVIOUS_SNAPSHOT_CONTENT = SqlCommand.of("""
                 SELECT prev.snapshot_data::text AS snapshot_data,
@@ -96,7 +105,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 """);
 
         public static MapSqlParameterSource snapshotByIdParams(Long id, EntityType entityType) {
-            return Params.with("id", id).add("entityType", entityType.name());
+            return Params.with(ID.columnName(), id).add("entityType", entityType.name());
         }
 
         public static MapSqlParameterSource entityParams(EntityType entityType, Long entityId) {
@@ -104,7 +113,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource idParams(Long id) {
-            return Params.of("id", id);
+            return Params.of(ID.columnName(), id);
         }
 
         public static MapSqlParameterSource previousSnapshotContentParams(Long snapshotId, EntityType entityType) {
@@ -113,8 +122,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
 
         public static SnapshotContent mapSnapshotContent(ResultSet rs) throws SQLException {
             return new SnapshotContent(
-                    new SnapshotPayload(rs.getString("snapshot_data")),
-                    rs.getInt("version"));
+                    new SnapshotPayload(SNAPSHOT_DATA.extract(rs)),
+                    History.VERSION.extract(rs));
         }
 
         private static abstract class JsonProjection<T> extends SqlFixedQuery<T> {
@@ -139,7 +148,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
             private Activity() {}
 
             public static final SqlDescriptorField<Long>    SNAPSHOT_ID   = longVal(ALIAS + ".id", "snapshot_id");
-            public static final SqlDescriptorField<Boolean> ENTITY_EXISTS = bool("entity_exists", "entity_exists");
+            public static final SqlDescriptorField<Boolean> ENTITY_EXISTS = boolCol("entity_exists");
 
             public static final String QUERY = """
                     SELECT al.id                    AS snapshot_id,
@@ -285,19 +294,25 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         private Write() {}
 
         public static final SqlCommand INSERT = SqlCommand.of(
-                "INSERT INTO " + TABLE +
-                " (" + ENTITY_TYPE.columnName() + ", " + ENTITY_ID.columnName() + ", " + ACTION_TYPE.columnName() + ", " +
-                       SNAPSHOT_DATA.columnName() + ", " + CHANGES_SUMMARY.columnName() + ", " + ACTOR_ID.columnName() + ")" +
-                " VALUES (:entityType, :entityId, :actionType," +
-                " CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)");
+                "INSERT INTO {table} ({entityType}, {entityId}, {actionType}, {snapshotData}, {changesSummary}, {actorId})" +
+                " VALUES (:entityType, :entityId, :actionType, CAST(:snapshotData AS JSONB), CAST(:changes AS JSONB), :actorId)",
+                "table",          TABLE,
+                "entityType",     ENTITY_TYPE.columnName(),
+                "entityId",       ENTITY_ID.columnName(),
+                "actionType",     ACTION_TYPE.columnName(),
+                "snapshotData",   SNAPSHOT_DATA.columnName(),
+                "changesSummary", CHANGES_SUMMARY.columnName(),
+                "actorId",        ACTOR_ID.columnName());
 
         public static final SqlCommand UPDATE_CHANGES_SUMMARY = SqlCommand.of(
-                "UPDATE " + TABLE +
-                " SET " + CHANGES_SUMMARY.columnName() + " = CAST(:s AS JSONB) WHERE id = :id");
+                "UPDATE {table} SET {changesSummary} = CAST(:s AS JSONB) WHERE id = :id",
+                "table",          TABLE,
+                "changesSummary", CHANGES_SUMMARY.columnName());
 
         public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
-                "DELETE FROM " + TABLE +
-                " WHERE " + CREATED_AT.columnName() + " < NOW() - MAKE_INTERVAL(days => :days)");
+                "DELETE FROM {table} WHERE {createdAt} < NOW() - MAKE_INTERVAL(days => :days)",
+                "table",     TABLE,
+                "createdAt", CREATED_AT.columnName());
 
         public static MapSqlParameterSource insertParams(EntityType entityType, Long entityId,
                                                           ActionType actionType, String snapshotData,
@@ -311,7 +326,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
         }
 
         public static MapSqlParameterSource updateChangesSummaryParams(Long snapshotId, String json) {
-            return Params.with("id", snapshotId).add("s", json);
+            return Params.with(ID.columnName(), snapshotId).add("s", json);
         }
 
         public static MapSqlParameterSource deleteOlderThanParams(int days) {

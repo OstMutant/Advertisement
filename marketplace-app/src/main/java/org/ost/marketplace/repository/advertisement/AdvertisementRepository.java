@@ -11,13 +11,15 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import static org.ost.marketplace.repository.advertisement.AdvertisementDescriptor.*;
+
 @Repository
 public class AdvertisementRepository extends FilterableRepository<AdvertisementInfoDto, AdvertisementFilterDto> {
 
     private final AdvertisementCrudRepository crud;
 
     AdvertisementRepository(JdbcClient jdbcClient, AdvertisementCrudRepository crud) {
-        super(jdbcClient, AdvertisementDescriptor.Read.PROJECTION, AdvertisementDescriptor.Read.FILTER);
+        super(jdbcClient, Read.PROJECTION, Read.FILTER);
         this.crud = crud;
     }
 
@@ -30,28 +32,23 @@ public class AdvertisementRepository extends FilterableRepository<AdvertisementI
     }
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
-        return findOneWhere(AdvertisementDescriptor.Read.BY_ID_ACTIVE_WHERE,
-                AdvertisementDescriptor.Read.byIdParams(id));
+        return findOneWhere(Read.BY_ID_ACTIVE_WHERE, Read.byIdParams(id));
     }
 
     public void softDelete(Long id, Long deletedByUserId) {
-        executeUpdate(AdvertisementDescriptor.Write.SOFT_DELETE,
-                AdvertisementDescriptor.Write.softDeleteParams(id, deletedByUserId));
+        executeUpdate(Write.SOFT_DELETE, Write.softDeleteParams(id, deletedByUserId));
     }
 
     public void deleteOlderThan(int days) {
-        executeUpdate(AdvertisementDescriptor.Write.DELETE_OLDER_THAN,
-                AdvertisementDescriptor.Write.deleteOlderThanParams(days));
+        executeUpdate(Write.DELETE_OLDER_THAN, Write.deleteOlderThanParams(days));
     }
 
     public List<Long> findExistingIds(Long[] ids) {
-        return findAll(AdvertisementDescriptor.Read.SELECT_EXISTING_IDS,
-                AdvertisementDescriptor.Read.existingIdsParams(ids),
-                (rs, _) -> rs.getLong("id"));
+        return findAll(Read.SELECT_EXISTING_IDS, Read.existingIdsParams(ids),
+                (rs, _) -> ID.extract(rs));
     }
 
     public void updateMedia(Long entityId, MediaSummaryDto summary) {
-        executeUpdate(AdvertisementDescriptor.Write.UPDATE_MEDIA,
-                AdvertisementDescriptor.Write.updateMediaParams(entityId, summary));
+        executeUpdate(Write.UPDATE_MEDIA, Write.updateMediaParams(entityId, summary));
     }
 }

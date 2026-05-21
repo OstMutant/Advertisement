@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 
+import static org.ost.attachment.repository.AttachmentDescriptor.*;
+
 @Repository
 @ConditionalOnAttachmentEnabled
 public class AttachmentRepository extends RepositoryCustom {
@@ -36,62 +38,50 @@ public class AttachmentRepository extends RepositoryCustom {
     }
 
     public void softDelete(Long id, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE,
-                AttachmentDescriptor.Write.softDeleteParams(id, actorId));
+        executeUpdate(Write.SOFT_DELETE, Write.softDeleteParams(id, actorId));
     }
 
     public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
-                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
+        executeUpdate(Write.SOFT_DELETE_ALL, Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
-                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
+        executeUpdate(Write.SOFT_DELETE_ALL, Write.softDeleteAllParams(entityType, entityId, actorId));
     }
 
     public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
-        executeUpdate(AttachmentDescriptor.Write.RESTORE_UNDELETE,
-                AttachmentDescriptor.Write.restoreUndeleteParams(entityType, entityId, urls));
+        executeUpdate(Write.RESTORE_UNDELETE, Write.restoreUndeleteParams(entityType, entityId, urls));
     }
 
     public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
-        executeUpdate(AttachmentDescriptor.Write.RESTORE_MARK_DELETED,
-                AttachmentDescriptor.Write.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
+        executeUpdate(Write.RESTORE_MARK_DELETED,
+                Write.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
     }
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
-        return findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_BY_ENTITY,
-                AttachmentDescriptor.Read.entityParams(entityType, entityId),
-                AttachmentDescriptor.Read.PROJECTION);
+        return findAll(Read.SELECT_ACTIVE_BY_ENTITY, Read.entityParams(entityType, entityId), Read.PROJECTION);
     }
 
     public List<String> getActiveUrls(EntityType entityType, Long entityId) {
-        return findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_URLS,
-                AttachmentDescriptor.Read.entityParams(entityType, entityId),
-                (rs, n) -> rs.getString(1));
+        return findAll(Read.SELECT_ACTIVE_URLS, Read.entityParams(entityType, entityId),
+                (rs, n) -> URL.extract(rs));
     }
 
     public List<String> findUrlsDeletedOlderThan(int days) {
-        return findAll(AttachmentDescriptor.Read.FIND_URLS_DELETED_OLDER_THAN,
-                AttachmentDescriptor.Read.findUrlsDeletedOlderThanParams(days),
-                (rs, n) -> rs.getString(1));
+        return findAll(Read.FIND_URLS_DELETED_OLDER_THAN, Read.findUrlsDeletedOlderThanParams(days),
+                (rs, n) -> URL.extract(rs));
     }
 
     public int deleteByUrls(List<String> urls) {
-        return executeUpdate(AttachmentDescriptor.Write.DELETE_BY_URLS,
-                AttachmentDescriptor.Write.deleteByUrlsParams(urls));
+        return executeUpdate(Write.DELETE_BY_URLS, Write.deleteByUrlsParams(urls));
     }
 
     public MediaStats loadMediaStats(EntityType entityType, Long entityId) {
         record Row(String url, String contentType) {}
-        var params = AttachmentDescriptor.Read.entityParams(entityType, entityId);
-        var main = findOne(AttachmentDescriptor.Read.SELECT_MAIN_MEDIA,
-                params,
-                (rs, n) -> new Row(rs.getString(AttachmentDescriptor.URL.columnName()),
-                                    rs.getString(AttachmentDescriptor.CONTENT_TYPE.columnName())));
-        int count = findOne(AttachmentDescriptor.Read.COUNT_ACTIVE,
-                params, Integer.class).orElse(0);
+        var params = Read.entityParams(entityType, entityId);
+        var main = findOne(Read.SELECT_MAIN_MEDIA, params,
+                (rs, n) -> new Row(URL.extract(rs), CONTENT_TYPE.extract(rs)));
+        int count = findOne(Read.COUNT_ACTIVE, params, Integer.class).orElse(0);
         return main
                 .map(m -> new MediaStats(m.url(), m.contentType(), count))
                 .orElse(new MediaStats(null, null, count));
