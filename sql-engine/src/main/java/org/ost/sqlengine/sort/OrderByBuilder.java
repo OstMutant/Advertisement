@@ -20,7 +20,7 @@ public final class OrderByBuilder {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining(", "));
-        return clause.isBlank() ? "" : "ORDER BY " + clause;
+        return clause.isBlank() ? "" : " ORDER BY " + clause;
     }
 
     private static String toSnakeCase(String name) {

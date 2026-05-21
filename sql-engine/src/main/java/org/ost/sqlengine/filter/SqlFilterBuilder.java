@@ -23,6 +23,11 @@ public class SqlFilterBuilder<F> {
         this.bindings = List.copyOf(bindings);
     }
 
+    public String build(MapSqlParameterSource params, F filter, String prefix) {
+        String dynamic = build(params, filter);
+        return dynamic.isBlank() ? "" : prefix + dynamic;
+    }
+
     public String build(MapSqlParameterSource params, F filter) {
         List<SqlCondition<?>> sqlConditions = bindings.stream()
                 .<SqlCondition<?>>map(r -> r.getCondition(filter))
@@ -38,7 +43,7 @@ public class SqlFilterBuilder<F> {
                 .collect(Collectors.joining(" AND "));
     }
 
-    public Map<String, Object> toParams(List<SqlCondition<?>> sqlConditions) {
+    private Map<String, Object> toParams(List<SqlCondition<?>> sqlConditions) {
         return sqlConditions.stream().collect(Collectors.toMap(SqlCondition::filterProperty, SqlCondition::value));
     }
 }

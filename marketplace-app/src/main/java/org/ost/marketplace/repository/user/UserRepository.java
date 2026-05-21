@@ -26,34 +26,8 @@ import static org.ost.sqlengine.filter.SqlCondition.*;
 
 @Repository
 @RequiredArgsConstructor
+@SuppressWarnings("java:S1192")
 public class UserRepository {
-
-    private static final String TABLE  = "user_information";
-    private static final String ALIAS  = "u";
-
-    private static final String SELECT =
-            "SELECT id, name, email, role, password_hash, created_at, updated_at, locale" +
-            " FROM " + TABLE + " " + ALIAS;
-    private static final String COUNT  = "SELECT COUNT(*) FROM " + TABLE + " " + ALIAS;
-
-    private static final String SELECT_EXISTING_IDS =
-            "SELECT id FROM " + TABLE + " WHERE id = ANY(:ids)";
-    private static final String SELECT_ACTOR_NAMES =
-            "SELECT id, name FROM " + TABLE + " WHERE id = ANY(:ids)";
-
-    private static final String UPDATE_PROFILE =
-            "UPDATE " + TABLE + " SET name = :name, role = :role, updated_at = NOW() WHERE id = :id";
-    private static final String UPDATE_LOCALE =
-            "UPDATE " + TABLE + " SET locale = :locale WHERE id = :id";
-
-    private static final Map<String, String> SORT = Map.of(
-            "id",         ALIAS + ".id",
-            "name",       ALIAS + ".name",
-            "email",      ALIAS + ".email",
-            "role",       ALIAS + ".role",
-            "created_at", ALIAS + ".created_at",
-            "updated_at", ALIAS + ".updated_at",
-            "locale",     ALIAS + ".locale");
 
     private static final RowMapper<User> ROW_MAPPER = (rs, _) -> {
         Timestamp createdAt = rs.getTimestamp("created_at");
@@ -71,19 +45,19 @@ public class UserRepository {
     };
 
     private static final SqlFilterBuilder<UserFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(name,           ALIAS + ".name",       (m, v) -> like(m, v.getName())),
-            SqlBoundFilter.of(email,          ALIAS + ".email",      (m, v) -> like(m, v.getEmail())),
-            SqlBoundFilter.of(roles,          ALIAS + ".role",       (m, v) -> inSet(m, v.getRoles())),
-            SqlBoundFilter.of(createdAtStart, ALIAS + ".created_at", (m, v) -> after(m, v.getCreatedAtStart())),
-            SqlBoundFilter.of(createdAtEnd,   ALIAS + ".created_at", (m, v) -> before(m, v.getCreatedAtEnd())),
-            SqlBoundFilter.of(updatedAtStart, ALIAS + ".updated_at", (m, v) -> after(m, v.getUpdatedAtStart())),
-            SqlBoundFilter.of(updatedAtEnd,   ALIAS + ".updated_at", (m, v) -> before(m, v.getUpdatedAtEnd())),
-            SqlBoundFilter.of(startId,        ALIAS + ".id",         (m, v) -> after(m, v.getStartId())),
-            SqlBoundFilter.of(endId,          ALIAS + ".id",         (m, v) -> before(m, v.getEndId()))
+            SqlBoundFilter.of(name,           "u.name",       (m, v) -> like(m, v.getName())),
+            SqlBoundFilter.of(email,          "u.email",      (m, v) -> like(m, v.getEmail())),
+            SqlBoundFilter.of(roles,          "u.role",       (m, v) -> inSet(m, v.getRoles())),
+            SqlBoundFilter.of(createdAtStart, "u.created_at", (m, v) -> after(m, v.getCreatedAtStart())),
+            SqlBoundFilter.of(createdAtEnd,   "u.created_at", (m, v) -> before(m, v.getCreatedAtEnd())),
+            SqlBoundFilter.of(updatedAtStart, "u.updated_at", (m, v) -> after(m, v.getUpdatedAtStart())),
+            SqlBoundFilter.of(updatedAtEnd,   "u.updated_at", (m, v) -> before(m, v.getUpdatedAtEnd())),
+            SqlBoundFilter.of(startId,        "u.id",         (m, v) -> after(m, v.getStartId())),
+            SqlBoundFilter.of(endId,          "u.id",         (m, v) -> before(m, v.getEndId()))
     ));
 
     private static final SqlFilterBuilder<String> EMAIL_FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(email, ALIAS + ".email", SqlCondition::equalsTo)
+            SqlBoundFilter.of(email, "u.email", SqlCondition::equalsTo)
     ));
 
     private final JdbcClient jdbcClient;
@@ -95,31 +69,34 @@ public class UserRepository {
 
     public List<User> findByFilter(UserFilterDto filter, Pageable pageable) {
         var params = new MapSqlParameterSource();
-        String where   = FILTER.build(params, filter);
-        String orderBy = OrderByBuilder.build(pageable.getSort(), SORT);
-        String sql = SELECT
-                + (where.isBlank()   ? "" : " WHERE " + where)
-                + (orderBy.isBlank() ? "" : " " + orderBy)
-                + pageLimit(params, pageable);
+        String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
+                "id",         "u.id",
+                "name",       "u.name",
+                "email",      "u.email",
+                "role",       "u.role",
+                "created_at", "u.created_at",
+                "updated_at", "u.updated_at",
+                "locale",     "u.locale"));
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s%s%s"
+                .formatted(FILTER.build(params, filter, " WHERE "), orderBy, pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
     public Long countByFilter(UserFilterDto filter) {
         var params = new MapSqlParameterSource();
-        String where = FILTER.build(params, filter);
-        String sql = COUNT + (where.isBlank() ? "" : " WHERE " + where);
+        String sql = "SELECT COUNT(*) FROM user_information u%s".formatted(FILTER.build(params, filter, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
     public Optional<User> findByEmail(String email) {
         var params = new MapSqlParameterSource();
-        String where = EMAIL_FILTER.build(params, email);
-        String sql = SELECT + (where.isBlank() ? "" : " WHERE " + where);
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s"
+                .formatted(EMAIL_FILTER.build(params, email, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
     }
 
     public void updateProfile(UserProfileDto dto) {
-        jdbcClient.sql(UPDATE_PROFILE)
+        jdbcClient.sql("UPDATE user_information SET name = :name, role = :role, updated_at = NOW() WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("name", dto.name())
                           .addValue("role", dto.role().name())
@@ -128,7 +105,7 @@ public class UserRepository {
     }
 
     public void updateLocale(Long userId, String locale) {
-        jdbcClient.sql(UPDATE_LOCALE)
+        jdbcClient.sql("UPDATE user_information SET locale = :locale WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("locale", locale)
                           .addValue("id",     userId))
@@ -136,14 +113,14 @@ public class UserRepository {
     }
 
     public List<Long> findExistingIds(Long[] ids) {
-        return jdbcClient.sql(SELECT_EXISTING_IDS)
+        return jdbcClient.sql("SELECT id FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(Long.class)
                 .list();
     }
 
     public Map<Long, String> findActorNames(Long[] ids) {
-        return jdbcClient.sql(SELECT_ACTOR_NAMES)
+        return jdbcClient.sql("SELECT id, name FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query((rs, _) -> Map.entry(rs.getObject("id", Long.class), rs.getString("name")))
                 .list()

@@ -2,23 +2,22 @@
 
 ---
 
-## Ongoing — Descriptor + repository pattern (Read/Write namespaces)
+## 2026-05-21 — Inline SQL repository style (supersedes Descriptor pattern)
 
-**Decision:** Every table has one `final class implements SqlEntityDescriptor` with a private constructor. SQL, field constants, and param factories are split into two inner namespaces:
-- `Read` — `PROJECTION` (`SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*`/`BY_*_WHERE` constants, read-side param factories, `FILTER` (`SqlFilterBuilder` instance).
-- `Write` — `SqlCommand` constants for INSERT/UPDATE/DELETE, write-side param factories.
+**Decision:** All repositories inline SQL directly in the method that executes it. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`, `SqlEntityProjection`, `SqlFixedQuery`, `RepositoryCustom`) has been fully removed from the codebase.
 
-Repositories hold `private final RepositoryCustom repo` or `private final FilterableRepository<T,F> query` via composition — never extend either class. No inline SQL strings, no inline `MapSqlParameterSource` construction at call sites — all of these belong on the descriptor.
+Rules:
+- SQL inline per method — text block `"""..."""` for multi-line, single-line string otherwise.
+- `@SuppressWarnings("java:S1192")` on every repository class — duplicate literals are intentional.
+- `MapSqlParameterSource` constructed inline per method — no shared param-factory helpers. Locality beats brevity.
+- Dynamic SQL assembled with `.formatted()`, never `+` concatenation.
+- `SqlFilterBuilder.build(params, filter, prefix)` — prefix (` WHERE ` or ` AND `) is part of the call.
+- `OrderByBuilder.build(sort, map)` returns `" ORDER BY ..."` with leading space — no ternary at call sites.
+- `@RequiredArgsConstructor` + `@Slf4j` everywhere; `@Qualifier` on fields propagates via `lombok.config`.
 
-**Why:** One grep target (`SqlEntityDescriptor`) finds all dual-side descriptors. The namespace makes the SQL boundary explicit (`Descriptor.Read.PROJECTION` ↔ `Descriptor.Write.SOFT_DELETE`). Composition over inheritance keeps repository constructors package-private (avoids leaking package-private CrudRepository types into the public API).
+**Why:** SQL is trivially readable without jumping to a constants class. Each method is self-contained — a reviewer sees the full query in one place. Duplication of short WHERE fragments is acceptable; hidden indirection is not.
 
-**How to apply:** New descriptors follow this shape. `SqlFilterBuilder` is concrete — instantiate directly as `Read.FILTER`; for filters with a base predicate (e.g. always `deleted_at IS NULL`) use an anonymous subclass overriding `build()`.
-
-**Field factory convention (`*Col`):** Use `strCol(ALIAS, fieldName)` / `longCol(ALIAS, fieldName)` etc. for standard table fields — `SqlNamingUtil.toSnakeCase` is applied automatically, so camelCase `@FieldNameConstants` values (e.g. `passwordHash` → `password_hash`) work directly. Use the single-arg `strCol(column)` form for tables queried without an alias. Fall back to explicit `str(sqlExpression, alias)` only when the alias differs from the column name (e.g. join fields like `longVal("u.id", "created_by_user_id")`).
-
-**SqlCommand template API:** All `SqlCommand` constants use `SqlCommand.of(template, key, value, ...)` with named `{placeholder}` substitution — never raw `+` concatenation with inline `.columnName()` calls. Reusable SQL fragments (shared across multiple commands) use `SqlCommand.sql(template, key, value, ...)` which returns a `String`. Both throw `IllegalArgumentException` at class-load time on any placeholder mismatch. Text blocks (CTEs, multi-table joins) follow the same rule — same placeholder name may appear multiple times and is replaced everywhere. Use `columnName()` for bare column references, `sqlExpression()` for table-alias-qualified references; use distinct placeholder names when both forms appear in the same query.
-
-**Named parameter convention:** `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — applies to single-word (`id`, `url`) and snake_case multi-word (`snapshot_data`, `changes_summary`) identifiers alike. Multi-word params that do not match a column name use camelCase string literals (`:entityType`, `:actorId`). Param-factory methods with 4+ arguments use a `record` inside `Write` — never positional args.
+**How to apply:** When adding a new repository method, write the full SQL inline. Never extract a SQL fragment to a constant unless it is shared across 3+ methods and genuinely non-trivial.
 
 ---
 

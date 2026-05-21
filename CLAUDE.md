@@ -78,79 +78,28 @@ advertisement-parent (root pom)
 
 ### Repository pattern
 
-**Policy:** Spring Data JDBC `CrudRepository` for trivial save/find; `JdbcClient` (via `*Descriptor` + `RepositoryCustom`) for bespoke queries.
+**Policy:** Spring Data JDBC `CrudRepository` for trivial `save`/`findById`/`deleteById`; `JdbcClient` with inline SQL for all bespoke queries.
 
-- Entity classes annotated with `@Table`, `@Id`, `@CreatedDate`, `@LastModifiedDate` where applicable. `@CreatedDate` / `@LastModifiedDate` rely on the project-wide `AuditorAware<Long>` bean in `marketplace-app/JdbcAuditingConfig`.
-- Repository = interface that extends `CrudRepository<T, Long>` and a `*Custom` interface.
-- `*Custom` interface declares bespoke method signatures; `*CustomImpl` extends `RepositoryCustom<T, F>` (when filtering/paging applies) and holds the `JdbcClient` calls + `*Descriptor` lookups.
-- Hand-rolled `INSERT` / `findById` SQL is removed whenever it duplicates what `CrudRepository.save` / `.findById` already provides.
-- Starters that ship their own repositories must declare `@EnableJdbcRepositories(basePackages = "...")` in their `@AutoConfiguration`, because the marketplace `@SpringBootApplication` scan only covers `org.ost.marketplace`.
+**SQL style:**
+- No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. SQL lives inline in the method that executes it — text block `"""..."""` for multi-line, single-line string otherwise.
+- `@SuppressWarnings("java:S1192")` on every repository class (suppresses duplicate-string-literal warning — intentional, locality beats brevity).
+- `MapSqlParameterSource` constructed inline per method — no shared param-factory helpers.
+- Dynamic SQL assembled with `.formatted()`, never `+` concatenation: `"SELECT ... FROM t%s%s%s".formatted(filter, orderBy, pageLimit)`.
+- `SqlFilterBuilder.build(params, filter, prefix)` — pass ` WHERE ` or ` AND ` as the prefix directly in the call.
+- `OrderByBuilder.build(sort, map)` returns `" ORDER BY ..."` with a leading space (or `""`) — no ternary at call sites.
 
-Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
+**Lombok:**
+- `@RequiredArgsConstructor` everywhere — no manual constructors.
+- `@Slf4j` for logging — no manual `Logger` declarations.
+- `@Qualifier` on injected fields propagates automatically via `lombok.config` (`lombok.copyableAnnotations += org.springframework.beans.factory.annotation.Qualifier`).
 
-### Descriptor pattern (Read / Write namespaces)
+**Structure:**
+- Entity classes: `@Table`, `@Id`, `@CreatedDate`, `@LastModifiedDate` where applicable. Auditing relies on the project-wide `AuditorAware<Long>` bean in `marketplace-app/JdbcAuditingConfig`.
+- Trivial CRUD via a companion `*CrudRepository extends CrudRepository<T, Long>`.
+- Hand-rolled `INSERT`/`findById` removed whenever `CrudRepository.save`/`.findById` already provides it.
+- Starters must declare `@EnableJdbcRepositories(basePackages = "...")` in their `@AutoConfiguration` — `@SpringBootApplication` scan covers only `org.ost.marketplace`.
 
-**Policy:** Descriptors are `final` namespace classes that implement `SqlEntityDescriptor` (marker, lives in `sql-engine`). They split SQL and param construction into two symmetric inner classes:
-
-- `public static final class Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param-factory methods.
-- `public static final class Write` — `SqlCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
-- Shared `SqlDescriptorField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
-
-Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
-
-**SqlCommand template API:**
-All SQL string constants use `SqlCommand.of(template, key, value, ...)` with named `{placeholder}` substitution — never raw string concatenation with `.columnName()` / `.sqlExpression()` inline calls:
-```java
-public static final SqlCommand DELETE_OLDER_THAN = SqlCommand.of(
-        "DELETE FROM {table} WHERE {deletedAt} < NOW() - MAKE_INTERVAL(days => :days)",
-        "table",     TABLE,
-        "deletedAt", DELETED_AT.columnName());
-```
-For reusable SQL fragments (helper strings shared across multiple commands) use the static `SqlCommand.sql(template, key, value, ...)` overload, which returns a `String`:
-```java
-private static final String WHERE_ACTIVE = SqlCommand.sql(
-        " WHERE {entityType} = :entityType AND {deletedAt} IS NULL",
-        "entityType", ENTITY_TYPE.columnName(),
-        "deletedAt",  DELETED_AT.columnName());
-```
-Both forms are fail-fast: they throw `IllegalArgumentException` at class-load time if a key has no matching `{placeholder}` or a `{placeholder}` has no matching key.
-
-Text blocks (CTEs, LATERAL joins, multi-table queries) follow the same rule — `{placeholder}` for every column reference, inline `String.replace` replaces all occurrences:
-```java
-public static final SqlCommand SELECT_SNAPSHOT_CONTENT_BY_ID = SqlCommand.of("""
-        SELECT a.{snapshotData}::text AS {snapshotData},
-               (SELECT COUNT(*) FROM audit_log b
-                WHERE b.{entityType} = a.{entityType}
-                  AND b.{entityId}   = a.{entityId}
-                  AND b.{createdAt} <= a.{createdAt})::int AS version
-        FROM audit_log a
-        WHERE a.{id} = :id AND a.{entityType} = :entityType
-        """,
-        "snapshotData", SNAPSHOT_DATA.columnName(),
-        "entityType",   ENTITY_TYPE.columnName(),
-        "entityId",     ENTITY_ID.columnName(),
-        "createdAt",    CREATED_AT.columnName(),
-        "id",           ID.columnName());
-```
-
-**`columnName()` vs `sqlExpression()` in template args:**
-- Use `FIELD.columnName()` (bare column, e.g. `"snapshot_data"`) when the placeholder appears without a table-alias prefix — inside CTE bodies, `FROM`-less fragments, or `SELECT` lists of aliasless tables.
-- Use `FIELD.sqlExpression()` (alias-qualified, e.g. `"al.snapshot_data"`) when the placeholder appears with a table alias — outer `SELECT` lists, `WHERE` and `ORDER BY` clauses that reference an aliased CTE or joined table.
-- When the same column appears both ways in one query, use two different placeholder names (e.g. `{snapshotData}` → bare, `{alSnapshotData}` → alias-qualified).
-
-**Named parameter convention:**
-- `addValue` / `Params.of` / `.add` keys use `FIELD.columnName()` when the parameter name equals the column name — applies to both single-word (`id`, `url`) and snake_case multi-word (`snapshot_data`, `changes_summary`) identifiers.
-- Multi-word parameters that do NOT match a column name use camelCase string literals (`:entityType`, `:actorId`, `:filterUserId`) — their camelCase form is intentional for readability.
-
-**Param-factory methods with 4+ arguments** must use a `record` inside `Write`:
-```java
-public record InsertEntry(EntityType entityType, Long entityId, ActionType actionType,
-                          String snapshotData, String changesSummary, Long actorId) {}
-
-public static MapSqlParameterSource insertParams(InsertEntry e) { ... }
-```
-
-Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
+Reference implementations: `UserRepository` / `AdvertisementRepository` in `marketplace-app`; `AttachmentRepository` / `AttachmentSnapshotRepository` in `attachment-spring-boot-starter`; `AuditLogRepository` in `audit-spring-boot-starter`.
 
 ---
 
@@ -228,60 +177,40 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 
 ## sql-engine API
 
-Two patterns for repositories depending on query complexity:
+The module provides two utilities used by all repositories:
 
-### Simple/filterable queries — `SqlEntityProjection` + `RepositoryCustom`
+### `SqlFilterBuilder<F>` — dynamic WHERE/AND fragments
 
-Define `SqlDescriptorField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
-
-```java
-// 1. Define fields
-// *Col shorthand: SqlNamingUtil.toSnakeCase(column) for expression and alias — accepts camelCase or snake_case
-static final SqlDescriptorField<Long>   ID    = longCol("a", "id");     // → "a.id", alias "id"
-static final SqlDescriptorField<String> TITLE = strCol("a", "title");   // → "a.title", alias "title"
-static final SqlDescriptorField<String> UPDATED_AT = instantCol("a", updatedAt); // camelCase → "updated_at"
-// No-alias form for tables queried without a table alias:
-static final SqlDescriptorField<String> ENTITY_TYPE = strCol("entity_type");
-// Explicit form when alias ≠ column name:
-static final SqlDescriptorField<Long> SNAPSHOT_ID = longVal("al.id", "snapshot_id");
-
-// 2. Projection (FROM source)
-SqlEntityProjection<AdvertisementDto> projection =
-    new SqlEntityProjection<>(List.of(ID, TITLE, ...), "advertisements a");
-
-// 3. RowMapper lives in RepositoryCustom subclass
-@Override
-protected AdvertisementDto mapRow(ResultSet rs, int rowNum) {
-    return new AdvertisementDto(ID.extract(rs), TITLE.extract(rs), ...);
-}
-
-// 4. Inherited methods
-findByFilter(filter, pageable)   // SELECT ... WHERE ... ORDER BY ... LIMIT/OFFSET
-countByFilter(filter)            // SELECT COUNT(*) FROM ...
-```
-
-### Complex/structural queries — `SqlFixedQuery<T>`
-
-For CTEs, UNION ALL, self-joins — the developer writes the full SQL:
+Declare a `static final SqlFilterBuilder<FilterDto> FILTER` field in each repository. Each `SqlBoundFilter` maps one filter field to a SQL condition:
 
 ```java
-public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
-    static final SqlDescriptorField<Long> ID = longVal("s.id", "snapshot_id"); // alias ≠ column → explicit form
-
-    public ActivityProjection(ObjectMapper om) {
-        super(List.of(ID, ...));
-    }
-
-    @Override public String querySql() { return "WITH ... UNION ALL ..."; }
-
-    @Override public ActivityItemDto mapRow(ResultSet rs, int n) {
-        return new ActivityItemDto(ID.extract(rs), ...);
-    }
-}
+private static final SqlFilterBuilder<UserFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
+        SqlBoundFilter.of(name,  "u.name",  (m, v) -> like(m, v.getName())),
+        SqlBoundFilter.of(email, "u.email", (m, v) -> like(m, v.getEmail())),
+        SqlBoundFilter.of(roles, "u.role",  (m, v) -> inSet(m, v.getRoles()))
+));
 ```
 
-### Conditions (`SqlCondition` factory methods)
-`SqlCondition.like()`, `.equalsTo()`, `.after()`, `.before()`, `.inSet()` — all null-safe via `.applyIfPresent()`. Conditions are composed in a `SqlFilterBuilder` subclass that adds named parameters to `MapSqlParameterSource`.
+Call with a prefix so the caller controls whether the fragment starts with `WHERE` or `AND`:
+
+```java
+String sql = "SELECT ... FROM user_information u%s".formatted(FILTER.build(params, filter, " WHERE "));
+String sql = "SELECT ... FROM advertisement a WHERE a.deleted_at IS NULL%s".formatted(FILTER.build(params, filter, " AND "));
+```
+
+`SqlCondition` factory methods: `like()`, `equalsTo()`, `after()`, `before()`, `inSet()` — all null-safe (return `null` when the value is absent; `SqlFilterBuilder` skips nulls automatically).
+
+### `OrderByBuilder` — ORDER BY fragment
+
+```java
+String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
+        "id",    "u.id",
+        "name",  "u.name",
+        "email", "u.email"));
+// Returns " ORDER BY u.name ASC NULLS LAST" or "" — leading space included
+```
+
+Pass directly into `.formatted()` — no ternary needed at call sites.
 
 ---
 
