@@ -5,8 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.jetbrains.annotations.NotNull;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotContent;
-import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -111,9 +111,9 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
             return Params.with("snapshotId", snapshotId).add("entityType", entityType.name());
         }
 
-        public static SnapshotContent mapSnapshotContent(ResultSet rs) throws SQLException {
-            return new SnapshotContent(
-                    new SnapshotPayload(rs.getString("snapshot_data")),
+        public static SnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
+            return new SnapshotContentDto(
+                    new SnapshotPayloadDto(rs.getString("snapshot_data")),
                     rs.getInt("version"));
         }
 
@@ -183,7 +183,7 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                 @Override
                 public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
                     EntityType entityType = EntityType.valueOf(ENTITY_TYPE.extract(rs));
-                    SnapshotPayload payload = new SnapshotPayload(SNAPSHOT_DATA.extract(rs));
+                    SnapshotPayloadDto payload = new SnapshotPayloadDto(SNAPSHOT_DATA.extract(rs));
                     String displayName = resolvers.stream()
                             .filter(r -> r.supports(entityType))
                             .findFirst()
@@ -273,8 +273,8 @@ public final class AuditLogDescriptor implements SqlEntityDescriptor {
                             CREATED_AT.extract(rs),
                             parseChanges(CHANGES_SUMMARY.extract(rs)),
                             PREV_ID.extract(rs),
-                            new SnapshotPayload(SNAPSHOT_DATA.extract(rs)),
-                            new SnapshotPayload(PREV_SNAPSHOT_DATA.extract(rs))
+                            new SnapshotPayloadDto(SNAPSHOT_DATA.extract(rs)),
+                            new SnapshotPayloadDto(PREV_SNAPSHOT_DATA.extract(rs))
                     );
                 }
             }

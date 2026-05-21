@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -166,7 +166,7 @@ public class ActivityRowRenderer {
     }
 
     @SuppressWarnings("unchecked")
-    private List<ChangeEntry> expandTextFields(SnapshotPayload payload, List<ChangeEntry> changedFields) {
+    private List<ChangeEntry> expandTextFields(SnapshotPayloadDto payload, List<ChangeEntry> changedFields) {
         if (payload == null || payload.isEmpty()) return changedFields;
         try {
             Map<String, Object> snap = objectMapper.readValue(payload.json(), Map.class);

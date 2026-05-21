@@ -1,7 +1,7 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.EntityType;
 
@@ -12,11 +12,11 @@ public class AuditQueryService {
 
     private final AuditLogRepository auditLogRepository;
 
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType);
     }
 
-    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType);
     }
 

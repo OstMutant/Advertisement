@@ -1,6 +1,6 @@
-package org.ost.attachment.entities;
+package org.ost.platform.attachment.dto;
 
-public enum MediaContentType {
+public enum MediaContentTypeDto {
     YOUTUBE("video/youtube"),
     EMBED("video/embed"),
     MP4("video/mp4"),
@@ -8,7 +8,7 @@ public enum MediaContentType {
 
     private final String value;
 
-    MediaContentType(String value) { this.value = value; }
+    MediaContentTypeDto(String value) { this.value = value; }
 
     public String value() { return value; }
 

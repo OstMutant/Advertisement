@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
@@ -72,12 +72,12 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditQueryService.getSnapshotContent(snapshotId, entityType);
     }
 
     @Override
-    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditQueryService.getPreviousSnapshotContent(snapshotId, entityType);
     }
 

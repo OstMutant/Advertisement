@@ -2,7 +2,7 @@ package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
@@ -59,9 +59,9 @@ public class AuditHistoryService {
         auditLogRepository.updateChangesSummary(snapshotId, mapper.toJson(entries));
     }
 
-    public Optional<SnapshotPayload> getLastSnapshotPayload(EntityType entityType, Long entityId) {
+    public Optional<SnapshotPayloadDto> getLastSnapshotPayload(EntityType entityType, Long entityId) {
         return auditLogRepository.getLastSnapshotData(entityType, entityId)
-                .map(SnapshotPayload::new);
+                .map(SnapshotPayloadDto::new);
     }
 
     private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {

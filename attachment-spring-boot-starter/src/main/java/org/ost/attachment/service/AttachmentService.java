@@ -3,7 +3,7 @@ package org.ost.attachment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.entities.MediaContentType;
+import org.ost.platform.attachment.dto.MediaContentTypeDto;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.spi.CurrentActorProvider;
@@ -52,7 +52,7 @@ public class AttachmentService {
         if (url == null) return null;
         if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (CT_EMBED.equals(contentType))   return null;
-        if (MediaContentType.isUploadedVideo(contentType)) return url;
+        if (MediaContentTypeDto.isUploadedVideo(contentType)) return url;
         return url;
     }
 

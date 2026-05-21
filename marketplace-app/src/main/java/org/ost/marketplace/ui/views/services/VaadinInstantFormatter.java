@@ -14,8 +14,4 @@ public class VaadinInstantFormatter implements InstantFormatter {
         return TimeZoneUtil.formatInstantHuman(instant);
     }
 
-    @Override
-    public String formatInstant(Instant instant) {
-        return TimeZoneUtil.formatInstant(instant);
-    }
 }

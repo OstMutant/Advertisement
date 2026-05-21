@@ -1,5 +1,5 @@
 package org.ost.platform.audit.dto;
 
-public record SnapshotPayload(String json) {
+public record SnapshotPayloadDto(String json) {
     public boolean isEmpty() { return json == null || json.isBlank(); }
 }

@@ -11,7 +11,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
@@ -75,7 +75,7 @@ public class EntityHistoryPanel extends Div
 
     @Override
     public EntityHistoryPanel configure(Parameters p) {
-        SnapshotPayload currentSnapshot = auditHistoryService
+        SnapshotPayloadDto currentSnapshot = auditHistoryService
                 .getLastSnapshotPayload(p.getEntityType(), p.getEntityId())
                 .orElse(null);
 
@@ -102,14 +102,14 @@ public class EntityHistoryPanel extends Div
     }
 
     private record RowContext(
-            EntityType entityType, Long entityId, SnapshotPayload currentSnapshot, int historySize,
+            EntityType entityType, Long entityId, SnapshotPayloadDto currentSnapshot, int historySize,
             boolean canOperate, String labelCurrentState, String labelRestore,
             ObjLongConsumer<EntityHistoryDto> onRestoreRequested) {}
 
     private Div buildRow(EntityHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
         EntityType entityType        = ctx.entityType();
         Long entityId                = ctx.entityId();
-        SnapshotPayload currentSnap  = ctx.currentSnapshot();
+        SnapshotPayloadDto currentSnap  = ctx.currentSnapshot();
         int historySize              = ctx.historySize();
         boolean canOperate           = ctx.canOperate();
         String labelCurrentState     = ctx.labelCurrentState();
@@ -159,7 +159,7 @@ public class EntityHistoryPanel extends Div
         return row;
     }
 
-    private boolean jsonEquals(SnapshotPayload a, SnapshotPayload b) {
+    private boolean jsonEquals(SnapshotPayloadDto a, SnapshotPayloadDto b) {
         if (a == null || b == null || a.isEmpty() || b.isEmpty()) return false;
         try {
             return objectMapper.readTree(a.json()).equals(objectMapper.readTree(b.json()));

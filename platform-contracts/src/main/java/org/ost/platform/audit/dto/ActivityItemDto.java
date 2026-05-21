@@ -18,5 +18,5 @@ public record ActivityItemDto(
         List<ChangeEntry> changes,
         Long              changedByActorId,
         String            changedByName,
-        SnapshotPayload   snapshotData
+        SnapshotPayloadDto   snapshotData
 ) {}

@@ -12,7 +12,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.entities.MediaContentType;
+import org.ost.platform.attachment.dto.MediaContentTypeDto;
 import org.ost.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
@@ -115,13 +115,13 @@ public class CardMediaLightbox {
     }
 
     private static String embedSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentTypeDto.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
         return a.getUrl();
     }
 
     private static String thumbSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
-        if (MediaContentType.isVideo(a.getContentType()))                return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentTypeDto.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentTypeDto.isVideo(a.getContentType()))                return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
         return a.getUrl();
     }
 
@@ -131,7 +131,7 @@ public class CardMediaLightbox {
         Attachment a  = attachments.get(idx);
         String     ct = a.getContentType();
 
-        if (MediaContentType.isEmbedded(ct)) {
+        if (MediaContentTypeDto.isEmbedded(ct)) {
             UI.getCurrent().getPage().executeJs(
                 "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}");
             String embedUrl = embedSrc(a);
@@ -141,7 +141,7 @@ public class CardMediaLightbox {
             mainImg.setVisible(false);
             mainVideo.setVisible(false);
             iframe.setVisible(true);
-        } else if (MediaContentType.isUploadedVideo(ct)) {
+        } else if (MediaContentTypeDto.isUploadedVideo(ct)) {
             iframe.getElement().setAttribute("src", "about:blank");
             UI.getCurrent().getPage().executeJs(
                 "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';");

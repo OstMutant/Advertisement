@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.SignUpDto;
@@ -109,7 +109,7 @@ public class UserService {
         return applyUserRestore(userId, auditPort.getSnapshotContent(snapshotId, EntityType.USER), actingUserId);
     }
 
-    private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContent> contentOpt, Long actingUserId) {
+    private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContentDto> contentOpt, Long actingUserId) {
         return contentOpt.flatMap(content -> parseUserSnapshot(content)).flatMap(snap -> {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
@@ -123,7 +123,7 @@ public class UserService {
         });
     }
 
-    private Optional<UserSnapshot> parseUserSnapshot(SnapshotContent content) {
+    private Optional<UserSnapshot> parseUserSnapshot(SnapshotContentDto content) {
         try {
             return Optional.of(objectMapper.readValue(content.snapshotData().json(), UserSnapshot.class));
         } catch (Exception _) {

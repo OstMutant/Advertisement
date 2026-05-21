@@ -2,7 +2,7 @@ package org.ost.audit.services;
 
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.core.model.EntityType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,12 +27,12 @@ public class NoOpAuditPort implements AuditPort {
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) { /* audit disabled */ }
 
     @Override
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return Optional.empty();
     }
 
     @Override
-    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return Optional.empty();
     }
 

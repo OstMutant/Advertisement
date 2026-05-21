@@ -1,7 +1,7 @@
 package org.ost.marketplace.services.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.ost.platform.audit.dto.SnapshotPayload;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -24,7 +24,7 @@ public class AdvertisementDisplayNameResolver implements EntityDisplayNameResolv
     }
 
     @Override
-    public String resolveDisplayName(EntityType entityType, SnapshotPayload snapshot) {
+    public String resolveDisplayName(EntityType entityType, SnapshotPayloadDto snapshot) {
         if (snapshot == null || snapshot.isEmpty()) return "";
         try {
             return switch (entityType) {

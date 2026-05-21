@@ -3,7 +3,7 @@ package org.ost.audit.repository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityDisplayNameResolver;
@@ -42,13 +42,13 @@ public class AuditLogRepository extends RepositoryCustom {
                 (rs, row) -> rs.getString(1));
     }
 
-    public Optional<SnapshotContent> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return findOne(AuditLogDescriptor.Read.SELECT_SNAPSHOT_CONTENT_BY_ID,
                 AuditLogDescriptor.Read.snapshotByIdParams(snapshotId, entityType),
                 (rs, row) -> AuditLogDescriptor.Read.mapSnapshotContent(rs));
     }
 
-    public Optional<SnapshotContent> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return findOne(AuditLogDescriptor.Read.SELECT_PREVIOUS_SNAPSHOT_CONTENT,
                 AuditLogDescriptor.Read.previousSnapshotContentParams(snapshotId, entityType),
                 (rs, row) -> AuditLogDescriptor.Read.mapSnapshotContent(rs));

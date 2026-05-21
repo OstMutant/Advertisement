@@ -15,6 +15,6 @@ public record EntityHistoryDto(
         Instant           createdAt,
         List<ChangeEntry> changes,
         Long              prevSnapshotId,
-        SnapshotPayload   snapshotData,
-        SnapshotPayload   prevSnapshotData
+        SnapshotPayloadDto   snapshotData,
+        SnapshotPayloadDto   prevSnapshotData
 ) {}

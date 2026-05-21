@@ -5,7 +5,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.audit.dto.SnapshotContent;
+import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
@@ -77,7 +77,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        SnapshotContent content = auditPort.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT).orElse(null);
+        SnapshotContentDto content = auditPort.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT).orElse(null);
         if (content == null) return false;
         AdvertisementSnapshot restoredSnapshot;
         try {

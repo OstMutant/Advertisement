@@ -81,3 +81,13 @@ Repositories hold `private final RepositoryCustom repo` or `private final Filter
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
 **Rejected:** `@ConditionalOnAuditEnabled` in `platform-contracts` — contracts must be Spring-free pure Java.
+
+---
+
+## 2026-05-21 — SnapshotBinder coupling in marketplace-app UI is intentional
+
+**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.SnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.
+
+**Why:** `SnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-contracts` (which must stay framework-free). Extracting a `SnapshotBinder.Builder` SPI to platform-contracts would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-contracts`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
+
+**Rejected:** Abstracting `SnapshotBinder.Builder` behind an SPI in `platform-contracts` — over-engineering for a single implementation.
