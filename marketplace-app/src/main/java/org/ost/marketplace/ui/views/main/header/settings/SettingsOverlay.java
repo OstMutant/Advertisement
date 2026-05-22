@@ -48,7 +48,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UserSettingsService                    settingsService;
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
-    private final transient AuditPort                              auditPort;
+    private final transient ObjectProvider<AuditPort>              auditPort;
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiExtension>               auditUiExtensionProvider;
@@ -164,10 +164,10 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     .build();
 
             settingsService.save(currentUser.getId(), newSettings);
-            auditPort.captureUpdate(currentUser.getId(),
+            auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
                     SettingsSnapshot.from(oldSettings),
                     SettingsSnapshot.from(newSettings),
-                    currentUser.getId());
+                    currentUser.getId()));
             if (activityPanel != null) activityPanel.removeAll();
             if (tabs != null) tabs.setSelectedTab(settingsTab);
 
@@ -223,10 +223,10 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .onConfirm(() -> {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
-                            auditPort.captureUpdate(currentUser.getId(),
+                            auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
                                     SettingsSnapshot.from(before),
                                     SettingsSnapshot.from(target),
-                                    currentUser.getId());
+                                    currentUser.getId()));
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());
                             if (activityPanel != null) activityPanel.removeAll();

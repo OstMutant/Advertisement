@@ -35,7 +35,7 @@ public class AdvertisementService {
 
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
-    private final AuditPort                  auditPort;
+    private final ObjectProvider<AuditPort>   auditPort;
     private final ObjectProvider<AttachmentPort> attachmentPort;
     private final AuthContextService         authContextService;
     @Qualifier("userSettingsObjectMapper")
@@ -60,10 +60,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             if (isNew) {
-                auditPort.captureCreation(saved.getId(), new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
+                auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
             } else {
                 AdvertisementSnapshot beforeSnapshot = before != null ? new AdvertisementSnapshot(before.getTitle(), before.getDescription()) : new AdvertisementSnapshot(null, null);
-                auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
+                auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
             }
         }
         return saved;
@@ -78,7 +78,9 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        SnapshotContentDto content = auditPort.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT).orElse(null);
+        SnapshotContentDto content = Optional.ofNullable(auditPort.getIfAvailable())
+                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
+                .orElse(null);
         if (content == null) return false;
         AdvertisementSnapshot restoredSnapshot;
         try {
@@ -97,7 +99,7 @@ public class AdvertisementService {
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
+            auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
             attachmentPort.ifAvailable(p -> p.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId));
         }
         return true;
@@ -111,7 +113,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    auditPort.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId));
+                    auditPort.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId)));
         }
         if (currentUserId != null) {
             attachmentPort.ifAvailable(p -> p.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));

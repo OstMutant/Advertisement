@@ -13,7 +13,6 @@ import org.ost.audit.services.ActivityService;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
-import org.ost.audit.services.NoOpAuditPort;
 import org.ost.platform.audit.spi.MediaHistoryExtension;
 import org.ost.platform.audit.spi.AuditActorNameResolver;
 import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
@@ -30,6 +29,7 @@ import javax.sql.DataSource;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
+@ConditionalOnAuditEnabled
 @ComponentScan("org.ost.audit")
 @EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
 public class AuditAutoConfiguration {
@@ -42,7 +42,6 @@ public class AuditAutoConfiguration {
     }
 
     @Bean("auditLiquibase")
-    @ConditionalOnAuditEnabled
     @ConditionalOnMissingBean(name = "auditLiquibase")
     public SpringLiquibase auditLiquibase(DataSource dataSource) {
         SpringLiquibase liq = new SpringLiquibase();
@@ -52,7 +51,6 @@ public class AuditAutoConfiguration {
     }
 
     @Bean
-    @ConditionalOnAuditEnabled
     @ConditionalOnMissingBean(AuditPort.class)
     DefaultAuditPort defaultAuditPort(
             AuditDiffEngine diffEngine,
@@ -63,12 +61,6 @@ public class AuditAutoConfiguration {
             AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,
                                     auditLogRepository, currentActorProvider, auditQueryService, auditHistoryService);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(AuditPort.class)
-    AuditPort noOpAuditPort() {
-        return new NoOpAuditPort();
     }
 
     @Bean
