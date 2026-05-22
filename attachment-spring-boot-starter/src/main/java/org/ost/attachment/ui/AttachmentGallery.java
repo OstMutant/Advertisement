@@ -26,7 +26,6 @@ import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
-import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.springframework.context.annotation.Scope;
 
 import com.vaadin.flow.server.streams.UploadEvent;
@@ -40,7 +39,6 @@ import java.util.UUID;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-@ConditionalOnAttachmentEnabled
 public class AttachmentGallery extends Div {
 
     private static final int  MAX_FILES     = 10;

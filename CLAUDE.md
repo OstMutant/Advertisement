@@ -37,7 +37,7 @@ advertisement-parent (root pom)
 
 **audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`, `NoOpStorageService`. Java package root: `org.ost.attachment`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`. Java package root: `org.ost.attachment`.
 
 ---
 
@@ -53,29 +53,19 @@ advertisement-parent (root pom)
 
 ### Repository pattern
 
-**Policy:** Spring Data JDBC `CrudRepository` for trivial save/find; `JdbcClient` (via `*Descriptor` + `RepositoryCustom`) for bespoke queries.
+**Policy:** `*CrudRepository extends CrudRepository<T, Long>` for trivial save/find; plain `@Repository` class with `JdbcClient` for bespoke queries — SQL inlined as text blocks directly in methods.
 
 - Entity classes annotated with `@Table`, `@Id`, `@CreatedDate`, `@LastModifiedDate` where applicable. `@CreatedDate` / `@LastModifiedDate` rely on the project-wide `AuditorAware<Long>` bean in `marketplace-app/JdbcAuditingConfig`.
-- Repository = interface that extends `CrudRepository<T, Long>` and a `*Custom` interface.
-- `*Custom` interface declares bespoke method signatures; `*CustomImpl` extends `RepositoryCustom<T, F>` (when filtering/paging applies) and holds the `JdbcClient` calls + `*Descriptor` lookups.
+- Repository = `@Repository` class with `@RequiredArgsConstructor` + `@SuppressWarnings("java:S1192")`. Holds a `*CrudRepository` field for CRUD and a `JdbcClient` field for custom SQL.
+- `RowMapper<T>` declared as a `private static final` constant in the repository class.
+- Dynamic filtering: `SqlFilterBuilder<F>` declared as a `private static final` constant; built with `SqlBoundFilter.of(filterProperty, sqlExpression, conditionFn)` entries.
+- Sorting: `OrderByBuilder.build(sort, aliasMap)` returns the `ORDER BY` clause or an empty string.
 - Hand-rolled `INSERT` / `findById` SQL is removed whenever it duplicates what `CrudRepository.save` / `.findById` already provides.
 - Starters that ship their own repositories must declare `@EnableJdbcRepositories(basePackages = "...")` in their `@AutoConfiguration`, because the marketplace `@SpringBootApplication` scan only covers `org.ost.marketplace`.
 
 Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
 
-### Descriptor pattern (Read / Write namespaces)
-
-**Policy:** Descriptors are `final` namespace classes that implement `SqlEntityDescriptor` (marker, lives in `sql-engine`). They split SQL and param construction into two symmetric inner classes:
-
-- `public static final class Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param-factory methods.
-- `public static final class Write` — `SqlWriteCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
-- Shared column-name strings and `SqlSelectField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
-
-Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`.
-
-Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
-
-→ sql-engine query API (SqlEntityProjection, SqlFixedQuery, SqlCondition): @sql-engine/CLAUDE.md
+→ sql-engine query API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @sql-engine/CLAUDE.md
 
 ---
 

@@ -13,6 +13,7 @@ import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.attachment.spi.AttachmentPort;
+import org.springframework.beans.factory.ObjectProvider;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.security.AccessEvaluator;
@@ -35,7 +36,7 @@ public class AdvertisementService {
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
     private final AuditPort                  auditPort;
-    private final AttachmentPort             attachmentPort;
+    private final ObjectProvider<AttachmentPort> attachmentPort;
     private final AuthContextService         authContextService;
     @Qualifier("userSettingsObjectMapper")
     private final ObjectMapper               objectMapper;
@@ -97,7 +98,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             auditPort.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId);
-            attachmentPort.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId);
+            attachmentPort.ifAvailable(p -> p.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId));
         }
         return true;
     }
@@ -113,7 +114,7 @@ public class AdvertisementService {
                     auditPort.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId));
         }
         if (currentUserId != null) {
-            attachmentPort.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId);
+            attachmentPort.ifAvailable(p -> p.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));
         }
         repository.softDelete(ad.getId(), currentUserId);
     }

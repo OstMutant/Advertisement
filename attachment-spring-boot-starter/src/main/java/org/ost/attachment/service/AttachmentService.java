@@ -9,7 +9,6 @@ import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.spi.CurrentActorProvider;
 import org.ost.platform.attachment.spi.MediaChangeConsumer;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
-import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.attachment.storage.StorageService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
@@ -22,7 +21,6 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnAttachmentEnabled
 public class AttachmentService {
 
     public record TempAttachment(String tempUrl, String filename, String contentType, long size) {}

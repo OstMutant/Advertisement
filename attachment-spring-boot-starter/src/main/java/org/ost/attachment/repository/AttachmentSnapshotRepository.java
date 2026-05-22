@@ -1,7 +1,6 @@
 package org.ost.attachment.repository;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -12,7 +11,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-@ConditionalOnAttachmentEnabled
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
 public class AttachmentSnapshotRepository {

@@ -1,50 +1,62 @@
 ## sql-engine API
 
-Two patterns for repositories depending on query complexity:
+A lightweight filter/sort library. No projection classes, no base repositories — just utilities for building WHERE clauses and ORDER BY from filter DTOs.
 
-### Simple/filterable queries — `SqlEntityProjection` + `RepositoryCustom`
+### Classes
 
-Define `SqlSelectField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
+| Class | Role |
+|---|---|
+| `SqlFilterBuilder<F>` | Translates a filter DTO into a SQL WHERE fragment + named params |
+| `SqlBoundFilter<F, R>` | Binds one filter DTO field to a column expression and a `SqlCondition` factory |
+| `SqlCondition<R>` | A single resolved WHERE condition (expression, param name, value, operator) |
+| `SqlFilterMapping` | Interface: `filterProperty()` + `sqlExpression()` — implemented by `SqlBoundFilter` |
+| `SqlFilterBinding<F, R>` | Functional interface: `getCondition(F filter) → SqlCondition<R>` |
+| `OrderByBuilder` | Converts `Spring Sort` into an `ORDER BY` clause via an alias→expression map |
+
+### Defining a filter
 
 ```java
-// 1. Define fields
-static final SqlSelectField<Long> ID    = longVal("a.id", "id");
-static final SqlSelectField<String> TITLE = str("a.title", "title");
-
-// 2. Projection (FROM source)
-SqlEntityProjection<AdvertisementDto> projection =
-    new SqlEntityProjection<>(List.of(ID, TITLE, ...), "advertisements a");
-
-// 3. RowMapper lives in RepositoryCustom subclass
-@Override
-protected AdvertisementDto mapRow(ResultSet rs, int rowNum) {
-    return new AdvertisementDto(ID.extract(rs), TITLE.extract(rs), ...);
-}
-
-// 4. Inherited methods
-findByFilter(filter, pageable)   // SELECT ... WHERE ... ORDER BY ... LIMIT/OFFSET
-countByFilter(filter)            // SELECT COUNT(*) FROM ...
+private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
+        SqlBoundFilter.of("title",          "a.title",      (m, v) -> like(m, v.getTitle())),
+        SqlBoundFilter.of("createdAtStart", "a.created_at", (m, v) -> after(m, v.getCreatedAtStart())),
+        SqlBoundFilter.of("createdAtEnd",   "a.created_at", (m, v) -> before(m, v.getCreatedAtEnd()))
+));
 ```
 
-### Complex/structural queries — `SqlFixedQuery<T>`
-
-For CTEs, UNION ALL, self-joins — the developer writes the full SQL:
+### Using in a repository
 
 ```java
-public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
-    static final SqlSelectField<Long> ID = longVal("s.id", "snapshot_id");
-
-    public ActivityProjection(ObjectMapper om) {
-        super(List.of(ID, ...));
-    }
-
-    @Override public String querySql() { return "WITH ... UNION ALL ..."; }
-
-    @Override public ActivityItemDto mapRow(ResultSet rs, int n) {
-        return new ActivityItemDto(ID.extract(rs), ...);
-    }
+public List<AdvertisementInfoDto> findByFilter(AdvertisementFilterDto filter, Pageable pageable) {
+    var params = new MapSqlParameterSource();
+    String where  = FILTER.build(params, filter, "WHERE ");
+    String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of("created_at", "a.created_at"));
+    return jdbcClient.sql("SELECT ... FROM advertisements a " + where + orderBy + " LIMIT :limit OFFSET :offset")
+                     .paramSource(params.addValue("limit", pageable.getPageSize())
+                                        .addValue("offset", pageable.getOffset()))
+                     .query(ROW_MAPPER).list();
 }
 ```
 
-### Conditions (`SqlCondition` factory methods)
-`SqlCondition.like()`, `.equalsTo()`, `.after()`, `.before()`, `.inSet()` — all null-safe via `.applyIfPresent()`. Conditions are composed in a `SqlFilterBuilder` subclass that adds named parameters to `MapSqlParameterSource`.
+### `SqlCondition` factory methods
+
+All are null-safe — return `null` when the value is absent; `SqlFilterBuilder` skips null conditions silently.
+
+| Method | SQL operator |
+|---|---|
+| `like(mapping, value)` | `ILIKE '%value%'` |
+| `equalsTo(mapping, value)` | `= :param` |
+| `after(mapping, instant/long)` | `>= :param` |
+| `before(mapping, instant/long)` | `<= :param` |
+| `inSet(mapping, enumSet)` | `IN (:param)` |
+
+### `OrderByBuilder`
+
+```java
+OrderByBuilder.build(sort, Map.of(
+    "created_at", "a.created_at",
+    "title",      "a.title"
+))
+// returns " ORDER BY a.created_at DESC NULLS LAST" or "" if sort is empty
+```
+
+Converts camelCase property names to snake_case before lookup. Unknown properties are silently skipped.

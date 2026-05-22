@@ -203,7 +203,16 @@
       "Bash(mvn -q -DskipTests compile)",
       "Bash(mvn -pl sql-engine test)",
       "Bash(mvn test-compile *)",
-      "Bash(docker-compose -f /app/docker-compose.db.yml -f /app/docker-compose.minio.yml up -d)"
+      "Bash(docker-compose -f /app/docker-compose.db.yml -f /app/docker-compose.minio.yml up -d)",
+      "Bash(sed -n '106,120p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/advertisements/overlay/modes/AdvertisementFormOverlayModeHandler.java)",
+      "Bash(sed -n '106,120p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/users/overlay/modes/UserFormOverlayModeHandler.java)",
+      "Bash(sed -n '86,95p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/header/settings/SettingsOverlay.java)",
+      "Bash(sed -n '58,70p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/advertisements/AdvertisementsView.java)",
+      "Bash(sed -n '63,70p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/users/UserView.java)",
+      "Bash(sed -n '147,153p' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/advertisements/AdvertisementCardView.java)",
+      "Bash(sed -i '/import org\\\\.ost\\\\.attachment\\\\.storage\\\\.ConditionalOnAttachmentEnabled;/d' /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentGallery.java)",
+      "Bash(sed -i /@ConditionalOnAttachmentEnabled/d /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentGallery.java)",
+      "Bash(mvn -q clean compile -DskipTests)"
     ]
   },
   "hooks": {

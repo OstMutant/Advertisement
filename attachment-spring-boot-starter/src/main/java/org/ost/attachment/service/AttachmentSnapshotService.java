@@ -8,7 +8,6 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
-import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,7 +19,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
-@ConditionalOnAttachmentEnabled
 @RequiredArgsConstructor
 public class AttachmentSnapshotService {
 
