@@ -2,17 +2,22 @@
 
 ---
 
-## Ongoing — Descriptor + repository pattern (Read/Write namespaces)
+## 2026-05-21 — Inline SQL repository style (supersedes Descriptor pattern)
 
-**Decision:** Every table has one `final class implements SqlEntityDescriptor` with a private constructor. SQL, field constants, and param factories are split into two inner namespaces:
-- `Read` — `PROJECTION` (`SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*`/`BY_*_WHERE` constants, read-side param factories, `FILTER` (`SqlFilterBuilder` instance).
-- `Write` — `SqlCommand` constants for INSERT/UPDATE/DELETE, write-side param factories.
+**Decision:** All repositories inline SQL directly in the method that executes it. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`, `SqlEntityProjection`, `SqlFixedQuery`, `RepositoryCustom`) has been fully removed from the codebase.
 
-Repositories hold `private final RepositoryCustom repo` or `private final FilterableRepository<T,F> query` via composition — never extend either class. No inline SQL strings, no inline `MapSqlParameterSource` construction at call sites — all of these belong on the descriptor.
+Rules:
+- SQL inline per method — text block `"""..."""` for multi-line, single-line string otherwise.
+- `@SuppressWarnings("java:S1192")` on every repository class — duplicate literals are intentional.
+- `MapSqlParameterSource` constructed inline per method — no shared param-factory helpers. Locality beats brevity.
+- Dynamic SQL assembled with `.formatted()`, never `+` concatenation.
+- `SqlFilterBuilder.build(params, filter, prefix)` — prefix (` WHERE ` or ` AND `) is part of the call.
+- `OrderByBuilder.build(sort, map)` returns `" ORDER BY ..."` with leading space — no ternary at call sites.
+- `@RequiredArgsConstructor` + `@Slf4j` everywhere; `@Qualifier` on fields propagates via `lombok.config`.
 
-**Why:** One grep target (`SqlEntityDescriptor`) finds all dual-side descriptors. The namespace makes the SQL boundary explicit (`Descriptor.Read.PROJECTION` ↔ `Descriptor.Write.SOFT_DELETE`). Composition over inheritance keeps repository constructors package-private (avoids leaking package-private CrudRepository types into the public API).
+**Why:** SQL is trivially readable without jumping to a constants class. Each method is self-contained — a reviewer sees the full query in one place. Duplication of short WHERE fragments is acceptable; hidden indirection is not.
 
-**How to apply:** New descriptors follow this shape. `SqlFilterBuilder` is concrete — instantiate directly as `Read.FILTER`; for filters with a base predicate (e.g. always `deleted_at IS NULL`) use an anonymous subclass overriding `build()`.
+**How to apply:** When adding a new repository method, write the full SQL inline. Never extract a SQL fragment to a constant unless it is shared across 3+ methods and genuinely non-trivial.
 
 ---
 

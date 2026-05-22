@@ -1,27 +1,46 @@
 package org.ost.attachment.repository;
 
+import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.platform.core.model.EntityType;
-import org.ost.sqlengine.RepositoryCustom;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 @ConditionalOnAttachmentEnabled
-public class AttachmentRepository extends RepositoryCustom {
+@RequiredArgsConstructor
+@SuppressWarnings("java:S1192")
+public class AttachmentRepository {
 
     public record MediaStats(String mainUrl, String mainContentType, int count) {}
 
-    private final AttachmentCrudRepository crud;
+    private static final RowMapper<Attachment> ROW_MAPPER = (rs, _) -> {
+        String typeName = rs.getString("entity_type");
+        Timestamp createdAt = rs.getTimestamp("created_at");
+        Timestamp deletedAt = rs.getTimestamp("deleted_at");
+        return Attachment.builder()
+                .id(rs.getObject("id", Long.class))
+                .entityType(typeName == null ? null : EntityType.valueOf(typeName))
+                .entityId(rs.getObject("entity_id", Long.class))
+                .url(rs.getString("url"))
+                .filename(rs.getString("filename"))
+                .contentType(rs.getString("content_type"))
+                .size(rs.getObject("size", Long.class))
+                .createdAt(createdAt != null ? createdAt.toInstant() : null)
+                .deletedAt(deletedAt != null ? deletedAt.toInstant() : null)
+                .deletedByActorId(rs.getObject("deleted_by_actor_id", Long.class))
+                .build();
+    };
 
-    AttachmentRepository(JdbcClient jdbcClient, AttachmentCrudRepository crud) {
-        super(jdbcClient);
-        this.crud = crud;
-    }
+    private final JdbcClient jdbcClient;
+    private final AttachmentCrudRepository crud;
 
     public Attachment save(Attachment attachment) {
         return crud.save(attachment);
@@ -36,62 +55,123 @@ public class AttachmentRepository extends RepositoryCustom {
     }
 
     public void softDelete(Long id, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE,
-                AttachmentDescriptor.Write.softDeleteParams(id, actorId));
+        jdbcClient.sql("UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId WHERE id = :id")
+                  .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("actorId", actorId))
+                  .update();
     }
 
     public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
-                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
+        jdbcClient.sql("""
+                        UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("entityType", entityType.name())
+                          .addValue("entityId",   entityId)
+                          .addValue("actorId",    actorId))
+                  .update();
     }
 
     public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        executeUpdate(AttachmentDescriptor.Write.SOFT_DELETE_ALL,
-                AttachmentDescriptor.Write.softDeleteAllParams(entityType, entityId, actorId));
+        jdbcClient.sql("""
+                        UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("entityType", entityType.name())
+                          .addValue("entityId",   entityId)
+                          .addValue("actorId",    actorId))
+                  .update();
     }
 
     public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
-        executeUpdate(AttachmentDescriptor.Write.RESTORE_UNDELETE,
-                AttachmentDescriptor.Write.restoreUndeleteParams(entityType, entityId, urls));
+        jdbcClient.sql("""
+                        UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND url = ANY(:urls)
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("entityType", entityType.name())
+                          .addValue("entityId",   entityId)
+                          .addValue("urls",        urls))
+                  .update();
     }
 
     public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
-        executeUpdate(AttachmentDescriptor.Write.RESTORE_MARK_DELETED,
-                AttachmentDescriptor.Write.restoreMarkDeletedParams(entityType, entityId, actorId, urls));
+        jdbcClient.sql("""
+                        UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
+                        WHERE entity_type = :entityType AND entity_id = :entityId
+                          AND deleted_at IS NULL AND NOT (url = ANY(:urls))
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("entityType", entityType.name())
+                          .addValue("entityId",   entityId)
+                          .addValue("actorId",    actorId)
+                          .addValue("urls",        urls))
+                  .update();
     }
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
-        return findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_BY_ENTITY,
-                AttachmentDescriptor.Read.entityParams(entityType, entityId),
-                AttachmentDescriptor.Read.PROJECTION);
+        return jdbcClient.sql("""
+                        SELECT * FROM attachment
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        """)
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType", entityType.name())
+                                 .addValue("entityId",   entityId))
+                         .query(ROW_MAPPER)
+                         .list();
     }
 
     public List<String> getActiveUrls(EntityType entityType, Long entityId) {
-        return findAll(AttachmentDescriptor.Read.SELECT_ACTIVE_URLS,
-                AttachmentDescriptor.Read.entityParams(entityType, entityId),
-                (rs, n) -> rs.getString(1));
+        return jdbcClient.sql("""
+                        SELECT url FROM attachment
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        """)
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType", entityType.name())
+                                 .addValue("entityId",   entityId))
+                         .query(String.class)
+                         .list();
     }
 
     public List<String> findUrlsDeletedOlderThan(int days) {
-        return findAll(AttachmentDescriptor.Read.FIND_URLS_DELETED_OLDER_THAN,
-                AttachmentDescriptor.Read.findUrlsDeletedOlderThanParams(days),
-                (rs, n) -> rs.getString(1));
+        return jdbcClient.sql("""
+                        SELECT url FROM attachment
+                        WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)
+                          AND content_type NOT IN ('video/youtube', 'video/embed')
+                        """)
+                         .paramSource(new MapSqlParameterSource("days", days))
+                         .query(String.class)
+                         .list();
     }
 
     public int deleteByUrls(List<String> urls) {
-        return executeUpdate(AttachmentDescriptor.Write.DELETE_BY_URLS,
-                AttachmentDescriptor.Write.deleteByUrlsParams(urls));
+        return jdbcClient.sql("DELETE FROM attachment WHERE url IN (:urls)")
+                         .paramSource(new MapSqlParameterSource("urls", urls))
+                         .update();
     }
 
     public MediaStats loadMediaStats(EntityType entityType, Long entityId) {
         record Row(String url, String contentType) {}
-        var params = AttachmentDescriptor.Read.entityParams(entityType, entityId);
-        var main = findOne(AttachmentDescriptor.Read.SELECT_MAIN_MEDIA,
-                params,
-                (rs, n) -> new Row(rs.getString(AttachmentDescriptor.URL.columnName()),
-                                    rs.getString(AttachmentDescriptor.CONTENT_TYPE.columnName())));
-        int count = findOne(AttachmentDescriptor.Read.COUNT_ACTIVE,
-                params, Integer.class).orElse(0);
+        var params = new MapSqlParameterSource()
+                .addValue("entityType", entityType.name())
+                .addValue("entityId",   entityId);
+        var main = jdbcClient.sql("""
+                        SELECT url, content_type FROM attachment
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        ORDER BY created_at ASC LIMIT 1
+                        """)
+                             .paramSource(params)
+                             .query((rs, _) -> new Row(rs.getString("url"), rs.getString("content_type")))
+                             .optional();
+        int count = jdbcClient.sql("""
+                        SELECT COUNT(*) FROM attachment
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        """)
+                              .paramSource(params)
+                              .query(Integer.class)
+                              .optional()
+                              .orElse(0);
         return main
                 .map(m -> new MediaStats(m.url(), m.contentType(), count))
                 .orElse(new MediaStats(null, null, count));
