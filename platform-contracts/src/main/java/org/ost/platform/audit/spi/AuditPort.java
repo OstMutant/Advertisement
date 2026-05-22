@@ -6,6 +6,13 @@ import org.ost.platform.core.model.EntityType;
 
 import java.util.Optional;
 
+/**
+ * Port: marketplace → audit-starter.
+ * Service facade for the audit write side. Domain code calls this port directly to
+ * record entity lifecycle events and read back snapshot content.
+ * Implementation: {@code DefaultAuditPort} in audit-spring-boot-starter.
+ * NoOp fallback activates when {@code audit.enabled=false}.
+ */
 public interface AuditPort {
     void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId);
     void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId);

@@ -2,6 +2,42 @@
 
 ---
 
+## 2026-05-22 — Package semantics: `api` vs `spi` vs `dto`
+
+**Decision:** Three sub-packages inside each subsystem namespace carry distinct roles:
+
+- `*.api` — contracts that **marketplace places on its own classes** so the starter can read them: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`, `@ConditionalOnAuditEnabled`). Only `audit.*` has an `api` package; attachment needs no marker contracts from marketplace.
+- `*.spi` — **extension-point interfaces** declaring a callback boundary between modules. Call direction and semantic role are encoded in the interface suffix (see the 7-suffix convention below).
+- `*.dto` — **pure data carriers** crossing the module boundary, named with the `Dto` suffix. No behavior, no framework annotations.
+
+**Why:** Without this split, a reader opening `audit.spi` would find both callable service facades and passive marker types — two very different things that demand different implementation strategies. The `api` / `spi` / `dto` labels make the reader's job explicit before they open a single file.
+
+**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`.
+
+---
+
+## 2026-05-22 — SPI interface naming convention: 7 suffixes
+
+**Decision:** Each suffix in `platform-contracts/*.spi` encodes the call direction and semantic role. The full mapping:
+
+| Suffix | Caller → Implementor | Semantic role |
+|--------|---------------------|---------------|
+| `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
+| `*Extension` | starter → marketplace | Starter requests domain data or a UI component from marketplace |
+| `*Consumer` | starter → marketplace | Starter notifies marketplace of an infrastructure event |
+| `*Provider` | starter → marketplace | Starter pulls current-request context or domain logic from marketplace |
+| `*Resolver` | starter → marketplace | Starter asks marketplace to resolve a human-readable name |
+| `*Checker` | starter → marketplace | Starter asks marketplace to verify domain state |
+| `*Binding` | starter → marketplace | Starter asks marketplace to contribute a UI row renderer into the starter's own feed |
+
+Current assignments: `AuditPort`, `AttachmentPort` (`*Port`); `AuditUiExtension`, `ActivityFeedExtension`, `MediaHistoryExtension`, `AttachmentGalleryExtension` (`*Extension`); `MediaChangeConsumer` (`*Consumer`); `CurrentActorProvider`, `ActivityItemFieldsProvider` (`*Provider`); `AuditActorNameResolver`, `EntityDisplayNameResolver` (`*Resolver`); `AuditEntityExistenceChecker` (`*Checker`); `ActivityRowBinding` (`*Binding`).
+
+**Why:** The codebase had grown to 7 distinct interface roles with no documented convention. A reader seeing `AuditEntityExistenceChecker` could not tell its call direction or where to place a new interface of the same kind. The suffix table makes all three decisions explicit: which package, which direction, which role.
+
+**Rule:** new suffixes require a DECISIONS.md entry. Existing suffixes must not be repurposed for a different direction or role (e.g. a `*Resolver` must not be called by marketplace).
+
+---
+
 ## 2026-05-19 — `MediaSummary` reclassified as DTO
 
 **Decision:** `MediaSummary` was a return-type record exposed by `AttachmentPort.getMediaSummary(...)`. It lived under `attachment.spi` but has no behavior — it is a display-ready data carrier. Moved to `attachment.dto` and renamed `MediaSummaryDto` for symmetry with `audit.dto.ActivityItemDto` / `EntityHistoryDto`.

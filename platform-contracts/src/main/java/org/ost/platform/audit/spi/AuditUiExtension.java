@@ -8,6 +8,14 @@ import org.ost.platform.core.model.EntityType;
 import java.util.List;
 import java.util.function.ObjLongConsumer;
 
+/**
+ * Extension: marketplace → audit-starter.
+ * Audit-starter exposes pre-built Vaadin UI panels to marketplace.
+ * Marketplace calls this to embed entity history or profile activity feeds
+ * without depending on audit internals.
+ * Implementation: {@code AuditUiExtensionImpl} in audit-spring-boot-starter.
+ * Injected via {@code ObjectProvider} — degrades gracefully when audit is disabled.
+ */
 public interface AuditUiExtension {
 
     @Value

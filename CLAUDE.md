@@ -2,36 +2,9 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
----
-
-> ## ⛔ NEVER commit without explicit user request
-> `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
-> `git add` runs automatically after every file change — commit does NOT.
-> Violating this rule has happened multiple times. No exceptions.
+@.claude/rules.md
 
 ---
-
-## Approval Rule
-**Every action must be approved by the user before execution — no exceptions.**
-
-Before doing anything, generate and present a detailed prompt — the exact instruction you would give yourself to execute the action. This prompt must include:
-- Full file paths
-- Exact changes (method signatures, SQL, config values, field names)
-- Any side-effects or follow-up steps
-
-Present the prompt, then **STOP and wait for explicit confirmation** before executing.
-
-Example format:
-> "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
-
-Wait for explicit confirmation before making any change.
-
-## Git Workflow
-- `git add` — run automatically after every file change
-- `git commit` — **ONLY** when the user explicitly says to commit — never otherwise
-
-## Language
-All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
 
 ## Core Stack
 - Java 25 (use modern features: Records, Pattern Matching, Switch expressions).
@@ -56,13 +29,15 @@ advertisement-parent (root pom)
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
 **platform-contracts** defines the cross-module contracts, organized into three semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`, `Role`), `core.config` (`CleanupProperties`, `UserSettings`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (cross-cutting SPIs: `CurrentUserProvider`, `EntityDisplayNameResolver`)
-- `audit.*` — audit subsystem contract: `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContent`, `SnapshotPayload`, `UserSnapshotState`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`, `AuditUiExtension`)
-- `attachment.*` — attachment subsystem contract: `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`), `attachment.dto` (`MediaSummaryDto`). The storage SPI (`StorageService`) and the subsystem conditional (`@ConditionalOnAttachmentEnabled`) are internal to `attachment-spring-boot-starter` — no other module consumes them.
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (`CurrentActorProvider`, `EntityDisplayNameResolver`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `ActivityFeedExtension`, `MediaHistoryExtension`, `AuditUiExtension`, `ActivityRowBinding`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`), `attachment.dto` (`MediaSummaryDto`)
+
+→ Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-contracts/CLAUDE.md
 
 **audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditReadRepository`, `ActivityRepository`, `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Enabled by default (`audit.enabled=true`); set `audit.enabled=false` to activate `NoOpAuditPort`. Java package root: `org.ost.audit`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations (`AdvertisementGalleryExtensionImpl`, etc.), `AttachmentCleanupJob`, `S3StorageService`, and `NoOpStorageService`. Java package root: `org.ost.attachment`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`, `NoOpStorageService`. Java package root: `org.ost.attachment`.
 
 ---
 
@@ -70,7 +45,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
-3. **Modular Storage:** `StorageService` interface and its implementations (`S3StorageService`, `NoOpStorageService`) all live in `attachment-spring-boot-starter` (package `org.ost.attachment.storage`). The attachment subsystem is gated by `attachment.enabled` (default `true`); UI components (like `AttachmentGallery`) MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `attachment.enabled=false`. The S3-specific properties (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) are S3-implementation config and stay under `storage.s3.*`.
+3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.storage`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when `attachment.enabled=false`.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
@@ -96,9 +71,11 @@ Reference implementations: `UserRepository` / `AdvertisementRepository` in marke
 - `public static final class Write` — `SqlWriteCommand` constants for INSERT/UPDATE/DELETE, write-side param-factory methods.
 - Shared column-name strings and `SqlSelectField<T>` constants live on the descriptor itself (used by both `Read` and `Write`).
 
-Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE` — the namespace makes the side of the SQL boundary explicit.
+Call sites read like `AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`.
 
 Reference: `AttachmentDescriptor`, `AttachmentSnapshotDescriptor` in `attachment-spring-boot-starter`; `UserDescriptor`, `AdvertisementDescriptor` in `marketplace-app`; `AuditLogDescriptor` in `audit-spring-boot-starter`.
+
+→ sql-engine query API (SqlEntityProjection, SqlFixedQuery, SqlCondition): @sql-engine/CLAUDE.md
 
 ---
 
@@ -174,59 +151,6 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 
 ---
 
-## sql-engine API
-
-Two patterns for repositories depending on query complexity:
-
-### Simple/filterable queries — `SqlEntityProjection` + `RepositoryCustom`
-
-Define `SqlSelectField<T>` constants, an `SqlEntityProjection`, a `SqlFilterBuilder`, then extend `RepositoryCustom<T, F>`:
-
-```java
-// 1. Define fields
-static final SqlSelectField<Long> ID    = longVal("a.id", "id");
-static final SqlSelectField<String> TITLE = str("a.title", "title");
-
-// 2. Projection (FROM source)
-SqlEntityProjection<AdvertisementDto> projection =
-    new SqlEntityProjection<>(List.of(ID, TITLE, ...), "advertisements a");
-
-// 3. RowMapper lives in RepositoryCustom subclass
-@Override
-protected AdvertisementDto mapRow(ResultSet rs, int rowNum) {
-    return new AdvertisementDto(ID.extract(rs), TITLE.extract(rs), ...);
-}
-
-// 4. Inherited methods
-findByFilter(filter, pageable)   // SELECT ... WHERE ... ORDER BY ... LIMIT/OFFSET
-countByFilter(filter)            // SELECT COUNT(*) FROM ...
-```
-
-### Complex/structural queries — `SqlFixedQuery<T>`
-
-For CTEs, UNION ALL, self-joins — the developer writes the full SQL:
-
-```java
-public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
-    static final SqlSelectField<Long> ID = longVal("s.id", "snapshot_id");
-
-    public ActivityProjection(ObjectMapper om) {
-        super(List.of(ID, ...));
-    }
-
-    @Override public String querySql() { return "WITH ... UNION ALL ..."; }
-
-    @Override public ActivityItemDto mapRow(ResultSet rs, int n) {
-        return new ActivityItemDto(ID.extract(rs), ...);
-    }
-}
-```
-
-### Conditions (`SqlCondition` factory methods)
-`SqlCondition.like()`, `.equalsTo()`, `.after()`, `.before()`, `.inSet()` — all null-safe via `.applyIfPresent()`. Conditions are composed in a `SqlFilterBuilder` subclass that adds named parameters to `MapSqlParameterSource`.
-
----
-
 ## Security: @PreAuthorize and Vaadin
 
 `@EnableMethodSecurity` is active. **Never put `@PreAuthorize` at class level on service beans.** Vaadin initializes view beans on the first HTTP request before the user authenticates; a class-level annotation causes an `AuthorizationDeniedException` during view wiring, preventing any view from loading.
@@ -247,6 +171,8 @@ public class ActivityProjection extends SqlFixedQuery<ActivityItemDto> {
 - `*Binding` — prototype bean that manages a lifecycle (register/unregister listeners). Lives next to the service it supports (e.g. `ui/views/services/pagination/`).
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
+
+→ SPI interface naming (`*Port`, `*Extension`, `*Consumer`, etc.): @platform-contracts/CLAUDE.md
 
 ### Package structure (marketplace-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
@@ -273,76 +199,16 @@ docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
 
 ---
 
-## UI Verification with Playwright
+## Tooling
 
-After making UI changes, verify them by running the Playwright script inside Docker.
+→ UI verification with Playwright (run commands, Vaadin tips, workflow): @playwright/CLAUDE.md
+→ SonarQube static analysis: @scripts/CLAUDE.md
 
-### Prerequisites
-- DB and MinIO already running (started separately via docker-compose.db.yml / docker-compose.minio.yml)
-- App image built with: `docker build -f Dockerfile -t marketplace-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
-- App must be running:
-```bash
-docker run -d --name marketplace-app --network host \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments \
-  -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
-  -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \
-  -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
-  -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
-  marketplace-app
-```
-
-### Scripts location
-All scenarios live in `/app/playwright/`. Run via `run.sh`:
-```bash
-bash /app/playwright/run.sh                  # all tests
-bash /app/playwright/run.sh smoke            # one scenario
-bash /app/playwright/run.sh smoke --ux       # with local screenshots for AI analysis
-bash /app/playwright/run.sh --ux             # all tests with screenshots
-```
-
-**IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
-`run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
-
-### Workflow for UI changes
-1. Make code changes
-2. Rebuild image: `docker rm -f marketplace-app && docker build -f Dockerfile -t marketplace-app .`
-3. Start app (command above)
-4. Wait for start: run `docker logs -f marketplace-app` with `run_in_background: true`, then use Monitor tool — it streams stdout and notifies when `"Started Application"` appears
-5. Run relevant scenario: `bash /app/playwright/run.sh <scenario>`
-6. For UX analysis add `--ux` flag → read screenshots from `/app/playwright/screenshots/` with `Read` tool
-
-### Vaadin-specific notes
-- Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`
-- Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
-- Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
-- `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
-
-### Adding new scenarios
-1. Create `/app/playwright/my-scenario.spec.js`
-2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`
-3. Run with `bash /app/playwright/run.sh my-scenario`
-
----
-
-## SonarQube Analysis
-
-All config lives in `/app/scripts/sonar/`. SonarQube server runs in Docker on `localhost:9099`.
-
-### Start server manually (if needed)
-```bash
-docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
-```
-
-### Run analysis
-```bash
-bash scripts/sonar.sh        # Linux / WSL
-scripts\sonar.bat            # Windows
-```
-
-The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`.
-
-**IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
+**Slash commands available:**
+- `/build` — rebuild Docker image and start app
+- `/playwright [scenario] [--ux]` — run Playwright tests
+- `/sonar` — run SonarQube analysis
+- `/decision <module> — <title>` — record architectural decision
 
 ---
 
@@ -352,8 +218,10 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/marketplace-app/DECISIONS.md`
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
+- `/app/platform-contracts/DECISIONS.md`
+- `/app/sql-engine/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
-- `/app/scripts/sonar/DECISIONS.md`
+- `/app/scripts/DECISIONS.md`
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.
