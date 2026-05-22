@@ -91,3 +91,31 @@ Repositories hold `private final RepositoryCustom repo` or `private final Filter
 **Why:** `SnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-contracts` (which must stay framework-free). Extracting a `SnapshotBinder.Builder` SPI to platform-contracts would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-contracts`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
 
 **Rejected:** Abstracting `SnapshotBinder.Builder` behind an SPI in `platform-contracts` — over-engineering for a single implementation.
+
+---
+
+## Ongoing — advertisement-ui-core: shared Vaadin UI primitives module
+
+**Decision:** Create a new module `advertisement-ui-core` that holds generic, domain-free Vaadin UI primitives shared across starters and the main app.
+
+Dependency direction:
+```
+marketplace-app ──────────────────────┐
+audit-spring-boot-starter ────────────┼──→ advertisement-ui-core → vaadin (+ platform-contracts for i18n)
+attachment-spring-boot-starter ───────┘
+```
+
+**Why:** `audit-spring-boot-starter` and `attachment-spring-boot-starter` cannot share UI components without either duplicating code or creating a circular dependency through `marketplace-app`. A dedicated UI primitives module breaks the cycle. Immediate drivers: pagination and filter UI for the audit module; shared form card layout pattern already duplicated in 3 places in `marketplace-app`.
+
+**Boundaries — ui-core MUST NOT know about:**
+- `Advertisement`, `User`, `EntityType`, or any other domain type
+- Repositories, services, snapshots, or any Spring Data / JPA / JDBC
+- Audit or attachment domain concepts
+
+**Candidates to move into ui-core (to be done):**
+- `PaginationBar` — generic pagination component (currently only in marketplace-app)
+- Generic filter panel primitives
+- Form card layout helper (`overlay__form-card-header` / `overlay__form-fields-card` block, duplicated in 3 overlays)
+- `StatusBadge`, `EmptyState` — if used in starters
+
+**Rejected:** Putting shared UI in `platform-contracts` — contracts must stay Spring/Vaadin-free pure Java.
