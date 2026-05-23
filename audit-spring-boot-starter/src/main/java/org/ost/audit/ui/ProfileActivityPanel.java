@@ -12,7 +12,7 @@ import lombok.Value;
 import org.ost.audit.services.ActivityService;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
-import org.ost.platform.audit.spi.ActivityRowBinding;
+import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.platform.core.ui.Configurable;
@@ -38,7 +38,7 @@ public class ProfileActivityPanel extends Div
         Long                viewerActorId;
         String              emptyLabel;
         @lombok.Builder.Default
-        List<ActivityRowBinding> bindings = List.of();
+        List<ActivityRowHook> bindings = List.of();
     }
 
     @SpringComponent
@@ -79,8 +79,8 @@ public class ProfileActivityPanel extends Div
         return this;
     }
 
-    private static void decorateRow(Div row, ActivityItemDto item, List<ActivityRowBinding> bindings) {
-        for (ActivityRowBinding binding : bindings) {
+    private static void decorateRow(Div row, ActivityItemDto item, List<ActivityRowHook> bindings) {
+        for (ActivityRowHook binding : bindings) {
             if (binding.entityType() == item.entityType()) {
                 Component decoration = binding.decorate(item);
                 if (decoration != null) row.add(decoration);

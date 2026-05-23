@@ -23,7 +23,7 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.services.audit.UserSnapshot;
-import org.ost.platform.audit.spi.AuditUiExtension;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -65,7 +65,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiLabeledField.Builder                     labeledFieldBuilder;
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
-    private final ObjectProvider<AuditUiExtension>             auditUiExtensionProvider;
+    private final ObjectProvider<AuditUiPort>             auditUiExtensionProvider;
     private final SnapshotBinder.Builder<UserSnapshot>         userBinderBuilder;
     private final SnapshotBinder.Builder<UserSettings>         settingsBinderBuilder;
 
@@ -122,7 +122,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
 
         Div layoutContent;
 
-        AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
         if (auditUi != null) {
             Div activityContent = new Div();
             activityContent.addClassName("activity-feed-content");
@@ -161,7 +161,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         layout.setHeaderActions(new Div(editButton, closeButton));
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiExtension auditUi) {
+    private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiPort auditUi) {
         String currentName = user.getName();
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
@@ -188,7 +188,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
 
-        return auditUi.buildProfileActivityPanel(AuditUiExtension.ProfileActivityParams.builder()
+        return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjectType(org.ost.platform.core.model.EntityType.USER)
                 .subjectId(user.getId())
                 .viewerActorId(user.getId())

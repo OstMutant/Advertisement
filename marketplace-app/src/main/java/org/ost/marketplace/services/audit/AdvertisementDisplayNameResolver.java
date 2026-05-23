@@ -3,12 +3,12 @@ package org.ost.marketplace.services.audit;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.EntityDisplayNameResolver;
+import org.ost.platform.core.spi.EntityNameHook;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
-public class AdvertisementDisplayNameResolver implements EntityDisplayNameResolver {
+public class AdvertisementDisplayNameResolver implements EntityNameHook {
 
     private final ObjectMapper objectMapper;
 

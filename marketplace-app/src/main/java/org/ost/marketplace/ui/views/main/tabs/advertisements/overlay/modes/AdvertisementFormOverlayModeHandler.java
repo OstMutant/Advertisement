@@ -24,7 +24,7 @@ import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.core.ui.ComponentBuilder;
@@ -70,13 +70,13 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
-    private final ObjectProvider<AttachmentGalleryExtension>      galleryExtension;
+    private final ObjectProvider<AttachmentGalleryPort>      galleryExtension;
 
     private Parameters params;
     private OverlayFormBinder<AdvertisementEditDto> binder;
     @Getter
     private Advertisement savedAdvertisement;
-    private AttachmentGalleryExtension.FormHandle activeHandle;
+    private AttachmentGalleryPort.FormHandle activeHandle;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {

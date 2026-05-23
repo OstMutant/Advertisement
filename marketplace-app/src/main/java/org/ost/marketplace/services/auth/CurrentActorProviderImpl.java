@@ -2,14 +2,14 @@ package org.ost.marketplace.services.auth;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.entities.User;
-import org.ost.platform.core.spi.CurrentActorProvider;
+import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class CurrentActorProviderImpl implements CurrentActorProvider {
+public class CurrentActorProviderImpl implements CurrentActorHook {
 
     private final AuthContextService authContextService;
 

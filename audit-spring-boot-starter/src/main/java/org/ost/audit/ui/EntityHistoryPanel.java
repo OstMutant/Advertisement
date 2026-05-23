@@ -15,7 +15,7 @@ import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.MediaHistoryExtension;
+import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.ui.Configurable;
@@ -64,7 +64,7 @@ public class EntityHistoryPanel extends Div
     @Qualifier("auditObjectMapper")
     private final ObjectMapper                                  objectMapper;
     private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
-    private final ObjectProvider<MediaHistoryExtension> historyExtensionProvider;
+    private final ObjectProvider<AttachmentAuditHook> historyExtensionProvider;
 
     @Override
     @PostConstruct
@@ -169,7 +169,7 @@ public class EntityHistoryPanel extends Div
     }
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
-        MediaHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+        AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
         return ext == null || ext.mediaMatchCurrent(entityType, entityId, version);
     }
 

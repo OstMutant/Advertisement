@@ -11,7 +11,7 @@ import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.EntityDisplayNameResolver;
+import org.ost.platform.core.spi.EntityNameHook;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -202,7 +202,7 @@ public class AuditLogRepository {
     @RequiredArgsConstructor
     public static final class ActivityMapper implements RowMapper<ActivityItemDto> {
         private final Helper helper;
-        private final List<EntityDisplayNameResolver> resolvers;
+        private final List<EntityNameHook> resolvers;
 
         @Override
         public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {

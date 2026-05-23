@@ -7,8 +7,8 @@ import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.MediaHistoryExtension;
-import org.ost.platform.audit.spi.AuditActorNameResolver;
+import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,10 +23,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AuditHistoryService {
 
-    private final AuditLogRepository                            auditLogRepository;
-    private final AuditSnapshotMapper                           mapper;
-    private final ObjectProvider<MediaHistoryExtension> historyExtension;
-    private final ObjectProvider<AuditActorNameResolver>        actorNameResolver;
+    private final AuditLogRepository                        auditLogRepository;
+    private final AuditSnapshotMapper                       mapper;
+    private final ObjectProvider<AttachmentAuditHook>       attachmentAuditHook;
+    private final ObjectProvider<AuditDomainHook>           auditDomainHook;
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
         List<EntityHistoryDto> history = auditLogRepository.getEntityHistory(
@@ -34,7 +34,7 @@ public class AuditHistoryService {
 
         history = resolveActorNames(history);
 
-        MediaHistoryExtension ext = historyExtension.getIfAvailable();
+        AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
         if (ext == null) return history;
         return history.stream()
                 .map(h -> {
@@ -65,7 +65,7 @@ public class AuditHistoryService {
     }
 
     private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {
-        AuditActorNameResolver resolver = actorNameResolver.getIfAvailable();
+        AuditDomainHook resolver = auditDomainHook.getIfAvailable();
         if (resolver == null) return items;
         Set<Long> ids = items.stream()
                 .map(EntityHistoryDto::actorId)

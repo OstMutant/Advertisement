@@ -16,13 +16,13 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.audit.spi.AuditUiExtension;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
@@ -62,8 +62,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     private final OverlayAdvertisementMetaPanel metaPanel;
     private final UiPrimaryButton               editButton;
     private final UiIconButton                  closeButton;
-    private final ObjectProvider<AttachmentGalleryExtension>    galleryExtension;
-    private final ObjectProvider<AuditUiExtension>              auditUiExtensionProvider;
+    private final ObjectProvider<AttachmentGalleryPort>    galleryExtension;
+    private final ObjectProvider<AuditUiPort>              auditUiExtensionProvider;
     private final ConfirmActionDialog.Builder                   confirmDialogBuilder;
 
     private Parameters params;
@@ -84,7 +84,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         Div mainContent;
 
-        AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
         if (auditUi != null && access.canOperate(params.getAd())) {
             Div historyContent = new Div();
             historyContent.addClassName("entity-history-content");
@@ -147,8 +147,8 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad,
-                                                                     AuditUiExtension auditUi) {
-        return auditUi.buildEntityHistoryPanel(AuditUiExtension.EntityHistoryParams.builder()
+                                                                     AuditUiPort auditUi) {
+        return auditUi.buildEntityHistoryPanel(AuditUiPort.EntityHistoryParams.builder()
                 .entityType(EntityType.ADVERTISEMENT)
                 .entityId(ad.getId())
                 .userId(access.getCurrentUserId())

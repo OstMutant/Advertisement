@@ -13,13 +13,8 @@ Three sub-packages inside each subsystem namespace carry distinct roles:
 All cross-module extension points live in `platform-contracts/*.spi`. The suffix encodes the call direction and semantic role:
 
 | Suffix | Caller → Implementor | Semantic role | Examples |
-|--------|---------------------|---------------|---------|
-| `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter | `AuditPort`, `AttachmentPort` |
-| `*Extension` | caller → data/UI owner | One module requests domain data or a UI component from the module that owns it; direction varies (marketplace→starter or starter→starter) | `AuditUiExtension`, `AttachmentGalleryExtension`, `ActivityFeedExtension`, `MediaHistoryExtension` |
-| `*Consumer` | starter → marketplace | Starter notifies marketplace of an infrastructure event | `MediaChangeConsumer` |
-| `*Provider` | starter → marketplace | Starter pulls current-request context or domain logic from marketplace | `CurrentActorProvider`, `ActivityItemFieldsProvider` |
-| `*Resolver` | starter → marketplace | Starter asks marketplace to resolve a human-readable name | `AuditActorNameResolver`, `EntityDisplayNameResolver` |
-| `*Checker` | starter → marketplace | Starter asks marketplace to verify domain state | `AuditEntityExistenceChecker` |
-| `*Binding` | starter → marketplace | Starter asks marketplace to contribute a UI row renderer into the starter's own feed | `ActivityRowBinding` |
+|--------|----------------------------------|---------------|---------|
+| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries, UI components) | `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` |
+| `*Hook` | starter → marketplace or starter → starter | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `MediaChangeHook`, `AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`, `AttachmentAuditHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-contracts/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.

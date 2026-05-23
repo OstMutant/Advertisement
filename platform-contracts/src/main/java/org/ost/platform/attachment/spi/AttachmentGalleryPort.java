@@ -4,10 +4,10 @@ import com.vaadin.flow.component.Component;
 import org.ost.platform.core.model.EntityType;
 
 /**
- * UI extension provided by attachment-starter to the domain.
+ * Port: marketplace → attachment-starter.
  * Renders attachment galleries and lightboxes for arbitrary entity types.
  */
-public interface AttachmentGalleryExtension {
+public interface AttachmentGalleryPort {
 
     Component buildGalleryForView(EntityType entityType, Long entityId);
 

@@ -4,12 +4,12 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
-import org.ost.platform.audit.spi.AuditUiExtension;
+import org.ost.platform.audit.spi.AuditUiPort;
 
 @SpringComponent
 @ConditionalOnAuditEnabled
 @RequiredArgsConstructor
-public class AuditUiExtensionImpl implements AuditUiExtension {
+public class AuditUiExtensionImpl implements AuditUiPort {
 
     private final EntityHistoryPanel.Builder    historyBuilder;
     private final ProfileActivityPanel.Builder  profileActivityBuilder;

@@ -9,14 +9,14 @@ import java.util.List;
 import java.util.function.ObjLongConsumer;
 
 /**
- * Extension: marketplace → audit-starter.
+ * Port: marketplace → audit-starter.
  * Audit-starter exposes pre-built Vaadin UI panels to marketplace.
  * Marketplace calls this to embed entity history or profile activity feeds
  * without depending on audit internals.
- * Implementation: {@code AuditUiExtensionImpl} in audit-spring-boot-starter.
+ * Implementation: {@code AuditUiPortImpl} in audit-spring-boot-starter.
  * Injected via {@code ObjectProvider} — degrades gracefully when audit is disabled.
  */
-public interface AuditUiExtension {
+public interface AuditUiPort {
 
     @Value
     @lombok.Builder
@@ -40,7 +40,7 @@ public interface AuditUiExtension {
         Long                       viewerActorId;
         String                     emptyLabel;
         @lombok.Builder.Default
-        List<ActivityRowBinding>   bindings = List.of();
+        List<ActivityRowHook>      bindings = List.of();
     }
 
     Component buildEntityHistoryPanel(EntityHistoryParams params);

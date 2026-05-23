@@ -29,7 +29,7 @@ import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbB
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.audit.spi.AuditUiExtension;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -51,7 +51,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient ObjectProvider<AuditPort>              auditPort;
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
-    private final transient ObjectProvider<AuditUiExtension>               auditUiExtensionProvider;
+    private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
     private final transient SnapshotBinder.Builder<UserSettings>           settingsBinderBuilder;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
@@ -93,7 +93,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         Div content;
 
-        AuditUiExtension auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
         if (auditUi != null) {
             // ── Activity panel (lazy) ─────────────────────────────────────────
             activityPanel = new Div();
@@ -179,7 +179,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         }
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(AuditUiExtension auditUi) {
+    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
         UserSettings current = settingsService.load(currentUser.getId());
         SnapshotBinder<UserSettings> settingsBinding = settingsBinderBuilder.build(
                 SnapshotBinder.Parameters.<UserSettings>builder()
@@ -191,7 +191,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
-        return auditUi.buildProfileActivityPanel(AuditUiExtension.ProfileActivityParams.builder()
+        return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjectType(EntityType.USER)
                 .subjectId(currentUser.getId())
                 .viewerActorId(currentUser.getId())

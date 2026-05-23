@@ -2,23 +2,30 @@ package org.ost.marketplace.services.audit;
 
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.repository.user.UserRepository;
-import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Component
-public class AuditEntityExistenceCheckerImpl implements AuditEntityExistenceChecker {
+public class AuditDomainHookImpl implements AuditDomainHook {
 
     private final AdvertisementRepository advertisementRepository;
     private final UserRepository          userRepository;
 
-    public AuditEntityExistenceCheckerImpl(AdvertisementRepository advertisementRepository,
-                                           UserRepository userRepository) {
+    public AuditDomainHookImpl(AdvertisementRepository advertisementRepository,
+                                UserRepository userRepository) {
         this.advertisementRepository = advertisementRepository;
         this.userRepository          = userRepository;
+    }
+
+    @Override
+    public Map<Long, String> resolveNames(Set<Long> actorIds) {
+        if (actorIds.isEmpty()) return Map.of();
+        return userRepository.findActorNames(actorIds.toArray(new Long[0]));
     }
 
     @Override

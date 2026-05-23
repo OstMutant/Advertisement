@@ -20,8 +20,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.attachment.dto.MediaContentTypeDto;
+import org.ost.platform.attachment.model.MediaContentType;
 import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.util.MediaContentTypeUtil;
 import org.ost.attachment.service.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.i18n.I18nService;
@@ -305,17 +306,17 @@ public class AttachmentGallery extends Div {
     }
 
     private static boolean isVideoType(String contentType) {
-        return MediaContentTypeDto.isVideo(contentType);
+        return MediaContentTypeUtil.isVideo(contentType);
     }
 
     private static String thumbSrc(String contentType, String url) {
-        if (MediaContentTypeDto.YOUTUBE.value().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
-        if (MediaContentTypeDto.isEmbedded(contentType))              return VIDEO_PLACEHOLDER_SVG;
-        if (MediaContentTypeDto.isUploadedVideo(contentType))         return VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentType.YOUTUBE.value().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (MediaContentTypeUtil.isEmbedded(contentType))             return VIDEO_PLACEHOLDER_SVG;
+        if (MediaContentTypeUtil.isUploadedVideo(contentType))        return VIDEO_PLACEHOLDER_SVG;
         return url;
     }
 
-    public static final String VIDEO_PLACEHOLDER_SVG = MediaContentTypeDto.VIDEO_THUMBNAIL;
+    public static final String VIDEO_PLACEHOLDER_SVG = MediaContentTypeUtil.VIDEO_THUMBNAIL;
 
     private void openLightbox(Attachment attachment) {
         Div overlay = new Div();
@@ -326,7 +327,7 @@ public class AttachmentGallery extends Div {
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
         String ct = attachment.getContentType();
-        if (MediaContentTypeDto.isEmbedded(ct)) {
+        if (MediaContentTypeUtil.isEmbedded(ct)) {
             IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
             iframe.addClassName("attachment-lightbox__iframe");
             iframe.getElement().setAttribute("allow",
@@ -337,7 +338,7 @@ public class AttachmentGallery extends Div {
             iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
             overlay.addClickListener(_ -> closeLightbox(overlay, iframe));
             overlay.add(closeBtn, iframe);
-        } else if (MediaContentTypeDto.isUploadedVideo(ct)) {
+        } else if (MediaContentTypeUtil.isUploadedVideo(ct)) {
             com.vaadin.flow.dom.Element videoEl = new com.vaadin.flow.dom.Element("video");
             videoEl.setAttribute("controls", "");
             videoEl.setAttribute("src", attachment.getUrl());
@@ -367,7 +368,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String resolveEmbedUrl(Attachment attachment) {
-        if (MediaContentTypeDto.YOUTUBE.value().equals(attachment.getContentType())) {
+        if (MediaContentType.YOUTUBE.value().equals(attachment.getContentType())) {
             return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
         }
         return attachment.getUrl();

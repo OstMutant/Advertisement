@@ -3,11 +3,11 @@ package org.ost.attachment.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.attachment.dto.MediaContentTypeDto;
 import org.ost.attachment.repository.AttachmentRepository;
+import org.ost.attachment.util.MediaContentTypeUtil;
 import org.ost.attachment.util.YoutubeUtil;
-import org.ost.platform.core.spi.CurrentActorProvider;
-import org.ost.platform.attachment.spi.MediaChangeConsumer;
+import org.ost.platform.core.spi.CurrentActorHook;
+import org.ost.platform.attachment.spi.MediaChangeHook;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.attachment.storage.StorageService;
 import org.ost.platform.core.model.EntityType;
@@ -31,8 +31,8 @@ public class AttachmentService {
     private final StorageService                                  storageService;
     private final AttachmentRepository                            attachmentRepository;
     private final AttachmentSnapshotService                       attachmentSnapshotService;
-    private final ObjectProvider<CurrentActorProvider>   currentActorProvider;
-    private final ObjectProvider<MediaChangeConsumer>             mediaChangeConsumer;
+    private final ObjectProvider<CurrentActorHook>   currentActorHook;
+    private final ObjectProvider<MediaChangeHook>    mediaChangeHook;
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId);
@@ -50,7 +50,7 @@ public class AttachmentService {
         if (url == null) return null;
         if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (CT_EMBED.equals(contentType))   return null;
-        if (MediaContentTypeDto.isUploadedVideo(contentType)) return url;
+        if (MediaContentTypeUtil.isUploadedVideo(contentType)) return url;
         return url;
     }
 
@@ -180,7 +180,7 @@ public class AttachmentService {
     @Transactional
     public void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long actorId) {
         if (targetUrls == null || targetUrls.length == 0) {
-            attachmentRepository.restoreDeleteAll(entityType, entityId, actorId);
+            attachmentRepository.softDeleteAll(entityType, entityId, actorId);
             notifyMediaChanged(entityType, entityId);
             return;
         }
@@ -212,7 +212,7 @@ public class AttachmentService {
     }
 
     private void notifyMediaChanged(EntityType entityType, Long entityId) {
-        mediaChangeConsumer.ifAvailable(c -> c.onMediaChanged(entityType, entityId));
+        mediaChangeHook.ifAvailable(c -> c.onMediaChanged(entityType, entityId));
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {
@@ -223,7 +223,7 @@ public class AttachmentService {
     }
 
     private Long resolveCurrentActorId() {
-        CurrentActorProvider p = currentActorProvider.getIfAvailable();
+        CurrentActorHook p = currentActorHook.getIfAvailable();
         return p == null ? null : p.getCurrentActorId().orElse(null);
     }
 }

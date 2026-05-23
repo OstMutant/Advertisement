@@ -27,8 +27,8 @@ import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
-import org.ost.platform.attachment.dto.MediaContentTypeDto;
-import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.attachment.util.MediaContentTypeUtil;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -68,7 +68,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient AccessEvaluator                    access;
     private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
-    private final transient ObjectProvider<AttachmentGalleryExtension> galleryExtension;
+    private final transient ObjectProvider<AttachmentGalleryPort> galleryExtension;
 
     @Override
     @PostConstruct
@@ -101,7 +101,7 @@ public class AdvertisementCardView extends HorizontalLayout
         Div wrapper = new Div();
         wrapper.addClassName("advertisement-thumbnail-wrapper");
 
-        if (MediaContentTypeDto.isUploadedVideo(ad.getMediaContentType())) {
+        if (MediaContentTypeUtil.isUploadedVideo(ad.getMediaContentType())) {
             com.vaadin.flow.dom.Element video = new com.vaadin.flow.dom.Element("video");
             video.setAttribute("src", ad.getMediaUrl());
             video.setAttribute("preload", "metadata");

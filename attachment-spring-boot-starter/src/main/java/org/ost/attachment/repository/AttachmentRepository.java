@@ -66,19 +66,18 @@ public class AttachmentRepository {
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
                           .addValue("entityId",   entityId)
-                          .addValue("actorId",    actorId))
+                          .addValue("actorId",        actorId))
                   .update();
     }
 
-    public void restoreDeleteAll(EntityType entityType, Long entityId, Long actorId) {
+    public void restoreDeleteAll(EntityType entityType, Long entityId) {
         jdbcClient.sql("""
-                        UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
-                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
+                        UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NOT NULL
                         """)
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
-                          .addValue("entityId",   entityId)
-                          .addValue("actorId",    actorId))
+                          .addValue("entityId",   entityId))
                   .update();
     }
 
@@ -90,7 +89,7 @@ public class AttachmentRepository {
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
                           .addValue("entityId",   entityId)
-                          .addValue("urls",        urls))
+                          .addValue("urls",            urls))
                   .update();
     }
 
@@ -103,14 +102,16 @@ public class AttachmentRepository {
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
                           .addValue("entityId",   entityId)
-                          .addValue("actorId",    actorId)
-                          .addValue("urls",        urls))
+                          .addValue("actorId",        actorId)
+                          .addValue("urls",            urls))
                   .update();
     }
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
         return jdbcClient.sql("""
-                        SELECT * FROM attachment
+                        SELECT id, entity_type, entity_id, url, filename, content_type, size,
+                               created_at, deleted_at, deleted_by_actor_id
+                        FROM attachment
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
                         """)
                          .paramSource(new MapSqlParameterSource()

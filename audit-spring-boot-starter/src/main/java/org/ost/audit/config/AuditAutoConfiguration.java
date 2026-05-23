@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
-import org.ost.platform.core.spi.CurrentActorProvider;
+import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
@@ -13,10 +13,8 @@ import org.ost.audit.services.ActivityService;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
-import org.ost.platform.audit.spi.MediaHistoryExtension;
-import org.ost.platform.audit.spi.AuditActorNameResolver;
-import org.ost.platform.audit.spi.AuditEntityExistenceChecker;
-import org.ost.platform.audit.spi.ActivityFeedExtension;
+import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -56,11 +54,11 @@ public class AuditAutoConfiguration {
             AuditDiffEngine diffEngine,
             AuditSnapshotMapper snapshotMapper,
             AuditLogRepository auditLogRepository,
-            ObjectProvider<CurrentActorProvider> currentActorProvider,
+            ObjectProvider<CurrentActorHook> currentActorHook,
             AuditQueryService auditQueryService,
             AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, snapshotMapper,
-                                    auditLogRepository, currentActorProvider, auditQueryService, auditHistoryService);
+                                    auditLogRepository, currentActorHook, auditQueryService, auditHistoryService);
     }
 
     @Bean
@@ -68,10 +66,10 @@ public class AuditAutoConfiguration {
     AuditHistoryService auditHistoryService(
             AuditLogRepository auditLogRepository,
             AuditSnapshotMapper snapshotMapper,
-            ObjectProvider<MediaHistoryExtension> historyExtension,
-            ObjectProvider<AuditActorNameResolver> actorNameResolver) {
+            ObjectProvider<AttachmentAuditHook> attachmentAuditHook,
+            ObjectProvider<AuditDomainHook> auditDomainHook) {
         return new AuditHistoryService(auditLogRepository, snapshotMapper,
-                                       historyExtension, actorNameResolver);
+                                       attachmentAuditHook, auditDomainHook);
     }
 
     @Bean
@@ -84,10 +82,8 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(ActivityService.class)
     ActivityService activityService(
             AuditLogRepository auditLogRepository,
-            ObjectProvider<ActivityFeedExtension> activityExtension,
-            ObjectProvider<AuditActorNameResolver> actorNameResolver,
-            ObjectProvider<AuditEntityExistenceChecker> existenceChecker) {
-        return new ActivityService(auditLogRepository, activityExtension,
-                                   actorNameResolver, existenceChecker);
+            ObjectProvider<AttachmentAuditHook> attachmentAuditHook,
+            ObjectProvider<AuditDomainHook> auditDomainHook) {
+        return new ActivityService(auditLogRepository, attachmentAuditHook, auditDomainHook);
     }
 }

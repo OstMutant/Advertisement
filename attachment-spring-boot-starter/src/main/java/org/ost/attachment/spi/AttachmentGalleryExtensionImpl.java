@@ -2,7 +2,7 @@ package org.ost.attachment.spi;
 
 import com.vaadin.flow.component.Component;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.attachment.spi.AttachmentGalleryExtension;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class AttachmentGalleryExtensionImpl implements AttachmentGalleryExtension {
+public class AttachmentGalleryExtensionImpl implements AttachmentGalleryPort {
 
     private final ObjectProvider<AttachmentGallery>    galleryProvider;
     private final ObjectProvider<CardMediaLightbox>    lightboxProvider;

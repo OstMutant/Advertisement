@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
-import org.ost.platform.audit.spi.ActivityRowBinding;
+import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.platform.core.ui.Configurable;
@@ -29,7 +29,7 @@ import java.util.function.Predicate;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class SnapshotBinder<T>
-        implements Configurable<SnapshotBinder<T>, SnapshotBinder.Parameters<T>>, ActivityRowBinding {
+        implements Configurable<SnapshotBinder<T>, SnapshotBinder.Parameters<T>>, ActivityRowHook {
 
     @Value
     @lombok.Builder

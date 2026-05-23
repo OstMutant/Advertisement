@@ -3,8 +3,9 @@ package org.ost.platform.attachment.spi;
 import org.ost.platform.core.model.EntityType;
 
 /**
- * Reverse SPI: attachment-starter notifies the domain when an entity's media
- * set changes. Implementations live in the domain (e.g. marketplace-app).
+ * Hook: attachment-starter → marketplace.
+ * Attachment-starter notifies the domain when an entity's media set changes.
+ * Implementations live in the domain (e.g. marketplace-app).
  * Optional — attachment-starter injects via {@code ObjectProvider} and does
  * nothing when no implementation is present.
  *
@@ -12,7 +13,7 @@ import org.ost.platform.core.model.EntityType;
  * the consumer queries current state via {@code AttachmentService} to avoid
  * leaky derived fields (URLs, counts) in the SPI surface.</p>
  */
-public interface MediaChangeConsumer {
+public interface MediaChangeHook {
 
     void onMediaChanged(EntityType entityType, Long entityId);
 }

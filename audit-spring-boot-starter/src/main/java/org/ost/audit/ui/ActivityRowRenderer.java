@@ -13,8 +13,8 @@ import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.ActivityItemFieldsProvider;
-import org.ost.platform.audit.spi.MediaHistoryExtension;
+import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.beans.factory.ObjectProvider;
@@ -37,8 +37,8 @@ public class ActivityRowRenderer {
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
     private final ActivityPanel                            activityPanel;
-    private final List<ActivityItemFieldsProvider>         fieldsProviders;
-    private final ObjectProvider<MediaHistoryExtension>    historyExtensionProvider;
+    private final List<ActivityFieldsHook>              fieldsProviders;
+    private final ObjectProvider<AttachmentAuditHook>   historyExtensionProvider;
     @Qualifier("auditObjectMapper")
     private final ObjectMapper                             objectMapper;
 
@@ -76,7 +76,7 @@ public class ActivityRowRenderer {
         if (item.entityType() == EntityType.ADVERTISEMENT) {
             return buildAdvertisementActivityFieldsList(item);
         }
-        ActivityItemFieldsProvider provider = fieldsProviders.stream()
+        ActivityFieldsHook provider = fieldsProviders.stream()
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
         if (provider != null && !item.snapshotData().isEmpty()) {
@@ -107,7 +107,7 @@ public class ActivityRowRenderer {
         }
 
         if (mediaChanges.isEmpty()) {
-            MediaHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateForSnapshot(item.entityType(), item.entityId(), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
@@ -156,7 +156,7 @@ public class ActivityRowRenderer {
     private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges,
                                            EntityType entityType, Long entityId, int version) {
         if (mediaChanges.isEmpty()) {
-            MediaHistoryExtension ext = historyExtensionProvider.getIfAvailable();
+            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(entityType, entityId, version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);

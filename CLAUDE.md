@@ -29,9 +29,9 @@ advertisement-parent (root pom)
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
 **platform-contracts** defines the cross-module contracts, organized into three semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (`CurrentActorProvider`, `EntityDisplayNameResolver`)
-- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `ActivityFeedExtension`, `MediaHistoryExtension`, `AuditUiExtension`, `ActivityRowBinding`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryExtension`, `MediaChangeConsumer`), `attachment.dto` (`MediaSummaryDto`)
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `MediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`MediaSummaryDto`), `attachment.model` (`MediaContentType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-contracts/CLAUDE.md
 

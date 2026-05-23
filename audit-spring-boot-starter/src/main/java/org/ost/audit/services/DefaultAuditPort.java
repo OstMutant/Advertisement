@@ -2,7 +2,7 @@ package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.spi.CurrentActorProvider;
+import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.audit.model.AuditDiffEngine;
@@ -23,14 +23,14 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditDiffEngine                      diffEngine;
     private final AuditSnapshotMapper                  snapshotMapper;
     private final AuditLogRepository                   auditLogRepository;
-    private final ObjectProvider<CurrentActorProvider> currentActorProvider;
+    private final ObjectProvider<CurrentActorHook> currentActorHook;
     private final AuditQueryService                    auditQueryService;
     private final AuditHistoryService                  auditHistoryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
-        CurrentActorProvider provider = currentActorProvider.getIfAvailable();
-        return provider != null ? provider.getCurrentActorId().orElse(null) : null;
+        CurrentActorHook hook = currentActorHook.getIfAvailable();
+        return hook != null ? hook.getCurrentActorId().orElse(null) : null;
     }
 
     @Override

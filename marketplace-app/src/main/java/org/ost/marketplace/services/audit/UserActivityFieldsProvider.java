@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.ActivityItemFieldsProvider;
+import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +14,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class UserActivityFieldsProvider implements ActivityItemFieldsProvider {
+public class UserActivityFieldsProvider implements ActivityFieldsHook {
 
     @Qualifier("userSettingsObjectMapper")
     private final ObjectMapper objectMapper;
