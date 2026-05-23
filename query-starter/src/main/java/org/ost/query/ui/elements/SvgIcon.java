@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.components.query.elements;
+package org.ost.query.ui.elements;
 
 import com.vaadin.flow.component.html.Span;
 import jakarta.annotation.PostConstruct;
@@ -6,7 +6,7 @@ import lombok.*;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
-import org.ost.marketplace.ui.views.utils.SvgUtil;
+import org.ost.query.ui.utils.SvgUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;

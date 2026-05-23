@@ -19,14 +19,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 advertisement-parent (root pom)
-├── sql-engine                       — framework-agnostic SQL query-building library
+├── query-starter                    — SQL filter/sort library + Vaadin UI query components (filter/sort processors, field elements)
 ├── platform-commons                 — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
 ├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
 └── marketplace-app                  — main Vaadin application
 ```
 
-**sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
+**query-starter** provides two layers: SQL utilities (`SqlFilterBuilder`, `OrderByBuilder` in `org.ost.query.filter/sort`) and Vaadin UI query components (`FilterProcessor`, `SortProcessor`, field elements in `org.ost.query.ui.*`). Auto-configures `ValidationService` via `QueryAutoConfiguration`.
 
 **platform-commons** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
@@ -66,7 +66,7 @@ advertisement-parent (root pom)
 
 Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
 
-→ sql-engine query API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @sql-engine/CLAUDE.md
+→ query-starter SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder) and UI components: @query-starter/CLAUDE.md
 
 ---
 
@@ -210,7 +210,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/platform-commons/DECISIONS.md`
-- `/app/sql-engine/DECISIONS.md`
+- `/app/query-starter/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 

@@ -1,14 +1,14 @@
-package org.ost.marketplace.ui.views.components.query.processor;
+package org.ost.query.ui.sort;
 
-import org.ost.marketplace.common.I18nKey;
+import org.ost.platform.core.i18n.TranslationKey;
 
 public record SortFieldMeta(
         String property,
-        I18nKey i18nKey) {
+        TranslationKey i18nKey) {
 
     public static SortFieldMeta of(
             String property,
-            I18nKey i18nKey) {
+            TranslationKey i18nKey) {
         return new SortFieldMeta(property, i18nKey);
     }
 }

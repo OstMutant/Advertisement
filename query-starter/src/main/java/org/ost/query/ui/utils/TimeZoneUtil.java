@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.utils;
+package org.ost.query.ui.utils;
 
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.server.VaadinSession;

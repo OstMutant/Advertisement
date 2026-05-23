@@ -35,7 +35,7 @@ Rules:
 
 **Decision:** All database access via `JdbcClient` with custom `*Descriptor` + `RepositoryCustom`/`FilterableRepository`. No JPA, no Hibernate, no Spring Data JPA. `CrudRepository<T, Long>` is used only for trivial `save`/`findById`/`deleteById` — never for custom queries.
 
-**Why:** Explicit SQL gives full control over queries, avoids N+1, and eliminates hidden lazy-loading bugs. `SqlFixedQuery<T>` and `SqlEntityProjection<T>` in `sql-engine` enforce a consistent pattern.
+**Why:** Explicit SQL gives full control over queries, avoids N+1, and eliminates hidden lazy-loading bugs. `SqlFixedQuery<T>` and `SqlEntityProjection<T>` in `query-starter` enforce a consistent pattern.
 
 **Rejected:** Spring Data JPA — too much hidden magic, incompatible with the "explicit over implicit" architecture principle.
 

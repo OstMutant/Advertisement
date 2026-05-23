@@ -23,7 +23,7 @@
         </dependency>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>sql-engine</artifactId>
+            <artifactId>query-starter</artifactId>
         </dependency>
 
         <dependency>

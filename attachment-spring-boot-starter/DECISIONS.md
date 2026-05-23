@@ -4,7 +4,7 @@
 
 ## 2026-05-19 — Attachment descriptors migrated to Read/Write namespace pattern
 
-**Decision:** `AttachmentDescriptor` and `AttachmentSnapshotDescriptor` are `final` namespace classes (private constructor) that implement the new `SqlEntityDescriptor` marker interface from `sql-engine`. Each descriptor splits its body into two symmetric inner classes:
+**Decision:** `AttachmentDescriptor` and `AttachmentSnapshotDescriptor` are `final` namespace classes (private constructor) that implement the new `SqlEntityDescriptor` marker interface from `query-starter`. Each descriptor splits its body into two symmetric inner classes:
 
 - `Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param factories. `AttachmentSnapshotDescriptor.Read` additionally hosts the `extractUrls(ResultSet)` row helper.
 - `Write` — `SqlWriteCommand` constants and write-side param factories. `DELETE_BY_URLS` moved from "read" mix to `Write` (it is a delete command).

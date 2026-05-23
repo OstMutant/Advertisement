@@ -2,16 +2,11 @@ package org.ost.marketplace.ui.views.rules;
 
 import org.ost.marketplace.common.I18nKey;
 import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.core.i18n.Translatable;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
-public interface I18nParams {
-    I18nService getI18nService();
-
-    default String getValue(I18nKey i18nKey, Object... args) {
-        return getI18nService().get(i18nKey, args);
-    }
+public interface I18nParams extends Translatable {
 
     default String formatAction(ActionType actionType) {
         return switch (actionType) {

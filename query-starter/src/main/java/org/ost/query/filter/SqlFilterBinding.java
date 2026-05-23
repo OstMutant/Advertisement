@@ -1,4 +1,4 @@
-package org.ost.sqlengine.filter;
+package org.ost.query.filter;
 
 /**
  * Maps one field of a filter DTO to a {@link SqlCondition}.

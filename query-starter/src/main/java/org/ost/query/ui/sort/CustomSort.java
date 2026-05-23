@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.components.query.processor;
+package org.ost.query.ui.sort;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

@@ -1,4 +1,4 @@
-package org.ost.sqlengine.filter;
+package org.ost.query.filter;
 
 /**
  * SQL comparison operators used by {@link SqlCondition} to format WHERE clause fragments.

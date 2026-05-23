@@ -1,8 +1,8 @@
-package org.ost.marketplace.ui.views.components.query.processor;
+package org.ost.query.ui.filter;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.marketplace.services.ValidationService;
+import org.ost.query.ui.filter.ValidationService;
 
 import java.util.function.BiPredicate;
 

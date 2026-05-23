@@ -1,4 +1,4 @@
-package org.ost.marketplace.services;
+package org.ost.query.ui.filter;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;

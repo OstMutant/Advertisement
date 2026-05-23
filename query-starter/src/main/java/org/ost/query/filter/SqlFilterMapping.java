@@ -1,4 +1,4 @@
-package org.ost.sqlengine.filter;
+package org.ost.query.filter;
 
 /**
  * Pairs a filter parameter name ({@code filterProperty}, used as the SQL named parameter)

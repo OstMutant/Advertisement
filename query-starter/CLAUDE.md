@@ -1,19 +1,21 @@
-## sql-engine API
+## query-starter API
 
-A lightweight filter/sort library. No projection classes, no base repositories — just utilities for building WHERE clauses and ORDER BY from filter DTOs.
+SQL filter/sort library + Vaadin UI query components. Two layers in one starter.
 
-### Classes
+---
+
+### SQL Layer (`org.ost.query.filter`, `org.ost.query.sort`)
 
 | Class | Role |
 |---|---|
 | `SqlFilterBuilder<F>` | Translates a filter DTO into a SQL WHERE fragment + named params |
 | `SqlBoundFilter<F, R>` | Binds one filter DTO field to a column expression and a `SqlCondition` factory |
 | `SqlCondition<R>` | A single resolved WHERE condition (expression, param name, value, operator) |
-| `SqlFilterMapping` | Interface: `filterProperty()` + `sqlExpression()` — implemented by `SqlBoundFilter` |
+| `SqlFilterMapping` | Interface: `filterProperty()` + `sqlExpression()` |
 | `SqlFilterBinding<F, R>` | Functional interface: `getCondition(F filter) → SqlCondition<R>` |
 | `OrderByBuilder` | Converts `Spring Sort` into an `ORDER BY` clause via an alias→expression map |
 
-### Defining a filter
+#### Defining a filter
 
 ```java
 private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
@@ -23,23 +25,7 @@ private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFi
 ));
 ```
 
-### Using in a repository
-
-```java
-public List<AdvertisementInfoDto> findByFilter(AdvertisementFilterDto filter, Pageable pageable) {
-    var params = new MapSqlParameterSource();
-    String where  = FILTER.build(params, filter, "WHERE ");
-    String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of("created_at", "a.created_at"));
-    return jdbcClient.sql("SELECT ... FROM advertisements a " + where + orderBy + " LIMIT :limit OFFSET :offset")
-                     .paramSource(params.addValue("limit", pageable.getPageSize())
-                                        .addValue("offset", pageable.getOffset()))
-                     .query(ROW_MAPPER).list();
-}
-```
-
-### `SqlCondition` factory methods
-
-All are null-safe — return `null` when the value is absent; `SqlFilterBuilder` skips null conditions silently.
+#### SqlCondition factory methods
 
 | Method | SQL operator |
 |---|---|
@@ -49,14 +35,21 @@ All are null-safe — return `null` when the value is absent; `SqlFilterBuilder`
 | `before(mapping, instant/long)` | `<= :param` |
 | `inSet(mapping, enumSet)` | `IN (:param)` |
 
-### `OrderByBuilder`
+---
 
-```java
-OrderByBuilder.build(sort, Map.of(
-    "created_at", "a.created_at",
-    "title",      "a.title"
-))
-// returns " ORDER BY a.created_at DESC NULLS LAST" or "" if sort is empty
-```
+### UI Layer (`org.ost.query.ui.*`)
 
-Converts camelCase property names to snake_case before lookup. Unknown properties are silently skipped.
+| Package | Contents |
+|---|---|
+| `ui.filter` | `FilterProcessor`, `FilterFieldMeta`, `FilterMapper`, `ValidationService`, `ValidationPredicates` |
+| `ui.sort` | `SortProcessor`, `SortFieldMeta`, `CustomSort` |
+| `ui.elements` | `SortIcon`, `SvgIcon` |
+| `ui.elements.action` | `QueryActionBlock`, `QueryActionButton`, `QueryActionBlockHandler` |
+| `ui.elements.fields` | `QueryTextField`, `QueryComboField`, `QueryDateTimeField`, `QueryMultiSelectComboField`, `QueryNumberField` |
+| `ui.elements.rows` | `QueryInlineRow` |
+| `ui.utils` | `HighlighterUtil`, `TimeZoneUtil`, `SvgUtil` |
+
+UI components use `Translatable` (from `platform-commons`) instead of marketplace-specific `I18nParams`.
+All translation keys are typed as `TranslationKey` — no marketplace `I18nKey` dependency.
+
+`ValidationService` is auto-configured via `QueryAutoConfiguration` — no explicit bean declaration needed.

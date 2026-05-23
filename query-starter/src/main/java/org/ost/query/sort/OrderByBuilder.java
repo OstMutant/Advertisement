@@ -1,4 +1,4 @@
-package org.ost.sqlengine.sort;
+package org.ost.query.sort;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

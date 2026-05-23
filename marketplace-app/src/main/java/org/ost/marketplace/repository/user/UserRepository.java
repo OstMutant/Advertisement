@@ -5,10 +5,10 @@ import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
-import org.ost.sqlengine.filter.SqlBoundFilter;
-import org.ost.sqlengine.filter.SqlCondition;
-import org.ost.sqlengine.filter.SqlFilterBuilder;
-import org.ost.sqlengine.sort.OrderByBuilder;
+import org.ost.query.filter.SqlBoundFilter;
+import org.ost.query.filter.SqlCondition;
+import org.ost.query.filter.SqlFilterBuilder;
+import org.ost.query.sort.OrderByBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.ost.marketplace.dto.filter.UserFilterDto.Fields.*;
-import static org.ost.sqlengine.filter.SqlCondition.*;
+import static org.ost.query.filter.SqlCondition.*;
 
 @Repository
 @RequiredArgsConstructor

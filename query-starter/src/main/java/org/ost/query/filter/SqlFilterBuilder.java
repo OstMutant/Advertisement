@@ -1,4 +1,4 @@
-package org.ost.sqlengine.filter;
+package org.ost.query.filter;
 
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 

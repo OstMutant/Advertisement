@@ -10,7 +10,7 @@ for %%d in (
     platform-commons\target
     attachment-spring-boot-starter\target
     audit-spring-boot-starter\target
-    sql-engine\target
+    query-starter\target
 ) do (
     if exist "%ROOT%%%d" (
         rmdir /s /q "%ROOT%%%d"

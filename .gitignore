@@ -5,7 +5,7 @@
 /platform-commons/target/
 /attachment-spring-boot-starter/target/
 /audit-spring-boot-starter/target/
-/sql-engine/target/
+/query-starter/target/
 /database/
 
 # Vaadin frontend generated files

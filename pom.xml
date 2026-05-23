@@ -19,7 +19,7 @@
     <name>Advertisement Parent</name>
 
     <modules>
-        <module>sql-engine</module>
+        <module>query-starter</module>
         <module>platform-commons</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
@@ -46,7 +46,7 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
-                <artifactId>sql-engine</artifactId>
+                <artifactId>query-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

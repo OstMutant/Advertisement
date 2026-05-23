@@ -6,7 +6,7 @@ COPY pom.xml mvnw lombok.config ./
 COPY .mvn .mvn
 
 # Copy module POMs to leverage Docker cache for dependencies
-COPY sql-engine/pom.xml sql-engine/
+COPY query-starter/pom.xml query-starter/
 COPY platform-commons/pom.xml platform-commons/
 COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
 COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
@@ -17,7 +17,7 @@ RUN chmod +x mvnw && sed -i 's/\r//' mvnw
 RUN ./mvnw dependency:go-offline -q
 
 # Copy the source code for all modules
-COPY sql-engine/src ./sql-engine/src
+COPY query-starter/src ./query-starter/src
 COPY platform-commons/src ./platform-commons/src
 COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src

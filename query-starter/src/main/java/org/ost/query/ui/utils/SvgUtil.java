@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.utils;
+package org.ost.query.ui.utils;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

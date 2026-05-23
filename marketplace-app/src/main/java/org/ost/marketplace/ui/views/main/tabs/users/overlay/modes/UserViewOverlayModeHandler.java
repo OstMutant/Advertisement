@@ -28,7 +28,7 @@ import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.services.user.UserSettingsService;
-import org.ost.marketplace.ui.views.utils.TimeZoneUtil;
+import org.ost.query.ui.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

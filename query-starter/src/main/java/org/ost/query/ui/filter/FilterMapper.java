@@ -1,4 +1,4 @@
-package org.ost.marketplace.mappers.filters;
+package org.ost.query.ui.filter;
 
 public interface FilterMapper<T> {
 

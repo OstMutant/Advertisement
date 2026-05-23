@@ -3,7 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.users.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.marketplace.entities.User;
-import org.ost.marketplace.ui.views.components.query.processor.SortFieldMeta;
+import org.ost.query.ui.sort.SortFieldMeta;
 
 import static org.ost.marketplace.common.I18nKey.*;
 

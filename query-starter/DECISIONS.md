@@ -1,10 +1,10 @@
-# Architecture & Technical Decisions — sql-engine
+# Architecture & Technical Decisions — query-starter
 
 ---
 
 ## Ongoing — Framework-agnostic SQL query library
 
-**Decision:** `sql-engine` is a plain Java library with no Spring Boot autoconfiguration and no domain knowledge. It provides the query-building API (`SqlSelectField`, `SqlFixedQuery`, `SqlEntityProjection`, `SqlFilterBuilder`, `SqlCondition`, `SqlEntityWriter`, `SqlParams`) used by all repository classes across all modules.
+**Decision:** `query-starter` is a plain Java library with no Spring Boot autoconfiguration and no domain knowledge. It provides the query-building API (`SqlSelectField`, `SqlFixedQuery`, `SqlEntityProjection`, `SqlFilterBuilder`, `SqlCondition`, `SqlEntityWriter`, `SqlParams`) used by all repository classes across all modules.
 
 **Why:** Keeping the query API decoupled from Spring allows unit-testing it without a Spring context (pure JUnit), and prevents domain concerns from leaking into infrastructure. Any module can depend on it without pulling in Spring Boot starters.
 
@@ -36,9 +36,9 @@
 
 ---
 
-## Hard limit — Do not extend the sql-engine DSL beyond its current scope
+## Hard limit — Do not extend the query-starter DSL beyond its current scope
 
-**Decision:** The sql-engine API is frozen at its current abstraction level. The following are explicitly out of scope and must never be added:
+**Decision:** The query-starter API is frozen at its current abstraction level. The following are explicitly out of scope and must never be added:
 - JOIN DSL (fluent join builders, relationship traversal)
 - Expression AST (composable expressions, operator trees)
 - Automatic query rewriting or optimization
@@ -48,7 +48,7 @@
 
 **Why:** The current API covers exactly two cases: simple filterable queries and complex structural queries with raw SQL. Adding a JOIN DSL or expression layer would recreate the problems of JPA/QueryDSL. `SqlParams` minimalism is intentional — it is a thin factory, not a DSL.
 
-**Rule:** If you feel the urge to add a new abstraction to sql-engine, write raw SQL in `SqlFixedQuery` instead.
+**Rule:** If you feel the urge to add a new abstraction to query-starter, write raw SQL in `SqlFixedQuery` instead.
 
 ---
 

@@ -1,10 +1,10 @@
-package org.ost.marketplace.ui.views.components.query.processor;
+package org.ost.query.ui.sort;
 
 import lombok.Getter;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.ui.views.components.query.elements.SortIcon;
-import org.ost.marketplace.ui.views.components.query.elements.SortIcon.SortHighlightColor;
-import org.ost.marketplace.ui.views.components.query.elements.action.QueryActionBlockHandler;
+import org.ost.platform.core.i18n.TranslationKey;
+import org.ost.query.ui.elements.SortIcon;
+import org.ost.query.ui.elements.SortIcon.SortHighlightColor;
+import org.ost.query.ui.elements.action.QueryActionBlockHandler;
 import org.springframework.data.domain.Sort.Direction;
 
 import java.util.*;
@@ -61,7 +61,7 @@ public class SortProcessor {
         }
     }
 
-    public List<String> loopSortDescriptions(BiFunction<I18nKey, Direction, String> transformer) {
+    public List<String> loopSortDescriptions(BiFunction<TranslationKey, Direction, String> transformer) {
         List<String> result = new ArrayList<>();
         for (Map.Entry<SortFieldMeta, SortIcon> entry : fieldsMap.entrySet()) {
             SortFieldMeta meta = entry.getKey();

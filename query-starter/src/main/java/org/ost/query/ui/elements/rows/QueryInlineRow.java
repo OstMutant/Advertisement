@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.components.query.elements.rows;
+package org.ost.query.ui.elements.rows;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Span;
@@ -6,13 +6,13 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.ComponentBuilder;
-import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
-import org.ost.marketplace.ui.views.components.query.elements.SortIcon;
+import org.ost.query.ui.elements.SortIcon;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
@@ -22,12 +22,12 @@ import java.util.List;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PACKAGE)
 public class QueryInlineRow extends HorizontalLayout
-        implements Configurable<QueryInlineRow, QueryInlineRow.Parameters>, I18nParams, Initialization<QueryInlineRow> {
+        implements Configurable<QueryInlineRow, QueryInlineRow.Parameters>, Translatable, Initialization<QueryInlineRow> {
 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull  I18nKey         labelI18nKey;
+        @NonNull  TranslationKey         labelTranslationKey;
         @NonNull  SortIcon        sortIcon;
         @Singular List<Component> filterFields;
     }
@@ -51,7 +51,7 @@ public class QueryInlineRow extends HorizontalLayout
 
     @Override
     public QueryInlineRow configure(Parameters p) {
-        HorizontalLayout labelAndSort = new HorizontalLayout(new Span(getValue(p.getLabelI18nKey())), p.getSortIcon());
+        HorizontalLayout labelAndSort = new HorizontalLayout(new Span(getValue(p.getLabelTranslationKey())), p.getSortIcon());
         labelAndSort.addClassName("query-inline-label-sort");
         HorizontalLayout filters = new HorizontalLayout(p.getFilterFields().toArray(new Component[0]));
         filters.addClassName("query-inline-filters");

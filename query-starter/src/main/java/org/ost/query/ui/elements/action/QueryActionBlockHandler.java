@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.views.components.query.elements.action;
+package org.ost.query.ui.elements.action;
 
 
 @FunctionalInterface

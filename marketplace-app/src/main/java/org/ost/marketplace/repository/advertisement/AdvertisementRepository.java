@@ -5,9 +5,9 @@ import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.entities.Advertisement;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
-import org.ost.sqlengine.filter.SqlBoundFilter;
-import org.ost.sqlengine.filter.SqlFilterBuilder;
-import org.ost.sqlengine.sort.OrderByBuilder;
+import org.ost.query.filter.SqlBoundFilter;
+import org.ost.query.filter.SqlFilterBuilder;
+import org.ost.query.sort.OrderByBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.ost.marketplace.dto.filter.AdvertisementFilterDto.Fields.*;
-import static org.ost.sqlengine.filter.SqlCondition.*;
+import static org.ost.query.filter.SqlCondition.*;
 
 @Repository
 @RequiredArgsConstructor
