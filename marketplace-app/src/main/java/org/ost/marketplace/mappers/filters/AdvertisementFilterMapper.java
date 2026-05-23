@@ -1,6 +1,7 @@
 package org.ost.marketplace.mappers.filters;
 
 import org.mapstruct.Mapper;
+import org.ost.query.ui.filter.FilterMapper;
 import org.mapstruct.MappingTarget;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 

@@ -18,6 +18,13 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+## Module Import Rules
+
+**No direct imports between sibling modules.**
+- Starters must NOT import from marketplace or from each other.
+- Marketplace may import from starters only via platform-commons contracts (Ports/Hooks/DTOs)
+  and published UI components — never via internal impl classes (util, service, repository).
+
 ## Git Workflow
 - `git add` — run automatically after every file change
 - `git commit` — **ONLY** when the user explicitly says to commit — never otherwise

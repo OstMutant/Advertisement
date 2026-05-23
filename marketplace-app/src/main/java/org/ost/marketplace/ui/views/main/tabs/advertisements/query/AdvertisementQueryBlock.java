@@ -6,14 +6,14 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
-import org.ost.marketplace.ui.views.components.query.QueryBlock;
-import org.ost.marketplace.ui.views.components.query.elements.SortIcon;
-import org.ost.marketplace.ui.views.components.query.elements.action.QueryActionBlock;
-import org.ost.marketplace.ui.views.components.query.elements.fields.QueryDateTimeField;
-import org.ost.marketplace.ui.views.components.query.elements.fields.QueryTextField;
-import org.ost.marketplace.ui.views.components.query.elements.rows.QueryInlineRow;
-import org.ost.marketplace.ui.views.components.query.processor.FilterProcessor;
-import org.ost.marketplace.ui.views.components.query.processor.SortProcessor;
+import org.ost.query.ui.QueryBlock;
+import org.ost.query.ui.elements.SortIcon;
+import org.ost.query.ui.elements.action.QueryActionBlock;
+import org.ost.query.ui.elements.fields.QueryDateTimeField;
+import org.ost.query.ui.elements.fields.QueryTextField;
+import org.ost.query.ui.elements.rows.QueryInlineRow;
+import org.ost.query.ui.filter.FilterProcessor;
+import org.ost.query.ui.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import static org.ost.marketplace.common.I18nKey.*;
@@ -47,7 +47,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
         SortIcon titleSort = sortIconBuilder.build();
         QueryInlineRow titleRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelI18nKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
+                .labelTranslationKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
 
         // Created date row
         QueryDateTimeField createdStart = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
@@ -58,7 +58,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
         SortIcon createdSort = sortIconBuilder.build();
         QueryInlineRow createdRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelI18nKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
+                .labelTranslationKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
                 .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
@@ -70,7 +70,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
         SortIcon updatedSort = sortIconBuilder.build();
         QueryInlineRow updatedRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelI18nKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
+                .labelTranslationKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
                 .filterField(updatedStart).filterField(updatedEnd).build());
 
         add(titleRow, createdRow, updatedRow, queryActionBlock);

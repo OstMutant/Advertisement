@@ -3,9 +3,9 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
-import org.ost.marketplace.services.ValidationService;
-import org.ost.marketplace.ui.views.components.query.processor.FilterFieldMeta;
-import org.ost.marketplace.ui.views.components.query.processor.ValidationPredicates;
+import org.ost.query.ui.filter.ValidationService;
+import org.ost.query.ui.filter.FilterFieldMeta;
+import org.ost.query.ui.filter.ValidationPredicates;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -13,7 +13,7 @@ import java.util.function.BiPredicate;
 
 import static org.ost.marketplace.dto.filter.AdvertisementFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
-import static org.ost.marketplace.ui.views.utils.TimeZoneUtil.toInstant;
+import static org.ost.query.ui.utils.TimeZoneUtil.toInstant;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class AdvertisementFilterMeta {

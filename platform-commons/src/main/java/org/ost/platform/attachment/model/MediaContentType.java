@@ -12,4 +12,16 @@ public enum MediaContentType {
     WEBM("video/webm");
 
     private final String value;
+
+    public static boolean isUploadedVideo(String value) {
+        return MP4.value.equals(value) || WEBM.value.equals(value);
+    }
+
+    public static boolean isEmbedded(String value) {
+        return YOUTUBE.value.equals(value) || EMBED.value.equals(value);
+    }
+
+    public static boolean isVideo(String value) {
+        return isEmbedded(value) || isUploadedVideo(value);
+    }
 }

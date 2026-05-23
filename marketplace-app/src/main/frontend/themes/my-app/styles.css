@@ -4,8 +4,6 @@
 /* Main Entry Point for CSS imports */
 @import url("./highlight.css");
 @import url("./dialogs.css");
-@import url("./query-status-bar.css");
-@import url("./sort-icon.css");
 @import url("./advertisement-query-block.css");
 @import url("./advertisements-view.css");
 @import url("./advertisement-card.css");
