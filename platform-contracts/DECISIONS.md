@@ -50,9 +50,11 @@ Current assignments: `AuditPort`, `AttachmentPort` (`*Port`); `AuditUiExtension`
 
 ## 2026-05-19 — Storage SPI moved out of contracts
 
-**Decision:** `StorageService` and `@ConditionalOnStorageEnabled` were removed from `platform-contracts` (package `attachment.storage`) and moved into `attachment-spring-boot-starter` (package `org.ost.attachment.storage`). The conditional was renamed to `@ConditionalOnAttachmentEnabled` and reads the property `attachment.enabled`. The `attachment.storage` package no longer exists in contracts; the `attachment.*` contract surface is now SPI-only (`attachment.spi`).
+**Decision:** `StorageService` and `@ConditionalOnStorageEnabled` were removed from `platform-contracts` (package `attachment.storage`) and moved into `attachment-spring-boot-starter` (package `org.ost.attachment.storage`). The `attachment.storage` package no longer exists in contracts; the `attachment.*` contract surface is now SPI-only (`attachment.spi`).
 
-**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` or the conditional. They were contracts in name only — no cross-module consumer. `platform-contracts` is reserved for types crossed by ≥2 modules; single-consumer interfaces belong with their consumer. The rename also matches reality: there is one subsystem flag (`attachment.enabled`), not separate `storage.s3.enabled` and `attachment.enabled` toggles.
+**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` or the conditional. They were contracts in name only — no cross-module consumer. `platform-contracts` is reserved for types crossed by ≥2 modules; single-consumer interfaces belong with their consumer.
+
+**Superseded (2026-05-23):** `@ConditionalOnAttachmentEnabled` and the `attachment.enabled` property were removed entirely. There is no scenario where the starter jar is present but the subsystem should be disabled — presence in the classpath is the toggle. UI components degrade via `ObjectProvider.ifAvailable()` without needing a flag.
 
 **Rejected:** Keeping the SPI in contracts "in case" a future module wanted a `StorageService` — speculative. If a non-attachment module ever needs blob storage, the interface can be promoted back at that time.
 

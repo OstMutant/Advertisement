@@ -7,7 +7,6 @@ import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.attachment.service.DefaultAttachmentPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.attachment.storage.ConditionalOnAttachmentEnabled;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -21,7 +20,6 @@ import javax.sql.DataSource;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ConditionalOnAttachmentEnabled
 @ComponentScan("org.ost.attachment")
 @EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")
 @EnableConfigurationProperties(CleanupProperties.class)

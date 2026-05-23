@@ -9,7 +9,7 @@ import java.util.Optional;
 
 @Component
 @RequiredArgsConstructor
-public class CurrentActorProviderImpl implements CurrentActorHook {
+public class CurrentActorHookImpl implements CurrentActorHook {
 
     private final AuthContextService authContextService;
 

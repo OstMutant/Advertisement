@@ -213,7 +213,8 @@
       "Bash(sed -i '/import org\\\\.ost\\\\.attachment\\\\.storage\\\\.ConditionalOnAttachmentEnabled;/d' /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentGallery.java)",
       "Bash(sed -i /@ConditionalOnAttachmentEnabled/d /app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/ui/AttachmentGallery.java)",
       "Bash(mvn -q clean compile -DskipTests)",
-      "Bash(grep -v \"^  at\\\\|^$\")"
+      "Bash(grep -v \"^  at\\\\|^$\")",
+      "Bash(xargs sh *)"
     ]
   },
   "hooks": {

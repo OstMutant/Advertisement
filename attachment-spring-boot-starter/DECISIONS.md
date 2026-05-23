@@ -66,7 +66,7 @@
 
 **Why:** The original starter compiled only against an advertisement-shaped world (event types, field names, S3 path constants). Adding photo galleries to USER, COMMENT, or any future entity required either renaming everything or branching by name. SPI symmetry with `audit-spring-boot-starter` (which already uses `AuditPort` + a current-user SPI) was the second driver — both starters now follow the same pattern: domain calls a port, starter notifies the domain via an `ObjectProvider`-injected SPI. (Same-day follow-up unified the two starters' user-provider SPIs into a single `core.spi.CurrentUserProvider` — see `platform-contracts/DECISIONS.md`.)
 
-**Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `AdvertisementMediaChangeConsumer` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
+**Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `MediaChangeHookImpl` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
 
 **Deferred:**
 - `EntityRef(EntityType, Long)` record — would collapse the repeated `(entityType, entityId)` pair argument; deferred as cosmetic.
@@ -77,25 +77,21 @@
 
 ---
 
-## 2026-05-19 — Storage SPI internalized; `attachment.enabled` is the subsystem flag
+## 2026-05-19 — Storage SPI internalized
 
-**Decision:** `StorageService` and the subsystem conditional moved out of `platform-contracts` into the starter (package `org.ost.attachment.storage`). The conditional is renamed `@ConditionalOnAttachmentEnabled` and reads `attachment.enabled` (default `true`, `matchIfMissing=true`). The previous prop name `storage.s3.enabled` was reused for the `NoOpStorageService` fallback — that `@ConditionalOnProperty` is now also keyed on `attachment.enabled` (`havingValue = "false"`). S3-specific config (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) stays under `storage.s3.*` — it is S3-implementation config, not a subsystem switch.
+**Decision:** `StorageService` moved out of `platform-contracts` into the starter (package `org.ost.attachment.storage`). S3-specific config (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) stays under `storage.s3.*`.
 
-**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` or `@ConditionalOnStorageEnabled` — they lived in contracts as noise. `storage.s3.enabled` was de-facto the attachment subsystem master switch (only S3 and NoOp implementations exist), so naming it `attachment.enabled` matches reality and mirrors `audit.enabled` / `@ConditionalOnAuditEnabled`. The previous earlier-on-this-day entry below ("Every starter-owned bean gated by `@ConditionalOnStorageEnabled`") now applies via the renamed annotation.
+**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` — it lived in contracts as noise. `platform-contracts` is reserved for types crossed by ≥2 modules.
 
-**Rejected:** Keeping a separate `attachment.enabled` AND `storage.s3.enabled` toggle — premature flexibility. If a second storage backend (local FS, GCS) is ever added, introduce `attachment.storage.type` then; today there is exactly one production backend.
-
-**Migration:** Hard cutover. Repo had no `storage.s3.enabled=false` configuration files; the prop was only mentioned in docs. Anyone on an external config setting `storage.s3.enabled=false` must rename to `attachment.enabled=false`.
-
-Every starter-owned bean carries `@ConditionalOnAttachmentEnabled` — including lower-level classes (`AttachmentCleanupJob`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository`). The critical case is `AttachmentCleanupJob` which carries `@Scheduled(cron = "0 0 2 * * *")` — without the conditional it would walk a disabled storage at 02:00. Mirrors `AuditCleanupJob` carrying `@ConditionalOnAuditEnabled`.
+**Superseded (2026-05-23):** `@ConditionalOnAttachmentEnabled` and the `attachment.enabled` property were removed. The starter is always active when present in the classpath — jar presence is the toggle. `@AutoConfiguration` already requires `DataSource` on classpath (`@ConditionalOnClass`). UI components degrade via `ObjectProvider.ifAvailable()` without needing a flag.
 
 ---
 
 ## 2026-05-19 — Starter owns `attachmentObjectMapper`; Liquibase gated by subsystem flag
 
-**Decision:** `AttachmentAutoConfiguration` defines `@Bean("attachmentObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "attachmentObjectMapper")` for override. `AttachmentSnapshotService.objectMapper` is annotated `@Qualifier("attachmentObjectMapper")` so it does not collide with `userSettingsObjectMapper` / `auditObjectMapper` in a context that has all three. The `attachmentLiquibase` bean is now `@ConditionalOnAttachmentEnabled` so `attachment.enabled=false` leaves no schema apply.
+**Decision:** `AttachmentAutoConfiguration` defines `@Bean("attachmentObjectMapper") ObjectMapper` (with `FAIL_ON_UNKNOWN_PROPERTIES` disabled), `@ConditionalOnMissingBean(name = "attachmentObjectMapper")` for override. `AttachmentSnapshotService.objectMapper` is annotated `@Qualifier("attachmentObjectMapper")` so it does not collide with `userSettingsObjectMapper` / `auditObjectMapper` in a context that has all three.
 
-**Why:** The starter previously consumed the host application's `userSettingsObjectMapper` — a marketplace-specific name — which broke contexts with multiple `ObjectMapper` beans (the audit starter introduced a second one, surfacing `NoUniqueBeanDefinitionException`). Owning a named mapper and explicit qualifier on every injection site eliminates the ambiguity without using `@Primary`. Gating Liquibase by `@ConditionalOnAttachmentEnabled` matches the audit pattern: disabling the subsystem leaves the database untouched.
+**Why:** The starter previously consumed the host application's `userSettingsObjectMapper` — a marketplace-specific name — which broke contexts with multiple `ObjectMapper` beans (the audit starter introduced a second one, surfacing `NoUniqueBeanDefinitionException`). Owning a named mapper and explicit qualifier on every injection site eliminates the ambiguity without using `@Primary`.
 
 **Rejected:** `@Primary` on either mapper (user preference recorded as durable feedback: always qualify, never `@Primary`). Pulling `JavaTimeModule` in — `jackson-datatype-jsr310` is not on the starter's classpath and the attachment JSON shapes do not require it.
 

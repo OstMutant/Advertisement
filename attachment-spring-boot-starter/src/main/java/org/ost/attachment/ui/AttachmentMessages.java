@@ -1,7 +1,9 @@
 package org.ost.attachment.ui;
 
+import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.i18n.TranslationKey;
 
+@RequiredArgsConstructor
 public enum AttachmentMessages implements TranslationKey {
     GALLERY_TITLE("attachment.gallery.title"),
     GALLERY_EMPTY("attachment.gallery.empty"),
@@ -10,8 +12,6 @@ public enum AttachmentMessages implements TranslationKey {
     VIDEO_INVALID("attachment.video.invalid");
 
     private final String key;
-
-    AttachmentMessages(String key) { this.key = key; }
 
     @Override
     public String key() { return key; }

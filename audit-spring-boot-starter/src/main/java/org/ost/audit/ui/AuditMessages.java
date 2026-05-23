@@ -1,7 +1,9 @@
 package org.ost.audit.ui;
 
+import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.i18n.TranslationKey;
 
+@RequiredArgsConstructor
 public enum AuditMessages implements TranslationKey {
     ACTIVITY_ACTION_CREATED("activity.action.created"),
     ACTIVITY_ACTION_UPDATED("activity.action.updated"),
@@ -17,8 +19,6 @@ public enum AuditMessages implements TranslationKey {
     CHANGES_SETTING_USERS_PAGE_SIZE("changes.setting.usersPageSize");
 
     private final String key;
-
-    AuditMessages(String key) { this.key = key; }
 
     @Override
     public String key() { return key; }

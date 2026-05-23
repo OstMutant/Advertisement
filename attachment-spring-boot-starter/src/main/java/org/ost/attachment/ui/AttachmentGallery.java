@@ -310,7 +310,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String thumbSrc(String contentType, String url) {
-        if (MediaContentType.YOUTUBE.value().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (MediaContentType.YOUTUBE.getValue().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (MediaContentTypeUtil.isEmbedded(contentType))             return VIDEO_PLACEHOLDER_SVG;
         if (MediaContentTypeUtil.isUploadedVideo(contentType))        return VIDEO_PLACEHOLDER_SVG;
         return url;
@@ -368,7 +368,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String resolveEmbedUrl(Attachment attachment) {
-        if (MediaContentType.YOUTUBE.value().equals(attachment.getContentType())) {
+        if (MediaContentType.YOUTUBE.getValue().equals(attachment.getContentType())) {
             return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
         }
         return attachment.getUrl();

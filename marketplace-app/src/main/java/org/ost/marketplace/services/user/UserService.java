@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.ost.marketplace.dto.SignUpDto;
@@ -28,8 +31,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -138,5 +144,48 @@ public class UserService {
 
     public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email);
+    }
+
+    public List<Long> findExistingIds(Long[] ids) {
+        return repository.findExistingIds(ids);
+    }
+
+    public Map<Long, String> findActorNames(Set<Long> ids) {
+        return repository.findActorNames(ids.toArray(new Long[0]));
+    }
+
+    public String resolveDisplayName(EntityType entityType, SnapshotPayloadDto snapshot) {
+        if (snapshot == null || snapshot.isEmpty()) return "";
+        return switch (entityType) {
+            case USER -> {
+                try { yield objectMapper.readValue(snapshot.json(), UserSnapshot.class).name(); }
+                catch (Exception _) { yield ""; }
+            }
+            case USER_SETTINGS -> "Settings";
+            default -> "";
+        };
+    }
+
+    public List<ChangeEntry> expandActivityFields(ActivityItemDto item) {
+        try {
+            UserSnapshot state = objectMapper.readValue(item.snapshotData().json(), UserSnapshot.class);
+            List<ChangeEntry> result = new ArrayList<>();
+            addActivityField(result, item.changes(), "name",  state.name());
+            addActivityField(result, item.changes(), "email", state.email());
+            addActivityField(result, item.changes(), "role",  state.role());
+            return result;
+        } catch (Exception _) {
+            return item.changes();
+        }
+    }
+
+    private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes, String field, String currentValue) {
+        changes.stream()
+                .filter(c -> c instanceof ChangeEntry.FieldChange fc && field.equals(fc.field()))
+                .findFirst()
+                .ifPresentOrElse(
+                        result::add,
+                        () -> result.add(new ChangeEntry.FieldChange(field, null, currentValue))
+                );
     }
 }

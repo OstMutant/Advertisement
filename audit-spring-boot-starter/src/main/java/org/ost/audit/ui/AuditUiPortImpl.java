@@ -9,7 +9,7 @@ import org.ost.platform.audit.spi.AuditUiPort;
 @SpringComponent
 @ConditionalOnAuditEnabled
 @RequiredArgsConstructor
-public class AuditUiExtensionImpl implements AuditUiPort {
+public class AuditUiPortImpl implements AuditUiPort {
 
     private final EntityHistoryPanel.Builder    historyBuilder;
     private final ProfileActivityPanel.Builder  profileActivityBuilder;

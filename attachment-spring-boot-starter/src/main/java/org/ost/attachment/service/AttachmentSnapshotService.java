@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.ost.attachment.util.YoutubeUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.attachment.repository.AttachmentRepository;
@@ -12,6 +13,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +69,22 @@ public class AttachmentSnapshotService {
         return attachmentSnapshotRepository.getChangesJson(entityType, entityId, version)
                 .map(this::parseMediaChanges)
                 .orElse(List.of());
+    }
+
+    public List<ActivityItemDto> mergeMediaChanges(List<ActivityItemDto> baseItems) {
+        return baseItems.stream()
+                .map(item -> {
+                    List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());
+                    if (mediaChanges.isEmpty()) return item;
+                    List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
+                    merged.addAll(item.changes());
+                    return new ActivityItemDto(
+                            item.snapshotId(), item.entityId(), item.entityType(),
+                            item.displayName(), item.actionType(), item.createdAt(),
+                            item.entityExists(), merged, item.changedByActorId(),
+                            item.changedByName(), item.snapshotData());
+                })
+                .toList();
     }
 
     public List<ChangeEntry> getChangesForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {

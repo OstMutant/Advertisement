@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
@@ -71,6 +72,25 @@ public class AdvertisementService {
 
     public Optional<AdvertisementInfoDto> findById(Long id) {
         return repository.findAdvertisementById(id);
+    }
+
+    public List<Long> findExistingIds(Long[] ids) {
+        return repository.findExistingIds(ids);
+    }
+
+    public void onMediaChanged(Long entityId) {
+        attachmentPort.ifAvailable(port ->
+                repository.updateMedia(entityId, port.getMediaSummary(EntityType.ADVERTISEMENT, entityId))
+        );
+    }
+
+    public String resolveDisplayName(SnapshotPayloadDto snapshot) {
+        if (snapshot == null || snapshot.isEmpty()) return "";
+        try {
+            return objectMapper.readValue(snapshot.json(), AdvertisementSnapshot.class).title();
+        } catch (Exception _) {
+            return "";
+        }
     }
 
     @Transactional

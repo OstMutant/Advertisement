@@ -116,12 +116,12 @@ public class CardMediaLightbox {
     }
 
     private static String embedSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
         return a.getUrl();
     }
 
     private static String thumbSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.value().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (MediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
         if (MediaContentTypeUtil.isVideo(a.getContentType()))               return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
         return a.getUrl();
     }

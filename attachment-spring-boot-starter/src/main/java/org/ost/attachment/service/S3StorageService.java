@@ -1,5 +1,6 @@
 package org.ost.attachment.service;
 
+import lombok.RequiredArgsConstructor;
 import org.ost.attachment.storage.StorageService;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -15,17 +16,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+@RequiredArgsConstructor
 public class S3StorageService implements StorageService {
 
     private final S3Client s3Client;
-    private final String bucket;
-    private final String publicUrl;
-
-    public S3StorageService(S3Client s3Client, String bucket, String publicUrl) {
-        this.s3Client = s3Client;
-        this.bucket = bucket;
-        this.publicUrl = publicUrl;
-    }
+    private final String   bucket;
+    private final String   publicUrl;
 
     @Override
     public String upload(String folder, String originalFilename, InputStream inputStream, long contentLength, String contentType) {

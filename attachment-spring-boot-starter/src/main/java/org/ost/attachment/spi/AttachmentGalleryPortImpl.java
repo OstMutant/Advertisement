@@ -12,7 +12,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
-public class AttachmentGalleryExtensionImpl implements AttachmentGalleryPort {
+public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
     private final ObjectProvider<AttachmentGallery>    galleryProvider;
     private final ObjectProvider<CardMediaLightbox>    lightboxProvider;

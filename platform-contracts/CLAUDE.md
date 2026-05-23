@@ -18,3 +18,25 @@ All cross-module extension points live in `platform-contracts/*.spi`. The suffix
 | `*Hook` | starter → marketplace or starter → starter | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `MediaChangeHook`, `AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`, `AttachmentAuditHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-contracts/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
+
+## Hook and Port Implementation Rules
+
+**Naming:** `*Hook` implementations → `*HookImpl`; `*Port` implementations → `*PortImpl` or `Default*Port` (for primary implementations with non-trivial coordination logic).
+
+**`*HookImpl` — pure delegation only.** No business logic, no JSON parsing, no conditionals beyond entity-type routing. Each method calls exactly one service method.
+
+```java
+// ✅ correct
+@Override
+public List<ActivityItemDto> merge(EntityType t, Long id, List<ActivityItemDto> items) {
+    return myService.mergeMediaChanges(items);
+}
+
+// ❌ wrong — logic belongs in a service
+@Override
+public List<ActivityItemDto> merge(EntityType t, Long id, List<ActivityItemDto> items) {
+    return items.stream().map(item -> { /* ... parsing, merging ... */ }).toList();
+}
+```
+
+**`Default*Port` / `*PortImpl` — may coordinate.** A port is a facade over the starter's internal service layer. Orchestrating multiple service calls, resolving fallbacks, or managing transactions within the port is acceptable — it is the port's role to present a clean interface to the outside world. Logic that belongs in a domain service (business rules, data transformation) must not leak into the port.

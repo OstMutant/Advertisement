@@ -1,5 +1,10 @@
 package org.ost.platform.attachment.model;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum MediaContentType {
     YOUTUBE("video/youtube"),
     EMBED("video/embed"),
@@ -7,8 +12,4 @@ public enum MediaContentType {
     WEBM("video/webm");
 
     private final String value;
-
-    MediaContentType(String value) { this.value = value; }
-
-    public String value() { return value; }
 }

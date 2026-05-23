@@ -4,15 +4,13 @@
 
 ## Ongoing — Module structure and auto-configuration
 
-**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `NoOpAuditPort`, `AuditDiffEngine`, `AuditLogRepository`) and read side (`AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Enabled by default (`audit.enabled=true`); `NoOpAuditPort` activates via `@ConditionalOnMissingBean` when disabled. Every bean in the module carries `@ConditionalOnAuditEnabled` — disabling the subsystem leaves no residue.
+**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`) and read side (`AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
 
 Write and read sides were initially separate modules (`audit-core` + `audit-read`) but merged — fewer modules is simpler when there is no concrete scenario requiring the write side without the read side.
 
 **Key patterns:**
-- `@ConditionalOnAuditEnabled` gates all beans
-- `NoOpAuditPort` is the unconditional fallback — wiring never fails
 - `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings
-- `CurrentActorProvider` SPI (`core.spi`) — the starter calls it without knowing about Spring Security
+- `CurrentActorHook` SPI (`core.spi`) — the starter calls it without knowing about Spring Security
 
 ---
 

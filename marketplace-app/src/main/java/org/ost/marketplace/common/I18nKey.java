@@ -1,7 +1,9 @@
 package org.ost.marketplace.common;
 
+import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.i18n.TranslationKey;
 
+@RequiredArgsConstructor
 public enum I18nKey implements TranslationKey {
     // === Header ===
     HEADER_SIGNED_IN("header.signedIn"),
@@ -264,13 +266,8 @@ public enum I18nKey implements TranslationKey {
 
     private final String key;
 
-    I18nKey(String key) {
-        this.key = key;
-    }
-
-    public String key() {
-        return key;
-    }
+    @Override
+    public String key() { return key; }
 
     public String toTestId() {
         return name().toLowerCase().replace('_', '-');
