@@ -30,10 +30,6 @@ vaadin:
   whitelisted-packages:
     - org.ost.attachment
 
-# Audit subsystem — controls audit logging and history/activity UI
-# Default: enabled. Set to false to disable entirely.
-# audit.enabled: false
-
 # Application settings
 app:
   cleanup:

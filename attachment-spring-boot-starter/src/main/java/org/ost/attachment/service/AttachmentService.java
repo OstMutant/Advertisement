@@ -9,7 +9,7 @@ import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.attachment.spi.MediaChangeHook;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
-import org.ost.attachment.storage.StorageService;
+import org.ost.attachment.service.StorageService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;

@@ -10,7 +10,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.audit.services.ActivityService;
-import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
@@ -23,7 +22,6 @@ import org.springframework.context.annotation.Scope;
 import java.util.List;
 
 @SpringComponent
-@ConditionalOnAuditEnabled
 @Scope("prototype")
 @RequiredArgsConstructor
 public class ProfileActivityPanel extends Div
@@ -42,7 +40,6 @@ public class ProfileActivityPanel extends Div
     }
 
     @SpringComponent
-    @ConditionalOnAuditEnabled
     @RequiredArgsConstructor
     public static class Builder extends ComponentBuilder<ProfileActivityPanel, Parameters> {
         @Getter

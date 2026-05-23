@@ -1,6 +1,5 @@
 package org.ost.audit.ui;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
@@ -9,12 +8,12 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
@@ -22,13 +21,11 @@ import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
 import org.ost.platform.core.ui.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 import java.util.function.ObjLongConsumer;
 
-@ConditionalOnAuditEnabled
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -50,7 +47,6 @@ public class EntityHistoryPanel extends Div
         String     labelRestore;
     }
 
-    @ConditionalOnAuditEnabled
     @SpringComponent
     @RequiredArgsConstructor
     public static class Builder extends ComponentBuilder<EntityHistoryPanel, Parameters> {
@@ -61,8 +57,7 @@ public class EntityHistoryPanel extends Div
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
     private final AuditHistoryService                           auditHistoryService;
-    @Qualifier("auditObjectMapper")
-    private final ObjectMapper                                  objectMapper;
+    private final SnapshotCodec                                 snapshotCodec;
     private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
     private final ObjectProvider<AttachmentAuditHook> historyExtensionProvider;
 
@@ -160,12 +155,7 @@ public class EntityHistoryPanel extends Div
     }
 
     private boolean jsonEquals(SnapshotPayloadDto a, SnapshotPayloadDto b) {
-        if (a == null || b == null || a.isEmpty() || b.isEmpty()) return false;
-        try {
-            return objectMapper.readTree(a.json()).equals(objectMapper.readTree(b.json()));
-        } catch (Exception _) {
-            return false;
-        }
+        return snapshotCodec.jsonEquals(a, b);
     }
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {

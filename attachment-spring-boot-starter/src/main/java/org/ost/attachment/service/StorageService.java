@@ -1,4 +1,4 @@
-package org.ost.attachment.storage;
+package org.ost.attachment.service;
 
 import java.io.InputStream;
 import java.time.Instant;

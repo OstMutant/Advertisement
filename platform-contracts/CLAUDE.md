@@ -19,6 +19,9 @@ All cross-module extension points live in `platform-contracts/*.spi`. The suffix
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-contracts/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 
+**Why ports and hooks must live in `platform-contracts` and not in the starter:**
+Starters are optional — marketplace compiles and runs without them on the classpath (all injections use `ObjectProvider`). If a port or hook interface lived inside a starter, removing that starter would break marketplace compilation even though the feature is optional. Keeping all interfaces in `platform-contracts` ensures marketplace always has the type visible, regardless of which starters are present.
+
 ## Hook and Port Implementation Rules
 
 **Naming:** `*Hook` implementations → `*HookImpl`; `*Port` implementations → `*PortImpl` or `Default*Port` (for primary implementations with non-trivial coordination logic).

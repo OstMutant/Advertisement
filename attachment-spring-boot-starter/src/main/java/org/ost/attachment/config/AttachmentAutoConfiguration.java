@@ -5,7 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
-import org.ost.attachment.service.DefaultAttachmentPort;
+import org.ost.attachment.spi.DefaultAttachmentPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

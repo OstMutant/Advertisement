@@ -3,11 +3,9 @@ package org.ost.audit.ui;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.spi.AuditUiPort;
 
 @SpringComponent
-@ConditionalOnAuditEnabled
 @RequiredArgsConstructor
 public class AuditUiPortImpl implements AuditUiPort {
 

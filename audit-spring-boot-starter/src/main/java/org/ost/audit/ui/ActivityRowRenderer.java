@@ -1,12 +1,10 @@
 package org.ost.audit.ui;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
@@ -14,11 +12,11 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
@@ -27,7 +25,6 @@ import java.util.Map;
 
 @CssImport("./entity-history.css")
 @SpringComponent
-@ConditionalOnAuditEnabled
 @Scope("prototype")
 @RequiredArgsConstructor
 public class ActivityRowRenderer {
@@ -39,8 +36,7 @@ public class ActivityRowRenderer {
     private final ActivityPanel                            activityPanel;
     private final List<ActivityFieldsHook>              fieldsProviders;
     private final ObjectProvider<AttachmentAuditHook>   historyExtensionProvider;
-    @Qualifier("auditObjectMapper")
-    private final ObjectMapper                             objectMapper;
+    private final SnapshotCodec                            snapshotCodec;
 
     public Div buildRow(ActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
@@ -165,24 +161,21 @@ public class ActivityRowRenderer {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private List<ChangeEntry> expandTextFields(SnapshotPayloadDto payload, List<ChangeEntry> changedFields) {
-        if (payload == null || payload.isEmpty()) return changedFields;
-        try {
-            Map<String, Object> snap = objectMapper.readValue(payload.json(), Map.class);
-            List<ChangeEntry> result = new ArrayList<>();
-            for (Map.Entry<String, Object> e : snap.entrySet()) {
-                String key = e.getKey();
-                String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
-                ChangeEntry existing = changedFields.stream()
-                        .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
-                        .findFirst().orElse(null);
-                result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
-            }
-            return result;
-        } catch (Exception _) {
-            return changedFields;
-        }
+        return snapshotCodec.decodeToMap(payload)
+                .map(snap -> {
+                    List<ChangeEntry> result = new ArrayList<>();
+                    for (Map.Entry<String, Object> e : snap.entrySet()) {
+                        String key = e.getKey();
+                        String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
+                        ChangeEntry existing = changedFields.stream()
+                                .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
+                                .findFirst().orElse(null);
+                        result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
+                    }
+                    return result;
+                })
+                .orElse(changedFields);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

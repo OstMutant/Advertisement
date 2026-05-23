@@ -1,7 +1,6 @@
 package org.ost.attachment.service;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.storage.StorageService;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;

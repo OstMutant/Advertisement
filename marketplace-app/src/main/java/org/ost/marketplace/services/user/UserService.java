@@ -1,9 +1,8 @@
 package org.ost.marketplace.services.user;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
@@ -47,8 +46,7 @@ public class UserService {
     private final PasswordEncoder     passwordEncoder;
     private final ObjectProvider<AuditPort> auditPort;
     private final AuthContextService  authContextService;
-    @Qualifier("userSettingsObjectMapper")
-    private final ObjectMapper        objectMapper;
+    private final SnapshotCodec       snapshotCodec;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -135,11 +133,7 @@ public class UserService {
     }
 
     private Optional<UserSnapshot> parseUserSnapshot(SnapshotContentDto content) {
-        try {
-            return Optional.of(objectMapper.readValue(content.snapshotData().json(), UserSnapshot.class));
-        } catch (Exception _) {
-            return Optional.empty();
-        }
+        return snapshotCodec.decode(content.snapshotData(), UserSnapshot.class);
     }
 
     public Optional<User> findByEmail(String email) {
@@ -157,26 +151,22 @@ public class UserService {
     public String resolveDisplayName(EntityType entityType, SnapshotPayloadDto snapshot) {
         if (snapshot == null || snapshot.isEmpty()) return "";
         return switch (entityType) {
-            case USER -> {
-                try { yield objectMapper.readValue(snapshot.json(), UserSnapshot.class).name(); }
-                catch (Exception _) { yield ""; }
-            }
+            case USER -> snapshotCodec.decode(snapshot, UserSnapshot.class).map(UserSnapshot::name).orElse("");
             case USER_SETTINGS -> "Settings";
             default -> "";
         };
     }
 
     public List<ChangeEntry> expandActivityFields(ActivityItemDto item) {
-        try {
-            UserSnapshot state = objectMapper.readValue(item.snapshotData().json(), UserSnapshot.class);
-            List<ChangeEntry> result = new ArrayList<>();
-            addActivityField(result, item.changes(), "name",  state.name());
-            addActivityField(result, item.changes(), "email", state.email());
-            addActivityField(result, item.changes(), "role",  state.role());
-            return result;
-        } catch (Exception _) {
-            return item.changes();
-        }
+        return snapshotCodec.decode(item.snapshotData(), UserSnapshot.class)
+                .map(state -> {
+                    List<ChangeEntry> result = new ArrayList<>();
+                    addActivityField(result, item.changes(), "name",  state.name());
+                    addActivityField(result, item.changes(), "email", state.email());
+                    addActivityField(result, item.changes(), "role",  state.role());
+                    return result;
+                })
+                .orElseGet(item::changes);
     }
 
     private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes, String field, String currentValue) {

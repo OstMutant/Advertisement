@@ -1,7 +1,7 @@
 package org.ost.attachment.config;
 
 import org.ost.attachment.service.S3StorageService;
-import org.ost.attachment.storage.StorageService;
+import org.ost.attachment.service.StorageService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;

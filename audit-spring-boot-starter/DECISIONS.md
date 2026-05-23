@@ -60,13 +60,15 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
-## 2026-05-19 — Starter owns `auditObjectMapper`; Liquibase gated by `audit.enabled`
+## 2026-05-19 — Starter owns `auditObjectMapper`
 
-**Decision:** `AuditAutoConfiguration` defines `@Bean("auditObjectMapper") ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled, `@ConditionalOnMissingBean(name = "auditObjectMapper")` for override. All audit consumers qualify injection with `@Qualifier("auditObjectMapper")`. `auditLiquibase` is `@ConditionalOnAuditEnabled`.
+**Decision:** `AuditAutoConfiguration` defines `@Bean("auditObjectMapper") ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled, `@ConditionalOnMissingBean(name = "auditObjectMapper")` for override. All audit consumers qualify injection with `@Qualifier("auditObjectMapper")`.
 
-**Why:** The starter previously consumed `userSettingsObjectMapper` — a marketplace-specific name. The starter must work in any Spring Boot context. Gating Liquibase mirrors `attachmentLiquibase` — disabling the subsystem leaves no schema residue.
+**Why:** The starter previously consumed `userSettingsObjectMapper` — a marketplace-specific name. The starter must work in any Spring Boot context.
 
 **Rejected:** `@Primary` on the starter's `ObjectMapper` — explicit `@Qualifier` over `@Primary` everywhere (durable project rule).
+
+**2026-05-23 update:** `audit.enabled` property removed. Jar presence is the only toggle — no scenario exists where the jar is on the classpath but the subsystem should be disabled. `@ConditionalOnAuditEnabled` is now a plain marker annotation with no `@ConditionalOnProperty`.
 
 ---
 

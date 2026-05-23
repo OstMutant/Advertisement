@@ -1,9 +1,8 @@
 package org.ost.marketplace.services;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Qualifier;
+import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
@@ -39,8 +38,7 @@ public class AdvertisementService {
     private final ObjectProvider<AuditPort>   auditPort;
     private final ObjectProvider<AttachmentPort> attachmentPort;
     private final AuthContextService         authContextService;
-    @Qualifier("userSettingsObjectMapper")
-    private final ObjectMapper               objectMapper;
+    private final SnapshotCodec              snapshotCodec;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -85,12 +83,7 @@ public class AdvertisementService {
     }
 
     public String resolveDisplayName(SnapshotPayloadDto snapshot) {
-        if (snapshot == null || snapshot.isEmpty()) return "";
-        try {
-            return objectMapper.readValue(snapshot.json(), AdvertisementSnapshot.class).title();
-        } catch (Exception _) {
-            return "";
-        }
+        return snapshotCodec.decode(snapshot, AdvertisementSnapshot.class).map(AdvertisementSnapshot::title).orElse("");
     }
 
     @Transactional
@@ -102,12 +95,8 @@ public class AdvertisementService {
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
-        AdvertisementSnapshot restoredSnapshot;
-        try {
-            restoredSnapshot = objectMapper.readValue(content.snapshotData().json(), AdvertisementSnapshot.class);
-        } catch (Exception _) {
-            return false;
-        }
+        AdvertisementSnapshot restoredSnapshot = snapshotCodec.decode(content.snapshotData(), AdvertisementSnapshot.class).orElse(null);
+        if (restoredSnapshot == null) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
                 .title(restoredSnapshot.title())
