@@ -1,13 +1,13 @@
 Record a new architectural decision in the appropriate DECISIONS.md file.
 
 Usage: /decision <module> — <title>
-Example: /decision platform-contracts — Split audit.api from audit.spi
+Example: /decision platform-commons — Split audit.api from audit.spi
 
 Available modules and their DECISIONS.md paths:
 - marketplace-app    → /app/marketplace-app/DECISIONS.md
 - audit-starter      → /app/audit-spring-boot-starter/DECISIONS.md
 - attachment-starter → /app/attachment-spring-boot-starter/DECISIONS.md
-- platform-contracts → /app/platform-contracts/DECISIONS.md
+- platform-commons   → /app/platform-commons/DECISIONS.md
 - sql-engine         → /app/sql-engine/DECISIONS.md
 - playwright         → /app/playwright/DECISIONS.md
 - scripts            → /app/scripts/DECISIONS.md

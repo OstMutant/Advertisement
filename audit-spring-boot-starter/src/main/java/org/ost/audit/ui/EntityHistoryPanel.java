@@ -17,9 +17,9 @@ import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
-import org.ost.platform.core.ui.Configurable;
-import org.ost.platform.core.ui.ComponentBuilder;
-import org.ost.platform.core.ui.Initialization;
+import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.ComponentBuilder;
+import org.ost.platform.ui.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

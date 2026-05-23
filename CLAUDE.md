@@ -20,7 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 advertisement-parent (root pom)
 ├── sql-engine                       — framework-agnostic SQL query-building library
-├── platform-contracts               — shared kernel: DTOs, domain events, SPI interfaces
+├── platform-commons                 — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
 ├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
 └── marketplace-app                  — main Vaadin application
@@ -28,12 +28,13 @@ advertisement-parent (root pom)
 
 **sql-engine** has no Spring Boot autoconfiguration — it is a plain library. It provides the query API used by all repositories.
 
-**platform-contracts** defines the cross-module contracts, organized into three semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.ui` (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
+**platform-commons** defines the cross-module contracts, organized into three semantic packages:
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
+- `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
 - `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `MediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`MediaSummaryDto`), `attachment.model` (`MediaContentType`)
 
-→ Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-contracts/CLAUDE.md
+→ Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
 **audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
 
@@ -116,7 +117,7 @@ public class MyPanel extends Div
 - `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
 - Inner `Builder` class is required for all `Configurable` beans — wraps `ObjectProvider` via `ComponentBuilder`.
-- `Configurable`, `ComponentBuilder`, `Initialization` live in `platform-contracts` (`core.ui`) so all modules can use them.
+- `Configurable`, `ComponentBuilder`, `Initialization` live in `platform-commons` (`ui`) so all modules can use them.
 
 **When NOT to use Configurable:**
 - Component has distinct modes with different UI structure → use explicit named methods:
@@ -129,7 +130,7 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 
 ### I18n in UI components
 
-Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-contracts`, package `core.i18n`):
+Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-commons`, package `core.i18n`):
 - `marketplace-app` → `CommonMessages implements TranslationKey`
 - `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
 - `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
@@ -162,7 +163,7 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
 
-→ SPI interface naming (`*Port`, `*Extension`, `*Consumer`, etc.): @platform-contracts/CLAUDE.md
+→ SPI interface naming (`*Port`, `*Extension`, `*Consumer`, etc.): @platform-commons/CLAUDE.md
 
 ### Package structure (marketplace-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
@@ -208,7 +209,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/marketplace-app/DECISIONS.md`
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
-- `/app/platform-contracts/DECISIONS.md`
+- `/app/platform-commons/DECISIONS.md`
 - `/app/sql-engine/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`

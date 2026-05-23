@@ -5,8 +5,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.ui.dto.EditDto;
-import org.ost.platform.core.ui.Configurable;
-import org.ost.platform.core.ui.ComponentBuilder;
+import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.ComponentBuilder;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

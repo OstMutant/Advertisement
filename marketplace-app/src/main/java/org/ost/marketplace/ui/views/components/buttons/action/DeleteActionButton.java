@@ -5,9 +5,9 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.platform.core.ui.Configurable;
-import org.ost.platform.core.ui.ComponentBuilder;
-import org.ost.platform.core.ui.Initialization;
+import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.ComponentBuilder;
+import org.ost.platform.ui.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

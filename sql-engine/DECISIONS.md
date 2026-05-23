@@ -8,7 +8,7 @@
 
 **Why:** Keeping the query API decoupled from Spring allows unit-testing it without a Spring context (pure JUnit), and prevents domain concerns from leaking into infrastructure. Any module can depend on it without pulling in Spring Boot starters.
 
-**Rejected:** Embedding the query API inside `marketplace-app` or `platform-contracts` — would prevent reuse across starters without circular dependencies.
+**Rejected:** Embedding the query API inside `marketplace-app` or `platform-commons` — would prevent reuse across starters without circular dependencies.
 
 ---
 

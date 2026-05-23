@@ -11,9 +11,9 @@ import lombok.Value;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.utils.TimeZoneUtil;
-import org.ost.platform.core.ui.Configurable;
+import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.core.ui.Initialization;
+import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;

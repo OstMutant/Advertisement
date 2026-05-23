@@ -64,7 +64,7 @@
 
 **Decision:** The starter now operates on arbitrary entities, not just `ADVERTISEMENT`. Every public API — `AttachmentService`, `AttachmentSnapshotService`, `AttachmentRepository`, `AttachmentSnapshotRepository`, `AttachmentGallery`, `CardMediaLightbox`, the activity projection — takes `(EntityType entityType, Long entityId)` instead of a hard-coded advertisement id. The `attachment` and `attachment_snapshot` tables grew an `entity_type` column. Domain Spring events (`AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`) were replaced by SPI calls: `AttachmentPort` (domain → starter) and `MediaChangeConsumer` (starter → domain). S3 folder layout is canonical singular `entityType.name().toLowerCase() + "/" + entityId` (e.g. `advertisement/42`, `user/17`).
 
-**Why:** The original starter compiled only against an advertisement-shaped world (event types, field names, S3 path constants). Adding photo galleries to USER, COMMENT, or any future entity required either renaming everything or branching by name. SPI symmetry with `audit-spring-boot-starter` (which already uses `AuditPort` + a current-user SPI) was the second driver — both starters now follow the same pattern: domain calls a port, starter notifies the domain via an `ObjectProvider`-injected SPI. (Same-day follow-up unified the two starters' user-provider SPIs into a single `core.spi.CurrentUserProvider` — see `platform-contracts/DECISIONS.md`.)
+**Why:** The original starter compiled only against an advertisement-shaped world (event types, field names, S3 path constants). Adding photo galleries to USER, COMMENT, or any future entity required either renaming everything or branching by name. SPI symmetry with `audit-spring-boot-starter` (which already uses `AuditPort` + a current-user SPI) was the second driver — both starters now follow the same pattern: domain calls a port, starter notifies the domain via an `ObjectProvider`-injected SPI. (Same-day follow-up unified the two starters' user-provider SPIs into a single `core.spi.CurrentUserProvider` — see `platform-commons/DECISIONS.md`.)
 
 **Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `MediaChangeHookImpl` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
 
@@ -79,9 +79,9 @@
 
 ## 2026-05-19 — Storage SPI internalized
 
-**Decision:** `StorageService` moved out of `platform-contracts` into the starter (package `org.ost.attachment.storage`). S3-specific config (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) stays under `storage.s3.*`.
+**Decision:** `StorageService` moved out of `platform-commons` into the starter (package `org.ost.attachment.storage`). S3-specific config (`storage.s3.endpoint`, `region`, `access-key`, `secret-key`, `bucket`, `public-url`) stays under `storage.s3.*`.
 
-**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` — it lived in contracts as noise. `platform-contracts` is reserved for types crossed by ≥2 modules.
+**Why:** No module outside `attachment-spring-boot-starter` referenced `StorageService` — it lived in contracts as noise. `platform-commons` is reserved for types crossed by ≥2 modules.
 
 **Superseded (2026-05-23):** `@ConditionalOnAttachmentEnabled` and the `attachment.enabled` property were removed. The starter is always active when present in the classpath — jar presence is the toggle. `@AutoConfiguration` already requires `DataSource` on classpath (`@ConditionalOnClass`). UI components degrade via `ObjectProvider.ifAvailable()` without needing a flag.
 

@@ -20,7 +20,7 @@
 
     <modules>
         <module>sql-engine</module>
-        <module>platform-contracts</module>
+        <module>platform-commons</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
         <module>marketplace-app</module>
@@ -51,7 +51,7 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
-                <artifactId>platform-contracts</artifactId>
+                <artifactId>platform-commons</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

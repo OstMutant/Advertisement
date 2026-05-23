@@ -46,7 +46,7 @@ declaratively and kept strongly typed.
 ```
 advertisement-parent
 ├── sql-engine                      — framework-agnostic SQL query-building library
-├── platform-contracts              — shared kernel: DTOs, domain events, SPI interfaces
+├── platform-commons                — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
 ├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation
 └── marketplace-app                 — Vaadin application (depends on all modules above)

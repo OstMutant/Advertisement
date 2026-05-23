@@ -85,7 +85,7 @@ Rules:
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
-**Rejected:** `@ConditionalOnAuditEnabled` in `platform-contracts` — contracts must be Spring-free pure Java.
+**Rejected:** `@ConditionalOnAuditEnabled` in `platform-commons` — contracts must be Spring-free pure Java.
 
 ---
 
@@ -93,9 +93,9 @@ Rules:
 
 **Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.SnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.
 
-**Why:** `SnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-contracts` (which must stay framework-free). Extracting a `SnapshotBinder.Builder` SPI to platform-contracts would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-contracts`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
+**Why:** `SnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-commons` (which must stay framework-free). Extracting a `SnapshotBinder.Builder` SPI to platform-commons would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-commons`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
 
-**Rejected:** Abstracting `SnapshotBinder.Builder` behind an SPI in `platform-contracts` — over-engineering for a single implementation.
+**Rejected:** Abstracting `SnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.
 
 ---
 
@@ -106,7 +106,7 @@ Rules:
 Dependency direction:
 ```
 marketplace-app ──────────────────────┐
-audit-spring-boot-starter ────────────┼──→ advertisement-ui-core → vaadin (+ platform-contracts for i18n)
+audit-spring-boot-starter ────────────┼──→ advertisement-ui-core → vaadin (+ platform-commons for i18n)
 attachment-spring-boot-starter ───────┘
 ```
 
@@ -123,4 +123,4 @@ attachment-spring-boot-starter ───────┘
 - Form card layout helper (`overlay__form-card-header` / `overlay__form-fields-card` block, duplicated in 3 overlays)
 - `StatusBadge`, `EmptyState` — if used in starters
 
-**Rejected:** Putting shared UI in `platform-contracts` — contracts must stay Spring/Vaadin-free pure Java.
+**Rejected:** Putting shared UI in `platform-commons` — contracts must stay Spring/Vaadin-free pure Java.

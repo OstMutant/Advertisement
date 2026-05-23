@@ -13,9 +13,9 @@ import org.ost.audit.services.ActivityService;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.ui.ComponentBuilder;
-import org.ost.platform.core.ui.Configurable;
-import org.ost.platform.core.ui.Initialization;
+import org.ost.platform.ui.ComponentBuilder;
+import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.Initialization;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 

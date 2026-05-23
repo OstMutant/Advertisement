@@ -7,7 +7,7 @@ COPY .mvn .mvn
 
 # Copy module POMs to leverage Docker cache for dependencies
 COPY sql-engine/pom.xml sql-engine/
-COPY platform-contracts/pom.xml platform-contracts/
+COPY platform-commons/pom.xml platform-commons/
 COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
 COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
 COPY marketplace-app/pom.xml marketplace-app/
@@ -18,7 +18,7 @@ RUN ./mvnw dependency:go-offline -q
 
 # Copy the source code for all modules
 COPY sql-engine/src ./sql-engine/src
-COPY platform-contracts/src ./platform-contracts/src
+COPY platform-commons/src ./platform-commons/src
 COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
 COPY marketplace-app/src ./marketplace-app/src
