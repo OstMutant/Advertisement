@@ -7,7 +7,7 @@ set ROOT=%CD%\
 echo Cleaning Maven build artifacts...
 for %%d in (
     marketplace-app\target
-    platform-contracts\target
+    platform-commons\target
     attachment-spring-boot-starter\target
     audit-spring-boot-starter\target
     sql-engine\target

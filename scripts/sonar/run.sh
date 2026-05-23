@@ -39,7 +39,7 @@ echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
-for module in sql-engine platform-contracts audit-spring-boot-starter attachment-spring-boot-starter marketplace-app; do
+for module in sql-engine platform-commons audit-spring-boot-starter attachment-spring-boot-starter marketplace-app; do
   if [ -d "/app/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "/app/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"
