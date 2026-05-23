@@ -3,7 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.users.query;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.marketplace.dto.sort.CustomSort;
+import org.ost.marketplace.ui.views.components.query.processor.CustomSort;
 import org.ost.marketplace.entities.User;
 import org.ost.marketplace.mappers.filters.UserFilterMapper;
 import org.ost.platform.core.i18n.I18nService;

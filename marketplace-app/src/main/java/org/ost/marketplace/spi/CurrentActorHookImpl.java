@@ -1,7 +1,8 @@
-package org.ost.marketplace.services.auth;
+package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.entities.User;
+import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.stereotype.Component;
 

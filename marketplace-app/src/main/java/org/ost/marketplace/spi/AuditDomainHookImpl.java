@@ -1,4 +1,4 @@
-package org.ost.marketplace.services.audit;
+package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.AdvertisementService;

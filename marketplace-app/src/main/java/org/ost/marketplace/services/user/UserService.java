@@ -20,8 +20,8 @@ import org.ost.marketplace.entities.User;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.user.UserRepository;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.audit.SettingsSnapshot;
-import org.ost.marketplace.services.audit.UserSnapshot;
+import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
+import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -66,8 +66,8 @@ public class UserService {
         repository.findById(dto.id()).ifPresent(updated -> {
             Long changedBy = authContextService.getCurrentUser().map(User::getId).orElse(dto.id());
             auditPort.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                    UserSnapshot.from(before),
-                    UserSnapshot.from(updated),
+                    UserSnapshotDto.from(before),
+                    UserSnapshotDto.from(updated),
                     changedBy));
         });
     }
@@ -95,9 +95,9 @@ public class UserService {
                 .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         User saved = repository.save(newUser);
-        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), UserSnapshot.from(saved), saved.getId()));
+        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId()));
         UserSettings defaults = UserSettings.defaultSettings();
-        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), SettingsSnapshot.from(defaults), saved.getId()));
+        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId()));
     }
 
     public Optional<User> findById(Long id) {
@@ -119,21 +119,21 @@ public class UserService {
     }
 
     private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContentDto> contentOpt, Long actingUserId) {
-        return contentOpt.flatMap(content -> parseUserSnapshot(content)).flatMap(snap -> {
+        return contentOpt.flatMap(content -> parseUserSnapshotDto(content)).flatMap(snap -> {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
             return repository.findById(userId).map(updated -> {
                 auditPort.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                        UserSnapshot.from(before),
-                        UserSnapshot.from(updated),
+                        UserSnapshotDto.from(before),
+                        UserSnapshotDto.from(updated),
                         actingUserId));
                 return updated;
             });
         });
     }
 
-    private Optional<UserSnapshot> parseUserSnapshot(SnapshotContentDto content) {
-        return snapshotCodec.decode(content.snapshotData(), UserSnapshot.class);
+    private Optional<UserSnapshotDto> parseUserSnapshotDto(SnapshotContentDto content) {
+        return snapshotCodec.decode(content.snapshotData(), UserSnapshotDto.class);
     }
 
     public Optional<User> findByEmail(String email) {
@@ -151,14 +151,14 @@ public class UserService {
     public String resolveDisplayName(EntityType entityType, SnapshotPayloadDto snapshot) {
         if (snapshot == null || snapshot.isEmpty()) return "";
         return switch (entityType) {
-            case USER -> snapshotCodec.decode(snapshot, UserSnapshot.class).map(UserSnapshot::name).orElse("");
+            case USER -> snapshotCodec.decode(snapshot, UserSnapshotDto.class).map(UserSnapshotDto::name).orElse("");
             case USER_SETTINGS -> "Settings";
             default -> "";
         };
     }
 
     public List<ChangeEntry> expandActivityFields(ActivityItemDto item) {
-        return snapshotCodec.decode(item.snapshotData(), UserSnapshot.class)
+        return snapshotCodec.decode(item.snapshotData(), UserSnapshotDto.class)
                 .map(state -> {
                     List<ChangeEntry> result = new ArrayList<>();
                     addActivityField(result, item.changes(), "name",  state.name());

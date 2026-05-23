@@ -1,16 +1,16 @@
-package org.ost.marketplace.services.audit;
+package org.ost.marketplace.dto.audit;
 
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.api.AuditedField;
 import org.ost.marketplace.entities.Advertisement;
 import org.ost.platform.core.model.EntityType;
 
-public record AdvertisementSnapshot(
+public record AdvertisementSnapshotDto(
         @AuditedField String title,
         @AuditedField String description
 ) implements AuditableSnapshot {
-    public static AdvertisementSnapshot from(Advertisement ad) {
-        return new AdvertisementSnapshot(ad.getTitle(), ad.getDescription());
+    public static AdvertisementSnapshotDto from(Advertisement ad) {
+        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription());
     }
 
     @Override

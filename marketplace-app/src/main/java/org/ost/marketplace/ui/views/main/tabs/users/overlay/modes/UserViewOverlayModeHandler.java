@@ -22,7 +22,7 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.services.audit.UserSnapshot;
+import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.ui.Configurable;
 import org.ost.platform.core.ui.ComponentBuilder;
@@ -66,7 +66,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiPrimaryButton.Builder                    editButtonBuilder;
     private final UiIconButton.Builder                       closeButtonBuilder;
     private final ObjectProvider<AuditUiPort>             auditUiExtensionProvider;
-    private final SnapshotBinder.Builder<UserSnapshot>         userBinderBuilder;
+    private final SnapshotBinder.Builder<UserSnapshotDto>         userBinderBuilder;
     private final SnapshotBinder.Builder<UserSettings>         settingsBinderBuilder;
 
     private Parameters params;
@@ -166,10 +166,10 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 
-        SnapshotBinder<UserSnapshot> userBinding = userBinderBuilder.build(
-                SnapshotBinder.Parameters.<UserSnapshot>builder()
+        SnapshotBinder<UserSnapshotDto> userBinding = userBinderBuilder.build(
+                SnapshotBinder.Parameters.<UserSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER)
-                        .snapshotClass(UserSnapshot.class)
+                        .snapshotClass(UserSnapshotDto.class)
                         .isCurrent(snap -> snap.name().equals(currentName)
                                         && currentRole != null && currentRole.name().equals(snap.role()))
                         .onRestore((snapshotId, _) -> params.getOnRestoreUser().accept(snapshotId))

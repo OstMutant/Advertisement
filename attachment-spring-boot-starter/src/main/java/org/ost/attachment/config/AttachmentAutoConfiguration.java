@@ -8,6 +8,7 @@ import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.attachment.spi.DefaultAttachmentPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.attachment.service.AttachmentCleanupService;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -15,8 +16,11 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.support.CronTrigger;
 
 import javax.sql.DataSource;
+import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -24,12 +28,6 @@ import javax.sql.DataSource;
 @EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")
 @EnableConfigurationProperties(CleanupProperties.class)
 public class AttachmentAutoConfiguration {
-
-    @Bean
-    @ConditionalOnMissingBean
-    public CleanupProperties cleanupProperties() {
-        return new CleanupProperties(90);
-    }
 
     @Bean("attachmentObjectMapper")
     @ConditionalOnMissingBean(name = "attachmentObjectMapper")
@@ -45,6 +43,15 @@ public class AttachmentAutoConfiguration {
         liq.setDataSource(dataSource);
         liq.setChangeLog("classpath:db/attachment-changelog/db.attachment-changelog-master.xml");
         return liq;
+    }
+
+    @Bean
+    SchedulingConfigurer attachmentCleanupScheduler(AttachmentCleanupService cleanupService,
+                                                    CleanupProperties cleanupProperties) {
+        return registrar -> registrar.addTriggerTask(
+                cleanupService::cleanup,
+                new CronTrigger(cleanupProperties.cronExpression(),
+                                TimeZone.getTimeZone(cleanupProperties.timezone())));
     }
 
     @Bean

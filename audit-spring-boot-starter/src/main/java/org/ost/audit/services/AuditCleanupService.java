@@ -1,23 +1,21 @@
-package org.ost.audit.jobs;
+package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.config.CleanupProperties;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
-public class AuditCleanupJob {
+public class AuditCleanupService {
 
     private final AuditLogRepository auditLogRepository;
     private final CleanupProperties  cleanupProperties;
 
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
-    public void run() {
+    public void cleanup() {
         auditLogRepository.deleteOlderThan(cleanupProperties.retentionDays());
-        log.info("Audit cleanup job finished");
+        log.info("Audit cleanup finished");
     }
 }

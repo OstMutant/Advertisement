@@ -1,4 +1,4 @@
-package org.ost.marketplace.dto.sort;
+package org.ost.marketplace.ui.views.components.query.processor;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -59,7 +59,6 @@ public class CustomSort {
         return IntStream.range(0, thisList.size())
                 .allMatch(i -> ordersEqual(thisList.get(i), otherList.get(i)));
     }
-
 
     private boolean ordersEqual(Order o1, Order o2) {
         return Objects.equals(o1.getProperty(), o2.getProperty())

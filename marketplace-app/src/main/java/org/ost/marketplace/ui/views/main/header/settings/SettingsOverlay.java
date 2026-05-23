@@ -17,7 +17,7 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.services.audit.SettingsSnapshot;
+import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.services.user.UserSettingsService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -165,8 +165,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
             settingsService.save(currentUser.getId(), newSettings);
             auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
-                    SettingsSnapshot.from(oldSettings),
-                    SettingsSnapshot.from(newSettings),
+                    SettingsSnapshotDto.from(oldSettings),
+                    SettingsSnapshotDto.from(newSettings),
                     currentUser.getId()));
             if (activityPanel != null) activityPanel.removeAll();
             if (tabs != null) tabs.setSelectedTab(settingsTab);
@@ -224,8 +224,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
                             auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
-                                    SettingsSnapshot.from(before),
-                                    SettingsSnapshot.from(target),
+                                    SettingsSnapshotDto.from(before),
+                                    SettingsSnapshotDto.from(target),
                                     currentUser.getId()));
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());

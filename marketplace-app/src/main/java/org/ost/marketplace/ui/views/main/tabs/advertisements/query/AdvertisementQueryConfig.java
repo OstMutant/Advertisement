@@ -4,7 +4,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
-import org.ost.marketplace.dto.sort.CustomSort;
+import org.ost.marketplace.ui.views.components.query.processor.CustomSort;
 import org.ost.marketplace.mappers.filters.AdvertisementFilterMapper;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.ValidationService;

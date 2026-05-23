@@ -1,16 +1,16 @@
-package org.ost.marketplace.services.audit;
+package org.ost.marketplace.dto.audit;
 
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.api.AuditedField;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.platform.core.model.EntityType;
 
-public record SettingsSnapshot(
+public record SettingsSnapshotDto(
         @AuditedField int adsPageSize,
         @AuditedField int usersPageSize
 ) implements AuditableSnapshot {
-    public static SettingsSnapshot from(UserSettings settings) {
-        return new SettingsSnapshot(settings.getAdsPageSize(), settings.getUsersPageSize());
+    public static SettingsSnapshotDto from(UserSettings settings) {
+        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize());
     }
 
     @Override

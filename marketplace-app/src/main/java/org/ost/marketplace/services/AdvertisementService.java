@@ -17,7 +17,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.audit.AdvertisementSnapshot;
+import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -59,10 +59,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             if (isNew) {
-                auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
+                auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             } else {
-                AdvertisementSnapshot beforeSnapshot = before != null ? new AdvertisementSnapshot(before.getTitle(), before.getDescription()) : new AdvertisementSnapshot(null, null);
-                auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
+                AdvertisementSnapshotDto beforeSnapshot = before != null ? new AdvertisementSnapshotDto(before.getTitle(), before.getDescription()) : new AdvertisementSnapshotDto(null, null);
+                auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             }
         }
         return saved;
@@ -83,7 +83,7 @@ public class AdvertisementService {
     }
 
     public String resolveDisplayName(SnapshotPayloadDto snapshot) {
-        return snapshotCodec.decode(snapshot, AdvertisementSnapshot.class).map(AdvertisementSnapshot::title).orElse("");
+        return snapshotCodec.decode(snapshot, AdvertisementSnapshotDto.class).map(AdvertisementSnapshotDto::title).orElse("");
     }
 
     @Transactional
@@ -95,7 +95,7 @@ public class AdvertisementService {
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
-        AdvertisementSnapshot restoredSnapshot = snapshotCodec.decode(content.snapshotData(), AdvertisementSnapshot.class).orElse(null);
+        AdvertisementSnapshotDto restoredSnapshot = snapshotCodec.decode(content.snapshotData(), AdvertisementSnapshotDto.class).orElse(null);
         if (restoredSnapshot == null) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
@@ -104,14 +104,19 @@ public class AdvertisementService {
                 .createdAt(current.getCreatedAt())
                 .createdByUserId(current.getCreatedByUserId())
                 .build();
-        AdvertisementSnapshot beforeSnapshot = new AdvertisementSnapshot(current.getTitle(), current.getDescription());
+        AdvertisementSnapshotDto beforeSnapshot = new AdvertisementSnapshotDto(current.getTitle(), current.getDescription());
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshot(saved.getTitle(), saved.getDescription()), currentUserId));
+            auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             attachmentPort.ifAvailable(p -> p.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId));
         }
         return true;
+    }
+
+    @Transactional
+    public void cleanup(int retentionDays) {
+        repository.deleteOlderThan(retentionDays);
     }
 
     @Transactional
@@ -122,7 +127,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    auditPort.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshot(entity.getTitle(), entity.getDescription()), currentUserId)));
+                    auditPort.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
         }
         if (currentUserId != null) {
             attachmentPort.ifAvailable(p -> p.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));

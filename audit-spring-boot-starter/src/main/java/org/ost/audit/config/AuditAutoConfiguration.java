@@ -5,12 +5,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.model.AuditDiffEngine;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.audit.services.ActivityService;
+import org.ost.audit.services.AuditCleanupService;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
@@ -24,8 +26,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.support.CronTrigger;
 
 import javax.sql.DataSource;
+import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
@@ -52,6 +57,15 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(SnapshotCodec.class)
     SnapshotCodec snapshotCodec(@Qualifier("snapshotObjectMapper") ObjectMapper objectMapper) {
         return new SnapshotCodec(objectMapper);
+    }
+
+    @Bean
+    SchedulingConfigurer auditCleanupScheduler(AuditCleanupService cleanupService,
+                                               CleanupProperties cleanupProperties) {
+        return registrar -> registrar.addTriggerTask(
+                cleanupService::cleanup,
+                new CronTrigger(cleanupProperties.cronExpression(),
+                                TimeZone.getTimeZone(cleanupProperties.timezone())));
     }
 
     @Bean("auditLiquibase")

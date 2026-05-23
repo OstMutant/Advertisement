@@ -2,7 +2,6 @@ package org.ost.marketplace.ui.views.components.query.processor;
 
 import lombok.Getter;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.dto.sort.CustomSort;
 import org.ost.marketplace.ui.views.components.query.elements.SortIcon;
 import org.ost.marketplace.ui.views.components.query.elements.SortIcon.SortHighlightColor;
 import org.ost.marketplace.ui.views.components.query.elements.action.QueryActionBlockHandler;

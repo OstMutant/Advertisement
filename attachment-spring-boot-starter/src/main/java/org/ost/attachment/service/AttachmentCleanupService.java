@@ -1,13 +1,11 @@
-package org.ost.attachment.jobs;
+package org.ost.attachment.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.core.config.CleanupProperties;
-import org.ost.attachment.service.StorageService;
 import org.ost.attachment.repository.AttachmentRepository;
+import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -17,17 +15,16 @@ import java.util.List;
 import java.util.Set;
 
 @Slf4j
-@Component
+@Service
 @RequiredArgsConstructor
-public class AttachmentCleanupJob {
+public class AttachmentCleanupService {
 
     private final AttachmentRepository           attachmentRepository;
     private final ObjectProvider<StorageService> storageService;
     private final CleanupProperties              cleanupProperties;
 
-    @Scheduled(cron = "0 0 2 * * *", zone = "Europe/Kyiv")
     @Transactional
-    public void run() {
+    public void cleanup() {
         log.info("Attachment cleanup started, retention = {} days", cleanupProperties.retentionDays());
         deleteStaleTempUploads();
         deleteAttachments();
