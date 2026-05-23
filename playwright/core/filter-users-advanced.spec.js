@@ -40,7 +40,7 @@ test.describe('Filter users — email, dates, sort (admin)', () => {
       await page.locator('.user-query-block .query-text').nth(1).locator('input').fill(ADMIN_EMAIL);
       await applyFilter(page);
       await screenshot(page, 'filter-users-email-01-filtered');
-      await expect(page.locator('.user-grid-email', { hasText: ADMIN_EMAIL })).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.user-grid-email', { hasText: ADMIN_EMAIL }).first()).toBeVisible({ timeout: 5000 });
     });
 
     await test.step('Filter by nonexistent email — no rows', async () => {
