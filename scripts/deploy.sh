@@ -3,6 +3,7 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+NETWORK="advertisement"
 DB_CONTAINER="advertisement-db-1"
 MINIO_CONTAINER="advertisement-minio-1"
 APP_CONTAINER="marketplace-app"
@@ -69,8 +70,8 @@ wait_for_minio() {
 configure_minio() {
   echo "Configuring MinIO bucket..."
   docker rm -f minio-init 2>/dev/null || true
-  docker run --rm --network host --entrypoint /bin/sh minio/mc:latest -c "
-    mc alias set local http://localhost:9000 admin admin12345
+  docker run --rm --network "$NETWORK" --entrypoint /bin/sh minio/mc:latest -c "
+    mc alias set local http://$MINIO_CONTAINER:9000 admin admin12345
     mc mb --ignore-existing local/advertisement
     mc anonymous set public local/advertisement
     echo 'Bucket OK.'
@@ -92,12 +93,15 @@ if [ "$MODE" = "restart-infra" ]; then
   docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" 2>/dev/null || true
 fi
 
+docker network create "$NETWORK" 2>/dev/null || true
+
 pull_if_missing "postgres:15-alpine"
 pull_if_missing "minio/minio:latest"
 pull_if_missing "minio/mc:latest"
 
 ensure_running "$DB_CONTAINER" \
-  docker run -d --name "$DB_CONTAINER" --network host \
+  docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
+    -p 5432:5432 \
     -e POSTGRES_DB=experiments \
     -e POSTGRES_USER=experiments_user \
     -e POSTGRES_PASSWORD=experiments_user_password \
@@ -105,7 +109,8 @@ ensure_running "$DB_CONTAINER" \
     postgres:15-alpine
 
 ensure_running "$MINIO_CONTAINER" \
-  docker run -d --name "$MINIO_CONTAINER" --network host \
+  docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
+    -p 9000:9000 -p 9001:9001 \
     -e MINIO_ROOT_USER=admin \
     -e MINIO_ROOT_PASSWORD=admin12345 \
     -v advertisement_minio_data:/data \
@@ -120,15 +125,19 @@ echo ""
 echo "=== Step 2: Build image ==="
 docker rm -f "$APP_CONTAINER" 2>/dev/null || true
 docker build -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
+docker image prune -f
+docker container prune -f
+docker volume prune -f
 
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
 echo "=== Step 3: Start application ==="
-docker run -d --name "$APP_CONTAINER" --network host \
+docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
+  -p 8081:8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments \
+  -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME=experiments \
   -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
-  -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \
+  -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET=advertisement \
   -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
   -e S3_REGION=us-east-1 \
   -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
@@ -149,4 +158,4 @@ while true; do
 done
 
 echo ""
-echo "=== Application is ready at http://localhost:8080 ==="
+echo "=== Application is ready at http://localhost:8081 ==="

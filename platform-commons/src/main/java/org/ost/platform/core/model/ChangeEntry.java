@@ -15,7 +15,7 @@ public sealed interface ChangeEntry
 
     record FieldChange(String field, String from, String to) implements ChangeEntry {}
 
-    record SettingChange(String key, int from, int to) implements ChangeEntry {}
+    record SettingChange(String key, Integer from, int to) implements ChangeEntry {}
 
     record NoteEntry(String text) implements ChangeEntry {}
 

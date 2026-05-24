@@ -21,6 +21,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
+import java.util.Objects;
 
 @SpringComponent
 @Scope("prototype")
@@ -34,7 +35,8 @@ public class SnapshotBinder<T>
         @NonNull EntityType         entityType;
         @NonNull Class<T>           snapshotClass;
         @NonNull Predicate<T>       isCurrent;
-        BiConsumer<Long, T>         onRestore;
+        Long                        subjectEntityId;
+        BiConsumer<Long, Long>      onRestore;
         @NonNull String             currentLabel;
         String                      restoreLabel;
     }
@@ -73,10 +75,11 @@ public class SnapshotBinder<T>
                         return (Component) badge;
                     }
                     if (params.getOnRestore() == null) return null;
+                    if (params.getSubjectEntityId() != null && !Objects.equals(params.getSubjectEntityId(), item.entityId())) return null;
                     Button btn = new Button(params.getRestoreLabel());
                     btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     btn.addClassName("entity-history-restore-btn");
-                    btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), snap));
+                    btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), item.entityId()));
                     return (Component) btn;
                 })
                 .orElse(null);

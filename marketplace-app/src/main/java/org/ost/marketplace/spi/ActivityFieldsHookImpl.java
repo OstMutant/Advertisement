@@ -18,7 +18,7 @@ public class ActivityFieldsHookImpl implements ActivityFieldsHook {
 
     @Override
     public boolean supports(EntityType entityType) {
-        return entityType == EntityType.USER;
+        return entityType == EntityType.USER || entityType == EntityType.USER_SETTINGS;
     }
 
     @Override

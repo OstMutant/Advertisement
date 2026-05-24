@@ -17,7 +17,7 @@ for arg in "$@"; do
 done
 
 # ── Ensure marketplace-app is running ──────────────────────────────────────
-APP_URL="${APP_URL:-http://localhost:8080}"
+APP_URL="${APP_URL:-http://localhost:8081}"
 
 if ! docker inspect marketplace-app &>/dev/null; then
   echo "ERROR: Container 'marketplace-app' not found. Build and start it:"

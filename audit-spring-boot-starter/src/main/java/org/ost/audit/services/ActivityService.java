@@ -22,7 +22,7 @@ public class ActivityService {
     private final ObjectProvider<AuditDomainHook>       auditDomainHook;
 
     public List<ActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
-        List<ActivityItemDto> base = repository.findActivityByActor(subjectId);
+        List<ActivityItemDto> base = repository.findActivityForProfile(subjectId);
 
         AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
         List<ActivityItemDto> combined = ext != null ? ext.merge(subjectType, subjectId, base) : base;

@@ -14,7 +14,7 @@ module.exports = defineConfig({
   // Vaadin hydration can be slow — give each action 10 s, each test 60 s.
   use: {
     // Override via APP_URL in CI / docker-compose env.
-    baseURL: process.env.APP_URL || 'http://localhost:8080',
+    baseURL: process.env.APP_URL || 'http://localhost:8081',
     viewport: { width: 1280, height: 900 },
     actionTimeout: 10_000,
     screenshot: 'only-on-failure',

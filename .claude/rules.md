@@ -31,3 +31,6 @@ Wait for explicit confirmation before making any change.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
+
+## Test Coverage After Bug Fixes
+After fixing a bug, cover all affected flows with Playwright tests before marking the task complete.

@@ -190,6 +190,33 @@ public class AuditLogRepository {
                          .list();
     }
 
+    public List<ActivityItemDto> findActivityForProfile(Long userId) {
+        return jdbcClient.sql("""
+                        SELECT al.id AS snapshot_id, al.entity_id, al.entity_type, al.action_type,
+                               al.created_at, FALSE AS entity_exists,
+                               al.changes_summary::text AS changes_summary,
+                               al.actor_id, NULL::text AS changed_by_name,
+                               al.snapshot_data::text AS snapshot_data
+                        FROM audit_log al
+                        WHERE al.actor_id = :userId
+                        UNION
+                        SELECT al.id AS snapshot_id, al.entity_id, al.entity_type, al.action_type,
+                               al.created_at, FALSE AS entity_exists,
+                               al.changes_summary::text AS changes_summary,
+                               al.actor_id, NULL::text AS changed_by_name,
+                               al.snapshot_data::text AS snapshot_data
+                        FROM audit_log al
+                        WHERE al.entity_id = :userId
+                          AND al.entity_type IN ('USER', 'USER_SETTINGS')
+                          AND al.actor_id != :userId
+                        ORDER BY created_at DESC
+                        LIMIT 20
+                        """)
+                         .paramSource(new MapSqlParameterSource("userId", userId))
+                         .query(activityMapper)
+                         .list();
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static SnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {

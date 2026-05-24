@@ -50,6 +50,7 @@ public class ActivityPanel {
             }
             case ChangeEntry.SettingChange(var key, var from, var to) -> {
                 String label = i18n.get(AuditMessages.settingLabel(key));
+                if (from == null) yield label + ": " + to;
                 yield label + ": " + from + " → " + to;
             }
             case ChangeEntry.NoteEntry(var text) -> text;

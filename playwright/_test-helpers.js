@@ -58,7 +58,7 @@ async function openSettings(page) {
 async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
   await page.locator(`${overlaySelector} vaadin-tab`)
     .filter({ hasText: /activ|активн/i }).click();
-  await page.locator('.activity-feed-list').first().waitFor({ timeout: 5000 });
+  await page.locator(`${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
 }
 
 async function confirmDialog(page, textSource = 'Оновити|Update') {

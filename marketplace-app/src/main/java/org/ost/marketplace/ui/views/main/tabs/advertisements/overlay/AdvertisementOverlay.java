@@ -73,7 +73,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                     AdvertisementViewOverlayModeHandler.Parameters.builder()
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
-                            .onClose(this::closeToList)
+                            .onClose(this::closeAndRefresh)
                             .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
@@ -123,6 +123,11 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
         } catch (Exception e) {
             notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
         }
+    }
+
+    private void closeAndRefresh() {
+        session.onSaved().run();
+        closeToList();
     }
 
     private void handleRestore(Long snapshotId) {

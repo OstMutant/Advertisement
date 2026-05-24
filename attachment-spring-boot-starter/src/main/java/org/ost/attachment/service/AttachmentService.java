@@ -87,8 +87,11 @@ public class AttachmentService {
 
     @Transactional
     public void deleteSkipSnapshot(Long attachmentId) {
+        Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
+        if (attachment == null) return;
         Long actorId = resolveCurrentActorId();
         attachmentRepository.softDelete(attachmentId, actorId);
+        notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
     }
 
     public TempAttachment addVideoTemp(String url) {

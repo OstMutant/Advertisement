@@ -32,7 +32,7 @@ import org.ost.query.ui.utils.TimeZoneUtil;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -48,7 +48,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         @NonNull User             user;
         @NonNull Runnable         onEdit;
         @NonNull Runnable         onClose;
-        @NonNull Consumer<Long>   onRestoreUser;
+        @NonNull BiConsumer<Long, Long> onRestoreUser;
     }
 
     @SpringComponent
@@ -172,7 +172,8 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .snapshotClass(UserSnapshotDto.class)
                         .isCurrent(snap -> snap.name().equals(currentName)
                                         && currentRole != null && currentRole.name().equals(snap.role()))
-                        .onRestore((snapshotId, _) -> params.getOnRestoreUser().accept(snapshotId))
+                        .subjectEntityId(user.getId())
+                        .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(USER_RESTORE_BUTTON))
                         .build());
@@ -183,7 +184,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .snapshotClass(UserSettings.class)
                         .isCurrent(snap -> snap.getAdsPageSize() == currentSettings.getAdsPageSize()
                                         && snap.getUsersPageSize() == currentSettings.getUsersPageSize())
-                        .onRestore((snapshotId, snap) -> { /* admin view: no settings restore here */ })
+                        .subjectEntityId(user.getId())
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());

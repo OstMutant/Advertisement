@@ -118,7 +118,11 @@ public class ActivityRowRenderer {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
+            boolean unchanged = switch (entry) {
+                case ChangeEntry.FieldChange fc   -> fc.from() == null || fc.from().isBlank();
+                case ChangeEntry.SettingChange sc -> sc.from() == null;
+                default                           -> false;
+            };
             String text = activityPanel.format(entry);
             addActivitySpan(container, text, unchanged);
         }

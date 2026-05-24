@@ -13,6 +13,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import java.util.Optional;
+import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
@@ -49,6 +51,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
     private final transient ObjectProvider<AuditPort>              auditPort;
+    private final transient SnapshotCodec                          snapshotCodec;
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
@@ -187,7 +190,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .snapshotClass(UserSettings.class)
                         .isCurrent(snap -> snap.getAdsPageSize() == current.getAdsPageSize()
                                         && snap.getUsersPageSize() == current.getUsersPageSize())
-                        .onRestore((snapshotId, snap) -> showSettingsRestoreConfirm(snap))
+                        .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId))
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
@@ -198,6 +201,14 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 .emptyLabel(getValue(ACTIVITY_EMPTY))
                 .bindings(java.util.List.of(settingsBinding))
                 .build());
+    }
+
+    private void loadAndShowSettingsRestore(Long snapshotId) {
+        Optional.ofNullable(auditPort.getIfAvailable())
+                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
+                .flatMap(content -> snapshotCodec.decode(content.snapshotData(), SettingsSnapshotDto.class))
+                .map(dto -> UserSettings.builder().adsPageSize(dto.adsPageSize()).usersPageSize(dto.usersPageSize()).build())
+                .ifPresent(this::showSettingsRestoreConfirm);
     }
 
     private void showSettingsRestoreConfirm(UserSettings target) {

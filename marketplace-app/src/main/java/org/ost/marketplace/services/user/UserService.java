@@ -158,6 +158,13 @@ public class UserService {
     }
 
     public List<ChangeEntry> expandActivityFields(ActivityItemDto item) {
+        return switch (item.entityType()) {
+            case USER_SETTINGS -> expandSettingsFields(item);
+            default            -> expandUserFields(item);
+        };
+    }
+
+    private List<ChangeEntry> expandUserFields(ActivityItemDto item) {
         return snapshotCodec.decode(item.snapshotData(), UserSnapshotDto.class)
                 .map(state -> {
                     List<ChangeEntry> result = new ArrayList<>();
@@ -167,6 +174,27 @@ public class UserService {
                     return result;
                 })
                 .orElseGet(item::changes);
+    }
+
+    private List<ChangeEntry> expandSettingsFields(ActivityItemDto item) {
+        return snapshotCodec.decode(item.snapshotData(), SettingsSnapshotDto.class)
+                .map(state -> {
+                    List<ChangeEntry> result = new ArrayList<>();
+                    addSettingField(result, item.changes(), "adsPageSize",   state.adsPageSize());
+                    addSettingField(result, item.changes(), "usersPageSize", state.usersPageSize());
+                    return result;
+                })
+                .orElseGet(item::changes);
+    }
+
+    private static void addSettingField(List<ChangeEntry> result, List<ChangeEntry> changes, String key, int currentValue) {
+        changes.stream()
+                .filter(c -> c instanceof ChangeEntry.SettingChange sc && key.equals(sc.key()))
+                .findFirst()
+                .ifPresentOrElse(
+                        result::add,
+                        () -> result.add(new ChangeEntry.SettingChange(key, null, currentValue))
+                );
     }
 
     private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes, String field, String currentValue) {

@@ -39,8 +39,8 @@ public class AuditDiffEngine {
     private ChangeEntry toEntry(Field field, Object from, Object to) {
         Class<?> type = field.getType();
         if (type == int.class || type == Integer.class) {
-            int fromInt = from == null ? 0 : (int) from;
-            int toInt   = to   == null ? 0 : (int) to;
+            Integer fromInt = from == null ? null : (int) from;
+            int toInt       = to   == null ? 0    : (int) to;
             return new ChangeEntry.SettingChange(field.getName(), fromInt, toInt);
         }
         String fromStr = from == null ? null : String.valueOf(from);
