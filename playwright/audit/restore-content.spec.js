@@ -114,7 +114,7 @@ test.describe('Restore content correctness', () => {
   test.describe('Settings activity', () => {
     test.beforeEach(async ({ page }) => { await loginAs(page); });
 
-    test('restore reverts to state BEFORE the change, not to state after', async ({ page }) => {
+    test('restore reverts settings to the snapshot value of the clicked entry', async ({ page }) => {
       await openSettings(page);
 
       const getSize = async () => parseInt(
@@ -128,16 +128,21 @@ test.describe('Restore content correctness', () => {
       const save = () => page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
 
-      const before = await getSize();
-      const after  = before === 10 ? 15 : 10;
+      const current = await getSize();
+      const step1 = current === 10 ? 15 : 10;
+      const step2 = current === 10 ? 20 : 5;
 
-      await setSize(after);
+      await setSize(step1);
+      await save();
+      await page.waitForLoadState('networkidle');
+
+      await setSize(step2);
       await save();
       await page.waitForLoadState('networkidle');
 
       await openActivityTab(page);
 
-      await test.step('Restore button present', async () => {
+      await test.step('Restore button present on non-current entry', async () => {
         await expect(page.locator('.activity-feed-list .entity-history-restore-btn').first())
           .toBeVisible({ timeout: 10000 });
       });
@@ -150,12 +155,12 @@ test.describe('Restore content correctness', () => {
       await page.waitForLoadState('networkidle');
       await page.locator('.settings-overlay-content vaadin-integer-field').first().waitFor({ timeout: 5000 });
 
-      await test.step('Size is reverted to BEFORE value', async () => {
+      await test.step('Size matches snapshot value of the restored entry', async () => {
         const restored = await getSize();
-        if (restored !== before)
-          throw new Error(`Expected size ${before} (before value) after restore, got ${restored} — restore used wrong snapshot`);
+        if (restored !== step1)
+          throw new Error(`Expected ${step1} (snapshot value) after restore, got ${restored}`);
       });
-      await screenshot(page, 'restore-content-04-settings-reverted');
+      await screenshot(page, 'restore-content-04-settings-restored');
     });
   });
 
@@ -164,19 +169,29 @@ test.describe('Restore content correctness', () => {
   test.describe('User activity', () => {
     test.beforeEach(async ({ page }) => { await loginAs(page, ADMIN_EMAIL); });
 
-    test('restore reverts user name to state BEFORE the edit', async ({ page }) => {
-      const newName = `RestoreContentUser ${Date.now()}`;
-      let originalName;
+    test('restore reverts user to the snapshot value of the clicked entry', async ({ page }) => {
+      const intermediateName = `RestoreContentUser ${Date.now()}`;
+      const finalName        = `RestoreContentFinal ${Date.now()}`;
 
-      await test.step('Open first user for edit', async () => {
+      await test.step('Rename user twice to create two history entries', async () => {
         await page.locator('vaadin-tab').filter({ hasText: /users|користувач/i }).click();
         await page.locator('vaadin-grid.user-grid').waitFor({ timeout: 8000 });
         await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
         await waitForOverlay(page);
+
         const nameField = page.locator('.base-overlay.overlay--visible vaadin-text-field').first().locator('input');
-        originalName = await nameField.inputValue();
         await nameField.click({ clickCount: 3 });
-        await nameField.fill(newName);
+        await nameField.fill(intermediateName);
+        await page.locator('.base-overlay.overlay--visible vaadin-button')
+          .filter({ hasText: /зберегти|save/i }).click();
+        await waitForOverlayClosed(page);
+        await page.waitForTimeout(500);
+
+        await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
+        await waitForOverlay(page);
+        const nameField2 = page.locator('.base-overlay.overlay--visible vaadin-text-field').first().locator('input');
+        await nameField2.click({ clickCount: 3 });
+        await nameField2.fill(finalName);
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
         await waitForOverlayClosed(page);
@@ -184,7 +199,7 @@ test.describe('Restore content correctness', () => {
       });
 
       await test.step('Open user profile → Activity tab', async () => {
-        await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: newName }).first().click();
+        await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: finalName }).first().click();
         await waitForOverlay(page);
         const overlay = page.locator('.base-overlay.overlay--visible');
         const activityTab = overlay.locator('vaadin-tab').filter({ hasText: /activ|активн/i });
@@ -192,7 +207,7 @@ test.describe('Restore content correctness', () => {
         await overlay.locator('.activity-feed-list').first().waitFor({ timeout: 8000 });
       });
 
-      await test.step('Restore button present', async () => {
+      await test.step('Restore button present on non-current entry', async () => {
         await expect(page.locator('.activity-feed-list .entity-history-restore-btn').first())
           .toBeVisible({ timeout: 5000 });
       });
@@ -206,13 +221,15 @@ test.describe('Restore content correctness', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(600);
 
-      await test.step('Name reverted to original (BEFORE value)', async () => {
+      await test.step('Name is the snapshot value of the restored entry (intermediateName)', async () => {
         await page.keyboard.press('Escape');
         await waitForOverlayClosed(page).catch(() => {});
         await page.waitForTimeout(500);
         const names = await page.locator('vaadin-grid.user-grid .user-grid-name').allTextContents();
-        if (names.some(n => n.trim() === newName))
-          throw new Error(`Name "${newName}" still present — restore used AFTER snapshot instead of BEFORE`);
+        if (!names.some(n => n.trim() === intermediateName))
+          throw new Error(`Expected "${intermediateName}" in grid after restore, but not found`);
+        if (names.some(n => n.trim() === finalName))
+          throw new Error(`"${finalName}" still present — restore used wrong snapshot`);
       });
       await screenshot(page, 'restore-content-06-user-restored');
     });

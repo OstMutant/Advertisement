@@ -90,6 +90,28 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
+## 2026-05-24 — Action badge uses type-specific CSS class in both history and activity
+
+**Decision:** Every action badge (Created / Updated / Deleted / Restored) carries two CSS classes: a base class for shared layout (`entity-history-action` or `activity-feed-action`) and a modifier for color (`--created`, `--updated`, `--deleted`, `--restored`). The modifier is derived from `ActionType.name().toLowerCase()`. Color palette is identical in both `entity-history.css` and `activity-feed.css`: green / blue / red / yellow respectively.
+
+**Rule:** Any new UI component that renders action badges must follow this two-class pattern. Single-class with hardcoded color is forbidden.
+
+**Why:** Previously `ActivityRowRenderer` added only the base class, making all activity rows render with a hardcoded blue badge — no visual distinction between created/updated/deleted. `EntityHistoryPanel` already applied the modifier class; bringing `ActivityRowRenderer` to parity was the fix.
+
+**Scope:** `EntityHistoryPanel` (ads history), `ActivityRowRenderer` (user activity, settings activity, all profile feeds).
+
+---
+
+## 2026-05-24 — Restore semantics: `getSnapshotContent` is the restore source
+
+**Decision:** `AuditPort.getSnapshotContent(snapshotId, entityType)` is the only correct method for restore flows. `getPreviousSnapshotContent` returns the state *before* a recorded change; it must not be used to populate restore targets.
+
+**Rule:** Any consumer implementing a restore button via `SnapshotBinder.onRestore` must call `getSnapshotContent`. `getPreviousSnapshotContent` is only for displaying diffs or "what changed" UI.
+
+**Why:** Restoring to the snapshot of a history entry means "make the entity look like it did at this recorded moment" — that is the snapshot data (`after`), not the state before the change.
+
+---
+
 ## Deferred backlog
 
 - SnapshotPayload: add schemaVersion + metadata when snapshot versioning is needed

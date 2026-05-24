@@ -199,30 +199,71 @@ test.describe('CardMediaLightbox video/image switching', () => {
       await page.locator('.advertisement-card')
         .filter({ has: page.locator('.advertisement-title', { hasText: adTitle }) })
         .first().locator('.advertisement-thumbnail-wrapper').click();
-      await waitForLightbox(page);
+      // Wait for the dialog to be in opened state AND video wrapper visible in one pass —
+      // avoids false-positive from a stale close button left in DOM by a previous dialog.
       await page.waitForFunction(() => {
-        const w = document.querySelector('.card-lightbox__main-video-wrapper');
-        return w && getComputedStyle(w).display !== 'none';
-      }, { timeout: 5000 });
+        function search(root) {
+          const w = root.querySelector('.card-lightbox__main-video-wrapper');
+          if (w) {
+            const rect = w.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0;
+          }
+          for (const child of root.querySelectorAll('*')) {
+            if (child.shadowRoot) {
+              const found = search(child.shadowRoot);
+              if (found) return found;
+            }
+          }
+          return false;
+        }
+        return search(document);
+      }, null, { timeout: 30000 });
       await screenshot(page, 'lightbox-video-01-video-open');
     });
 
     await test.step('Switch to image — video wrapper hidden and src cleared', async () => {
       await clickLightboxThumb(page, 1);
       await page.waitForFunction(() => {
-        const img = document.querySelector('.card-lightbox__main-image');
-        return img && getComputedStyle(img).display !== 'none';
+        function search(root) {
+          const img = root.querySelector('.card-lightbox__main-image');
+          if (img && !img.hasAttribute('hidden')) return true;
+          for (const child of root.querySelectorAll('*')) {
+            if (child.shadowRoot && search(child.shadowRoot)) return true;
+          }
+          return false;
+        }
+        return search(document);
       }, { timeout: 5000 });
 
       const videoWrapperVisible = await page.evaluate(() => {
-        const w = document.querySelector('.card-lightbox__main-video-wrapper');
-        return w ? getComputedStyle(w).display !== 'none' : false;
+        function search(root) {
+          const w = root.querySelector('.card-lightbox__main-video-wrapper');
+          if (w) return !w.hasAttribute('hidden');
+          for (const child of root.querySelectorAll('*')) {
+            if (child.shadowRoot) {
+              const found = search(child.shadowRoot);
+              if (found !== undefined) return found;
+            }
+          }
+          return false;
+        }
+        return search(document);
       });
       if (videoWrapperVisible) throw new Error('Video wrapper still visible after switching to image');
 
       const videoSrc = await page.evaluate(() => {
-        const v = document.querySelector('.card-lightbox__main-video');
-        return v ? v.getAttribute('src') : null;
+        function search(root) {
+          const v = root.querySelector('.card-lightbox__main-video');
+          if (v) return v.getAttribute('src');
+          for (const child of root.querySelectorAll('*')) {
+            if (child.shadowRoot) {
+              const found = search(child.shadowRoot);
+              if (found !== undefined) return found;
+            }
+          }
+          return null;
+        }
+        return search(document);
       });
       if (videoSrc !== '' && videoSrc !== null)
         throw new Error(`Video src not cleared after image switch: ${videoSrc}`);

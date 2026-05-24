@@ -48,6 +48,7 @@ public class ActivityRowRenderer {
 
         Span action = new Span(i18n.get(formatActionKey(item.actionType())));
         action.addClassName("activity-feed-action");
+        action.addClassName("activity-feed-action--" + item.actionType().name().toLowerCase());
 
         Span type = new Span(typeLabel);
         type.addClassName("activity-feed-type");

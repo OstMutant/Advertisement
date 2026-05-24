@@ -22,6 +22,7 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.entities.UserSettings;
+import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.ui.Configurable;
@@ -67,7 +68,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     private final UiIconButton.Builder                       closeButtonBuilder;
     private final ObjectProvider<AuditUiPort>             auditUiExtensionProvider;
     private final SnapshotBinder.Builder<UserSnapshotDto>         userBinderBuilder;
-    private final SnapshotBinder.Builder<UserSettings>         settingsBinderBuilder;
+    private final SnapshotBinder.Builder<SettingsSnapshotDto>   settingsBinderBuilder;
 
     private Parameters params;
 
@@ -162,7 +163,8 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiPort auditUi) {
-        String currentName = user.getName();
+        String currentName  = user.getName();
+        String currentEmail = user.getEmail();
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 
@@ -171,6 +173,7 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .entityType(org.ost.platform.core.model.EntityType.USER)
                         .snapshotClass(UserSnapshotDto.class)
                         .isCurrent(snap -> snap.name().equals(currentName)
+                                        && snap.email() != null && snap.email().equals(currentEmail)
                                         && currentRole != null && currentRole.name().equals(snap.role()))
                         .subjectEntityId(user.getId())
                         .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
@@ -178,12 +181,12 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .restoreLabel(getValue(USER_RESTORE_BUTTON))
                         .build());
 
-        SnapshotBinder<UserSettings> settingsBinding = settingsBinderBuilder.build(
-                SnapshotBinder.Parameters.<UserSettings>builder()
+        SnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
+                SnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
-                        .snapshotClass(UserSettings.class)
-                        .isCurrent(snap -> snap.getAdsPageSize() == currentSettings.getAdsPageSize()
-                                        && snap.getUsersPageSize() == currentSettings.getUsersPageSize())
+                        .snapshotClass(SettingsSnapshotDto.class)
+                        .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()
+                                        && snap.usersPageSize() == currentSettings.getUsersPageSize())
                         .subjectEntityId(user.getId())
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))

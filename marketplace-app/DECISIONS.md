@@ -41,6 +41,16 @@ Rules:
 
 ---
 
+## 2026-05-24 — Restore semantics: restore TO snapshot, not BEFORE snapshot
+
+**Decision:** Clicking a restore button in any activity feed restores the entity to the state captured in the clicked entry's snapshot (i.e., `getSnapshotContent`). The previous behavior (`getPreviousSnapshotContent`) was wrong — it restored to the state *before* that change, not *to* that snapshot.
+
+**Rule:** All restore flows (`UserOverlay.handleRestoreUser`, `SettingsOverlay.loadAndShowSettingsRestore`, `AdvertisementService.restoreToSnapshot`) must call `AuditPort.getSnapshotContent(snapshotId, entityType)`. `getPreviousSnapshotContent` is reserved for diff display only.
+
+**Why:** The UX expectation is "click this history entry → entity becomes what it looked like at that point". Using the previous snapshot inverts the semantics and produces the wrong result.
+
+---
+
 ## 2026-05-12 — @EnableMethodSecurity added; @PreAuthorize not used on Vaadin services
 
 **Decision:** `@EnableMethodSecurity` added to `SecurityConfig`. `@PreAuthorize("isAuthenticated()")` is NOT applied at class level on services.

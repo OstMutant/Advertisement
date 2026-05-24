@@ -55,7 +55,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
-    private final transient SnapshotBinder.Builder<UserSettings>           settingsBinderBuilder;
+    private final transient SnapshotBinder.Builder<SettingsSnapshotDto>     settingsBinderBuilder;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -184,12 +184,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
         UserSettings current = settingsService.load(currentUser.getId());
-        SnapshotBinder<UserSettings> settingsBinding = settingsBinderBuilder.build(
-                SnapshotBinder.Parameters.<UserSettings>builder()
+        SnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
+                SnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
-                        .snapshotClass(UserSettings.class)
-                        .isCurrent(snap -> snap.getAdsPageSize() == current.getAdsPageSize()
-                                        && snap.getUsersPageSize() == current.getUsersPageSize())
+                        .snapshotClass(SettingsSnapshotDto.class)
+                        .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()
+                                        && snap.usersPageSize() == current.getUsersPageSize())
                         .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId))
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))

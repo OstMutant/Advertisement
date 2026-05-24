@@ -58,24 +58,14 @@ test.describe('Activity types', () => {
         throw new Error('No ADVERTISEMENT type badge');
     });
 
-    await test.step('CREATED action badge present', async () => {
-      const rows = page.locator('.activity-feed-row');
-      const count = await rows.count();
-      let found = false;
-      for (let i = 0; i < count; i++) {
-        if (/Створ|Creat/i.test(await rows.nth(i).textContent())) { found = true; break; }
-      }
-      if (!found) throw new Error('CREATED action not found in activity');
+    await test.step('CREATED action badge present with correct CSS class', async () => {
+      if (await page.locator('.activity-feed-action--created').count() === 0)
+        throw new Error('No .activity-feed-action--created badge found');
     });
 
-    await test.step('UPDATED action badge present', async () => {
-      const rows = page.locator('.activity-feed-row');
-      const count = await rows.count();
-      let found = false;
-      for (let i = 0; i < count; i++) {
-        if (/Оновл|Updat/i.test(await rows.nth(i).textContent())) { found = true; break; }
-      }
-      if (!found) throw new Error('UPDATED action not found in activity');
+    await test.step('UPDATED action badge present with correct CSS class', async () => {
+      if (await page.locator('.activity-feed-action--updated').count() === 0)
+        throw new Error('No .activity-feed-action--updated badge found');
     });
 
     if (deleteExists) {
