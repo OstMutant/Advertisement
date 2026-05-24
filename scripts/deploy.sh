@@ -141,6 +141,7 @@ docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
   -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
   -e S3_REGION=us-east-1 \
   -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
+  -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
   marketplace-app
 
 echo "Waiting for application to start..."

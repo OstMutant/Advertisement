@@ -216,7 +216,15 @@
       "Bash(grep -v \"^  at\\\\|^$\")",
       "Bash(xargs sh *)",
       "Bash(/tmp/check_duplicates.sh)",
-      "Bash(docker help *)"
+      "Bash(docker help *)",
+      "Bash(echo \"BUILD_EXIT:$?\")",
+      "Bash(awk '{print $1,$2,$11}')",
+      "Bash(awk '{print $10}')",
+      "Bash(echo \"MVN_EXIT:$?\")",
+      "Bash(docker start *)",
+      "Bash(docker stats *)",
+      "Bash(tee /tmp/deploy-dev.log)",
+      "Bash(APP_URL=http://localhost:8080 bash /app/playwright/run.sh restore-content)"
     ]
   },
   "hooks": {
