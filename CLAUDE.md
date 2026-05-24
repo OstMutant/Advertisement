@@ -155,7 +155,7 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 ## Naming Conventions
 
 ### Class suffixes
-- `*Projection` — SQL query object (extends `SqlFixedQuery<T>` or used with `SqlEntityProjection`). Defines SQL, field mappings, and `mapRow()`. Lives in `repository/*`.
+- `*Projection` — SQL query object that owns its SQL (text block) and `mapRow()`. Lives in `repository/*`.
 - `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
 - `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
 - `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
@@ -163,7 +163,7 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 - `*Overlay` — full-screen Vaadin overlay (extends `AbstractEntityOverlay` or `BaseOverlay`).
 - `*Config` — Spring `@Configuration` class. Infrastructure-level configs live in `config/`. Feature-scoped factory configs stay next to the components they configure.
 
-→ SPI interface naming (`*Port`, `*Extension`, `*Consumer`, etc.): @platform-commons/CLAUDE.md
+→ SPI interface naming (`*Port`, `*Hook`): @platform-commons/CLAUDE.md
 
 ### Package structure (marketplace-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)

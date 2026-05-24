@@ -14,21 +14,6 @@ Write and read sides were initially separate modules (`audit-core` + `audit-read
 
 ---
 
-## Ongoing — Descriptor pattern and SqlCommand template API alignment
-
-**Decision:** `AuditLogDescriptor` follows the same Read/Write namespace pattern used by all other descriptors in the project. All `SqlCommand` constants use `SqlCommand.of(template, key, value, ...)` with `{placeholder}` substitution — including text blocks for CTEs and LATERAL joins. `Activity.QUERY` and `History.QUERY` are `SqlCommand` constants; `SqlFixedQuery.querySql()` returns `QUERY.sql()`. `Write` exposes `InsertEntry` record for the 6-arg insert factory (4+ positional params → record). Named params match column names where applicable (`:snapshot_data`, `:changes_summary`).
-
-**Why:** Uniform pattern across all modules means a single mental model: every column reference is traceable to a `SqlDescriptorField` constant, every mismatch is caught at class-load time by `SqlCommand`'s fail-fast validation.
-
----
-
-## Ongoing — One descriptor, one repository for audit_log
-
-**Decision:** `AuditLogDescriptor` is the single descriptor for the `audit_log` table. Activity and history read views nest as `Read.Activity` / `Read.History` sub-namespaces, each with a `Projection` inner class extending `SqlFixedQuery<T>`. `AuditLogRepository` is the single repository — all read/write methods live there. `AuditLogDescriptor implements SqlEntityDescriptor`.
-
-**Why:** One database table → one descriptor → one repository. Previous split into `AuditReadRepository` + `ActivityRepository` was a historical accident from the core/read module split. `SqlFixedQuery` projections carry runtime dependencies (`ObjectMapper`, resolvers) so they remain instantiable inner classes, not `static final` constants — but they live next to the SQL they own.
-
----
 
 ## 2026-05-13 — SQL coupling to domain tables removed via SPI batch pattern
 

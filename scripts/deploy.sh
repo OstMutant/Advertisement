@@ -1,4 +1,16 @@
 #!/bin/bash
+# Full prod deploy: builds Docker image from scratch and starts all services on port 8081.
+#
+# Usage:
+#   bash scripts/deploy.sh                      — full image rebuild + start
+#   bash scripts/deploy.sh --reset              — wipe DB/MinIO volumes, then rebuild
+#   bash scripts/deploy.sh --restart-infra      — restart infra containers only (no rebuild)
+#
+# Filtered output (key milestones only):
+#   bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|Started|Waiting|ready|FAILED"
+#
+# Stream full app log after deploy:
+#   docker logs -f marketplace-app
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

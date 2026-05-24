@@ -1,7 +1,18 @@
 #!/bin/bash
-# Fast dev deploy: build JAR locally and hot-swap it into the running container.
-# Requires: DB and MinIO running, marketplace-app container running.
-# Use scripts/deploy.sh for first-time setup or full prod rebuild.
+# Fast dev deploy: builds JAR locally and hot-swaps it into the running container.
+# Typically ~3-4 min vs ~7-10 min for a full prod rebuild.
+#
+# Usage:
+#   bash scripts/deploy-dev.sh
+#
+# Requires: infra (DB, MinIO) and marketplace-app container already running.
+# Run scripts/deploy.sh once first if the container does not exist yet.
+#
+# Filtered output (key milestones only):
+#   bash scripts/deploy-dev.sh 2>&1 | tee /tmp/deploy-dev.log | grep -E "BUILD|ERROR|Deploying|Restarting|Started"
+#
+# Stream full app log after deploy:
+#   docker logs -f marketplace-app
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

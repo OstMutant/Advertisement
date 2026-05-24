@@ -1,2 +1,14 @@
 @echo off
-bash "%~dp0deploy.sh"
+REM Full prod deploy: builds Docker image from scratch and starts all services on port 8081.
+REM
+REM Usage:
+REM   scripts\deploy.bat                    -- full image rebuild + start
+REM   scripts\deploy.bat --reset            -- wipe DB/MinIO volumes, then rebuild
+REM   scripts\deploy.bat --restart-infra    -- restart infra containers only (no rebuild)
+REM
+REM Filtered output (key milestones only) — run from WSL or Git Bash:
+REM   bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|Started|Waiting|ready|FAILED"
+REM
+REM Stream full app log after deploy:
+REM   docker logs -f marketplace-app
+bash "%~dp0deploy.sh" %*
