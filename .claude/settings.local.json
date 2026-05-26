@@ -229,7 +229,17 @@
       "Bash(xargs -I {} find {} -type f -name \"*.java\")",
       "Bash(mvn -q -pl audit-spring-boot-starter compile -DskipTests)",
       "Bash(mvn -q -pl platform-commons,audit-spring-boot-starter -am compile -DskipTests)",
-      "Bash(wait bacv8r8s5 *)"
+      "Bash(wait bacv8r8s5 *)",
+      "Bash(tee /tmp/test.log)",
+      "Read(//etc/**)",
+      "Read(//proc/1/**)",
+      "Bash(tee /tmp/build-test.log)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(echo \"PID=$!\")",
+      "Bash(wait 150686)",
+      "Bash(kill -0 153633)",
+      "Bash(grep -v '^$')",
+      "Bash(kill 154508)"
     ]
   },
   "hooks": {
@@ -239,7 +249,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { echo 'git commit BLOCKED — explicit user approval required (зроби коміт / commit)' >&2; exit 2; } || exit 0"
+            "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { if [ -f /tmp/commit-approved ]; then rm /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "input=$(cat); file=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"//'); echo \"$(date '+%H:%M:%S') ASK Edit: $file\" >> /tmp/edit-audit.log; echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' >> /tmp/edit-audit.log; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Every file change requires explicit user approval\"}}'"
           }
         ]
       }

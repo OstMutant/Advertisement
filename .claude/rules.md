@@ -42,5 +42,29 @@ Always use project scripts for build, deploy, and tests — never raw docker/mvn
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test` — JUnit tests
 
+**For any long-running command** (builds, tests, docker operations): use `run_in_background: true`, then immediately attach the Monitor tool. Monitor timeout: `timeout_ms: 600000` (10 min).
+
+Standard Monitor pattern for builds (log: `/tmp/deploy-dev.log`):
+```
+out=/tmp/deploy-dev.log
+tail -f "$out" | grep --line-buffered -E "ERROR|BUILD|FAILED|Started|Exception|\[INFO\] Building |\[INFO\] ---" &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  sleep 30
+  echo "⏳ still building... ($(wc -l < "$out") lines so far)"
+done
+```
+
+Standard Monitor pattern for tests (`mvn clean test 2>&1 | tee /tmp/test.log`, log: `/tmp/test.log`):
+```
+out=/tmp/test.log
+tail -f "$out" | grep --line-buffered -E "ERROR|FAILED|Tests run|BUILD|Exception|\[ERROR\]" &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  sleep 30
+  echo "⏳ still testing... ($(wc -l < "$out") lines so far)"
+done
+```
+
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.
