@@ -225,7 +225,8 @@
       "Bash(docker stats *)",
       "Bash(tee /tmp/deploy-dev.log)",
       "Bash(APP_URL=http://localhost:8080 bash /app/playwright/run.sh restore-content)",
-      "Bash(tee /tmp/deploy-prod.log)"
+      "Bash(tee /tmp/deploy-prod.log)",
+      "Bash(xargs -I {} find {} -type f -name \"*.java\")"
     ]
   },
   "hooks": {

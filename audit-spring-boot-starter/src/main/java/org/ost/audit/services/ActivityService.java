@@ -3,6 +3,7 @@ package org.ost.audit.services;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.spi.AuditDomainHook;
@@ -25,7 +26,7 @@ public class ActivityService {
         List<ActivityItemDto> base = repository.findActivityForProfile(subjectId);
 
         AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
-        List<ActivityItemDto> combined = ext != null ? ext.merge(subjectType, subjectId, base) : base;
+        List<ActivityItemDto> combined = ext != null ? ext.merge(new EntityRef(subjectType, subjectId), base) : base;
 
         combined = resolveActorNames(combined);
         combined = resolveEntityExistence(combined);

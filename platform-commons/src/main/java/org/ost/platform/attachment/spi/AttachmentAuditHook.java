@@ -2,7 +2,7 @@ package org.ost.platform.attachment.spi;
 
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.EntityRef;
 
 import java.util.List;
 
@@ -17,15 +17,15 @@ public interface AttachmentAuditHook {
 
     // ── Activity feed ──────────────────────────────────────────────────────────
 
-    List<ActivityItemDto> merge(EntityType subjectType, Long subjectId, List<ActivityItemDto> baseItems);
+    List<ActivityItemDto> merge(EntityRef subject, List<ActivityItemDto> baseItems);
 
     // ── Media history ──────────────────────────────────────────────────────────
 
-    List<ChangeEntry> getMediaChanges(EntityType entityType, Long entityId, int version);
+    List<ChangeEntry> getMediaChanges(EntityRef entity, int version);
 
-    boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version);
+    boolean mediaMatchCurrent(EntityRef entity, int version);
 
-    String getMediaStateAtVersion(EntityType entityType, Long entityId, int version);
+    String getMediaStateAtVersion(EntityRef entity, int version);
 
-    String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId);
+    String getMediaStateForSnapshot(EntityRef entity, Long snapshotId);
 }

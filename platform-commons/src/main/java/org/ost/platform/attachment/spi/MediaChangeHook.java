@@ -1,6 +1,6 @@
 package org.ost.platform.attachment.spi;
 
-import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.EntityRef;
 
 /**
  * Hook: attachment-starter → marketplace.
@@ -15,5 +15,5 @@ import org.ost.platform.core.model.EntityType;
  */
 public interface MediaChangeHook {
 
-    void onMediaChanged(EntityType entityType, Long entityId);
+    void onMediaChanged(EntityRef entity);
 }

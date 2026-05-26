@@ -12,6 +12,7 @@ import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
@@ -160,7 +161,7 @@ public class EntityHistoryPanel extends Div
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
         AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.mediaMatchCurrent(entityType, entityId, version);
+        return ext == null || ext.mediaMatchCurrent(new EntityRef(entityType, entityId), version);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

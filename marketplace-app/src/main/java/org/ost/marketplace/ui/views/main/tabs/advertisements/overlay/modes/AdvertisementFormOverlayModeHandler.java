@@ -25,6 +25,7 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.ui.ComponentBuilder;
@@ -118,7 +119,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         galleryExtension.ifAvailable(ext -> {
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
-                    : ext.buildGalleryForEdit(EntityType.ADVERTISEMENT, params.getAd().getId());
+                    : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
             content.add(activeHandle.getComponent());
         });
 
@@ -151,7 +152,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
             if (this.activeHandle != null) {
-                this.activeHandle.commit(EntityType.ADVERTISEMENT, savedAdvertisement.getId());
+                this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedAdvertisement.getId()));
             }
         });
     }

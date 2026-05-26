@@ -29,6 +29,7 @@ import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.MediaContentType;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
@@ -123,7 +124,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(EntityType.ADVERTISEMENT, ad.getId()))
+                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }

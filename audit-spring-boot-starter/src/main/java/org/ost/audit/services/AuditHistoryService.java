@@ -6,6 +6,7 @@ import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.spi.AuditDomainHook;
@@ -38,7 +39,7 @@ public class AuditHistoryService {
         if (ext == null) return history;
         return history.stream()
                 .map(h -> {
-                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(entityType, entityId, h.version());
+                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(new EntityRef(entityType, entityId), h.version());
                     if (mediaChanges.isEmpty()) return h;
                     List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());

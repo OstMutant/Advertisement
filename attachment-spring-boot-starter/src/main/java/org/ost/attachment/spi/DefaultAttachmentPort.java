@@ -5,7 +5,7 @@ import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
-import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.EntityRef;
 
 @RequiredArgsConstructor
 public class DefaultAttachmentPort implements AttachmentPort {
@@ -14,19 +14,19 @@ public class DefaultAttachmentPort implements AttachmentPort {
     private final AttachmentSnapshotService attachmentSnapshotService;
 
     @Override
-    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
-        attachmentService.softDeleteAll(entityType, entityId, actorId);
+    public void softDeleteAll(EntityRef entity, Long actorId) {
+        attachmentService.softDeleteAll(entity.entityType(), entity.entityId(), actorId);
     }
 
     @Override
-    public void restoreToSnapshot(EntityType entityType, Long entityId, int snapshotVersion, Long actorId) {
-        String[] targetUrls = attachmentSnapshotService.getUrlsAtVersion(entityType, entityId, snapshotVersion);
-        attachmentService.restoreToUrls(entityType, entityId, targetUrls, actorId);
-        attachmentSnapshotService.capture(entityType, entityId, actorId);
+    public void restoreToSnapshot(EntityRef entity, int snapshotVersion, Long actorId) {
+        String[] targetUrls = attachmentSnapshotService.getUrlsAtVersion(entity.entityType(), entity.entityId(), snapshotVersion);
+        attachmentService.restoreToUrls(entity.entityType(), entity.entityId(), targetUrls, actorId);
+        attachmentSnapshotService.capture(entity.entityType(), entity.entityId(), actorId);
     }
 
     @Override
-    public MediaSummaryDto getMediaSummary(EntityType entityType, Long entityId) {
-        return attachmentService.getMediaSummary(entityType, entityId);
+    public MediaSummaryDto getMediaSummary(EntityRef entity) {
+        return attachmentService.getMediaSummary(entity.entityType(), entity.entityId());
     }
 }

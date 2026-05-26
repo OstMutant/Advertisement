@@ -6,6 +6,7 @@ import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
@@ -78,7 +79,7 @@ public class AdvertisementService {
 
     public void onMediaChanged(Long entityId) {
         attachmentPort.ifAvailable(port ->
-                repository.updateMedia(entityId, port.getMediaSummary(EntityType.ADVERTISEMENT, entityId))
+                repository.updateMedia(entityId, port.getMediaSummary(new EntityRef(EntityType.ADVERTISEMENT, entityId)))
         );
     }
 
@@ -109,7 +110,7 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
-            attachmentPort.ifAvailable(p -> p.restoreToSnapshot(EntityType.ADVERTISEMENT, saved.getId(), content.version(), currentUserId));
+            attachmentPort.ifAvailable(p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
         }
         return true;
     }
@@ -130,7 +131,7 @@ public class AdvertisementService {
                     auditPort.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
         }
         if (currentUserId != null) {
-            attachmentPort.ifAvailable(p -> p.softDeleteAll(EntityType.ADVERTISEMENT, ad.getId(), currentUserId));
+            attachmentPort.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
         }
         repository.softDelete(ad.getId(), currentUserId);
     }

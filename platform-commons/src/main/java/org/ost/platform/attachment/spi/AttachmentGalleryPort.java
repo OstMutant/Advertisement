@@ -1,6 +1,7 @@
 package org.ost.platform.attachment.spi;
 
 import com.vaadin.flow.component.Component;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
 /**
@@ -9,17 +10,17 @@ import org.ost.platform.core.model.EntityType;
  */
 public interface AttachmentGalleryPort {
 
-    Component buildGalleryForView(EntityType entityType, Long entityId);
+    Component buildGalleryForView(EntityRef entity);
 
     FormHandle buildGalleryForCreate(EntityType entityType, String tempSessionId);
 
-    FormHandle buildGalleryForEdit(EntityType entityType, Long entityId);
+    FormHandle buildGalleryForEdit(EntityRef entity);
 
-    void openMediaLightbox(EntityType entityType, Long entityId);
+    void openMediaLightbox(EntityRef entity);
 
     interface FormHandle {
         Component getComponent();
-        void commit(EntityType entityType, Long entityId);
+        void commit(EntityRef entity);
         void discard();
     }
 }

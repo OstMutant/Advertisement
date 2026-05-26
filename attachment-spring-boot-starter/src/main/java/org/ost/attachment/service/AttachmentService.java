@@ -10,6 +10,7 @@ import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.attachment.spi.MediaChangeHook;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.attachment.service.StorageService;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
@@ -215,7 +216,7 @@ public class AttachmentService {
     }
 
     private void notifyMediaChanged(EntityType entityType, Long entityId) {
-        mediaChangeHook.ifAvailable(c -> c.onMediaChanged(entityType, entityId));
+        mediaChangeHook.ifAvailable(c -> c.onMediaChanged(new EntityRef(entityType, entityId)));
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {

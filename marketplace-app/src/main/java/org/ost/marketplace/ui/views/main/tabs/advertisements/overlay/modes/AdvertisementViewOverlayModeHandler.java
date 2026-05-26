@@ -12,6 +12,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.audit.dto.EntityHistoryDto;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.security.AccessEvaluator;
@@ -138,7 +139,7 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
 
         Div viewBody = new Div(textCard);
 
-        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(EntityType.ADVERTISEMENT, params.getAd().getId())));
+        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
 
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");

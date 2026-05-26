@@ -10,6 +10,7 @@ import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.codec.SnapshotCodec;
@@ -105,7 +106,7 @@ public class ActivityRowRenderer {
 
         if (mediaChanges.isEmpty()) {
             AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateForSnapshot(item.entityType(), item.entityId(), item.snapshotId()) : null;
+            String state = ext != null ? ext.getMediaStateForSnapshot(new EntityRef(item.entityType(), item.entityId()), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
@@ -158,7 +159,7 @@ public class ActivityRowRenderer {
                                            EntityType entityType, Long entityId, int version) {
         if (mediaChanges.isEmpty()) {
             AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateAtVersion(entityType, entityId, version) : null;
+            String state = ext != null ? ext.getMediaStateAtVersion(new EntityRef(entityType, entityId), version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
         } else {
