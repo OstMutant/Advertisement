@@ -23,6 +23,7 @@ import org.springframework.context.annotation.Scope;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 @CssImport("./entity-history.css")
 @SpringComponent
@@ -86,35 +87,10 @@ public class ActivityRowRenderer {
     }
 
     private Div buildAdvertisementActivityFieldsList(ActivityItemDto item) {
-        Div container = new Div();
-        container.addClassName(CSS_CHANGES);
-
-        List<ChangeEntry> mediaChanges = new ArrayList<>();
-        List<ChangeEntry> textChanges  = new ArrayList<>();
-        for (ChangeEntry entry : item.changes()) {
-            if (entry instanceof ChangeEntry.GenericChange) {
-                mediaChanges.add(entry);
-            } else {
-                textChanges.add(entry);
-            }
-        }
-
-        List<ChangeEntry> expanded = expandTextFields(item.snapshotData(), textChanges);
-        for (ChangeEntry entry : expanded) {
-            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
-            addSpan(container, activityPanel.format(entry), unchanged, CSS_CHANGES);
-        }
-
-        if (mediaChanges.isEmpty()) {
+        return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES, () -> {
             AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateForSnapshot(new EntityRef(item.entityType(), item.entityId()), item.snapshotId()) : null;
-            String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, CSS_CHANGES);
-        } else {
-            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, CSS_CHANGES));
-        }
-
-        return container;
+            return ext != null ? ext.getMediaStateForSnapshot(new EntityRef(item.entityType(), item.entityId()), item.snapshotId()) : null;
+        });
     }
 
     private Div buildActivityChangesDiv(List<ChangeEntry> entries) {
@@ -133,12 +109,20 @@ public class ActivityRowRenderer {
     }
 
     public Div buildAdvHistoryFieldsList(EntityHistoryDto h, EntityType entityType, Long entityId) {
+        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, () -> {
+            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
+            return ext != null ? ext.getMediaStateAtVersion(new EntityRef(entityType, entityId), h.version()) : null;
+        });
+    }
+
+    private Div buildEntityChangesDiv(List<ChangeEntry> changes, SnapshotPayloadDto snapshotData,
+                                      String cssBase, Supplier<String> mediaStateLookup) {
         Div container = new Div();
-        container.addClassName("entity-history-changes");
+        container.addClassName(cssBase);
 
         List<ChangeEntry> mediaChanges = new ArrayList<>();
         List<ChangeEntry> textChanges  = new ArrayList<>();
-        for (ChangeEntry entry : h.changes()) {
+        for (ChangeEntry entry : changes) {
             if (entry instanceof ChangeEntry.GenericChange) {
                 mediaChanges.add(entry);
             } else {
@@ -146,26 +130,21 @@ public class ActivityRowRenderer {
             }
         }
 
-        List<ChangeEntry> expanded = expandTextFields(h.snapshotData(), textChanges);
+        List<ChangeEntry> expanded = expandTextFields(snapshotData, textChanges);
         for (ChangeEntry entry : expanded) {
             boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
-            addSpan(container, activityPanel.format(entry), unchanged, CSS_HISTORY_CHANGES);
+            addSpan(container, activityPanel.format(entry), unchanged, cssBase);
         }
 
-        renderHistoryMediaSection(container, mediaChanges, entityType, entityId, h.version());
-        return container;
-    }
-
-    private void renderHistoryMediaSection(Div container, List<ChangeEntry> mediaChanges,
-                                           EntityType entityType, Long entityId, int version) {
         if (mediaChanges.isEmpty()) {
-            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            String state = ext != null ? ext.getMediaStateAtVersion(new EntityRef(entityType, entityId), version) : null;
+            String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, CSS_HISTORY_CHANGES);
+            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, cssBase);
         } else {
-            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, CSS_HISTORY_CHANGES));
+            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, cssBase));
         }
+
+        return container;
     }
 
     private List<ChangeEntry> expandTextFields(SnapshotPayloadDto payload, List<ChangeEntry> changedFields) {
