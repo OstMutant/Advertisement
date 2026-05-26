@@ -109,28 +109,25 @@ Rules:
 
 ---
 
-## Ongoing — advertisement-ui-core: shared Vaadin UI primitives module
+## 2026-05-26 — No shared UI module needed; plain-class pattern for future sharing
 
-**Decision:** Create a new module `advertisement-ui-core` that holds generic, domain-free Vaadin UI primitives shared across starters and the main app.
+**Decision:** No new UI module (`advertisement-ui-core` or similar) will be created. As of 2026-05-26, there is no actual cross-module UI duplication: `PaginationBar` and `EmptyStateView` exist only in `marketplace-app`; each starter owns its own UI components (`EntityHistoryPanel`, `ProfileActivityPanel`, `AttachmentGallery`) with no overlap.
 
-Dependency direction:
+**If cross-module sharing ever becomes real:** move the component to `platform-commons` `ui` package as a plain class — no `@SpringComponent`, no `@Scope`. Each module that wants a Spring-managed instance declares its own `@Bean @Scope("prototype")` in a local `@Configuration`. No `@AutoConfiguration` in `platform-commons`, no new module.
+
+```java
+// in the consuming module's @Configuration
+@Bean
+@Scope("prototype")
+PaginationBar paginationBar(I18nService i18nService) {
+    return new PaginationBar(i18nService);
+}
 ```
-marketplace-app ──────────────────────┐
-audit-spring-boot-starter ────────────┼──→ advertisement-ui-core → vaadin (+ platform-commons for i18n)
-attachment-spring-boot-starter ───────┘
-```
 
-**Why:** `audit-spring-boot-starter` and `attachment-spring-boot-starter` cannot share UI components without either duplicating code or creating a circular dependency through `marketplace-app`. A dedicated UI primitives module breaks the cycle. Immediate drivers: pagination and filter UI for the audit module; shared form card layout pattern already duplicated in 3 places in `marketplace-app`.
+**Why no separate module:** multiplying modules has real cost (pom.xml overhead, dependency graph complexity). The plain-class + local `@Bean` pattern achieves sharing with zero new modules and zero `@AutoConfiguration`.
 
-**Boundaries — ui-core MUST NOT know about:**
-- `Advertisement`, `User`, `EntityType`, or any other domain type
-- Repositories, services, snapshots, or any Spring Data / JPA / JDBC
-- Audit or attachment domain concepts
+**Why not make platform-commons a starter:** platform-commons already has `vaadin-core` and Vaadin types in its SPI signatures (`ActivityRowHook`, `AuditUiPort`, `AttachmentGalleryPort` all return `com.vaadin.flow.component.Component`). The "Vaadin-free contracts" claim was already fiction. However, adding `@AutoConfiguration` to commons is still unnecessary — the plain-class pattern is simpler and sufficient.
 
-**Candidates to move into ui-core (to be done):**
-- `PaginationBar` — generic pagination component (currently only in marketplace-app)
-- Generic filter panel primitives
-- Form card layout helper (`overlay__form-card-header` / `overlay__form-fields-card` block, duplicated in 3 overlays)
-- `StatusBadge`, `EmptyState` — if used in starters
+**Prerequisite for any component moved to commons:** replace all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) with platform-commons equivalents (`TranslationKey`, constructor parameters).
 
-**Rejected:** Putting shared UI in `platform-commons` — contracts must stay Spring/Vaadin-free pure Java.
+**Supersedes:** the earlier `advertisement-ui-core` proposal.

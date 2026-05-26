@@ -2,6 +2,24 @@
 
 ---
 
+## 2026-05-26 — Prefer scripts over raw commands for build and test
+
+**Decision:** All build, deploy, and test operations must be performed via the scripts in `scripts/` and `playwright/`, not via raw `docker`, `mvn`, or `docker compose` commands directly.
+
+| Operation | Script |
+|---|---|
+| Full prod rebuild + start | `bash scripts/deploy.sh` |
+| Fast JAR hot-swap | `bash scripts/deploy-dev.sh` |
+| Run all Playwright tests | `bash playwright/run.sh` |
+| Run one scenario | `bash playwright/run.sh <scenario>` |
+| SonarQube analysis | `bash scripts/sonar.sh` |
+
+**Why:** Scripts encapsulate the correct flags, env vars, Docker network settings, and startup detection. Raw commands bypass these and produce inconsistent results (wrong profiles, missing env vars, volume mount issues in the Claude container).
+
+**Rule:** If a new recurring operation is needed, add a script — do not document raw commands as the canonical way to run it.
+
+---
+
 ## 2026-05-16 — scripts/ folder created
 
 **Decision:** All root-level developer scripts (`.bat`, `.sh`) except `mvn.bat` moved here. Each script resolves the project root via `cd /d "%~dp0.."` (bat) or `$(dirname "$0")/..` (sh).

@@ -1,18 +1,15 @@
 package org.ost.audit.repository;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
+import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityNameHook;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -228,7 +225,7 @@ public class AuditLogRepository {
     @Component
     @RequiredArgsConstructor
     public static final class ActivityMapper implements RowMapper<ActivityItemDto> {
-        private final Helper helper;
+        private final AuditSnapshotMapper mapper;
         private final List<EntityNameHook> resolvers;
 
         @Override
@@ -246,9 +243,9 @@ public class AuditLogRepository {
                     entityType,
                     displayName,
                     ActionType.valueOf(rs.getString("action_type")),
-                    Helper.instant(rs, "created_at"),
+                    instant(rs, "created_at"),
                     rs.getObject("entity_exists", Boolean.class),
-                    helper.parseChanges(rs.getString("changes_summary")),
+                    mapper.fromJsonList(rs.getString("changes_summary")),
                     rs.getObject("actor_id",      Long.class),
                     rs.getString("changed_by_name"),
                     payload
@@ -259,7 +256,7 @@ public class AuditLogRepository {
     @Component
     @RequiredArgsConstructor
     public static final class HistoryMapper implements RowMapper<EntityHistoryDto> {
-        private final Helper helper;
+        private final AuditSnapshotMapper mapper;
 
         @Override
         public EntityHistoryDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
@@ -269,8 +266,8 @@ public class AuditLogRepository {
                     ActionType.valueOf(rs.getString("action_type")),
                     rs.getObject("actor_id", Long.class),
                     rs.getString("changed_by_name"),
-                    Helper.instant(rs, "created_at"),
-                    helper.parseChanges(rs.getString("changes_summary")),
+                    instant(rs, "created_at"),
+                    mapper.fromJsonList(rs.getString("changes_summary")),
                     rs.getObject("prev_id", Long.class),
                     new SnapshotPayloadDto(rs.getString("snapshot_data")),
                     new SnapshotPayloadDto(rs.getString("prev_snapshot_data"))
@@ -278,24 +275,8 @@ public class AuditLogRepository {
         }
     }
 
-    @Component
-    @RequiredArgsConstructor
-    public static final class Helper {
-        @Qualifier("auditObjectMapper")
-        private final ObjectMapper objectMapper;
-
-        public static Instant instant(ResultSet rs, String col) throws SQLException {
-            Timestamp ts = rs.getTimestamp(col);
-            return ts != null ? ts.toInstant() : null;
-        }
-
-        public List<ChangeEntry> parseChanges(String json) {
-            if (json == null || json.isBlank()) return List.of();
-            try {
-                return objectMapper.readValue(json, new TypeReference<>() {});
-            } catch (Exception _) {
-                return List.of();
-            }
-        }
+    private static Instant instant(ResultSet rs, String col) throws SQLException {
+        Timestamp ts = rs.getTimestamp(col);
+        return ts != null ? ts.toInstant() : null;
     }
 }
