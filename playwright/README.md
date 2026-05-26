@@ -6,7 +6,7 @@ Automated E2E tests using `@playwright/test` (headless Chromium).
 
 - Docker Desktop (Windows) or Docker Engine (Linux/WSL2)
 - App image already built: `docker build -f Dockerfile -t marketplace-app .`
-- DB + MinIO containers running: `docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d`
+- DB + MinIO containers running: `docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d`
 
 The `marketplace-app` container is started automatically if stopped. Test accounts are seeded automatically before each run.
 

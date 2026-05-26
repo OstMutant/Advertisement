@@ -8,9 +8,10 @@ REM
 REM Requires: infra (DB, MinIO) and marketplace-app container already running.
 REM Run scripts\deploy.bat once first if the container does not exist yet.
 REM
-REM Filtered output (key milestones only) — run from WSL or Git Bash:
-REM   bash scripts/deploy-dev.sh 2>&1 | tee /tmp/deploy-dev.log | grep -E "BUILD|ERROR|Deploying|Restarting|Started"
+REM To write full Maven log to file instead of console:
+REM   bash scripts/deploy-dev.sh --file   (log: /tmp/deploy-dev.log)
 REM
 REM Stream full app log after deploy:
 REM   docker logs -f marketplace-app
-bash "%~dp0deploy-dev.sh"
+for /f "delims=" %%i in ('wsl wslpath -u "%~dp0deploy-dev.sh"') do set SCRIPT=%%i
+wsl bash "%SCRIPT%"

@@ -3,8 +3,8 @@ version: '3.8'
 # Local development — MinIO (S3-compatible storage).
 # Emulates Cloudflare R2 for local development.
 #
-# Start: docker-compose -f docker-compose.minio.yml up -d
-# Stop:  docker-compose -f docker-compose.minio.yml down
+# Start: docker-compose -f scripts/infra/docker-compose.minio.yml up -d
+# Stop:  docker-compose -f scripts/infra/docker-compose.minio.yml down
 #
 # Console: http://localhost:9001
 # API:     http://localhost:9000
@@ -12,6 +12,7 @@ version: '3.8'
 
 services:
   minio:
+    container_name: advertisement-minio
     image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"

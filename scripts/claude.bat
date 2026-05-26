@@ -25,7 +25,8 @@ if not exist "%CONFIG_DIR%" mkdir "%CONFIG_DIR%"
 :: 1. Mount current directory (Shared Project Context)
 :: 2. Mount isolated auth config folder (Specific to %LOGIN%)
 :: 3. Mount Maven cache
-docker run -it --rm ^
+docker rm -f claude-dev >nul 2>&1
+docker run -it --rm --name claude-dev ^
   -v "%CD%:/app" ^
   -v "%CONFIG_DIR%:/root/.claude" ^
   -v "%USERPROFILE%\.m2:/root/.m2" ^

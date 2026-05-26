@@ -22,7 +22,7 @@ APP_URL="${APP_URL:-http://localhost:8081}"
 if ! docker inspect marketplace-app &>/dev/null; then
   echo "ERROR: Container 'marketplace-app' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
-  echo "  docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d"
+  echo "  docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d"
   echo "  docker run -d --name marketplace-app --network host \\"
   echo "    -e SPRING_PROFILES_ACTIVE=prod -e DB_HOST=localhost -e DB_PORT=5432 \\"
   echo "    -e DB_NAME=experiments -e DB_USER=experiments_user \\"

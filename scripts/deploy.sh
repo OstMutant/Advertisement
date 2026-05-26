@@ -2,12 +2,11 @@
 # Full prod deploy: builds Docker image from scratch and starts all services on port 8081.
 #
 # Usage:
-#   bash scripts/deploy.sh                      — full image rebuild + start
+#   bash scripts/deploy.sh                      — full output to console (default)
+#   bash scripts/deploy.sh --file               — filtered output + full log to /tmp/deploy.log
+#   bash scripts/deploy.sh --no-cache           — force rebuild ignoring Docker layer cache
 #   bash scripts/deploy.sh --reset              — wipe DB/MinIO volumes, then rebuild
 #   bash scripts/deploy.sh --restart-infra      — restart infra containers only (no rebuild)
-#
-# Filtered output (key milestones only):
-#   bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|Started|Waiting|ready|FAILED"
 #
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
@@ -16,21 +15,29 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOG=/tmp/deploy.log
 
-trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
-
 NETWORK="advertisement"
-DB_CONTAINER="advertisement-db-1"
-MINIO_CONTAINER="advertisement-minio-1"
+DB_CONTAINER="advertisement-db"
+MINIO_CONTAINER="advertisement-minio"
 APP_CONTAINER="marketplace-app"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 MODE="default"
+FILE_MODE=false
+NO_CACHE=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
     --restart-infra) MODE="restart-infra" ;;
+    --file)          FILE_MODE=true ;;
+    --no-cache)      NO_CACHE=true ;;
   esac
 done
+
+if $FILE_MODE; then
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
+else
+  trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; docker logs --tail=20 "$APP_CONTAINER" 2>/dev/null; exit $_rc' ERR
+fi
 
 # ── Helper: pull image if not present locally ─────────────────────────────────
 pull_if_missing() {
@@ -48,9 +55,9 @@ ensure_running() {
   local name="$1"; shift
   local run_cmd=("$@")
 
-  if docker inspect "$name" >/dev/null 2>&1; then
+  if docker container inspect "$name" >/dev/null 2>&1; then
     local status
-    status=$(docker inspect -f '{{.State.Status}}' "$name")
+    status=$(docker container inspect -f '{{.State.Status}}' "$name")
     if [ "$status" = "running" ]; then
       echo "Container $name already running."
     else
@@ -139,7 +146,18 @@ configure_minio
 echo ""
 echo "=== Step 2: Build image ==="
 docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-docker build -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 | tee -a "$LOG"
+
+BUILD_FLAGS=""
+$NO_CACHE && BUILD_FLAGS="--no-cache"
+
+if $FILE_MODE; then
+  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 \
+    | tee "$LOG" \
+    | grep --line-buffered -E "^Step [0-9]+|ERROR|Successfully built"
+else
+  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
+fi
+
 docker image prune -f
 docker container prune -f
 docker volume prune -f
@@ -167,7 +185,6 @@ while true; do
   fi
   if [ $SECONDS -ge $end ]; then
     echo "=== FAILED: startup timed out ==="
-    echo "App logs:"
     docker logs --tail=50 "$APP_CONTAINER"
     exit 1
   fi

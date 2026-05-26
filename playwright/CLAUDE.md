@@ -3,7 +3,7 @@
 After making UI changes, verify them by running the Playwright script inside Docker.
 
 ### Prerequisites
-- DB and MinIO already running (started separately via docker-compose.db.yml / docker-compose.minio.yml)
+- DB and MinIO already running (started separately via scripts/infra/docker-compose.db.yml / scripts/infra/docker-compose.minio.yml)
 - App image built with: `docker build -f Dockerfile -t marketplace-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
 - App must be running:
 ```bash

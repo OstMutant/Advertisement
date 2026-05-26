@@ -3,11 +3,12 @@ version: '3.8'
 # Local development — database only.
 # The application runs via IDE with the "dev" profile.
 #
-# Start: docker-compose -f docker-compose.db.yml up -d
-# Stop:  docker-compose -f docker-compose.db.yml down
+# Start: docker-compose -f scripts/infra/docker-compose.db.yml up -d
+# Stop:  docker-compose -f scripts/infra/docker-compose.db.yml down
 
 services:
   db:
+    container_name: advertisement-db
     image: postgres:15-alpine
     restart: unless-stopped
     environment:

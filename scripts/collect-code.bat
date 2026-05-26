@@ -27,7 +27,7 @@ call :FindFiles "*.sh"
 call :FindFiles "*.md"
 
 :: 3. Add specific root-level files
-for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat mvnw mvnw.cmd docker-compose.app.yml docker-compose.db.yml docker-compose.minio.yml) do (
+for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat mvnw mvnw.cmd scripts\infra\docker-compose.app.yml scripts\infra\docker-compose.db.yml scripts\infra\docker-compose.minio.yml) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
@@ -68,9 +68,9 @@ call :CheckRootFile "README.md"
 call :CheckRootFile "CLAUDE.md"
 call :CheckRootFile "Dockerfile"
 call :CheckRootFile "Dockerfile.ai"
-call :CheckRootFile "docker-compose.app.yml"
-call :CheckRootFile "docker-compose.db.yml"
-call :CheckRootFile "docker-compose.minio.yml"
+call :CheckRootFile "scripts\infra\docker-compose.app.yml"
+call :CheckRootFile "scripts\infra\docker-compose.db.yml"
+call :CheckRootFile "scripts\infra\docker-compose.minio.yml"
 call :CheckRootFile "lombok.config"
 call :CheckRootFile "database\seed.sql"
 call :CheckRootFile "database\reset.sql"

@@ -11,4 +11,5 @@ REM   bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log | grep -E "BUILD|ERROR|S
 REM
 REM Stream full app log after deploy:
 REM   docker logs -f marketplace-app
-bash "%~dp0deploy.sh" %*
+for /f "delims=" %%i in ('wsl wslpath -u "%~dp0deploy.sh"') do set SCRIPT=%%i
+wsl bash "%SCRIPT%" %*

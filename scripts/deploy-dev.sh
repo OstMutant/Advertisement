@@ -1,75 +1,59 @@
 #!/bin/bash
-# Fast dev deploy: builds JAR locally and hot-swaps it into the running container.
+# Fast dev deploy: builds JAR inside a Docker container and hot-swaps it into marketplace-app.
 # Typically ~3-4 min vs ~7-10 min for a full prod rebuild.
+# Maven cache persists in a named Docker volume (maven-cache) between runs.
 #
 # Usage:
-#   bash scripts/deploy-dev.sh
-#
-# Requires: infra (DB, MinIO) and marketplace-app container already running.
-# Run scripts/deploy.sh once first if the container does not exist yet.
-#
-# Filtered output (key milestones only):
-#   bash scripts/deploy-dev.sh 2>&1 | tee /tmp/deploy-dev.log | grep -E "BUILD|ERROR|Deploying|Restarting|Started"
+#   bash scripts/deploy-dev.sh                -- full output to console (default)
+#   bash scripts/deploy-dev.sh --file         -- filtered output + full log to /tmp/deploy-dev.log
+#   bash scripts/deploy-dev.sh --reset-cache  -- clear Maven cache before building
 #
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP_CONTAINER="marketplace-app"
+BUILD_IMAGE="advertisement-build-env"
 LOG=/tmp/deploy-dev.log
 
-trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Errors:"; grep -E "^\[ERROR\]" "$LOG" 2>/dev/null | grep -v "Help 1\|After correcting\|resume the build\|full stack trace\|Re-run Maven" | head -40; echo "Full log: $LOG"; exit $_rc' ERR
-
-# ── Step 1: Check container ───────────────────────────────────────────────────
-if ! docker inspect "$APP_CONTAINER" >/dev/null 2>&1; then
-  echo "Container '$APP_CONTAINER' not found. Run scripts/deploy.sh first."
-  exit 1
-fi
-
-# ── Step 2: Build JAR ────────────────────────────────────────────────────────
-echo ""
-echo "=== Building JAR (production bundle) ==="
-cd "$ROOT"
-./mvnw clean package -Pproduction -DskipTests 2>&1 | tee "$LOG" | grep --line-buffered -E "^\[ERROR\]|Building marketplace|BUILD SUCCESS|BUILD FAILURE"
-if [ "${PIPESTATUS[0]}" -ne 0 ]; then exit 1; fi
-echo "Build done."
-
-# ── Step 3: Hot-swap JAR ──────────────────────────────────────────────────────
-echo ""
-echo "=== Deploying JAR to container ==="
-JAR=$(ls "$ROOT/marketplace-app/target/"*.jar 2>/dev/null | head -1)
-if [ -z "$JAR" ]; then
-  echo "ERROR: No JAR found in marketplace-app/target/"
-  exit 1
-fi
-docker cp "$JAR" "$APP_CONTAINER:/app/app.jar"
-
-# ── Step 4: Restart and wait ──────────────────────────────────────────────────
-echo ""
-echo "=== Restarting container ==="
-docker restart "$APP_CONTAINER"
-
-RESTART_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-echo "Waiting for application to start..."
-end=$((SECONDS + 180))
-while true; do
-  if docker logs "$APP_CONTAINER" --since "$RESTART_AT" 2>&1 | grep -q "Started Application"; then
-    break
-  fi
-  if [ $SECONDS -ge $end ]; then
-    echo "ERROR: startup timed out"
-    docker logs "$APP_CONTAINER" --since "$RESTART_AT" --tail=30
-    exit 1
-  fi
-  sleep 2
+FILE_MODE=false
+RESET_CACHE=false
+for arg in "$@"; do
+  [ "$arg" = "--file" ]         && FILE_MODE=true
+  [ "$arg" = "--reset-cache" ]  && RESET_CACHE=true
 done
 
-echo ""
-echo "=== Cleaning up Docker garbage ==="
-docker image prune -f
-docker container prune -f
-docker volume prune -f
+# ── Ensure build image exists ─────────────────────────────────────────────────
+if ! docker image inspect "$BUILD_IMAGE" >/dev/null 2>&1; then
+  echo "Building $BUILD_IMAGE image..."
+  docker build -f "$ROOT/scripts/build-env/Dockerfile" -t "$BUILD_IMAGE" "$ROOT"
+fi
 
-echo ""
-echo "=== Application is ready at http://localhost:8081 ==="
+# ── Clear Maven cache if requested ───────────────────────────────────────────
+if $RESET_CACHE; then
+  echo "=== Clearing Maven cache ==="
+  docker volume rm maven-cache 2>/dev/null || true
+fi
+
+# ── Remove stale build container if exists ───────────────────────────────────
+docker rm -f "$BUILD_IMAGE" 2>/dev/null || true
+
+# ── Pipe sources + run build (output visible in Docker Desktop) ───────────────
+if $FILE_MODE; then
+  tar -czf - --exclude='*/target' --exclude='.git' -C "$ROOT" . \
+    | docker run --rm -i \
+        --name "$BUILD_IMAGE" \
+        -v maven-cache:/root/.m2 \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        "$BUILD_IMAGE" \
+        bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh" \
+    2>&1 | tee "$LOG" | grep --line-buffered -E "^\[ERROR\]|^=== |BUILD SUCCESS|BUILD FAILURE|Started Application"
+else
+  tar -czf - --exclude='*/target' --exclude='.git' -C "$ROOT" . \
+    | docker run --rm -i \
+        --name "$BUILD_IMAGE" \
+        -v maven-cache:/root/.m2 \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        "$BUILD_IMAGE" \
+        bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh"
+fi

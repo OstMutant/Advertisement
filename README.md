@@ -79,7 +79,7 @@ Significant architectural decisions for each module are recorded in per-module `
 | [UptimeRobot](https://uptimerobot.com) | Keeps the free-tier instance alive |
 
 ### Deploying to Render
-Please note that **Render ignores `docker-compose.app.yml`** and builds the application directly from the `Dockerfile`.
+Please note that **Render ignores `scripts/infra/docker-compose.app.yml`** and builds the application directly from the `Dockerfile`.
 
 To successfully deploy the app, you **must** manually add the following Environment Variables in your Render Web Service dashboard (under the "Environment" tab):
 
@@ -108,16 +108,16 @@ The project uses three separate Docker Compose files:
 
 | File | Purpose |
 |---|---|
-| `docker-compose.db.yml` | PostgreSQL |
-| `docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
-| `docker-compose.app.yml` | Application (production build) |
+| `scripts/infra/docker-compose.db.yml` | PostgreSQL |
+| `scripts/infra/docker-compose.minio.yml` | MinIO (S3-compatible storage, emulates Supabase Storage) |
+| `scripts/infra/docker-compose.app.yml` | Application (production build) |
 
 ### Option 1 — Dev mode (run from IDE)
 
 Start only the infrastructure:
 
 ```bash
-docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
+docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d
 ```
 
 Then run the application from your IDE with the `dev` Spring profile active.  
@@ -133,13 +133,13 @@ Open the app: http://localhost:8080
 Builds and runs everything in containers — useful for verifying the production build before deploying to Render.
 
 ```bash
-docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml up --build
+docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build
 ```
 
 To stop and remove volumes:
 
 ```bash
-docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml -f docker-compose.app.yml down -v
+docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml down -v
 ```
 
 ---
@@ -190,7 +190,7 @@ bash scripts/reset-db.sh   # wipe and re-seed minimal data before Playwright tes
 ## Environment Variables
 
 Key variables used by the application.
-* For **local Docker testing**, configure them in `docker-compose.app.yml`.
+* For **local Docker testing**, configure them in `scripts/infra/docker-compose.app.yml`.
 * For **Production (Render)**, set them directly in the cloud provider's dashboard.
 
 | Variable | Description | Example |

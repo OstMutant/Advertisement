@@ -185,7 +185,7 @@ All modules use `config` (not `configuration`) for Spring configuration packages
 
 Local infrastructure only (IDE dev mode):
 ```bash
-docker-compose -f docker-compose.db.yml -f docker-compose.minio.yml up -d
+docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml up -d
 ```
 
 ---
