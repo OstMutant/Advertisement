@@ -9,7 +9,6 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.spi.AuditDomainHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,7 +26,7 @@ public class AuditHistoryService {
     private final AuditLogRepository                        auditLogRepository;
     private final AuditSnapshotMapper                       mapper;
     private final ObjectProvider<AttachmentAuditHook>       attachmentAuditHook;
-    private final ObjectProvider<AuditDomainHook>           auditDomainHook;
+    private final AuditDomainHelper                         auditDomainHelper;
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
         List<EntityHistoryDto> history = auditLogRepository.getEntityHistory(
@@ -66,14 +65,12 @@ public class AuditHistoryService {
     }
 
     private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {
-        AuditDomainHook resolver = auditDomainHook.getIfAvailable();
-        if (resolver == null) return items;
         Set<Long> ids = items.stream()
                 .map(EntityHistoryDto::actorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (ids.isEmpty()) return items;
-        Map<Long, String> names = resolver.resolveNames(ids);
+        Map<Long, String> names = auditDomainHelper.resolveNames(ids);
+        if (names.isEmpty()) return items;
         return items.stream()
                 .map(h -> h.actorId() == null ? h
                         : new EntityHistoryDto(h.snapshotId(), h.version(), h.actionType(),

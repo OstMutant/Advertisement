@@ -6,7 +6,6 @@ import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.spi.AuditDomainHook;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
@@ -20,7 +19,7 @@ public class ActivityService {
 
     private final AuditLogRepository                    repository;
     private final ObjectProvider<AttachmentAuditHook>   attachmentAuditHook;
-    private final ObjectProvider<AuditDomainHook>       auditDomainHook;
+    private final AuditDomainHelper                     auditDomainHelper;
 
     public List<ActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
         List<ActivityItemDto> base = repository.findActivityForProfile(subjectId);
@@ -34,14 +33,12 @@ public class ActivityService {
     }
 
     private List<ActivityItemDto> resolveActorNames(List<ActivityItemDto> items) {
-        AuditDomainHook resolver = auditDomainHook.getIfAvailable();
-        if (resolver == null) return items;
         Set<Long> ids = items.stream()
                 .map(ActivityItemDto::changedByActorId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
-        if (ids.isEmpty()) return items;
-        Map<Long, String> names = resolver.resolveNames(ids);
+        Map<Long, String> names = auditDomainHelper.resolveNames(ids);
+        if (names.isEmpty()) return items;
         return items.stream()
                 .map(i -> i.changedByActorId() == null ? i
                         : new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
@@ -53,8 +50,6 @@ public class ActivityService {
     }
 
     private List<ActivityItemDto> resolveEntityExistence(List<ActivityItemDto> items) {
-        AuditDomainHook checker = auditDomainHook.getIfAvailable();
-        if (checker == null) return items;
         Map<EntityType, Set<Long>> byType = items.stream()
                 .collect(Collectors.groupingBy(
                         ActivityItemDto::entityType,
@@ -62,7 +57,7 @@ public class ActivityService {
         Map<EntityType, Set<Long>> existingByType = byType.entrySet().stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
-                        e -> checker.findExisting(e.getKey(), e.getValue())));
+                        e -> auditDomainHelper.findExisting(e.getKey(), e.getValue())));
         return items.stream()
                 .map(i -> {
                     boolean exists = existingByType.getOrDefault(i.entityType(), Set.of()).contains(i.entityId());

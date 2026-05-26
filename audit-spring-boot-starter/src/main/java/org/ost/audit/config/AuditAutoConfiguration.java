@@ -13,6 +13,7 @@ import org.ost.audit.model.AuditSnapshotMapper;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.audit.services.ActivityService;
 import org.ost.audit.services.AuditCleanupService;
+import org.ost.audit.services.AuditDomainHelper;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
@@ -96,9 +97,9 @@ public class AuditAutoConfiguration {
             AuditLogRepository auditLogRepository,
             AuditSnapshotMapper snapshotMapper,
             ObjectProvider<AttachmentAuditHook> attachmentAuditHook,
-            ObjectProvider<AuditDomainHook> auditDomainHook) {
+            AuditDomainHelper auditDomainHelper) {
         return new AuditHistoryService(auditLogRepository, snapshotMapper,
-                                       attachmentAuditHook, auditDomainHook);
+                                       attachmentAuditHook, auditDomainHelper);
     }
 
     @Bean
@@ -112,7 +113,7 @@ public class AuditAutoConfiguration {
     ActivityService activityService(
             AuditLogRepository auditLogRepository,
             ObjectProvider<AttachmentAuditHook> attachmentAuditHook,
-            ObjectProvider<AuditDomainHook> auditDomainHook) {
-        return new ActivityService(auditLogRepository, attachmentAuditHook, auditDomainHook);
+            AuditDomainHelper auditDomainHelper) {
+        return new ActivityService(auditLogRepository, attachmentAuditHook, auditDomainHelper);
     }
 }
