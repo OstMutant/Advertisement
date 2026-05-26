@@ -34,3 +34,13 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 
 ## Test Coverage After Bug Fixes
 After fixing a bug, cover all affected flows with Playwright tests before marking the task complete.
+
+## Scripts
+Always use project scripts for build, deploy, and tests — never raw docker/mvn commands:
+- `bash scripts/deploy.sh` — full Docker image rebuild
+- `bash scripts/deploy-dev.sh` — fast JAR hot-swap (requires container running)
+- `bash scripts/playwright.sh [scenario]` — Playwright tests
+- `mvn clean test` — JUnit tests
+
+## Error Reporting
+When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.

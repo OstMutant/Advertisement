@@ -17,6 +17,9 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP_CONTAINER="marketplace-app"
+LOG=/tmp/deploy-dev.log
+
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Errors:"; grep -E "^\[ERROR\]" "$LOG" 2>/dev/null | grep -v "Help 1\|After correcting\|resume the build\|full stack trace\|Re-run Maven" | head -40; echo "Full log: $LOG"; exit $_rc' ERR
 
 # ── Step 1: Check container ───────────────────────────────────────────────────
 if ! docker inspect "$APP_CONTAINER" >/dev/null 2>&1; then
@@ -28,7 +31,8 @@ fi
 echo ""
 echo "=== Building JAR (production bundle) ==="
 cd "$ROOT"
-./mvnw clean package -Pproduction -DskipTests -q
+./mvnw clean package -Pproduction -DskipTests 2>&1 | tee "$LOG" | grep --line-buffered -E "^\[ERROR\]|Building marketplace|BUILD SUCCESS|BUILD FAILURE"
+if [ "${PIPESTATUS[0]}" -ne 0 ]; then exit 1; fi
 echo "Build done."
 
 # ── Step 3: Hot-swap JAR ──────────────────────────────────────────────────────

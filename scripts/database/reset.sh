@@ -5,6 +5,8 @@
 # Usage: bash database/reset.sh
 set -euo pipefail
 
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; exit $_rc' ERR
+
 DB_HOST="${DB_HOST:-localhost}"
 DB_PORT="${DB_PORT:-5432}"
 DB_NAME="${DB_NAME:-experiments}"

@@ -1,9 +1,13 @@
 #!/bin/bash
+set -e
 # Usage:
 #   bash /app/scripts/sonar/run.sh          — run SonarQube analysis
 #
 # SonarQube server starts automatically if not running (localhost:9099).
 # Results: http://localhost:9099/dashboard?id=advertisement
+
+LOG=/tmp/sonar.log
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
 
 SONAR_URL="http://localhost:9099"
 COMPOSE_FILE="/app/scripts/sonar/docker-compose.sonar.yml"
@@ -56,7 +60,7 @@ docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.propert
 echo "Running SonarQube analysis..."
 docker exec "$SCANNER_CONTAINER" sonar-scanner \
   -Dproject.settings=/tmp/sonar-src/sonar-project.properties \
-  -Dsonar.projectBaseDir=/tmp/sonar-src
+  -Dsonar.projectBaseDir=/tmp/sonar-src 2>&1 | tee "$LOG"
 
 EXIT_CODE=$?
 

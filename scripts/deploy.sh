@@ -14,6 +14,9 @@
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+LOG=/tmp/deploy.log
+
+trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "App logs:"; docker logs --tail=40 "$APP_CONTAINER" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
 
 NETWORK="advertisement"
 DB_CONTAINER="advertisement-db-1"
@@ -136,7 +139,7 @@ configure_minio
 echo ""
 echo "=== Step 2: Build image ==="
 docker rm -f "$APP_CONTAINER" 2>/dev/null || true
-docker build -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
+docker build -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 | tee -a "$LOG"
 docker image prune -f
 docker container prune -f
 docker volume prune -f
@@ -163,7 +166,8 @@ while true; do
     break
   fi
   if [ $SECONDS -ge $end ]; then
-    echo "ERROR: startup timed out"
+    echo "=== FAILED: startup timed out ==="
+    echo "App logs:"
     docker logs --tail=50 "$APP_CONTAINER"
     exit 1
   fi
