@@ -226,7 +226,10 @@
       "Bash(tee /tmp/deploy-dev.log)",
       "Bash(APP_URL=http://localhost:8080 bash /app/playwright/run.sh restore-content)",
       "Bash(tee /tmp/deploy-prod.log)",
-      "Bash(xargs -I {} find {} -type f -name \"*.java\")"
+      "Bash(xargs -I {} find {} -type f -name \"*.java\")",
+      "Bash(mvn -q -pl audit-spring-boot-starter compile -DskipTests)",
+      "Bash(mvn -q -pl platform-commons,audit-spring-boot-starter -am compile -DskipTests)",
+      "Bash(wait bacv8r8s5 *)"
     ]
   },
   "hooks": {
@@ -236,7 +239,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.command // \"\"' | grep -q 'git commit' && { echo 'git commit BLOCKED — explicit user approval required (зроби коміт / commit)' >&2; exit 2; } || exit 0"
+            "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { echo 'git commit BLOCKED — explicit user approval required (зроби коміт / commit)' >&2; exit 2; } || exit 0"
           }
         ]
       }

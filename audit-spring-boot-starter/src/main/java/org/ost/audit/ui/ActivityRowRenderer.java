@@ -30,7 +30,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ActivityRowRenderer {
 
-    private static final String CSS_CHANGES = "activity-feed-changes";
+    private static final String CSS_CHANGES         = "activity-feed-changes";
+    private static final String CSS_HISTORY_CHANGES = "entity-history-changes";
 
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
@@ -101,16 +102,16 @@ public class ActivityRowRenderer {
         List<ChangeEntry> expanded = expandTextFields(item.snapshotData(), textChanges);
         for (ChangeEntry entry : expanded) {
             boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
-            addActivitySpan(container, activityPanel.format(entry), unchanged);
+            addSpan(container, activityPanel.format(entry), unchanged, CSS_CHANGES);
         }
 
         if (mediaChanges.isEmpty()) {
             AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateForSnapshot(new EntityRef(item.entityType(), item.entityId()), item.snapshotId()) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addActivitySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
+            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, CSS_CHANGES);
         } else {
-            mediaChanges.forEach(pc -> addActivitySpan(container, activityPanel.format(pc), false));
+            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, CSS_CHANGES));
         }
 
         return container;
@@ -126,7 +127,7 @@ public class ActivityRowRenderer {
                 default                           -> false;
             };
             String text = activityPanel.format(entry);
-            addActivitySpan(container, text, unchanged);
+            addSpan(container, text, unchanged, CSS_CHANGES);
         }
         return container;
     }
@@ -148,7 +149,7 @@ public class ActivityRowRenderer {
         List<ChangeEntry> expanded = expandTextFields(h.snapshotData(), textChanges);
         for (ChangeEntry entry : expanded) {
             boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
-            addHistorySpan(container, activityPanel.format(entry), unchanged);
+            addSpan(container, activityPanel.format(entry), unchanged, CSS_HISTORY_CHANGES);
         }
 
         renderHistoryMediaSection(container, mediaChanges, entityType, entityId, h.version());
@@ -161,9 +162,9 @@ public class ActivityRowRenderer {
             AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
             String state = ext != null ? ext.getMediaStateAtVersion(new EntityRef(entityType, entityId), version) : null;
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addHistorySpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true);
+            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, CSS_HISTORY_CHANGES);
         } else {
-            mediaChanges.forEach(pc -> addHistorySpan(container, activityPanel.format(pc), false));
+            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, CSS_HISTORY_CHANGES));
         }
     }
 
@@ -192,19 +193,11 @@ public class ActivityRowRenderer {
         };
     }
 
-    private void addHistorySpan(Div container, String text, boolean unchanged) {
+    private static void addSpan(Div container, String text, boolean unchanged, String cssBase) {
         if (text == null || text.isBlank()) return;
         Span span = new Span("• " + text);
-        span.addClassName("entity-history-changes-item");
-        if (unchanged) span.addClassName("entity-history-changes-item--unchanged");
-        container.add(span);
-    }
-
-    private void addActivitySpan(Div container, String text, boolean unchanged) {
-        if (text == null || text.isBlank()) return;
-        Span span = new Span("• " + text);
-        span.addClassName("activity-feed-changes-item");
-        if (unchanged) span.addClassName("activity-feed-changes-item--unchanged");
+        span.addClassName(cssBase + "-item");
+        if (unchanged) span.addClassName(cssBase + "-item--unchanged");
         container.add(span);
     }
 }

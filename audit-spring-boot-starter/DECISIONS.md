@@ -113,6 +113,27 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
+## 2026-05-26 — Code review findings (open backlog)
+
+Full codebase review identified the following issues. Items marked ✅ are done.
+
+### HIGH
+- ✅ `ActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
+- `ActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — ~80 lines of near-identical logic (split changes, expand text fields, render spans, render media section). Only differ in CSS prefix and media lookup method.
+- `ActivityService` + `AuditHistoryService`: `resolveActorNames()` — identical bulk-resolution logic in both services.
+
+### MEDIUM
+- `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: same `activate()` skeleton (titleField, saveButton, buildBinder). Candidate for a base class with template methods.
+- `AdvertisementViewOverlayModeHandler` / `UserViewOverlayModeHandler`: same tab-switching + lazy history-loading pattern.
+- `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: identical `SchedulingConfigurer` registration for cleanup — duplicate every time a new starter adds cleanup.
+- `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled — same boilerplate in two places.
+
+### MEDIUM-LOW
+- `AuditMessages.fieldLabel()` hardcodes marketplace field names — marketplace must modify the starter to add new audited fields. Should be driven by `ActivityFieldsHook`.
+- `SnapshotBinder` lives in `audit-starter` UI layer; `UserViewOverlayModeHandler` imports it directly. If its API changes, marketplace compilation breaks.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears
