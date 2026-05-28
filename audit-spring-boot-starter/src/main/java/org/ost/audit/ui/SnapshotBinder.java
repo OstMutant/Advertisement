@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.platform.audit.codec.SnapshotCodec;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
@@ -19,6 +19,7 @@ import org.ost.platform.ui.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
 import java.util.Objects;
@@ -49,8 +50,6 @@ public class SnapshotBinder<T>
         private final ObjectProvider<SnapshotBinder<T>> provider;
     }
 
-    private final SnapshotCodec snapshotCodec;
-
     private Parameters<T> params;
 
     @Override
@@ -67,7 +66,10 @@ public class SnapshotBinder<T>
     @Override
     public Component decorate(ActivityItemDto item) {
         if (item.snapshotId() == null || item.snapshotId() <= 0) return null;
-        return snapshotCodec.decode(item.snapshotData(), params.getSnapshotClass())
+        AuditableSnapshot raw = item.snapshotData();
+        return Optional.ofNullable(raw)
+                .filter(params.getSnapshotClass()::isInstance)
+                .map(params.getSnapshotClass()::cast)
                 .map(snap -> {
                     if (params.getIsCurrent().test(snap)) {
                         Span badge = new Span(params.getCurrentLabel());

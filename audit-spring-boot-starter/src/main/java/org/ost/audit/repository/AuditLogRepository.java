@@ -3,10 +3,10 @@ package org.ost.audit.repository;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.audit.services.AuditJsonSerializationService;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityNameHook;
@@ -28,7 +28,8 @@ import java.util.Optional;
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
 
-    private final JdbcClient jdbcClient;
+    private final JdbcClient                 jdbcClient;
+    private final AuditJsonSerializationService mapper;
     private final RowMapper<ActivityItemDto> activityMapper;
     private final RowMapper<EntityHistoryDto> historyMapper;
 
@@ -216,8 +217,8 @@ public class AuditLogRepository {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static SnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
-        return new SnapshotContentDto(new SnapshotPayloadDto(rs.getString("snapshot_data")), rs.getInt("version"));
+    private SnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
+        return new SnapshotContentDto(mapper.fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
     // ── Inner RowMappers ──────────────────────────────────────────────────────
@@ -231,11 +232,11 @@ public class AuditLogRepository {
         @Override
         public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
             EntityType entityType = EntityType.valueOf(rs.getString("entity_type"));
-            SnapshotPayloadDto payload = new SnapshotPayloadDto(rs.getString("snapshot_data"));
+            AuditableSnapshot snapshot = mapper.fromSnapshot(rs.getString("snapshot_data"));
             String displayName = resolvers.stream()
                     .filter(r -> r.supports(entityType))
                     .findFirst()
-                    .map(r -> r.resolveDisplayName(entityType, payload))
+                    .map(r -> r.resolveDisplayName(entityType, snapshot))
                     .orElse("");
             return new ActivityItemDto(
                     rs.getObject("snapshot_id", Long.class),
@@ -248,7 +249,7 @@ public class AuditLogRepository {
                     mapper.fromJsonList(rs.getString("changes_summary")),
                     rs.getObject("actor_id",      Long.class),
                     rs.getString("changed_by_name"),
-                    payload
+                    snapshot
             );
         }
     }
@@ -269,8 +270,8 @@ public class AuditLogRepository {
                     instant(rs, "created_at"),
                     mapper.fromJsonList(rs.getString("changes_summary")),
                     rs.getObject("prev_id", Long.class),
-                    new SnapshotPayloadDto(rs.getString("snapshot_data")),
-                    new SnapshotPayloadDto(rs.getString("prev_snapshot_data"))
+                    mapper.fromSnapshot(rs.getString("snapshot_data")),
+                    mapper.fromSnapshot(rs.getString("prev_snapshot_data"))
             );
         }
     }

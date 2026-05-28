@@ -3,7 +3,6 @@ package org.ost.audit.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
-import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
@@ -16,7 +15,6 @@ import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -41,18 +39,6 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(name = "auditObjectMapper")
     ObjectMapper auditObjectMapper() {
         return new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    }
-
-    @Bean("snapshotObjectMapper")
-    @ConditionalOnMissingBean(name = "snapshotObjectMapper")
-    ObjectMapper snapshotObjectMapper() {
-        return new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    }
-
-    @Bean
-    @ConditionalOnMissingBean(SnapshotCodec.class)
-    SnapshotCodec snapshotCodec(@Qualifier("snapshotObjectMapper") ObjectMapper objectMapper) {
-        return new SnapshotCodec(objectMapper);
     }
 
     @Bean

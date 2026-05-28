@@ -1,5 +1,6 @@
 package org.ost.platform.audit.dto;
 
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 
@@ -15,6 +16,6 @@ public record EntityHistoryDto(
         Instant           createdAt,
         List<ChangeEntry> changes,
         Long              prevSnapshotId,
-        SnapshotPayloadDto   snapshotData,
-        SnapshotPayloadDto   prevSnapshotData
+        AuditableSnapshot snapshotData,
+        AuditableSnapshot prevSnapshotData
 ) {}

@@ -239,7 +239,13 @@
       "Bash(wait 150686)",
       "Bash(kill -0 153633)",
       "Bash(grep -v '^$')",
-      "Bash(kill 154508)"
+      "Bash(kill 154508)",
+      "Bash(stdbuf -oL grep -E \"ERROR|BUILD SUCCESS|BUILD FAILURE|FAILED|Started Application|Exception|\\\\[INFO\\\\] Building |\\\\[INFO\\\\] ---\")",
+      "Bash(stdbuf -oL tee /tmp/playwright.log)",
+      "Bash(stdbuf -oL grep -E \"ERROR|FAILED|passed|failed|✓|✗|✘|×|PASS|FAIL\")",
+      "Bash(grep \"\\\\.java$\")",
+      "Bash(awk '/27 Wed 19:23:15/,/27 Wed 19:23:32/')",
+      "Bash(/opt/java/openjdk/bin/jar tf *)"
     ]
   },
   "hooks": {
@@ -250,15 +256,6 @@
           {
             "type": "command",
             "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { if [ -f /tmp/commit-approved ]; then rm /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
-          }
-        ]
-      },
-      {
-        "matcher": "Edit|Write",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "input=$(cat); file=$(echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"//'); echo \"$(date '+%H:%M:%S') ASK Edit: $file\" >> /tmp/edit-audit.log; echo \"$input\" | grep -o '\"file_path\":\"[^\"]*\"' >> /tmp/edit-audit.log; echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"ask\",\"permissionDecisionReason\":\"Every file change requires explicit user approval\"}}'"
           }
         ]
       }

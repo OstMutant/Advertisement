@@ -1,3 +1,5 @@
 package org.ost.platform.audit.dto;
 
-public record SnapshotContentDto(SnapshotPayloadDto snapshotData, int version) {}
+import org.ost.platform.audit.api.AuditableSnapshot;
+
+public record SnapshotContentDto(AuditableSnapshot snapshotData, int version) {}

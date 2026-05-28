@@ -2,8 +2,8 @@ package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
@@ -61,9 +61,9 @@ public class AuditHistoryService {
         auditLogRepository.updateChangesSummary(snapshotId, mapper.toJson(entries));
     }
 
-    public Optional<SnapshotPayloadDto> getLastSnapshotPayload(EntityType entityType, Long entityId) {
+    public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
         return auditLogRepository.getLastSnapshotData(entityType, entityId)
-                .map(SnapshotPayloadDto::new);
+                .map(mapper::fromSnapshot);
     }
 
     private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {

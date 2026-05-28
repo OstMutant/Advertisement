@@ -8,13 +8,12 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
@@ -58,7 +57,6 @@ public class EntityHistoryPanel extends Div
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
     private final AuditHistoryService                           auditHistoryService;
-    private final SnapshotCodec                                 snapshotCodec;
     private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
     private final ObjectProvider<AttachmentAuditHook> historyExtensionProvider;
 
@@ -71,8 +69,8 @@ public class EntityHistoryPanel extends Div
 
     @Override
     public EntityHistoryPanel configure(Parameters p) {
-        SnapshotPayloadDto currentSnapshot = auditHistoryService
-                .getLastSnapshotPayload(p.getEntityType(), p.getEntityId())
+        AuditableSnapshot currentSnapshot = auditHistoryService
+                .getLastSnapshot(p.getEntityType(), p.getEntityId())
                 .orElse(null);
 
         List<EntityHistoryDto> history = auditHistoryService
@@ -98,14 +96,14 @@ public class EntityHistoryPanel extends Div
     }
 
     private record RowContext(
-            EntityType entityType, Long entityId, SnapshotPayloadDto currentSnapshot, int historySize,
+            EntityType entityType, Long entityId, AuditableSnapshot currentSnapshot, int historySize,
             boolean canOperate, String labelCurrentState, String labelRestore,
             ObjLongConsumer<EntityHistoryDto> onRestoreRequested) {}
 
     private Div buildRow(EntityHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
         EntityType entityType        = ctx.entityType();
         Long entityId                = ctx.entityId();
-        SnapshotPayloadDto currentSnap  = ctx.currentSnapshot();
+        AuditableSnapshot currentSnap  = ctx.currentSnapshot();
         int historySize              = ctx.historySize();
         boolean canOperate           = ctx.canOperate();
         String labelCurrentState     = ctx.labelCurrentState();
@@ -136,7 +134,7 @@ public class EntityHistoryPanel extends Div
 
         boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
         if (canOperate && isTextRow && (h.actionType() != ActionType.CREATED || historySize > 1)) {
-            boolean snapshotMatches = jsonEquals(h.snapshotData(), currentSnap);
+            boolean snapshotMatches = snapshotsEqual(h.snapshotData(), currentSnap);
             boolean matchesCurrent  = snapshotMatches && mediaMatchCurrent(entityType, entityId, h.version());
 
             if (matchesCurrent) {
@@ -155,8 +153,8 @@ public class EntityHistoryPanel extends Div
         return row;
     }
 
-    private boolean jsonEquals(SnapshotPayloadDto a, SnapshotPayloadDto b) {
-        return snapshotCodec.jsonEquals(a, b);
+    private static boolean snapshotsEqual(AuditableSnapshot a, AuditableSnapshot b) {
+        return java.util.Objects.equals(a, b);
     }
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {

@@ -39,7 +39,7 @@ public class DefaultAuditPort implements AuditPort {
                 snapshot.entityType(),
                 entityId,
                 ActionType.CREATED,
-                snapshotMapper.toJson(snapshot),
+                snapshotMapper.toSnapshotJson(snapshot),
                 snapshotMapper.toChangesJson(changes),
                 resolveActor(actorId));
     }
@@ -52,7 +52,7 @@ public class DefaultAuditPort implements AuditPort {
                 after.entityType(),
                 entityId,
                 ActionType.UPDATED,
-                snapshotMapper.toJson(after),
+                snapshotMapper.toSnapshotJson(after),
                 snapshotMapper.toChangesJson(changes),
                 resolveActor(actorId));
     }
@@ -64,7 +64,7 @@ public class DefaultAuditPort implements AuditPort {
                 snapshot.entityType(),
                 entityId,
                 ActionType.DELETED,
-                snapshotMapper.toJson(snapshot),
+                snapshotMapper.toSnapshotJson(snapshot),
                 null,
                 resolveActor(actorId));
     }

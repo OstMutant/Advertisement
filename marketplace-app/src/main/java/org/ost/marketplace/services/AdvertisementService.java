@@ -2,10 +2,9 @@ package org.ost.marketplace.services;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.codec.SnapshotCodec;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContentDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
@@ -39,7 +38,6 @@ public class AdvertisementService {
     private final ObjectProvider<AuditPort>   auditPort;
     private final ObjectProvider<AttachmentPort> attachmentPort;
     private final AuthContextService         authContextService;
-    private final SnapshotCodec              snapshotCodec;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -83,8 +81,8 @@ public class AdvertisementService {
         );
     }
 
-    public String resolveDisplayName(SnapshotPayloadDto snapshot) {
-        return snapshotCodec.decode(snapshot, AdvertisementSnapshotDto.class).map(AdvertisementSnapshotDto::title).orElse("");
+    public String resolveDisplayName(AuditableSnapshot snapshot) {
+        return snapshot instanceof AdvertisementSnapshotDto ad ? ad.title() : "";
     }
 
     @Transactional
@@ -96,8 +94,7 @@ public class AdvertisementService {
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
-        AdvertisementSnapshotDto restoredSnapshot = snapshotCodec.decode(content.snapshotData(), AdvertisementSnapshotDto.class).orElse(null);
-        if (restoredSnapshot == null) return false;
+        if (!(content.snapshotData() instanceof AdvertisementSnapshotDto restoredSnapshot)) return false;
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
                 .title(restoredSnapshot.title())

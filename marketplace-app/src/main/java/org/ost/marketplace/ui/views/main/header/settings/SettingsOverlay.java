@@ -14,7 +14,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import java.util.Optional;
-import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
@@ -51,7 +50,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
     private final transient ObjectProvider<AuditPort>              auditPort;
-    private final transient SnapshotCodec                          snapshotCodec;
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
@@ -205,8 +203,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private void loadAndShowSettingsRestore(Long snapshotId) {
         Optional.ofNullable(auditPort.getIfAvailable())
-                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
-                .flatMap(content -> snapshotCodec.decode(content.snapshotData(), SettingsSnapshotDto.class))
+                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class))
                 .map(dto -> UserSettings.builder().adsPageSize(dto.adsPageSize()).usersPageSize(dto.usersPageSize()).build())
                 .ifPresent(this::showSettingsRestoreConfirm);
     }

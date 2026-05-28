@@ -5,15 +5,15 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
+import org.ost.audit.services.AuditJsonSerializationService;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.codec.SnapshotCodec;
 import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
@@ -39,7 +39,7 @@ public class ActivityRowRenderer {
     private final ActivityPanel                            activityPanel;
     private final List<ActivityFieldsHook>              fieldsProviders;
     private final ObjectProvider<AttachmentAuditHook>   historyExtensionProvider;
-    private final SnapshotCodec                            snapshotCodec;
+    private final AuditJsonSerializationService            jsonService;
 
     public Div buildRow(ActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
@@ -79,7 +79,7 @@ public class ActivityRowRenderer {
         ActivityFieldsHook provider = fieldsProviders.stream()
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
-        if (provider != null && !item.snapshotData().isEmpty()) {
+        if (provider != null && item.snapshotData() != null) {
             List<ChangeEntry> expanded = provider.expandFields(item);
             return buildActivityChangesDiv(expanded);
         }
@@ -115,7 +115,7 @@ public class ActivityRowRenderer {
         });
     }
 
-    private Div buildEntityChangesDiv(List<ChangeEntry> changes, SnapshotPayloadDto snapshotData,
+    private Div buildEntityChangesDiv(List<ChangeEntry> changes, AuditableSnapshot snapshotData,
                                       String cssBase, Supplier<String> mediaStateLookup) {
         Div container = new Div();
         container.addClassName(cssBase);
@@ -147,21 +147,19 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    private List<ChangeEntry> expandTextFields(SnapshotPayloadDto payload, List<ChangeEntry> changedFields) {
-        return snapshotCodec.decodeToMap(payload)
-                .map(snap -> {
-                    List<ChangeEntry> result = new ArrayList<>();
-                    for (Map.Entry<String, Object> e : snap.entrySet()) {
-                        String key = e.getKey();
-                        String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
-                        ChangeEntry existing = changedFields.stream()
-                                .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
-                                .findFirst().orElse(null);
-                        result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
-                    }
-                    return result;
-                })
-                .orElse(changedFields);
+    private List<ChangeEntry> expandTextFields(AuditableSnapshot snapshot, List<ChangeEntry> changedFields) {
+        Map<String, Object> snap = jsonService.toMap(snapshot);
+        if (snap == null) return changedFields;
+        List<ChangeEntry> result = new ArrayList<>();
+        for (Map.Entry<String, Object> e : snap.entrySet()) {
+            String key = e.getKey();
+            String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
+            ChangeEntry existing = changedFields.stream()
+                    .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
+                    .findFirst().orElse(null);
+            result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
+        }
+        return result;
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

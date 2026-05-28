@@ -1,5 +1,6 @@
 package org.ost.platform.audit.dto;
 
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -18,5 +19,5 @@ public record ActivityItemDto(
         List<ChangeEntry> changes,
         Long              changedByActorId,
         String            changedByName,
-        SnapshotPayloadDto   snapshotData
+        AuditableSnapshot snapshotData
 ) {}

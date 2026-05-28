@@ -20,5 +20,19 @@ public interface AuditPort {
     Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType);
     Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
 
+    default <T extends AuditableSnapshot> Optional<T> getSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
+        return getSnapshotContent(snapshotId, entityType)
+                .map(SnapshotContentDto::snapshotData)
+                .filter(type::isInstance)
+                .map(type::cast);
+    }
+
+    default <T extends AuditableSnapshot> Optional<T> getPreviousSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
+        return getPreviousSnapshotContent(snapshotId, entityType)
+                .map(SnapshotContentDto::snapshotData)
+                .filter(type::isInstance)
+                .map(type::cast);
+    }
+
     void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note);
 }

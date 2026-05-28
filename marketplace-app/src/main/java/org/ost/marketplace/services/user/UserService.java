@@ -2,10 +2,9 @@ package org.ost.marketplace.services.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.codec.SnapshotCodec;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
-import org.ost.platform.audit.dto.SnapshotPayloadDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -46,7 +45,6 @@ public class UserService {
     private final PasswordEncoder     passwordEncoder;
     private final ObjectProvider<AuditPort> auditPort;
     private final AuthContextService  authContextService;
-    private final SnapshotCodec       snapshotCodec;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -119,7 +117,7 @@ public class UserService {
     }
 
     private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContentDto> contentOpt, Long actingUserId) {
-        return contentOpt.flatMap(content -> parseUserSnapshotDto(content)).flatMap(snap -> {
+        return contentOpt.flatMap(this::parseUserSnapshotDto).flatMap(snap -> {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
             return repository.findById(userId).map(updated -> {
@@ -133,7 +131,7 @@ public class UserService {
     }
 
     private Optional<UserSnapshotDto> parseUserSnapshotDto(SnapshotContentDto content) {
-        return snapshotCodec.decode(content.snapshotData(), UserSnapshotDto.class);
+        return content.snapshotData() instanceof UserSnapshotDto u ? Optional.of(u) : Optional.empty();
     }
 
     public Optional<User> findByEmail(String email) {
@@ -148,10 +146,10 @@ public class UserService {
         return repository.findActorNames(ids.toArray(new Long[0]));
     }
 
-    public String resolveDisplayName(EntityType entityType, SnapshotPayloadDto snapshot) {
-        if (snapshot == null || snapshot.isEmpty()) return "";
+    public String resolveDisplayName(EntityType entityType, AuditableSnapshot snapshot) {
+        if (snapshot == null) return "";
         return switch (entityType) {
-            case USER -> snapshotCodec.decode(snapshot, UserSnapshotDto.class).map(UserSnapshotDto::name).orElse("");
+            case USER -> snapshot instanceof UserSnapshotDto u ? u.name() : "";
             case USER_SETTINGS -> "Settings";
             default -> "";
         };
@@ -165,26 +163,20 @@ public class UserService {
     }
 
     private List<ChangeEntry> expandUserFields(ActivityItemDto item) {
-        return snapshotCodec.decode(item.snapshotData(), UserSnapshotDto.class)
-                .map(state -> {
-                    List<ChangeEntry> result = new ArrayList<>();
-                    addActivityField(result, item.changes(), "name",  state.name());
-                    addActivityField(result, item.changes(), "email", state.email());
-                    addActivityField(result, item.changes(), "role",  state.role());
-                    return result;
-                })
-                .orElseGet(item::changes);
+        if (!(item.snapshotData() instanceof UserSnapshotDto state)) return item.changes();
+        List<ChangeEntry> result = new ArrayList<>();
+        addActivityField(result, item.changes(), "name",  state.name());
+        addActivityField(result, item.changes(), "email", state.email());
+        addActivityField(result, item.changes(), "role",  state.role());
+        return result;
     }
 
     private List<ChangeEntry> expandSettingsFields(ActivityItemDto item) {
-        return snapshotCodec.decode(item.snapshotData(), SettingsSnapshotDto.class)
-                .map(state -> {
-                    List<ChangeEntry> result = new ArrayList<>();
-                    addSettingField(result, item.changes(), "adsPageSize",   state.adsPageSize());
-                    addSettingField(result, item.changes(), "usersPageSize", state.usersPageSize());
-                    return result;
-                })
-                .orElseGet(item::changes);
+        if (!(item.snapshotData() instanceof SettingsSnapshotDto state)) return item.changes();
+        List<ChangeEntry> result = new ArrayList<>();
+        addSettingField(result, item.changes(), "adsPageSize",   state.adsPageSize());
+        addSettingField(result, item.changes(), "usersPageSize", state.usersPageSize());
+        return result;
     }
 
     private static void addSettingField(List<ChangeEntry> result, List<ChangeEntry> changes, String key, int currentValue) {
