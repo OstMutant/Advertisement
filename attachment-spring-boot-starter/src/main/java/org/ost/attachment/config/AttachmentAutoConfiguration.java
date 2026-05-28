@@ -3,12 +3,18 @@ package org.ost.attachment.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
+import org.ost.attachment.AttachmentPackageMarker;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.service.AttachmentSnapshotService;
+import org.ost.attachment.spi.AttachmentGalleryPortImpl;
 import org.ost.attachment.spi.DefaultAttachmentPort;
+import org.ost.attachment.ui.AttachmentGallery;
+import org.ost.attachment.ui.CardMediaLightbox;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.attachment.service.AttachmentCleanupService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -24,7 +30,7 @@ import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ComponentScan("org.ost.attachment")
+@ComponentScan(basePackageClasses = AttachmentPackageMarker.class)
 @EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")
 @EnableConfigurationProperties(CleanupProperties.class)
 public class AttachmentAutoConfiguration {
@@ -60,6 +66,15 @@ public class AttachmentAutoConfiguration {
             AttachmentService attachmentService,
             AttachmentSnapshotService attachmentSnapshotService) {
         return new DefaultAttachmentPort(attachmentService, attachmentSnapshotService);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(AttachmentGalleryPort.class)
+    AttachmentGalleryPortImpl attachmentGalleryPort(
+            ObjectProvider<AttachmentGallery> galleryProvider,
+            ObjectProvider<CardMediaLightbox> lightboxProvider,
+            AttachmentService attachmentService) {
+        return new AttachmentGalleryPortImpl(galleryProvider, lightboxProvider, attachmentService);
     }
 
 }

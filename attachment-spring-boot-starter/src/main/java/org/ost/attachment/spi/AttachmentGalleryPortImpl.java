@@ -9,9 +9,7 @@ import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.stereotype.Service;
 
-@Service
 @RequiredArgsConstructor
 public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
