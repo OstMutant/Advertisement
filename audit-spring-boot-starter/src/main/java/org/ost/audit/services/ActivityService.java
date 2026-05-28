@@ -1,6 +1,7 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityRef;
@@ -14,6 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Service
 @RequiredArgsConstructor
 public class ActivityService {
 

@@ -1,15 +1,15 @@
-package org.ost.audit.model;
+package org.ost.audit.services;
 
 import org.ost.platform.audit.api.AuditedField;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
-@Component
-public class AuditFieldCache {
+@Service
+public class AuditFieldCacheService {
 
     private final ConcurrentHashMap<Class<?>, List<Field>> cache = new ConcurrentHashMap<>();
 

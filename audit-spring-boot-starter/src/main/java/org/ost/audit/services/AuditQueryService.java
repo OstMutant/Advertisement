@@ -1,12 +1,14 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.EntityType;
 
 import java.util.Optional;
 
+@Service
 @RequiredArgsConstructor
 public class AuditQueryService {
 

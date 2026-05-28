@@ -1,4 +1,4 @@
-package org.ost.audit.model;
+package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -12,9 +12,9 @@ import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
-public class AuditDiffEngine {
+public class AuditDiffService {
 
-    private final AuditFieldCache fieldCache;
+    private final AuditFieldCacheService fieldCache;
 
     public List<ChangeEntry> diff(AuditableSnapshot before, AuditableSnapshot after) {
         List<Field> fields = fieldCache.getAuditedFields(after.getClass());
@@ -26,7 +26,7 @@ public class AuditDiffEngine {
                 if (Objects.equals(prev, next)) continue;
                 changes.add(toEntry(f, prev, next));
             } catch (IllegalAccessException _) {
-                // setAccessible(true) called by AuditFieldCache — should not happen
+                // setAccessible(true) called by AuditFieldCacheService — should not happen
             }
         }
         return changes;

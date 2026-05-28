@@ -2,7 +2,7 @@ package org.ost.audit.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.audit.model.AuditSnapshotMapper;
+import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
@@ -225,7 +225,7 @@ public class AuditLogRepository {
     @Component
     @RequiredArgsConstructor
     public static final class ActivityMapper implements RowMapper<ActivityItemDto> {
-        private final AuditSnapshotMapper mapper;
+        private final AuditJsonSerializationService mapper;
         private final List<EntityNameHook> resolvers;
 
         @Override
@@ -256,7 +256,7 @@ public class AuditLogRepository {
     @Component
     @RequiredArgsConstructor
     public static final class HistoryMapper implements RowMapper<EntityHistoryDto> {
-        private final AuditSnapshotMapper mapper;
+        private final AuditJsonSerializationService mapper;
 
         @Override
         public EntityHistoryDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {

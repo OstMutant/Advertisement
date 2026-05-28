@@ -1,16 +1,14 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.spi.CurrentActorHook;
+import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContentDto;
-import org.ost.audit.model.AuditDiffEngine;
-import org.ost.audit.model.AuditSnapshotMapper;
-import org.ost.audit.repository.AuditLogRepository;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +18,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
-    private final AuditDiffEngine                      diffEngine;
-    private final AuditSnapshotMapper                  snapshotMapper;
+    private final AuditDiffService                     diffEngine;
+    private final AuditJsonSerializationService        snapshotMapper;
     private final AuditLogRepository                   auditLogRepository;
     private final ObjectProvider<CurrentActorHook> currentActorHook;
     private final AuditQueryService                    auditQueryService;

@@ -1,9 +1,10 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotPayloadDto;
-import org.ost.audit.model.AuditSnapshotMapper;
+import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -20,11 +21,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Service
 @RequiredArgsConstructor
 public class AuditHistoryService {
 
     private final AuditLogRepository                        auditLogRepository;
-    private final AuditSnapshotMapper                       mapper;
+    private final AuditJsonSerializationService             mapper;
     private final ObjectProvider<AttachmentAuditHook>       attachmentAuditHook;
     private final AuditDomainHelper                         auditDomainHelper;
 

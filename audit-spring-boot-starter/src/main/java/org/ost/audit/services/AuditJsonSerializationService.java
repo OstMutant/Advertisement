@@ -1,17 +1,17 @@
-package org.ost.audit.model;
+package org.ost.audit.services;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Component
+@Service
 @RequiredArgsConstructor
-public class AuditSnapshotMapper {
+public class AuditJsonSerializationService {
 
     static final TypeReference<List<ChangeEntry>> CHANGES_TYPE = new TypeReference<>() {};
 
