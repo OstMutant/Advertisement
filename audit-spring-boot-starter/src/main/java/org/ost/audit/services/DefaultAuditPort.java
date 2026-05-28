@@ -6,22 +6,19 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
     private final AuditDiffService                     diffEngine;
-    private final AuditJsonSerializationService        snapshotMapper;
     private final AuditLogRepository                   auditLogRepository;
-    private final ObjectProvider<CurrentActorHook> currentActorHook;
+    private final ObjectProvider<CurrentActorHook>     currentActorHook;
     private final AuditQueryService                    auditQueryService;
     private final AuditHistoryService                  auditHistoryService;
 
@@ -34,39 +31,22 @@ public class DefaultAuditPort implements AuditPort {
     @Override
     @Transactional
     public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
-        List<ChangeEntry> changes = diffEngine.diffFromNull(snapshot);
-        auditLogRepository.insert(
-                snapshot.entityType(),
-                entityId,
-                ActionType.CREATED,
-                snapshotMapper.toSnapshotJson(snapshot),
-                snapshotMapper.toChangesJson(changes),
-                resolveActor(actorId));
+        auditLogRepository.save(snapshot.entityType(), entityId, ActionType.CREATED,
+                snapshot, diffEngine.diffFromNull(snapshot), resolveActor(actorId));
     }
 
     @Override
     @Transactional
     public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
-        List<ChangeEntry> changes = diffEngine.diff(before, after);
-        auditLogRepository.insert(
-                after.entityType(),
-                entityId,
-                ActionType.UPDATED,
-                snapshotMapper.toSnapshotJson(after),
-                snapshotMapper.toChangesJson(changes),
-                resolveActor(actorId));
+        auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
+                after, diffEngine.diff(before, after), resolveActor(actorId));
     }
 
     @Override
     @Transactional
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
-        auditLogRepository.insert(
-                snapshot.entityType(),
-                entityId,
-                ActionType.DELETED,
-                snapshotMapper.toSnapshotJson(snapshot),
-                null,
-                resolveActor(actorId));
+        auditLogRepository.save(snapshot.entityType(), entityId, ActionType.DELETED,
+                snapshot, null, resolveActor(actorId));
     }
 
     @Override

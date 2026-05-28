@@ -8,6 +8,7 @@ import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.EntityHistoryDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
 import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.EntityNameHook;
 import org.springframework.jdbc.core.RowMapper;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Repository;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -28,32 +30,34 @@ import java.util.Optional;
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
 
-    private final JdbcClient                 jdbcClient;
+    private final JdbcClient                    jdbcClient;
     private final AuditJsonSerializationService mapper;
-    private final RowMapper<ActivityItemDto> activityMapper;
-    private final RowMapper<EntityHistoryDto> historyMapper;
+    private final RowMapper<ActivityItemDto>    activityMapper;
+    private final RowMapper<EntityHistoryDto>   historyMapper;
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
-    public void insert(EntityType entityType, Long entityId, ActionType actionType,
-                       String snapshotData, String changesSummary, Long actorId) {
+    public void save(EntityType entityType, Long entityId, ActionType actionType,
+                     AuditableSnapshot snapshotData, List<ChangeEntry> changesSummary, Long actorId) {
         jdbcClient.sql("""
                         INSERT INTO audit_log (entity_type, entity_id, action_type, snapshot_data, changes_summary, actor_id)
-                        VALUES (:entityType, :entityId, :actionType, CAST(:snapshot_data AS JSONB), CAST(:changes_summary AS JSONB), :actorId)
+                        VALUES (:entityType, :entityId, :actionType, :snapshotData, :changesSummary, :actorId)
                         """)
                   .paramSource(new MapSqlParameterSource()
-                          .addValue("entityType",      entityType.name())
-                          .addValue("entityId",        entityId)
-                          .addValue("actionType",      actionType.name())
-                          .addValue("snapshot_data",   snapshotData)
-                          .addValue("changes_summary", changesSummary)
-                          .addValue("actorId",         actorId))
+                          .addValue("entityType",     entityType.name())
+                          .addValue("entityId",       entityId)
+                          .addValue("actionType",     actionType.name())
+                          .addValue("snapshotData",   mapper.toSnapshotJson(snapshotData),   Types.OTHER)
+                          .addValue("changesSummary", mapper.toChangesJson(changesSummary),  Types.OTHER)
+                          .addValue("actorId",        actorId))
                   .update();
     }
 
     public void updateChangesSummary(Long snapshotId, String json) {
-        jdbcClient.sql("UPDATE audit_log SET changes_summary = CAST(:changesSummary AS JSONB) WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("changesSummary", json))
+        jdbcClient.sql("UPDATE audit_log SET changes_summary = :changesSummary WHERE id = :id")
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("id",             snapshotId)
+                          .addValue("changesSummary", json, Types.OTHER))
                   .update();
     }
 
