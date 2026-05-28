@@ -246,7 +246,8 @@
       "Bash(grep \"\\\\.java$\")",
       "Bash(awk '/27 Wed 19:23:15/,/27 Wed 19:23:32/')",
       "Bash(/opt/java/openjdk/bin/jar tf *)",
-      "Bash(tee /tmp/compile.log)"
+      "Bash(tee /tmp/compile.log)",
+      "Bash(tee /tmp/pw.log)"
     ]
   },
   "hooks": {

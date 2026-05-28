@@ -15,12 +15,12 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
+import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.fields.UiComboBox;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
-import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.ComponentBuilder;
@@ -35,8 +35,8 @@ import static org.ost.marketplace.common.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserFormOverlayModeHandler implements OverlayModeHandler,
-        Configurable<UserFormOverlayModeHandler, UserFormOverlayModeHandler.Parameters>, I18nParams {
+public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<UserEditDto>
+        implements Configurable<UserFormOverlayModeHandler, UserFormOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -64,7 +64,6 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
     private final UiTertiaryButton                       cancelButton;
 
     private Parameters params;
-    private OverlayFormBinder<UserEditDto> binder;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -92,14 +91,7 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
         cancelButton.configure(UiTertiaryButton.Parameters.builder()
                 .labelKey(USER_DIALOG_BUTTON_CANCEL).build());
 
-        saveButton.addClickListener(_ -> {
-            saveButton.setEnabled(false);
-            try {
-                params.getOnSave().run();
-            } finally {
-                saveButton.setEnabled(true);
-            }
-        });
+        wireSaveGuard(saveButton, params.getOnSave());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         UserEditDto dto = mapper.toUserEdit(params.getUser());
@@ -121,10 +113,6 @@ public class UserFormOverlayModeHandler implements OverlayModeHandler,
 
     public boolean save() {
         return binder.save(dto -> userService.save(mapper.copy(dto)));
-    }
-
-    public boolean hasChanges() {
-        return binder != null && binder.hasChanges();
     }
 
     private void buildBinder(UserEditDto dto) {

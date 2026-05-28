@@ -21,9 +21,9 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
+import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
-import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -43,8 +43,8 @@ import static org.ost.marketplace.common.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
-        Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
+public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayModeHandler<AdvertisementEditDto>
+        implements Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
 
     @Value
     @lombok.Builder
@@ -74,7 +74,6 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
     private final ObjectProvider<AttachmentGalleryPort>      galleryExtension;
 
     private Parameters params;
-    private OverlayFormBinder<AdvertisementEditDto> binder;
     @Getter
     private Advertisement savedAdvertisement;
     private AttachmentGalleryPort.FormHandle activeHandle;
@@ -134,14 +133,7 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
                 .build());
 
-        saveButton.addClickListener(_ -> {
-            saveButton.setEnabled(false);
-            try {
-                params.getOnSave().run();
-            } finally {
-                saveButton.setEnabled(true);
-            }
-        });
+        wireSaveGuard(saveButton, params.getOnSave());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         layout.setContent(content);
@@ -161,10 +153,6 @@ public class AdvertisementFormOverlayModeHandler implements OverlayModeHandler,
         if (this.activeHandle != null) {
             this.activeHandle.discard();
         }
-    }
-
-    public boolean hasChanges() {
-        return binder != null && binder.hasChanges();
     }
 
     private void buildBinder(AdvertisementEditDto dto) {
