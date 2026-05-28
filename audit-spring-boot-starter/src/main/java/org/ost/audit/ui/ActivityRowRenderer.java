@@ -13,11 +13,10 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.spi.ActivityFieldsHook;
+import org.ost.platform.audit.spi.ActivityRenderHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
@@ -37,8 +36,8 @@ public class ActivityRowRenderer {
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
     private final ActivityPanel                            activityPanel;
-    private final List<ActivityFieldsHook>              fieldsProviders;
-    private final ObjectProvider<AttachmentAuditHook>   historyExtensionProvider;
+    private final List<ActivityFieldsHook>                 fieldsProviders;
+    private final List<ActivityRenderHook>             renderStrategies;
     private final AuditJsonSerializationService            jsonService;
 
     public Div buildRow(ActivityItemDto item, Long viewerActorId) {
@@ -73,24 +72,21 @@ public class ActivityRowRenderer {
     }
 
     private Div buildActivityFieldsList(ActivityItemDto item) {
-        if (item.entityType() == EntityType.ADVERTISEMENT) {
-            return buildAdvertisementActivityFieldsList(item);
+        ActivityRenderHook strategy = renderStrategies.stream()
+                .filter(s -> s.entityType() == item.entityType())
+                .findFirst().orElse(null);
+        if (strategy != null) {
+            EntityRef ref = new EntityRef(item.entityType(), item.entityId());
+            return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
+                    () -> strategy.getMediaStateForSnapshot(ref, item.snapshotId()));
         }
         ActivityFieldsHook provider = fieldsProviders.stream()
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
         if (provider != null && item.snapshotData() != null) {
-            List<ChangeEntry> expanded = provider.expandFields(item);
-            return buildActivityChangesDiv(expanded);
+            return buildActivityChangesDiv(provider.expandFields(item));
         }
         return activityPanel.buildChangesList(item.changes(), CSS_CHANGES);
-    }
-
-    private Div buildAdvertisementActivityFieldsList(ActivityItemDto item) {
-        return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES, () -> {
-            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            return ext != null ? ext.getMediaStateForSnapshot(new EntityRef(item.entityType(), item.entityId()), item.snapshotId()) : null;
-        });
     }
 
     private Div buildActivityChangesDiv(List<ChangeEntry> entries) {
@@ -108,11 +104,14 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    public Div buildAdvHistoryFieldsList(EntityHistoryDto h, EntityType entityType, Long entityId) {
-        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, () -> {
-            AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-            return ext != null ? ext.getMediaStateAtVersion(new EntityRef(entityType, entityId), h.version()) : null;
-        });
+    public Div buildHistoryFieldsList(EntityHistoryDto h, EntityRef ref) {
+        ActivityRenderHook strategy = renderStrategies.stream()
+                .filter(s -> s.entityType() == ref.entityType())
+                .findFirst().orElse(null);
+        Supplier<String> mediaLookup = strategy != null
+                ? () -> strategy.getMediaStateAtVersion(ref, h.version())
+                : null;
+        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup);
     }
 
     private Div buildEntityChangesDiv(List<ChangeEntry> changes, AuditableSnapshot snapshotData,
@@ -136,12 +135,12 @@ public class ActivityRowRenderer {
             addSpan(container, activityPanel.format(entry), unchanged, cssBase);
         }
 
-        if (mediaChanges.isEmpty()) {
+        if (!mediaChanges.isEmpty()) {
+            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, cssBase));
+        } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
             addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, cssBase);
-        } else {
-            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, cssBase));
         }
 
         return container;

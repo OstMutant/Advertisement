@@ -25,7 +25,7 @@
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `MediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `MediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -149,7 +149,7 @@ audit.api      — AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
 audit.codec    — SnapshotCodec
 audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
-                 ActivityFieldsHook, ActivityRowHook
+                 ActivityFieldsHook, ActivityRowHook, ActivityRenderHook
 
 attachment.dto     — MediaSummaryDto
 attachment.model   — MediaContentType

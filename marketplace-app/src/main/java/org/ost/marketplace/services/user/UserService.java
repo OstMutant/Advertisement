@@ -2,6 +2,7 @@ package org.ost.marketplace.services.user;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.audit.dto.SnapshotContentDto;
@@ -35,6 +36,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Validated
@@ -56,6 +58,7 @@ public class UserService {
 
     @Transactional
     public void save(UserProfileDto dto) {
+        log.info("User profile update: id={}", dto.id());
         if (access.canNotEdit(dto)) {
             throw new AccessDeniedException("You cannot edit this user");
         }
@@ -77,6 +80,7 @@ public class UserService {
 
     @Transactional
     public void delete(EntityMarker targetUser) {
+        log.info("User delete: id={}", targetUser.getId());
         if (access.canNotDelete(targetUser)) {
             throw new AccessDeniedException("You cannot delete this user");
         }
@@ -85,6 +89,7 @@ public class UserService {
 
     @Transactional
     public void register(@Valid SignUpDto dto) {
+        log.info("User register: email={}", dto.getEmail());
         boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
         User newUser = User.builder()
                 .name(dto.getName().trim())

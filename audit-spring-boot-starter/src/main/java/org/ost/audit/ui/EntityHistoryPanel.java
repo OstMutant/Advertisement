@@ -130,7 +130,7 @@ public class EntityHistoryPanel extends Div
         meta.addClassName("entity-history-meta");
         row.add(meta);
 
-        row.add(renderer.buildAdvHistoryFieldsList(h, entityType, entityId));
+        row.add(renderer.buildHistoryFieldsList(h, new EntityRef(entityType, entityId)));
 
         boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
         if (canOperate && isTextRow && (h.actionType() != ActionType.CREATED || historySize > 1)) {

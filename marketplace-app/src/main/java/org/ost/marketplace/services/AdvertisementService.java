@@ -2,6 +2,7 @@ package org.ost.marketplace.services;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.dto.SnapshotContentDto;
@@ -28,6 +29,7 @@ import org.springframework.validation.annotation.Validated;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Validated
@@ -53,6 +55,7 @@ public class AdvertisementService {
             throw new AccessDeniedException("You cannot edit this advertisement");
         }
         boolean isNew = ad.isNew();
+        log.info("Advertisement save: id={}, isNew={}", ad.getId(), isNew);
         Advertisement before = isNew ? null : repository.findById(ad.getId()).orElse(null);
         Advertisement saved = repository.save(ad);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
@@ -87,6 +90,7 @@ public class AdvertisementService {
 
     @Transactional
     public boolean restore(Long advertisementId, Long snapshotId) {
+        log.info("Advertisement restore: id={}, snapshotId={}", advertisementId, snapshotId);
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
@@ -119,6 +123,7 @@ public class AdvertisementService {
 
     @Transactional
     public void delete(EntityMarker ad) {
+        log.info("Advertisement delete: id={}", ad.getId());
         if (access.canNotDelete(ad)) {
             throw new AccessDeniedException("You cannot delete this advertisement");
         }

@@ -1,6 +1,7 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.SnapshotContentDto;
@@ -13,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+@Slf4j
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
@@ -31,6 +33,7 @@ public class DefaultAuditPort implements AuditPort {
     @Override
     @Transactional
     public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+        log.info("Audit capture: CREATED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.CREATED,
                 snapshot, diffEngine.diffFromNull(snapshot), resolveActor(actorId));
     }
@@ -38,6 +41,7 @@ public class DefaultAuditPort implements AuditPort {
     @Override
     @Transactional
     public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
+        log.info("Audit capture: UPDATED {} id={}", after.entityType(), entityId);
         auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
                 after, diffEngine.diff(before, after), resolveActor(actorId));
     }
@@ -45,6 +49,7 @@ public class DefaultAuditPort implements AuditPort {
     @Override
     @Transactional
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+        log.info("Audit capture: DELETED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.DELETED,
                 snapshot, null, resolveActor(actorId));
     }
