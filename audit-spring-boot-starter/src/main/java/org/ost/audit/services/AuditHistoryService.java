@@ -15,11 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +30,12 @@ public class AuditHistoryService {
         List<EntityHistoryDto> history = auditLogRepository.getEntityHistory(
                 entityType, entityId, showAll ? null : currentUserId);
 
-        history = resolveActorNames(history);
+        history = auditDomainHelper.withResolvedActorNames(
+                history,
+                EntityHistoryDto::actorId,
+                (h, name) -> new EntityHistoryDto(h.snapshotId(), h.version(), h.actionType(),
+                        h.actorId(), name, h.createdAt(),
+                        h.changes(), h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData()));
 
         AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
         if (ext == null) return history;
@@ -66,19 +67,4 @@ public class AuditHistoryService {
                 .map(mapper::fromSnapshot);
     }
 
-    private List<EntityHistoryDto> resolveActorNames(List<EntityHistoryDto> items) {
-        Set<Long> ids = items.stream()
-                .map(EntityHistoryDto::actorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<Long, String> names = auditDomainHelper.resolveNames(ids);
-        if (names.isEmpty()) return items;
-        return items.stream()
-                .map(h -> h.actorId() == null ? h
-                        : new EntityHistoryDto(h.snapshotId(), h.version(), h.actionType(),
-                                h.actorId(), names.getOrDefault(h.actorId(), "—"),
-                                h.createdAt(),
-                                h.changes(), h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData()))
-                .toList();
-    }
 }

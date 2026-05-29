@@ -119,11 +119,11 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### HIGH
 - ✅ `ActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
-- `ActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — ~80 lines of near-identical logic (split changes, expand text fields, render spans, render media section). Only differ in CSS prefix and media lookup method.
-- `ActivityService` + `AuditHistoryService`: `resolveActorNames()` — identical bulk-resolution logic in both services.
+- ✅ `ActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `ActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
+- ✅ `ActivityService` + `AuditHistoryService`: `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
 
 ### MEDIUM
-- `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: same `activate()` skeleton (titleField, saveButton, buildBinder). Candidate for a base class with template methods.
+- ✅ `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: extracted `AbstractFormOverlayModeHandler<D extends EditDto>` base class with `hasChanges()` and `wireSaveGuard()`.
 - `AdvertisementViewOverlayModeHandler` / `UserViewOverlayModeHandler`: same tab-switching + lazy history-loading pattern.
 - `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: identical `SchedulingConfigurer` registration for cleanup — duplicate every time a new starter adds cleanup.
 - `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled — same boilerplate in two places.

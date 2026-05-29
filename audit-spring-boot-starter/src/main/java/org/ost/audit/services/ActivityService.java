@@ -11,7 +11,6 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -29,26 +28,14 @@ public class ActivityService {
         AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
         List<ActivityItemDto> combined = ext != null ? ext.merge(new EntityRef(subjectType, subjectId), base) : base;
 
-        combined = resolveActorNames(combined);
+        combined = auditDomainHelper.withResolvedActorNames(
+                combined,
+                ActivityItemDto::changedByActorId,
+                (i, name) -> new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
+                        i.displayName(), i.actionType(), i.createdAt(), i.entityExists(),
+                        i.changes(), i.changedByActorId(), name, i.snapshotData()));
         combined = resolveEntityExistence(combined);
         return combined;
-    }
-
-    private List<ActivityItemDto> resolveActorNames(List<ActivityItemDto> items) {
-        Set<Long> ids = items.stream()
-                .map(ActivityItemDto::changedByActorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        Map<Long, String> names = auditDomainHelper.resolveNames(ids);
-        if (names.isEmpty()) return items;
-        return items.stream()
-                .map(i -> i.changedByActorId() == null ? i
-                        : new ActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
-                                i.displayName(), i.actionType(), i.createdAt(), i.entityExists(),
-                                i.changes(), i.changedByActorId(),
-                                names.getOrDefault(i.changedByActorId(), "—"),
-                                i.snapshotData()))
-                .toList();
     }
 
     private List<ActivityItemDto> resolveEntityExistence(List<ActivityItemDto> items) {

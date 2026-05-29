@@ -199,25 +199,20 @@ test.describe('CardMediaLightbox video/image switching', () => {
       await page.locator('.advertisement-card')
         .filter({ has: page.locator('.advertisement-title', { hasText: adTitle }) })
         .first().locator('.advertisement-thumbnail-wrapper').click();
-      // Wait for the dialog to be in opened state AND video wrapper visible in one pass —
-      // avoids false-positive from a stale close button left in DOM by a previous dialog.
+      await waitForLightbox(page);
+      // Check visible via hidden attribute — getBoundingClientRect() returns 0 while
+      // Vaadin Dialog is still completing its opening animation.
       await page.waitForFunction(() => {
         function search(root) {
           const w = root.querySelector('.card-lightbox__main-video-wrapper');
-          if (w) {
-            const rect = w.getBoundingClientRect();
-            return rect.width > 0 && rect.height > 0;
-          }
+          if (w) return !w.hasAttribute('hidden');
           for (const child of root.querySelectorAll('*')) {
-            if (child.shadowRoot) {
-              const found = search(child.shadowRoot);
-              if (found) return found;
-            }
+            if (child.shadowRoot && search(child.shadowRoot)) return true;
           }
           return false;
         }
         return search(document);
-      }, null, { timeout: 30000 });
+      }, { timeout: 10000 });
       await screenshot(page, 'lightbox-video-01-video-open');
     });
 
