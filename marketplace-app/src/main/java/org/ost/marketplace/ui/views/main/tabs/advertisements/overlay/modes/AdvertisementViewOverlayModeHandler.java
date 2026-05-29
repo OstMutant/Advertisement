@@ -5,7 +5,6 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -21,8 +20,7 @@ import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
-import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
-import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.ui.Configurable;
@@ -38,8 +36,9 @@ import static org.ost.marketplace.common.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
-        Configurable<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters>, I18nParams {
+public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayModeHandler
+        implements Configurable<AdvertisementViewOverlayModeHandler, AdvertisementViewOverlayModeHandler.Parameters>,
+                   I18nParams {
 
     @Value
     @lombok.Builder
@@ -57,15 +56,15 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         private final ObjectProvider<AdvertisementViewOverlayModeHandler> provider;
     }
 
-    private final AccessEvaluator               access;
+    private final AccessEvaluator                           access;
     @Getter
-    private final I18nService                   i18nService;
-    private final OverlayAdvertisementMetaPanel metaPanel;
-    private final UiPrimaryButton               editButton;
-    private final UiIconButton                  closeButton;
-    private final ObjectProvider<AttachmentGalleryPort>    galleryExtension;
-    private final ObjectProvider<AuditUiPort>              auditUiExtensionProvider;
-    private final ConfirmActionDialog.Builder                   confirmDialogBuilder;
+    private final I18nService                               i18nService;
+    private final OverlayAdvertisementMetaPanel             metaPanel;
+    private final UiPrimaryButton                           editButton;
+    private final UiIconButton                              closeButton;
+    private final ObjectProvider<AttachmentGalleryPort>     galleryExtension;
+    private final ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
+    private final ConfirmActionDialog.Builder               confirmDialogBuilder;
 
     private Parameters params;
 
@@ -76,55 +75,17 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     @Override
-    public void activate(OverlayLayout layout) {
-        Div viewContent = buildViewContent();
-
-        Tab viewTab = new Tab(getValue(ADVERTISEMENT_VIEW_TAB));
-        Tabs tabs = new Tabs(viewTab);
-        tabs.addClassName("adv-overlay-tabs");
-
-        Div mainContent;
-
-        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
-        if (auditUi != null && access.canOperate(params.getAd())) {
-            Div historyContent = new Div();
-            historyContent.addClassName("entity-history-content");
-            historyContent.setVisible(false);
-
-            Tab historyTab = new Tab(getValue(ADVERTISEMENT_HISTORY_TAB));
-            tabs.add(historyTab);
-
-            tabs.addSelectedChangeListener(event -> {
-                boolean isView = event.getSelectedTab() == viewTab;
-                viewContent.setVisible(isView);
-                historyContent.setVisible(!isView);
-                if (!isView && historyContent.getChildren().findFirst().isEmpty()) {
-                    historyContent.add(buildHistoryContent(params.getAd(), auditUi));
-                }
-            });
-
-            mainContent = new Div(tabs, viewContent, historyContent);
-        } else {
-            mainContent = new Div(tabs, viewContent);
-        }
-
-        editButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
-                .build());
-        closeButton.configure(UiIconButton.Parameters.builder()
-                .labelKey(MAIN_TAB_ADVERTISEMENTS)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
-
-        editButton.addClickListener(_  -> params.getOnEdit().run());
-        closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(params.getAd()));
-
-        layout.setContent(mainContent);
-        layout.setHeaderActions(new Div(editButton, closeButton));
+    protected String tabsCssClass() {
+        return "adv-overlay-tabs";
     }
 
-    private Div buildViewContent() {
+    @Override
+    protected Tab buildPrimaryTab() {
+        return new Tab(getValue(ADVERTISEMENT_VIEW_TAB));
+    }
+
+    @Override
+    protected Div buildPrimaryContent() {
         H2 title = new H2(params.getAd().getTitle());
         title.addClassName("overlay__view-title");
 
@@ -138,17 +99,40 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
         textCard.addClassName("overlay__view-card");
 
         Div viewBody = new Div(textCard);
-
-        galleryExtension.ifAvailable(ext -> viewBody.add(ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
-
+        galleryExtension.ifAvailable(ext -> viewBody.add(
+                ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
     }
 
-    private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad,
-                                                                     AuditUiPort auditUi) {
+    @Override
+    protected SecondaryTabDef buildSecondaryTab() {
+        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
+        if (auditUi == null || !access.canOperate(params.getAd())) return null;
+        return new SecondaryTabDef(
+                new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
+                "entity-history-content",
+                () -> buildHistoryContent(params.getAd(), auditUi));
+    }
+
+    @Override
+    protected Div buildHeaderActions() {
+        editButton.configure(UiPrimaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
+                .build());
+        closeButton.configure(UiIconButton.Parameters.builder()
+                .labelKey(MAIN_TAB_ADVERTISEMENTS)
+                .icon(VaadinIcon.CLOSE.create())
+                .build());
+        editButton.addClickListener(_  -> params.getOnEdit().run());
+        closeButton.addClickListener(_ -> params.getOnClose().run());
+        editButton.setVisible(access.canOperate(params.getAd()));
+        return new Div(editButton, closeButton);
+    }
+
+    private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad, AuditUiPort auditUi) {
         return auditUi.buildEntityHistoryPanel(AuditUiPort.EntityHistoryParams.builder()
                 .entityType(EntityType.ADVERTISEMENT)
                 .entityId(ad.getId())
@@ -173,5 +157,4 @@ public class AdvertisementViewOverlayModeHandler implements OverlayModeHandler,
                         .build()
         ).open();
     }
-
 }

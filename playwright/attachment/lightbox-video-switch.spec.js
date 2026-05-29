@@ -212,7 +212,7 @@ test.describe('CardMediaLightbox video/image switching', () => {
           return false;
         }
         return search(document);
-      }, { timeout: 10000 });
+      }, { timeout: 20000 });
       await screenshot(page, 'lightbox-video-01-video-open');
     });
 

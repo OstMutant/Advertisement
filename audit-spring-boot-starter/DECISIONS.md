@@ -124,7 +124,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### MEDIUM
 - ✅ `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: extracted `AbstractFormOverlayModeHandler<D extends EditDto>` base class with `hasChanges()` and `wireSaveGuard()`.
-- `AdvertisementViewOverlayModeHandler` / `UserViewOverlayModeHandler`: same tab-switching + lazy history-loading pattern.
+- ✅ `AdvertisementViewOverlayModeHandler` / `UserViewOverlayModeHandler`: extracted `AbstractViewOverlayModeHandler` base class in `marketplace-app` with `final activate()` template method and 5 abstract hooks (`tabsCssClass`, `buildPrimaryTab`, `buildPrimaryContent`, `buildSecondaryTab`, `buildHeaderActions`). Lazy-loading and tab-switching logic centralised in `assembleTabbedContent`. `SecondaryTabDef` record carries tab + CSS class + `Supplier<Component>` loader; `null` = no secondary tab.
 - `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: identical `SchedulingConfigurer` registration for cleanup — duplicate every time a new starter adds cleanup.
 - `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled — same boilerplate in two places.
 

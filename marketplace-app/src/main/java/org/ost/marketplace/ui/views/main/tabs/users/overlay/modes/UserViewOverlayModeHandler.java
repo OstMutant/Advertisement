@@ -5,7 +5,6 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -18,8 +17,7 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
-import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
+import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
@@ -40,15 +38,16 @@ import static org.ost.marketplace.common.I18nKey.*;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserViewOverlayModeHandler implements OverlayModeHandler,
-        Configurable<UserViewOverlayModeHandler, UserViewOverlayModeHandler.Parameters>, I18nParams {
+public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
+        implements Configurable<UserViewOverlayModeHandler, UserViewOverlayModeHandler.Parameters>,
+                   I18nParams {
 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull User             user;
-        @NonNull Runnable         onEdit;
-        @NonNull Runnable         onClose;
+        @NonNull User                  user;
+        @NonNull Runnable              onEdit;
+        @NonNull Runnable              onClose;
         @NonNull BiConsumer<Long, Long> onRestoreUser;
     }
 
@@ -59,16 +58,16 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         private final ObjectProvider<UserViewOverlayModeHandler> provider;
     }
 
-    private final AccessEvaluator                            access;
+    private final AccessEvaluator                             access;
     @Getter
-    private final I18nService                                i18nService;
-    private final UserSettingsService                        userSettingsService;
-    private final UiLabeledField.Builder                     labeledFieldBuilder;
-    private final UiPrimaryButton.Builder                    editButtonBuilder;
-    private final UiIconButton.Builder                       closeButtonBuilder;
-    private final ObjectProvider<AuditUiPort>             auditUiExtensionProvider;
-    private final SnapshotBinder.Builder<UserSnapshotDto>         userBinderBuilder;
-    private final SnapshotBinder.Builder<SettingsSnapshotDto>   settingsBinderBuilder;
+    private final I18nService                                 i18nService;
+    private final UserSettingsService                         userSettingsService;
+    private final UiLabeledField.Builder                      labeledFieldBuilder;
+    private final UiPrimaryButton.Builder                     editButtonBuilder;
+    private final UiIconButton.Builder                        closeButtonBuilder;
+    private final ObjectProvider<AuditUiPort>                 auditUiExtensionProvider;
+    private final SnapshotBinder.Builder<UserSnapshotDto>     userBinderBuilder;
+    private final SnapshotBinder.Builder<SettingsSnapshotDto> settingsBinderBuilder;
 
     private Parameters params;
 
@@ -79,7 +78,17 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
     }
 
     @Override
-    public void activate(OverlayLayout layout) {
+    protected String tabsCssClass() {
+        return "user-view-tabs";
+    }
+
+    @Override
+    protected Tab buildPrimaryTab() {
+        return new Tab(getValue(ACTIVITY_PROFILE_TAB));
+    }
+
+    @Override
+    protected Div buildPrimaryContent() {
         User user = params.getUser();
 
         String initials = user.getName() != null && !user.getName().isBlank()
@@ -117,35 +126,21 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
         Div card = new Div(cardHeader, profileRow, metaRow);
         card.addClassName("user-view-card");
 
-        Tab profileTab = new Tab(getValue(ACTIVITY_PROFILE_TAB));
-        Tabs tabs = new Tabs(profileTab);
-        tabs.addClassName("user-view-tabs");
+        return card;
+    }
 
-        Div layoutContent;
-
+    @Override
+    protected SecondaryTabDef buildSecondaryTab() {
         AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
-        if (auditUi != null) {
-            Div activityContent = new Div();
-            activityContent.addClassName("activity-feed-content");
-            activityContent.setVisible(false);
+        if (auditUi == null) return null;
+        return new SecondaryTabDef(
+                new Tab(getValue(ACTIVITY_TAB)),
+                "activity-feed-content",
+                () -> buildActivityContent(params.getUser(), auditUi));
+    }
 
-            Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
-            tabs.add(activityTab);
-
-            tabs.addSelectedChangeListener(event -> {
-                boolean isProfile = event.getSelectedTab() == profileTab;
-                card.setVisible(isProfile);
-                activityContent.setVisible(!isProfile);
-                if (!isProfile && activityContent.getChildren().findFirst().isEmpty()) {
-                    activityContent.add(buildActivityContent(user, auditUi));
-                }
-            });
-
-            layoutContent = new Div(tabs, card, activityContent);
-        } else {
-            layoutContent = new Div(tabs, card);
-        }
-
+    @Override
+    protected Div buildHeaderActions() {
         UiPrimaryButton editButton = editButtonBuilder.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
         UiIconButton closeButton = closeButtonBuilder.build(
@@ -153,18 +148,15 @@ public class UserViewOverlayModeHandler implements OverlayModeHandler,
                         .labelKey(MAIN_TAB_USERS)
                         .icon(VaadinIcon.CLOSE.create())
                         .build());
-
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(user));
-
-        layout.setContent(layoutContent);
-        layout.setHeaderActions(new Div(editButton, closeButton));
+        editButton.setVisible(access.canOperate(params.getUser()));
+        return new Div(editButton, closeButton);
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiPort auditUi) {
-        String currentName  = user.getName();
-        String currentEmail = user.getEmail();
+        String currentName     = user.getName();
+        String currentEmail    = user.getEmail();
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 

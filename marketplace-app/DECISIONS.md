@@ -131,3 +131,15 @@ PaginationBar paginationBar(I18nService i18nService) {
 **Prerequisite for any component moved to commons:** replace all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) with platform-commons equivalents (`TranslationKey`, constructor parameters).
 
 **Supersedes:** the earlier `advertisement-ui-core` proposal.
+
+---
+
+## 2026-05-29 — AbstractViewOverlayModeHandler: Template Method for tabbed view overlays
+
+**Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler` (in `ui/views/components/overlay/`). The base class provides a `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`, `buildSecondaryTab()`, `buildHeaderActions()`.
+
+The `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loader)` represents the optional second tab. Returning `null` from `buildSecondaryTab()` produces a single-tab layout. Lazy loading and visibility toggling live entirely in the private `assembleTabbedContent()` static helper.
+
+**Why:** `AdvertisementViewOverlayModeHandler` and `UserViewOverlayModeHandler` had identical tab-switching and lazy-loading boilerplate (~15 lines each). More view handlers are planned; the base class gives each one a consistent structure with zero boilerplate.
+
+**Rejected:** `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean — passing live UI components (`Tabs`, `Tab`, `Div`) as `Parameters` violated the project convention that Parameters carry data/config, not pre-built component trees.
