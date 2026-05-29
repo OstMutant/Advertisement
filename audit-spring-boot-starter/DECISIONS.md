@@ -134,6 +134,26 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ---
 
+## 2026-05-29 — Jackson polymorphic type info: `Id.CLASS` → `Id.NAME` + subtype registration
+
+**Decision:** `AuditableSnapshot` switched from `@JsonTypeInfo(use = Id.CLASS)` to `@JsonTypeInfo(use = Id.NAME, property = "@type")`. Each marketplace snapshot DTO carries `@JsonTypeName` with a stable short name:
+
+| Class | `@type` value |
+|---|---|
+| `AdvertisementSnapshotDto` | `"advertisement"` |
+| `UserSnapshotDto` | `"user"` |
+| `SettingsSnapshotDto` | `"user_settings"` |
+
+Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubtypes()`, which calls `auditObjectMapper.registerSubtypes(...)`. The starter itself has no knowledge of the concrete snapshot classes — registration stays in marketplace where the implementations live.
+
+**Why:** `Id.CLASS` embeds the fully-qualified class name (e.g. `org.ost.marketplace.dto.audit.AdvertisementSnapshotDto`) into the stored JSON. Any package rename or class move silently breaks deserialization of all existing snapshot rows. `Id.NAME` with short stable names decouples the stored type discriminator from the class location.
+
+**Backward compatibility:** Existing DB rows with `Id.CLASS` format are incompatible with the new deserializer. In the dev environment this is handled by deploying with `--reset` to wipe and re-seed the database. A production migration would require a data migration script; that is deferred until the first production deployment.
+
+**Rule:** When adding a new `AuditableSnapshot` implementation: (1) annotate with `@JsonTypeName("stable_short_name")`, (2) register the class in `JacksonConfig.registerAuditSnapshotSubtypes()`. Short names must be stable — changing them requires a DB migration.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears

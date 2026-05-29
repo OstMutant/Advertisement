@@ -55,6 +55,16 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ---
 
+## 2026-05-29 — `AuditableSnapshot` uses `Id.NAME` polymorphism; no subtype registration in starter
+
+**Decision:** `@JsonTypeInfo` on `AuditableSnapshot` uses `Id.NAME` (not `Id.CLASS`). Concrete snapshot DTOs live in marketplace-app and carry `@JsonTypeName("stable_short_name")`. The `platform-commons` interface only declares the type-info policy — it never registers subtypes. Registration happens in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubtypes(auditObjectMapper)`.
+
+**Why:** The interface in `platform-commons` must not know about its implementations (those live in the consuming application). `Id.CLASS` couples the stored JSON to the class path — a class rename or package move silently breaks existing DB rows. `Id.NAME` with short stable names makes the discriminator an explicit contract, not an implementation detail.
+
+**Rule:** `platform-commons` must never import or reference concrete `AuditableSnapshot` implementations. Subtype registration always stays in the consuming application.
+
+---
+
 ## Ongoing — Shared kernel: contracts, not implementations
 
 **Decision:** `platform-commons` contains only pure Java: DTOs, domain events, SPI interfaces, annotations, and conditional markers. No Spring Boot autoconfiguration, no Spring beans, no framework annotations beyond `@interface`.
