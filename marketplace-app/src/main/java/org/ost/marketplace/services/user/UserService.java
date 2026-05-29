@@ -17,6 +17,7 @@ import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
+import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.user.UserRepository;
 import org.ost.marketplace.security.AccessEvaluator;
@@ -170,9 +171,9 @@ public class UserService {
     private List<ChangeEntry> expandUserFields(ActivityItemDto item) {
         if (!(item.snapshotData() instanceof UserSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
-        addActivityField(result, item.changes(), "name",  state.name());
-        addActivityField(result, item.changes(), "email", state.email());
-        addActivityField(result, item.changes(), "role",  state.role());
+        addActivityField(result, item.changes(), "name",  I18nKey.CHANGES_FIELD_NAME,  state.name());
+        addActivityField(result, item.changes(), "email", I18nKey.CHANGES_FIELD_EMAIL, state.email());
+        addActivityField(result, item.changes(), "role",  I18nKey.CHANGES_FIELD_ROLE,  state.role());
         return result;
     }
 
@@ -194,13 +195,15 @@ public class UserService {
                 );
     }
 
-    private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes, String field, String currentValue) {
-        changes.stream()
+    private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes,
+                                          String field, I18nKey labelKey, String currentValue) {
+        ChangeEntry existing = changes.stream()
                 .filter(c -> c instanceof ChangeEntry.FieldChange fc && field.equals(fc.field()))
-                .findFirst()
-                .ifPresentOrElse(
-                        result::add,
-                        () -> result.add(new ChangeEntry.FieldChange(field, null, currentValue))
-                );
+                .findFirst().orElse(null);
+        if (existing instanceof ChangeEntry.FieldChange fc) {
+            result.add(new ChangeEntry.GenericChange(labelKey.key(), fc.from(), fc.to()));
+        } else {
+            result.add(new ChangeEntry.GenericChange(labelKey.key(), null, currentValue));
+        }
     }
 }

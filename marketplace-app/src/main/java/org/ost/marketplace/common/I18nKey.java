@@ -262,6 +262,9 @@ public enum I18nKey implements TranslationKey {
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
     CHANGES_FIELD_DESCRIPTION("changes.field.description"),
+    CHANGES_FIELD_NAME("changes.field.name"),
+    CHANGES_FIELD_EMAIL("changes.field.email"),
+    CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_PHOTOS("changes.photos");
 
     private final String key;

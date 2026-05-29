@@ -96,6 +96,7 @@ public class ActivityRowRenderer {
             boolean unchanged = switch (entry) {
                 case ChangeEntry.FieldChange fc   -> fc.from() == null || fc.from().isBlank();
                 case ChangeEntry.SettingChange sc -> sc.from() == null;
+                case ChangeEntry.GenericChange gc -> gc.before() == null || gc.before().isBlank();
                 default                           -> false;
             };
             String text = activityPanel.format(entry);

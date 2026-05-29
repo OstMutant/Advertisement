@@ -42,11 +42,10 @@ public class ActivityPanel {
     public String format(ChangeEntry entry) {
         return switch (entry) {
             case ChangeEntry.FieldChange(var field, var from, var to) -> {
-                String label = i18n.get(AuditMessages.fieldLabel(field));
                 if (from == null || from.isBlank()) {
-                    yield label + ": \"" + to + "\"";
+                    yield field + ": \"" + to + "\"";
                 }
-                yield label + ": \"" + from + "\" → \"" + to + "\"";
+                yield field + ": \"" + from + "\" → \"" + to + "\"";
             }
             case ChangeEntry.SettingChange(var key, var from, var to) -> {
                 String label = i18n.get(AuditMessages.settingLabel(key));

@@ -129,7 +129,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 - `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled — same boilerplate in two places.
 
 ### MEDIUM-LOW
-- `AuditMessages.fieldLabel()` hardcodes marketplace field names — marketplace must modify the starter to add new audited fields. Should be driven by `ActivityFieldsHook`.
+- ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `ActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
 - `SnapshotBinder` lives in `audit-starter` UI layer; `UserViewOverlayModeHandler` imports it directly. If its API changes, marketplace compilation breaks.
 
 ---
