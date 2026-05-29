@@ -12,7 +12,6 @@ import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.attachment.service.StorageService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,11 +28,11 @@ public class AttachmentService {
     private static final String CT_YOUTUBE = "video/youtube";
     private static final String CT_EMBED   = "video/embed";
 
-    private final StorageService                                  storageService;
-    private final AttachmentRepository                            attachmentRepository;
-    private final AttachmentSnapshotService                       attachmentSnapshotService;
-    private final ObjectProvider<CurrentActorHook>   currentActorHook;
-    private final ObjectProvider<MediaChangeHook>    mediaChangeHook;
+    private final StorageService              storageService;
+    private final AttachmentRepository        attachmentRepository;
+    private final AttachmentSnapshotService   attachmentSnapshotService;
+    private final CurrentActorHook            currentActorHook;
+    private final MediaChangeHook             mediaChangeHook;
 
     public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId);
@@ -80,7 +79,7 @@ public class AttachmentService {
     public void delete(Long attachmentId) {
         Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
         if (attachment == null) return;
-        Long actorId = resolveCurrentActorId();
+        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
         attachmentRepository.softDelete(attachmentId, actorId);
         captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
         notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
@@ -90,7 +89,7 @@ public class AttachmentService {
     public void deleteSkipSnapshot(Long attachmentId) {
         Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
         if (attachment == null) return;
-        Long actorId = resolveCurrentActorId();
+        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
         attachmentRepository.softDelete(attachmentId, actorId);
         notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
     }
@@ -216,18 +215,13 @@ public class AttachmentService {
     }
 
     private void notifyMediaChanged(EntityType entityType, Long entityId) {
-        mediaChangeHook.ifAvailable(c -> c.onMediaChanged(new EntityRef(entityType, entityId)));
+        mediaChangeHook.onMediaChanged(new EntityRef(entityType, entityId));
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {
-        Long actorId = resolveCurrentActorId();
+        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
         if (actorId != null) {
             attachmentSnapshotService.capture(entityType, entityId, actorId);
         }
-    }
-
-    private Long resolveCurrentActorId() {
-        CurrentActorHook p = currentActorHook.getIfAvailable();
-        return p == null ? null : p.getCurrentActorId().orElse(null);
     }
 }

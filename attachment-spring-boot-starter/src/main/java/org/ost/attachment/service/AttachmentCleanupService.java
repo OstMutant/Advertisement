@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.core.config.CleanupProperties;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,9 +18,9 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AttachmentCleanupService {
 
-    private final AttachmentRepository           attachmentRepository;
-    private final ObjectProvider<StorageService> storageService;
-    private final CleanupProperties              cleanupProperties;
+    private final AttachmentRepository  attachmentRepository;
+    private final StorageService        storageService;
+    private final CleanupProperties     cleanupProperties;
 
     @Transactional
     public void cleanup() {
@@ -33,23 +32,21 @@ public class AttachmentCleanupService {
 
     private void deleteStaleTempUploads() {
         Instant cutoff = Instant.now().minus(1, ChronoUnit.DAYS);
-        storageService.ifAvailable(s -> {
-            List<String> stale = s.listByPrefix("temp/", cutoff);
-            if (stale.isEmpty()) {
-                log.info("Deleted 0 stale temp uploads");
-                return;
+        List<String> stale = storageService.listByPrefix("temp/", cutoff);
+        if (stale.isEmpty()) {
+            log.info("Deleted 0 stale temp uploads");
+            return;
+        }
+        int deleted = 0;
+        for (String url : stale) {
+            try {
+                storageService.delete(url);
+                deleted++;
+            } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
             }
-            int deleted = 0;
-            for (String url : stale) {
-                try {
-                    s.delete(url);
-                    deleted++;
-                } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
-                    log.warn("Failed to delete stale temp upload {}: {}", url, e.getMessage());
-                }
-            }
-            log.info("Deleted {} stale temp uploads", deleted);
-        });
+        }
+        log.info("Deleted {} stale temp uploads", deleted);
     }
 
     private void deleteAttachments() {
@@ -60,12 +57,12 @@ public class AttachmentCleanupService {
         }
 
         Set<String> failedUrls = new HashSet<>();
-        storageService.ifAvailable(s -> urls.forEach(url -> {
-            try { s.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+        urls.forEach(url -> {
+            try { storageService.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
                 log.warn("Failed to delete S3 object {}: {}", url, e.getMessage());
                 failedUrls.add(url);
             }
-        }));
+        });
 
         List<String> toDelete = failedUrls.isEmpty()
                 ? urls

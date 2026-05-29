@@ -75,6 +75,20 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ---
 
+## 2026-05-29 — Starters inject hooks as required beans; only marketplace uses ObjectProvider
+
+**Decision:** Starters inject `*Hook` implementations as plain required fields (direct `@RequiredArgsConstructor`). `ObjectProvider` and `@Autowired(required = false)` are forbidden inside starters for hook dependencies.
+
+**Why:** The module dependency is strictly one-directional — `marketplace-app` depends on starters, never the reverse. A starter can only be on the classpath when `marketplace-app` (or an equivalent consuming application) is present. That application is always responsible for providing all hook implementations. There is no runtime scenario where a starter is loaded but a required hook bean is absent. Using `ObjectProvider` in a starter implies the hook is optional, which is architecturally false and misleads readers.
+
+`marketplace-app`, by contrast, uses `ObjectProvider` for all starter ports and components — because starters are genuinely optional and the app must degrade gracefully when they are absent.
+
+**Rule:**
+- Starters: `private final CurrentActorHook currentActorHook;` — no `ObjectProvider`, no `required = false`.
+- Marketplace: `private final ObjectProvider<AuditPort> auditPort;` — always `ObjectProvider` for starter dependencies.
+
+---
+
 ## Ongoing — SPI pattern for cross-module extension
 
 **Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AttachmentGalleryPort`, `MediaChangeHook`, `ActivityRowHook`, `AttachmentPort`, `AuditUiPort`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)

@@ -9,7 +9,6 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -18,16 +17,15 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
-    private final AuditDiffService                     diffEngine;
-    private final AuditLogRepository                   auditLogRepository;
-    private final ObjectProvider<CurrentActorHook>     currentActorHook;
-    private final AuditQueryService                    auditQueryService;
-    private final AuditHistoryService                  auditHistoryService;
+    private final AuditDiffService     diffEngine;
+    private final AuditLogRepository   auditLogRepository;
+    private final CurrentActorHook     currentActorHook;
+    private final AuditQueryService    auditQueryService;
+    private final AuditHistoryService  auditHistoryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
-        CurrentActorHook hook = currentActorHook.getIfAvailable();
-        return hook != null ? hook.getCurrentActorId().orElse(null) : null;
+        return currentActorHook.getCurrentActorId().orElse(null);
     }
 
     @Override

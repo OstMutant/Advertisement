@@ -13,7 +13,6 @@ import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -62,7 +61,7 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(AuditPort.class)
     DefaultAuditPort defaultAuditPort(AuditDiffService diffEngine,
                                       AuditLogRepository auditLogRepository,
-                                      ObjectProvider<CurrentActorHook> currentActorHook,
+                                      CurrentActorHook currentActorHook,
                                       AuditQueryService auditQueryService,
                                       AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, auditLogRepository, currentActorHook,
