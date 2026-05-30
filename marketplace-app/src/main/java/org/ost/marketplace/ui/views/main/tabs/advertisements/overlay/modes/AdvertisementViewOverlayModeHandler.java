@@ -133,7 +133,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     }
 
     private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad, AuditUiPort auditUi) {
-        return auditUi.buildEntityHistoryPanel(AuditUiPort.EntityHistoryParams.builder()
+        return auditUi.buildAuditHistoryPanel(AuditUiPort.EntityHistoryParams.builder()
                 .entityType(EntityType.ADVERTISEMENT)
                 .entityId(ad.getId())
                 .userId(access.getCurrentUserId())

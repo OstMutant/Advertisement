@@ -15,6 +15,7 @@ import java.util.Optional;
 
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DefaultAuditPort implements AuditPort {
 
     private final AuditLogRepository auditLogRepository;

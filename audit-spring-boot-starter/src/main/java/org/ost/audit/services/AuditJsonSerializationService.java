@@ -17,15 +17,6 @@ public class AuditJsonSerializationService {
 
     @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
 
-    public String toJson(Object obj) {
-        if (obj == null) return null;
-        try {
-            return objectMapper.writeValueAsString(obj);
-        } catch (Exception _) {
-            return null;
-        }
-    }
-
     public String toSnapshotJson(AuditableSnapshot snapshot) {
         if (snapshot == null) return null;
         try {
@@ -39,15 +30,6 @@ public class AuditJsonSerializationService {
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, AuditableSnapshot.class);
-        } catch (Exception _) {
-            return null;
-        }
-    }
-
-    public <T> T fromJson(String json, Class<T> type) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, type);
         } catch (Exception _) {
             return null;
         }

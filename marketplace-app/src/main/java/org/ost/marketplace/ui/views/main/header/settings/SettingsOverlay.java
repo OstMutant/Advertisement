@@ -193,7 +193,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
-        return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
+        return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjects(java.util.List.of(
                         new EntityRef(EntityType.USER, currentUser.getId()),
                         new EntityRef(EntityType.USER_SETTINGS, currentUser.getId())))

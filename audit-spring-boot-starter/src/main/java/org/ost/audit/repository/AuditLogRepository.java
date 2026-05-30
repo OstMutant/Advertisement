@@ -28,7 +28,7 @@ import java.util.Optional;
  * cleanup scheduler.
  *
  * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findRowsByActor}
- * queries by actor across all entities. Both return {@link AuditLogRow} with SQL window-function columns
+ * queries by actor across all entities. Both return {@link AuditLogProjection} with SQL window-function columns
  * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time — correct
  * for future pagination. Services map rows to their specific DTOs and apply limits via streams.
  *
@@ -43,7 +43,7 @@ public class AuditLogRepository {
 
     private final JdbcClient                    jdbcClient;
     private final AuditJsonSerializationService mapper;
-    private final RowMapper<AuditLogRow>        rowMapper;
+    private final ProjectionMapper              projectionMapper;
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,7 @@ public class AuditLogRepository {
 
     // ── Read — generic rows ───────────────────────────────────────────────────
 
-    public List<AuditLogRow> findRows(EntityType entityType, Long entityId, Long filterActorId) {
+    public List<AuditLogProjection> findRows(EntityType entityType, Long entityId, Long filterActorId) {
         return jdbcClient.sql("""
                         WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
@@ -88,11 +88,11 @@ public class AuditLogRepository {
                                  .addValue("entityType",    entityType.name())
                                  .addValue("entityId",      entityId)
                                  .addValue("filterActorId", filterActorId))
-                         .query(rowMapper)
+                         .query(projectionMapper)
                          .list();
     }
 
-    public List<AuditLogRow> findRowsByActor(Long actorId) {
+    public List<AuditLogProjection> findRowsByActor(Long actorId) {
         return jdbcClient.sql("""
                         WITH entities_by_actor AS (
                             SELECT DISTINCT entity_type, entity_id FROM audit_log WHERE actor_id = :actorId
@@ -109,7 +109,7 @@ public class AuditLogRepository {
                         SELECT * FROM numbered WHERE actor_id = :actorId ORDER BY created_at DESC
                         """)
                          .paramSource(new MapSqlParameterSource("actorId", actorId))
-                         .query(rowMapper)
+                         .query(projectionMapper)
                          .list();
     }
 
@@ -173,30 +173,32 @@ public class AuditLogRepository {
         return new AuditSnapshotContentDto(mapper.fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
-    // ── Inner RowMapper ───────────────────────────────────────────────────────
-
     @Component
-    public static final class AuditLogRowMapper implements RowMapper<AuditLogRow> {
+    @RequiredArgsConstructor
+    static class ProjectionMapper implements RowMapper<AuditLogProjection> {
+
+        private final AuditJsonSerializationService jsonService;
 
         @Override
-        public AuditLogRow mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-            return new AuditLogRow(
+        public AuditLogProjection mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+            return new AuditLogProjection(
                     rs.getObject("id",          Long.class),
                     EntityType.valueOf(rs.getString("entity_type")),
                     rs.getObject("entity_id",   Long.class),
                     ActionType.valueOf(rs.getString("action_type")),
-                    rs.getString("snapshot_data"),
+                    jsonService.fromSnapshot(rs.getString("snapshot_data")),
                     rs.getObject("actor_id",    Long.class),
                     instant(rs, "created_at"),
                     rs.getInt("version"),
                     rs.getObject("prev_id",     Long.class),
-                    rs.getString("prev_snapshot_data")
+                    jsonService.fromSnapshot(rs.getString("prev_snapshot_data"))
             );
+        }
+
+        private static Instant instant(ResultSet rs, String col) throws SQLException {
+            Timestamp ts = rs.getTimestamp(col);
+            return ts != null ? ts.toInstant() : null;
         }
     }
 
-    private static Instant instant(ResultSet rs, String col) throws SQLException {
-        Timestamp ts = rs.getTimestamp(col);
-        return ts != null ? ts.toInstant() : null;
-    }
 }

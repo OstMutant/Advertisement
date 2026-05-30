@@ -9,7 +9,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.audit.services.AuditActivityService;
+import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityRef;
@@ -24,9 +24,9 @@ import java.util.List;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ProfileActivityPanel extends Div
-        implements Configurable<ProfileActivityPanel, ProfileActivityPanel.Parameters>,
-                   Initialization<ProfileActivityPanel> {
+public class AuditActivityPanel extends Div
+        implements Configurable<AuditActivityPanel, AuditActivityPanel.Parameters>,
+                   Initialization<AuditActivityPanel> {
 
     @Value
     @lombok.Builder
@@ -42,24 +42,24 @@ public class ProfileActivityPanel extends Div
 
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<ProfileActivityPanel, Parameters> {
+    public static class Builder extends ComponentBuilder<AuditActivityPanel, Parameters> {
         @Getter
-        private final ObjectProvider<ProfileActivityPanel> provider;
+        private final ObjectProvider<AuditActivityPanel> provider;
     }
 
-    private final AuditActivityService                     activityService;
+    private final AuditReadService                         auditReadService;
     private final ObjectProvider<ActivityRowRenderer> rendererProvider;
 
     @Override
     @PostConstruct
-    public ProfileActivityPanel init() {
+    public AuditActivityPanel init() {
         addClassName("activity-feed-list");
         return this;
     }
 
     @Override
-    public ProfileActivityPanel configure(Parameters p) {
-        List<AuditActivityItemDto> items = activityService.getForSubject(p.getSubjects(), p.getActorId());
+    public AuditActivityPanel configure(Parameters p) {
+        List<AuditActivityItemDto> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId());
 
         if (items.isEmpty()) {
             Span empty = new Span(p.getEmptyLabel() != null ? p.getEmptyLabel() : "");

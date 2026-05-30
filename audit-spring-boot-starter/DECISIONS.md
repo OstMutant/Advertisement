@@ -125,8 +125,8 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 ### MEDIUM
 - ✅ `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: extracted `AbstractFormOverlayModeHandler<D extends EditDto>` base class with `hasChanges()` and `wireSaveGuard()`.
 - ✅ `AdvertisementViewOverlayModeHandler` / `UserViewOverlayModeHandler`: extracted `AbstractViewOverlayModeHandler` base class in `marketplace-app` with `final activate()` template method and 5 abstract hooks (`tabsCssClass`, `buildPrimaryTab`, `buildPrimaryContent`, `buildSecondaryTab`, `buildHeaderActions`). Lazy-loading and tab-switching logic centralised in `assembleTabbedContent`. `SecondaryTabDef` record carries tab + CSS class + `Supplier<Component>` loader; `null` = no secondary tab.
-- `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: identical `SchedulingConfigurer` registration for cleanup — duplicate every time a new starter adds cleanup.
-- `AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled — same boilerplate in two places.
+- ~~`AuditAutoConfiguration` / `AttachmentAutoConfiguration`: identical `SchedulingConfigurer` registration for cleanup~~ — **won't fix**: each starter owns its own lifecycle; extracting shared config would couple independent modules or require a boilerplate-only starter. Duplication is intentional isolation.
+- ~~`AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled~~ — **won't fix**: same reasoning; each starter owns its own serialization config so it can diverge independently.
 
 ### MEDIUM-LOW
 - ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `ActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
@@ -184,7 +184,7 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 ## 2026-05-30 — changes_summary removed; diff computed dynamically on read
 
-**Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by `AuditDiffService.diff(previous, current)` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogRow` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
+**Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by `AuditDiffService.diff(previous, current)` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogProjection` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
 
 **Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditDiffService` dependency. `AuditDiffService` is now a read-side concern only (injected by `AuditHistoryService` and `AuditActivityService`).
 
@@ -192,12 +192,12 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 ---
 
-## 2026-05-30 — Generic AuditLogRow: one repository DTO for history and activity
+## 2026-05-30 — Generic AuditLogProjection: one repository DTO for history and activity
 
-**Decision:** `AuditLogRepository` returns a single generic `AuditLogRow` record instead of `AuditHistoryItemDto` / `AuditActivityItemDto`. Window functions (`ROW_NUMBER()`, `LAG()`) are computed at SQL level and included in the record. Services transform `AuditLogRow` into their specific DTOs.
+**Decision:** `AuditLogRepository` returns a single generic `AuditLogProjection` record instead of `AuditHistoryItemDto` / `AuditActivityItemDto`. Window functions (`ROW_NUMBER()`, `LAG()`) are computed at SQL level and included in the record. Services transform `AuditLogProjection` into their specific DTOs.
 
 ```java
-public record AuditLogRow(
+public record AuditLogProjection(
     Long       id,
     EntityType entityType,
     Long       entityId,
@@ -212,15 +212,15 @@ public record AuditLogRow(
 ) {}
 ```
 
-- `AuditHistoryService` maps `AuditLogRow` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
-- `AuditActivityService` maps `AuditLogRow` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
-- Repository has one `RowMapper<AuditLogRow>`, no dependency on service-layer DTOs or hooks
+- `AuditHistoryService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
+- `AuditActivityService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
+- Repository has one `RowMapper<AuditLogProjection>`, no dependency on service-layer DTOs or hooks
 
-**Why:** The repository previously depended on `AuditHistoryItemDto`, `AuditActivityItemDto`, and `EntityNameHook` — service-layer concerns bleeding into the persistence layer. With `AuditLogRow`, the repository is a pure SQL → data layer. `ROW_NUMBER()` and `LAG()` stay in SQL because Java-side computation breaks with future pagination (you can only paginate correctly if the window is computed over the full dataset in SQL).
+**Why:** The repository previously depended on `AuditHistoryItemDto`, `AuditActivityItemDto`, and `EntityNameHook` — service-layer concerns bleeding into the persistence layer. With `AuditLogProjection`, the repository is a pure SQL → data layer. `ROW_NUMBER()` and `LAG()` stay in SQL because Java-side computation breaks with future pagination (you can only paginate correctly if the window is computed over the full dataset in SQL).
 
 **Pagination:** future cursor/offset pagination is added at the repository query level only — services and UI panels are unaffected.
 
-**Rule:** `AuditLogRepository` must not import any service-layer DTO or hook. `AuditLogRow` fields map 1:1 to SQL columns/expressions — no deserialization in the mapper.
+**Rule:** `AuditLogRepository` must not import any service-layer DTO or hook. `AuditLogProjection` fields map 1:1 to SQL columns/expressions — no deserialization in the mapper.
 
 ---
 

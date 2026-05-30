@@ -184,7 +184,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
 
-        return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
+        return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjects(java.util.List.of(
                         new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER, user.getId()),
                         new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER_SETTINGS, user.getId())))

@@ -45,7 +45,7 @@ public interface AuditUiPort {
         List<ActivityRowHook>      bindings = List.of();
     }
 
-    Component buildEntityHistoryPanel(EntityHistoryParams params);
+    Component buildAuditHistoryPanel(EntityHistoryParams params);
 
-    Component buildProfileActivityPanel(ProfileActivityParams params);
+    Component buildAuditActivityPanel(ProfileActivityParams params);
 }

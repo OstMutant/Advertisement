@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
-import org.ost.audit.services.AuditHistoryService;
+import org.ost.audit.services.AuditReadService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -29,9 +29,9 @@ import java.util.function.ObjLongConsumer;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class EntityHistoryPanel extends Div
-        implements Configurable<EntityHistoryPanel, EntityHistoryPanel.Parameters>,
-                   Initialization<EntityHistoryPanel> {
+public class AuditHistoryPanel extends Div
+        implements Configurable<AuditHistoryPanel, AuditHistoryPanel.Parameters>,
+                   Initialization<AuditHistoryPanel> {
 
     @lombok.Value
     @lombok.Builder
@@ -49,31 +49,31 @@ public class EntityHistoryPanel extends Div
 
     @SpringComponent
     @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<EntityHistoryPanel, Parameters> {
+    public static class Builder extends ComponentBuilder<AuditHistoryPanel, Parameters> {
         @Getter
-        private final ObjectProvider<EntityHistoryPanel> provider;
+        private final ObjectProvider<AuditHistoryPanel> provider;
     }
 
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
-    private final AuditHistoryService                           auditHistoryService;
+    private final AuditReadService                               auditReadService;
     private final ObjectProvider<ActivityRowRenderer>   rendererProvider;
     private final ActivityEnrichHook                    activityEnrichHook;
 
     @Override
     @PostConstruct
-    public EntityHistoryPanel init() {
+    public AuditHistoryPanel init() {
         addClassName("entity-history-list");
         return this;
     }
 
     @Override
-    public EntityHistoryPanel configure(Parameters p) {
-        AuditableSnapshot currentSnapshot = auditHistoryService
+    public AuditHistoryPanel configure(Parameters p) {
+        AuditableSnapshot currentSnapshot = auditReadService
                 .getLastSnapshot(p.getEntityType(), p.getEntityId())
                 .orElse(null);
 
-        List<AuditHistoryItemDto> history = auditHistoryService
+        List<AuditHistoryItemDto> history = auditReadService
                 .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
 
         if (history.isEmpty()) {

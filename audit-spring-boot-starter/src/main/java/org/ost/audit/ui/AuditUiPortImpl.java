@@ -9,12 +9,12 @@ import org.ost.platform.audit.spi.AuditUiPort;
 @RequiredArgsConstructor
 public class AuditUiPortImpl implements AuditUiPort {
 
-    private final EntityHistoryPanel.Builder    historyBuilder;
-    private final ProfileActivityPanel.Builder  profileActivityBuilder;
+    private final AuditHistoryPanel.Builder    historyBuilder;
+    private final AuditActivityPanel.Builder  profileActivityBuilder;
 
     @Override
-    public Component buildEntityHistoryPanel(EntityHistoryParams p) {
-        return historyBuilder.build(EntityHistoryPanel.Parameters.builder()
+    public Component buildAuditHistoryPanel(EntityHistoryParams p) {
+        return historyBuilder.build(AuditHistoryPanel.Parameters.builder()
                 .entityType(p.getEntityType())
                 .entityId(p.getEntityId())
                 .userId(p.getUserId())
@@ -28,8 +28,8 @@ public class AuditUiPortImpl implements AuditUiPort {
     }
 
     @Override
-    public Component buildProfileActivityPanel(ProfileActivityParams p) {
-        return profileActivityBuilder.build(ProfileActivityPanel.Parameters.builder()
+    public Component buildAuditActivityPanel(ProfileActivityParams p) {
+        return profileActivityBuilder.build(AuditActivityPanel.Parameters.builder()
                 .subjects(p.getSubjects())
                 .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())

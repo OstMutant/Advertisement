@@ -256,7 +256,11 @@
       "Bash(tee /tmp/test5.log)",
       "Bash(tee /tmp/playwright2.log)",
       "Bash(tee /tmp/pw-video.log)",
-      "Bash(tee /tmp/build.log)"
+      "Bash(tee /tmp/build.log)",
+      "Bash(mv EntityHistoryPanel.java AuditHistoryPanel.java)",
+      "Bash(mv ProfileActivityPanel.java AuditActivityPanel.java)",
+      "Bash(sed -i s/EntityHistoryPanel/AuditHistoryPanel/g /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditHistoryPanel.java /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditUiPortImpl.java /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/advertisements/overlay/modes/AdvertisementViewOverlayModeHandler.java /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/users/overlay/modes/UserViewOverlayModeHandler.java /app/platform-commons/src/main/java/org/ost/platform/audit/spi/AuditUiPort.java)",
+      "Bash(sed -i s/ProfileActivityPanel/AuditActivityPanel/g /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditActivityPanel.java /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditUiPortImpl.java /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/users/overlay/modes/UserViewOverlayModeHandler.java /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/header/settings/SettingsOverlay.java /app/platform-commons/src/main/java/org/ost/platform/audit/spi/AuditUiPort.java)"
     ]
   },
   "hooks": {
