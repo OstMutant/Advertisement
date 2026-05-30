@@ -21,13 +21,14 @@ public class AuditHistoryService {
 
     private final AuditLogRepository        auditLogRepository;
     private final AuditJsonSerializationService jsonService;
+    private final AuditDiffService          diffService;
     private final ActivityEnrichHook        activityEnrichHook;
     private final AuditDomainHelper         auditDomainHelper;
 
     public List<AuditHistoryItemDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
         List<AuditHistoryItemDto> history = auditLogRepository
-                .getEntityHistory(entityType, entityId, showAll ? null : currentUserId)
-                .stream().map(this::toHistoryItem).toList();
+                .findRows(entityType, entityId, showAll ? null : currentUserId)
+                .stream().limit(100).map(this::toHistoryItem).toList();
 
         history = auditDomainHelper.withResolvedActorNames(
                 history,
@@ -54,6 +55,8 @@ public class AuditHistoryService {
     }
 
     private AuditHistoryItemDto toHistoryItem(AuditLogRow row) {
+        AuditableSnapshot current  = jsonService.fromSnapshot(row.snapshotDataJson());
+        AuditableSnapshot previous = jsonService.fromSnapshot(row.prevSnapshotDataJson());
         return new AuditHistoryItemDto(
                 row.id(),
                 row.version(),
@@ -61,10 +64,10 @@ public class AuditHistoryService {
                 row.actorId(),
                 null,
                 row.createdAt(),
-                jsonService.fromJsonList(row.changesSummaryJson()),
+                diffService.diff(previous, current),
                 row.prevId(),
-                jsonService.fromSnapshot(row.snapshotDataJson()),
-                jsonService.fromSnapshot(row.prevSnapshotDataJson())
+                current,
+                previous
         );
     }
 }

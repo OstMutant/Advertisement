@@ -3,6 +3,7 @@ package org.ost.platform.audit.spi;
 import com.vaadin.flow.component.Component;
 import lombok.Value;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
 import java.util.List;
@@ -35,8 +36,9 @@ public interface AuditUiPort {
     @Value
     @lombok.Builder
     class ProfileActivityParams {
-        EntityType                 subjectType;
-        Long                       subjectId;
+        @lombok.Builder.Default
+        List<EntityRef>            subjects = List.of();
+        Long                       actorId;
         Long                       viewerActorId;
         String                     emptyLabel;
         @lombok.Builder.Default

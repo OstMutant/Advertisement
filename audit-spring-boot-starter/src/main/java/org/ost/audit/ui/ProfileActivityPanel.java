@@ -12,7 +12,7 @@ import lombok.Value;
 import org.ost.audit.services.AuditActivityService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
-import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
@@ -31,10 +31,11 @@ public class ProfileActivityPanel extends Div
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull EntityType subjectType;
-        @NonNull Long       subjectId;
-        Long                viewerActorId;
-        String              emptyLabel;
+        @lombok.Builder.Default
+        List<EntityRef>       subjects = List.of();
+        Long                  actorId;
+        Long                  viewerActorId;
+        String                emptyLabel;
         @lombok.Builder.Default
         List<ActivityRowHook> bindings = List.of();
     }
@@ -58,7 +59,7 @@ public class ProfileActivityPanel extends Div
 
     @Override
     public ProfileActivityPanel configure(Parameters p) {
-        List<AuditActivityItemDto> items = activityService.getForSubject(p.getSubjectType(), p.getSubjectId());
+        List<AuditActivityItemDto> items = activityService.getForSubject(p.getSubjects(), p.getActorId());
 
         if (items.isEmpty()) {
             Span empty = new Span(p.getEmptyLabel() != null ? p.getEmptyLabel() : "");

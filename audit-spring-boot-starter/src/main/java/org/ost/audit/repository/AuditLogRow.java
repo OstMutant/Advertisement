@@ -11,7 +11,6 @@ public record AuditLogRow(
         Long       entityId,
         ActionType actionType,
         String     snapshotDataJson,
-        String     changesSummaryJson,
         Long       actorId,
         Instant    createdAt,
         int        version,

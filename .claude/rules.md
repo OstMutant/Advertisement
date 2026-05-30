@@ -37,8 +37,8 @@ After fixing a bug, cover all affected flows with Playwright tests before markin
 
 ## Scripts
 Always use project scripts for build, deploy, and tests — never raw docker/mvn commands:
-- `bash scripts/deploy.sh` — full Docker image rebuild
-- `bash scripts/deploy-dev.sh` — fast JAR hot-swap (requires container running)
+- `bash scripts/deploy-dev.sh` — **default deploy**: fast JAR hot-swap (requires container running); use this unless a full image rebuild is explicitly needed
+- `bash scripts/deploy.sh` — full Docker image rebuild; only when Dockerfile/dependencies change or `--reset` (DB wipe) is needed
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test` — JUnit tests
 

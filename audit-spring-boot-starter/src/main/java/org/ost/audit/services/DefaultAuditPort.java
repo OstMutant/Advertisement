@@ -17,9 +17,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class DefaultAuditPort implements AuditPort {
 
-    private final AuditDiffService     diffEngine;
-    private final AuditLogRepository   auditLogRepository;
-    private final CurrentActorHook     currentActorHook;
+    private final AuditLogRepository auditLogRepository;
+    private final CurrentActorHook   currentActorHook;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
@@ -31,7 +30,7 @@ public class DefaultAuditPort implements AuditPort {
     public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
         log.info("Audit capture: CREATED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.CREATED,
-                snapshot, diffEngine.diffFromNull(snapshot), resolveActor(actorId));
+                snapshot, resolveActor(actorId));
     }
 
     @Override
@@ -39,7 +38,7 @@ public class DefaultAuditPort implements AuditPort {
     public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
         log.info("Audit capture: UPDATED {} id={}", after.entityType(), entityId);
         auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
-                after, diffEngine.diff(before, after), resolveActor(actorId));
+                after, resolveActor(actorId));
     }
 
     @Override
@@ -47,7 +46,7 @@ public class DefaultAuditPort implements AuditPort {
     public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
         log.info("Audit capture: DELETED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.DELETED,
-                snapshot, null, resolveActor(actorId));
+                snapshot, resolveActor(actorId));
     }
 
     @Override

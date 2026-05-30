@@ -185,8 +185,10 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .build());
 
         return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
-                .subjectType(org.ost.platform.core.model.EntityType.USER)
-                .subjectId(user.getId())
+                .subjects(java.util.List.of(
+                        new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER, user.getId()),
+                        new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER_SETTINGS, user.getId())))
+                .actorId(user.getId())
                 .viewerActorId(user.getId())
                 .emptyLabel(getValue(ACTIVITY_EMPTY))
                 .bindings(java.util.List.of(userBinding, settingsBinding))

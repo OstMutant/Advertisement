@@ -31,6 +31,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.audit.ui.SnapshotBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -193,8 +194,10 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
         return auditUi.buildProfileActivityPanel(AuditUiPort.ProfileActivityParams.builder()
-                .subjectType(EntityType.USER)
-                .subjectId(currentUser.getId())
+                .subjects(java.util.List.of(
+                        new EntityRef(EntityType.USER, currentUser.getId()),
+                        new EntityRef(EntityType.USER_SETTINGS, currentUser.getId())))
+                .actorId(currentUser.getId())
                 .viewerActorId(currentUser.getId())
                 .emptyLabel(getValue(ACTIVITY_EMPTY))
                 .bindings(java.util.List.of(settingsBinding))

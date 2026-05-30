@@ -166,6 +166,32 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 ---
 
+## 2026-05-30 — Repository unified: findRows + findRowsByActor replace domain-coupled UNION query
+
+**Decision:** `findActivityForProfile(Long userId)` removed. Replaced by two clean, domain-free methods:
+- `findRows(EntityType, Long entityId, Long filterActorId)` — entity-scoped; window functions over all rows for this entity, optional actor filter.
+- `findRowsByActor(Long actorId)` — actor-scoped; window functions over all rows where actor_id matches.
+
+`AuditActivityService.getForSubject(List<EntityRef> subjects, Long actorId)` merges streams from multiple `findRows` calls (one per subject entity) + `findRowsByActor`, deduplicates by id, sorts by `createdAt DESC`, limits to 20 in Java.
+
+`ProfileActivityParams` and `ProfileActivityPanel.Parameters` now carry `List<EntityRef> subjects` + `Long actorId` instead of `subjectType`+`subjectId`. Marketplace passes `[EntityRef(USER, id), EntityRef(USER_SETTINGS, id)]` as subjects — the starter has zero knowledge of which entity types constitute a "profile".
+
+**Why:** The old UNION had `entity_type IN ('USER', 'USER_SETTINGS')` hardcoded — domain knowledge in the persistence layer. Now the repository is domain-free; marketplace decides which entities to include.
+
+**Rule:** `AuditLogRepository` must not contain any `EntityType` name literals or UNION queries combining domain-specific filters. One method per query axis (by entity, by actor).
+
+---
+
+## 2026-05-30 — changes_summary removed; diff computed dynamically on read
+
+**Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by `AuditDiffService.diff(previous, current)` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogRow` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
+
+**Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditDiffService` dependency. `AuditDiffService` is now a read-side concern only (injected by `AuditHistoryService` and `AuditActivityService`).
+
+**Rule:** Never store pre-computed diffs. Always derive changes from snapshot pairs at read time.
+
+---
+
 ## 2026-05-30 — Generic AuditLogRow: one repository DTO for history and activity
 
 **Decision:** `AuditLogRepository` returns a single generic `AuditLogRow` record instead of `AuditHistoryItemDto` / `AuditActivityItemDto`. Window functions (`ROW_NUMBER()`, `LAG()`) are computed at SQL level and included in the record. Services transform `AuditLogRow` into their specific DTOs.

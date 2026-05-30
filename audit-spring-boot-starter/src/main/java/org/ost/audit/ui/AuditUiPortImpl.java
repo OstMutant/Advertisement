@@ -30,8 +30,8 @@ public class AuditUiPortImpl implements AuditUiPort {
     @Override
     public Component buildProfileActivityPanel(ProfileActivityParams p) {
         return profileActivityBuilder.build(ProfileActivityPanel.Parameters.builder()
-                .subjectType(p.getSubjectType())
-                .subjectId(p.getSubjectId())
+                .subjects(p.getSubjects())
+                .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())
                 .emptyLabel(p.getEmptyLabel())
                 .bindings(p.getBindings())

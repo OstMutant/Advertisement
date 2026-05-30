@@ -22,7 +22,6 @@
                 <constraints nullable="false"/>
             </column>
             <column name="snapshot_data" type="JSONB"/>
-            <column name="changes_summary" type="JSONB"/>
             <column name="actor_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
@@ -41,10 +40,6 @@
             <column name="actor_id"/>
             <column name="created_at" descending="true"/>
         </createIndex>
-
-        <sql>
-            CREATE INDEX IF NOT EXISTS idx_audit_changes_gin ON audit_log USING GIN (changes_summary);
-        </sql>
 
     </changeSet>
 

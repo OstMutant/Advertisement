@@ -6,7 +6,6 @@ import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -28,9 +27,10 @@ import java.util.Optional;
  * <p>Write side: {@link #save} appends a new snapshot row; {@link #deleteOlderThan} is called by the
  * cleanup scheduler.
  *
- * <p>Read side returns {@link AuditLogRow} — a generic record with SQL window-function columns
- * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time.
- * Callers ({@code AuditHistoryService}, {@code AuditActivityService}) map rows to their specific DTOs.
+ * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findRowsByActor}
+ * queries by actor across all entities. Both return {@link AuditLogRow} with SQL window-function columns
+ * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time — correct
+ * for future pagination. Services map rows to their specific DTOs and apply limits via streams.
  *
  * <p>Snapshot-specific queries ({@link #getLastSnapshot}, {@link #getSnapshotContent},
  * {@link #getPreviousSnapshotContent}) are used by {@code DefaultAuditPort} for restore flows
@@ -48,18 +48,17 @@ public class AuditLogRepository {
     // ── Write ─────────────────────────────────────────────────────────────────
 
     public void save(EntityType entityType, Long entityId, ActionType actionType,
-                     AuditableSnapshot snapshotData, List<ChangeEntry> changesSummary, Long actorId) {
+                     AuditableSnapshot snapshotData, Long actorId) {
         jdbcClient.sql("""
-                        INSERT INTO audit_log (entity_type, entity_id, action_type, snapshot_data, changes_summary, actor_id)
-                        VALUES (:entityType, :entityId, :actionType, :snapshotData, :changesSummary, :actorId)
+                        INSERT INTO audit_log (entity_type, entity_id, action_type, snapshot_data, actor_id)
+                        VALUES (:entityType, :entityId, :actionType, :snapshotData, :actorId)
                         """)
                   .paramSource(new MapSqlParameterSource()
-                          .addValue("entityType",     entityType.name())
-                          .addValue("entityId",       entityId)
-                          .addValue("actionType",     actionType.name())
-                          .addValue("snapshotData",   mapper.toSnapshotJson(snapshotData),   Types.OTHER)
-                          .addValue("changesSummary", mapper.toChangesJson(changesSummary),  Types.OTHER)
-                          .addValue("actorId",        actorId))
+                          .addValue("entityType",   entityType.name())
+                          .addValue("entityId",     entityId)
+                          .addValue("actionType",   actionType.name())
+                          .addValue("snapshotData", mapper.toSnapshotJson(snapshotData), Types.OTHER)
+                          .addValue("actorId",      actorId))
                   .update();
     }
 
@@ -70,60 +69,44 @@ public class AuditLogRepository {
 
     // ── Read — generic rows ───────────────────────────────────────────────────
 
-    public List<AuditLogRow> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
+    public List<AuditLogRow> findRows(EntityType entityType, Long entityId, Long filterActorId) {
         return jdbcClient.sql("""
                         WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text                                                                 AS snapshot_data,
-                                   changes_summary::text                                                               AS changes_summary,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS version,
+                                   snapshot_data::text                                                                  AS snapshot_data,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)         AS version,
                                    LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_id,
                                    LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
                             FROM audit_log
                             WHERE entity_type = :entityType AND entity_id = :entityId
                         )
                         SELECT * FROM numbered
-                        WHERE CAST(:filterUserId AS BIGINT) IS NULL OR actor_id = :filterUserId
-                        ORDER BY version DESC
-                        LIMIT 100
+                        WHERE CAST(:filterActorId AS BIGINT) IS NULL OR actor_id = :filterActorId
+                        ORDER BY created_at DESC
                         """)
                          .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType",   entityType.name())
-                                 .addValue("entityId",     entityId)
-                                 .addValue("filterUserId", filterUserId))
+                                 .addValue("entityType",    entityType.name())
+                                 .addValue("entityId",      entityId)
+                                 .addValue("filterActorId", filterActorId))
                          .query(rowMapper)
                          .list();
     }
 
-    public List<AuditLogRow> findActivityForProfile(Long userId) {
+    public List<AuditLogRow> findRowsByActor(Long actorId) {
         return jdbcClient.sql("""
-                        WITH combined AS (
+                        WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text   AS snapshot_data,
-                                   changes_summary::text AS changes_summary
-                            FROM audit_log
-                            WHERE actor_id = :userId
-                            UNION
-                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text   AS snapshot_data,
-                                   changes_summary::text AS changes_summary
-                            FROM audit_log
-                            WHERE entity_id = :userId
-                              AND entity_type IN ('USER', 'USER_SETTINGS')
-                              AND actor_id != :userId
-                        ),
-                        numbered AS (
-                            SELECT c.*,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS version,
+                                   snapshot_data::text                                                                  AS snapshot_data,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)         AS version,
                                    LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_id,
-                                   LAG(snapshot_data)       OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
-                            FROM combined c
+                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
+                            FROM audit_log
+                            WHERE actor_id = :actorId
                         )
                         SELECT * FROM numbered
                         ORDER BY created_at DESC
-                        LIMIT 20
                         """)
-                         .paramSource(new MapSqlParameterSource("userId", userId))
+                         .paramSource(new MapSqlParameterSource("actorId", actorId))
                          .query(rowMapper)
                          .list();
     }
@@ -201,7 +184,6 @@ public class AuditLogRepository {
                     rs.getObject("entity_id",   Long.class),
                     ActionType.valueOf(rs.getString("action_type")),
                     rs.getString("snapshot_data"),
-                    rs.getString("changes_summary"),
                     rs.getObject("actor_id",    Long.class),
                     instant(rs, "created_at"),
                     rs.getInt("version"),

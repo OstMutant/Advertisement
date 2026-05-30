@@ -11,28 +11,42 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityEnrichHook;
 import org.ost.platform.core.spi.EntityNameHook;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
 public class AuditActivityService {
 
-    private final AuditLogRepository        repository;
+    private final AuditLogRepository            repository;
     private final AuditJsonSerializationService jsonService;
-    private final ActivityEnrichHook        activityEnrichHook;
-    private final AuditDomainHelper         auditDomainHelper;
-    private final List<EntityNameHook>      entityNameHooks;
+    private final AuditDiffService              diffService;
+    private final ActivityEnrichHook            activityEnrichHook;
+    private final AuditDomainHelper             auditDomainHelper;
+    private final List<EntityNameHook>          entityNameHooks;
 
-    public List<AuditActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
-        List<AuditActivityItemDto> base = repository.findActivityForProfile(subjectId)
-                .stream().map(this::toActivityItem).toList();
+    public List<AuditActivityItemDto> getForSubject(List<EntityRef> subjects, Long actorId) {
+        Stream<AuditLogRow> subjectRows = subjects.stream()
+                .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null).stream());
+        Stream<AuditLogRow> actorRows = actorId != null
+                ? repository.findRowsByActor(actorId).stream()
+                : Stream.empty();
 
-        List<AuditActivityItemDto> combined = activityEnrichHook.merge(new EntityRef(subjectType, subjectId), base);
+        List<AuditActivityItemDto> base = Stream.concat(subjectRows, actorRows)
+                .collect(Collectors.toMap(AuditLogRow::id, r -> r, (a, b) -> a))
+                .values().stream()
+                .sorted(Comparator.comparing(AuditLogRow::createdAt).reversed())
+                .limit(20)
+                .map(this::toActivityItem)
+                .toList();
+
+        List<AuditActivityItemDto> combined = activityEnrichHook.merge(
+                subjects.isEmpty() ? null : subjects.getFirst(), base);
         combined = resolveDisplayNames(combined);
-
         combined = auditDomainHelper.withResolvedActorNames(
                 combined,
                 AuditActivityItemDto::changedByActorId,
@@ -44,12 +58,13 @@ public class AuditActivityService {
     }
 
     private AuditActivityItemDto toActivityItem(AuditLogRow row) {
-        AuditableSnapshot snapshot = jsonService.fromSnapshot(row.snapshotDataJson());
+        AuditableSnapshot current  = jsonService.fromSnapshot(row.snapshotDataJson());
+        AuditableSnapshot previous = jsonService.fromSnapshot(row.prevSnapshotDataJson());
         return new AuditActivityItemDto(
                 row.id(), row.entityId(), row.entityType(),
                 "", row.actionType(), row.createdAt(), false,
-                jsonService.fromJsonList(row.changesSummaryJson()),
-                row.actorId(), null, snapshot
+                diffService.diff(previous, current),
+                row.actorId(), null, current
         );
     }
 

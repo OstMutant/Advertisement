@@ -7,7 +7,6 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.services.AuditCleanupService;
-import org.ost.audit.services.AuditDiffService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -55,10 +54,9 @@ public class AuditAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean(AuditPort.class)
-    DefaultAuditPort defaultAuditPort(AuditDiffService diffEngine,
-                                      AuditLogRepository auditLogRepository,
+    DefaultAuditPort defaultAuditPort(AuditLogRepository auditLogRepository,
                                       CurrentActorHook currentActorHook) {
-        return new DefaultAuditPort(diffEngine, auditLogRepository, currentActorHook);
+        return new DefaultAuditPort(auditLogRepository, currentActorHook);
     }
 
 }
