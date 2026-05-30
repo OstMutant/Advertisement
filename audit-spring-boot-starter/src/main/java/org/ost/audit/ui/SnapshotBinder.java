@@ -11,7 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.ComponentBuilder;
@@ -64,7 +64,7 @@ public class SnapshotBinder<T>
     }
 
     @Override
-    public Component decorate(ActivityItemDto item) {
+    public Component decorate(AuditActivityItemDto item) {
         if (item.snapshotId() == null || item.snapshotId() <= 0) return null;
         AuditableSnapshot raw = item.snapshotData();
         return Optional.ofNullable(raw)

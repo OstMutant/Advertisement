@@ -247,7 +247,16 @@
       "Bash(awk '/27 Wed 19:23:15/,/27 Wed 19:23:32/')",
       "Bash(/opt/java/openjdk/bin/jar tf *)",
       "Bash(tee /tmp/compile.log)",
-      "Bash(tee /tmp/pw.log)"
+      "Bash(tee /tmp/pw.log)",
+      "Bash(echo \"Build started PID=$!\")",
+      "Bash(tee /tmp/test2.log)",
+      "Bash(tee /tmp/test3.log)",
+      "Bash(tee /tmp/test4.log)",
+      "Bash(tee /tmp/playwright.log)",
+      "Bash(tee /tmp/test5.log)",
+      "Bash(tee /tmp/playwright2.log)",
+      "Bash(tee /tmp/pw-video.log)",
+      "Bash(tee /tmp/build.log)"
     ]
   },
   "hooks": {

@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
@@ -94,7 +94,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        SnapshotContentDto content = Optional.ofNullable(auditPort.getIfAvailable())
+        AuditSnapshotContentDto content = Optional.ofNullable(auditPort.getIfAvailable())
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;

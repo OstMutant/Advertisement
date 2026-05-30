@@ -10,7 +10,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.platform.audit.dto.EntityHistoryDto;
+import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
@@ -146,7 +146,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                 .build());
     }
 
-    private void showRestoreConfirm(EntityHistoryDto h, long snapshotId) {
+    private void showRestoreConfirm(AuditHistoryItemDto h, long snapshotId) {
         confirmDialogBuilder.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)

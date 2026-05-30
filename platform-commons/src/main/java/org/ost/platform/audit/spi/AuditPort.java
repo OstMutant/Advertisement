@@ -1,7 +1,7 @@
 package org.ost.platform.audit.spi;
 
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.EntityType;
 
 import java.util.Optional;
@@ -17,19 +17,19 @@ public interface AuditPort {
     void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId);
     void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId);
 
-    Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType);
-    Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
+    Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType);
+    Optional<AuditSnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
 
     default <T extends AuditableSnapshot> Optional<T> getSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
         return getSnapshotContent(snapshotId, entityType)
-                .map(SnapshotContentDto::snapshotData)
+                .map(AuditSnapshotContentDto::snapshotData)
                 .filter(type::isInstance)
                 .map(type::cast);
     }
 
     default <T extends AuditableSnapshot> Optional<T> getPreviousSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
         return getPreviousSnapshotContent(snapshotId, entityType)
-                .map(SnapshotContentDto::snapshotData)
+                .map(AuditSnapshotContentDto::snapshotData)
                 .filter(type::isInstance)
                 .map(type::cast);
     }

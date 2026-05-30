@@ -4,8 +4,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.ActivityItemDto;
-import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -110,19 +110,19 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreBeforeSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<SnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
+        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
                 .flatMap(p -> p.getPreviousSnapshotContent(snapshotId, EntityType.USER));
         return applyUserRestore(userId, content, actingUserId);
     }
 
     @Transactional
     public Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<SnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
+        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER));
         return applyUserRestore(userId, content, actingUserId);
     }
 
-    private Optional<User> applyUserRestore(Long userId, Optional<SnapshotContentDto> contentOpt, Long actingUserId) {
+    private Optional<User> applyUserRestore(Long userId, Optional<AuditSnapshotContentDto> contentOpt, Long actingUserId) {
         return contentOpt.flatMap(this::parseUserSnapshotDto).flatMap(snap -> {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
@@ -136,7 +136,7 @@ public class UserService {
         });
     }
 
-    private Optional<UserSnapshotDto> parseUserSnapshotDto(SnapshotContentDto content) {
+    private Optional<UserSnapshotDto> parseUserSnapshotDto(AuditSnapshotContentDto content) {
         return content.snapshotData() instanceof UserSnapshotDto u ? Optional.of(u) : Optional.empty();
     }
 
@@ -161,14 +161,14 @@ public class UserService {
         };
     }
 
-    public List<ChangeEntry> expandActivityFields(ActivityItemDto item) {
+    public List<ChangeEntry> expandActivityFields(AuditActivityItemDto item) {
         return switch (item.entityType()) {
             case USER_SETTINGS -> expandSettingsFields(item);
             default            -> expandUserFields(item);
         };
     }
 
-    private List<ChangeEntry> expandUserFields(ActivityItemDto item) {
+    private List<ChangeEntry> expandUserFields(AuditActivityItemDto item) {
         if (!(item.snapshotData() instanceof UserSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
         addActivityField(result, item.changes(), "name",  I18nKey.CHANGES_FIELD_NAME,  state.name());
@@ -177,7 +177,7 @@ public class UserService {
         return result;
     }
 
-    private List<ChangeEntry> expandSettingsFields(ActivityItemDto item) {
+    private List<ChangeEntry> expandSettingsFields(AuditActivityItemDto item) {
         if (!(item.snapshotData() instanceof SettingsSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
         addSettingField(result, item.changes(), "adsPageSize",   state.adsPageSize());

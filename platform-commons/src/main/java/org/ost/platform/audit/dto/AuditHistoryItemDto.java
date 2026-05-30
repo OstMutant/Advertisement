@@ -7,7 +7,7 @@ import org.ost.platform.core.model.ChangeEntry;
 import java.time.Instant;
 import java.util.List;
 
-public record EntityHistoryDto(
+public record AuditHistoryItemDto(
         Long              snapshotId,
         int               version,
         ActionType        actionType,

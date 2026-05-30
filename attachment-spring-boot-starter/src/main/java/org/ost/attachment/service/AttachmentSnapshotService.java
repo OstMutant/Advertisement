@@ -4,7 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import org.ost.attachment.util.YoutubeUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.attachment.repository.AttachmentRepository;
@@ -71,14 +71,14 @@ public class AttachmentSnapshotService {
                 .orElse(List.of());
     }
 
-    public List<ActivityItemDto> mergeMediaChanges(List<ActivityItemDto> baseItems) {
+    public List<AuditActivityItemDto> mergeMediaChanges(List<AuditActivityItemDto> baseItems) {
         return baseItems.stream()
                 .map(item -> {
                     List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());
                     if (mediaChanges.isEmpty()) return item;
                     List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
                     merged.addAll(item.changes());
-                    return new ActivityItemDto(
+                    return new AuditActivityItemDto(
                             item.snapshotId(), item.entityId(), item.entityType(),
                             item.displayName(), item.actionType(), item.createdAt(),
                             item.entityExists(), merged, item.changedByActorId(),

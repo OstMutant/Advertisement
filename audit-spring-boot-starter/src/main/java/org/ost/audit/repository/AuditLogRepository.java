@@ -4,13 +4,10 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.ActivityItemDto;
-import org.ost.platform.audit.dto.EntityHistoryDto;
-import org.ost.platform.audit.dto.SnapshotContentDto;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.EntityNameHook;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -25,6 +22,20 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Persistence layer for the audit subsystem. All reads and writes go through {@code audit_log} table.
+ *
+ * <p>Write side: {@link #save} appends a new snapshot row; {@link #deleteOlderThan} is called by the
+ * cleanup scheduler.
+ *
+ * <p>Read side returns {@link AuditLogRow} — a generic record with SQL window-function columns
+ * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time.
+ * Callers ({@code AuditHistoryService}, {@code AuditActivityService}) map rows to their specific DTOs.
+ *
+ * <p>Snapshot-specific queries ({@link #getLastSnapshot}, {@link #getSnapshotContent},
+ * {@link #getPreviousSnapshotContent}) are used by {@code DefaultAuditPort} for restore flows
+ * and return typed results directly.
+ */
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -32,8 +43,7 @@ public class AuditLogRepository {
 
     private final JdbcClient                    jdbcClient;
     private final AuditJsonSerializationService mapper;
-    private final RowMapper<ActivityItemDto>    activityMapper;
-    private final RowMapper<EntityHistoryDto>   historyMapper;
+    private final RowMapper<AuditLogRow>        rowMapper;
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
@@ -58,7 +68,67 @@ public class AuditLogRepository {
                   .paramSource(new MapSqlParameterSource("days", days)).update();
     }
 
-    // ── Read ──────────────────────────────────────────────────────────────────
+    // ── Read — generic rows ───────────────────────────────────────────────────
+
+    public List<AuditLogRow> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
+        return jdbcClient.sql("""
+                        WITH numbered AS (
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text                                                                 AS snapshot_data,
+                                   changes_summary::text                                                               AS changes_summary,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS version,
+                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_id,
+                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
+                            FROM audit_log
+                            WHERE entity_type = :entityType AND entity_id = :entityId
+                        )
+                        SELECT * FROM numbered
+                        WHERE CAST(:filterUserId AS BIGINT) IS NULL OR actor_id = :filterUserId
+                        ORDER BY version DESC
+                        LIMIT 100
+                        """)
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType",   entityType.name())
+                                 .addValue("entityId",     entityId)
+                                 .addValue("filterUserId", filterUserId))
+                         .query(rowMapper)
+                         .list();
+    }
+
+    public List<AuditLogRow> findActivityForProfile(Long userId) {
+        return jdbcClient.sql("""
+                        WITH combined AS (
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text   AS snapshot_data,
+                                   changes_summary::text AS changes_summary
+                            FROM audit_log
+                            WHERE actor_id = :userId
+                            UNION
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text   AS snapshot_data,
+                                   changes_summary::text AS changes_summary
+                            FROM audit_log
+                            WHERE entity_id = :userId
+                              AND entity_type IN ('USER', 'USER_SETTINGS')
+                              AND actor_id != :userId
+                        ),
+                        numbered AS (
+                            SELECT c.*,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS version,
+                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_id,
+                                   LAG(snapshot_data)       OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
+                            FROM combined c
+                        )
+                        SELECT * FROM numbered
+                        ORDER BY created_at DESC
+                        LIMIT 20
+                        """)
+                         .paramSource(new MapSqlParameterSource("userId", userId))
+                         .query(rowMapper)
+                         .list();
+    }
+
+    // ── Read — snapshot-specific (used by DefaultAuditPort for restore flows) ─
 
     public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
         return jdbcClient.sql("""
@@ -74,7 +144,7 @@ public class AuditLogRepository {
                          .map(mapper::fromSnapshot);
     }
 
-    public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql("""
                         SELECT a.snapshot_data::text AS snapshot_data,
                                (SELECT COUNT(*) FROM audit_log b
@@ -89,7 +159,7 @@ public class AuditLogRepository {
                          .optional();
     }
 
-    public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<AuditSnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql("""
                         SELECT prev.snapshot_data::text AS snapshot_data,
                                (SELECT COUNT(*) FROM audit_log b
@@ -112,126 +182,31 @@ public class AuditLogRepository {
                          .optional();
     }
 
-    public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
-        return jdbcClient.sql("""
-                        WITH numbered AS (
-                            SELECT id,
-                                   ROW_NUMBER()              OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS version,
-                                   LAG(id)                   OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS prev_id,
-                                   LAG(snapshot_data::text)  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)        AS prev_snapshot_data,
-                                   snapshot_data::text                                                                              AS snapshot_data,
-                                   action_type,
-                                   changes_summary::text                                                                            AS changes_summary,
-                                   actor_id,
-                                   created_at
-                            FROM audit_log
-                            WHERE entity_type = :entityType AND entity_id = :entityId
-                        )
-                        SELECT al.id, al.version::int, al.action_type,
-                               al.actor_id,
-                               NULL::text AS changed_by_name,
-                               al.created_at,
-                               al.snapshot_data,
-                               al.changes_summary,
-                               al.prev_id,
-                               al.prev_snapshot_data
-                        FROM numbered al
-                        WHERE CAST(:filterUserId AS BIGINT) IS NULL OR al.actor_id = :filterUserId
-                        ORDER BY al.version DESC
-                        LIMIT 100
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType",   entityType.name())
-                                 .addValue("entityId",     entityId)
-                                 .addValue("filterUserId", filterUserId))
-                         .query(historyMapper)
-                         .list();
-    }
-
-    public List<ActivityItemDto> findActivityForProfile(Long userId) {
-        return jdbcClient.sql("""
-                        SELECT al.id AS snapshot_id, al.entity_id, al.entity_type, al.action_type,
-                               al.created_at, FALSE AS entity_exists,
-                               al.changes_summary::text AS changes_summary,
-                               al.actor_id, NULL::text AS changed_by_name,
-                               al.snapshot_data::text AS snapshot_data
-                        FROM audit_log al
-                        WHERE al.actor_id = :userId
-                        UNION
-                        SELECT al.id AS snapshot_id, al.entity_id, al.entity_type, al.action_type,
-                               al.created_at, FALSE AS entity_exists,
-                               al.changes_summary::text AS changes_summary,
-                               al.actor_id, NULL::text AS changed_by_name,
-                               al.snapshot_data::text AS snapshot_data
-                        FROM audit_log al
-                        WHERE al.entity_id = :userId
-                          AND al.entity_type IN ('USER', 'USER_SETTINGS')
-                          AND al.actor_id != :userId
-                        ORDER BY created_at DESC
-                        LIMIT 20
-                        """)
-                         .paramSource(new MapSqlParameterSource("userId", userId))
-                         .query(activityMapper)
-                         .list();
-    }
-
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private SnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
-        return new SnapshotContentDto(mapper.fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
+    private AuditSnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
+        return new AuditSnapshotContentDto(mapper.fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
-    // ── Inner RowMappers ──────────────────────────────────────────────────────
+    // ── Inner RowMapper ───────────────────────────────────────────────────────
 
     @Component
-    @RequiredArgsConstructor
-    public static final class ActivityMapper implements RowMapper<ActivityItemDto> {
-        private final AuditJsonSerializationService mapper;
-        private final List<EntityNameHook> resolvers;
+    public static final class AuditLogRowMapper implements RowMapper<AuditLogRow> {
 
         @Override
-        public ActivityItemDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-            EntityType entityType = EntityType.valueOf(rs.getString("entity_type"));
-            AuditableSnapshot snapshot = mapper.fromSnapshot(rs.getString("snapshot_data"));
-            String displayName = resolvers.stream()
-                    .filter(r -> r.supports(entityType))
-                    .findFirst()
-                    .map(r -> r.resolveDisplayName(entityType, snapshot))
-                    .orElse("");
-            return new ActivityItemDto(
-                    rs.getObject("snapshot_id", Long.class),
+        public AuditLogRow mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
+            return new AuditLogRow(
+                    rs.getObject("id",          Long.class),
+                    EntityType.valueOf(rs.getString("entity_type")),
                     rs.getObject("entity_id",   Long.class),
-                    entityType,
-                    displayName,
                     ActionType.valueOf(rs.getString("action_type")),
+                    rs.getString("snapshot_data"),
+                    rs.getString("changes_summary"),
+                    rs.getObject("actor_id",    Long.class),
                     instant(rs, "created_at"),
-                    rs.getObject("entity_exists", Boolean.class),
-                    mapper.fromJsonList(rs.getString("changes_summary")),
-                    rs.getObject("actor_id",      Long.class),
-                    rs.getString("changed_by_name"),
-                    snapshot
-            );
-        }
-    }
-
-    @Component
-    @RequiredArgsConstructor
-    public static final class HistoryMapper implements RowMapper<EntityHistoryDto> {
-        private final AuditJsonSerializationService mapper;
-
-        @Override
-        public EntityHistoryDto mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
-            return new EntityHistoryDto(
-                    rs.getObject("id",      Long.class),
                     rs.getInt("version"),
-                    ActionType.valueOf(rs.getString("action_type")),
-                    rs.getObject("actor_id", Long.class),
-                    rs.getString("changed_by_name"),
-                    instant(rs, "created_at"),
-                    mapper.fromJsonList(rs.getString("changes_summary")),
-                    rs.getObject("prev_id", Long.class),
-                    mapper.fromSnapshot(rs.getString("snapshot_data")),
-                    mapper.fromSnapshot(rs.getString("prev_snapshot_data"))
+                    rs.getObject("prev_id",     Long.class),
+                    rs.getString("prev_snapshot_data")
             );
         }
     }

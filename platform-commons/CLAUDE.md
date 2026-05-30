@@ -55,13 +55,13 @@ Starters are optional — marketplace compiles and runs without them on the clas
 ```java
 // ✅ correct
 @Override
-public List<ActivityItemDto> merge(EntityType t, Long id, List<ActivityItemDto> items) {
+public List<AuditActivityItemDto> merge(EntityType t, Long id, List<AuditActivityItemDto> items) {
     return myService.mergeMediaChanges(items);
 }
 
 // ❌ wrong — logic belongs in a service
 @Override
-public List<ActivityItemDto> merge(EntityType t, Long id, List<ActivityItemDto> items) {
+public List<AuditActivityItemDto> merge(EntityType t, Long id, List<AuditActivityItemDto> items) {
     return items.stream().map(item -> { /* ... parsing, merging ... */ }).toList();
 }
 ```

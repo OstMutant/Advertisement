@@ -9,7 +9,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.EntityHistoryDto;
+import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
@@ -41,7 +41,7 @@ public class EntityHistoryPanel extends Div
         Long       userId;
         boolean    isPrivileged;
         boolean                                canOperate;
-        ObjLongConsumer<EntityHistoryDto>      onRestoreRequested;
+        ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
         String     labelEmpty;
         String     labelCurrentState;
         String     labelRestore;
@@ -73,7 +73,7 @@ public class EntityHistoryPanel extends Div
                 .getLastSnapshot(p.getEntityType(), p.getEntityId())
                 .orElse(null);
 
-        List<EntityHistoryDto> history = auditHistoryService
+        List<AuditHistoryItemDto> history = auditHistoryService
                 .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
 
         if (history.isEmpty()) {
@@ -89,7 +89,7 @@ public class EntityHistoryPanel extends Div
                 p.getOnRestoreRequested());
         ActivityRowRenderer renderer = rendererProvider.getObject();
 
-        for (EntityHistoryDto h : history) {
+        for (AuditHistoryItemDto h : history) {
             add(buildRow(h, renderer, ctx));
         }
         return this;
@@ -98,9 +98,9 @@ public class EntityHistoryPanel extends Div
     private record RowContext(
             EntityType entityType, Long entityId, AuditableSnapshot currentSnapshot, int historySize,
             boolean canOperate, String labelCurrentState, String labelRestore,
-            ObjLongConsumer<EntityHistoryDto> onRestoreRequested) {}
+            ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
 
-    private Div buildRow(EntityHistoryDto h, ActivityRowRenderer renderer, RowContext ctx) {
+    private Div buildRow(AuditHistoryItemDto h, ActivityRowRenderer renderer, RowContext ctx) {
         EntityType entityType        = ctx.entityType();
         Long entityId                = ctx.entityId();
         AuditableSnapshot currentSnap  = ctx.currentSnapshot();
@@ -108,7 +108,7 @@ public class EntityHistoryPanel extends Div
         boolean canOperate           = ctx.canOperate();
         String labelCurrentState     = ctx.labelCurrentState();
         String labelRestore          = ctx.labelRestore();
-        ObjLongConsumer<EntityHistoryDto> onRestoreRequested = ctx.onRestoreRequested();
+        ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested = ctx.onRestoreRequested();
 
         Div row = new Div();
         row.addClassName("entity-history-row");

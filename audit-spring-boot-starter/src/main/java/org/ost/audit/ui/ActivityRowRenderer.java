@@ -7,8 +7,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.ActivityItemDto;
-import org.ost.platform.audit.dto.EntityHistoryDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -40,7 +40,7 @@ public class ActivityRowRenderer {
     private final List<ActivityRenderHook>             renderStrategies;
     private final AuditJsonSerializationService            jsonService;
 
-    public Div buildRow(ActivityItemDto item, Long viewerActorId) {
+    public Div buildRow(AuditActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
         if (!item.entityExists()) row.addClassName("activity-feed-row--deleted");
@@ -71,7 +71,7 @@ public class ActivityRowRenderer {
         return row;
     }
 
-    private Div buildActivityFieldsList(ActivityItemDto item) {
+    private Div buildActivityFieldsList(AuditActivityItemDto item) {
         ActivityRenderHook strategy = renderStrategies.stream()
                 .filter(s -> s.entityType() == item.entityType())
                 .findFirst().orElse(null);
@@ -105,7 +105,7 @@ public class ActivityRowRenderer {
         return container;
     }
 
-    public Div buildHistoryFieldsList(EntityHistoryDto h, EntityRef ref) {
+    public Div buildHistoryFieldsList(AuditHistoryItemDto h, EntityRef ref) {
         ActivityRenderHook strategy = renderStrategies.stream()
                 .filter(s -> s.entityType() == ref.entityType())
                 .findFirst().orElse(null);

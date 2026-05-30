@@ -29,15 +29,15 @@ Write and read sides were initially separate modules (`audit-core` + `audit-read
 
 `audit-spring-boot-starter` contains zero knowledge of advertisement-specific entities, field names, or business logic. The module is reusable in any Spring Boot + Vaadin project without modification.
 
-Key changes that completed decoupling: `AdvertisementHistoryProjection` → generic `EntityHistoryProjection`; `AdvertisementHistoryDto` → `EntityHistoryDto` with `SnapshotPayload`; `ActivityProjection` uses single generic query; display name resolution delegated to `EntityDisplayNameResolver` SPI; CSS classes renamed to domain-neutral vocabulary (`entity-history-*`, `activity-feed-*`).
+Key changes that completed decoupling: `AdvertisementHistoryProjection` → generic `EntityHistoryProjection`; `AdvertisementHistoryDto` → `AuditHistoryItemDto` with `SnapshotPayload`; `ActivityProjection` uses single generic query; display name resolution delegated to `EntityDisplayNameResolver` SPI; CSS classes renamed to domain-neutral vocabulary (`entity-history-*`, `activity-feed-*`).
 
 ---
 
 ## 2026-05-19 — Profile activity decoration via SnapshotBinder + ActivityRowBinding SPI
 
-**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `ActivityRowBinding` — an SPI with `entityType()` + `decorate(ActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
+**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `ActivityRowBinding` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
 
-`SnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `ActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
+`SnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
 
 **Why:** The previous pattern parsed snapshot JSON inside the starter — coupling it to specific user/settings shapes. The SPI puts shape knowledge on the consumer side.
 
@@ -163,6 +163,69 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `ActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
 
 **Why:** The audit starter called an `attachment.spi` hook directly — starter-to-starter coupling through the SPI layer. Marketplace is the correct orchestrator; it knows about both subsystems. `ObjectProvider` for required hooks implied optionality that was architecturally false.
+
+---
+
+## 2026-05-30 — Generic AuditLogRow: one repository DTO for history and activity
+
+**Decision:** `AuditLogRepository` returns a single generic `AuditLogRow` record instead of `AuditHistoryItemDto` / `AuditActivityItemDto`. Window functions (`ROW_NUMBER()`, `LAG()`) are computed at SQL level and included in the record. Services transform `AuditLogRow` into their specific DTOs.
+
+```java
+public record AuditLogRow(
+    Long       id,
+    EntityType entityType,
+    Long       entityId,
+    ActionType actionType,
+    String     snapshotDataJson,
+    String     changesSummaryJson,
+    Long       actorId,
+    Instant    createdAt,
+    int        version,
+    Long       prevId,
+    String     prevSnapshotDataJson
+) {}
+```
+
+- `AuditHistoryService` maps `AuditLogRow` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
+- `AuditActivityService` maps `AuditLogRow` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
+- Repository has one `RowMapper<AuditLogRow>`, no dependency on service-layer DTOs or hooks
+
+**Why:** The repository previously depended on `AuditHistoryItemDto`, `AuditActivityItemDto`, and `EntityNameHook` — service-layer concerns bleeding into the persistence layer. With `AuditLogRow`, the repository is a pure SQL → data layer. `ROW_NUMBER()` and `LAG()` stay in SQL because Java-side computation breaks with future pagination (you can only paginate correctly if the window is computed over the full dataset in SQL).
+
+**Pagination:** future cursor/offset pagination is added at the repository query level only — services and UI panels are unaffected.
+
+**Rule:** `AuditLogRepository` must not import any service-layer DTO or hook. `AuditLogRow` fields map 1:1 to SQL columns/expressions — no deserialization in the mapper.
+
+---
+
+## Deferred — EntityHistoryPanel / ProfileActivityPanel: full hook-driven row building
+
+**Goal:** Make audit UI panels reusable outside marketplace by moving all domain-specific UI logic out via hooks.
+
+**Current coupling:**
+- `EntityHistoryPanel` contains restore button logic (`snapshotsEqual`, `mediaMatchCurrent`, labels) — marketplace domain
+- CSS class names (`entity-history-*`, `activity-feed-*`) are hardcoded in both panels
+- Row structure (version badge, action badge, user, time) is fixed in `EntityHistoryPanel`
+
+**Design:**
+Add `HistoryRowActionsHook` to `audit.spi`:
+```java
+public interface HistoryRowActionsHook {
+    boolean supports(EntityType entityType);
+    Component buildRowActions(AuditHistoryItemDto item, boolean isCurrentState);
+}
+```
+
+`EntityHistoryPanel`:
+- Removes all restore/snapshot comparison logic
+- Calls `hook.buildRowActions(h, isCurrentState)` — adds whatever the hook returns
+- CSS prefix passed via `Parameters` instead of hardcoded
+
+Marketplace implements `HistoryRowActionsHookImpl` with the restore button and "current state" badge.
+
+**Why:** The restore button is a marketplace business decision — the starter should not know what "restore" means or how to compare snapshots. The panel's job is to fetch and lay out history rows; actions are the caller's concern.
+
+**Trigger:** implement when a second consumer of the audit starter appears, or when the current coupling causes a maintenance problem.
 
 ---
 

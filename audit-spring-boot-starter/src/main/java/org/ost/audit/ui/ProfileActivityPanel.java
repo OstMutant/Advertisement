@@ -9,8 +9,8 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.audit.services.ActivityService;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.audit.services.AuditActivityService;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.ComponentBuilder;
@@ -46,7 +46,7 @@ public class ProfileActivityPanel extends Div
         private final ObjectProvider<ProfileActivityPanel> provider;
     }
 
-    private final ActivityService                     activityService;
+    private final AuditActivityService                     activityService;
     private final ObjectProvider<ActivityRowRenderer> rendererProvider;
 
     @Override
@@ -58,7 +58,7 @@ public class ProfileActivityPanel extends Div
 
     @Override
     public ProfileActivityPanel configure(Parameters p) {
-        List<ActivityItemDto> items = activityService.getForSubject(p.getSubjectType(), p.getSubjectId());
+        List<AuditActivityItemDto> items = activityService.getForSubject(p.getSubjectType(), p.getSubjectId());
 
         if (items.isEmpty()) {
             Span empty = new Span(p.getEmptyLabel() != null ? p.getEmptyLabel() : "");
@@ -68,7 +68,7 @@ public class ProfileActivityPanel extends Div
         }
 
         ActivityRowRenderer renderer = rendererProvider.getObject();
-        for (ActivityItemDto item : items) {
+        for (AuditActivityItemDto item : items) {
             Div row = renderer.buildRow(item, p.getViewerActorId());
             decorateRow(row, item, p.getBindings());
             add(row);
@@ -76,7 +76,7 @@ public class ProfileActivityPanel extends Div
         return this;
     }
 
-    private static void decorateRow(Div row, ActivityItemDto item, List<ActivityRowHook> bindings) {
+    private static void decorateRow(Div row, AuditActivityItemDto item, List<ActivityRowHook> bindings) {
         for (ActivityRowHook binding : bindings) {
             if (binding.entityType() == item.entityType()) {
                 Component decoration = binding.decorate(item);

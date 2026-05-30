@@ -2,7 +2,7 @@ package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -18,7 +18,7 @@ public class ActivityEnrichHookImpl implements ActivityEnrichHook {
     private final ObjectProvider<AttachmentAuditHook> attachmentAuditHook;
 
     @Override
-    public List<ActivityItemDto> merge(EntityRef subject, List<ActivityItemDto> base) {
+    public List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> base) {
         AttachmentAuditHook hook = attachmentAuditHook.getIfAvailable();
         return hook != null ? hook.merge(subject, base) : base;
     }

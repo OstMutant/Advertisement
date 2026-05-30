@@ -2,7 +2,7 @@ package org.ost.platform.audit.spi;
 
 import com.vaadin.flow.component.Component;
 import lombok.Value;
-import org.ost.platform.audit.dto.EntityHistoryDto;
+import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.core.model.EntityType;
 
 import java.util.List;
@@ -26,7 +26,7 @@ public interface AuditUiPort {
         Long                                   userId;
         boolean                                isPrivileged;
         boolean                                canOperate;
-        ObjLongConsumer<EntityHistoryDto>      onRestoreRequested;
+        ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
         String                                 labelEmpty;
         String                                 labelCurrentState;
         String                                 labelRestore;

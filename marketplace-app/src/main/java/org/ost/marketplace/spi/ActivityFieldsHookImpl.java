@@ -2,7 +2,7 @@ package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.user.UserService;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -22,7 +22,7 @@ public class ActivityFieldsHookImpl implements ActivityFieldsHook {
     }
 
     @Override
-    public List<ChangeEntry> expandFields(ActivityItemDto item) {
+    public List<ChangeEntry> expandFields(AuditActivityItemDto item) {
         return userService.expandActivityFields(item);
     }
 }

@@ -1,7 +1,7 @@
 package org.ost.platform.audit.spi;
 
 import com.vaadin.flow.component.Component;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.EntityType;
 
 /**
@@ -16,5 +16,5 @@ public interface ActivityRowHook {
 
     EntityType entityType();
 
-    Component decorate(ActivityItemDto item);
+    Component decorate(AuditActivityItemDto item);
 }

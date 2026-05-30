@@ -35,7 +35,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ## 2026-05-19 — `MediaSummary` reclassified as DTO
 
-**Decision:** `MediaSummary` was a return-type record exposed by `AttachmentPort.getMediaSummary(...)`. It lived under `attachment.spi` but has no behavior — it is a display-ready data carrier. Moved to `attachment.dto` and renamed `MediaSummaryDto` for symmetry with `audit.dto.ActivityItemDto` / `EntityHistoryDto`.
+**Decision:** `MediaSummary` was a return-type record exposed by `AttachmentPort.getMediaSummary(...)`. It lived under `attachment.spi` but has no behavior — it is a display-ready data carrier. Moved to `attachment.dto` and renamed `MediaSummaryDto` for symmetry with `audit.dto.AuditActivityItemDto` / `AuditHistoryItemDto`.
 
 **Why:** `*.spi` is for interfaces and extension points; data records belong in `*.dto`. The `Dto` suffix makes the role obvious at the import site (no need to open the file to learn that this is a value object, not a callback).
 
@@ -146,9 +146,9 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ## 2026-05-19 — Activity decoration via SPI: `ActivityRowHook` + `AuditUiPort.buildProfileActivityPanel`
 
-**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(ActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
+**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
 
-`SnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `ActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `SnapshotBinder<SettingsSnapshotDto>` and/or `SnapshotBinder<UserSnapshotDto>` per panel.
+`SnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `SnapshotBinder<SettingsSnapshotDto>` and/or `SnapshotBinder<UserSnapshotDto>` per panel.
 
 **Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `ActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
 
@@ -186,7 +186,7 @@ ui             — Configurable, ComponentBuilder, Initialization, Provider
 
 audit.api      — AuditableSnapshot, AuditedField
 audit.codec    — SnapshotCodec
-audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContentDto, SnapshotPayloadDto
+audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
                  ActivityFieldsHook, ActivityRowHook, ActivityRenderHook
 

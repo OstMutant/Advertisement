@@ -2,7 +2,7 @@ package org.ost.marketplace.spi;
 
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
-import org.ost.platform.audit.dto.ActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityFieldsHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -20,7 +20,7 @@ public class AdvertisementActivityFieldsHookImpl implements ActivityFieldsHook {
     }
 
     @Override
-    public List<ChangeEntry> expandFields(ActivityItemDto item) {
+    public List<ChangeEntry> expandFields(AuditActivityItemDto item) {
         if (!(item.snapshotData() instanceof AdvertisementSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
         addField(result, item.changes(), "title",       I18nKey.CHANGES_FIELD_TITLE,       state.title());

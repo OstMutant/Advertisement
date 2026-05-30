@@ -8,7 +8,7 @@ import org.ost.platform.core.model.EntityType;
 import java.time.Instant;
 import java.util.List;
 
-public record ActivityItemDto(
+public record AuditActivityItemDto(
         Long              snapshotId,
         Long              entityId,
         EntityType        entityType,
