@@ -9,8 +9,7 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.audit.spi.ActivityEnrichHook;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
@@ -21,10 +20,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuditHistoryService {
 
-    private final AuditLogRepository                        auditLogRepository;
-    private final AuditJsonSerializationService             mapper;
-    private final ObjectProvider<AttachmentAuditHook>       attachmentAuditHook;
-    private final AuditDomainHelper                         auditDomainHelper;
+    private final AuditLogRepository            auditLogRepository;
+    private final AuditJsonSerializationService mapper;
+    private final ActivityEnrichHook            activityEnrichHook;
+    private final AuditDomainHelper             auditDomainHelper;
 
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long currentUserId, boolean showAll) {
         List<EntityHistoryDto> history = auditLogRepository.getEntityHistory(
@@ -37,11 +36,9 @@ public class AuditHistoryService {
                         h.actorId(), name, h.createdAt(),
                         h.changes(), h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData()));
 
-        AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
-        if (ext == null) return history;
         return history.stream()
                 .map(h -> {
-                    List<ChangeEntry> mediaChanges = ext.getMediaChanges(new EntityRef(entityType, entityId), h.version());
+                    List<ChangeEntry> mediaChanges = activityEnrichHook.getAdditionalChanges(new EntityRef(entityType, entityId), h.version());
                     if (mediaChanges.isEmpty()) return h;
                     List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());

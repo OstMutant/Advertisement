@@ -154,6 +154,18 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 ---
 
+## 2026-05-29 — Audit starter decoupled from attachment; ObjectProvider removed for required hooks
+
+**Decision:** Two related cleanups applied to the audit starter:
+
+1. **`AttachmentAuditHook` removed from audit-starter.** `ActivityService`, `AuditHistoryService`, and `EntityHistoryPanel` no longer import `attachment.spi`. A new `ActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
+
+2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `ActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
+
+**Why:** The audit starter called an `attachment.spi` hook directly — starter-to-starter coupling through the SPI layer. Marketplace is the correct orchestrator; it knows about both subsystems. `ObjectProvider` for required hooks implied optionality that was architecturally false.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears

@@ -1,5 +1,6 @@
 package org.ost.audit.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
@@ -19,13 +20,11 @@ public class AuditDomainHelper {
 
     private final AuditDomainHook auditDomainHook;
 
-    Map<Long, String> resolveNames(Set<Long> ids) {
-        if (ids.isEmpty()) return Map.of();
+    Map<Long, String> resolveNames(@NonNull Set<Long> ids) {
         return auditDomainHook.resolveNames(ids);
     }
 
-    Set<Long> findExisting(EntityType entityType, Set<Long> ids) {
-        if (ids.isEmpty()) return Set.of();
+    Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> ids) {
         return auditDomainHook.findExisting(entityType, ids);
     }
 
@@ -36,8 +35,8 @@ public class AuditDomainHelper {
                 .map(actorIdGetter)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
+        if (ids.isEmpty()) return items;
         Map<Long, String> names = resolveNames(ids);
-        if (names.isEmpty()) return items;
         return items.stream()
                 .map(i -> {
                     Long actorId = actorIdGetter.apply(i);

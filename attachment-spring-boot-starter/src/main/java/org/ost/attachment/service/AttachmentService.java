@@ -152,8 +152,7 @@ public class AttachmentService {
         captureMediaChanges(entityType, entityId);
     }
 
-    public void commitTempUploadsQuiet(EntityType entityType, Long entityId, List<TempAttachment> temps) {
-        if (temps.isEmpty()) return;
+    public void commitTempUploadsQuiet(EntityType entityType, Long entityId, @lombok.NonNull List<TempAttachment> temps) {
         String folder = folder(entityType, entityId);
         List<Attachment> toSave = temps.stream()
                 .map(t -> {

@@ -20,7 +20,6 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditDiffService     diffEngine;
     private final AuditLogRepository   auditLogRepository;
     private final CurrentActorHook     currentActorHook;
-    private final AuditQueryService    auditQueryService;
     private final AuditHistoryService  auditHistoryService;
 
     private Long resolveActor(Long actorId) {
@@ -54,12 +53,12 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
-        return auditQueryService.getSnapshotContent(snapshotId, entityType);
+        return auditLogRepository.getSnapshotContent(snapshotId, entityType);
     }
 
     @Override
     public Optional<SnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
-        return auditQueryService.getPreviousSnapshotContent(snapshotId, entityType);
+        return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType);
     }
 
     @Override

@@ -2,6 +2,7 @@ package org.ost.attachment.spi;
 
 import com.vaadin.flow.component.Component;
 import lombok.RequiredArgsConstructor;
+import org.ost.attachment.entities.Attachment;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.attachment.service.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
@@ -9,6 +10,8 @@ import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
+
+import java.util.List;
 
 @RequiredArgsConstructor
 public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
@@ -40,7 +43,11 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
     @Override
     public void openMediaLightbox(EntityRef entity) {
-        lightboxProvider.getObject().open(attachmentService.getByEntityId(entity.entityType(), entity.entityId()), 0);
+        List<Attachment> attachments =
+                attachmentService.getByEntityId(entity.entityType(), entity.entityId());
+        if (!attachments.isEmpty()) {
+            lightboxProvider.getObject().open(attachments, 0);
+        }
     }
 
     private record Handle(AttachmentGallery gallery) implements FormHandle {

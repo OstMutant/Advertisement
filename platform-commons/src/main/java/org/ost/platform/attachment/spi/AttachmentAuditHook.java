@@ -7,11 +7,11 @@ import org.ost.platform.core.model.EntityRef;
 import java.util.List;
 
 /**
- * Hook: audit-starter → attachment-starter.
- * Combines activity feed contribution and media history access —
- * both are attachment-domain callbacks invoked by the audit-starter.
+ * Hook: marketplace → attachment-starter.
+ * Provides attachment-domain data to marketplace orchestration code.
+ * Marketplace delegates to this hook from {@code ActivityEnrichHookImpl}.
  * Implementation lives in attachment-spring-boot-starter.
- * Injected via {@code ObjectProvider} — no-op when attachment is disabled.
+ * Injected via {@code ObjectProvider} — no-op when attachment is absent.
  */
 public interface AttachmentAuditHook {
 

@@ -10,7 +10,6 @@ import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.services.AuditCleanupService;
 import org.ost.audit.services.AuditDiffService;
 import org.ost.audit.services.AuditHistoryService;
-import org.ost.audit.services.AuditQueryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -62,10 +61,9 @@ public class AuditAutoConfiguration {
     DefaultAuditPort defaultAuditPort(AuditDiffService diffEngine,
                                       AuditLogRepository auditLogRepository,
                                       CurrentActorHook currentActorHook,
-                                      AuditQueryService auditQueryService,
                                       AuditHistoryService auditHistoryService) {
         return new DefaultAuditPort(diffEngine, auditLogRepository, currentActorHook,
-                                    auditQueryService, auditHistoryService);
+                                    auditHistoryService);
     }
 
 }

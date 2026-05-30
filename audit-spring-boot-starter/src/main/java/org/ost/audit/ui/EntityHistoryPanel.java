@@ -14,7 +14,7 @@ import org.ost.audit.services.AuditHistoryService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.spi.ActivityEnrichHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.ui.Configurable;
@@ -57,8 +57,8 @@ public class EntityHistoryPanel extends Div
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
     private final AuditHistoryService                           auditHistoryService;
-    private final ObjectProvider<ActivityRowRenderer>           rendererProvider;
-    private final ObjectProvider<AttachmentAuditHook> historyExtensionProvider;
+    private final ObjectProvider<ActivityRowRenderer>   rendererProvider;
+    private final ActivityEnrichHook                    activityEnrichHook;
 
     @Override
     @PostConstruct
@@ -158,8 +158,7 @@ public class EntityHistoryPanel extends Div
     }
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
-        AttachmentAuditHook ext = historyExtensionProvider.getIfAvailable();
-        return ext == null || ext.mediaMatchCurrent(new EntityRef(entityType, entityId), version);
+        return activityEnrichHook.matchesCurrent(new EntityRef(entityType, entityId), version);
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

@@ -31,12 +31,12 @@ advertisement-parent (root pom)
 **platform-commons** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
 - `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
-- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`), `audit.dto` (`ActivityItemDto`, `EntityHistoryDto`, `SnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `MediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`MediaSummaryDto`), `attachment.model` (`MediaContentType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
-**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffService`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
 
 **attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`. Java package root: `org.ost.attachment`.
 
@@ -51,6 +51,8 @@ advertisement-parent (root pom)
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
 **Pattern-first:** Before introducing a new abstraction or naming a class, scan the existing codebase for how similar things are already done. Symmetry with existing code is a first-class goal.
+
+**Design by contract — no defensive empty checks:** Methods trust their inputs. If a parameter is not `Optional`, the caller must pass a non-null value; `null` → fail fast (`@NonNull` or `Objects.requireNonNull`). Empty collections are the caller's responsibility — if the caller has nothing to pass, they skip the call. Methods must not have defensive `if (collection.isEmpty()) return emptyResult` guards; that logic belongs at the call site.
 
 ### Repository pattern
 

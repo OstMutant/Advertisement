@@ -25,7 +25,7 @@
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `MediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`, `MediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -72,6 +72,21 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Why:** Every module depends on `platform-commons`. If it pulled in Spring Boot or any framework, every module would inherit that transitive dependency — including `sql-engine` which is intentionally framework-free. Keeping contracts pure Java preserves the dependency hierarchy.
 
 **Rejected:** Placing `@ConditionalOnAuditEnabled` in Spring config classes inside this module — confirmed that `@ConditionalOnProperty` requires Spring context, which contracts must not have. (`@ConditionalOnAttachmentEnabled` was relocated to `attachment-spring-boot-starter` itself on 2026-05-19 — see top entry.)
+
+---
+
+## 2026-05-29 — Audit starter decoupled from attachment via ActivityEnrichHook
+
+**Decision:** The audit starter no longer imports or calls `AttachmentAuditHook` directly. A new `ActivityEnrichHook` SPI (`audit.spi`) was introduced — the audit starter calls it via `ObjectProvider`. Marketplace implements `ActivityEnrichHookImpl`, which internally delegates to `ObjectProvider<AttachmentAuditHook>`.
+
+**Why:** `AttachmentAuditHook` is an `attachment.spi` interface. Having the audit starter call it created a starter→starter coupling: audit implicitly depended on attachment being present to enrich its data. Marketplace is the correct orchestrator — it knows about both subsystems and decides how to combine them.
+
+**Call chain after this change:**
+- `ActivityService` / `AuditHistoryService` / `EntityHistoryPanel` → `ActivityEnrichHook` (audit.spi)
+- `ActivityEnrichHookImpl` (marketplace) → `AttachmentAuditHook` (attachment.spi)
+- `AttachmentAuditHookImpl` (attachment-starter) → domain logic
+
+**Rule:** Audit starter must never import from `attachment.*` packages. Any enrichment from outside the audit domain flows through a hook in `audit.spi`.
 
 ---
 

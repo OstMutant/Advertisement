@@ -6,8 +6,7 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.dto.ActivityItemDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.audit.spi.ActivityEnrichHook;
 
 import java.util.List;
 import java.util.Map;
@@ -18,15 +17,14 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ActivityService {
 
-    private final AuditLogRepository                    repository;
-    private final ObjectProvider<AttachmentAuditHook>   attachmentAuditHook;
-    private final AuditDomainHelper                     auditDomainHelper;
+    private final AuditLogRepository     repository;
+    private final ActivityEnrichHook     activityEnrichHook;
+    private final AuditDomainHelper      auditDomainHelper;
 
     public List<ActivityItemDto> getForSubject(EntityType subjectType, Long subjectId) {
         List<ActivityItemDto> base = repository.findActivityForProfile(subjectId);
 
-        AttachmentAuditHook ext = attachmentAuditHook.getIfAvailable();
-        List<ActivityItemDto> combined = ext != null ? ext.merge(new EntityRef(subjectType, subjectId), base) : base;
+        List<ActivityItemDto> combined = activityEnrichHook.merge(new EntityRef(subjectType, subjectId), base);
 
         combined = auditDomainHelper.withResolvedActorNames(
                 combined,

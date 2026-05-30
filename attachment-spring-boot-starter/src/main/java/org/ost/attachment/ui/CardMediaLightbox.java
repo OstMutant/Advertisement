@@ -23,8 +23,7 @@ import java.util.List;
 @Scope("prototype")
 public class CardMediaLightbox {
 
-    public void open(List<Attachment> attachments, int startIndex) {
-        if (attachments.isEmpty()) return;
+    public void open(@lombok.NonNull List<Attachment> attachments, int startIndex) {
 
         int[] idx = { startIndex };
 
