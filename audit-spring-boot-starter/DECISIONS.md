@@ -4,7 +4,7 @@
 
 ## Ongoing — Module structure and auto-configuration
 
-**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`) and read side (`AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
+**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
 
 Write and read sides were initially separate modules (`audit-core` + `audit-read`) but merged — fewer modules is simpler when there is no concrete scenario requiring the write side without the read side.
 
@@ -33,15 +33,15 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
-## 2026-05-19 — Profile activity decoration via SnapshotBinder + ActivityRowBinding SPI
+## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + ActivityRowHook SPI
 
-**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `ActivityRowBinding` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
+**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
 
-`SnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
+`AuditSnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
 
 **Why:** The previous pattern parsed snapshot JSON inside the starter — coupling it to specific user/settings shapes. The SPI puts shape knowledge on the consumer side.
 
-**Rejected:** Decorator wrapper around `ProfileActivityPanel`; abstract `ActivityRowDecorator` requiring subclasses per shape.
+**Rejected:** Decorator wrapper around `AuditActivityPanel`; abstract `ActivityRowDecorator` requiring subclasses per shape.
 
 ---
 
@@ -67,11 +67,11 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ## 2026-05-16 — ActivityItemFieldsProvider SPI: expanded field display in activity feed
 
-**Decision:** `ActivityItemFieldsProvider` SPI (`core.spi`) lets consumers supply a merged `List<ChangeEntry>` (changed + unchanged fields) for their entity types. `ActivityRowRenderer.buildRow` calls it for non-settings items; falls back to raw `changes` when no provider registered.
+**Decision:** `ActivityItemFieldsProvider` SPI (`core.spi`) lets consumers supply a merged `List<ChangeEntry>` (changed + unchanged fields) for their entity types. `AuditActivityRowRenderer.buildRow` calls it for non-settings items; falls back to raw `changes` when no provider registered.
 
 **Why:** Activity feed was showing only changed fields. Domain-specific field lists must not be hardcoded in the starter.
 
-**Rejected:** Hardcoding field names in `ActivityRowRenderer` — introduces domain coupling into the starter.
+**Rejected:** Hardcoding field names in `AuditActivityRowRenderer` — introduces domain coupling into the starter.
 
 ---
 
@@ -81,9 +81,9 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 **Rule:** Any new UI component that renders action badges must follow this two-class pattern. Single-class with hardcoded color is forbidden.
 
-**Why:** Previously `ActivityRowRenderer` added only the base class, making all activity rows render with a hardcoded blue badge — no visual distinction between created/updated/deleted. `EntityHistoryPanel` already applied the modifier class; bringing `ActivityRowRenderer` to parity was the fix.
+**Why:** Previously `AuditActivityRowRenderer` added only the base class, making all activity rows render with a hardcoded blue badge — no visual distinction between created/updated/deleted. `AuditHistoryPanel` already applied the modifier class; bringing `AuditActivityRowRenderer` to parity was the fix.
 
-**Scope:** `EntityHistoryPanel` (ads history), `ActivityRowRenderer` (user activity, settings activity, all profile feeds).
+**Scope:** `AuditHistoryPanel` (ads history), `AuditActivityRowRenderer` (user activity, settings activity, all profile feeds).
 
 ---
 
@@ -91,7 +91,7 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 **Decision:** `AuditPort.getSnapshotContent(snapshotId, entityType)` is the only correct method for restore flows. `getPreviousSnapshotContent` returns the state *before* a recorded change; it must not be used to populate restore targets.
 
-**Rule:** Any consumer implementing a restore button via `SnapshotBinder.onRestore` must call `getSnapshotContent`. `getPreviousSnapshotContent` is only for displaying diffs or "what changed" UI.
+**Rule:** Any consumer implementing a restore button via `AuditSnapshotBinder.onRestore` must call `getSnapshotContent`. `getPreviousSnapshotContent` is only for displaying diffs or "what changed" UI.
 
 **Why:** Restoring to the snapshot of a history entry means "make the entity look like it did at this recorded moment" — that is the snapshot data (`after`), not the state before the change.
 
@@ -118,9 +118,9 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### HIGH
-- ✅ `ActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
-- ✅ `ActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `ActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
-- ✅ `ActivityService` + `AuditHistoryService`: `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
+- ✅ `AuditActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
+- ✅ `AuditActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `ActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
+- ✅ `AuditReadService` + `AuditReadService`: `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
 
 ### MEDIUM
 - ✅ `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: extracted `AbstractFormOverlayModeHandler<D extends EditDto>` base class with `hasChanges()` and `wireSaveGuard()`.
@@ -130,7 +130,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### MEDIUM-LOW
 - ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `ActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
-- `SnapshotBinder` lives in `audit-starter` UI layer; `UserViewOverlayModeHandler` imports it directly. If its API changes, marketplace compilation breaks.
+- `AuditSnapshotBinder` lives in `audit-starter` UI layer; `UserViewOverlayModeHandler` imports it directly. If its API changes, marketplace compilation breaks.
 
 ---
 
@@ -158,7 +158,7 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 **Decision:** Two related cleanups applied to the audit starter:
 
-1. **`AttachmentAuditHook` removed from audit-starter.** `ActivityService`, `AuditHistoryService`, and `EntityHistoryPanel` no longer import `attachment.spi`. A new `ActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
+1. **`AttachmentAuditHook` removed from audit-starter.** `AuditReadService`, `AuditReadService`, and `AuditHistoryPanel` no longer import `attachment.spi`. A new `ActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
 
 2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `ActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
 
@@ -172,9 +172,9 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 - `findRows(EntityType, Long entityId, Long filterActorId)` — entity-scoped; window functions over all rows for this entity, optional actor filter.
 - `findRowsByActor(Long actorId)` — actor-scoped; window functions over all rows where actor_id matches.
 
-`AuditActivityService.getForSubject(List<EntityRef> subjects, Long actorId)` merges streams from multiple `findRows` calls (one per subject entity) + `findRowsByActor`, deduplicates by id, sorts by `createdAt DESC`, limits to 20 in Java.
+`AuditReadService.getForSubject(List<EntityRef> subjects, Long actorId)` merges streams from multiple `findRows` calls (one per subject entity) + `findRowsByActor`, deduplicates by id, sorts by `createdAt DESC`, limits to 20 in Java.
 
-`ProfileActivityParams` and `ProfileActivityPanel.Parameters` now carry `List<EntityRef> subjects` + `Long actorId` instead of `subjectType`+`subjectId`. Marketplace passes `[EntityRef(USER, id), EntityRef(USER_SETTINGS, id)]` as subjects — the starter has zero knowledge of which entity types constitute a "profile".
+`ProfileActivityParams` and `AuditActivityPanel.Parameters` now carry `List<EntityRef> subjects` + `Long actorId` instead of `subjectType`+`subjectId`. Marketplace passes `[EntityRef(USER, id), EntityRef(USER_SETTINGS, id)]` as subjects — the starter has zero knowledge of which entity types constitute a "profile".
 
 **Why:** The old UNION had `entity_type IN ('USER', 'USER_SETTINGS')` hardcoded — domain knowledge in the persistence layer. Now the repository is domain-free; marketplace decides which entities to include.
 
@@ -184,9 +184,9 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 ## 2026-05-30 — changes_summary removed; diff computed dynamically on read
 
-**Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by `AuditDiffService.diff(previous, current)` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogProjection` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
+**Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by ``AuditableSnapshot.diff()`` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogProjection` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
 
-**Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditDiffService` dependency. `AuditDiffService` is now a read-side concern only (injected by `AuditHistoryService` and `AuditActivityService`).
+**Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditableSnapshot.diff()` dependency. `AuditableSnapshot.diff()` is now a read-side concern only (injected by `AuditReadService` and `AuditReadService`).
 
 **Rule:** Never store pre-computed diffs. Always derive changes from snapshot pairs at read time.
 
@@ -212,8 +212,8 @@ public record AuditLogProjection(
 ) {}
 ```
 
-- `AuditHistoryService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
-- `AuditActivityService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
+- `AuditReadService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
+- `AuditReadService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
 - Repository has one `RowMapper<AuditLogProjection>`, no dependency on service-layer DTOs or hooks
 
 **Why:** The repository previously depended on `AuditHistoryItemDto`, `AuditActivityItemDto`, and `EntityNameHook` — service-layer concerns bleeding into the persistence layer. With `AuditLogProjection`, the repository is a pure SQL → data layer. `ROW_NUMBER()` and `LAG()` stay in SQL because Java-side computation breaks with future pagination (you can only paginate correctly if the window is computed over the full dataset in SQL).
@@ -224,14 +224,14 @@ public record AuditLogProjection(
 
 ---
 
-## Deferred — EntityHistoryPanel / ProfileActivityPanel: full hook-driven row building
+## Deferred — AuditHistoryPanel / AuditActivityPanel: full hook-driven row building
 
 **Goal:** Make audit UI panels reusable outside marketplace by moving all domain-specific UI logic out via hooks.
 
 **Current coupling:**
-- `EntityHistoryPanel` contains restore button logic (`snapshotsEqual`, `mediaMatchCurrent`, labels) — marketplace domain
+- `AuditHistoryPanel` contains restore button logic (`snapshotsEqual`, `mediaMatchCurrent`, labels) — marketplace domain
 - CSS class names (`entity-history-*`, `activity-feed-*`) are hardcoded in both panels
-- Row structure (version badge, action badge, user, time) is fixed in `EntityHistoryPanel`
+- Row structure (version badge, action badge, user, time) is fixed in `AuditHistoryPanel`
 
 **Design:**
 Add `HistoryRowActionsHook` to `audit.spi`:
@@ -242,7 +242,7 @@ public interface HistoryRowActionsHook {
 }
 ```
 
-`EntityHistoryPanel`:
+`AuditHistoryPanel`:
 - Removes all restore/snapshot comparison logic
 - Calls `hook.buildRowActions(h, isCurrentState)` — adds whatever the hook returns
 - CSS prefix passed via `Parameters` instead of hardcoded
@@ -260,6 +260,6 @@ Marketplace implements `HistoryRowActionsHookImpl` with the restore button and "
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears
 - SnapshotCodec: centralize ObjectMapper.readValue calls; eliminates JSON parsing inside projections
 - ActivityProjection: JSON deserialization per row — negligible at 20 rows; revisit with cursor pagination
-- jsonEquals readTree: expensive for large history lists — add parsed snapshot cache in EntityHistoryPanel.configure()
+- jsonEquals readTree: expensive for large history lists — add parsed snapshot cache in AuditHistoryPanel.configure()
 - EntityDisplayNameResolver.supports(): replace linear scan with map lookup when resolvers > 5
 - LIMIT 20/100: replace with cursor pagination when needed

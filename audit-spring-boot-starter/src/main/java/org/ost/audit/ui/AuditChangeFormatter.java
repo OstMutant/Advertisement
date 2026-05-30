@@ -11,7 +11,7 @@ import java.util.List;
 
 @SpringComponent
 @RequiredArgsConstructor
-public class ActivityPanel {
+public class AuditChangeFormatter {
 
     private final I18nService i18n;
 

@@ -57,7 +57,7 @@ Rules:
 
 **Why:** Vaadin view beans are initialized on first HTTP request — before the user authenticates. Class-level `@PreAuthorize` on services breaks this initialization with `AuthorizationDeniedException`. The `/health` REST endpoint is intentionally public (load balancer / monitoring). Future non-public REST endpoints should use `@PreAuthorize` at the method level on the controller.
 
-**Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `ActivityService`, `AuditHistoryService`, `AuditQueryService`, `UserSettingsService` — confirmed broken via smoke tests.
+**Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `AuditReadService`, `AuditReadService`, `AuditReadService`, `UserSettingsService` — confirmed broken via smoke tests.
 
 ---
 
@@ -91,7 +91,7 @@ Rules:
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
-**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditDiffEngine`, `AuditLogRepository`; read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`) implemented in `marketplace-app`.
+**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`) implemented in `marketplace-app`.
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
@@ -99,19 +99,19 @@ Rules:
 
 ---
 
-## 2026-05-21 — SnapshotBinder coupling in marketplace-app UI is intentional
+## 2026-05-21 — AuditSnapshotBinder coupling in marketplace-app UI is intentional
 
-**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.SnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.
+**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.AuditSnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.
 
-**Why:** `SnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-commons` (which must stay framework-free). Extracting a `SnapshotBinder.Builder` SPI to platform-commons would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-commons`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
+**Why:** `AuditSnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-commons` (which must stay framework-free). Extracting a `AuditSnapshotBinder.Builder` SPI to platform-commons would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-commons`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
 
-**Rejected:** Abstracting `SnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.
+**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.
 
 ---
 
 ## 2026-05-26 — No shared UI module needed; plain-class pattern for future sharing
 
-**Decision:** No new UI module (`advertisement-ui-core` or similar) will be created. As of 2026-05-26, there is no actual cross-module UI duplication: `PaginationBar` and `EmptyStateView` exist only in `marketplace-app`; each starter owns its own UI components (`EntityHistoryPanel`, `ProfileActivityPanel`, `AttachmentGallery`) with no overlap.
+**Decision:** No new UI module (`advertisement-ui-core` or similar) will be created. As of 2026-05-26, there is no actual cross-module UI duplication: `PaginationBar` and `EmptyStateView` exist only in `marketplace-app`; each starter owns its own UI components (`AuditHistoryPanel`, `AuditActivityPanel`, `AttachmentGallery`) with no overlap.
 
 **If cross-module sharing ever becomes real:** move the component to `platform-commons` `ui` package as a plain class — no `@SpringComponent`, no `@Scope`. Each module that wants a Spring-managed instance declares its own `@Bean @Scope("prototype")` in a local `@Configuration`. No `@AutoConfiguration` in `platform-commons`, no new module.
 

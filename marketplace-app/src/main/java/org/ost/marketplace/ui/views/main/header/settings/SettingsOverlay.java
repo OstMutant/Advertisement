@@ -28,7 +28,7 @@ import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.audit.ui.SnapshotBinder;
+import org.ost.audit.ui.AuditSnapshotBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.model.EntityRef;
@@ -54,7 +54,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
-    private final transient SnapshotBinder.Builder<SettingsSnapshotDto>     settingsBinderBuilder;
+    private final transient AuditSnapshotBinder.Builder<SettingsSnapshotDto>     settingsBinderBuilder;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -183,8 +183,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
         UserSettings current = settingsService.load(currentUser.getId());
-        SnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
-                SnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
+        AuditSnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
+                AuditSnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
                         .snapshotClass(SettingsSnapshotDto.class)
                         .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()

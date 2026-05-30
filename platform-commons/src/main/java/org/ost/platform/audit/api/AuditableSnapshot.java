@@ -11,6 +11,7 @@ import java.util.function.Function;
 public interface AuditableSnapshot {
     EntityType entityType();
     List<ChangeEntry> diff(AuditableSnapshot previous);
+    List<ChangeEntry> allFields();
 
     static <S extends AuditableSnapshot, T> T field(S snapshot, Function<S, T> getter) {
         return snapshot != null ? getter.apply(snapshot) : null;

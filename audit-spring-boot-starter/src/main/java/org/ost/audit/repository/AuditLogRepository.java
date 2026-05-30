@@ -1,12 +1,13 @@
 package org.ost.audit.repository;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -41,9 +42,9 @@ import java.util.Optional;
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
 
-    private final JdbcClient                    jdbcClient;
-    private final AuditJsonSerializationService mapper;
-    private final ProjectionMapper              projectionMapper;
+    @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
+    private final JdbcClient                                   jdbcClient;
+    private final ProjectionMapper                             projectionMapper;
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
@@ -57,7 +58,7 @@ public class AuditLogRepository {
                           .addValue("entityType",   entityType.name())
                           .addValue("entityId",     entityId)
                           .addValue("actionType",   actionType.name())
-                          .addValue("snapshotData", mapper.toSnapshotJson(snapshotData), Types.OTHER)
+                          .addValue("snapshotData", toSnapshotJson(snapshotData), Types.OTHER)
                           .addValue("actorId",      actorId))
                   .update();
     }
@@ -126,7 +127,7 @@ public class AuditLogRepository {
                                  .addValue("entityId",   entityId))
                          .query(String.class)
                          .optional()
-                         .map(mapper::fromSnapshot);
+                         .map(this::fromSnapshot);
     }
 
     public Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
@@ -169,15 +170,33 @@ public class AuditLogRepository {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    private String toSnapshotJson(AuditableSnapshot snapshot) {
+        if (snapshot == null) return null;
+        try {
+            return objectMapper.writerFor(AuditableSnapshot.class).writeValueAsString(snapshot);
+        } catch (Exception _) {
+            return null;
+        }
+    }
+
+    private AuditableSnapshot fromSnapshot(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, AuditableSnapshot.class);
+        } catch (Exception _) {
+            return null;
+        }
+    }
+
     private AuditSnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
-        return new AuditSnapshotContentDto(mapper.fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
+        return new AuditSnapshotContentDto(fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
     @Component
     @RequiredArgsConstructor
     static class ProjectionMapper implements RowMapper<AuditLogProjection> {
 
-        private final AuditJsonSerializationService jsonService;
+        @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
 
         @Override
         public AuditLogProjection mapRow(@NotNull ResultSet rs, int rowNum) throws SQLException {
@@ -186,13 +205,22 @@ public class AuditLogRepository {
                     EntityType.valueOf(rs.getString("entity_type")),
                     rs.getObject("entity_id",   Long.class),
                     ActionType.valueOf(rs.getString("action_type")),
-                    jsonService.fromSnapshot(rs.getString("snapshot_data")),
+                    fromSnapshot(rs.getString("snapshot_data")),
                     rs.getObject("actor_id",    Long.class),
                     instant(rs, "created_at"),
                     rs.getInt("version"),
                     rs.getObject("prev_id",     Long.class),
-                    jsonService.fromSnapshot(rs.getString("prev_snapshot_data"))
+                    fromSnapshot(rs.getString("prev_snapshot_data"))
             );
+        }
+
+        private AuditableSnapshot fromSnapshot(String json) {
+            if (json == null || json.isBlank()) return null;
+            try {
+                return objectMapper.readValue(json, AuditableSnapshot.class);
+            } catch (Exception _) {
+                return null;
+            }
         }
 
         private static Instant instant(ResultSet rs, String col) throws SQLException {

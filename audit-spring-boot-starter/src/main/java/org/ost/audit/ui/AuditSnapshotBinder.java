@@ -27,8 +27,8 @@ import java.util.Objects;
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
-public class SnapshotBinder<T>
-        implements Configurable<SnapshotBinder<T>, SnapshotBinder.Parameters<T>>, ActivityRowHook {
+public class AuditSnapshotBinder<T>
+        implements Configurable<AuditSnapshotBinder<T>, AuditSnapshotBinder.Parameters<T>>, ActivityRowHook {
 
     @Value
     @lombok.Builder
@@ -45,15 +45,15 @@ public class SnapshotBinder<T>
     @SpringComponent
     @Scope("prototype")
     @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<SnapshotBinder<T>, Parameters<T>> {
+    public static class Builder<T> extends ComponentBuilder<AuditSnapshotBinder<T>, Parameters<T>> {
         @Getter
-        private final ObjectProvider<SnapshotBinder<T>> provider;
+        private final ObjectProvider<AuditSnapshotBinder<T>> provider;
     }
 
     private Parameters<T> params;
 
     @Override
-    public SnapshotBinder<T> configure(Parameters<T> p) {
+    public AuditSnapshotBinder<T> configure(Parameters<T> p) {
         this.params = p;
         return this;
     }

@@ -41,4 +41,11 @@ public record AdvertisementSnapshotDto(
             changes.add(new FieldChange(Fields.description, trunc(prevDesc), trunc(description())));
         return changes;
     }
+
+    @Override
+    public List<ChangeEntry> allFields() {
+        return List.of(
+                new FieldChange(Fields.title,       null, trunc(title())),
+                new FieldChange(Fields.description, null, trunc(description())));
+    }
 }

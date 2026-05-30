@@ -48,7 +48,7 @@ public class AuditActivityPanel extends Div
     }
 
     private final AuditReadService                         auditReadService;
-    private final ObjectProvider<ActivityRowRenderer> rendererProvider;
+    private final ObjectProvider<AuditActivityRowRenderer> rendererProvider;
 
     @Override
     @PostConstruct
@@ -68,7 +68,7 @@ public class AuditActivityPanel extends Div
             return this;
         }
 
-        ActivityRowRenderer renderer = rendererProvider.getObject();
+        AuditActivityRowRenderer renderer = rendererProvider.getObject();
         for (AuditActivityItemDto item : items) {
             Div row = renderer.buildRow(item, p.getViewerActorId());
             decorateRow(row, item, p.getBindings());

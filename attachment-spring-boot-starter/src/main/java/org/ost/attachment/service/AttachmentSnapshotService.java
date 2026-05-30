@@ -78,11 +78,7 @@ public class AttachmentSnapshotService {
                     if (mediaChanges.isEmpty()) return item;
                     List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
                     merged.addAll(item.changes());
-                    return new AuditActivityItemDto(
-                            item.snapshotId(), item.entityId(), item.entityType(),
-                            item.displayName(), item.actionType(), item.createdAt(),
-                            item.entityExists(), merged, item.changedByActorId(),
-                            item.changedByName(), item.snapshotData());
+                    return item.withChanges(merged);
                 })
                 .toList();
     }

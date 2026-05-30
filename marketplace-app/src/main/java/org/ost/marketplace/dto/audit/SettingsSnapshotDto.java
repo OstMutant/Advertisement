@@ -39,4 +39,11 @@ public record SettingsSnapshotDto(
             changes.add(new SettingChange(Fields.usersPageSize, prevUsers, usersPageSize()));
         return changes;
     }
+
+    @Override
+    public List<ChangeEntry> allFields() {
+        return List.of(
+                new SettingChange(Fields.adsPageSize,   null, adsPageSize()),
+                new SettingChange(Fields.usersPageSize, null, usersPageSize()));
+    }
 }

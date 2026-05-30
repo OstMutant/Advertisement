@@ -20,4 +20,24 @@ public record AuditActivityItemDto(
         Long              changedByActorId,
         String            changedByName,
         AuditableSnapshot snapshotData
-) {}
+) {
+    public AuditActivityItemDto withDisplayName(String name) {
+        return new AuditActivityItemDto(snapshotId, entityId, entityType, name, actionType,
+                createdAt, entityExists, changes, changedByActorId, changedByName, snapshotData);
+    }
+
+    public AuditActivityItemDto withChangedByName(String name) {
+        return new AuditActivityItemDto(snapshotId, entityId, entityType, displayName, actionType,
+                createdAt, entityExists, changes, changedByActorId, name, snapshotData);
+    }
+
+    public AuditActivityItemDto withEntityExists(boolean exists) {
+        return new AuditActivityItemDto(snapshotId, entityId, entityType, displayName, actionType,
+                createdAt, exists, changes, changedByActorId, changedByName, snapshotData);
+    }
+
+    public AuditActivityItemDto withChanges(List<ChangeEntry> newChanges) {
+        return new AuditActivityItemDto(snapshotId, entityId, entityType, displayName, actionType,
+                createdAt, entityExists, newChanges, changedByActorId, changedByName, snapshotData);
+    }
+}

@@ -57,7 +57,7 @@ public class AuditHistoryPanel extends Div
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
     private final AuditReadService                               auditReadService;
-    private final ObjectProvider<ActivityRowRenderer>   rendererProvider;
+    private final ObjectProvider<AuditActivityRowRenderer>   rendererProvider;
     private final ActivityEnrichHook                    activityEnrichHook;
 
     @Override
@@ -87,7 +87,7 @@ public class AuditHistoryPanel extends Div
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
                 p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
                 p.getOnRestoreRequested());
-        ActivityRowRenderer renderer = rendererProvider.getObject();
+        AuditActivityRowRenderer renderer = rendererProvider.getObject();
 
         for (AuditHistoryItemDto h : history) {
             add(buildRow(h, renderer, ctx));
@@ -100,7 +100,7 @@ public class AuditHistoryPanel extends Div
             boolean canOperate, String labelCurrentState, String labelRestore,
             ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
 
-    private Div buildRow(AuditHistoryItemDto h, ActivityRowRenderer renderer, RowContext ctx) {
+    private Div buildRow(AuditHistoryItemDto h, AuditActivityRowRenderer renderer, RowContext ctx) {
         EntityType entityType        = ctx.entityType();
         Long entityId                = ctx.entityId();
         AuditableSnapshot currentSnap  = ctx.currentSnapshot();

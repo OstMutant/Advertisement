@@ -5,7 +5,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import org.ost.audit.services.AuditJsonSerializationService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
@@ -21,25 +20,22 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Supplier;
 
 @CssImport("./entity-history.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class ActivityRowRenderer {
+public class AuditActivityRowRenderer {
 
     private static final String CSS_CHANGES         = "activity-feed-changes";
     private static final String CSS_HISTORY_CHANGES = "entity-history-changes";
 
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
-    private final ActivityPanel                            activityPanel;
+    private final AuditChangeFormatter                            activityPanel;
     private final List<ActivityFieldsHook>                 fieldsProviders;
     private final List<ActivityRenderHook>             renderStrategies;
-    private final AuditJsonSerializationService            jsonService;
-
     public Div buildRow(AuditActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
@@ -64,7 +60,7 @@ public class ActivityRowRenderer {
 
         row.add(action, type, name, time);
 
-        Span editor = ActivityPanel.buildEditorBadge(item.changedByActorId(), item.changedByName(), viewerActorId);
+        Span editor = AuditChangeFormatter.buildEditorBadge(item.changedByActorId(), item.changedByName(), viewerActorId);
         if (editor != null) row.add(editor);
 
         row.add(buildActivityFieldsList(item));
@@ -148,18 +144,16 @@ public class ActivityRowRenderer {
     }
 
     private List<ChangeEntry> expandTextFields(AuditableSnapshot snapshot, List<ChangeEntry> changedFields) {
-        Map<String, Object> snap = jsonService.toMap(snapshot);
-        if (snap == null) return changedFields;
-        List<ChangeEntry> result = new ArrayList<>();
-        for (Map.Entry<String, Object> e : snap.entrySet()) {
-            String key = e.getKey();
-            String val = e.getValue() != null ? String.valueOf(e.getValue()) : "";
-            ChangeEntry existing = changedFields.stream()
-                    .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
-                    .findFirst().orElse(null);
-            result.add(existing != null ? existing : new ChangeEntry.FieldChange(key, null, val));
-        }
-        return result;
+        if (snapshot == null) return changedFields;
+        return snapshot.allFields().stream()
+                .map(base -> {
+                    String key = ((ChangeEntry.FieldChange) base).field();
+                    return changedFields.stream()
+                            .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
+                            .findFirst()
+                            .orElse(base);
+                })
+                .toList();
     }
 
     private static AuditMessages formatActionKey(ActionType actionType) {

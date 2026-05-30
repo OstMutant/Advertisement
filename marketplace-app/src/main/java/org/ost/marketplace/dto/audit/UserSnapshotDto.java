@@ -45,4 +45,12 @@ public record UserSnapshotDto(
             changes.add(new FieldChange(Fields.role,  prevRole,         role()));
         return changes;
     }
+
+    @Override
+    public List<ChangeEntry> allFields() {
+        return List.of(
+                new FieldChange(Fields.name,  null, trunc(name())),
+                new FieldChange(Fields.email, null, trunc(email())),
+                new FieldChange(Fields.role,  null, role()));
+    }
 }

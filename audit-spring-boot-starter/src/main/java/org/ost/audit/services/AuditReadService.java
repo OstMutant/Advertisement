@@ -42,9 +42,7 @@ public class AuditReadService {
         history = auditDomainHelper.withResolvedActorNames(
                 history,
                 AuditHistoryItemDto::actorId,
-                (h, name) -> new AuditHistoryItemDto(h.snapshotId(), h.version(), h.actionType(),
-                        h.actorId(), name, h.createdAt(),
-                        h.changes(), h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData()));
+                (h, name) -> h.withChangedByUserName(name));
 
         return history.stream()
                 .map(h -> {
@@ -53,9 +51,7 @@ public class AuditReadService {
                     if (mediaChanges.isEmpty()) return h;
                     List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());
-                    return new AuditHistoryItemDto(h.snapshotId(), h.version(), h.actionType(),
-                            h.actorId(), h.changedByUserName(), h.createdAt(),
-                            combined, h.prevSnapshotId(), h.snapshotData(), h.prevSnapshotData());
+                    return h.withChanges(combined);
                 })
                 .toList();
     }
@@ -86,9 +82,7 @@ public class AuditReadService {
         combined = auditDomainHelper.withResolvedActorNames(
                 combined,
                 AuditActivityItemDto::changedByActorId,
-                (i, name) -> new AuditActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
-                        i.displayName(), i.actionType(), i.createdAt(), i.entityExists(),
-                        i.changes(), i.changedByActorId(), name, i.snapshotData()));
+                (i, name) -> i.withChangedByName(name));
         combined = resolveEntityExistence(combined);
         return combined;
     }
@@ -117,9 +111,7 @@ public class AuditReadService {
                     .findFirst()
                     .map(h -> h.resolveDisplayName(i.entityType(), i.snapshotData()))
                     .orElse("");
-            return new AuditActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
-                    name, i.actionType(), i.createdAt(), i.entityExists(),
-                    i.changes(), i.changedByActorId(), i.changedByName(), i.snapshotData());
+            return i.withDisplayName(name);
         }).toList();
     }
 
@@ -134,9 +126,7 @@ public class AuditReadService {
         return items.stream()
                 .map(i -> {
                     boolean exists = existingByType.getOrDefault(i.entityType(), Set.of()).contains(i.entityId());
-                    return new AuditActivityItemDto(i.snapshotId(), i.entityId(), i.entityType(),
-                            i.displayName(), i.actionType(), i.createdAt(), exists,
-                            i.changes(), i.changedByActorId(), i.changedByName(), i.snapshotData());
+                    return i.withEntityExists(exists);
                 })
                 .toList();
     }

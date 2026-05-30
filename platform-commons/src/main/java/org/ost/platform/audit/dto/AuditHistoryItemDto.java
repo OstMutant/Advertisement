@@ -18,4 +18,14 @@ public record AuditHistoryItemDto(
         Long              prevSnapshotId,
         AuditableSnapshot snapshotData,
         AuditableSnapshot prevSnapshotData
-) {}
+) {
+    public AuditHistoryItemDto withChangedByUserName(String name) {
+        return new AuditHistoryItemDto(snapshotId, version, actionType, actorId, name,
+                createdAt, changes, prevSnapshotId, snapshotData, prevSnapshotData);
+    }
+
+    public AuditHistoryItemDto withChanges(List<ChangeEntry> newChanges) {
+        return new AuditHistoryItemDto(snapshotId, version, actionType, actorId, changedByUserName,
+                createdAt, newChanges, prevSnapshotId, snapshotData, prevSnapshotData);
+    }
+}

@@ -6,7 +6,7 @@
 
 **Decision:** Three sub-packages inside each subsystem namespace carry distinct roles:
 
-- `*.api` — contracts that **marketplace places on its own classes** so the starter can read them: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`). Only `audit.*` has an `api` package; attachment needs no marker contracts from marketplace.
+- `*.api` — contracts that **marketplace places on its own classes** so the starter can read them: marker interfaces (`AuditableSnapshot`) and annotations (`@`). Only `audit.*` has an `api` package; attachment needs no marker contracts from marketplace.
 - `*.spi` — **extension-point interfaces** declaring a callback boundary between modules. Call direction and semantic role are encoded in the interface suffix (see the 7-suffix convention below).
 - `*.dto` — **pure data carriers** crossing the module boundary, named with the `Dto` suffix. No behavior, no framework annotations.
 
@@ -82,7 +82,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Why:** `AttachmentAuditHook` is an `attachment.spi` interface. Having the audit starter call it created a starter→starter coupling: audit implicitly depended on attachment being present to enrich its data. Marketplace is the correct orchestrator — it knows about both subsystems and decides how to combine them.
 
 **Call chain after this change:**
-- `ActivityService` / `AuditHistoryService` / `EntityHistoryPanel` → `ActivityEnrichHook` (audit.spi)
+- `AuditReadService` / `AuditReadService` / `AuditHistoryPanel` → `ActivityEnrichHook` (audit.spi)
 - `ActivityEnrichHookImpl` (marketplace) → `AttachmentAuditHook` (attachment.spi)
 - `AttachmentAuditHookImpl` (attachment-starter) → domain logic
 
@@ -148,12 +148,12 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 **Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
 
-`SnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `SnapshotBinder<SettingsSnapshotDto>` and/or `SnapshotBinder<UserSnapshotDto>` per panel.
+`AuditSnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `AuditSnapshotBinder<SettingsSnapshotDto>` and/or `AuditSnapshotBinder<UserSnapshotDto>` per panel.
 
 **Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `ActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
 
 **Rejected:**
-- Decorator wrapper around `ProfileActivityPanel` — adds an extra layer with no payoff; the SPI list is enough.
+- Decorator wrapper around `AuditActivityPanel` — adds an extra layer with no payoff; the SPI list is enough.
 - Abstract `ActivityRowDecorator` requiring subclasses per shape — duplicates the Builder+Parameters pattern already used everywhere else (`Configurable<T, P>` per CLAUDE.md).
 
 ---
@@ -163,7 +163,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Decision:** Reorganised cross-module SPIs so audit and attachment contracts now mirror each other exactly:
 
 - **Audit-only SPIs** (`AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`) moved from `core.spi/` to `audit.spi/`. Subsequently folded into the `*Hook` convention and renamed (see 2026-05-22 SPI naming decision).
-- **`AuditPort`** moved from `audit.api/` to `audit.spi/` — symmetric with `attachment.spi.AttachmentPort`. `audit.api/` now holds only annotations and snapshot markers (`AuditableSnapshot`, `AuditedField`).
+- **`AuditPort`** moved from `audit.api/` to `audit.spi/` — symmetric with `attachment.spi.AttachmentPort`. `audit.api/` now holds only annotations and snapshot markers (`AuditableSnapshot`, ``).
 - **`CurrentUserProvider`** (new, in `core.spi/`) replaced both `audit.spi.AuditUserProvider` and `attachment.spi.AttachmentCurrentUserProvider`. Subsequently renamed to `CurrentActorHook` (see 2026-05-19 actor-centric naming decision).
 - **`AttachmentEntityDisplayNameResolver`** deleted — was dead code; `EntityNameHook` (`core.spi/`) is the single canonical form.
 
@@ -184,7 +184,7 @@ core.model     — ActionType, ChangeEntry, EntityType
 core.spi       — CurrentActorHook, EntityNameHook
 ui             — Configurable, ComponentBuilder, Initialization, Provider
 
-audit.api      — AuditableSnapshot, AuditedField
+audit.api      — AuditableSnapshot, 
 audit.codec    — SnapshotCodec
 audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
