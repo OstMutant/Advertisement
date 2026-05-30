@@ -44,8 +44,7 @@ public class AuditActivityService {
                 .map(this::toActivityItem)
                 .toList();
 
-        List<AuditActivityItemDto> combined = activityEnrichHook.merge(
-                subjects.isEmpty() ? null : subjects.getFirst(), base);
+        List<AuditActivityItemDto> combined = activityEnrichHook.merge(subjects, base);
         combined = resolveDisplayNames(combined);
         combined = auditDomainHelper.withResolvedActorNames(
                 combined,

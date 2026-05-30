@@ -18,9 +18,10 @@ public class ActivityEnrichHookImpl implements ActivityEnrichHook {
     private final ObjectProvider<AttachmentAuditHook> attachmentAuditHook;
 
     @Override
-    public List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> base) {
+    public List<AuditActivityItemDto> merge(List<EntityRef> subjects, List<AuditActivityItemDto> base) {
         AttachmentAuditHook hook = attachmentAuditHook.getIfAvailable();
-        return hook != null ? hook.merge(subject, base) : base;
+        EntityRef primary = subjects.isEmpty() ? null : subjects.getFirst();
+        return hook != null ? hook.merge(primary, base) : base;
     }
 
     @Override

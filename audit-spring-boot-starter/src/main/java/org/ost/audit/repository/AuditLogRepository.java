@@ -94,17 +94,19 @@ public class AuditLogRepository {
 
     public List<AuditLogRow> findRowsByActor(Long actorId) {
         return jdbcClient.sql("""
-                        WITH numbered AS (
-                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text                                                                  AS snapshot_data,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at)         AS version,
-                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_id,
-                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at) AS prev_snapshot_data
-                            FROM audit_log
-                            WHERE actor_id = :actorId
+                        WITH entities_by_actor AS (
+                            SELECT DISTINCT entity_type, entity_id FROM audit_log WHERE actor_id = :actorId
+                        ),
+                        numbered AS (
+                            SELECT a.id, a.entity_type, a.entity_id, a.action_type, a.actor_id, a.created_at,
+                                   a.snapshot_data::text                                                                  AS snapshot_data,
+                                   ROW_NUMBER() OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at)    AS version,
+                                   LAG(a.id)                  OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at) AS prev_id,
+                                   LAG(a.snapshot_data::text) OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at) AS prev_snapshot_data
+                            FROM audit_log a
+                            JOIN entities_by_actor e ON a.entity_type = e.entity_type AND a.entity_id = e.entity_id
                         )
-                        SELECT * FROM numbered
-                        ORDER BY created_at DESC
+                        SELECT * FROM numbered WHERE actor_id = :actorId ORDER BY created_at DESC
                         """)
                          .paramSource(new MapSqlParameterSource("actorId", actorId))
                          .query(rowMapper)

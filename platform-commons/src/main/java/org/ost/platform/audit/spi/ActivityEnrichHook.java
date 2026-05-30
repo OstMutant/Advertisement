@@ -12,7 +12,7 @@ import java.util.List;
  * Injected via ObjectProvider — no-op when not implemented.
  */
 public interface ActivityEnrichHook {
-    List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> base);
+    List<AuditActivityItemDto> merge(List<EntityRef> subjects, List<AuditActivityItemDto> base);
     List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version);
     boolean matchesCurrent(EntityRef entity, int version);
 }
