@@ -42,7 +42,7 @@ public class AuditReadService {
         history = auditDomainHelper.withResolvedActorNames(
                 history,
                 AuditHistoryItemDto::actorId,
-                (h, name) -> h.withChangedByUserName(name));
+                AuditHistoryItemDto::withChangedByUserName);
 
         return history.stream()
                 .map(h -> {
@@ -70,7 +70,7 @@ public class AuditReadService {
                 : Stream.empty();
 
         List<AuditActivityItemDto> base = Stream.concat(subjectRows, actorRows)
-                .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, b) -> a))
+                .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
                 .values().stream()
                 .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
                 .limit(20)
@@ -82,7 +82,7 @@ public class AuditReadService {
         combined = auditDomainHelper.withResolvedActorNames(
                 combined,
                 AuditActivityItemDto::changedByActorId,
-                (i, name) -> i.withChangedByName(name));
+                AuditActivityItemDto::withChangedByName);
         combined = resolveEntityExistence(combined);
         return combined;
     }
