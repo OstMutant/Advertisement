@@ -5,11 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.CleanupProperties;
-import org.ost.platform.audit.api.ConditionalOnAuditEnabled;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.services.AuditCleanupService;
 import org.ost.audit.services.AuditDiffService;
-import org.ost.audit.services.AuditHistoryService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -27,7 +25,6 @@ import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ConditionalOnAuditEnabled
 @ComponentScan(basePackageClasses = AuditPackageMarker.class)
 @EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
 public class AuditAutoConfiguration {
@@ -60,10 +57,8 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(AuditPort.class)
     DefaultAuditPort defaultAuditPort(AuditDiffService diffEngine,
                                       AuditLogRepository auditLogRepository,
-                                      CurrentActorHook currentActorHook,
-                                      AuditHistoryService auditHistoryService) {
-        return new DefaultAuditPort(diffEngine, auditLogRepository, currentActorHook,
-                                    auditHistoryService);
+                                      CurrentActorHook currentActorHook) {
+        return new DefaultAuditPort(diffEngine, auditLogRepository, currentActorHook);
     }
 
 }

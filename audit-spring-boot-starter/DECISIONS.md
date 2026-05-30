@@ -53,7 +53,7 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 **Rejected:** `@Primary` on the starter's `ObjectMapper` — explicit `@Qualifier` over `@Primary` everywhere (durable project rule).
 
-**2026-05-23 update:** `audit.enabled` property removed. Jar presence is the only toggle — no scenario exists where the jar is on the classpath but the subsystem should be disabled. `@ConditionalOnAuditEnabled` is now a plain marker annotation with no `@ConditionalOnProperty`.
+**2026-05-23 update:** `audit.enabled` property removed. Jar presence is the only toggle — no scenario exists where the jar is on the classpath but the subsystem should be disabled. `@ConditionalOnAuditEnabled` removed entirely (was a no-op marker with no `@ConditionalOnProperty`).
 
 ---
 

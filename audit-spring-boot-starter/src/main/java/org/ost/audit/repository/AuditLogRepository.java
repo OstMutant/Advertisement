@@ -53,14 +53,6 @@ public class AuditLogRepository {
                   .update();
     }
 
-    public void updateChangesSummary(Long snapshotId, String json) {
-        jdbcClient.sql("UPDATE audit_log SET changes_summary = :changesSummary WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("id",             snapshotId)
-                          .addValue("changesSummary", json, Types.OTHER))
-                  .update();
-    }
-
     public void deleteOlderThan(int days) {
         jdbcClient.sql("DELETE FROM audit_log WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
                   .paramSource(new MapSqlParameterSource("days", days)).update();
@@ -68,7 +60,7 @@ public class AuditLogRepository {
 
     // ── Read ──────────────────────────────────────────────────────────────────
 
-    public Optional<String> getLastSnapshotData(EntityType entityType, Long entityId) {
+    public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
         return jdbcClient.sql("""
                         SELECT snapshot_data::text FROM audit_log
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -78,7 +70,8 @@ public class AuditLogRepository {
                                  .addValue("entityType", entityType.name())
                                  .addValue("entityId",   entityId))
                          .query(String.class)
-                         .optional();
+                         .optional()
+                         .map(mapper::fromSnapshot);
     }
 
     public Optional<SnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
@@ -119,27 +112,6 @@ public class AuditLogRepository {
                          .optional();
     }
 
-    public Optional<Long> findLastSnapshotId(EntityType entityType, Long entityId) {
-        return jdbcClient.sql("""
-                        SELECT id FROM audit_log
-                        WHERE entity_type = :entityType AND entity_id = :entityId
-                        ORDER BY created_at DESC LIMIT 1
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType", entityType.name())
-                                 .addValue("entityId",   entityId))
-                         .query(Long.class)
-                         .optional();
-    }
-
-    public String getChangesSummary(Long snapshotId) {
-        return jdbcClient.sql("SELECT changes_summary::text FROM audit_log WHERE id = :id")
-                         .paramSource(new MapSqlParameterSource("id", snapshotId))
-                         .query(String.class)
-                         .optional()
-                         .orElseThrow();
-    }
-
     public List<EntityHistoryDto> getEntityHistory(EntityType entityType, Long entityId, Long filterUserId) {
         return jdbcClient.sql("""
                         WITH numbered AS (
@@ -173,22 +145,6 @@ public class AuditLogRepository {
                                  .addValue("entityId",     entityId)
                                  .addValue("filterUserId", filterUserId))
                          .query(historyMapper)
-                         .list();
-    }
-
-    public List<ActivityItemDto> findActivityByActor(Long actorId) {
-        return jdbcClient.sql("""
-                        SELECT al.id AS snapshot_id, al.entity_id, al.entity_type, al.action_type,
-                               al.created_at, FALSE AS entity_exists,
-                               al.changes_summary::text AS changes_summary,
-                               al.actor_id, NULL::text AS changed_by_name,
-                               al.snapshot_data::text AS snapshot_data
-                        FROM audit_log al
-                        WHERE al.actor_id = :actorId
-                        ORDER BY al.created_at DESC LIMIT 20
-                        """)
-                         .paramSource(new MapSqlParameterSource("actorId", actorId))
-                         .query(activityMapper)
                          .list();
     }
 

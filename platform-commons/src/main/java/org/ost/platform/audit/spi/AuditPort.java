@@ -34,5 +34,4 @@ public interface AuditPort {
                 .map(type::cast);
     }
 
-    void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note);
 }

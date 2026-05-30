@@ -6,7 +6,7 @@
 
 **Decision:** Three sub-packages inside each subsystem namespace carry distinct roles:
 
-- `*.api` — contracts that **marketplace places on its own classes** so the starter can read them: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`, `@ConditionalOnAuditEnabled`). Only `audit.*` has an `api` package; attachment needs no marker contracts from marketplace.
+- `*.api` — contracts that **marketplace places on its own classes** so the starter can read them: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`). Only `audit.*` has an `api` package; attachment needs no marker contracts from marketplace.
 - `*.spi` — **extension-point interfaces** declaring a callback boundary between modules. Call direction and semantic role are encoded in the interface suffix (see the 7-suffix convention below).
 - `*.dto` — **pure data carriers** crossing the module boundary, named with the `Dto` suffix. No behavior, no framework annotations.
 
@@ -71,7 +71,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 **Why:** Every module depends on `platform-commons`. If it pulled in Spring Boot or any framework, every module would inherit that transitive dependency — including `sql-engine` which is intentionally framework-free. Keeping contracts pure Java preserves the dependency hierarchy.
 
-**Rejected:** Placing `@ConditionalOnAuditEnabled` in Spring config classes inside this module — confirmed that `@ConditionalOnProperty` requires Spring context, which contracts must not have. (`@ConditionalOnAttachmentEnabled` was relocated to `attachment-spring-boot-starter` itself on 2026-05-19 — see top entry.)
+**Rejected:** Placing conditional Spring annotations in Spring config classes inside this module — contracts must be pure Java with no Spring context dependency.
 
 ---
 
@@ -163,7 +163,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Decision:** Reorganised cross-module SPIs so audit and attachment contracts now mirror each other exactly:
 
 - **Audit-only SPIs** (`AuditActorNameResolver`, `AuditEntityExistenceChecker`, `ActivityItemFieldsProvider`, `UserActivityExtension`, `AdvertisementHistoryExtension`) moved from `core.spi/` to `audit.spi/`. Subsequently folded into the `*Hook` convention and renamed (see 2026-05-22 SPI naming decision).
-- **`AuditPort`** moved from `audit.api/` to `audit.spi/` — symmetric with `attachment.spi.AttachmentPort`. `audit.api/` now holds only annotations and snapshot markers (`AuditableSnapshot`, `AuditedField`, `@ConditionalOnAuditEnabled`).
+- **`AuditPort`** moved from `audit.api/` to `audit.spi/` — symmetric with `attachment.spi.AttachmentPort`. `audit.api/` now holds only annotations and snapshot markers (`AuditableSnapshot`, `AuditedField`).
 - **`CurrentUserProvider`** (new, in `core.spi/`) replaced both `audit.spi.AuditUserProvider` and `attachment.spi.AttachmentCurrentUserProvider`. Subsequently renamed to `CurrentActorHook` (see 2026-05-19 actor-centric naming decision).
 - **`AttachmentEntityDisplayNameResolver`** deleted — was dead code; `EntityNameHook` (`core.spi/`) is the single canonical form.
 
@@ -184,7 +184,7 @@ core.model     — ActionType, ChangeEntry, EntityType
 core.spi       — CurrentActorHook, EntityNameHook
 ui             — Configurable, ComponentBuilder, Initialization, Provider
 
-audit.api      — AuditableSnapshot, AuditedField, @ConditionalOnAuditEnabled
+audit.api      — AuditableSnapshot, AuditedField
 audit.codec    — SnapshotCodec
 audit.dto      — ActivityItemDto, EntityHistoryDto, SnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,

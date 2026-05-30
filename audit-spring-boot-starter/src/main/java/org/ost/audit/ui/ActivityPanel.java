@@ -52,7 +52,6 @@ public class ActivityPanel {
                 if (from == null) yield label + ": " + to;
                 yield label + ": " + from + " → " + to;
             }
-            case ChangeEntry.NoteEntry(var text) -> text;
             case ChangeEntry.GenericChange(var labelI18nKey, var before, var after) -> {
                 String label = i18n.get(labelI18nKey);
                 if (before == null || before.isBlank()) {

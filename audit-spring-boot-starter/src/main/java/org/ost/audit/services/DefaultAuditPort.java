@@ -20,7 +20,6 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditDiffService     diffEngine;
     private final AuditLogRepository   auditLogRepository;
     private final CurrentActorHook     currentActorHook;
-    private final AuditHistoryService  auditHistoryService;
 
     private Long resolveActor(Long actorId) {
         if (actorId != null) return actorId;
@@ -61,8 +60,4 @@ public class DefaultAuditPort implements AuditPort {
         return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType);
     }
 
-    @Override
-    public void appendNoteToLastSnapshot(EntityType entityType, Long entityId, String note) {
-        auditHistoryService.appendNoteToLastSnapshot(entityType, entityId, note);
-    }
 }

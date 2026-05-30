@@ -95,7 +95,7 @@ Rules:
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
-**Rejected:** `@ConditionalOnAuditEnabled` in `platform-commons` — contracts must be Spring-free pure Java.
+**Rejected:** Conditional Spring annotations in `platform-commons` — contracts must be Spring-free pure Java.
 
 ---
 
