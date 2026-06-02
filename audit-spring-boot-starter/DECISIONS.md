@@ -255,6 +255,28 @@ Marketplace implements `HistoryRowActionsHookImpl` with the restore button and "
 
 ---
 
+## 2026-06-02 — Audit-starter owns its own i18n; display labels removed from AuditUiPort params
+
+**Decision:** All display label strings (empty-state text, "current state" badge, "restore" button text) were previously passed from marketplace into `AuditUiPort` params (`labelEmpty`, `labelCurrentState`, `labelRestore`, `emptyLabel`, `currentLabel`, `restoreLabel`). These parameters have been removed. The audit-starter resolves all its own labels via `AuditI18n` enum + `I18nService`.
+
+`AuditMessages` renamed to `AuditI18n` (implements `TranslationKey`). All keys now carry the `audit.` namespace prefix (e.g. `audit.activity.empty`, `audit.history.restore`). The enum is internal to the starter — marketplace never references it.
+
+**Why:** Passing display strings across a module boundary couples the caller to the starter's internal rendering decisions. The starter is responsible for how it looks; the caller is responsible for what it shows.
+
+**Rule:** `AuditUiPort` params must carry only data (entity IDs, subjects, callbacks, predicates) — never display strings or i18n keys.
+
+---
+
+## 2026-06-02 — GenericChange i18n key convention: audit.changes.*
+
+**Decision:** `ChangeEntry.GenericChange.labelI18nKey` stores a raw i18n key string in the DB. The audit-starter resolves it at render time via `AuditChangeFormatter`. Keys produced by the attachment starter follow the `audit.changes.*` namespace (e.g. `audit.changes.media`). The translation itself lives in `marketplace-app/i18n/messages*.properties`.
+
+**Why:** The starter resolves labels via a shared `MessageSource`. Namespacing keys under `audit.changes.*` makes ownership clear and avoids collision with marketplace-owned keys.
+
+**Deferred — per-module i18n:** Each starter should eventually own its own `messages*.properties` (e.g. `i18n/audit-messages_en.properties`), loaded via a composite `MessageSource`. This eliminates audit- and attachment-specific keys from the marketplace properties files. Trigger: when a second consumer of either starter appears, or the marketplace properties file becomes unmanageable.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears
