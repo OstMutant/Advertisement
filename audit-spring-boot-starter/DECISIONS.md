@@ -224,30 +224,19 @@ public record AuditLogProjection(
 
 ---
 
-## Deferred — AuditHistoryPanel / AuditActivityPanel: full hook-driven row building
+## 2026-06-02 — HistoryRowActionsHook: restore button and current-state badge moved to marketplace
 
-**Goal:** Make audit UI panels reusable outside marketplace by moving all domain-specific UI logic out via hooks.
+**Decision:** `AuditHistoryPanel` no longer builds the "Restore this version" button or "Current state" badge itself. Instead it calls `HistoryRowActionsHook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — absent when the hook is not registered, no-op when absent.
 
-**Current coupling:**
-- `AuditHistoryPanel` contains restore button logic (`snapshotsEqual`, `mediaMatchCurrent`, labels) — marketplace domain
-- CSS class names (`entity-history-*`, `activity-feed-*`) are hardcoded in both panels
-- Row structure (version badge, action badge, user, time) is fixed in `AuditHistoryPanel`
+`HistoryRowActionsHook` lives in `platform-commons/audit.spi`. Marketplace provides `AuditHistoryRowActionsHookImpl` (prefixed with `Audit` to distinguish it from other hook impls in the `spi` package).
 
-**Design:**
-Add `HistoryRowActionsHook` to `audit.spi`:
-```java
-public interface HistoryRowActionsHook {
-    boolean supports(EntityType entityType);
-    Component buildRowActions(AuditHistoryItemDto item, boolean isCurrentState);
-}
-```
+`isCurrentState` is still computed in the panel (snapshot equality + `ActivityEnrichHook.matchesCurrent()` via SPI) and passed to the hook as a simple boolean — the hook just decides which component to render.
 
-`AuditHistoryPanel`:
-- Removes all restore/snapshot comparison logic
-- Calls `hook.buildRowActions(h, isCurrentState)` — adds whatever the hook returns
-- CSS prefix passed via `Parameters` instead of hardcoded
+**Why:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern. `AuditI18n.HISTORY_CURRENT_STATE` and `HISTORY_RESTORE` removed from the starter; labels now live in `I18nKey` in marketplace.
 
-Marketplace implements `HistoryRowActionsHookImpl` with the restore button and "current state" badge.
+**Still deferred:**
+- CSS class names (`entity-history-*`) are hardcoded in `AuditHistoryPanel`
+- Row structure (version badge, action badge, user, time) is fixed
 
 **Why:** The restore button is a marketplace business decision — the starter should not know what "restore" means or how to compare snapshots. The panel's job is to fetch and lay out history rows; actions are the caller's concern.
 

@@ -1,7 +1,6 @@
 package org.ost.audit.ui;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -15,6 +14,7 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.ActivityEnrichHook;
+import org.ost.platform.audit.spi.HistoryRowActionsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.ui.Configurable;
@@ -53,9 +53,10 @@ public class AuditHistoryPanel extends Div
 
     private final I18nService                                   i18n;
     private final InstantFormatter                              formatter;
-    private final AuditReadService                               auditReadService;
-    private final ObjectProvider<AuditActivityRowRenderer>   rendererProvider;
-    private final ActivityEnrichHook                    activityEnrichHook;
+    private final AuditReadService                              auditReadService;
+    private final ObjectProvider<AuditActivityRowRenderer>      rendererProvider;
+    private final ActivityEnrichHook                            activityEnrichHook;
+    private final ObjectProvider<HistoryRowActionsHook>         rowActionsHook;
 
     @Override
     @PostConstruct
@@ -82,8 +83,7 @@ public class AuditHistoryPanel extends Div
 
         RowContext ctx = new RowContext(
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
-                p.isCanOperate(), i18n.get(AuditI18n.HISTORY_CURRENT_STATE), i18n.get(AuditI18n.HISTORY_RESTORE),
-                p.getOnRestoreRequested());
+                p.isCanOperate(), p.getOnRestoreRequested());
         AuditActivityRowRenderer renderer = rendererProvider.getObject();
 
         for (AuditHistoryItemDto h : history) {
@@ -94,8 +94,7 @@ public class AuditHistoryPanel extends Div
 
     private record RowContext(
             EntityType entityType, Long entityId, AuditableSnapshot currentSnapshot, int historySize,
-            boolean canOperate, String labelCurrentState, String labelRestore,
-            ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
+            boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
 
     private Div buildRow(AuditHistoryItemDto h, AuditActivityRowRenderer renderer, RowContext ctx) {
         EntityType entityType        = ctx.entityType();
@@ -103,8 +102,6 @@ public class AuditHistoryPanel extends Div
         AuditableSnapshot currentSnap  = ctx.currentSnapshot();
         int historySize              = ctx.historySize();
         boolean canOperate           = ctx.canOperate();
-        String labelCurrentState     = ctx.labelCurrentState();
-        String labelRestore          = ctx.labelRestore();
         ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested = ctx.onRestoreRequested();
 
         Div row = new Div();
@@ -131,21 +128,12 @@ public class AuditHistoryPanel extends Div
 
         boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
         if (canOperate && isTextRow && (h.actionType() != ActionType.CREATED || historySize > 1)) {
-            boolean snapshotMatches = snapshotsEqual(h.snapshotData(), currentSnap);
-            boolean matchesCurrent  = snapshotMatches && mediaMatchCurrent(entityType, entityId, h.version());
-
-            if (matchesCurrent) {
-                Span badge = new Span(labelCurrentState);
-                badge.addClassName("entity-history-current-badge");
-                row.add(badge);
-            } else {
-                Button restoreBtn = new Button(labelRestore);
-                restoreBtn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                restoreBtn.addClassName("entity-history-restore-btn");
-                long snapId = h.snapshotId();
-                restoreBtn.addClickListener(_ -> onRestoreRequested.accept(h, snapId));
-                row.add(restoreBtn);
-            }
+            boolean isCurrentState = snapshotsEqual(h.snapshotData(), currentSnap)
+                    && mediaMatchCurrent(entityType, entityId, h.version());
+            rowActionsHook.ifAvailable(hook -> {
+                Component actions = hook.buildRowActions(h, isCurrentState, onRestoreRequested);
+                if (actions != null) row.add(actions);
+            });
         }
         return row;
     }

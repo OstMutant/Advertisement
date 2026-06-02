@@ -39,7 +39,7 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
 | `*Port` | marketplace → starter | marketplace calls the starter (commands, queries, UI components) | `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` |
-| `*Hook` | starter → marketplace | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `MediaChangeHook`, `AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`, `AttachmentAuditHook` |
+| `*Hook` | starter → marketplace | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `MediaChangeHook`, `AuditDomainHook`, `EntityNameHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`, `AttachmentAuditHook`, `HistoryRowActionsHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 
