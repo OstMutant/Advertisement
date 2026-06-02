@@ -101,11 +101,11 @@ Rules:
 
 ## 2026-05-21 — AuditSnapshotBinder coupling in marketplace-app UI is intentional
 
-**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.AuditSnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.
+~~**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.AuditSnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.~~
 
-**Why:** `AuditSnapshotBinder` is a Vaadin/Spring component and cannot live in `platform-commons` (which must stay framework-free). Extracting a `AuditSnapshotBinder.Builder` SPI to platform-commons would add complexity with no practical benefit — there is only one implementation and no realistic scenario for swapping it. The dependency direction is correct (`marketplace-app → audit-starter → platform-commons`); marketplace-app is the consumer and is allowed to reference concrete types from starters it depends on.
+~~**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.~~
 
-**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.
+**Superseded 2026-06-02:** Direct import removed. `AuditUiPort` (platform-commons) now exposes `snapshotRowHook(SnapshotRowHookParams<T>)` — marketplace calls it via the existing `ObjectProvider<AuditUiPort>`. `AuditUiPortImpl` (audit-starter) creates the `AuditSnapshotBinder` internally. The `audit-spring-boot-starter` dependency in `marketplace-app/pom.xml` is now `<optional>true</optional>`. Marketplace has zero imports from `org.ost.audit.*`.
 
 ---
 

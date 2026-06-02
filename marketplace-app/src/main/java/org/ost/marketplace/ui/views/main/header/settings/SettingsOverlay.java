@@ -14,6 +14,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import java.util.Optional;
+import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
@@ -28,7 +29,6 @@ import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.audit.ui.AuditSnapshotBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.model.EntityRef;
@@ -54,7 +54,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
     private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
-    private final transient AuditSnapshotBinder.Builder<SettingsSnapshotDto>     settingsBinderBuilder;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
     private final transient UiPrimaryButton.Builder    saveButtonBuilder;
     private final transient UiIconButton.Builder       closeButtonBuilder;
@@ -183,8 +182,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
         UserSettings current = settingsService.load(currentUser.getId());
-        AuditSnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
-                AuditSnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
+        ActivityRowHook settingsBinding = auditUi.snapshotRowHook(
+                AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
                         .snapshotClass(SettingsSnapshotDto.class)
                         .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()

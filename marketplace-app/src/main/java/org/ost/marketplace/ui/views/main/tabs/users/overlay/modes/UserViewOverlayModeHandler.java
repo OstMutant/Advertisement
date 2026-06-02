@@ -18,10 +18,10 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.audit.ui.AuditSnapshotBinder;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
+import org.ost.platform.audit.spi.ActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.ComponentBuilder;
@@ -66,8 +66,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final UiPrimaryButton.Builder                     editButtonBuilder;
     private final UiIconButton.Builder                        closeButtonBuilder;
     private final ObjectProvider<AuditUiPort>                 auditUiExtensionProvider;
-    private final AuditSnapshotBinder.Builder<UserSnapshotDto>     userBinderBuilder;
-    private final AuditSnapshotBinder.Builder<SettingsSnapshotDto> settingsBinderBuilder;
 
     private Parameters params;
 
@@ -160,8 +158,8 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 
-        AuditSnapshotBinder<UserSnapshotDto> userBinding = userBinderBuilder.build(
-                AuditSnapshotBinder.Parameters.<UserSnapshotDto>builder()
+        ActivityRowHook userBinding = auditUi.snapshotRowHook(
+                AuditUiPort.SnapshotRowHookParams.<UserSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER)
                         .snapshotClass(UserSnapshotDto.class)
                         .isCurrent(snap -> snap.name().equals(currentName)
@@ -173,8 +171,8 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .restoreLabel(getValue(USER_RESTORE_BUTTON))
                         .build());
 
-        AuditSnapshotBinder<SettingsSnapshotDto> settingsBinding = settingsBinderBuilder.build(
-                AuditSnapshotBinder.Parameters.<SettingsSnapshotDto>builder()
+        ActivityRowHook settingsBinding = auditUi.snapshotRowHook(
+                AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
                         .snapshotClass(SettingsSnapshotDto.class)
                         .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()

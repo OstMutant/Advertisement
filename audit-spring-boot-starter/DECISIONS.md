@@ -130,7 +130,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### MEDIUM-LOW
 - ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `ActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
-- `AuditSnapshotBinder` lives in `audit-starter` UI layer; `UserViewOverlayModeHandler` imports it directly. If its API changes, marketplace compilation breaks.
+- ✅ `AuditSnapshotBinder` coupling removed. `AuditUiPort.snapshotRowHook(SnapshotRowHookParams<T>)` added; `AuditUiPortImpl` creates the binder internally. See `marketplace-app/DECISIONS.md` 2026-05-21 (superseded).
 
 ---
 
