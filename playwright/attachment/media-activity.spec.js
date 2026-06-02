@@ -57,7 +57,7 @@ async function closeAdOverlay(page) {
 }
 
 function checkMediaInText(text, label) {
-  const count = (text.match(/зображення|image/gi) || []).length;
+  const count = (text.match(/медіа|media/gi) || []).length;
   if (count === 0) throw new Error(`No media change in ${label}: ` + text.slice(0, 200));
 }
 

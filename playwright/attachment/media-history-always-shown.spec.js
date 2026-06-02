@@ -99,7 +99,7 @@ test.describe('Media line always shown in history', () => {
     await test.step('Latest row (text-only edit) still has media line', async () => {
       const changes = latestRow.locator('.entity-history-changes-item');
       const texts = await changes.allTextContents();
-      const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
+      const mediaLine = texts.find(t => /^[•\s]*(медіа|media)\s*:/i.test(t));
       if (!mediaLine) {
         throw new Error(
           'Media line missing in text-only edit row. Changes found: ' + JSON.stringify(texts)
@@ -110,7 +110,7 @@ test.describe('Media line always shown in history', () => {
     await test.step('Media line contains — (images were deleted in v2)', async () => {
       const changes = latestRow.locator('.entity-history-changes-item');
       const texts = await changes.allTextContents();
-      const mediaLine = texts.find(t => /^[•\s]*(зображення|images)\s*:/i.test(t));
+      const mediaLine = texts.find(t => /^[•\s]*(медіа|media)\s*:/i.test(t));
       if (!mediaLine.includes('—')) {
         throw new Error('Expected — in media line, got: ' + mediaLine);
       }

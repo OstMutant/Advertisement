@@ -48,7 +48,7 @@ public class AuditChangeFormatter {
                 yield field + ": \"" + from + "\" → \"" + to + "\"";
             }
             case ChangeEntry.SettingChange(var key, var from, var to) -> {
-                String label = i18n.get(AuditMessages.settingLabel(key));
+                String label = i18n.get(AuditI18n.settingLabel(key));
                 if (from == null) yield label + ": " + to;
                 yield label + ": " + from + " → " + to;
             }

@@ -13,6 +13,7 @@ import lombok.Value;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
@@ -38,8 +39,6 @@ public class AuditSnapshotBinder<T>
         @NonNull Predicate<T>       isCurrent;
         Long                        subjectEntityId;
         BiConsumer<Long, Long>      onRestore;
-        @NonNull String             currentLabel;
-        String                      restoreLabel;
     }
 
     @SpringComponent
@@ -50,6 +49,7 @@ public class AuditSnapshotBinder<T>
         private final ObjectProvider<AuditSnapshotBinder<T>> provider;
     }
 
+    private final I18nService i18n;
     private Parameters<T> params;
 
     @Override
@@ -72,13 +72,13 @@ public class AuditSnapshotBinder<T>
                 .map(params.getSnapshotClass()::cast)
                 .map(snap -> {
                     if (params.getIsCurrent().test(snap)) {
-                        Span badge = new Span(params.getCurrentLabel());
+                        Span badge = new Span(i18n.get(AuditI18n.ACTIVITY_CURRENT_STATE));
                         badge.addClassName("activity-feed-current-badge");
                         return (Component) badge;
                     }
                     if (params.getOnRestore() == null) return null;
                     if (params.getSubjectEntityId() != null && !Objects.equals(params.getSubjectEntityId(), item.entityId())) return null;
-                    Button btn = new Button(params.getRestoreLabel());
+                    Button btn = new Button(i18n.get(AuditI18n.ACTIVITY_RESTORE));
                     btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
                     btn.addClassName("entity-history-restore-btn");
                     btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), item.entityId()));

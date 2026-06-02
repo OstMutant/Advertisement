@@ -12,6 +12,7 @@ import lombok.Value;
 import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
@@ -35,7 +36,6 @@ public class AuditActivityPanel extends Div
         List<EntityRef>       subjects = List.of();
         Long                  actorId;
         Long                  viewerActorId;
-        String                emptyLabel;
         @lombok.Builder.Default
         List<ActivityRowHook> bindings = List.of();
     }
@@ -47,6 +47,7 @@ public class AuditActivityPanel extends Div
         private final ObjectProvider<AuditActivityPanel> provider;
     }
 
+    private final I18nService                              i18n;
     private final AuditReadService                         auditReadService;
     private final ObjectProvider<AuditActivityRowRenderer> rendererProvider;
 
@@ -62,7 +63,7 @@ public class AuditActivityPanel extends Div
         List<AuditActivityItemDto> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId());
 
         if (items.isEmpty()) {
-            Span empty = new Span(p.getEmptyLabel() != null ? p.getEmptyLabel() : "");
+            Span empty = new Span(i18n.get(AuditI18n.ACTIVITY_EMPTY));
             empty.addClassName("activity-feed-empty");
             add(empty);
             return this;

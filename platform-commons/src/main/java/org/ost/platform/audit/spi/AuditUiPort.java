@@ -32,9 +32,6 @@ public interface AuditUiPort {
         boolean                                isPrivileged;
         boolean                                canOperate;
         ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
-        String                                 labelEmpty;
-        String                                 labelCurrentState;
-        String                                 labelRestore;
     }
 
     @Value
@@ -44,7 +41,6 @@ public interface AuditUiPort {
         List<EntityRef>            subjects = List.of();
         Long                       actorId;
         Long                       viewerActorId;
-        String                     emptyLabel;
         @lombok.Builder.Default
         List<ActivityRowHook>      bindings = List.of();
     }
@@ -57,8 +53,6 @@ public interface AuditUiPort {
         @NonNull Predicate<T>       isCurrent;
         Long                        subjectEntityId;
         BiConsumer<Long, Long>      onRestore;
-        @NonNull String             currentLabel;
-        String                      restoreLabel;
     }
 
     Component buildAuditHistoryPanel(EntityHistoryParams params);

@@ -72,7 +72,7 @@ test.describe('Verify media history', () => {
 
     await test.step('Media changes visible in CREATED row', async () => {
       const text = await page.locator('.entity-history-list').textContent();
-      if (!/(зображення|image)/i.test(text))
+      if (!/(медіа|media)/i.test(text))
         throw new Error('No media change entry in history after create: ' + text.slice(0, 200));
     });
     await screenshot(page, 'verify-media-01-history');
@@ -112,7 +112,7 @@ test.describe('Verify media history', () => {
 
       await test.step('Media deletion visible in history', async () => {
         const text = await page.locator('.entity-history-list').textContent();
-        if (!/(зображення|image)/i.test(text))
+        if (!/(медіа|media)/i.test(text))
           throw new Error('No media deletion entry in history: ' + text.slice(0, 200));
       });
       await screenshot(page, 'verify-media-02-delete-history');
@@ -123,7 +123,7 @@ test.describe('Verify media history', () => {
         await page.locator('.overlay__view-title').waitFor();
         await openHistory(page);
         const text = await page.locator('.entity-history-list').textContent();
-        if (!/(зображення|image)/i.test(text))
+        if (!/(медіа|media)/i.test(text))
           throw new Error('No media entry in history: ' + text.slice(0, 200));
       });
       await screenshot(page, 'verify-media-02-delete-history');

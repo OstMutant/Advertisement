@@ -140,9 +140,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(ad))
                 .onRestoreRequested(this::showRestoreConfirm)
-                .labelEmpty(getValue(ADVERTISEMENT_HISTORY_EMPTY))
-                .labelCurrentState(getValue(ADVERTISEMENT_HISTORY_CURRENT_STATE))
-                .labelRestore(getValue(ADVERTISEMENT_RESTORE_BUTTON))
                 .build());
     }
 

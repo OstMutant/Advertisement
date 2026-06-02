@@ -42,9 +42,6 @@ public class AuditHistoryPanel extends Div
         boolean    isPrivileged;
         boolean                                canOperate;
         ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
-        String     labelEmpty;
-        String     labelCurrentState;
-        String     labelRestore;
     }
 
     @SpringComponent
@@ -77,7 +74,7 @@ public class AuditHistoryPanel extends Div
                 .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
 
         if (history.isEmpty()) {
-            Span empty = new Span(p.getLabelEmpty());
+            Span empty = new Span(i18n.get(AuditI18n.HISTORY_EMPTY));
             empty.addClassName("entity-history-empty");
             add(empty);
             return this;
@@ -85,7 +82,7 @@ public class AuditHistoryPanel extends Div
 
         RowContext ctx = new RowContext(
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
-                p.isCanOperate(), p.getLabelCurrentState(), p.getLabelRestore(),
+                p.isCanOperate(), i18n.get(AuditI18n.HISTORY_CURRENT_STATE), i18n.get(AuditI18n.HISTORY_RESTORE),
                 p.getOnRestoreRequested());
         AuditActivityRowRenderer renderer = rendererProvider.getObject();
 
@@ -161,11 +158,11 @@ public class AuditHistoryPanel extends Div
         return activityEnrichHook.matchesCurrent(new EntityRef(entityType, entityId), version);
     }
 
-    private static AuditMessages formatActionKey(ActionType actionType) {
+    private static AuditI18n formatActionKey(ActionType actionType) {
         return switch (actionType) {
-            case CREATED -> AuditMessages.ACTIVITY_ACTION_CREATED;
-            case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;
-            case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
+            case CREATED -> AuditI18n.ACTIVITY_ACTION_CREATED;
+            case UPDATED -> AuditI18n.ACTIVITY_ACTION_UPDATED;
+            case DELETED -> AuditI18n.ACTIVITY_ACTION_DELETED;
         };
     }
 }

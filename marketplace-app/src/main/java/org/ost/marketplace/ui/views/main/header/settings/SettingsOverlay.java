@@ -189,8 +189,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()
                                         && snap.usersPageSize() == current.getUsersPageSize())
                         .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId))
-                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
-                        .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
         return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjects(java.util.List.of(
@@ -198,7 +196,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         new EntityRef(EntityType.USER_SETTINGS, currentUser.getId())))
                 .actorId(currentUser.getId())
                 .viewerActorId(currentUser.getId())
-                .emptyLabel(getValue(ACTIVITY_EMPTY))
                 .bindings(java.util.List.of(settingsBinding))
                 .build());
     }
@@ -214,12 +211,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         UserSettings current = settingsService.load(currentUser.getId());
         String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
 
-        String adsLabel = i18nService.get("changes.setting.adsPageSize");
+        String adsLabel = i18nService.get("audit.changes.setting.adsPageSize");
         String adsLine  = current.getAdsPageSize() == target.getAdsPageSize()
                 ? adsLabel + ": " + noChange
                 : adsLabel + ": " + current.getAdsPageSize() + " → " + target.getAdsPageSize();
 
-        String usersLabel = i18nService.get("changes.setting.usersPageSize");
+        String usersLabel = i18nService.get("audit.changes.setting.usersPageSize");
         String usersLine  = current.getUsersPageSize() == target.getUsersPageSize()
                 ? usersLabel + ": " + noChange
                 : usersLabel + ": " + current.getUsersPageSize() + " → " + target.getUsersPageSize();

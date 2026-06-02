@@ -100,7 +100,7 @@ public class AttachmentSnapshotService {
                         List<String> after  = (List<String>) m.getOrDefault("after",  List.of());
                         String beforeStr = before.isEmpty() ? "—" : String.join(", ", before);
                         String afterStr  = after.isEmpty()  ? "—" : String.join(", ", after);
-                        return (ChangeEntry) new ChangeEntry.GenericChange("changes.photos", beforeStr, afterStr);
+                        return (ChangeEntry) new ChangeEntry.GenericChange("audit.changes.media", beforeStr, afterStr);
                     })
                     .toList();
         } catch (Exception _) {

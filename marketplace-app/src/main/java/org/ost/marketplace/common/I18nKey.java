@@ -95,8 +95,6 @@ public enum I18nKey implements TranslationKey {
     USER_VIEW_CONFIRM_DELETE_TITLE("user.view.confirm.delete.title"),
     USER_VIEW_CONFIRM_DELETE_TEXT("user.view.confirm.delete.text"),
     USER_VIEW_BUTTON_EDIT("user.view.button.edit"),
-    USER_RESTORE_BUTTON("user.restore.button"),
-    USER_ACTIVITY_CURRENT_STATE("user.activity.current.state"),
     USER_VIEW_BUTTON_DELETE("user.view.button.delete"),
     USER_VIEW_CONFIRM_DELETE_BUTTON("user.view.confirm.delete.button"),
     USER_VIEW_CONFIRM_CANCEL_BUTTON("user.view.confirm.cancel.button"),
@@ -231,7 +229,6 @@ public enum I18nKey implements TranslationKey {
     // === Activity ===
     ACTIVITY_TAB("activity.tab"),
     ACTIVITY_PROFILE_TAB("activity.profile.tab"),
-    ACTIVITY_EMPTY("activity.empty"),
     ACTIVITY_SECTION_TITLE("activity.section.title"),
     ACTIVITY_ACTION_CREATED("activity.action.created"),
     ACTIVITY_ACTION_UPDATED("activity.action.updated"),
@@ -241,16 +238,12 @@ public enum I18nKey implements TranslationKey {
     // === Advertisement History ===
     ADVERTISEMENT_HISTORY_TAB("advertisement.history.tab"),
     ADVERTISEMENT_VIEW_TAB("advertisement.view.tab"),
-    ADVERTISEMENT_RESTORE_BUTTON("advertisement.restore.button"),
     ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
     ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),
     ADVERTISEMENT_RESTORE_CONFIRM_BUTTON("advertisement.restore.confirm.button"),
     ADVERTISEMENT_RESTORE_CONFIRM_CANCEL("advertisement.restore.confirm.cancel"),
-    ADVERTISEMENT_HISTORY_EMPTY("advertisement.history.empty"),
-    ADVERTISEMENT_HISTORY_CURRENT_STATE("advertisement.history.current.state"),
 
     // === Settings History ===
-    SETTINGS_RESTORE_BUTTON("settings.restore.button"),
     SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
     SETTINGS_RESTORE_CONFIRM_TITLE("settings.restore.confirm.title"),
 
@@ -264,8 +257,7 @@ public enum I18nKey implements TranslationKey {
     CHANGES_FIELD_DESCRIPTION("changes.field.description"),
     CHANGES_FIELD_NAME("changes.field.name"),
     CHANGES_FIELD_EMAIL("changes.field.email"),
-    CHANGES_FIELD_ROLE("changes.field.role"),
-    CHANGES_PHOTOS("changes.photos");
+    CHANGES_FIELD_ROLE("changes.field.role");
 
     private final String key;
 

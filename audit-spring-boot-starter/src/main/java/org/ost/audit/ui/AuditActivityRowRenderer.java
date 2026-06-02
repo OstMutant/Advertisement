@@ -137,7 +137,7 @@ public class AuditActivityRowRenderer {
         } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addSpan(container, i18n.get(AuditMessages.CHANGES_PHOTOS) + ": " + mediaText, true, cssBase);
+            addSpan(container, i18n.get(AuditI18n.CHANGES_MEDIA) + ": " + mediaText, true, cssBase);
         }
 
         return container;
@@ -156,11 +156,11 @@ public class AuditActivityRowRenderer {
                 .toList();
     }
 
-    private static AuditMessages formatActionKey(ActionType actionType) {
+    private static AuditI18n formatActionKey(ActionType actionType) {
         return switch (actionType) {
-            case CREATED -> AuditMessages.ACTIVITY_ACTION_CREATED;
-            case UPDATED -> AuditMessages.ACTIVITY_ACTION_UPDATED;
-            case DELETED -> AuditMessages.ACTIVITY_ACTION_DELETED;
+            case CREATED -> AuditI18n.ACTIVITY_ACTION_CREATED;
+            case UPDATED -> AuditI18n.ACTIVITY_ACTION_UPDATED;
+            case DELETED -> AuditI18n.ACTIVITY_ACTION_DELETED;
         };
     }
 

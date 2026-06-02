@@ -164,7 +164,7 @@ test.describe('Settings activity', () => {
       const rows = page.locator('.base-overlay.overlay--visible .activity-feed-row');
       const firstAdRow = rows.filter({ hasText: adTitle }).first();
       const rowText = await firstAdRow.textContent();
-      if (!rowText.includes('зображення') && !rowText.includes('image'))
+      if (!rowText.includes('медіа') && !rowText.includes('media'))
         throw new Error('Image change not found in combined activity row');
       if (!rowText.includes(adTitle))
         throw new Error('Title change not found in combined activity row');

@@ -26,9 +26,6 @@ public class AuditUiPortImpl implements AuditUiPort {
                 .isPrivileged(p.isPrivileged())
                 .canOperate(p.isCanOperate())
                 .onRestoreRequested(p.getOnRestoreRequested())
-                .labelEmpty(p.getLabelEmpty())
-                .labelCurrentState(p.getLabelCurrentState())
-                .labelRestore(p.getLabelRestore())
                 .build());
     }
 
@@ -38,7 +35,6 @@ public class AuditUiPortImpl implements AuditUiPort {
                 .subjects(p.getSubjects())
                 .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())
-                .emptyLabel(p.getEmptyLabel())
                 .bindings(p.getBindings())
                 .build());
     }
@@ -53,8 +49,6 @@ public class AuditUiPortImpl implements AuditUiPort {
                 .isCurrent(p.getIsCurrent())
                 .subjectEntityId(p.getSubjectEntityId())
                 .onRestore(p.getOnRestore())
-                .currentLabel(p.getCurrentLabel())
-                .restoreLabel(p.getRestoreLabel())
                 .build());
     }
 }

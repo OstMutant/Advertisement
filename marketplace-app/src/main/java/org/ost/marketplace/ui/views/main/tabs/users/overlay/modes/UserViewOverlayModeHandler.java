@@ -167,8 +167,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                                         && currentRole != null && currentRole.name().equals(snap.role()))
                         .subjectEntityId(user.getId())
                         .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
-                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
-                        .restoreLabel(getValue(USER_RESTORE_BUTTON))
                         .build());
 
         ActivityRowHook settingsBinding = auditUi.snapshotRowHook(
@@ -178,8 +176,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()
                                         && snap.usersPageSize() == currentSettings.getUsersPageSize())
                         .subjectEntityId(user.getId())
-                        .currentLabel(getValue(USER_ACTIVITY_CURRENT_STATE))
-                        .restoreLabel(getValue(SETTINGS_RESTORE_BUTTON))
                         .build());
 
         return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
@@ -188,7 +184,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER_SETTINGS, user.getId())))
                 .actorId(user.getId())
                 .viewerActorId(user.getId())
-                .emptyLabel(getValue(ACTIVITY_EMPTY))
                 .bindings(java.util.List.of(userBinding, settingsBinding))
                 .build());
     }
