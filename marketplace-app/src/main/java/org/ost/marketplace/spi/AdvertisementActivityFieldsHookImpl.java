@@ -3,7 +3,7 @@ package org.ost.marketplace.spi;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.ActivityFieldsHook;
+import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Component
-public class AdvertisementActivityFieldsHookImpl implements ActivityFieldsHook {
+public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
     @Override
     public boolean supports(EntityType entityType) {

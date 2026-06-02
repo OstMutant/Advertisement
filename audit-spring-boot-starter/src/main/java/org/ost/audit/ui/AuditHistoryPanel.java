@@ -13,8 +13,8 @@ import org.ost.audit.services.AuditReadService;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.ActivityEnrichHook;
-import org.ost.platform.audit.spi.HistoryRowActionsHook;
+import org.ost.platform.audit.spi.AuditActivityEnrichHook;
+import org.ost.platform.audit.spi.AuditHistoryRowActionsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.ui.Configurable;
@@ -55,8 +55,8 @@ public class AuditHistoryPanel extends Div
     private final InstantFormatter                              formatter;
     private final AuditReadService                              auditReadService;
     private final ObjectProvider<AuditActivityRowRenderer>      rendererProvider;
-    private final ActivityEnrichHook                            activityEnrichHook;
-    private final ObjectProvider<HistoryRowActionsHook>         rowActionsHook;
+    private final AuditActivityEnrichHook                            activityEnrichHook;
+    private final ObjectProvider<AuditHistoryRowActionsHook>         rowActionsHook;
 
     @Override
     @PostConstruct

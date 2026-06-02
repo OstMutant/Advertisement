@@ -1,7 +1,7 @@
 package org.ost.attachment.util;
 
 import lombok.NoArgsConstructor;
-import org.ost.platform.attachment.model.MediaContentType;
+import org.ost.platform.attachment.model.AttachmentMediaContentType;
 
 import static lombok.AccessLevel.PRIVATE;
 
@@ -14,13 +14,13 @@ public final class MediaContentTypeUtil {
         "%3Cpolygon points='60,40 60,120 120,80' fill='white' opacity='0.7'/%3E%3C/svg%3E";
 
     public static boolean isEmbedded(String contentType) {
-        return MediaContentType.YOUTUBE.getValue().equals(contentType)
-            || MediaContentType.EMBED.getValue().equals(contentType);
+        return AttachmentMediaContentType.YOUTUBE.getValue().equals(contentType)
+            || AttachmentMediaContentType.EMBED.getValue().equals(contentType);
     }
 
     public static boolean isUploadedVideo(String contentType) {
-        return MediaContentType.MP4.getValue().equals(contentType)
-            || MediaContentType.WEBM.getValue().equals(contentType);
+        return AttachmentMediaContentType.MP4.getValue().equals(contentType)
+            || AttachmentMediaContentType.WEBM.getValue().equals(contentType);
     }
 
     public static boolean isVideo(String contentType) {

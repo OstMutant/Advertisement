@@ -25,7 +25,7 @@
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`, `MediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityRenderHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -75,14 +75,14 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ---
 
-## 2026-05-29 — Audit starter decoupled from attachment via ActivityEnrichHook
+## 2026-05-29 — Audit starter decoupled from attachment via AuditActivityEnrichHook
 
-**Decision:** The audit starter no longer imports or calls `AttachmentAuditHook` directly. A new `ActivityEnrichHook` SPI (`audit.spi`) was introduced — the audit starter calls it via `ObjectProvider`. Marketplace implements `ActivityEnrichHookImpl`, which internally delegates to `ObjectProvider<AttachmentAuditHook>`.
+**Decision:** The audit starter no longer imports or calls `AttachmentAuditHook` directly. A new `AuditActivityEnrichHook` SPI (`audit.spi`) was introduced — the audit starter calls it via `ObjectProvider`. Marketplace implements `ActivityEnrichHookImpl`, which internally delegates to `ObjectProvider<AttachmentAuditHook>`.
 
 **Why:** `AttachmentAuditHook` is an `attachment.spi` interface. Having the audit starter call it created a starter→starter coupling: audit implicitly depended on attachment being present to enrich its data. Marketplace is the correct orchestrator — it knows about both subsystems and decides how to combine them.
 
 **Call chain after this change:**
-- `AuditReadService` / `AuditReadService` / `AuditHistoryPanel` → `ActivityEnrichHook` (audit.spi)
+- `AuditReadService` / `AuditReadService` / `AuditHistoryPanel` → `AuditActivityEnrichHook` (audit.spi)
 - `ActivityEnrichHookImpl` (marketplace) → `AttachmentAuditHook` (attachment.spi)
 - `AttachmentAuditHookImpl` (attachment-starter) → domain logic
 
@@ -106,7 +106,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ## Ongoing — SPI pattern for cross-module extension
 
-**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AttachmentGalleryPort`, `MediaChangeHook`, `ActivityRowHook`, `AttachmentPort`, `AuditUiPort`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
+**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AttachmentGalleryPort`, `AttachmentMediaChangeHook`, `AuditActivityRowHook`, `AttachmentPort`, `AuditUiPort`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
 
 **Why:** Modules must not know about each other — only about contracts. The SPI pattern lets `attachment-spring-boot-starter` extend audit history without `audit-spring-boot-starter` importing attachment types.
 
@@ -117,8 +117,8 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Decision:** Dropped the three advertisement-scoped events (`AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`, `AdvertisementMediaUpdatedEvent`) along with the `attachment.event` package. Cross-module attachment lifecycle is now carried by SPIs:
 
 - **`AttachmentPort`** (domain → starter): `softDeleteAll(EntityType, Long, Long)`, `restoreToSnapshot(EntityType, Long, int, Long)`, `getMediaSummary(EntityType, Long)`. Symmetric with `AuditPort`. `NoOpAttachmentPort` activates when storage is disabled.
-- **`MediaChangeHook`** (starter → domain): `onMediaChanged(EntityType, Long)`. The starter calls it via `ObjectProvider.ifAvailable()`; consumers query current state via `AttachmentPort.getMediaSummary(...)` and update their own denormalized columns.
-- **`MediaSummaryDto(displayUrl, contentType, count)`** (`attachment.dto`) — display-ready record returned by `getMediaSummary`; the starter resolves YouTube → thumbnail URL, generic embed → `null`, image/uploaded-video → original URL.
+- **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityType, Long)`. The starter calls it via `ObjectProvider.ifAvailable()`; consumers query current state via `AttachmentPort.getMediaSummary(...)` and update their own denormalized columns.
+- **`AttachmentMediaSummaryDto(displayUrl, contentType, count)`** (`attachment.dto`) — display-ready record returned by `getMediaSummary`; the starter resolves YouTube → thumbnail URL, generic embed → `null`, image/uploaded-video → original URL.
 
 **Why:** Events were a one-way pipe with no return value, forcing the starter to denormalize derived fields (URLs, counts) into the event payload and the domain to listen and translate. The SPI surface is symmetric with `AuditPort`, gives the caller a direct return path, and keeps derived fields inside the starter where the truth lives. The `MediaChangeConsumer` SPI intentionally carries only `(entityType, entityId)` so the contract surface does not leak attachment internals.
 
@@ -135,7 +135,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 - `UserSnapshotState` → deleted from `audit.dto`. The starter does not parse user payloads; consumers (`marketplace-app`) read raw `SnapshotContent` via `AuditPort.getSnapshotContent` / `getPreviousSnapshotContent` and deserialize their own `UserSnapshot`.
 - `AuditPort.getUserStateBefore(Long)` / `getUserStateAt(Long)` → deleted. Replaced by the generic pair `getSnapshotContent(Long, EntityType)` / `getPreviousSnapshotContent(Long, EntityType)`.
 - `AuditUserProvider` / `CurrentUserProvider` → renamed to `CurrentActorHook` (`getCurrentActorId(): Optional<Long>`). "Actor" is the audit-side concept; "user" leaked the marketplace domain.
-- `UserActivityExtension` → renamed to `ActivityFeedExtension` → subsequently consolidated into `ActivityRowHook`. `AdvertisementHistoryExtension` → renamed to `MediaHistoryExtension` → removed when attachment-audit coupling was replaced by `AttachmentAuditHook`.
+- `UserActivityExtension` → renamed to `ActivityFeedExtension` → subsequently consolidated into `AuditActivityRowHook`. `AdvertisementHistoryExtension` → renamed to `MediaHistoryExtension` → removed when attachment-audit coupling was replaced by `AttachmentAuditHook`.
 - Attachment public API: every `userId` parameter renamed to `actorId` (no domain semantics).
 
 **Why:** "User" is a marketplace concept. Starters that talk about `userId` cannot be reused in a CRM, ticketing, or content system where the acting principal is an agent, robot, or workflow. The actor/subject vocabulary is generic; consumers map it onto their own domain.
@@ -144,13 +144,13 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ---
 
-## 2026-05-19 — Activity decoration via SPI: `ActivityRowHook` + `AuditUiPort.buildProfileActivityPanel`
+## 2026-05-19 — Activity decoration via SPI: `AuditActivityRowHook` + `AuditUiPort.buildProfileActivityPanel`
 
-**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
+**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
 
 `AuditSnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `AuditSnapshotBinder<SettingsSnapshotDto>` and/or `AuditSnapshotBinder<UserSnapshotDto>` per panel.
 
-**Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `ActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
+**Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `AuditActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
 
 **Rejected:**
 - Decorator wrapper around `AuditActivityPanel` — adds an extra layer with no payoff; the SPI list is enough.
@@ -188,12 +188,13 @@ audit.api      — AuditableSnapshot,
 audit.codec    — SnapshotCodec
 audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
-                 ActivityFieldsHook, ActivityRowHook, ActivityRenderHook
+                 AuditActivityFieldsHook, AuditActivityRowHook, AuditActivityRenderHook,
+                 AuditActivityEnrichHook, AuditHistoryRowActionsHook
 
-attachment.dto     — MediaSummaryDto
-attachment.model   — MediaContentType
+attachment.dto     — AttachmentMediaSummaryDto
+attachment.model   — AttachmentMediaContentType
 attachment.spi     — AttachmentPort, AttachmentGalleryPort,
-                     MediaChangeHook, AttachmentAuditHook
+                     AttachmentMediaChangeHook, AttachmentAuditHook
 ```
 
 The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above. The `attachment.storage` package was removed on 2026-05-19 — `StorageService` and the subsystem conditional moved into `attachment-spring-boot-starter`.

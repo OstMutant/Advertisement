@@ -264,7 +264,9 @@
       "Bash(grep -v \":0$\")",
       "Bash(grep -v \"^\\\\[ERROR\\\\] For more\\\\|^\\\\[ERROR\\\\] \\\\[Help\\\\]\\\\|^\\\\[ERROR\\\\] After\\\\|^\\\\[ERROR\\\\]   mvn\\\\|^\\\\[ERROR\\\\] $\")",
       "Bash(grep -v \"^\\\\[ERROR\\\\] $\\\\|Help\\\\|After\\\\|resume\\\\|articles\")",
-      "Bash(grep -v \"^\\\\[ERROR\\\\] $\\\\|Help\\\\|After\\\\|resume\\\\|articles\\\\|^\\\\[ERROR\\\\] For\")"
+      "Bash(grep -v \"^\\\\[ERROR\\\\] $\\\\|Help\\\\|After\\\\|resume\\\\|articles\\\\|^\\\\[ERROR\\\\] For\")",
+      "Bash(APP_URL=http://localhost:8080 bash *)",
+      "Bash(docker inspect marketplace-app *)"
     ]
   },
   "hooks": {
@@ -275,6 +277,10 @@
           {
             "type": "command",
             "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { if [ -f /tmp/commit-approved ]; then rm /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
+          },
+          {
+            "type": "command",
+            "command": "cmd=$(grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -qE '^docker (build|run) ' && echo 'BLOCKED: use bash scripts/deploy.sh or bash scripts/deploy-dev.sh instead of raw docker commands' >&2 && exit 2; echo \"$cmd\" | grep -qE '^(mvn|\\./mvnw) (compile|test|clean|package)' && echo 'BLOCKED: use bash scripts/deploy.sh or bash scripts/deploy-dev.sh instead of raw mvn commands' >&2 && exit 2; exit 0"
           }
         ]
       }

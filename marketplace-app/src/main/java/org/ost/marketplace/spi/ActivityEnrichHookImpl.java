@@ -3,7 +3,7 @@ package org.ost.marketplace.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.ActivityEnrichHook;
+import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.springframework.beans.factory.ObjectProvider;
@@ -13,7 +13,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class ActivityEnrichHookImpl implements ActivityEnrichHook {
+public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
 
     private final ObjectProvider<AttachmentAuditHook> attachmentAuditHook;
 

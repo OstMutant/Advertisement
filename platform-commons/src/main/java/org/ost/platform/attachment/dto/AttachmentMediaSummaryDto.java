@@ -6,9 +6,9 @@ package org.ost.platform.attachment.dto;
  * YouTube content, original URL for images/uploaded video, {@code null} for
  * generic embedded video).
  */
-public record MediaSummaryDto(String displayUrl, String contentType, int count) {
+public record AttachmentMediaSummaryDto(String displayUrl, String contentType, int count) {
 
-    public static MediaSummaryDto empty() {
-        return new MediaSummaryDto(null, null, 0);
+    public static AttachmentMediaSummaryDto empty() {
+        return new AttachmentMediaSummaryDto(null, null, 0);
     }
 }

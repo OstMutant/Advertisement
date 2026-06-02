@@ -14,7 +14,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import java.util.Optional;
-import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
@@ -182,7 +182,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
         UserSettings current = settingsService.load(currentUser.getId());
-        ActivityRowHook settingsBinding = auditUi.snapshotRowHook(
+        AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
                         .snapshotClass(SettingsSnapshotDto.class)

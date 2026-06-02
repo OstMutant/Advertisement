@@ -33,9 +33,9 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
-## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + ActivityRowHook SPI
+## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + AuditActivityRowHook SPI
 
-**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `ActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
+**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
 
 `AuditSnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
 
@@ -119,7 +119,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### HIGH
 - ✅ `AuditActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
-- ✅ `AuditActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `ActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
+- ✅ `AuditActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `AuditActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
 - ✅ `AuditReadService` + `AuditReadService`: `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
 
 ### MEDIUM
@@ -129,7 +129,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 - ~~`AuditAutoConfiguration` / `AttachmentAutoConfiguration`: both create `ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled~~ — **won't fix**: same reasoning; each starter owns its own serialization config so it can diverge independently.
 
 ### MEDIUM-LOW
-- ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `ActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
+- ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `AuditActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
 - ✅ `AuditSnapshotBinder` coupling removed. `AuditUiPort.snapshotRowHook(SnapshotRowHookParams<T>)` added; `AuditUiPortImpl` creates the binder internally. See `marketplace-app/DECISIONS.md` 2026-05-21 (superseded).
 
 ---
@@ -158,9 +158,9 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 **Decision:** Two related cleanups applied to the audit starter:
 
-1. **`AttachmentAuditHook` removed from audit-starter.** `AuditReadService`, `AuditReadService`, and `AuditHistoryPanel` no longer import `attachment.spi`. A new `ActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
+1. **`AttachmentAuditHook` removed from audit-starter.** `AuditReadService`, `AuditReadService`, and `AuditHistoryPanel` no longer import `attachment.spi`. A new `AuditActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
 
-2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `ActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
+2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `AuditActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
 
 **Why:** The audit starter called an `attachment.spi` hook directly — starter-to-starter coupling through the SPI layer. Marketplace is the correct orchestrator; it knows about both subsystems. `ObjectProvider` for required hooks implied optionality that was architecturally false.
 
@@ -213,7 +213,7 @@ public record AuditLogProjection(
 ```
 
 - `AuditReadService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
-- `AuditReadService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `ActivityEnrichHook.getAdditionalChanges`)
+- `AuditReadService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `AuditActivityEnrichHook.getAdditionalChanges`)
 - Repository has one `RowMapper<AuditLogProjection>`, no dependency on service-layer DTOs or hooks
 
 **Why:** The repository previously depended on `AuditHistoryItemDto`, `AuditActivityItemDto`, and `EntityNameHook` — service-layer concerns bleeding into the persistence layer. With `AuditLogProjection`, the repository is a pure SQL → data layer. `ROW_NUMBER()` and `LAG()` stay in SQL because Java-side computation breaks with future pagination (you can only paginate correctly if the window is computed over the full dataset in SQL).
@@ -224,13 +224,13 @@ public record AuditLogProjection(
 
 ---
 
-## 2026-06-02 — HistoryRowActionsHook: restore button and current-state badge moved to marketplace
+## 2026-06-02 — AuditHistoryRowActionsHook: restore button and current-state badge moved to marketplace
 
-**Decision:** `AuditHistoryPanel` no longer builds the "Restore this version" button or "Current state" badge itself. Instead it calls `HistoryRowActionsHook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — absent when the hook is not registered, no-op when absent.
+**Decision:** `AuditHistoryPanel` no longer builds the "Restore this version" button or "Current state" badge itself. Instead it calls `AuditHistoryRowActionsHook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — absent when the hook is not registered, no-op when absent.
 
-`HistoryRowActionsHook` lives in `platform-commons/audit.spi`. Marketplace provides `AuditHistoryRowActionsHookImpl` (prefixed with `Audit` to distinguish it from other hook impls in the `spi` package).
+`AuditHistoryRowActionsHook` lives in `platform-commons/audit.spi`. Marketplace provides `AuditHistoryRowActionsHookImpl` (prefixed with `Audit` to distinguish it from other hook impls in the `spi` package).
 
-`isCurrentState` is still computed in the panel (snapshot equality + `ActivityEnrichHook.matchesCurrent()` via SPI) and passed to the hook as a simple boolean — the hook just decides which component to render.
+`isCurrentState` is still computed in the panel (snapshot equality + `AuditActivityEnrichHook.matchesCurrent()` via SPI) and passed to the hook as a simple boolean — the hook just decides which component to render.
 
 **Why:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern. `AuditI18n.HISTORY_CURRENT_STATE` and `HISTORY_RESTORE` removed from the starter; labels now live in `I18nKey` in marketplace.
 

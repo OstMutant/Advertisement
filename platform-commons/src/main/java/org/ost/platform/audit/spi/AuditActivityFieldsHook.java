@@ -12,7 +12,7 @@ import java.util.List;
  * domain-specific derived fields (e.g. media counts, role labels).
  * Marketplace registers one hook per {@link EntityType} it supports via {@code supports()}.
  */
-public interface ActivityFieldsHook {
+public interface AuditActivityFieldsHook {
     boolean supports(EntityType entityType);
     List<ChangeEntry> expandFields(AuditActivityItemDto item);
 }

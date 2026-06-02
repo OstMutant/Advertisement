@@ -20,7 +20,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.attachment.model.MediaContentType;
+import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.util.MediaContentTypeUtil;
 import org.ost.attachment.services.AttachmentService.TempAttachment;
@@ -310,7 +310,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String thumbSrc(String contentType, String url) {
-        if (MediaContentType.YOUTUBE.getValue().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(contentType))  return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (MediaContentTypeUtil.isEmbedded(contentType))             return VIDEO_PLACEHOLDER_SVG;
         if (MediaContentTypeUtil.isUploadedVideo(contentType))        return VIDEO_PLACEHOLDER_SVG;
         return url;
@@ -368,7 +368,7 @@ public class AttachmentGallery extends Div {
     }
 
     private static String resolveEmbedUrl(Attachment attachment) {
-        if (MediaContentType.YOUTUBE.getValue().equals(attachment.getContentType())) {
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.getContentType())) {
             return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
         }
         return attachment.getUrl();

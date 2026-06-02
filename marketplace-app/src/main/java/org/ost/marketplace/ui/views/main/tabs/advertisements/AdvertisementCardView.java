@@ -27,7 +27,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
-import org.ost.platform.attachment.model.MediaContentType;
+import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -102,7 +102,7 @@ public class AdvertisementCardView extends HorizontalLayout
         Div wrapper = new Div();
         wrapper.addClassName("advertisement-thumbnail-wrapper");
 
-        if (MediaContentType.isUploadedVideo(ad.getMediaContentType())) {
+        if (AttachmentMediaContentType.isUploadedVideo(ad.getMediaContentType())) {
             com.vaadin.flow.dom.Element video = new com.vaadin.flow.dom.Element("video");
             video.setAttribute("src", ad.getMediaUrl());
             video.setAttribute("preload", "metadata");

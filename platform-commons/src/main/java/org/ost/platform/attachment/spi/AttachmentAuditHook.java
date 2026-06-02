@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Hook: marketplace → attachment-starter.
  * Provides attachment-domain data to marketplace orchestration code.
- * Marketplace delegates to this hook from {@code ActivityEnrichHookImpl}.
+ * Marketplace delegates to this hook from {@code AuditActivityEnrichHookImpl}.
  * Implementation lives in attachment-spring-boot-starter.
  * Injected via {@code ObjectProvider} — no-op when attachment is absent.
  */

@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.attachment.dto.MediaSummaryDto;
+import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.core.model.EntityRef;
 import org.springframework.stereotype.Component;
 
@@ -28,7 +28,7 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public MediaSummaryDto getMediaSummary(EntityRef entity) {
+    public AttachmentMediaSummaryDto getMediaSummary(EntityRef entity) {
         return attachmentService.getMediaSummary(entity.entityType(), entity.entityId());
     }
 }

@@ -4,7 +4,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -41,7 +41,7 @@ public class AuditUiPortImpl implements AuditUiPort {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> ActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> p) {
+    public <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> p) {
         AuditSnapshotBinder<T> binder = snapshotBinderProvider.getObject();
         return binder.configure(AuditSnapshotBinder.Parameters.<T>builder()
                 .entityType(p.getEntityType())

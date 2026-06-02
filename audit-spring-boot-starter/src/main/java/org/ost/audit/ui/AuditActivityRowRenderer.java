@@ -12,8 +12,8 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.audit.spi.ActivityFieldsHook;
-import org.ost.platform.audit.spi.ActivityRenderHook;
+import org.ost.platform.audit.spi.AuditActivityFieldsHook;
+import org.ost.platform.audit.spi.AuditActivityRenderHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.context.annotation.Scope;
@@ -34,8 +34,8 @@ public class AuditActivityRowRenderer {
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
     private final AuditChangeFormatter                            activityPanel;
-    private final List<ActivityFieldsHook>                 fieldsProviders;
-    private final List<ActivityRenderHook>             renderStrategies;
+    private final List<AuditActivityFieldsHook>                 fieldsProviders;
+    private final List<AuditActivityRenderHook>             renderStrategies;
     public Div buildRow(AuditActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
@@ -68,7 +68,7 @@ public class AuditActivityRowRenderer {
     }
 
     private Div buildActivityFieldsList(AuditActivityItemDto item) {
-        ActivityRenderHook strategy = renderStrategies.stream()
+        AuditActivityRenderHook strategy = renderStrategies.stream()
                 .filter(s -> s.entityType() == item.entityType())
                 .findFirst().orElse(null);
         if (strategy != null) {
@@ -76,7 +76,7 @@ public class AuditActivityRowRenderer {
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
                     () -> strategy.getMediaStateForSnapshot(ref, item.snapshotId()));
         }
-        ActivityFieldsHook provider = fieldsProviders.stream()
+        AuditActivityFieldsHook provider = fieldsProviders.stream()
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
         if (provider != null && item.snapshotData() != null) {
@@ -102,7 +102,7 @@ public class AuditActivityRowRenderer {
     }
 
     public Div buildHistoryFieldsList(AuditHistoryItemDto h, EntityRef ref) {
-        ActivityRenderHook strategy = renderStrategies.stream()
+        AuditActivityRenderHook strategy = renderStrategies.stream()
                 .filter(s -> s.entityType() == ref.entityType())
                 .findFirst().orElse(null);
         Supplier<String> mediaLookup = strategy != null

@@ -6,7 +6,7 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
-import org.ost.platform.audit.spi.ActivityEnrichHook;
+import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -27,7 +27,7 @@ import java.util.stream.Stream;
 public class AuditReadService {
 
     private final AuditLogRepository   repository;
-    private final ActivityEnrichHook   activityEnrichHook;
+    private final AuditActivityEnrichHook   activityEnrichHook;
     private final AuditDomainHelper    auditDomainHelper;
     private final List<EntityNameHook> entityNameHooks;
 

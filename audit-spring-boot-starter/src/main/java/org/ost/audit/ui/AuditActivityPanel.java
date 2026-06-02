@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.ui.ComponentBuilder;
@@ -37,7 +37,7 @@ public class AuditActivityPanel extends Div
         Long                  actorId;
         Long                  viewerActorId;
         @lombok.Builder.Default
-        List<ActivityRowHook> bindings = List.of();
+        List<AuditActivityRowHook> bindings = List.of();
     }
 
     @SpringComponent
@@ -78,8 +78,8 @@ public class AuditActivityPanel extends Div
         return this;
     }
 
-    private static void decorateRow(Div row, AuditActivityItemDto item, List<ActivityRowHook> bindings) {
-        for (ActivityRowHook binding : bindings) {
+    private static void decorateRow(Div row, AuditActivityItemDto item, List<AuditActivityRowHook> bindings) {
+        for (AuditActivityRowHook binding : bindings) {
             if (binding.entityType() == item.entityType()) {
                 Component decoration = binding.decorate(item);
                 if (decoration != null) row.add(decoration);

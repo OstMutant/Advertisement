@@ -9,7 +9,7 @@ import org.ost.platform.core.model.EntityType;
  * letting the audit-starter render media-aware change rows without knowing
  * the domain structure. Implement one bean per entity type that has attachments.
  */
-public interface ActivityRenderHook {
+public interface AuditActivityRenderHook {
 
     EntityType entityType();
 

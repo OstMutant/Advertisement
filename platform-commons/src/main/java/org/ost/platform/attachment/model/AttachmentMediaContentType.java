@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 
 @Getter
 @RequiredArgsConstructor
-public enum MediaContentType {
+public enum AttachmentMediaContentType {
     YOUTUBE("video/youtube"),
     EMBED("video/embed"),
     MP4("video/mp4"),

@@ -12,7 +12,7 @@ import org.ost.platform.core.model.EntityType;
  * attach domain-aware UI (e.g. "restore" buttons, current-state badges) without
  * the starter understanding snapshot shape.
  */
-public interface ActivityRowHook {
+public interface AuditActivityRowHook {
 
     EntityType entityType();
 

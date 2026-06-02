@@ -66,5 +66,16 @@ while kill -0 $pid 2>/dev/null; do
 done
 ```
 
+Standard Monitor pattern for Playwright (`bash scripts/playwright.sh [scenario] > /tmp/pw.log 2>&1`, log: `/tmp/pw.log`):
+```
+out=/tmp/pw.log
+tail -f "$out" | grep --line-buffered -E "passed|failed|flaky|✓|✘|Error|ERROR|FAILED" &
+pid=$!
+while kill -0 $pid 2>/dev/null; do
+  sleep 30
+  echo "⏳ running... ($(wc -l < "$out") lines so far)"
+done
+```
+
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.

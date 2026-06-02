@@ -3,7 +3,7 @@ package org.ost.marketplace.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.ActivityFieldsHook;
+import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
@@ -12,7 +12,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class ActivityFieldsHookImpl implements ActivityFieldsHook {
+public class ActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
     private final UserService userService;
 

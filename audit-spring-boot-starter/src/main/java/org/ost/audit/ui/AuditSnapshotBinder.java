@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.ComponentBuilder;
@@ -29,7 +29,7 @@ import java.util.Objects;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 public class AuditSnapshotBinder<T>
-        implements Configurable<AuditSnapshotBinder<T>, AuditSnapshotBinder.Parameters<T>>, ActivityRowHook {
+        implements Configurable<AuditSnapshotBinder<T>, AuditSnapshotBinder.Parameters<T>>, AuditActivityRowHook {
 
     @Value
     @lombok.Builder

@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.entities.Advertisement;
-import org.ost.platform.attachment.dto.MediaSummaryDto;
+import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
@@ -120,7 +120,7 @@ public class AdvertisementRepository {
                 .list();
     }
 
-    public void updateMedia(Long entityId, MediaSummaryDto summary) {
+    public void updateMedia(Long entityId, AttachmentMediaSummaryDto summary) {
         jdbcClient.sql("UPDATE advertisement SET media_url = :media_url, media_content_type = :media_content_type, media_count = :media_count WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("media_url",          summary.displayUrl())

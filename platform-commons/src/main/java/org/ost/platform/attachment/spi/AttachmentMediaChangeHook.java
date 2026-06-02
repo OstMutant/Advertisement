@@ -13,7 +13,7 @@ import org.ost.platform.core.model.EntityRef;
  * the consumer queries current state via {@code AttachmentService} to avoid
  * leaky derived fields (URLs, counts) in the SPI surface.</p>
  */
-public interface MediaChangeHook {
+public interface AttachmentMediaChangeHook {
 
     void onMediaChanged(EntityRef entity);
 }

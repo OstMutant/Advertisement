@@ -11,7 +11,7 @@ import java.util.List;
  * Marketplace implements this to enrich audit data with attachment-domain information.
  * Injected via ObjectProvider — no-op when not implemented.
  */
-public interface ActivityEnrichHook {
+public interface AuditActivityEnrichHook {
     List<AuditActivityItemDto> merge(List<EntityRef> subjects, List<AuditActivityItemDto> base);
     List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version);
     boolean matchesCurrent(EntityRef entity, int version);

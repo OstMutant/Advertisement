@@ -1,6 +1,6 @@
 package org.ost.platform.attachment.spi;
 
-import org.ost.platform.attachment.dto.MediaSummaryDto;
+import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.core.model.EntityRef;
 
 /**
@@ -18,5 +18,5 @@ public interface AttachmentPort {
     void restoreToSnapshot(EntityRef entity, int snapshotVersion, Long actorId);
 
     /** Display-ready summary of the entity's current attachment state. */
-    MediaSummaryDto getMediaSummary(EntityRef entity);
+    AttachmentMediaSummaryDto getMediaSummary(EntityRef entity);
 }

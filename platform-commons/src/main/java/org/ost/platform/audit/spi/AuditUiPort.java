@@ -42,7 +42,7 @@ public interface AuditUiPort {
         Long                       actorId;
         Long                       viewerActorId;
         @lombok.Builder.Default
-        List<ActivityRowHook>      bindings = List.of();
+        List<AuditActivityRowHook>      bindings = List.of();
     }
 
     @Value
@@ -59,5 +59,5 @@ public interface AuditUiPort {
 
     Component buildAuditActivityPanel(ProfileActivityParams params);
 
-    <T extends AuditableSnapshot> ActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> params);
+    <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> params);
 }

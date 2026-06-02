@@ -12,7 +12,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.attachment.model.MediaContentType;
+import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.attachment.util.MediaContentTypeUtil;
 import org.ost.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
@@ -115,12 +115,12 @@ public class CardMediaLightbox {
     }
 
     private static String embedSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
         return a.getUrl();
     }
 
     private static String thumbSrc(Attachment a) {
-        if (MediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.getContentType())) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
         if (MediaContentTypeUtil.isVideo(a.getContentType()))               return AttachmentGallery.VIDEO_PLACEHOLDER_SVG;
         return a.getUrl();
     }

@@ -31,8 +31,8 @@ advertisement-parent (root pom)
 **platform-commons** defines the cross-module contracts, organized into three semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
 - `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
-- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`), `audit.dto` (`AuditActivityItemDto`, `AuditHistoryItemDto`, `AuditSnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `ActivityFieldsHook`, `ActivityRowHook`, `ActivityRenderHook`, `ActivityEnrichHook`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `MediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`MediaSummaryDto`), `attachment.model` (`MediaContentType`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`), `audit.dto` (`AuditActivityItemDto`, `AuditHistoryItemDto`, `AuditSnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityRenderHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`), `attachment.model` (`AttachmentMediaContentType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 

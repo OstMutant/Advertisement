@@ -2,7 +2,7 @@ package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.spi.ActivityRenderHook;
+import org.ost.platform.audit.spi.AuditActivityRenderHook;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class AdvertisementActivityRenderHookImpl implements ActivityRenderHook {
+public class AdvertisementActivityRenderHookImpl implements AuditActivityRenderHook {
 
     private final ObjectProvider<AttachmentAuditHook> attachmentAuditHook;
 

@@ -21,7 +21,7 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHa
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.platform.audit.spi.ActivityRowHook;
+import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.ComponentBuilder;
@@ -158,7 +158,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 
-        ActivityRowHook userBinding = auditUi.snapshotRowHook(
+        AuditActivityRowHook userBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<UserSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER)
                         .snapshotClass(UserSnapshotDto.class)
@@ -169,7 +169,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
                         .build());
 
-        ActivityRowHook settingsBinding = auditUi.snapshotRowHook(
+        AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
                         .snapshotClass(SettingsSnapshotDto.class)
