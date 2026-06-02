@@ -109,6 +109,22 @@
 
 ---
 
+## 2026-06-02 — Symmetry with audit-starter: package rename, i18n enum, port registration via @Component
+
+**Decision:** Three structural changes made to align attachment-starter with audit-starter conventions:
+
+1. **Package rename:** `org.ost.attachment.service` → `org.ost.attachment.services` (plural). Matches `org.ost.audit.services`.
+
+2. **i18n enum rename:** `AttachmentMessages` → `AttachmentI18n`. Matches `AuditI18n` naming. All UI keys live in this enum; callers use `I18nService.get(AttachmentI18n.*)`.
+
+3. **Port registration via `@SpringComponent`:** `AttachmentGalleryPortImpl` and `DefaultAttachmentPort` are now `@SpringComponent`/`@Component` classes discovered by ComponentScan, not explicit `@Bean` methods in `AttachmentAutoConfiguration`. Matches how audit-starter registers `AuditUiPortImpl` and `DefaultAuditPort`. Minimizes `AutoConfiguration` to infrastructure-only concerns (Liquibase, ObjectMapper, cleanup scheduler).
+
+**Why:** Reducing cognitive overhead when reading across starters — identical conventions allow pattern recognition. `AutoConfiguration` should be lean: only beans that require `@ConditionalOnMissingBean` or infrastructure setup belong there.
+
+**Note:** `AttachmentGalleryPortImpl` uses `@SpringComponent` (Vaadin alias) instead of `@Component` to avoid a naming conflict with `com.vaadin.flow.component.Component` which is also imported in that class. `DefaultAttachmentPort` uses standard `@Component`.
+
+---
+
 ## 2026-05-12 — Vaadin IFrame src patching via `Page.executeJs`
 
 **Decision:** In `CardMediaLightbox`, iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.

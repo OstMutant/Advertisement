@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.i18n.TranslationKey;
 
 @RequiredArgsConstructor
-public enum AttachmentMessages implements TranslationKey {
+public enum AttachmentI18n implements TranslationKey {
     GALLERY_TITLE("attachment.gallery.title"),
     GALLERY_EMPTY("attachment.gallery.empty"),
     GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),

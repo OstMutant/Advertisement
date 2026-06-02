@@ -21,9 +21,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.attachment.model.MediaContentType;
-import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.util.MediaContentTypeUtil;
-import org.ost.attachment.service.AttachmentService.TempAttachment;
+import org.ost.attachment.services.AttachmentService.TempAttachment;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
@@ -68,13 +68,13 @@ public class AttachmentGallery extends Div {
     private void init() {
         addClassName("attachment-gallery");
 
-        Span title = new Span(i18n.get(AttachmentMessages.GALLERY_TITLE));
+        Span title = new Span(i18n.get(AttachmentI18n.GALLERY_TITLE));
         title.addClassName("attachment-gallery__title");
 
         thumbnailsRow = new Div();
         thumbnailsRow.addClassName("attachment-gallery__thumbnails");
 
-        emptyState = new Span(i18n.get(AttachmentMessages.GALLERY_EMPTY));
+        emptyState = new Span(i18n.get(AttachmentI18n.GALLERY_EMPTY));
         emptyState.addClassName("attachment-gallery__empty");
         emptyState.setVisible(false);
 
@@ -242,7 +242,7 @@ public class AttachmentGallery extends Div {
                     }
                 } catch (Exception e) {
                     log.error("Failed to upload attachment: {}", filename, e);
-                    ui.access(() -> showError(i18n.get(AttachmentMessages.GALLERY_UPLOAD_ERROR)));
+                    ui.access(() -> showError(i18n.get(AttachmentI18n.GALLERY_UPLOAD_ERROR)));
                 }
             }
         };
@@ -259,7 +259,7 @@ public class AttachmentGallery extends Div {
 
     private HorizontalLayout buildVideoInput() {
         TextField urlField = new TextField();
-        urlField.setPlaceholder(i18n.get(AttachmentMessages.VIDEO_PLACEHOLDER));
+        urlField.setPlaceholder(i18n.get(AttachmentI18n.VIDEO_PLACEHOLDER));
         urlField.setWidthFull();
 
         Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
@@ -278,7 +278,7 @@ public class AttachmentGallery extends Div {
                 }
                 urlField.clear();
             } catch (Exception _) {
-                showError(i18n.get(AttachmentMessages.VIDEO_INVALID));
+                showError(i18n.get(AttachmentI18n.VIDEO_INVALID));
             }
         });
 

@@ -1,7 +1,7 @@
 package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.service.AttachmentSnapshotService;
+import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;

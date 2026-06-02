@@ -4,15 +4,17 @@ import com.vaadin.flow.component.Component;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
-import org.ost.attachment.service.AttachmentService;
+import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.ObjectProvider;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 
 import java.util.List;
 
+@SpringComponent
 @RequiredArgsConstructor
 public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 

@@ -1,12 +1,14 @@
 package org.ost.attachment.spi;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.service.AttachmentService;
-import org.ost.attachment.service.AttachmentSnapshotService;
+import org.ost.attachment.services.AttachmentService;
+import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.attachment.dto.MediaSummaryDto;
 import org.ost.platform.core.model.EntityRef;
+import org.springframework.stereotype.Component;
 
+@Component
 @RequiredArgsConstructor
 public class DefaultAttachmentPort implements AttachmentPort {
 
