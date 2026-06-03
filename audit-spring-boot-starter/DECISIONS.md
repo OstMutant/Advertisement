@@ -266,7 +266,7 @@ public record AuditLogProjection(
 
 ---
 
-## 2026-06-03 — AuditFieldLabelHook: field-key translation moved out of expandFields()
+## 2026-06-03 — AuditFieldLabelHook: field-key translation moved out of expandFields() *(superseded — see below)*
 
 **Decision:** `AuditActivityFieldsHook.expandFields()` now returns `FieldChange` entries with raw field keys (e.g. `"adsPageSize"`, `"title"`) instead of translated labels. A new `AuditFieldLabelHook` SPI (`platform-commons/audit.spi`) carries `supports(EntityType)` + `labelFor(String rawFieldKey)`. `AuditActivityRowRenderer.buildActivityChangesDiv()` resolves the matching label hook and translates each `fc.field()` before building spans.
 
@@ -275,6 +275,22 @@ Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFie
 **Why:** `expandFields()` was calling `I18nService.get()` which internally accesses `VaadinLocaleProvider` — a `@Scope("vaadin-ui")` scoped-proxy bean. Even though the call chain runs in the Vaadin UI thread, the scoped proxy resolution failed under certain request lifecycle conditions, throwing `ScopeNotActiveException` and leaving `.activity-feed-list` unpopulated. The fix separates data expansion (scope-independent) from label translation (UI-context-guaranteed).
 
 **Rule:** `AuditActivityFieldsHook.expandFields()` must never call `I18nService`. Label resolution is the responsibility of `AuditFieldLabelHook.labelFor()`, which is called exclusively from `AuditActivityRowRenderer` in Vaadin UI context.
+
+---
+
+## 2026-06-03 — SPI consolidation: 3 always-co-implemented pairs merged
+
+**Decision:** Three pairs of SPI interfaces that were always co-implemented by the same class in marketplace-app were merged into single interfaces:
+
+1. **`AuditActivityFieldsHook` absorbs `AuditFieldLabelHook`** — added `default String labelFor(String rawFieldKey) { return rawFieldKey; }` to `AuditActivityFieldsHook`. `AuditFieldLabelHook` deleted. Both `ActivityFieldsHookImpl` and `AdvertisementActivityFieldsHookImpl` dropped the extra `implements` clause (they already had `labelFor()`). `AuditActivityRowRenderer` now passes the single `AuditActivityFieldsHook` as the label resolver — `buildActivityChangesDiv` takes `AuditActivityFieldsHook` instead of `AuditFieldLabelHook`.
+
+2. **`AuditDomainHook` absorbs `EntityNameHook`** — added `String resolveDisplayName(EntityType, AuditableSnapshot)` to `AuditDomainHook`. `EntityNameHook` and `EntityNameHookImpl` deleted. `AuditDomainHookImpl` gained the method (delegating to the same service calls). `AuditActivityPanel.buildDisplayContext()` now calls `auditDomainHook.resolveDisplayName()` directly instead of iterating `List<EntityNameHook>`.
+
+3. **`AuditActivityEnrichHook` absorbs `AuditActivityRenderHook`** — added `EntityType entityType()`, `default String getMediaStateForSnapshot(EntityRef, Long)`, `default String getMediaStateAtVersion(EntityRef, int)` to `AuditActivityEnrichHook`. `AuditActivityRenderHook` and `AdvertisementActivityRenderHookImpl` deleted. `ActivityEnrichHookImpl` now implements all 6 methods. `AuditActivityRowRenderer` and `AuditHistoryRowRenderer` switched from a list of `AuditActivityRenderHook` to a list of `AuditActivityEnrichHook`. `AuditReadService` switched from single `AuditActivityEnrichHook` to `List<AuditActivityEnrichHook>` — iterates for `merge`, routes by `entityType()` for `getAdditionalChanges`.
+
+**Why:** Each pair was always co-implemented in one class — the split served no isolation purpose, just added indirection. Merging reduces the interface count from 13 to 10, eliminates 4 files, and makes the natural coupling explicit at the interface level.
+
+**Rule:** `AuditActivityFieldsHook.expandFields()` must still never call `I18nService`. `labelFor()` is the correct place for i18n (invoked from the UI thread in the renderer).
 
 ---
 

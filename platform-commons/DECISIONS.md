@@ -25,7 +25,9 @@
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `EntityNameHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityRenderHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+
+**2026-06-03 update:** `EntityNameHook` (merged into `AuditDomainHook`), `AuditFieldLabelHook` (merged into `AuditActivityFieldsHook`), `AuditActivityRenderHook` (merged into `AuditActivityEnrichHook`) deleted. SPI count reduced from 13 to 10.
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -181,14 +183,14 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 core.config    — CleanupProperties
 core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
 core.model     — ActionType, ChangeEntry, EntityType
-core.spi       — CurrentActorHook, EntityNameHook
+core.spi       — CurrentActorHook
 ui             — Configurable, ComponentBuilder, Initialization, Provider
 
 audit.api      — AuditableSnapshot, 
 audit.codec    — SnapshotCodec
 audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
 audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
-                 AuditActivityFieldsHook, AuditActivityRowHook, AuditActivityRenderHook,
+                 AuditActivityFieldsHook, AuditActivityRowHook,
                  AuditActivityEnrichHook, AuditHistoryRowActionsHook
 
 attachment.dto     — AttachmentMediaSummaryDto

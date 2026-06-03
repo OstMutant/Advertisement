@@ -6,7 +6,6 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.audit.services.AuditReadService;
@@ -16,7 +15,6 @@ import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.EntityNameHook;
 import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
@@ -59,7 +57,6 @@ public class AuditActivityPanel extends Div
     private final I18nService                              i18n;
     private final AuditReadService                         auditReadService;
     private final AuditDomainHook                          auditDomainHook;
-    private final List<EntityNameHook>                     entityNameHooks;
     private final ObjectProvider<AuditActivityRowRenderer> rendererProvider;
 
     @Override
@@ -95,11 +92,8 @@ public class AuditActivityPanel extends Div
 
         Map<Long, String> displayNames = new HashMap<>();
         for (AuditActivityItemDto item : items) {
-            displayNames.computeIfAbsent(item.entityId(), _ -> entityNameHooks.stream()
-                    .filter(h -> h.supports(item.entityType()))
-                    .findFirst()
-                    .map(h -> h.resolveDisplayName(item.entityType(), item.snapshotData()))
-                    .orElse(""));
+            displayNames.computeIfAbsent(item.entityId(), _ ->
+                    auditDomainHook.resolveDisplayName(item.entityType(), item.snapshotData()));
         }
 
         Map<EntityType, Set<Long>> byType = items.stream()

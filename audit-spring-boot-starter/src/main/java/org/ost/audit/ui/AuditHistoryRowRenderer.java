@@ -9,6 +9,8 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditHistoryRowActionsHook;
+
+import java.util.List;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
@@ -35,7 +37,7 @@ public class AuditHistoryRowRenderer {
     private final I18nService                                i18n;
     private final InstantFormatter                           formatter;
     private final AuditActivityRowRenderer                   fieldRenderer;
-    private final AuditActivityEnrichHook                    activityEnrichHook;
+    private final List<AuditActivityEnrichHook>              activityEnrichHooks;
     private final ObjectProvider<AuditHistoryRowActionsHook> rowActionsHook;
 
     public Div buildRow(AuditHistoryItemDto h, RowContext ctx) {
@@ -91,7 +93,12 @@ public class AuditHistoryRowRenderer {
     }
 
     private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
-        return activityEnrichHook.matchesCurrent(new EntityRef(entityType, entityId), version);
+        EntityRef ref = new EntityRef(entityType, entityId);
+        return activityEnrichHooks.stream()
+                .filter(h -> h.entityType() == entityType)
+                .findFirst()
+                .map(h -> h.matchesCurrent(ref, version))
+                .orElse(true);
     }
 
 }

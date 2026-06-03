@@ -23,8 +23,8 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class AuditReadService {
 
-    private final AuditLogRepository      repository;
-    private final AuditActivityEnrichHook activityEnrichHook;
+    private final AuditLogRepository            repository;
+    private final List<AuditActivityEnrichHook> activityEnrichHooks;
 
     // ── History ───────────────────────────────────────────────────────────────
 
@@ -36,8 +36,12 @@ public class AuditReadService {
 
         return history.stream()
                 .map(h -> {
-                    List<ChangeEntry> mediaChanges = activityEnrichHook.getAdditionalChanges(
-                            new EntityRef(entityType, entityId), h.version());
+                    EntityRef ref = new EntityRef(entityType, entityId);
+                    List<ChangeEntry> mediaChanges = activityEnrichHooks.stream()
+                            .filter(hook -> hook.entityType() == entityType)
+                            .findFirst()
+                            .map(hook -> hook.getAdditionalChanges(ref, h.version()))
+                            .orElse(List.of());
                     if (mediaChanges.isEmpty()) return h;
                     List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
                     combined.addAll(h.changes());
@@ -67,7 +71,11 @@ public class AuditReadService {
                 .map(this::toActivityItem)
                 .toList();
 
-        return activityEnrichHook.merge(subjects, items);
+        List<AuditActivityItemDto> merged = items;
+        for (AuditActivityEnrichHook hook : activityEnrichHooks) {
+            merged = hook.merge(subjects, merged);
+        }
+        return merged;
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

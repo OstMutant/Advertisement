@@ -4,6 +4,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.marketplace.services.user.UserService;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
@@ -30,5 +31,13 @@ public class AuditDomainHookImpl implements AuditDomainHook {
             case ADVERTISEMENT       -> advertisementService.findExistingIds(ids);
             case USER, USER_SETTINGS -> userService.findExistingIds(ids);
         });
+    }
+
+    @Override
+    public String resolveDisplayName(@NonNull EntityType entityType, AuditableSnapshot snapshot) {
+        return switch (entityType) {
+            case ADVERTISEMENT       -> advertisementService.resolveDisplayName(snapshot);
+            case USER, USER_SETTINGS -> userService.resolveDisplayName(entityType, snapshot);
+        };
     }
 }

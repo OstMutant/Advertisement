@@ -12,9 +12,8 @@ import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.platform.audit.spi.AuditActivityRenderHook;
-import org.ost.platform.audit.spi.AuditFieldLabelHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.context.annotation.Scope;
@@ -37,10 +36,9 @@ public class AuditActivityRowRenderer {
 
     private final I18nService                              i18n;
     private final InstantFormatter                         formatter;
-    private final AuditChangeFormatter                            activityPanel;
-    private final List<AuditActivityFieldsHook>                 fieldsProviders;
-    private final List<AuditActivityRenderHook>             renderStrategies;
-    private final List<AuditFieldLabelHook>                 labelProviders;
+    private final AuditChangeFormatter                     activityPanel;
+    private final List<AuditActivityFieldsHook>            fieldsProviders;
+    private final List<AuditActivityEnrichHook>            enrichHooks;
 
     record DisplayContext(
             Map<Long, String> actorNames,
@@ -92,31 +90,28 @@ public class AuditActivityRowRenderer {
     }
 
     private Div buildActivityFieldsList(AuditActivityItemDto item) {
-        AuditActivityRenderHook strategy = renderStrategies.stream()
-                .filter(s -> s.entityType() == item.entityType())
+        AuditActivityEnrichHook enrichHook = enrichHooks.stream()
+                .filter(h -> h.entityType() == item.entityType())
                 .findFirst().orElse(null);
-        if (strategy != null) {
+        if (enrichHook != null) {
             EntityRef ref = new EntityRef(item.entityType(), item.entityId());
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
-                    () -> strategy.getMediaStateForSnapshot(ref, item.snapshotId()));
+                    () -> enrichHook.getMediaStateForSnapshot(ref, item.snapshotId()));
         }
         AuditActivityFieldsHook provider = fieldsProviders.stream()
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
         if (provider != null && item.snapshotData() != null) {
-            AuditFieldLabelHook labelHook = labelProviders.stream()
-                    .filter(h -> h.supports(item.entityType()))
-                    .findFirst().orElse(null);
-            return buildActivityChangesDiv(provider.expandFields(item), labelHook);
+            return buildActivityChangesDiv(provider.expandFields(item), provider);
         }
         return activityPanel.buildChangesList(item.changes(), CSS_CHANGES);
     }
 
-    private Div buildActivityChangesDiv(List<ChangeEntry> entries, AuditFieldLabelHook labelHook) {
+    private Div buildActivityChangesDiv(List<ChangeEntry> entries, AuditActivityFieldsHook labelHook) {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            ChangeEntry resolved = labelHook != null && entry instanceof ChangeEntry.FieldChange fc
+            ChangeEntry resolved = entry instanceof ChangeEntry.FieldChange fc
                     ? new ChangeEntry.FieldChange(labelHook.labelFor(fc.field()), fc.from(), fc.to())
                     : entry;
             boolean unchanged = switch (resolved) {
@@ -129,11 +124,11 @@ public class AuditActivityRowRenderer {
     }
 
     public Div buildHistoryFieldsList(AuditHistoryItemDto h, EntityRef ref) {
-        AuditActivityRenderHook strategy = renderStrategies.stream()
+        AuditActivityEnrichHook enrichHook = enrichHooks.stream()
                 .filter(s -> s.entityType() == ref.entityType())
                 .findFirst().orElse(null);
-        Supplier<String> mediaLookup = strategy != null
-                ? () -> strategy.getMediaStateAtVersion(ref, h.version())
+        Supplier<String> mediaLookup = enrichHook != null
+                ? () -> enrichHook.getMediaStateAtVersion(ref, h.version())
                 : null;
         return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup);
     }

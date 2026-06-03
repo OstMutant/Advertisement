@@ -5,7 +5,6 @@ import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.platform.audit.spi.AuditFieldLabelHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -16,7 +15,7 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsHook, AuditFieldLabelHook {
+public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
     private final I18nService i18n;
 
