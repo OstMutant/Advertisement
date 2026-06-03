@@ -46,7 +46,7 @@ public record UserSnapshotDto(
     }
 
     @Override
-    public List<ChangeEntry> allFields() {
+    public List<ChangeEntry.FieldChange> allFields() {
         return List.of(
                 new FieldChange(Fields.name,  null, name()),
                 new FieldChange(Fields.email, null, email()),

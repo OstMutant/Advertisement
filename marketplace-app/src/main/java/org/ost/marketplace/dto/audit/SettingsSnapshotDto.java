@@ -41,7 +41,7 @@ public record SettingsSnapshotDto(
     }
 
     @Override
-    public List<ChangeEntry> allFields() {
+    public List<ChangeEntry.FieldChange> allFields() {
         return List.of(
                 new FieldChange(Fields.adsPageSize,   null, String.valueOf(adsPageSize())),
                 new FieldChange(Fields.usersPageSize, null, String.valueOf(usersPageSize())));

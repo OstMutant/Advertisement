@@ -42,7 +42,7 @@ public record AdvertisementSnapshotDto(
     }
 
     @Override
-    public List<ChangeEntry> allFields() {
+    public List<ChangeEntry.FieldChange> allFields() {
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
                 new FieldChange(Fields.description, null, description()));

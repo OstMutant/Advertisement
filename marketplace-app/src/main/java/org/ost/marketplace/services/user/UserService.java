@@ -30,7 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -161,38 +160,8 @@ public class UserService {
     }
 
     public List<ChangeEntry> expandActivityFields(AuditActivityItemDto item) {
-        return switch (item.entityType()) {
-            case USER_SETTINGS -> expandSettingsFields(item);
-            default            -> expandUserFields(item);
-        };
-    }
-
-    private List<ChangeEntry> expandUserFields(AuditActivityItemDto item) {
-        if (!(item.snapshotData() instanceof UserSnapshotDto state)) return item.changes();
-        List<ChangeEntry> result = new ArrayList<>();
-        addActivityField(result, item.changes(), "name",  state.name());
-        addActivityField(result, item.changes(), "email", state.email());
-        addActivityField(result, item.changes(), "role",  state.role());
-        return result;
-    }
-
-    private List<ChangeEntry> expandSettingsFields(AuditActivityItemDto item) {
-        if (!(item.snapshotData() instanceof SettingsSnapshotDto state)) return item.changes();
-        List<ChangeEntry> result = new ArrayList<>();
-        addActivityField(result, item.changes(), "adsPageSize",   String.valueOf(state.adsPageSize()));
-        addActivityField(result, item.changes(), "usersPageSize", String.valueOf(state.usersPageSize()));
-        return result;
-    }
-
-    private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes,
-                                          String field, String currentValue) {
-        ChangeEntry existing = changes.stream()
-                .filter(c -> c instanceof ChangeEntry.FieldChange fc && field.equals(fc.field()))
-                .findFirst().orElse(null);
-        if (existing instanceof ChangeEntry.FieldChange fc) {
-            result.add(new ChangeEntry.FieldChange(field, fc.from(), fc.to()));
-        } else {
-            result.add(new ChangeEntry.FieldChange(field, null, currentValue));
-        }
+        return item.snapshotData() != null
+                ? item.snapshotData().expandWithChanges(item.changes())
+                : item.changes();
     }
 }

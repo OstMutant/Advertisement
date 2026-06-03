@@ -165,17 +165,8 @@ public class AuditActivityRowRenderer {
         return container;
     }
 
-    private List<ChangeEntry> expandTextFields(AuditableSnapshot snapshot, List<ChangeEntry> changedFields) {
-        if (snapshot == null) return changedFields;
-        return snapshot.allFields().stream()
-                .map(base -> {
-                    String key = ((ChangeEntry.FieldChange) base).field();
-                    return changedFields.stream()
-                            .filter(c -> c instanceof ChangeEntry.FieldChange fc && key.equals(fc.field()))
-                            .findFirst()
-                            .orElse(base);
-                })
-                .toList();
+    private static List<ChangeEntry> expandTextFields(AuditableSnapshot snapshot, List<ChangeEntry> changedFields) {
+        return snapshot != null ? snapshot.expandWithChanges(changedFields) : changedFields;
     }
 
     private void addSpan(Div container, String text, boolean unchanged, String cssBase) {
