@@ -42,7 +42,6 @@ public class AuditSnapshotBinder<T>
     }
 
     @SpringComponent
-    @Scope("prototype")
     @RequiredArgsConstructor
     public static class Builder<T> extends ComponentBuilder<AuditSnapshotBinder<T>, Parameters<T>> {
         @Getter

@@ -23,13 +23,11 @@ public class EntityOverlaySupport {
     private final NotificationService                         notification;
     private final ConfirmActionDialog.Builder                 confirmDiscardBuilder;
     private final ObjectProvider<OverlayLayout>               layoutProvider;
-    private final ObjectProvider<OverlayBreadcrumbBackButton> breadcrumbButtonProvider;
+    private final OverlayBreadcrumbBackButton.Builder         breadcrumbButtonBuilder;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        OverlayBreadcrumbBackButton btn = breadcrumbButtonProvider.getObject()
-                .configure(OverlayBreadcrumbBackButton.Parameters.builder()
-                        .labelKey(labelKey)
-                        .build());
+        OverlayBreadcrumbBackButton btn = breadcrumbButtonBuilder.build(
+                OverlayBreadcrumbBackButton.Parameters.builder().labelKey(labelKey).build());
         btn.addClickListener(_ -> onBack.run());
         return btn;
     }

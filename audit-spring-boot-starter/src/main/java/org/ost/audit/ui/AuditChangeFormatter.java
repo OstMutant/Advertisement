@@ -15,11 +15,11 @@ public class AuditChangeFormatter {
 
     private final I18nService i18n;
 
-    public static Span buildEditorBadge(Long changedByActorId, String changedByName, Long viewerActorId) {
+    public Span buildEditorBadge(Long changedByActorId, String changedByName, Long viewerActorId) {
         if (changedByActorId == null || changedByActorId == 0 || changedByActorId.equals(viewerActorId)) {
             return null;
         }
-        Span badge = new Span("↳ " + changedByName);
+        Span badge = new Span(i18n.get(AuditI18n.CHANGES_EDITOR, changedByName));
         badge.addClassName("activity-feed-editor");
         return badge;
     }
@@ -31,7 +31,7 @@ public class AuditChangeFormatter {
         for (ChangeEntry entry : changes) {
             String text = format(entry);
             if (text != null && !text.isBlank()) {
-                Span item = new Span("• " + text);
+                Span item = new Span(i18n.get(AuditI18n.CHANGES_BULLET, text));
                 item.addClassName(cssClass + "-item");
                 container.add(item);
             }
@@ -43,16 +43,16 @@ public class AuditChangeFormatter {
         return switch (entry) {
             case ChangeEntry.FieldChange(var field, var from, var to) -> {
                 if (from == null || from.isBlank()) {
-                    yield field + ": \"" + to + "\"";
+                    yield i18n.get(AuditI18n.CHANGES_SET, field, to);
                 }
-                yield field + ": \"" + from + "\" → \"" + to + "\"";
+                yield i18n.get(AuditI18n.CHANGES_FIELD_CHANGED, field, from, to);
             }
             case ChangeEntry.MediaChange(var before, var after) -> {
                 String label = i18n.get(AuditI18n.CHANGES_MEDIA);
                 if (before == null || before.isBlank()) {
-                    yield label + ": \"" + after + "\"";
+                    yield i18n.get(AuditI18n.CHANGES_SET, label, after);
                 }
-                yield label + ": " + before + " → " + after;
+                yield i18n.get(AuditI18n.CHANGES_MEDIA_CHANGED, label, before, after);
             }
         };
     }

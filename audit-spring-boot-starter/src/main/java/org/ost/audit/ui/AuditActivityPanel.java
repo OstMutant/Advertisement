@@ -63,19 +63,27 @@ public class AuditActivityPanel extends Div
         List<AuditActivityItemDto> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId());
 
         if (items.isEmpty()) {
-            Span empty = new Span(i18n.get(AuditI18n.ACTIVITY_EMPTY));
-            empty.addClassName("activity-feed-empty");
-            add(empty);
+            add(emptyState());
             return this;
         }
 
         AuditActivityRowRenderer renderer = rendererProvider.getObject();
         for (AuditActivityItemDto item : items) {
-            Div row = renderer.buildRow(item, p.getViewerActorId());
-            decorateRow(row, item, p.getBindings());
-            add(row);
+            add(buildDecoratedRow(renderer, item, p));
         }
         return this;
+    }
+
+    private Span emptyState() {
+        Span span = new Span(i18n.get(AuditI18n.ACTIVITY_EMPTY));
+        span.addClassName("activity-feed-empty");
+        return span;
+    }
+
+    private Div buildDecoratedRow(AuditActivityRowRenderer renderer, AuditActivityItemDto item, Parameters p) {
+        Div row = renderer.buildRow(item, p.getViewerActorId());
+        decorateRow(row, item, p.getBindings());
+        return row;
     }
 
     private static void decorateRow(Div row, AuditActivityItemDto item, List<AuditActivityRowHook> bindings) {
