@@ -7,6 +7,8 @@ import org.ost.platform.core.model.ActionType;
 @RequiredArgsConstructor
 public enum AuditI18n implements TranslationKey {
     HISTORY_EMPTY("audit.history.empty"),
+    HISTORY_CURRENT_STATE("audit.history.current.state"),
+    HISTORY_RESTORE("audit.history.restore"),
     ACTIVITY_EMPTY("audit.activity.empty"),
     ACTIVITY_CURRENT_STATE("audit.activity.current.state"),
     ACTIVITY_RESTORE("audit.activity.restore"),

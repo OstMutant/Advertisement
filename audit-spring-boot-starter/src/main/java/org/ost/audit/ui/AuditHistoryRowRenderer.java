@@ -3,12 +3,13 @@ package org.ost.audit.ui;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-import org.ost.platform.audit.spi.AuditHistoryRowActionsHook;
 
 import java.util.List;
 import org.ost.platform.core.i18n.I18nService;
@@ -16,7 +17,6 @@ import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -34,11 +34,10 @@ public class AuditHistoryRowRenderer {
             boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested,
             Map<Long, String> actorNames) {}
 
-    private final I18nService                                        i18n;
-    private final InstantFormatter                                   formatter;
-    private final AuditActivityRowRenderer                           fieldRenderer;
-    private final List<AuditActivityEnrichHook>                      activityEnrichHooks;
-    private final transient ComponentFactory<AuditHistoryRowActionsHook> rowActionsHookFactory;
+    private final I18nService              i18n;
+    private final InstantFormatter         formatter;
+    private final AuditActivityRowRenderer fieldRenderer;
+    private final List<AuditActivityEnrichHook> activityEnrichHooks;
 
     public Div buildRow(AuditHistoryItemDto h, RowContext ctx) {
         Div row = new Div();
@@ -55,12 +54,29 @@ public class AuditHistoryRowRenderer {
         if (ctx.canOperate() && isTextRow && (h.actionType() != ActionType.CREATED || ctx.historySize() > 1)) {
             boolean isCurrentState = snapshotsEqual(h.snapshotData(), ctx.currentSnapshot())
                     && mediaMatchCurrent(ctx.entityType(), ctx.entityId(), h.version());
-            rowActionsHookFactory.ifAvailable(hook -> {
-                Component actions = hook.buildRowActions(h, isCurrentState, ctx.onRestoreRequested());
-                if (actions != null) row.add(actions);
-            });
+            row.add(buildRowActions(h, isCurrentState, ctx.onRestoreRequested()));
         }
         return row;
+    }
+
+    private Span buildCurrentStateBadge() {
+        Span badge = new Span(i18n.get(AuditI18n.HISTORY_CURRENT_STATE));
+        badge.addClassName("entity-history-current-badge");
+        return badge;
+    }
+
+    private Button buildRestoreButton(AuditHistoryItemDto h, ObjLongConsumer<AuditHistoryItemDto> onRestore) {
+        Button btn = new Button(i18n.get(AuditI18n.HISTORY_RESTORE));
+        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+        btn.addClassName("entity-history-restore-btn");
+        long snapId = h.snapshotId();
+        btn.addClickListener(_ -> onRestore.accept(h, snapId));
+        return btn;
+    }
+
+    private Component buildRowActions(AuditHistoryItemDto h, boolean isCurrentState,
+                                      ObjLongConsumer<AuditHistoryItemDto> onRestore) {
+        return isCurrentState ? buildCurrentStateBadge() : buildRestoreButton(h, onRestore);
     }
 
     private static Span versionSpan(int version) {

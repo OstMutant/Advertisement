@@ -235,10 +235,6 @@ public enum I18nKey implements TranslationKey {
     ACTIVITY_ACTION_DELETED("activity.action.deleted"),
     ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
-    // === Audit History Actions ===
-    AUDIT_HISTORY_CURRENT_STATE("audit.history.current.state"),
-    AUDIT_HISTORY_RESTORE("audit.history.restore"),
-
     // === Advertisement History ===
     ADVERTISEMENT_HISTORY_TAB("advertisement.history.tab"),
     ADVERTISEMENT_VIEW_TAB("advertisement.view.tab"),
