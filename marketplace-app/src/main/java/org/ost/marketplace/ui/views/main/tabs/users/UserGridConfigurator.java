@@ -40,8 +40,9 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
     }
 
     @Getter
-    private final I18nService     i18nService;
-    private final ComponentFactory componentFactory;
+    private final I18nService                             i18nService;
+    private final transient ComponentFactory<EditActionButton>   editButtonFactory;
+    private final transient ComponentFactory<DeleteActionButton> deleteButtonFactory;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {
@@ -86,13 +87,13 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Button edit = componentFactory.build(EditActionButton.class,
+                    Button edit = editButtonFactory.build(
                             EditActionButton.Parameters.builder()
                                     .tooltip(getValue(USER_VIEW_BUTTON_EDIT))
                                     .onClick(() -> p.getOnEdit().accept(user))
                                     .build()
                     );
-                    Button delete = componentFactory.build(DeleteActionButton.class,
+                    Button delete = deleteButtonFactory.build(
                             DeleteActionButton.Parameters.builder()
                                     .tooltip(getValue(USER_VIEW_BUTTON_DELETE))
                                     .onClick(() -> p.getOnDelete().accept(user))

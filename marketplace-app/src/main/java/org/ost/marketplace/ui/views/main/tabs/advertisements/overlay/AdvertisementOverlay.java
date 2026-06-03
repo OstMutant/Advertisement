@@ -37,7 +37,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
 
     @Getter private final EntityOverlaySupport  support;
     private final AdvertisementService           advertisementService;
-    private final ComponentFactory               componentFactory;
+    private final ComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
+    private final ComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession                      session;
     private AdvertisementFormOverlayModeHandler currentFormHandler;
@@ -69,7 +70,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     @Override
     protected void switchTo() {
         OverlayModeHandler handler = switch (session.mode()) {
-            case VIEW -> componentFactory.build(AdvertisementViewOverlayModeHandler.class,
+            case VIEW -> viewModeHandlerFactory.build(
                     AdvertisementViewOverlayModeHandler.Parameters.builder()
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
@@ -77,7 +78,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                             .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
-                currentFormHandler = componentFactory.build(AdvertisementFormOverlayModeHandler.class,
+                currentFormHandler = formModeHandlerFactory.build(
                         AdvertisementFormOverlayModeHandler.Parameters.builder()
                                 .ad(session.ad())
                                 .onSave(this::handleSave)

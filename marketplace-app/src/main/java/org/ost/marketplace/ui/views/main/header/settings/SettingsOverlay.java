@@ -48,7 +48,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UserSettingsService                    settingsService;
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
-    private final transient ComponentFactory                       componentFactory;
+    private final transient ComponentFactory<OverlayLayout>        overlayLayoutFactory;
+    private final transient ComponentFactory<AuditUiPort>          auditUiPortFactory;
+    private final transient ComponentFactory<UiPrimaryButton>      primaryButtonFactory;
+    private final transient ComponentFactory<UiIconButton>         iconButtonFactory;
+    private final transient ComponentFactory<AuditPort>            auditPortFactory;
+    private final transient ComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
     private OverlayLayout    layout;
@@ -67,7 +72,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         ensureInitialized();
 
         if (layout != null) layout.removeFromParent();
-        layout = componentFactory.get(OverlayLayout.class);
+        layout = overlayLayoutFactory.get();
         layout.setBreadcrumbButton(breadcrumbBackButton);
         layout.getBreadcrumbCurrent().setText(getValue(SETTINGS_SECTION_TITLE));
 
@@ -86,7 +91,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         Div content;
 
-        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
+        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
         if (auditUi != null) {
             // ── Activity panel (lazy) ─────────────────────────────────────────
             activityPanel = new Div();
@@ -115,11 +120,11 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         content.addClassName("settings-overlay-content");
         layout.setContent(content);
 
-        saveBtn = componentFactory.build(UiPrimaryButton.class,
+        saveBtn = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
         saveBtn.addClickListener(_ -> handleSave());
 
-        UiIconButton closeBtn = componentFactory.build(UiIconButton.class,
+        UiIconButton closeBtn = iconButtonFactory.build(
                 UiIconButton.Parameters.builder()
                         .labelKey(HEADER_HOME)
                         .icon(VaadinIcon.CLOSE.create())
@@ -157,7 +162,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     .build();
 
             settingsService.save(currentUser.getId(), newSettings);
-            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(currentUser.getId(),
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
                     SettingsSnapshotDto.from(oldSettings),
                     SettingsSnapshotDto.from(newSettings),
                     currentUser.getId()));
@@ -193,7 +198,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private void loadAndShowSettingsRestore(Long snapshotId) {
-        Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
+        Optional.ofNullable(auditPortFactory.getIfAvailable())
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class))
                 .map(dto -> UserSettings.builder().adsPageSize(dto.adsPageSize()).usersPageSize(dto.usersPageSize()).build())
                 .ifPresent(this::showSettingsRestoreConfirm);
@@ -213,7 +218,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 ? usersLabel + ": " + noChange
                 : usersLabel + ": " + current.getUsersPageSize() + " → " + target.getUsersPageSize();
 
-        componentFactory.build(ConfirmActionDialog.class,
+        confirmDialogFactory.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(SETTINGS_RESTORE_CONFIRM_TITLE)
                         .message(adsLine + "\n" + usersLine)
@@ -222,7 +227,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .onConfirm(() -> {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
-                            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(currentUser.getId(),
+                            auditPortFactory.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
                                     SettingsSnapshotDto.from(before),
                                     SettingsSnapshotDto.from(target),
                                     currentUser.getId()));

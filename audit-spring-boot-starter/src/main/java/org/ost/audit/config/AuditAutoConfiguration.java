@@ -15,8 +15,11 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.ost.audit.AuditPackageMarker;
 import org.ost.platform.ui.ComponentFactory;
+import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Scope;
+import org.springframework.core.ResolvableType;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.support.CronTrigger;
@@ -62,9 +65,14 @@ public class AuditAutoConfiguration {
     }
 
     @Bean
+    @Scope("prototype")
     @ConditionalOnMissingBean
-    public ComponentFactory componentFactory(ConfigurableListableBeanFactory beanFactory) {
-        return new ComponentFactory(beanFactory);
+    public ComponentFactory<?> componentFactory(InjectionPoint injectionPoint, ConfigurableListableBeanFactory beanFactory) {
+        ResolvableType type = injectionPoint.getField() != null
+                ? ResolvableType.forField(injectionPoint.getField())
+                : ResolvableType.forMethodParameter(injectionPoint.getMethodParameter());
+        Class<?> beanClass = type.getGeneric(0).toClass();
+        return new ComponentFactory<>(beanFactory.getBeanProvider(ResolvableType.forClass(beanClass)));
     }
 
 }

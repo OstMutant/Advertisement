@@ -35,11 +35,13 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService       advertisementService;
-    private final transient AdvertisementOverlay       overlay;
-    private final transient ComponentFactory           componentFactory;
-    private final transient I18nService                i18n;
-    private final transient AccessEvaluator            access;
+    private final transient AdvertisementService                  advertisementService;
+    private final transient AdvertisementOverlay                  overlay;
+    private final transient ComponentFactory<UiPrimaryButton>     primaryButtonFactory;
+    private final transient ComponentFactory<AdvertisementCardView> cardViewFactory;
+    private final transient ComponentFactory<EmptyStateView>      emptyStateFactory;
+    private final transient I18nService                           i18n;
+    private final transient AccessEvaluator                       access;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -99,7 +101,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private UiPrimaryButton buildAddButton() {
-        UiPrimaryButton button = componentFactory.build(UiPrimaryButton.class,
+        UiPrimaryButton button = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder()
                         .labelKey(ADVERTISEMENT_SIDEBAR_BUTTON_ADD)
                         .icon(VaadinIcon.PLUS.create())
@@ -126,7 +128,7 @@ public class AdvertisementsView extends VerticalLayout {
             advertisementContainer.add(buildEmptyState());
         } else {
             ads.stream()
-                    .map(ad -> componentFactory.build(AdvertisementCardView.class,
+                    .map(ad -> cardViewFactory.build(
                             AdvertisementCardView.Parameters.builder()
                                     .ad(ad)
                                     .onChanged(this::refresh)
@@ -138,7 +140,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private EmptyStateView buildEmptyState() {
-        return componentFactory.build(EmptyStateView.class,
+        return emptyStateFactory.build(
                 EmptyStateView.Parameters.builder()
                         .icon(VaadinIcon.CLIPBOARD_TEXT)
                         .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))

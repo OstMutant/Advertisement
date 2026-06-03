@@ -29,13 +29,16 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class LoginDialog extends BaseDialog implements I18nParams {
 
-    private final AuthService         authService;
+    private final AuthService                            authService;
     @Getter
-    private final I18nService         i18nService;
-    private final NotificationService notificationService;
-    private final LocaleProvider      localeProvider;
-    private final DialogLayout        layout;
-    private final ComponentFactory    componentFactory;
+    private final I18nService                            i18nService;
+    private final NotificationService                    notificationService;
+    private final LocaleProvider                         localeProvider;
+    private final DialogLayout                           layout;
+    private final transient ComponentFactory<UiEmailField>      emailFieldFactory;
+    private final transient ComponentFactory<UiPasswordField>   passwordFieldFactory;
+    private final transient ComponentFactory<UiPrimaryButton>   primaryButtonFactory;
+    private final transient ComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
@@ -44,13 +47,13 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     @PostConstruct
     protected void buildLayout() {
         super.buildLayout(layout);
-        emailField = componentFactory.build(UiEmailField.class,
+        emailField = emailFieldFactory.build(
                 UiEmailField.Parameters.builder()
                         .labelKey(LOGIN_EMAIL_LABEL)
                         .placeholderKey(LOGIN_EMAIL_LABEL)
                         .required(true)
                         .build());
-        passwordField = componentFactory.build(UiPasswordField.class,
+        passwordField = passwordFieldFactory.build(
                 UiPasswordField.Parameters.builder()
                         .labelKey(LOGIN_PASSWORD_LABEL)
                         .placeholderKey(LOGIN_PASSWORD_LABEL)
@@ -72,11 +75,11 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     }
 
     private void addActions() {
-        UiPrimaryButton loginButton = componentFactory.build(UiPrimaryButton.class,
+        UiPrimaryButton loginButton = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
-        UiTertiaryButton cancelButton = componentFactory.build(UiTertiaryButton.class,
+        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
                 UiTertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 

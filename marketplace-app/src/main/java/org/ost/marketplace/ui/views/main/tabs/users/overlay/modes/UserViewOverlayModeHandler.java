@@ -50,11 +50,14 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         @NonNull BiConsumer<Long, Long> onRestoreUser;
     }
 
-    private final AccessEvaluator                             access;
+    private final AccessEvaluator                                   access;
     @Getter
-    private final I18nService                                 i18nService;
-    private final UserSettingsService                         userSettingsService;
-    private final ComponentFactory                            componentFactory;
+    private final I18nService                                       i18nService;
+    private final UserSettingsService                               userSettingsService;
+    private final transient ComponentFactory<AuditUiPort>           auditUiPortFactory;
+    private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
+    private final transient ComponentFactory<UiIconButton>          iconButtonFactory;
+    private final transient ComponentFactory<UiLabeledField>        labeledFieldFactory;
 
     private Parameters params;
 
@@ -118,7 +121,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
+        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
         if (auditUi == null) return null;
         return new SecondaryTabDef(
                 new Tab(getValue(ACTIVITY_TAB)),
@@ -128,9 +131,9 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = componentFactory.build(UiPrimaryButton.class,
+        UiPrimaryButton editButton = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
-        UiIconButton closeButton = componentFactory.build(UiIconButton.class,
+        UiIconButton closeButton = iconButtonFactory.build(
                 UiIconButton.Parameters.builder()
                         .labelKey(MAIN_TAB_USERS)
                         .icon(VaadinIcon.CLOSE.create())
@@ -178,7 +181,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {
-        return componentFactory.build(UiLabeledField.class,
+        return labeledFieldFactory.build(
                 UiLabeledField.Parameters.builder()
                         .labelKey(labelKey)
                         .value(value)

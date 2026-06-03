@@ -45,10 +45,10 @@ public class AuditActivityPanel extends Div
         List<AuditActivityRowHook> bindings = List.of();
     }
 
-    private final I18nService        i18n;
-    private final AuditReadService   auditReadService;
-    private final AuditDomainHook    auditDomainHook;
-    private final ComponentFactory   componentFactory;
+    private final I18nService                                   i18n;
+    private final AuditReadService                              auditReadService;
+    private final AuditDomainHook                               auditDomainHook;
+    private final transient ComponentFactory<AuditActivityRowRenderer> rowRendererFactory;
 
     @Override
     @PostConstruct
@@ -67,7 +67,7 @@ public class AuditActivityPanel extends Div
         }
 
         AuditActivityRowRenderer.DisplayContext ctx = buildDisplayContext(items);
-        AuditActivityRowRenderer renderer = componentFactory.get(AuditActivityRowRenderer.class);
+        AuditActivityRowRenderer renderer = rowRendererFactory.get();
         for (AuditActivityItemDto item : items) {
             add(buildDecoratedRow(renderer, item, p, ctx));
         }

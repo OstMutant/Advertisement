@@ -18,26 +18,27 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
-    private final ComponentFactory   componentFactory;
-    private final AttachmentService  attachmentService;
+    private final ComponentFactory<AttachmentGallery>   galleryFactory;
+    private final ComponentFactory<CardMediaLightbox>   lightboxFactory;
+    private final AttachmentService                     attachmentService;
 
     @Override
     public Component buildGalleryForView(EntityRef entity) {
-        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
+        AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForView(entity.entityType(), entity.entityId());
         return gallery;
     }
 
     @Override
     public FormHandle buildGalleryForCreate(EntityType entityType, String tempSessionId) {
-        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
+        AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForCreate(entityType, tempSessionId);
         return new Handle(gallery);
     }
 
     @Override
     public FormHandle buildGalleryForEdit(EntityRef entity) {
-        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
+        AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForEdit(entity.entityType(), entity.entityId());
         return new Handle(gallery);
     }
@@ -47,7 +48,7 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
         List<Attachment> attachments =
                 attachmentService.getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {
-            componentFactory.get(CardMediaLightbox.class).open(attachments, 0);
+            lightboxFactory.get().open(attachments, 0);
         }
     }
 

@@ -53,16 +53,17 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull Runnable    onCancel;
     }
 
-    private final AdvertisementService                            advertisementService;
-    private final AdvertisementMapper                             mapper;
+    private final AdvertisementService                              advertisementService;
+    private final AdvertisementMapper                               mapper;
     @Getter
-    private final I18nService                                     i18nService;
-    private final ComponentFactory                                componentFactory;
-    private final OverlayAdvertisementMetaPanel                   metaPanel;
-    private final UiTextField                                     titleField;
-    private final UiTextArea                                      descriptionField;
-    private final UiPrimaryButton                                 saveButton;
-    private final UiTertiaryButton                                cancelButton;
+    private final I18nService                                       i18nService;
+    private final transient ComponentFactory<AttachmentGalleryPort> galleryPortFactory;
+    private final transient ComponentFactory<OverlayFormBinder>     formBinderFactory;
+    private final OverlayAdvertisementMetaPanel                     metaPanel;
+    private final UiTextField                                       titleField;
+    private final UiTextArea                                        descriptionField;
+    private final UiPrimaryButton                                   saveButton;
+    private final UiTertiaryButton                                  cancelButton;
 
     private Parameters params;
     @Getter
@@ -106,7 +107,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> {
+        galleryPortFactory.ifAvailable(ext -> {
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
@@ -147,7 +148,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private void buildBinder(AdvertisementEditDto dto) {
-        binder = componentFactory.build(OverlayFormBinder.class,
+        binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)
                         .dto(dto)

@@ -48,13 +48,15 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         @NonNull Consumer<Long>       onRestore;
     }
 
-    private final AccessEvaluator                           access;
+    private final AccessEvaluator                                   access;
     @Getter
-    private final I18nService                               i18nService;
-    private final OverlayAdvertisementMetaPanel             metaPanel;
-    private final UiPrimaryButton                           editButton;
-    private final UiIconButton                              closeButton;
-    private final ComponentFactory                          componentFactory;
+    private final I18nService                                       i18nService;
+    private final OverlayAdvertisementMetaPanel                     metaPanel;
+    private final UiPrimaryButton                                   editButton;
+    private final UiIconButton                                      closeButton;
+    private final transient ComponentFactory<AttachmentGalleryPort> galleryPortFactory;
+    private final transient ComponentFactory<AuditUiPort>           auditUiPortFactory;
+    private final transient ComponentFactory<ConfirmActionDialog>   confirmDialogFactory;
 
     private Parameters params;
 
@@ -89,7 +91,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         textCard.addClassName("overlay__view-card");
 
         Div viewBody = new Div(textCard);
-        componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> viewBody.add(
+        galleryPortFactory.ifAvailable(ext -> viewBody.add(
                 ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
@@ -99,7 +101,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
+        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
         if (auditUi == null || !access.canOperate(params.getAd())) return null;
         return new SecondaryTabDef(
                 new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
@@ -134,7 +136,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     }
 
     private void showRestoreConfirm(AuditHistoryItemDto h, long snapshotId) {
-        componentFactory.build(ConfirmActionDialog.class,
+        confirmDialogFactory.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
                         .message(getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED))

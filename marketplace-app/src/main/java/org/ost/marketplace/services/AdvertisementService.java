@@ -37,7 +37,8 @@ public class AdvertisementService {
 
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
-    private final ComponentFactory           componentFactory;
+    private final ComponentFactory<AuditPort>      auditPortFactory;
+    private final ComponentFactory<AttachmentPort> attachmentPortFactory;
     private final AuthContextService         authContextService;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
@@ -60,10 +61,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             if (isNew) {
-                componentFactory.ifAvailable(AuditPort.class, p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+                auditPortFactory.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             } else {
                 AdvertisementSnapshotDto beforeSnapshot = before != null ? new AdvertisementSnapshotDto(before.getTitle(), before.getDescription()) : new AdvertisementSnapshotDto(null, null);
-                componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             }
         }
         return saved;
@@ -78,7 +79,7 @@ public class AdvertisementService {
     }
 
     public void onMediaChanged(Long entityId) {
-        componentFactory.ifAvailable(AttachmentPort.class, port ->
+        attachmentPortFactory.ifAvailable(port ->
                 repository.updateMedia(entityId, port.getMediaSummary(new EntityRef(EntityType.ADVERTISEMENT, entityId)))
         );
     }
@@ -93,7 +94,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        AuditSnapshotContentDto content = Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
+        AuditSnapshotContentDto content = Optional.ofNullable(auditPortFactory.getIfAvailable())
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
@@ -109,8 +110,8 @@ public class AdvertisementService {
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
-            componentFactory.ifAvailable(AttachmentPort.class, p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+            attachmentPortFactory.ifAvailable(p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
         }
         return true;
     }
@@ -129,10 +130,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    componentFactory.ifAvailable(AuditPort.class, p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
+                    auditPortFactory.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
         }
         if (currentUserId != null) {
-            componentFactory.ifAvailable(AttachmentPort.class, p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
+            attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
         }
         repository.softDelete(ad.getId(), currentUserId);
     }

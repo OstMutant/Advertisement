@@ -52,12 +52,16 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     @Getter
-    private final transient I18nService                        i18nService;
-    private final transient NotificationService                notificationService;
-    private final transient AdvertisementService               advertisementService;
-    private final transient ComponentFactory                   componentFactory;
-    private final transient AccessEvaluator                    access;
-    private final transient AdvertisementOverlay               overlay;
+    private final transient I18nService                               i18nService;
+    private final transient NotificationService                       notificationService;
+    private final transient AdvertisementService                      advertisementService;
+    private final transient ComponentFactory<AttachmentGalleryPort>   galleryPortFactory;
+    private final transient ComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
+    private final transient ComponentFactory<EditActionButton>         editButtonFactory;
+    private final transient ComponentFactory<DeleteActionButton>       deleteButtonFactory;
+    private final transient ComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
+    private final transient AccessEvaluator                            access;
+    private final transient AdvertisementOverlay                       overlay;
 
     @Override
     @PostConstruct
@@ -112,7 +116,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                galleryPortFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
@@ -157,7 +161,7 @@ public class AdvertisementCardView extends HorizontalLayout
         boolean neverEdited = ad.getUpdatedAt() == null
                 || ad.getUpdatedAt().equals(ad.getCreatedAt());
 
-        return componentFactory.build(AdvertisementCardMetaPanel.class, AdvertisementCardMetaPanel.Parameters.builder()
+        return metaPanelFactory.build(AdvertisementCardMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                 .authorEmail(ad.getCreatedByUserEmail())
                 .dateLabel(neverEdited
@@ -179,7 +183,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button edit = componentFactory.build(EditActionButton.class,
+        Button edit = editButtonFactory.build(
                 EditActionButton.Parameters.builder()
                         .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT))
                         .onClick(() -> overlay.openForEdit(ad, onChanged))
@@ -193,7 +197,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button delete = componentFactory.build(DeleteActionButton.class,
+        Button delete = deleteButtonFactory.build(
                 DeleteActionButton.Parameters.builder()
                         .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE))
                         .onClick(() -> confirmAndDelete(ad, onChanged))
@@ -207,7 +211,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
-        componentFactory.build(ConfirmActionDialog.class,
+        confirmDialogFactory.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
                         .message(getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))

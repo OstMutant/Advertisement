@@ -41,9 +41,10 @@ public final class ConfirmActionDialog extends BaseDialog
     // -------------------------------------------------------------------------
 
     @Getter
-    private final transient I18nService               i18nService;
-    private final           DialogLayout              layout;
-    private final transient ComponentFactory          componentFactory;
+    private final transient I18nService                          i18nService;
+    private final           DialogLayout                         layout;
+    private final transient ComponentFactory<UiPrimaryButton>    primaryButtonFactory;
+    private final transient ComponentFactory<UiTertiaryButton>   tertiaryButtonFactory;
 
     @Override
     @PostConstruct
@@ -65,7 +66,7 @@ public final class ConfirmActionDialog extends BaseDialog
         bodyWrapper.addClassName("dialog-confirm-body");
         layout.addFormContent(bodyWrapper);
 
-        UiPrimaryButton confirmButton = componentFactory.build(UiPrimaryButton.class,
+        UiPrimaryButton confirmButton = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
@@ -76,7 +77,7 @@ public final class ConfirmActionDialog extends BaseDialog
             }
         });
 
-        UiTertiaryButton cancelButton = componentFactory.build(UiTertiaryButton.class,
+        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
                 UiTertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
         cancelButton.addClickListener(_ -> close());
 

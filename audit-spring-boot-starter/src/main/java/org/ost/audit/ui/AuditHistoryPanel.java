@@ -41,10 +41,10 @@ public class AuditHistoryPanel extends Div
         ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
     }
 
-    private final I18nService      i18n;
-    private final AuditReadService auditReadService;
-    private final AuditDomainHook  auditDomainHook;
-    private final ComponentFactory componentFactory;
+    private final I18nService                                   i18n;
+    private final AuditReadService                              auditReadService;
+    private final AuditDomainHook                               auditDomainHook;
+    private final transient ComponentFactory<AuditHistoryRowRenderer> rowRendererFactory;
 
     @Override
     @PostConstruct
@@ -68,7 +68,7 @@ public class AuditHistoryPanel extends Div
         }
 
         Map<Long, String> actorNames = resolveActorNames(history);
-        AuditHistoryRowRenderer renderer = componentFactory.get(AuditHistoryRowRenderer.class);
+        AuditHistoryRowRenderer renderer = rowRendererFactory.get();
         AuditHistoryRowRenderer.RowContext ctx = new AuditHistoryRowRenderer.RowContext(
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
                 p.isCanOperate(), p.getOnRestoreRequested(), actorNames);

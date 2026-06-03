@@ -19,26 +19,28 @@ import static org.ost.marketplace.common.I18nKey.*;
 @Getter
 public class EntityOverlaySupport {
 
-    private final I18nService                                 i18n;
-    private final NotificationService                         notification;
-    private final ComponentFactory                            componentFactory;
+    private final I18nService                                          i18n;
+    private final NotificationService                                  notification;
+    private final ComponentFactory<OverlayBreadcrumbBackButton>        breadcrumbBackButtonFactory;
+    private final ComponentFactory<OverlayLayout>                      overlayLayoutFactory;
+    private final ComponentFactory<ConfirmActionDialog>                confirmDialogFactory;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        OverlayBreadcrumbBackButton btn = componentFactory.build(OverlayBreadcrumbBackButton.class,
+        OverlayBreadcrumbBackButton btn = breadcrumbBackButtonFactory.build(
                 OverlayBreadcrumbBackButton.Parameters.builder().labelKey(labelKey).build());
         btn.addClickListener(_ -> onBack.run());
         return btn;
     }
 
     public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
-        OverlayLayout layout = componentFactory.get(OverlayLayout.class);
+        OverlayLayout layout = overlayLayoutFactory.get();
         layout.setBreadcrumbButton(breadcrumbButton);
         return layout;
     }
 
     public void handleCancel(boolean hasUnsavedChanges, Runnable doCancel) {
         if (hasUnsavedChanges) {
-            componentFactory.build(ConfirmActionDialog.class,
+            confirmDialogFactory.build(
                     ConfirmActionDialog.Parameters.builder()
                             .titleKey(OVERLAY_UNSAVED_TITLE)
                             .message(i18n.get(OVERLAY_UNSAVED_TEXT))

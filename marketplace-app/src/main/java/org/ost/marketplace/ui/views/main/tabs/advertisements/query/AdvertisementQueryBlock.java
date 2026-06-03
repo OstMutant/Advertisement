@@ -30,7 +30,10 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
     @Qualifier("advertisementSortProcessor")
     private final transient SortProcessor                           sortProcessor;
 
-    private final transient ComponentFactory componentFactory;
+    private final transient ComponentFactory<QueryTextField>      textFieldFactory;
+    private final transient ComponentFactory<QueryDateTimeField>  dateTimeFieldFactory;
+    private final transient ComponentFactory<QueryInlineRow>      inlineRowFactory;
+    private final transient ComponentFactory<SortIcon>            sortIconFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -41,40 +44,40 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         setVisible(false);
 
         // Title row
-        QueryTextField titleField = componentFactory.build(QueryTextField.class,
+        QueryTextField titleField = textFieldFactory.build(
                 QueryTextField.Parameters.builder()
                         .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
-        SortIcon titleSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow titleRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon titleSort = sortIconFactory.get();
+        QueryInlineRow titleRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
 
         // Created date row
-        QueryDateTimeField createdStart = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField createdStart = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_START)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_START).build());
-        QueryDateTimeField createdEnd = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField createdEnd = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_END)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow createdRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon createdSort = sortIconFactory.get();
+        QueryInlineRow createdRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
                         .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
-        QueryDateTimeField updatedStart = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField updatedStart = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_START)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_START).build());
-        QueryDateTimeField updatedEnd = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField updatedEnd = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow updatedRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon updatedSort = sortIconFactory.get();
+        QueryInlineRow updatedRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
                         .filterField(updatedStart).filterField(updatedEnd).build());

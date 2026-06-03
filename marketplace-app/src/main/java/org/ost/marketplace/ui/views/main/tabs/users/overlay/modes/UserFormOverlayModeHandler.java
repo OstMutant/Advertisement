@@ -45,15 +45,15 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull Runnable onCancel;
     }
 
-    private final UserService                            userService;
-    private final UserMapper                             mapper;
+    private final UserService                              userService;
+    private final UserMapper                               mapper;
     @Getter
-    private final I18nService                            i18nService;
-    private final ComponentFactory                       componentFactory;
-    private final UiTextField                            nameField;
-    private final UiComboBox<Role>                       roleComboBox;
-    private final UiPrimaryButton                        saveButton;
-    private final UiTertiaryButton                       cancelButton;
+    private final I18nService                              i18nService;
+    private final transient ComponentFactory<OverlayFormBinder> formBinderFactory;
+    private final UiTextField                              nameField;
+    private final UiComboBox<Role>                         roleComboBox;
+    private final UiPrimaryButton                          saveButton;
+    private final UiTertiaryButton                         cancelButton;
 
     private Parameters params;
 
@@ -108,7 +108,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private void buildBinder(UserEditDto dto) {
-        binder = componentFactory.build(OverlayFormBinder.class,
+        binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<UserEditDto>builder()
                         .clazz(UserEditDto.class)
                         .dto(dto)

@@ -1,30 +1,31 @@
 package org.ost.platform.ui;
 
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.function.Consumer;
 
-public class ComponentFactory {
+public class ComponentFactory<T> {
 
-    private final ConfigurableListableBeanFactory beanFactory;
+    private final ObjectProvider<T> provider;
 
-    public ComponentFactory(ConfigurableListableBeanFactory beanFactory) {
-        this.beanFactory = beanFactory;
+    public ComponentFactory(ObjectProvider<T> provider) {
+        this.provider = provider;
     }
 
-    public <T> T get(Class<T> type) {
-        return beanFactory.getBean(type);
+    public T get() {
+        return provider.getObject();
     }
 
-    public <T extends Configurable<T, P>, P> T build(Class<T> type, P params) {
-        return beanFactory.getBean(type).configure(params);
+    @SuppressWarnings("unchecked")
+    public <P> T build(P params) {
+        return ((Configurable<T, P>) provider.getObject()).configure(params);
     }
 
-    public <T> T getIfAvailable(Class<T> type) {
-        return beanFactory.getBeanProvider(type).getIfAvailable();
+    public T getIfAvailable() {
+        return provider.getIfAvailable();
     }
 
-    public <T> void ifAvailable(Class<T> type, Consumer<T> consumer) {
-        beanFactory.getBeanProvider(type).ifAvailable(consumer);
+    public void ifAvailable(Consumer<T> consumer) {
+        provider.ifAvailable(consumer);
     }
 }

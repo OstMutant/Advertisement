@@ -34,11 +34,11 @@ public class AuditHistoryRowRenderer {
             boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested,
             Map<Long, String> actorNames) {}
 
-    private final I18nService                   i18n;
-    private final InstantFormatter              formatter;
-    private final AuditActivityRowRenderer      fieldRenderer;
-    private final List<AuditActivityEnrichHook> activityEnrichHooks;
-    private final ComponentFactory              componentFactory;
+    private final I18nService                                        i18n;
+    private final InstantFormatter                                   formatter;
+    private final AuditActivityRowRenderer                           fieldRenderer;
+    private final List<AuditActivityEnrichHook>                      activityEnrichHooks;
+    private final transient ComponentFactory<AuditHistoryRowActionsHook> rowActionsHookFactory;
 
     public Div buildRow(AuditHistoryItemDto h, RowContext ctx) {
         Div row = new Div();
@@ -55,7 +55,7 @@ public class AuditHistoryRowRenderer {
         if (ctx.canOperate() && isTextRow && (h.actionType() != ActionType.CREATED || ctx.historySize() > 1)) {
             boolean isCurrentState = snapshotsEqual(h.snapshotData(), ctx.currentSnapshot())
                     && mediaMatchCurrent(ctx.entityType(), ctx.entityId(), h.version());
-            componentFactory.ifAvailable(AuditHistoryRowActionsHook.class, hook -> {
+            rowActionsHookFactory.ifAvailable(hook -> {
                 Component actions = hook.buildRowActions(h, isCurrentState, ctx.onRestoreRequested());
                 if (actions != null) row.add(actions);
             });

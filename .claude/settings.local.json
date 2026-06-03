@@ -280,7 +280,8 @@
       "Bash(pkill -f \"scripts/playwright\")",
       "Bash(> /tmp/pw.log)",
       "Bash(xxd /tmp/pw.log)",
-      "Bash(grep -v \"^[[:space:]]*$\")"
+      "Bash(grep -v \"^[[:space:]]*$\")",
+      "Bash(javap -classpath /root/.m2/repository/org/springframework/spring-beans/7.0.2/spring-beans-7.0.2.jar org.springframework.beans.factory.InjectionPoint)"
     ]
   },
   "hooks": {

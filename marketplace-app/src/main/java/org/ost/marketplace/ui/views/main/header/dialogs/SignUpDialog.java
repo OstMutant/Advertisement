@@ -29,12 +29,16 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class SignUpDialog extends BaseDialog implements I18nParams {
 
-    private final transient UserService         userService;
+    private final transient UserService                             userService;
     @Getter
-    private final transient I18nService         i18nService;
-    private final transient NotificationService notificationService;
-    private final           DialogLayout        layout;
-    private final transient ComponentFactory    componentFactory;
+    private final transient I18nService                             i18nService;
+    private final transient NotificationService                     notificationService;
+    private final           DialogLayout                            layout;
+    private final transient ComponentFactory<UiTextField>           textFieldFactory;
+    private final transient ComponentFactory<UiEmailField>          emailFieldFactory;
+    private final transient ComponentFactory<UiPasswordField>       passwordFieldFactory;
+    private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
+    private final transient ComponentFactory<UiTertiaryButton>      tertiaryButtonFactory;
 
     private UiTextField     nameField;
     private UiEmailField    emailField;
@@ -49,20 +53,20 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         super.buildLayout(layout);
         addThemeName("signup-dialog");
 
-        nameField = componentFactory.build(UiTextField.class,
+        nameField = textFieldFactory.build(
                 UiTextField.Parameters.builder()
                         .labelKey(SIGNUP_NAME_LABEL)
                         .placeholderKey(SIGNUP_NAME_LABEL)
                         .maxLength(255)
                         .required(true)
                         .build());
-        emailField = componentFactory.build(UiEmailField.class,
+        emailField = emailFieldFactory.build(
                 UiEmailField.Parameters.builder()
                         .labelKey(SIGNUP_EMAIL_LABEL)
                         .placeholderKey(SIGNUP_EMAIL_LABEL)
                         .required(true)
                         .build());
-        passwordField = componentFactory.build(UiPasswordField.class,
+        passwordField = passwordFieldFactory.build(
                 UiPasswordField.Parameters.builder()
                         .labelKey(SIGNUP_PASSWORD_LABEL)
                         .placeholderKey(SIGNUP_PASSWORD_LABEL)
@@ -84,9 +88,9 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     }
 
     private void addActions() {
-        UiPrimaryButton registerButton = componentFactory.build(UiPrimaryButton.class,
+        UiPrimaryButton registerButton = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_SUBMIT).build());
-        UiTertiaryButton cancelButton = componentFactory.build(UiTertiaryButton.class,
+        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
                 UiTertiaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_CANCEL).build());
 
         cancelButton.addClickListener(_ -> close());

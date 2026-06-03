@@ -29,8 +29,8 @@ public class QueryActionButton extends Button implements Configurable<QueryActio
     }
 
     @Getter
-    private final transient I18nService    i18nService;
-    private final transient ComponentFactory componentFactory;
+    private final transient I18nService               i18nService;
+    private final transient ComponentFactory<SvgIcon>  svgIconFactory;
 
     @Override
     @PostConstruct
@@ -49,6 +49,6 @@ public class QueryActionButton extends Button implements Configurable<QueryActio
     }
 
     private SvgIcon createSvgIcon(String svgPath) {
-        return componentFactory.build(SvgIcon.class, SvgIcon.Parameters.builder().resourcePath("icons/" + svgPath).build());
+        return svgIconFactory.build(SvgIcon.Parameters.builder().resourcePath("icons/" + svgPath).build());
     }
 }

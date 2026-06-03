@@ -33,7 +33,12 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
     @Qualifier("userSortProcessor")
     private final transient SortProcessor                  sortProcessor;
 
-    private final transient ComponentFactory componentFactory;
+    private final transient ComponentFactory<QueryTextField>                    textFieldFactory;
+    private final transient ComponentFactory<QueryNumberField>                  numberFieldFactory;
+    private final transient ComponentFactory<QueryDateTimeField>                dateTimeFieldFactory;
+    private final transient ComponentFactory<QueryMultiSelectComboField<Role>>  roleComboFactory;
+    private final transient ComponentFactory<QueryInlineRow>                    inlineRowFactory;
+    private final transient ComponentFactory<SortIcon>                          sortIconFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -44,69 +49,67 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         setVisible(false);
 
         // Id row
-        QueryNumberField idMinField = componentFactory.build(QueryNumberField.class,
+        QueryNumberField idMinField = numberFieldFactory.build(
                 QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MIN).build());
-        QueryNumberField idMaxField = componentFactory.build(QueryNumberField.class,
+        QueryNumberField idMaxField = numberFieldFactory.build(
                 QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MAX).build());
-        SortIcon idSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow idRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon idSort = sortIconFactory.get();
+        QueryInlineRow idRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_ID).sortIcon(idSort)
                         .filterField(idMinField).filterField(idMaxField).build());
 
         // Name row
-        QueryTextField nameField = componentFactory.build(QueryTextField.class,
+        QueryTextField nameField = textFieldFactory.build(
                 QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_NAME_PLACEHOLDER).build());
-        SortIcon nameSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow nameRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon nameSort = sortIconFactory.get();
+        QueryInlineRow nameRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
 
         // Email row
-        QueryTextField emailField = componentFactory.build(QueryTextField.class,
+        QueryTextField emailField = textFieldFactory.build(
                 QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_EMAIL_PLACEHOLDER).build());
-        SortIcon emailSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow emailRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon emailSort = sortIconFactory.get();
+        QueryInlineRow emailRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
 
         // Role row
-        @SuppressWarnings("unchecked")
-        QueryMultiSelectComboField<Role> roleField = componentFactory.build(
-                (Class<QueryMultiSelectComboField<Role>>) (Class<?>) QueryMultiSelectComboField.class,
+        QueryMultiSelectComboField<Role> roleField = roleComboFactory.build(
                 QueryMultiSelectComboField.Parameters.<Role>builder()
                         .placeholderKey(USER_FILTER_ROLE_ANY).items(Role.values()).build());
-        SortIcon roleSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow roleRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon roleSort = sortIconFactory.get();
+        QueryInlineRow roleRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
 
         // Created date row
-        QueryDateTimeField createdStart = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField createdStart = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_CREATED_START)
                         .timePlaceholderKey(USER_FILTER_TIME_CREATED_START).build());
-        QueryDateTimeField createdEnd = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField createdEnd = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_CREATED_END)
                         .timePlaceholderKey(USER_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow createdRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon createdSort = sortIconFactory.get();
+        QueryInlineRow createdRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_CREATED).sortIcon(createdSort)
                         .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
-        QueryDateTimeField updatedStart = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField updatedStart = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_UPDATED_START)
                         .timePlaceholderKey(USER_FILTER_TIME_UPDATED_START).build());
-        QueryDateTimeField updatedEnd = componentFactory.build(QueryDateTimeField.class,
+        QueryDateTimeField updatedEnd = dateTimeFieldFactory.build(
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_UPDATED_END)
                         .timePlaceholderKey(USER_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = componentFactory.get(SortIcon.class);
-        QueryInlineRow updatedRow = componentFactory.build(QueryInlineRow.class,
+        SortIcon updatedSort = sortIconFactory.get();
+        QueryInlineRow updatedRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
                         .labelTranslationKey(USER_SORT_UPDATED).sortIcon(updatedSort)
                         .filterField(updatedStart).filterField(updatedEnd).build());

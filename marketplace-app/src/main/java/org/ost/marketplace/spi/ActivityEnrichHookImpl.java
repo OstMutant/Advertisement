@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
 
-    private final ComponentFactory componentFactory;
+    private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
 
     @Override
     public EntityType entityType() {
@@ -25,32 +25,32 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
 
     @Override
     public List<AuditActivityItemDto> merge(List<EntityRef> subjects, List<AuditActivityItemDto> base) {
-        AttachmentAuditHook hook = componentFactory.getIfAvailable(AttachmentAuditHook.class);
+        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         EntityRef primary = subjects.isEmpty() ? null : subjects.getFirst();
         return hook != null ? hook.merge(primary, base) : base;
     }
 
     @Override
     public List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version) {
-        AttachmentAuditHook hook = componentFactory.getIfAvailable(AttachmentAuditHook.class);
+        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         return hook != null ? hook.getMediaChanges(entity, version) : List.of();
     }
 
     @Override
     public boolean matchesCurrent(EntityRef entity, int version) {
-        AttachmentAuditHook hook = componentFactory.getIfAvailable(AttachmentAuditHook.class);
+        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         return hook == null || hook.mediaMatchCurrent(entity, version);
     }
 
     @Override
     public String getMediaStateForSnapshot(EntityRef ref, Long snapshotId) {
-        AttachmentAuditHook hook = componentFactory.getIfAvailable(AttachmentAuditHook.class);
+        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         return hook != null ? hook.getMediaStateForSnapshot(ref, snapshotId) : null;
     }
 
     @Override
     public String getMediaStateAtVersion(EntityRef ref, int version) {
-        AttachmentAuditHook hook = componentFactory.getIfAvailable(AttachmentAuditHook.class);
+        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         return hook != null ? hook.getMediaStateAtVersion(ref, version) : null;
     }
 }

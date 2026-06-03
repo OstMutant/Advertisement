@@ -39,7 +39,8 @@ public class UserOverlay extends AbstractEntityOverlay {
     @Getter private final EntityOverlaySupport support;
     private final UserService                  userService;
     private final AuthContextService           authContextService;
-    private final ComponentFactory             componentFactory;
+    private final ComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
+    private final ComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession            session;
     private UserFormOverlayModeHandler currentFormHandler;
@@ -66,7 +67,7 @@ public class UserOverlay extends AbstractEntityOverlay {
     @Override
     protected void switchTo() {
         OverlayModeHandler handler = switch (session.mode()) {
-            case VIEW -> componentFactory.build(UserViewOverlayModeHandler.class,
+            case VIEW -> viewModeHandlerFactory.build(
                     UserViewOverlayModeHandler.Parameters.builder()
                             .user(session.user())
                             .onEdit(this::switchToEdit)
@@ -74,7 +75,7 @@ public class UserOverlay extends AbstractEntityOverlay {
                             .onRestoreUser(this::handleRestoreUser)
                             .build());
             case EDIT -> {
-                currentFormHandler = componentFactory.build(UserFormOverlayModeHandler.class,
+                currentFormHandler = formModeHandlerFactory.build(
                         UserFormOverlayModeHandler.Parameters.builder()
                                 .user(session.user())
                                 .onSave(this::handleSave)
