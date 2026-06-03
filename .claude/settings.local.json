@@ -266,7 +266,21 @@
       "Bash(grep -v \"^\\\\[ERROR\\\\] $\\\\|Help\\\\|After\\\\|resume\\\\|articles\")",
       "Bash(grep -v \"^\\\\[ERROR\\\\] $\\\\|Help\\\\|After\\\\|resume\\\\|articles\\\\|^\\\\[ERROR\\\\] For\")",
       "Bash(APP_URL=http://localhost:8080 bash *)",
-      "Bash(docker inspect marketplace-app *)"
+      "Bash(docker inspect marketplace-app *)",
+      "Bash(awk '/[0-9]+ passed/{print; exit} /[0-9]+ failed/{print; exit}')",
+      "Bash(awk '/[0-9]+ passed|[0-9]+ failed/{print; found=1} found{exit}')",
+      "Bash(awk '/^[[:space:]]*[0-9]+ passed/{print; exit} /^[[:space:]]*[0-9]+ failed/{print; exit}')",
+      "Bash(awk 'NR>100 && /passed|failed/{print; exit}')",
+      "Bash(awk 'END{exit\\(NR<63\\)}' /tmp/pw.log)",
+      "Bash(awk 'END{exit\\(NR<65\\)}' /tmp/pw.log)",
+      "Bash(awk 'END{exit\\(NR<62\\)}' /tmp/pw.log)",
+      "Bash(awk 'END{if\\(NR>62\\) exit 0; exit 1}' /tmp/pw.log)",
+      "Bash(awk '{ print strftime\\(\"[%H:%M:%S]\"\\), $0; fflush\\(\\) }')",
+      "Bash(pkill -f \"playwright.sh\")",
+      "Bash(pkill -f \"scripts/playwright\")",
+      "Bash(> /tmp/pw.log)",
+      "Bash(xxd /tmp/pw.log)",
+      "Bash(grep -v \"^[[:space:]]*$\")"
     ]
   },
   "hooks": {
