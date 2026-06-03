@@ -261,7 +261,9 @@ public enum I18nKey implements TranslationKey {
     CHANGES_FIELD_DESCRIPTION("changes.field.description"),
     CHANGES_FIELD_NAME("changes.field.name"),
     CHANGES_FIELD_EMAIL("changes.field.email"),
-    CHANGES_FIELD_ROLE("changes.field.role");
+    CHANGES_FIELD_ROLE("changes.field.role"),
+    CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
+    CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize");
 
     private final String key;
 

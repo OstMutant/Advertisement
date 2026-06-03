@@ -13,20 +13,10 @@ public enum AuditI18n implements TranslationKey {
     ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
     ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
     ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
-    CHANGES_MEDIA("audit.changes.media"),
-    CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
-    CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize");
+    CHANGES_MEDIA("audit.changes.media");
 
     private final String key;
 
     @Override
     public String key() { return key; }
-
-    public static AuditI18n settingLabel(String key) {
-        return switch (key) {
-            case "adsPageSize"   -> CHANGES_SETTING_ADS_PAGE_SIZE;
-            case "usersPageSize" -> CHANGES_SETTING_USERS_PAGE_SIZE;
-            default              -> throw new IllegalStateException("Unknown setting: " + key);
-        };
-    }
 }

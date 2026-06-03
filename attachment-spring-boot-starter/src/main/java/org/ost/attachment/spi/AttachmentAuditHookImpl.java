@@ -20,7 +20,7 @@ public class AttachmentAuditHookImpl implements AttachmentAuditHook {
 
     @Override
     public List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> baseItems) {
-        return attachmentSnapshotService.mergeMediaChanges(baseItems);
+        return attachmentSnapshotService.mergeAttachmentMediaChanges(baseItems);
     }
 
     // ── Media history ──────────────────────────────────────────────────────────

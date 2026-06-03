@@ -47,13 +47,8 @@ public class AuditChangeFormatter {
                 }
                 yield field + ": \"" + from + "\" → \"" + to + "\"";
             }
-            case ChangeEntry.SettingChange(var key, var from, var to) -> {
-                String label = i18n.get(AuditI18n.settingLabel(key));
-                if (from == null) yield label + ": " + to;
-                yield label + ": " + from + " → " + to;
-            }
-            case ChangeEntry.GenericChange(var labelI18nKey, var before, var after) -> {
-                String label = i18n.get(labelI18nKey);
+            case ChangeEntry.MediaChange(var before, var after) -> {
+                String label = i18n.get(AuditI18n.CHANGES_MEDIA);
                 if (before == null || before.isBlank()) {
                     yield label + ": \"" + after + "\"";
                 }

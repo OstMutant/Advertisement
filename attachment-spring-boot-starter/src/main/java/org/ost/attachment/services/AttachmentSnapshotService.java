@@ -87,7 +87,7 @@ public class AttachmentSnapshotService {
                 .map(c -> {
                     String before = c.before().isEmpty() ? "—" : String.join(", ", c.before());
                     String after  = c.after().isEmpty()  ? "—" : String.join(", ", c.after());
-                    return (ChangeEntry) new ChangeEntry.GenericChange("audit.changes.media", before, after);
+                    return (ChangeEntry) new ChangeEntry.MediaChange(before, after);
                 })
                 .toList();
     }

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
-import static org.ost.platform.core.model.ChangeEntry.SettingChange;
+import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
 @JsonTypeName("user_settings")
 @FieldNameConstants
@@ -30,20 +30,20 @@ public record SettingsSnapshotDto(
     @Override
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         SettingsSnapshotDto prev = previous instanceof SettingsSnapshotDto p ? p : null;
-        List<ChangeEntry> changes = new ArrayList<>();
         Integer prevAds   = field(prev, SettingsSnapshotDto::adsPageSize);
         Integer prevUsers = field(prev, SettingsSnapshotDto::usersPageSize);
+        List<ChangeEntry> changes = new ArrayList<>();
         if (prev == null || prev.adsPageSize() != adsPageSize())
-            changes.add(new SettingChange(Fields.adsPageSize,   prevAds,   adsPageSize()));
+            changes.add(new FieldChange(Fields.adsPageSize,   prevAds   == null ? null : String.valueOf(prevAds),   String.valueOf(adsPageSize())));
         if (prev == null || prev.usersPageSize() != usersPageSize())
-            changes.add(new SettingChange(Fields.usersPageSize, prevUsers, usersPageSize()));
+            changes.add(new FieldChange(Fields.usersPageSize, prevUsers == null ? null : String.valueOf(prevUsers), String.valueOf(usersPageSize())));
         return changes;
     }
 
     @Override
     public List<ChangeEntry> allFields() {
         return List.of(
-                new SettingChange(Fields.adsPageSize,   null, adsPageSize()),
-                new SettingChange(Fields.usersPageSize, null, usersPageSize()));
+                new FieldChange(Fields.adsPageSize,   null, String.valueOf(adsPageSize())),
+                new FieldChange(Fields.usersPageSize, null, String.valueOf(usersPageSize())));
     }
 }
