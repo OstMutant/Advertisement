@@ -87,7 +87,7 @@ public class AuditReadService {
     }
 
     private AuditActivityItemDto<AuditableSnapshot> toActivityItem(AuditLogProjection row) {
-        return new AuditActivityItemDto<AuditableSnapshot>(
+        return new AuditActivityItemDto<>(
                 row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
     }
