@@ -7,7 +7,7 @@ import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

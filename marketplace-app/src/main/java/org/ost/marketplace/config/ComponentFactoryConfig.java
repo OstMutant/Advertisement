@@ -1,6 +1,6 @@
 package org.ost.marketplace.config;
 
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.core.ResolvableType;
 
 @Configuration
-public class UiConfig {
+public class ComponentFactoryConfig {
 
     @Bean
     @Scope("prototype")

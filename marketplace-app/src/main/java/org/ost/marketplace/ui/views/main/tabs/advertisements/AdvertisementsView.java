@@ -23,7 +23,7 @@ import org.ost.query.ui.QueryBlock;
 import org.ost.query.ui.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;

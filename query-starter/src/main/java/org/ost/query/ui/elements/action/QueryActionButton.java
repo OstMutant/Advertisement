@@ -8,7 +8,7 @@ import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.query.ui.elements.SvgIcon;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
 import org.ost.query.ui.utils.HighlighterUtil;

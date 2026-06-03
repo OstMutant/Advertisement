@@ -1,7 +1,7 @@
 package org.ost.query.config;
 
 import jakarta.validation.Validator;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.query.ui.filter.ValidationService;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;

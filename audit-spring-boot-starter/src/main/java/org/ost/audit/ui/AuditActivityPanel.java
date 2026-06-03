@@ -15,7 +15,7 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 

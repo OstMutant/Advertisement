@@ -17,7 +17,7 @@ import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.ui.Initialization;

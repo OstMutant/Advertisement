@@ -6,7 +6,7 @@ import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.AttachmentPackageMarker;
 import org.ost.attachment.services.AttachmentCleanupService;
 import org.ost.platform.core.config.CleanupProperties;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.InjectionPoint;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;

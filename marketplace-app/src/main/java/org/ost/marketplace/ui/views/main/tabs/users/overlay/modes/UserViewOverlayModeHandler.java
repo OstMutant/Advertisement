@@ -23,7 +23,7 @@ import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.services.user.UserSettingsService;

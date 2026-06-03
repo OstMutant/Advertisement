@@ -16,7 +16,7 @@ import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;

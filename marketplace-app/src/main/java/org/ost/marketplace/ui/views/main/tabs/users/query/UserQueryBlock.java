@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.query.ui.QueryBlock;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.query.ui.elements.SortIcon;
 import org.ost.query.ui.elements.action.QueryActionBlock;
 import org.ost.query.ui.elements.fields.QueryDateTimeField;

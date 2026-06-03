@@ -1,5 +1,6 @@
-package org.ost.platform.ui;
+package org.ost.platform.core;
 
+import org.ost.platform.ui.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.function.Consumer;

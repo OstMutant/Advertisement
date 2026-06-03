@@ -9,7 +9,7 @@ import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.dto.SignUpDto;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.entities.UserSettings;

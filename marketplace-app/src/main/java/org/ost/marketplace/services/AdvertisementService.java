@@ -14,7 +14,7 @@ import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.ui.ComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.security.AccessEvaluator;
