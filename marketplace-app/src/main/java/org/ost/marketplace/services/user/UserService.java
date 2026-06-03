@@ -9,7 +9,7 @@ import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.marketplace.dto.SignUpDto;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.entities.UserSettings;
@@ -45,7 +45,7 @@ public class UserService {
     private final UserRepository           repository;
     private final AccessEvaluator          access;
     private final PasswordEncoder          passwordEncoder;
-    private final ObjectProvider<AuditPort> auditPort;
+    private final ComponentFactory         componentFactory;
     private final AuthContextService       authContextService;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
@@ -66,7 +66,7 @@ public class UserService {
         repository.updateProfile(dto);
         repository.findById(dto.id()).ifPresent(updated -> {
             Long changedBy = authContextService.getCurrentUser().map(User::getId).orElse(dto.id());
-            auditPort.ifAvailable(p -> p.captureUpdate(updated.getId(),
+            componentFactory.ifAvailable(AuditPort.class,p -> p.captureUpdate(updated.getId(),
                     UserSnapshotDto.from(before),
                     UserSnapshotDto.from(updated),
                     changedBy));
@@ -98,9 +98,9 @@ public class UserService {
                 .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         User saved = repository.save(newUser);
-        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId()));
+        componentFactory.ifAvailable(AuditPort.class,p -> p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId()));
         UserSettings defaults = UserSettings.defaultSettings();
-        auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId()));
+        componentFactory.ifAvailable(AuditPort.class,p -> p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId()));
     }
 
     public Optional<User> findById(Long id) {
@@ -109,14 +109,14 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreBeforeSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
+        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
                 .flatMap(p -> p.getPreviousSnapshotContent(snapshotId, EntityType.USER));
         return applyUserRestore(userId, content, actingUserId);
     }
 
     @Transactional
     public Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPort.getIfAvailable())
+        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER));
         return applyUserRestore(userId, content, actingUserId);
     }
@@ -126,7 +126,7 @@ public class UserService {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
             return repository.findById(userId).map(updated -> {
-                auditPort.ifAvailable(p -> p.captureUpdate(updated.getId(),
+                componentFactory.ifAvailable(AuditPort.class,p -> p.captureUpdate(updated.getId(),
                         UserSnapshotDto.from(before),
                         UserSnapshotDto.from(updated),
                         actingUserId));

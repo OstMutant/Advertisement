@@ -6,7 +6,6 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
@@ -15,9 +14,7 @@ import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Optional;
@@ -39,13 +36,6 @@ public class AuditSnapshotBinder<T>
         @NonNull Predicate<T>       isCurrent;
         Long                        subjectEntityId;
         BiConsumer<Long, Long>      onRestore;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<AuditSnapshotBinder<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<AuditSnapshotBinder<T>> provider;
     }
 
     private final I18nService i18n;

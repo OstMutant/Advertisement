@@ -14,7 +14,7 @@ import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.advertisement.AdvertisementRepository;
 import org.ost.marketplace.security.AccessEvaluator;
@@ -37,8 +37,7 @@ public class AdvertisementService {
 
     private final AdvertisementRepository    repository;
     private final AccessEvaluator            access;
-    private final ObjectProvider<AuditPort>   auditPort;
-    private final ObjectProvider<AttachmentPort> attachmentPort;
+    private final ComponentFactory           componentFactory;
     private final AuthContextService         authContextService;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
@@ -61,10 +60,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             if (isNew) {
-                auditPort.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+                componentFactory.ifAvailable(AuditPort.class, p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             } else {
                 AdvertisementSnapshotDto beforeSnapshot = before != null ? new AdvertisementSnapshotDto(before.getTitle(), before.getDescription()) : new AdvertisementSnapshotDto(null, null);
-                auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+                componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             }
         }
         return saved;
@@ -79,7 +78,7 @@ public class AdvertisementService {
     }
 
     public void onMediaChanged(Long entityId) {
-        attachmentPort.ifAvailable(port ->
+        componentFactory.ifAvailable(AttachmentPort.class, port ->
                 repository.updateMedia(entityId, port.getMediaSummary(new EntityRef(EntityType.ADVERTISEMENT, entityId)))
         );
     }
@@ -94,7 +93,7 @@ public class AdvertisementService {
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        AuditSnapshotContentDto content = Optional.ofNullable(auditPort.getIfAvailable())
+        AuditSnapshotContentDto content = Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
@@ -110,8 +109,8 @@ public class AdvertisementService {
         Advertisement saved = repository.save(restored);
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
-            auditPort.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
-            attachmentPort.ifAvailable(p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
+            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
+            componentFactory.ifAvailable(AttachmentPort.class, p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
         }
         return true;
     }
@@ -130,10 +129,10 @@ public class AdvertisementService {
         Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
         if (currentUserId != null) {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    auditPort.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
+                    componentFactory.ifAvailable(AuditPort.class, p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
         }
         if (currentUserId != null) {
-            attachmentPort.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
+            componentFactory.ifAvailable(AttachmentPort.class, p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
         }
         repository.softDelete(ad.getId(), currentUserId);
     }

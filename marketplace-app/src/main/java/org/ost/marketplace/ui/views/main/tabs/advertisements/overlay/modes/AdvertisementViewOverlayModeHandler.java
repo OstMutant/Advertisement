@@ -23,10 +23,9 @@ import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
@@ -49,22 +48,13 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         @NonNull Consumer<Long>       onRestore;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementViewOverlayModeHandler, Parameters> {
-        @Getter
-        private final ObjectProvider<AdvertisementViewOverlayModeHandler> provider;
-    }
-
     private final AccessEvaluator                           access;
     @Getter
     private final I18nService                               i18nService;
     private final OverlayAdvertisementMetaPanel             metaPanel;
     private final UiPrimaryButton                           editButton;
     private final UiIconButton                              closeButton;
-    private final ObjectProvider<AttachmentGalleryPort>     galleryExtension;
-    private final ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
-    private final ConfirmActionDialog.Builder               confirmDialogBuilder;
+    private final ComponentFactory                          componentFactory;
 
     private Parameters params;
 
@@ -99,7 +89,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         textCard.addClassName("overlay__view-card");
 
         Div viewBody = new Div(textCard);
-        galleryExtension.ifAvailable(ext -> viewBody.add(
+        componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> viewBody.add(
                 ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
@@ -109,7 +99,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
         if (auditUi == null || !access.canOperate(params.getAd())) return null;
         return new SecondaryTabDef(
                 new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
@@ -144,7 +134,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     }
 
     private void showRestoreConfirm(AuditHistoryItemDto h, long snapshotId) {
-        confirmDialogBuilder.build(
+        componentFactory.build(ConfirmActionDialog.class,
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
                         .message(getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED))

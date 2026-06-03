@@ -9,7 +9,7 @@ import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 
 import java.util.List;
@@ -18,27 +18,26 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
-    private final ObjectProvider<AttachmentGallery>    galleryProvider;
-    private final ObjectProvider<CardMediaLightbox>    lightboxProvider;
-    private final AttachmentService                    attachmentService;
+    private final ComponentFactory   componentFactory;
+    private final AttachmentService  attachmentService;
 
     @Override
     public Component buildGalleryForView(EntityRef entity) {
-        AttachmentGallery gallery = galleryProvider.getObject();
+        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
         gallery.configureForView(entity.entityType(), entity.entityId());
         return gallery;
     }
 
     @Override
     public FormHandle buildGalleryForCreate(EntityType entityType, String tempSessionId) {
-        AttachmentGallery gallery = galleryProvider.getObject();
+        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
         gallery.configureForCreate(entityType, tempSessionId);
         return new Handle(gallery);
     }
 
     @Override
     public FormHandle buildGalleryForEdit(EntityRef entity) {
-        AttachmentGallery gallery = galleryProvider.getObject();
+        AttachmentGallery gallery = componentFactory.get(AttachmentGallery.class);
         gallery.configureForEdit(entity.entityType(), entity.entityId());
         return new Handle(gallery);
     }
@@ -48,7 +47,7 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
         List<Attachment> attachments =
                 attachmentService.getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {
-            lightboxProvider.getObject().open(attachments, 0);
+            componentFactory.get(CardMediaLightbox.class).open(attachments, 0);
         }
     }
 

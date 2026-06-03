@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.query.ui.QueryBlock;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.query.ui.elements.SortIcon;
 import org.ost.query.ui.elements.action.QueryActionBlock;
 import org.ost.query.ui.elements.fields.QueryDateTimeField;
@@ -29,10 +30,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
     @Qualifier("advertisementSortProcessor")
     private final transient SortProcessor                           sortProcessor;
 
-    private final transient QueryTextField.Builder     textFieldBuilder;
-    private final transient QueryDateTimeField.Builder dateTimeFieldBuilder;
-    private final transient QueryInlineRow.Builder     rowBuilder;
-    private final transient SortIcon.Builder           sortIconBuilder;
+    private final transient ComponentFactory componentFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -43,35 +41,43 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         setVisible(false);
 
         // Title row
-        QueryTextField titleField = textFieldBuilder.build(QueryTextField.Parameters.builder()
-                .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
-        SortIcon titleSort = sortIconBuilder.build();
-        QueryInlineRow titleRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelTranslationKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
+        QueryTextField titleField = componentFactory.build(QueryTextField.class,
+                QueryTextField.Parameters.builder()
+                        .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
+        SortIcon titleSort = componentFactory.get(SortIcon.class);
+        QueryInlineRow titleRow = componentFactory.build(QueryInlineRow.class,
+                QueryInlineRow.Parameters.builder()
+                        .labelTranslationKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
 
         // Created date row
-        QueryDateTimeField createdStart = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
-                .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_START)
-                .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_START).build());
-        QueryDateTimeField createdEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
-                .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_END)
-                .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = sortIconBuilder.build();
-        QueryInlineRow createdRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelTranslationKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
-                .filterField(createdStart).filterField(createdEnd).build());
+        QueryDateTimeField createdStart = componentFactory.build(QueryDateTimeField.class,
+                QueryDateTimeField.Parameters.builder()
+                        .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_START)
+                        .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_START).build());
+        QueryDateTimeField createdEnd = componentFactory.build(QueryDateTimeField.class,
+                QueryDateTimeField.Parameters.builder()
+                        .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_END)
+                        .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
+        SortIcon createdSort = componentFactory.get(SortIcon.class);
+        QueryInlineRow createdRow = componentFactory.build(QueryInlineRow.class,
+                QueryInlineRow.Parameters.builder()
+                        .labelTranslationKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
+                        .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
-        QueryDateTimeField updatedStart = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
-                .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_START)
-                .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_START).build());
-        QueryDateTimeField updatedEnd = dateTimeFieldBuilder.build(QueryDateTimeField.Parameters.builder()
-                .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
-                .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = sortIconBuilder.build();
-        QueryInlineRow updatedRow = rowBuilder.build(QueryInlineRow.Parameters.builder()
-                .labelTranslationKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
-                .filterField(updatedStart).filterField(updatedEnd).build());
+        QueryDateTimeField updatedStart = componentFactory.build(QueryDateTimeField.class,
+                QueryDateTimeField.Parameters.builder()
+                        .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_START)
+                        .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_START).build());
+        QueryDateTimeField updatedEnd = componentFactory.build(QueryDateTimeField.class,
+                QueryDateTimeField.Parameters.builder()
+                        .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
+                        .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
+        SortIcon updatedSort = componentFactory.get(SortIcon.class);
+        QueryInlineRow updatedRow = componentFactory.build(QueryInlineRow.class,
+                QueryInlineRow.Parameters.builder()
+                        .labelTranslationKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
+                        .filterField(updatedStart).filterField(updatedEnd).build());
 
         add(titleRow, createdRow, updatedRow, queryActionBlock);
 

@@ -6,8 +6,6 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.ui.dto.EditDto;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @Slf4j
@@ -27,15 +25,6 @@ public class OverlayFormBinder<T extends EditDto>
     @FunctionalInterface
     public interface Saver<T> {
         void save(T dto);
-    }
-
-    @SpringComponent
-    @Scope("prototype")
-    @RequiredArgsConstructor
-    public static class Builder<T extends EditDto>
-            extends ComponentBuilder<OverlayFormBinder<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<OverlayFormBinder<T>> provider;
     }
 
     private Parameters<T> params;

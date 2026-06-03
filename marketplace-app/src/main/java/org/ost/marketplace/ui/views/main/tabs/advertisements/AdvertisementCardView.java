@@ -17,8 +17,8 @@ import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.ui.Initialization;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
@@ -31,7 +31,6 @@ import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;
@@ -52,24 +51,13 @@ public class AdvertisementCardView extends HorizontalLayout
         @NonNull Runnable             onChanged;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementCardView, Parameters> {
-        @Getter
-        private final ObjectProvider<AdvertisementCardView> provider;
-    }
-
     @Getter
     private final transient I18nService                        i18nService;
     private final transient NotificationService                notificationService;
     private final transient AdvertisementService               advertisementService;
-    private final transient AdvertisementCardMetaPanel.Builder metaPanelBuilder;
-    private final transient EditActionButton.Builder           editButtonBuilder;
-    private final transient DeleteActionButton.Builder         deleteButtonBuilder;
+    private final transient ComponentFactory                   componentFactory;
     private final transient AccessEvaluator                    access;
-    private final transient ConfirmActionDialog.Builder        confirmActionDialogBuilder;
     private final transient AdvertisementOverlay               overlay;
-    private final transient ObjectProvider<AttachmentGalleryPort> galleryExtension;
 
     @Override
     @PostConstruct
@@ -124,7 +112,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryExtension.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
@@ -169,7 +157,7 @@ public class AdvertisementCardView extends HorizontalLayout
         boolean neverEdited = ad.getUpdatedAt() == null
                 || ad.getUpdatedAt().equals(ad.getCreatedAt());
 
-        return metaPanelBuilder.build(AdvertisementCardMetaPanel.Parameters.builder()
+        return componentFactory.build(AdvertisementCardMetaPanel.class, AdvertisementCardMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
                 .authorEmail(ad.getCreatedByUserEmail())
                 .dateLabel(neverEdited
@@ -191,7 +179,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button edit = editButtonBuilder.build(
+        Button edit = componentFactory.build(EditActionButton.class,
                 EditActionButton.Parameters.builder()
                         .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT))
                         .onClick(() -> overlay.openForEdit(ad, onChanged))
@@ -205,7 +193,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button delete = deleteButtonBuilder.build(
+        Button delete = componentFactory.build(DeleteActionButton.class,
                 DeleteActionButton.Parameters.builder()
                         .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE))
                         .onClick(() -> confirmAndDelete(ad, onChanged))
@@ -219,7 +207,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
-        confirmActionDialogBuilder.build(
+        componentFactory.build(ConfirmActionDialog.class,
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
                         .message(getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))

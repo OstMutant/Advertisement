@@ -1,7 +1,5 @@
 package org.ost.marketplace.ui.views.main.header.settings;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
@@ -33,7 +31,7 @@ import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 
 import org.ost.marketplace.common.PaginationDefaults;
 
@@ -50,14 +48,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient UserSettingsService                    settingsService;
     private final transient NotificationService                    notifications;
     private final transient AuthContextService                     authContextService;
-    private final transient ObjectProvider<AuditPort>              auditPort;
-
-    private final transient ObjectProvider<OverlayLayout>                  layoutProvider;
-    private final transient ObjectProvider<AuditUiPort>               auditUiExtensionProvider;
+    private final transient ComponentFactory                       componentFactory;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
-    private final transient UiPrimaryButton.Builder    saveButtonBuilder;
-    private final transient UiIconButton.Builder       closeButtonBuilder;
-    private final transient ConfirmActionDialog.Builder confirmDialogBuilder;
 
     private OverlayLayout    layout;
     private IntegerField     adsPageSizeField;
@@ -75,7 +67,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         ensureInitialized();
 
         if (layout != null) layout.removeFromParent();
-        layout = layoutProvider.getObject();
+        layout = componentFactory.get(OverlayLayout.class);
         layout.setBreadcrumbButton(breadcrumbBackButton);
         layout.getBreadcrumbCurrent().setText(getValue(SETTINGS_SECTION_TITLE));
 
@@ -94,7 +86,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         Div content;
 
-        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
         if (auditUi != null) {
             // ── Activity panel (lazy) ─────────────────────────────────────────
             activityPanel = new Div();
@@ -123,11 +115,11 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         content.addClassName("settings-overlay-content");
         layout.setContent(content);
 
-        saveBtn = saveButtonBuilder.build(
+        saveBtn = componentFactory.build(UiPrimaryButton.class,
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
         saveBtn.addClickListener(_ -> handleSave());
 
-        UiIconButton closeBtn = closeButtonBuilder.build(
+        UiIconButton closeBtn = componentFactory.build(UiIconButton.class,
                 UiIconButton.Parameters.builder()
                         .labelKey(HEADER_HOME)
                         .icon(VaadinIcon.CLOSE.create())
@@ -165,7 +157,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     .build();
 
             settingsService.save(currentUser.getId(), newSettings);
-            auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
+            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(currentUser.getId(),
                     SettingsSnapshotDto.from(oldSettings),
                     SettingsSnapshotDto.from(newSettings),
                     currentUser.getId()));
@@ -201,7 +193,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private void loadAndShowSettingsRestore(Long snapshotId) {
-        Optional.ofNullable(auditPort.getIfAvailable())
+        Optional.ofNullable(componentFactory.getIfAvailable(AuditPort.class))
                 .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class))
                 .map(dto -> UserSettings.builder().adsPageSize(dto.adsPageSize()).usersPageSize(dto.usersPageSize()).build())
                 .ifPresent(this::showSettingsRestoreConfirm);
@@ -221,7 +213,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 ? usersLabel + ": " + noChange
                 : usersLabel + ": " + current.getUsersPageSize() + " → " + target.getUsersPageSize();
 
-        confirmDialogBuilder.build(
+        componentFactory.build(ConfirmActionDialog.class,
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(SETTINGS_RESTORE_CONFIRM_TITLE)
                         .message(adsLine + "\n" + usersLine)
@@ -230,7 +222,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .onConfirm(() -> {
                             UserSettings before = settingsService.load(currentUser.getId());
                             settingsService.save(currentUser.getId(), target);
-                            auditPort.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
+                            componentFactory.ifAvailable(AuditPort.class, p -> p.captureUpdate(currentUser.getId(),
                                     SettingsSnapshotDto.from(before),
                                     SettingsSnapshotDto.from(target),
                                     currentUser.getId()));

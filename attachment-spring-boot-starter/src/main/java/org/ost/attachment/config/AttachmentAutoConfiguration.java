@@ -6,6 +6,8 @@ import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.AttachmentPackageMarker;
 import org.ost.attachment.services.AttachmentCleanupService;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.ui.ComponentFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -49,6 +51,12 @@ public class AttachmentAutoConfiguration {
                 cleanupService::cleanup,
                 new CronTrigger(cleanupProperties.cronExpression(),
                                 TimeZone.getTimeZone(cleanupProperties.timezone())));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory componentFactory(ConfigurableListableBeanFactory beanFactory) {
+        return new ComponentFactory(beanFactory);
     }
 
 }

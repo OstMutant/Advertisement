@@ -7,14 +7,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -29,13 +26,6 @@ public class EmptyStateView extends VerticalLayout
         @NonNull VaadinIcon icon;
         @NonNull String     title;
         @NonNull String     hint;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<EmptyStateView, Parameters> {
-        @Getter
-        private final ObjectProvider<EmptyStateView> provider;
     }
 
     @Override

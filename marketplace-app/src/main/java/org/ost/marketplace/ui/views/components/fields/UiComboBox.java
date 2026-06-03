@@ -7,10 +7,8 @@ import lombok.*;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -28,13 +26,6 @@ public class UiComboBox<T> extends ComboBox<T>
         @NonNull I18nKey  labelKey;
         @NonNull List<T>  items;
         boolean           required;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<UiComboBox<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<UiComboBox<T>> provider;
     }
 
     @Getter

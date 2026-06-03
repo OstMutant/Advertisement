@@ -23,6 +23,7 @@ import org.ost.query.ui.QueryBlock;
 import org.ost.query.ui.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.platform.ui.ComponentFactory;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -34,13 +35,11 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService          advertisementService;
-    private final transient AdvertisementOverlay          overlay;
-    private final transient AdvertisementCardView.Builder cardBuilder;
-    private final transient I18nService                   i18n;
-    private final transient AccessEvaluator               access;
-    private final transient EmptyStateView.Builder        emptyStateBuilder;
-    private final transient UiPrimaryButton.Builder       addButtonBuilder;
+    private final transient AdvertisementService       advertisementService;
+    private final transient AdvertisementOverlay       overlay;
+    private final transient ComponentFactory           componentFactory;
+    private final transient I18nService                i18n;
+    private final transient AccessEvaluator            access;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -100,7 +99,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private UiPrimaryButton buildAddButton() {
-        UiPrimaryButton button = addButtonBuilder.build(
+        UiPrimaryButton button = componentFactory.build(UiPrimaryButton.class,
                 UiPrimaryButton.Parameters.builder()
                         .labelKey(ADVERTISEMENT_SIDEBAR_BUTTON_ADD)
                         .icon(VaadinIcon.PLUS.create())
@@ -127,7 +126,7 @@ public class AdvertisementsView extends VerticalLayout {
             advertisementContainer.add(buildEmptyState());
         } else {
             ads.stream()
-                    .map(ad -> cardBuilder.build(
+                    .map(ad -> componentFactory.build(AdvertisementCardView.class,
                             AdvertisementCardView.Parameters.builder()
                                     .ad(ad)
                                     .onChanged(this::refresh)
@@ -139,10 +138,11 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private EmptyStateView buildEmptyState() {
-        return emptyStateBuilder.build(EmptyStateView.Parameters.builder()
-                .icon(VaadinIcon.CLIPBOARD_TEXT)
-                .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
-                .hint(i18n.get(ADVERTISEMENT_EMPTY_HINT))
-                .build());
+        return componentFactory.build(EmptyStateView.class,
+                EmptyStateView.Parameters.builder()
+                        .icon(VaadinIcon.CLIPBOARD_TEXT)
+                        .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
+                        .hint(i18n.get(ADVERTISEMENT_EMPTY_HINT))
+                        .build());
     }
 }

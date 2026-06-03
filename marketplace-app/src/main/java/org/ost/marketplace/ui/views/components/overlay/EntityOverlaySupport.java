@@ -9,7 +9,7 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -21,26 +21,24 @@ public class EntityOverlaySupport {
 
     private final I18nService                                 i18n;
     private final NotificationService                         notification;
-    private final ConfirmActionDialog.Builder                 confirmDiscardBuilder;
-    private final ObjectProvider<OverlayLayout>               layoutProvider;
-    private final OverlayBreadcrumbBackButton.Builder         breadcrumbButtonBuilder;
+    private final ComponentFactory                            componentFactory;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
-        OverlayBreadcrumbBackButton btn = breadcrumbButtonBuilder.build(
+        OverlayBreadcrumbBackButton btn = componentFactory.build(OverlayBreadcrumbBackButton.class,
                 OverlayBreadcrumbBackButton.Parameters.builder().labelKey(labelKey).build());
         btn.addClickListener(_ -> onBack.run());
         return btn;
     }
 
     public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
-        OverlayLayout layout = layoutProvider.getObject();
+        OverlayLayout layout = componentFactory.get(OverlayLayout.class);
         layout.setBreadcrumbButton(breadcrumbButton);
         return layout;
     }
 
     public void handleCancel(boolean hasUnsavedChanges, Runnable doCancel) {
         if (hasUnsavedChanges) {
-            confirmDiscardBuilder.build(
+            componentFactory.build(ConfirmActionDialog.class,
                     ConfirmActionDialog.Parameters.builder()
                             .titleKey(OVERLAY_UNSAVED_TITLE)
                             .message(i18n.get(OVERLAY_UNSAVED_TEXT))

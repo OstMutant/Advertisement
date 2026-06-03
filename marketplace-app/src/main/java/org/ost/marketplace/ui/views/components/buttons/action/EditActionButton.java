@@ -6,9 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
@@ -24,13 +22,6 @@ public class EditActionButton extends BaseActionButton
         @NonNull Runnable onClick;
         String            cssClassName;
         @lombok.Builder.Default boolean small = false;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<EditActionButton, Parameters> {
-        @Getter
-        private final ObjectProvider<EditActionButton> provider;
     }
 
     @Override

@@ -5,7 +5,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.audit.services.AuditReadService;
@@ -15,10 +14,9 @@ import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.HashMap;
@@ -47,17 +45,10 @@ public class AuditActivityPanel extends Div
         List<AuditActivityRowHook> bindings = List.of();
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AuditActivityPanel, Parameters> {
-        @Getter
-        private final ObjectProvider<AuditActivityPanel> provider;
-    }
-
-    private final I18nService                              i18n;
-    private final AuditReadService                         auditReadService;
-    private final AuditDomainHook                          auditDomainHook;
-    private final ObjectProvider<AuditActivityRowRenderer> rendererProvider;
+    private final I18nService        i18n;
+    private final AuditReadService   auditReadService;
+    private final AuditDomainHook    auditDomainHook;
+    private final ComponentFactory   componentFactory;
 
     @Override
     @PostConstruct
@@ -76,7 +67,7 @@ public class AuditActivityPanel extends Div
         }
 
         AuditActivityRowRenderer.DisplayContext ctx = buildDisplayContext(items);
-        AuditActivityRowRenderer renderer = rendererProvider.getObject();
+        AuditActivityRowRenderer renderer = componentFactory.get(AuditActivityRowRenderer.class);
         for (AuditActivityItemDto item : items) {
             add(buildDecoratedRow(renderer, item, p, ctx));
         }

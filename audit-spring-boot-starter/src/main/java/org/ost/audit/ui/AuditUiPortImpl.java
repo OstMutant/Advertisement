@@ -6,20 +6,18 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 
 @SpringComponent
 @RequiredArgsConstructor
 @SuppressWarnings("rawtypes")
 public class AuditUiPortImpl implements AuditUiPort {
 
-    private final AuditHistoryPanel.Builder              historyBuilder;
-    private final AuditActivityPanel.Builder             profileActivityBuilder;
-    private final ObjectProvider<AuditSnapshotBinder>    snapshotBinderProvider;
+    private final ComponentFactory componentFactory;
 
     @Override
     public Component buildAuditHistoryPanel(EntityHistoryParams p) {
-        return historyBuilder.build(AuditHistoryPanel.Parameters.builder()
+        return componentFactory.build(AuditHistoryPanel.class, AuditHistoryPanel.Parameters.builder()
                 .entityType(p.getEntityType())
                 .entityId(p.getEntityId())
                 .userId(p.getUserId())
@@ -31,7 +29,7 @@ public class AuditUiPortImpl implements AuditUiPort {
 
     @Override
     public Component buildAuditActivityPanel(ProfileActivityParams p) {
-        return profileActivityBuilder.build(AuditActivityPanel.Parameters.builder()
+        return componentFactory.build(AuditActivityPanel.class, AuditActivityPanel.Parameters.builder()
                 .subjects(p.getSubjects())
                 .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())
@@ -40,9 +38,9 @@ public class AuditUiPortImpl implements AuditUiPort {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> p) {
-        AuditSnapshotBinder<T> binder = snapshotBinderProvider.getObject();
+        AuditSnapshotBinder<T> binder = componentFactory.get(AuditSnapshotBinder.class);
         return binder.configure(AuditSnapshotBinder.Parameters.<T>builder()
                 .entityType(p.getEntityType())
                 .snapshotClass(p.getSnapshotClass())

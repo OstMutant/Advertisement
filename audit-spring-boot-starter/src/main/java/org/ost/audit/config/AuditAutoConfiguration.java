@@ -14,6 +14,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.ost.audit.AuditPackageMarker;
+import org.ost.platform.ui.ComponentFactory;
+import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
@@ -57,6 +59,12 @@ public class AuditAutoConfiguration {
     DefaultAuditPort defaultAuditPort(AuditLogRepository auditLogRepository,
                                       CurrentActorHook currentActorHook) {
         return new DefaultAuditPort(auditLogRepository, currentActorHook);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory componentFactory(ConfigurableListableBeanFactory beanFactory) {
+        return new ComponentFactory(beanFactory);
     }
 
 }

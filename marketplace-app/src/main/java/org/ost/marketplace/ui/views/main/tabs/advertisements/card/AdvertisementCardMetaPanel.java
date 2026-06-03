@@ -5,10 +5,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.ost.query.ui.utils.TimeZoneUtil;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -26,13 +24,6 @@ public class AdvertisementCardMetaPanel extends Span
         String           authorEmail;
         @NonNull String  dateLabel;
         @NonNull Instant date;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementCardMetaPanel, Parameters> {
-        @Getter
-        private final ObjectProvider<AdvertisementCardMetaPanel> provider;
     }
 
     @Override

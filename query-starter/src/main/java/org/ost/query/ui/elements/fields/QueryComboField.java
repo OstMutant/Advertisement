@@ -7,10 +7,8 @@ import lombok.*;
 import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.query.ui.utils.HighlighterUtil.setDefaultBorder;
@@ -27,13 +25,6 @@ public class QueryComboField<T> extends ComboBox<T>
     public static class Parameters<T> {
         @NonNull TranslationKey placeholderKey;
         @NonNull T[]     items;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder<T> extends ComponentBuilder<QueryComboField<T>, Parameters<T>> {
-        @Getter
-        private final ObjectProvider<QueryComboField<T>> provider;
     }
 
     @Getter

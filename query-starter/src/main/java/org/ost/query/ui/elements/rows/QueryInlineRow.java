@@ -9,11 +9,9 @@ import lombok.*;
 import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
 import org.ost.query.ui.elements.SortIcon;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -30,13 +28,6 @@ public class QueryInlineRow extends HorizontalLayout
         @NonNull  TranslationKey         labelTranslationKey;
         @NonNull  SortIcon        sortIcon;
         @Singular List<Component> filterFields;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryInlineRow, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryInlineRow> provider;
     }
 
     @Getter

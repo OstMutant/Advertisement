@@ -11,11 +11,9 @@ import lombok.*;
 import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
 import org.ost.query.ui.utils.TimeZoneUtil;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.time.*;
@@ -34,13 +32,6 @@ public class QueryDateTimeField extends CustomField<LocalDateTime>
         @NonNull TranslationKey datePlaceholderKey;
         @NonNull TranslationKey timePlaceholderKey;
         boolean          isEnd;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryDateTimeField, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryDateTimeField> provider;
     }
 
     @Getter

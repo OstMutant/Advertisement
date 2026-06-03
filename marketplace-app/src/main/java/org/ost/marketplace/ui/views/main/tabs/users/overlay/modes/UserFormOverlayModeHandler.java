@@ -22,10 +22,9 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
@@ -46,18 +45,11 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull Runnable onCancel;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UserFormOverlayModeHandler, Parameters> {
-        @Getter
-        private final ObjectProvider<UserFormOverlayModeHandler> provider;
-    }
-
     private final UserService                            userService;
     private final UserMapper                             mapper;
     @Getter
     private final I18nService                            i18nService;
-    private final OverlayFormBinder.Builder<UserEditDto> binderBuilder;
+    private final ComponentFactory                       componentFactory;
     private final UiTextField                            nameField;
     private final UiComboBox<Role>                       roleComboBox;
     private final UiPrimaryButton                        saveButton;
@@ -116,7 +108,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private void buildBinder(UserEditDto dto) {
-        binder = binderBuilder.build(
+        binder = componentFactory.build(OverlayFormBinder.class,
                 OverlayFormBinder.Parameters.<UserEditDto>builder()
                         .clazz(UserEditDto.class)
                         .dto(dto)

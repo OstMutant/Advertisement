@@ -8,10 +8,8 @@ import lombok.*;
 import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.query.ui.utils.HighlighterUtil.setDefaultBorder;
@@ -27,13 +25,6 @@ public class QueryNumberField extends NumberField
     @lombok.Builder
     public static class Parameters {
         @NonNull TranslationKey placeholderKey;
-    }
-
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<QueryNumberField, Parameters> {
-        @Getter
-        private final ObjectProvider<QueryNumberField> provider;
     }
 
     @Getter

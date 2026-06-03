@@ -13,12 +13,11 @@ import lombok.*;
 import org.ost.marketplace.entities.User;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
@@ -40,17 +39,9 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
         @NonNull Consumer<User> onDelete;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UserGridConfigurator, Parameters> {
-        @Getter
-        private final ObjectProvider<UserGridConfigurator> provider;
-    }
-
     @Getter
-    private final I18nService              i18nService;
-    private final EditActionButton.Builder  editButtonBuilder;
-    private final DeleteActionButton.Builder deleteButtonBuilder;
+    private final I18nService     i18nService;
+    private final ComponentFactory componentFactory;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {
@@ -95,13 +86,13 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Button edit = editButtonBuilder.build(
+                    Button edit = componentFactory.build(EditActionButton.class,
                             EditActionButton.Parameters.builder()
                                     .tooltip(getValue(USER_VIEW_BUTTON_EDIT))
                                     .onClick(() -> p.getOnEdit().accept(user))
                                     .build()
                     );
-                    Button delete = deleteButtonBuilder.build(
+                    Button delete = componentFactory.build(DeleteActionButton.class,
                             DeleteActionButton.Parameters.builder()
                                     .tooltip(getValue(USER_VIEW_BUTTON_DELETE))
                                     .onClick(() -> p.getOnDelete().accept(user))

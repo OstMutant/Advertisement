@@ -28,10 +28,9 @@ import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.platform.ui.ComponentBuilder;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.UUID;
@@ -54,24 +53,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull Runnable    onCancel;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AdvertisementFormOverlayModeHandler, Parameters> {
-        @Getter
-        private final ObjectProvider<AdvertisementFormOverlayModeHandler> provider;
-    }
-
     private final AdvertisementService                            advertisementService;
     private final AdvertisementMapper                             mapper;
     @Getter
     private final I18nService                                     i18nService;
-    private final OverlayFormBinder.Builder<AdvertisementEditDto> binderBuilder;
+    private final ComponentFactory                                componentFactory;
     private final OverlayAdvertisementMetaPanel                   metaPanel;
     private final UiTextField                                     titleField;
     private final UiTextArea                                      descriptionField;
     private final UiPrimaryButton                                 saveButton;
     private final UiTertiaryButton                                cancelButton;
-    private final ObjectProvider<AttachmentGalleryPort>      galleryExtension;
 
     private Parameters params;
     @Getter
@@ -115,7 +106,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        galleryExtension.ifAvailable(ext -> {
+        componentFactory.ifAvailable(AttachmentGalleryPort.class, ext -> {
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
@@ -156,7 +147,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private void buildBinder(AdvertisementEditDto dto) {
-        binder = binderBuilder.build(
+        binder = componentFactory.build(OverlayFormBinder.class,
                 OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)
                         .dto(dto)

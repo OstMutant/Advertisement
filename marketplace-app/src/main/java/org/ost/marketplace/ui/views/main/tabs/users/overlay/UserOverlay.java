@@ -14,6 +14,7 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
+import org.ost.platform.ui.ComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -35,11 +36,10 @@ public class UserOverlay extends AbstractEntityOverlay {
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
     }
 
-    @Getter private final EntityOverlaySupport               support;
-    private final UserService                        userService;
-    private final AuthContextService                 authContextService;
-    private final UserViewOverlayModeHandler.Builder viewModeHandlerBuilder;
-    private final UserFormOverlayModeHandler.Builder formModeHandlerBuilder;
+    @Getter private final EntityOverlaySupport support;
+    private final UserService                  userService;
+    private final AuthContextService           authContextService;
+    private final ComponentFactory             componentFactory;
 
     private OverlaySession            session;
     private UserFormOverlayModeHandler currentFormHandler;
@@ -66,7 +66,7 @@ public class UserOverlay extends AbstractEntityOverlay {
     @Override
     protected void switchTo() {
         OverlayModeHandler handler = switch (session.mode()) {
-            case VIEW -> viewModeHandlerBuilder.build(
+            case VIEW -> componentFactory.build(UserViewOverlayModeHandler.class,
                     UserViewOverlayModeHandler.Parameters.builder()
                             .user(session.user())
                             .onEdit(this::switchToEdit)
@@ -74,7 +74,7 @@ public class UserOverlay extends AbstractEntityOverlay {
                             .onRestoreUser(this::handleRestoreUser)
                             .build());
             case EDIT -> {
-                currentFormHandler = formModeHandlerBuilder.build(
+                currentFormHandler = componentFactory.build(UserFormOverlayModeHandler.class,
                         UserFormOverlayModeHandler.Parameters.builder()
                                 .user(session.user())
                                 .onSave(this::handleSave)

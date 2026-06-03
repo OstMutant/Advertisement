@@ -13,6 +13,7 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
+import org.ost.platform.ui.ComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -34,10 +35,9 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, ad, onSaved, true); }
     }
 
-    @Getter private final EntityOverlaySupport               support;
-    private final AdvertisementService              advertisementService;
-    private final AdvertisementViewOverlayModeHandler.Builder viewModeHandlerBuilder;
-    private final AdvertisementFormOverlayModeHandler.Builder formModeHandlerBuilder;
+    @Getter private final EntityOverlaySupport  support;
+    private final AdvertisementService           advertisementService;
+    private final ComponentFactory               componentFactory;
 
     private OverlaySession                      session;
     private AdvertisementFormOverlayModeHandler currentFormHandler;
@@ -69,7 +69,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     @Override
     protected void switchTo() {
         OverlayModeHandler handler = switch (session.mode()) {
-            case VIEW -> viewModeHandlerBuilder.build(
+            case VIEW -> componentFactory.build(AdvertisementViewOverlayModeHandler.class,
                     AdvertisementViewOverlayModeHandler.Parameters.builder()
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
@@ -77,7 +77,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                             .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
-                currentFormHandler = formModeHandlerBuilder.build(
+                currentFormHandler = componentFactory.build(AdvertisementFormOverlayModeHandler.class,
                         AdvertisementFormOverlayModeHandler.Parameters.builder()
                                 .ad(session.ad())
                                 .onSave(this::handleSave)

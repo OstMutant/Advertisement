@@ -13,13 +13,12 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import jakarta.annotation.PostConstruct;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 @Slf4j
@@ -39,20 +38,12 @@ public final class ConfirmActionDialog extends BaseDialog
         @NonNull Runnable onConfirm;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<ConfirmActionDialog, Parameters> {
-        @Getter
-        private final ObjectProvider<ConfirmActionDialog> provider;
-    }
-
     // -------------------------------------------------------------------------
 
     @Getter
     private final transient I18nService               i18nService;
     private final           DialogLayout              layout;
-    private final transient UiPrimaryButton.Builder   confirmButtonBuilder;
-    private final transient UiTertiaryButton.Builder  cancelButtonBuilder;
+    private final transient ComponentFactory          componentFactory;
 
     @Override
     @PostConstruct
@@ -74,7 +65,7 @@ public final class ConfirmActionDialog extends BaseDialog
         bodyWrapper.addClassName("dialog-confirm-body");
         layout.addFormContent(bodyWrapper);
 
-        UiPrimaryButton confirmButton = confirmButtonBuilder.build(
+        UiPrimaryButton confirmButton = componentFactory.build(UiPrimaryButton.class,
                 UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
@@ -85,7 +76,7 @@ public final class ConfirmActionDialog extends BaseDialog
             }
         });
 
-        UiTertiaryButton cancelButton = cancelButtonBuilder.build(
+        UiTertiaryButton cancelButton = componentFactory.build(UiTertiaryButton.class,
                 UiTertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
         cancelButton.addClickListener(_ -> close());
 

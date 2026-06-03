@@ -3,11 +3,9 @@ package org.ost.query.ui.elements;
 import com.vaadin.flow.component.html.Span;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
 import org.ost.query.ui.utils.SvgUtil;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -20,13 +18,6 @@ public class SvgIcon extends Span implements Configurable<SvgIcon, SvgIcon.Param
     @lombok.Builder
     public static class Parameters {
         @NonNull String resourcePath;
-    }
-
-    @Component
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<SvgIcon, Parameters> {
-        @Getter
-        private final ObjectProvider<SvgIcon> provider;
     }
 
     @Override

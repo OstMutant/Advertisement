@@ -22,6 +22,7 @@ import org.ost.query.ui.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.platform.ui.ComponentFactory;
 
 import java.util.List;
 import java.util.Set;
@@ -35,15 +36,14 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService                  userService;
-    private final transient I18nService                  i18n;
-    private final transient NotificationService          notificationService;
-    private final QueryStatusBar<UserFilterDto>          queryStatusBar;
-    private final transient UserGridConfigurator.Builder gridConfiguratorBuilder;
-    private final UserOverlay                            overlay;
-    private final transient ConfirmActionDialog.Builder  confirmActionDialogBuilder;
-    private final PaginationBar                          paginationBar;
-    private final transient SettingsPaginationBinding    settingsPaginationBinding;
+    private final transient UserService               userService;
+    private final transient I18nService               i18n;
+    private final transient NotificationService       notificationService;
+    private final QueryStatusBar<UserFilterDto>       queryStatusBar;
+    private final transient ComponentFactory          componentFactory;
+    private final UserOverlay                         overlay;
+    private final PaginationBar                       paginationBar;
+    private final transient SettingsPaginationBinding settingsPaginationBinding;
 
     private Grid<User> grid;
 
@@ -93,7 +93,7 @@ public class UserView extends VerticalLayout {
     }
 
     private void initGrid() {
-        gridConfiguratorBuilder.build(
+        componentFactory.build(UserGridConfigurator.class,
                 UserGridConfigurator.Parameters.builder()
                         .grid(grid)
                         .onView(u -> overlay.openForView(u, this::refreshGrid))
@@ -132,7 +132,7 @@ public class UserView extends VerticalLayout {
     }
 
     private void confirmAndDelete(User user) {
-        confirmActionDialogBuilder.build(
+        componentFactory.build(ConfirmActionDialog.class,
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
                         .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()))

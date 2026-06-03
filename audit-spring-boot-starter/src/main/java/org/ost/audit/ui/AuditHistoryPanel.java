@@ -4,7 +4,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
-import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
@@ -13,9 +12,8 @@ import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Initialization;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -43,17 +41,10 @@ public class AuditHistoryPanel extends Div
         ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<AuditHistoryPanel, Parameters> {
-        @Getter
-        private final ObjectProvider<AuditHistoryPanel> provider;
-    }
-
-    private final I18nService                               i18n;
-    private final AuditReadService                          auditReadService;
-    private final AuditDomainHook                           auditDomainHook;
-    private final ObjectProvider<AuditHistoryRowRenderer>   rowRendererProvider;
+    private final I18nService      i18n;
+    private final AuditReadService auditReadService;
+    private final AuditDomainHook  auditDomainHook;
+    private final ComponentFactory componentFactory;
 
     @Override
     @PostConstruct
@@ -77,7 +68,7 @@ public class AuditHistoryPanel extends Div
         }
 
         Map<Long, String> actorNames = resolveActorNames(history);
-        AuditHistoryRowRenderer renderer = rowRendererProvider.getObject();
+        AuditHistoryRowRenderer renderer = componentFactory.get(AuditHistoryRowRenderer.class);
         AuditHistoryRowRenderer.RowContext ctx = new AuditHistoryRowRenderer.RowContext(
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
                 p.isCanOperate(), p.getOnRestoreRequested(), actorNames);

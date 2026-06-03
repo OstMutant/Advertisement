@@ -16,7 +16,7 @@ import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.springframework.beans.factory.ObjectProvider;
+import org.ost.platform.ui.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -34,11 +34,11 @@ public class AuditHistoryRowRenderer {
             boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested,
             Map<Long, String> actorNames) {}
 
-    private final I18nService                                i18n;
-    private final InstantFormatter                           formatter;
-    private final AuditActivityRowRenderer                   fieldRenderer;
-    private final List<AuditActivityEnrichHook>              activityEnrichHooks;
-    private final ObjectProvider<AuditHistoryRowActionsHook> rowActionsHook;
+    private final I18nService                   i18n;
+    private final InstantFormatter              formatter;
+    private final AuditActivityRowRenderer      fieldRenderer;
+    private final List<AuditActivityEnrichHook> activityEnrichHooks;
+    private final ComponentFactory              componentFactory;
 
     public Div buildRow(AuditHistoryItemDto h, RowContext ctx) {
         Div row = new Div();
@@ -55,7 +55,7 @@ public class AuditHistoryRowRenderer {
         if (ctx.canOperate() && isTextRow && (h.actionType() != ActionType.CREATED || ctx.historySize() > 1)) {
             boolean isCurrentState = snapshotsEqual(h.snapshotData(), ctx.currentSnapshot())
                     && mediaMatchCurrent(ctx.entityType(), ctx.entityId(), h.version());
-            rowActionsHook.ifAvailable(hook -> {
+            componentFactory.ifAvailable(AuditHistoryRowActionsHook.class, hook -> {
                 Component actions = hook.buildRowActions(h, isCurrentState, ctx.onRestoreRequested());
                 if (actions != null) row.add(actions);
             });

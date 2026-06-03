@@ -8,6 +8,7 @@ import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.query.ui.elements.SvgIcon;
 import org.ost.platform.ui.Configurable;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
 import org.ost.query.ui.utils.HighlighterUtil;
@@ -28,8 +29,8 @@ public class QueryActionButton extends Button implements Configurable<QueryActio
     }
 
     @Getter
-    private final transient I18nService i18nService;
-    private final transient SvgIcon.Builder svgIconBuilder;
+    private final transient I18nService    i18nService;
+    private final transient ComponentFactory componentFactory;
 
     @Override
     @PostConstruct
@@ -48,6 +49,6 @@ public class QueryActionButton extends Button implements Configurable<QueryActio
     }
 
     private SvgIcon createSvgIcon(String svgPath) {
-        return svgIconBuilder.build(SvgIcon.Parameters.builder().resourcePath("icons/" + svgPath).build());
+        return componentFactory.build(SvgIcon.class, SvgIcon.Parameters.builder().resourcePath("icons/" + svgPath).build());
     }
 }

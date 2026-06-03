@@ -12,8 +12,6 @@ import org.ost.platform.core.i18n.TranslationKey;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
-import org.ost.platform.ui.Provider;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Component;
@@ -29,13 +27,6 @@ import org.ost.query.ui.QueryMessages;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class SortIcon extends Span implements Initialization<SortIcon>, Translatable {
-
-    @Component
-    @RequiredArgsConstructor
-    public static class Builder implements Provider<SortIcon> {
-        @Getter
-        private final ObjectProvider<SortIcon> provider;
-    }
 
     @Getter
     private final transient I18nService i18nService;

@@ -23,12 +23,11 @@ import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.ui.ComponentFactory;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.ComponentBuilder;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.services.user.UserSettingsService;
 import org.ost.query.ui.utils.TimeZoneUtil;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.BiConsumer;
@@ -51,21 +50,11 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         @NonNull BiConsumer<Long, Long> onRestoreUser;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<UserViewOverlayModeHandler, Parameters> {
-        @Getter
-        private final ObjectProvider<UserViewOverlayModeHandler> provider;
-    }
-
     private final AccessEvaluator                             access;
     @Getter
     private final I18nService                                 i18nService;
     private final UserSettingsService                         userSettingsService;
-    private final UiLabeledField.Builder                      labeledFieldBuilder;
-    private final UiPrimaryButton.Builder                     editButtonBuilder;
-    private final UiIconButton.Builder                        closeButtonBuilder;
-    private final ObjectProvider<AuditUiPort>                 auditUiExtensionProvider;
+    private final ComponentFactory                            componentFactory;
 
     private Parameters params;
 
@@ -129,7 +118,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = auditUiExtensionProvider.getIfAvailable();
+        AuditUiPort auditUi = componentFactory.getIfAvailable(AuditUiPort.class);
         if (auditUi == null) return null;
         return new SecondaryTabDef(
                 new Tab(getValue(ACTIVITY_TAB)),
@@ -139,9 +128,9 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = editButtonBuilder.build(
+        UiPrimaryButton editButton = componentFactory.build(UiPrimaryButton.class,
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
-        UiIconButton closeButton = closeButtonBuilder.build(
+        UiIconButton closeButton = componentFactory.build(UiIconButton.class,
                 UiIconButton.Parameters.builder()
                         .labelKey(MAIN_TAB_USERS)
                         .icon(VaadinIcon.CLOSE.create())
@@ -189,7 +178,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {
-        return labeledFieldBuilder.build(
+        return componentFactory.build(UiLabeledField.class,
                 UiLabeledField.Parameters.builder()
                         .labelKey(labelKey)
                         .value(value)

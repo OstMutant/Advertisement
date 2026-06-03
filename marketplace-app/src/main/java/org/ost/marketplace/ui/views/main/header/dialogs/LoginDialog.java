@@ -18,6 +18,7 @@ import org.ost.marketplace.ui.views.components.fields.UiEmailField;
 import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
+import org.ost.platform.ui.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;
@@ -28,16 +29,13 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class LoginDialog extends BaseDialog implements I18nParams {
 
-    private final AuthService              authService;
+    private final AuthService         authService;
     @Getter
-    private final I18nService              i18nService;
-    private final NotificationService      notificationService;
-    private final LocaleProvider            localeProvider;
-    private final           DialogLayout             layout;
-    private final UiEmailField.Builder     emailFieldBuilder;
-    private final UiPasswordField.Builder  passwordFieldBuilder;
-    private final UiPrimaryButton.Builder  loginButtonBuilder;
-    private final UiTertiaryButton.Builder cancelButtonBuilder;
+    private final I18nService         i18nService;
+    private final NotificationService notificationService;
+    private final LocaleProvider      localeProvider;
+    private final DialogLayout        layout;
+    private final ComponentFactory    componentFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
@@ -46,13 +44,13 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     @PostConstruct
     protected void buildLayout() {
         super.buildLayout(layout);
-        emailField = emailFieldBuilder.build(
+        emailField = componentFactory.build(UiEmailField.class,
                 UiEmailField.Parameters.builder()
                         .labelKey(LOGIN_EMAIL_LABEL)
                         .placeholderKey(LOGIN_EMAIL_LABEL)
                         .required(true)
                         .build());
-        passwordField = passwordFieldBuilder.build(
+        passwordField = componentFactory.build(UiPasswordField.class,
                 UiPasswordField.Parameters.builder()
                         .labelKey(LOGIN_PASSWORD_LABEL)
                         .placeholderKey(LOGIN_PASSWORD_LABEL)
@@ -74,11 +72,11 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     }
 
     private void addActions() {
-        UiPrimaryButton loginButton = loginButtonBuilder.build(
+        UiPrimaryButton loginButton = componentFactory.build(UiPrimaryButton.class,
                 UiPrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
         loginButton.addClickListener(_ -> handleLogin());
 
-        UiTertiaryButton cancelButton = cancelButtonBuilder.build(
+        UiTertiaryButton cancelButton = componentFactory.build(UiTertiaryButton.class,
                 UiTertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
         cancelButton.addClickListener(_ -> close());
 
