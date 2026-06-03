@@ -5,23 +5,19 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
-import org.ost.audit.services.AuditReadService;
-import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.ui.Configurable;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.ObjLongConsumer;
-import java.util.stream.Collectors;
 
 @SpringComponent
 @Scope("prototype")
@@ -33,18 +29,17 @@ public class AuditHistoryPanel extends Div
     @lombok.Value
     @lombok.Builder
     public static class Parameters {
-        EntityType entityType;
-        Long       entityId;
-        Long       userId;
-        boolean    isPrivileged;
-        boolean                                canOperate;
-        ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
+        EntityType                           entityType;
+        Long                                 entityId;
+        Long                                 userId;
+        boolean                              isPrivileged;
+        boolean                              canOperate;
+        ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested;
     }
 
-    private final I18nService                                   i18n;
-    private final AuditReadService                              auditReadService;
-    private final AuditDomainHook                               auditDomainHook;
-    private final transient ComponentFactory<AuditHistoryRowRenderer> rowRendererFactory;
+    private final transient I18nService                                i18n;
+    private final transient AuditReadService                           auditReadService;
+    private final transient ComponentFactory<AuditHistoryListRenderer> listRendererFactory;
 
     @Override
     @PostConstruct
@@ -58,33 +53,19 @@ public class AuditHistoryPanel extends Div
         AuditableSnapshot currentSnapshot = auditReadService
                 .getLastSnapshot(p.getEntityType(), p.getEntityId())
                 .orElse(null);
-
         List<AuditHistoryItemDto> history = auditReadService
                 .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
-
         if (history.isEmpty()) {
             add(emptyState());
             return this;
         }
-
-        Map<Long, String> actorNames = resolveActorNames(history);
-        AuditHistoryRowRenderer renderer = rowRendererFactory.get();
-        AuditHistoryRowRenderer.RowContext ctx = new AuditHistoryRowRenderer.RowContext(
-                p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
-                p.isCanOperate(), p.getOnRestoreRequested(), actorNames);
-
-        for (AuditHistoryItemDto h : history) {
-            add(renderer.buildRow(h, ctx));
-        }
+        AuditHistoryRowRenderer.RenderConfig cfg = new AuditHistoryRowRenderer.RenderConfig(
+                new EntityRef(p.getEntityType(), p.getEntityId()), currentSnapshot,
+                history.size(), p.isCanOperate(), p.getOnRestoreRequested());
+        listRendererFactory.get()
+                .buildRows(history, cfg)
+                .forEach(this::add);
         return this;
-    }
-
-    private Map<Long, String> resolveActorNames(List<AuditHistoryItemDto> history) {
-        Set<Long> ids = history.stream()
-                .map(AuditHistoryItemDto::actorId)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        return ids.isEmpty() ? Map.of() : auditDomainHook.resolveNames(ids);
     }
 
     private Span emptyState() {

@@ -1,5 +1,6 @@
 package org.ost.platform.attachment.spi;
 
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -17,7 +18,7 @@ public interface AttachmentAuditHook {
 
     // ── Activity feed ──────────────────────────────────────────────────────────
 
-    List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> baseItems);
+    List<AuditActivityItemDto<AuditableSnapshot>> merge(EntityRef subject, List<AuditActivityItemDto<AuditableSnapshot>> baseItems);
 
     // ── Media history ──────────────────────────────────────────────────────────
 

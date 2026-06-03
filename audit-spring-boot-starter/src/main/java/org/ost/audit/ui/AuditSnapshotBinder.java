@@ -17,22 +17,20 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
 import org.springframework.context.annotation.Scope;
 
-import java.util.Optional;
+import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
-import java.util.Objects;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
-public class AuditSnapshotBinder<T>
-        implements Configurable<AuditSnapshotBinder<T>, AuditSnapshotBinder.Parameters<T>>, AuditActivityRowHook {
+public class AuditSnapshotBinder<T extends AuditableSnapshot>
+        implements Configurable<AuditSnapshotBinder<T>, AuditSnapshotBinder.Parameters<T>>, AuditActivityRowHook<T> {
 
     @Value
     @lombok.Builder
     public static class Parameters<T> {
         @NonNull EntityType         entityType;
-        @NonNull Class<T>           snapshotClass;
         @NonNull Predicate<T>       isCurrent;
         Long                        subjectEntityId;
         BiConsumer<Long, Long>      onRestore;
@@ -53,26 +51,20 @@ public class AuditSnapshotBinder<T>
     }
 
     @Override
-    public Component decorate(AuditActivityItemDto item) {
-        if (item.snapshotId() == null || item.snapshotId() <= 0) return null;
-        AuditableSnapshot raw = item.snapshotData();
-        return Optional.ofNullable(raw)
-                .filter(params.getSnapshotClass()::isInstance)
-                .map(params.getSnapshotClass()::cast)
-                .map(snap -> {
-                    if (params.getIsCurrent().test(snap)) {
-                        Span badge = new Span(i18n.get(AuditI18n.ACTIVITY_CURRENT_STATE));
-                        badge.addClassName("activity-feed-current-badge");
-                        return (Component) badge;
-                    }
-                    if (params.getOnRestore() == null) return null;
-                    if (params.getSubjectEntityId() != null && !Objects.equals(params.getSubjectEntityId(), item.entityId())) return null;
-                    Button btn = new Button(i18n.get(AuditI18n.ACTIVITY_RESTORE));
-                    btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-                    btn.addClassName("entity-history-restore-btn");
-                    btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), item.entityId()));
-                    return (Component) btn;
-                })
-                .orElse(null);
+    public Component decorate(AuditActivityItemDto<T> item) {
+        if (item.snapshotId() == null || item.snapshotData() == null) return null;
+        T snap = item.snapshotData();
+        if (params.getIsCurrent().test(snap)) {
+            Span badge = new Span(i18n.get(AuditI18n.ACTIVITY_CURRENT_STATE));
+            badge.addClassName("activity-feed-current-badge");
+            return badge;
+        }
+        if (params.getOnRestore() == null) return null;
+        if (params.getSubjectEntityId() != null && !Objects.equals(params.getSubjectEntityId(), item.entityId())) return null;
+        Button btn = new Button(i18n.get(AuditI18n.ACTIVITY_RESTORE));
+        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+        btn.addClassName("entity-history-restore-btn");
+        btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), item.entityId()));
+        return btn;
     }
 }

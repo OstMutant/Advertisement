@@ -56,14 +56,14 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
-    public List<AuditActivityItemDto> getForSubject(List<EntityRef> subjects, Long actorId) {
+    public List<AuditActivityItemDto<AuditableSnapshot>> getForSubject(List<EntityRef> subjects, Long actorId) {
         Stream<AuditLogProjection> subjectRows = subjects.stream()
                 .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null).stream());
         Stream<AuditLogProjection> actorRows = actorId != null
                 ? repository.findRowsByActor(actorId).stream()
                 : Stream.empty();
 
-        List<AuditActivityItemDto> items = Stream.concat(subjectRows, actorRows)
+        List<AuditActivityItemDto<AuditableSnapshot>> items = Stream.concat(subjectRows, actorRows)
                 .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
                 .values().stream()
                 .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
@@ -71,7 +71,7 @@ public class AuditReadService {
                 .map(this::toActivityItem)
                 .toList();
 
-        List<AuditActivityItemDto> merged = items;
+        List<AuditActivityItemDto<AuditableSnapshot>> merged = items;
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             merged = hook.merge(subjects, merged);
         }
@@ -86,8 +86,8 @@ public class AuditReadService {
                 row.snapshot().diff(row.prevSnapshot()), row.prevId(), row.snapshot(), row.prevSnapshot());
     }
 
-    private AuditActivityItemDto toActivityItem(AuditLogProjection row) {
-        return new AuditActivityItemDto(
+    private AuditActivityItemDto<AuditableSnapshot> toActivityItem(AuditLogProjection row) {
+        return new AuditActivityItemDto<AuditableSnapshot>(
                 row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
     }

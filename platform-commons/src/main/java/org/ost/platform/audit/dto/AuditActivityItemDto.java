@@ -8,7 +8,7 @@ import org.ost.platform.core.model.EntityType;
 import java.time.Instant;
 import java.util.List;
 
-public record AuditActivityItemDto(
+public record AuditActivityItemDto<T extends AuditableSnapshot>(
         Long              snapshotId,
         Long              entityId,
         EntityType        entityType,
@@ -16,10 +16,10 @@ public record AuditActivityItemDto(
         Instant           createdAt,
         List<ChangeEntry> changes,
         Long              changedByActorId,
-        AuditableSnapshot snapshotData
+        T                 snapshotData
 ) {
-    public AuditActivityItemDto withChanges(List<ChangeEntry> newChanges) {
-        return new AuditActivityItemDto(snapshotId, entityId, entityType, actionType,
+    public AuditActivityItemDto<T> withChanges(List<ChangeEntry> newChanges) {
+        return new AuditActivityItemDto<>(snapshotId, entityId, entityType, actionType,
                 createdAt, newChanges, changedByActorId, snapshotData);
     }
 }

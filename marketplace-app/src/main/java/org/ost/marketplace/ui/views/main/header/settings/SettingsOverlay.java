@@ -182,7 +182,6 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
-                        .snapshotClass(SettingsSnapshotDto.class)
                         .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()
                                         && snap.usersPageSize() == current.getUsersPageSize())
                         .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId))

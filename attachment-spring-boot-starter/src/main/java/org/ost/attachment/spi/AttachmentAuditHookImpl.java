@@ -3,6 +3,7 @@ package org.ost.attachment.spi;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -19,7 +20,7 @@ public class AttachmentAuditHookImpl implements AttachmentAuditHook {
     // ── Activity feed ──────────────────────────────────────────────────────────
 
     @Override
-    public List<AuditActivityItemDto> merge(EntityRef subject, List<AuditActivityItemDto> baseItems) {
+    public List<AuditActivityItemDto<AuditableSnapshot>> merge(EntityRef subject, List<AuditActivityItemDto<AuditableSnapshot>> baseItems) {
         return attachmentSnapshotService.mergeAttachmentMediaChanges(baseItems);
     }
 

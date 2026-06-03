@@ -5,6 +5,7 @@ import org.ost.attachment.repository.AttachmentMediaChange;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
 import org.ost.attachment.util.YoutubeUtil;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -64,7 +65,7 @@ public class AttachmentSnapshotService {
                 .orElse(List.of());
     }
 
-    public List<AuditActivityItemDto> mergeAttachmentMediaChanges(List<AuditActivityItemDto> baseItems) {
+    public List<AuditActivityItemDto<AuditableSnapshot>> mergeAttachmentMediaChanges(List<AuditActivityItemDto<AuditableSnapshot>> baseItems) {
         return baseItems.stream()
                 .map(item -> {
                     List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());

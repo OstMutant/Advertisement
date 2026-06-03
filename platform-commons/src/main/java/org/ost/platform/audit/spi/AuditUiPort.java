@@ -42,14 +42,13 @@ public interface AuditUiPort {
         Long                       actorId;
         Long                       viewerActorId;
         @lombok.Builder.Default
-        List<AuditActivityRowHook>      bindings = List.of();
+        List<AuditActivityRowHook<?>>   bindings = List.of();
     }
 
     @Value
     @lombok.Builder
     class SnapshotRowHookParams<T extends AuditableSnapshot> {
         @NonNull EntityType         entityType;
-        @NonNull Class<T>           snapshotClass;
         @NonNull Predicate<T>       isCurrent;
         Long                        subjectEntityId;
         BiConsumer<Long, Long>      onRestore;

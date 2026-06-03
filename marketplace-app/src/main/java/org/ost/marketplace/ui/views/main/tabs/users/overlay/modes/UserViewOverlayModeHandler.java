@@ -153,7 +153,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         AuditActivityRowHook userBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<UserSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER)
-                        .snapshotClass(UserSnapshotDto.class)
                         .isCurrent(snap -> snap.name().equals(currentName)
                                         && snap.email() != null && snap.email().equals(currentEmail)
                                         && currentRole != null && currentRole.name().equals(snap.role()))
@@ -164,7 +163,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
-                        .snapshotClass(SettingsSnapshotDto.class)
                         .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()
                                         && snap.usersPageSize() == currentSettings.getUsersPageSize())
                         .subjectEntityId(user.getId())

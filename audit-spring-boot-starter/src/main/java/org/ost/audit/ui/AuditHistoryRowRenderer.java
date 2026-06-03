@@ -6,57 +6,77 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-
-import java.util.List;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
+import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.function.ObjLongConsumer;
+import java.util.stream.Collectors;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AuditHistoryRowRenderer {
+public class AuditHistoryRowRenderer implements Initialization<AuditHistoryRowRenderer> {
 
-    record RowContext(
-            EntityType entityType, Long entityId, AuditableSnapshot currentSnapshot, int historySize,
-            boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested,
-            Map<Long, String> actorNames) {}
+    record RowContext(Map<Long, String> actorNames) {}
+
+    record RenderConfig(
+            EntityRef                            entityRef,
+            AuditableSnapshot                    currentSnapshot,
+            int                                  historySize,
+            boolean                              canOperate,
+            ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
 
     private final I18nService              i18n;
     private final InstantFormatter         formatter;
     private final AuditActivityRowRenderer fieldRenderer;
-    private final List<AuditActivityEnrichHook> activityEnrichHooks;
+    private final List<AuditActivityEnrichHook> activityEnrichHookList;
 
-    public Div buildRow(AuditHistoryItemDto h, RowContext ctx) {
+    private Map<EntityType, AuditActivityEnrichHook> enrichHooks;
+
+    @Override
+    @PostConstruct
+    public AuditHistoryRowRenderer init() {
+        enrichHooks = activityEnrichHookList.stream().collect(Collectors.toMap(AuditActivityEnrichHook::entityType, h -> h, (a, b) -> a, () -> new EnumMap<>(EntityType.class)));
+        return this;
+    }
+
+    Div buildRow(AuditHistoryItemDto h, RowContext ctx, RenderConfig cfg) {
         Div row = new Div();
         row.addClassName("entity-history-row");
 
+        row.add(metaRow(h, ctx));
+
+        row.add(fieldRenderer.buildHistoryFieldsList(h, cfg.entityRef()));
+
+        boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
+        if (cfg.canOperate() && isTextRow && (h.actionType() != ActionType.CREATED || cfg.historySize() > 1)) {
+            boolean isCurrentState = Objects.equals(h.snapshotData(), cfg.currentSnapshot())
+                    && mediaMatchCurrent(cfg, h.version());
+            row.add(buildRowActions(h, isCurrentState, cfg.onRestoreRequested()));
+        }
+        return row;
+    }
+
+    private Div metaRow(AuditHistoryItemDto h, RowContext ctx) {
         Div meta = new Div(versionSpan(h.version()), actionSpan(h.actionType()),
                 changedBySpan(ctx.actorNames().getOrDefault(h.actorId(), "")), timeSpan(h.createdAt()));
         meta.addClassName("entity-history-meta");
-        row.add(meta);
-
-        row.add(fieldRenderer.buildHistoryFieldsList(h, new EntityRef(ctx.entityType(), ctx.entityId())));
-
-        boolean isTextRow = h.prevSnapshotId() != null || h.actionType() == ActionType.CREATED;
-        if (ctx.canOperate() && isTextRow && (h.actionType() != ActionType.CREATED || ctx.historySize() > 1)) {
-            boolean isCurrentState = snapshotsEqual(h.snapshotData(), ctx.currentSnapshot())
-                    && mediaMatchCurrent(ctx.entityType(), ctx.entityId(), h.version());
-            row.add(buildRowActions(h, isCurrentState, ctx.onRestoreRequested()));
-        }
-        return row;
+        return meta;
     }
 
     private Span buildCurrentStateBadge() {
@@ -104,17 +124,8 @@ public class AuditHistoryRowRenderer {
         return span;
     }
 
-    private static boolean snapshotsEqual(AuditableSnapshot a, AuditableSnapshot b) {
-        return Objects.equals(a, b);
+    private boolean mediaMatchCurrent(RenderConfig cfg, int version) {
+        AuditActivityEnrichHook hook = enrichHooks.get(cfg.entityRef().entityType());
+        return hook == null || hook.matchesCurrent(cfg.entityRef(), version);
     }
-
-    private boolean mediaMatchCurrent(EntityType entityType, Long entityId, int version) {
-        EntityRef ref = new EntityRef(entityType, entityId);
-        return activityEnrichHooks.stream()
-                .filter(h -> h.entityType() == entityType)
-                .findFirst()
-                .map(h -> h.matchesCurrent(ref, version))
-                .orElse(true);
-    }
-
 }

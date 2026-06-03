@@ -2,7 +2,8 @@ package org.ost.marketplace.spi;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
+import org.ost.marketplace.dto.audit.UserSnapshotDto;
+import org.ost.marketplace.services.user.UserService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
@@ -15,28 +16,28 @@ import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsHook {
+public class UserActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
+    private final UserService userService;
     private final I18nService i18n;
 
     @Override
     public EntityType entityType() {
-        return EntityType.ADVERTISEMENT;
+        return EntityType.USER;
     }
 
     @Override
     public List<ChangeEntry> expandFields(AuditActivityItemDto<AuditableSnapshot> item) {
-        return item.snapshotData() != null
-                ? item.snapshotData().expandWithChanges(item.changes())
-                : item.changes();
+        return userService.expandActivityFields(item);
     }
 
     @Override
     public String labelFor(String rawFieldKey) {
         return switch (rawFieldKey) {
-            case AdvertisementSnapshotDto.Fields.title       -> i18n.get(I18nKey.CHANGES_FIELD_TITLE);
-            case AdvertisementSnapshotDto.Fields.description -> i18n.get(I18nKey.CHANGES_FIELD_DESCRIPTION);
-            default                                          -> rawFieldKey;
+            case UserSnapshotDto.Fields.name  -> i18n.get(I18nKey.CHANGES_FIELD_NAME);
+            case UserSnapshotDto.Fields.email -> i18n.get(I18nKey.CHANGES_FIELD_EMAIL);
+            case UserSnapshotDto.Fields.role  -> i18n.get(I18nKey.CHANGES_FIELD_ROLE);
+            default                           -> rawFieldKey;
         };
     }
 }

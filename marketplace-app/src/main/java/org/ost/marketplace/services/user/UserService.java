@@ -159,7 +159,7 @@ public class UserService {
         };
     }
 
-    public List<ChangeEntry> expandActivityFields(AuditActivityItemDto item) {
+    public List<ChangeEntry> expandActivityFields(AuditActivityItemDto<AuditableSnapshot> item) {
         return item.snapshotData() != null
                 ? item.snapshotData().expandWithChanges(item.changes())
                 : item.changes();

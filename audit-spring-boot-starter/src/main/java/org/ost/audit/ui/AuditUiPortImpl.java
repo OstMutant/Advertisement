@@ -40,10 +40,9 @@ public class AuditUiPortImpl implements AuditUiPort {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> p) {
-        return snapshotBinderFactory.build(AuditSnapshotBinder.Parameters.<T>builder()
+    public <T extends AuditableSnapshot> AuditActivityRowHook<T> snapshotRowHook(SnapshotRowHookParams<T> p) {
+        return (AuditActivityRowHook<T>) snapshotBinderFactory.build(AuditSnapshotBinder.Parameters.<T>builder()
                 .entityType(p.getEntityType())
-                .snapshotClass(p.getSnapshotClass())
                 .isCurrent(p.getIsCurrent())
                 .subjectEntityId(p.getSubjectEntityId())
                 .onRestore(p.getOnRestore())

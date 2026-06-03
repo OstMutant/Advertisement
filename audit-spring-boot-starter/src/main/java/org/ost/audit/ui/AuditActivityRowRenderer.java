@@ -4,48 +4,63 @@ import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.ui.Initialization;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
-import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.model.EntityRef;
-import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
+import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.EnumMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @CssImport("./entity-history.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class AuditActivityRowRenderer {
+public class AuditActivityRowRenderer implements Initialization<AuditActivityRowRenderer> {
 
     private static final String CSS_CHANGES         = "activity-feed-changes";
     private static final String CSS_HISTORY_CHANGES = "entity-history-changes";
 
-    private final I18nService                              i18n;
-    private final InstantFormatter                         formatter;
-    private final AuditChangeFormatter                     activityPanel;
-    private final List<AuditActivityFieldsHook>            fieldsProviders;
-    private final List<AuditActivityEnrichHook>            enrichHooks;
+    private final I18nService                   i18n;
+    private final InstantFormatter              formatter;
+    private final AuditChangeFormatter          changeFormatter;
+    private final List<AuditActivityFieldsHook> fieldsProviderList;
+    private final List<AuditActivityEnrichHook> enrichHookList;
 
-    record DisplayContext(
+    private Map<EntityType, AuditActivityFieldsHook> fieldsProviders;
+    private Map<EntityType, AuditActivityEnrichHook> enrichHooks;
+
+    @Override
+    @PostConstruct
+    public AuditActivityRowRenderer init() {
+        fieldsProviders = fieldsProviderList.stream().collect(Collectors.toMap(AuditActivityFieldsHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
+        enrichHooks     = enrichHookList.stream().collect(Collectors.toMap(AuditActivityEnrichHook::entityType, h -> h, (a, _) -> a, () -> new EnumMap<>(EntityType.class)));
+        return this;
+    }
+
+    record RowContext(
             Map<Long, String> actorNames,
             Map<Long, String> displayNames,
             Set<EntityRef>    existingRefs) {}
 
-    public Div buildRow(AuditActivityItemDto item, Long viewerActorId, DisplayContext ctx) {
+    Div buildRow(AuditActivityItemDto<AuditableSnapshot> item, Long viewerActorId, RowContext ctx) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
         if (!ctx.existingRefs().contains(new EntityRef(item.entityType(), item.entityId())))
@@ -56,7 +71,7 @@ public class AuditActivityRowRenderer {
 
         String changedByName = item.changedByActorId() != null
                 ? ctx.actorNames().getOrDefault(item.changedByActorId(), "") : null;
-        Span editor = activityPanel.buildEditorBadge(item.changedByActorId(), changedByName, viewerActorId);
+        Span editor = changeFormatter.buildEditorBadge(item.changedByActorId(), changedByName, viewerActorId);
         if (editor != null) row.add(editor);
 
         row.add(buildActivityFieldsList(item));
@@ -89,44 +104,39 @@ public class AuditActivityRowRenderer {
         return span;
     }
 
-    private Div buildActivityFieldsList(AuditActivityItemDto item) {
-        AuditActivityEnrichHook enrichHook = enrichHooks.stream()
-                .filter(h -> h.entityType() == item.entityType())
-                .findFirst().orElse(null);
+    private Div buildActivityFieldsList(AuditActivityItemDto<AuditableSnapshot> item) {
+        AuditActivityEnrichHook enrichHook = enrichHooks.get(item.entityType());
         if (enrichHook != null) {
             EntityRef ref = new EntityRef(item.entityType(), item.entityId());
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
                     () -> enrichHook.getMediaStateForSnapshot(ref, item.snapshotId()));
         }
-        AuditActivityFieldsHook provider = fieldsProviders.stream()
-                .filter(p -> p.supports(item.entityType()))
-                .findFirst().orElse(null);
+        AuditActivityFieldsHook provider = fieldsProviders.get(item.entityType());
         if (provider != null && item.snapshotData() != null) {
             return buildActivityChangesDiv(provider.expandFields(item), provider);
         }
-        return activityPanel.buildChangesList(item.changes(), CSS_CHANGES);
+        return changeFormatter.buildChangesList(item.changes(), CSS_CHANGES);
     }
 
     private Div buildActivityChangesDiv(List<ChangeEntry> entries, AuditActivityFieldsHook labelHook) {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            ChangeEntry resolved = entry instanceof ChangeEntry.FieldChange fc
-                    ? new ChangeEntry.FieldChange(labelHook.labelFor(fc.field()), fc.from(), fc.to())
-                    : entry;
-            boolean unchanged = switch (resolved) {
-                case ChangeEntry.FieldChange fc  -> fc.from() == null || fc.from().isBlank();
-                case ChangeEntry.MediaChange mc  -> mc.before() == null || mc.before().isBlank();
+            ChangeEntry resolved = switch (entry) {
+                case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
+                case ChangeEntry.MediaChange _ -> entry;
             };
-            addSpan(container, activityPanel.format(resolved), unchanged, CSS_CHANGES);
+            boolean unchanged = switch (resolved) {
+                case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
+                case ChangeEntry.MediaChange(var before, _)  -> before == null || before.isBlank();
+            };
+            addSpan(container, changeFormatter.format(resolved), unchanged, CSS_CHANGES);
         }
         return container;
     }
 
-    public Div buildHistoryFieldsList(AuditHistoryItemDto h, EntityRef ref) {
-        AuditActivityEnrichHook enrichHook = enrichHooks.stream()
-                .filter(s -> s.entityType() == ref.entityType())
-                .findFirst().orElse(null);
+    Div buildHistoryFieldsList(AuditHistoryItemDto h, EntityRef ref) {
+        AuditActivityEnrichHook enrichHook = enrichHooks.get(ref.entityType());
         Supplier<String> mediaLookup = enrichHook != null
                 ? () -> enrichHook.getMediaStateAtVersion(ref, h.version())
                 : null;
@@ -141,21 +151,23 @@ public class AuditActivityRowRenderer {
         List<ChangeEntry> mediaChanges = new ArrayList<>();
         List<ChangeEntry> textChanges  = new ArrayList<>();
         for (ChangeEntry entry : changes) {
-            if (entry instanceof ChangeEntry.MediaChange) {
-                mediaChanges.add(entry);
-            } else {
-                textChanges.add(entry);
+            switch (entry) {
+                case ChangeEntry.MediaChange _ -> mediaChanges.add(entry);
+                case ChangeEntry.FieldChange _ -> textChanges.add(entry);
             }
         }
 
         List<ChangeEntry> expanded = expandTextFields(snapshotData, textChanges);
         for (ChangeEntry entry : expanded) {
-            boolean unchanged = entry instanceof ChangeEntry.FieldChange fc && (fc.from() == null || fc.from().isBlank());
-            addSpan(container, activityPanel.format(entry), unchanged, cssBase);
+            boolean unchanged = switch (entry) {
+                case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
+                case ChangeEntry.MediaChange _               -> false;
+            };
+            addSpan(container, changeFormatter.format(entry), unchanged, cssBase);
         }
 
         if (!mediaChanges.isEmpty()) {
-            mediaChanges.forEach(pc -> addSpan(container, activityPanel.format(pc), false, cssBase));
+            mediaChanges.forEach(pc -> addSpan(container, changeFormatter.format(pc), false, cssBase));
         } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";

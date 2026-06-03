@@ -1,6 +1,7 @@
 package org.ost.platform.audit.spi;
 
 import com.vaadin.flow.component.Component;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.EntityType;
 
@@ -12,9 +13,9 @@ import org.ost.platform.core.model.EntityType;
  * attach domain-aware UI (e.g. "restore" buttons, current-state badges) without
  * the starter understanding snapshot shape.
  */
-public interface AuditActivityRowHook {
+public interface AuditActivityRowHook<T extends AuditableSnapshot> {
 
     EntityType entityType();
 
-    Component decorate(AuditActivityItemDto item);
+    Component decorate(AuditActivityItemDto<T> item);
 }

@@ -1,5 +1,6 @@
 package org.ost.platform.audit.spi;
 
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -15,7 +16,7 @@ import java.util.List;
  */
 public interface AuditActivityEnrichHook {
     EntityType entityType();
-    List<AuditActivityItemDto> merge(List<EntityRef> subjects, List<AuditActivityItemDto> base);
+    List<AuditActivityItemDto<AuditableSnapshot>> merge(List<EntityRef> subjects, List<AuditActivityItemDto<AuditableSnapshot>> base);
     List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version);
     boolean matchesCurrent(EntityRef entity, int version);
     default String getMediaStateForSnapshot(EntityRef ref, Long snapshotId) { return null; }
