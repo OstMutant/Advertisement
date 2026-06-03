@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.audit.services.AuditReadService;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
@@ -18,7 +19,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.ObjLongConsumer;
+import java.util.stream.Collectors;
 
 @SpringComponent
 @Scope("prototype")
@@ -47,6 +52,7 @@ public class AuditHistoryPanel extends Div
 
     private final I18nService                               i18n;
     private final AuditReadService                          auditReadService;
+    private final AuditDomainHook                           auditDomainHook;
     private final ObjectProvider<AuditHistoryRowRenderer>   rowRendererProvider;
 
     @Override
@@ -70,15 +76,24 @@ public class AuditHistoryPanel extends Div
             return this;
         }
 
+        Map<Long, String> actorNames = resolveActorNames(history);
         AuditHistoryRowRenderer renderer = rowRendererProvider.getObject();
         AuditHistoryRowRenderer.RowContext ctx = new AuditHistoryRowRenderer.RowContext(
                 p.getEntityType(), p.getEntityId(), currentSnapshot, history.size(),
-                p.isCanOperate(), p.getOnRestoreRequested());
+                p.isCanOperate(), p.getOnRestoreRequested(), actorNames);
 
         for (AuditHistoryItemDto h : history) {
             add(renderer.buildRow(h, ctx));
         }
         return this;
+    }
+
+    private Map<Long, String> resolveActorNames(List<AuditHistoryItemDto> history) {
+        Set<Long> ids = history.stream()
+                .map(AuditHistoryItemDto::actorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        return ids.isEmpty() ? Map.of() : auditDomainHook.resolveNames(ids);
     }
 
     private Span emptyState() {

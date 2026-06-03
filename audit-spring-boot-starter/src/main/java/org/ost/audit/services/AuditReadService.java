@@ -1,6 +1,5 @@
 package org.ost.audit.services;
 
-import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
@@ -8,22 +7,15 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.spi.EntityNameHook;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -33,8 +25,6 @@ public class AuditReadService {
 
     private final AuditLogRepository      repository;
     private final AuditActivityEnrichHook activityEnrichHook;
-    private final AuditDomainHook         auditDomainHook;
-    private final List<EntityNameHook>    entityNameHooks;
 
     // ── History ───────────────────────────────────────────────────────────────
 
@@ -43,11 +33,6 @@ public class AuditReadService {
         List<AuditHistoryItemDto> history = repository
                 .findRows(entityType, entityId, showAll ? null : currentUserId)
                 .stream().limit(100).map(this::toHistoryItem).toList();
-
-        history = withResolvedActorNames(
-                history,
-                AuditHistoryItemDto::actorId,
-                AuditHistoryItemDto::withChangedByUserName);
 
         return history.stream()
                 .map(h -> {
@@ -74,7 +59,7 @@ public class AuditReadService {
                 ? repository.findRowsByActor(actorId).stream()
                 : Stream.empty();
 
-        List<AuditActivityItemDto> base = Stream.concat(subjectRows, actorRows)
+        List<AuditActivityItemDto> items = Stream.concat(subjectRows, actorRows)
                 .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
                 .values().stream()
                 .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
@@ -82,74 +67,20 @@ public class AuditReadService {
                 .map(this::toActivityItem)
                 .toList();
 
-        List<AuditActivityItemDto> combined = activityEnrichHook.merge(subjects, base);
-        combined = resolveDisplayNames(combined);
-        combined = withResolvedActorNames(
-                combined,
-                AuditActivityItemDto::changedByActorId,
-                AuditActivityItemDto::withChangedByName);
-        combined = resolveEntityExistence(combined);
-        return combined;
+        return activityEnrichHook.merge(subjects, items);
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private AuditHistoryItemDto toHistoryItem(AuditLogProjection row) {
         return new AuditHistoryItemDto(
-                row.id(), row.version(), row.actionType(), row.actorId(), null, row.createdAt(),
+                row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.prevId(), row.snapshot(), row.prevSnapshot());
     }
 
     private AuditActivityItemDto toActivityItem(AuditLogProjection row) {
         return new AuditActivityItemDto(
-                row.id(), row.entityId(), row.entityType(),
-                "", row.actionType(), row.createdAt(), false,
-                row.snapshot().diff(row.prevSnapshot()), row.actorId(), null, row.snapshot());
-    }
-
-    // ── Post-processing ───────────────────────────────────────────────────────
-
-    private List<AuditActivityItemDto> resolveDisplayNames(List<AuditActivityItemDto> items) {
-        return items.stream().map(i -> {
-            String name = entityNameHooks.stream()
-                    .filter(h -> h.supports(i.entityType()))
-                    .findFirst()
-                    .map(h -> h.resolveDisplayName(i.entityType(), i.snapshotData()))
-                    .orElse("");
-            return i.withDisplayName(name);
-        }).toList();
-    }
-
-    private <T> List<T> withResolvedActorNames(@NonNull List<T> items,
-            Function<T, Long> actorIdGetter,
-            BiFunction<T, String, T> nameApplier) {
-        Set<Long> ids = items.stream()
-                .map(actorIdGetter)
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-        if (ids.isEmpty()) return items;
-        Map<Long, String> names = auditDomainHook.resolveNames(ids);
-        return items.stream()
-                .map(i -> {
-                    Long actorId = actorIdGetter.apply(i);
-                    return actorId != null ? nameApplier.apply(i, names.getOrDefault(actorId, "—")) : i;
-                })
-                .toList();
-    }
-
-    private List<AuditActivityItemDto> resolveEntityExistence(List<AuditActivityItemDto> items) {
-        Map<EntityType, Set<Long>> byType = items.stream()
-                .collect(Collectors.groupingBy(
-                        AuditActivityItemDto::entityType,
-                        Collectors.mapping(AuditActivityItemDto::entityId, Collectors.toSet())));
-        Map<EntityType, Set<Long>> existingByType = byType.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> auditDomainHook.findExisting(e.getKey(), e.getValue())));
-        return items.stream()
-                .map(i -> {
-                    boolean exists = existingByType.getOrDefault(i.entityType(), Set.of()).contains(i.entityId());
-                    return i.withEntityExists(exists);
-                })
-                .toList();
+                row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
+                row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
     }
 }

@@ -18,6 +18,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.ObjLongConsumer;
 
@@ -28,7 +29,8 @@ public class AuditHistoryRowRenderer {
 
     record RowContext(
             EntityType entityType, Long entityId, AuditableSnapshot currentSnapshot, int historySize,
-            boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested) {}
+            boolean canOperate, ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested,
+            Map<Long, String> actorNames) {}
 
     private final I18nService                                i18n;
     private final InstantFormatter                           formatter;
@@ -40,7 +42,8 @@ public class AuditHistoryRowRenderer {
         Div row = new Div();
         row.addClassName("entity-history-row");
 
-        Div meta = new Div(versionSpan(h.version()), actionSpan(h.actionType()), changedBySpan(h.changedByUserName()), timeSpan(h.createdAt()));
+        Div meta = new Div(versionSpan(h.version()), actionSpan(h.actionType()),
+                changedBySpan(ctx.actorNames().getOrDefault(h.actorId(), "")), timeSpan(h.createdAt()));
         meta.addClassName("entity-history-meta");
         row.add(meta);
 

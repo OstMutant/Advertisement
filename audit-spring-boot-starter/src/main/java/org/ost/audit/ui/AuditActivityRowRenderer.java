@@ -22,6 +22,8 @@ import org.springframework.context.annotation.Scope;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
 
 @CssImport("./entity-history.css")
@@ -39,14 +41,24 @@ public class AuditActivityRowRenderer {
     private final List<AuditActivityFieldsHook>                 fieldsProviders;
     private final List<AuditActivityRenderHook>             renderStrategies;
     private final List<AuditFieldLabelHook>                 labelProviders;
-    public Div buildRow(AuditActivityItemDto item, Long viewerActorId) {
+
+    record DisplayContext(
+            Map<Long, String> actorNames,
+            Map<Long, String> displayNames,
+            Set<EntityRef>    existingRefs) {}
+
+    public Div buildRow(AuditActivityItemDto item, Long viewerActorId, DisplayContext ctx) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
-        if (!item.entityExists()) row.addClassName("activity-feed-row--deleted");
+        if (!ctx.existingRefs().contains(new EntityRef(item.entityType(), item.entityId())))
+            row.addClassName("activity-feed-row--deleted");
 
-        row.add(actionSpan(item.actionType()), typeSpan(item.entityType().name()), nameSpan(item.displayName()), timeSpan(item.createdAt()));
+        row.add(actionSpan(item.actionType()), typeSpan(item.entityType().name()),
+                nameSpan(ctx.displayNames().getOrDefault(item.entityId(), "")), timeSpan(item.createdAt()));
 
-        Span editor = activityPanel.buildEditorBadge(item.changedByActorId(), item.changedByName(), viewerActorId);
+        String changedByName = item.changedByActorId() != null
+                ? ctx.actorNames().getOrDefault(item.changedByActorId(), "") : null;
+        Span editor = activityPanel.buildEditorBadge(item.changedByActorId(), changedByName, viewerActorId);
         if (editor != null) row.add(editor);
 
         row.add(buildActivityFieldsList(item));

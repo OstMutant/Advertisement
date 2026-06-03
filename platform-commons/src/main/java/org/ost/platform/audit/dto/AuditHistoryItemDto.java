@@ -12,20 +12,14 @@ public record AuditHistoryItemDto(
         int               version,
         ActionType        actionType,
         Long              actorId,
-        String            changedByUserName,
         Instant           createdAt,
         List<ChangeEntry> changes,
         Long              prevSnapshotId,
         AuditableSnapshot snapshotData,
         AuditableSnapshot prevSnapshotData
 ) {
-    public AuditHistoryItemDto withChangedByUserName(String name) {
-        return new AuditHistoryItemDto(snapshotId, version, actionType, actorId, name,
-                createdAt, changes, prevSnapshotId, snapshotData, prevSnapshotData);
-    }
-
     public AuditHistoryItemDto withChanges(List<ChangeEntry> newChanges) {
-        return new AuditHistoryItemDto(snapshotId, version, actionType, actorId, changedByUserName,
+        return new AuditHistoryItemDto(snapshotId, version, actionType, actorId,
                 createdAt, newChanges, prevSnapshotId, snapshotData, prevSnapshotData);
     }
 }
