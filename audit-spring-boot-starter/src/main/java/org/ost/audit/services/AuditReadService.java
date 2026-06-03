@@ -1,5 +1,6 @@
 package org.ost.audit.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
@@ -7,6 +8,7 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -17,8 +19,11 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -26,10 +31,10 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class AuditReadService {
 
-    private final AuditLogRepository   repository;
-    private final AuditActivityEnrichHook   activityEnrichHook;
-    private final AuditDomainHelper    auditDomainHelper;
-    private final List<EntityNameHook> entityNameHooks;
+    private final AuditLogRepository      repository;
+    private final AuditActivityEnrichHook activityEnrichHook;
+    private final AuditDomainHook         auditDomainHook;
+    private final List<EntityNameHook>    entityNameHooks;
 
     // ── History ───────────────────────────────────────────────────────────────
 
@@ -39,7 +44,7 @@ public class AuditReadService {
                 .findRows(entityType, entityId, showAll ? null : currentUserId)
                 .stream().limit(100).map(this::toHistoryItem).toList();
 
-        history = auditDomainHelper.withResolvedActorNames(
+        history = withResolvedActorNames(
                 history,
                 AuditHistoryItemDto::actorId,
                 AuditHistoryItemDto::withChangedByUserName);
@@ -79,7 +84,7 @@ public class AuditReadService {
 
         List<AuditActivityItemDto> combined = activityEnrichHook.merge(subjects, base);
         combined = resolveDisplayNames(combined);
-        combined = auditDomainHelper.withResolvedActorNames(
+        combined = withResolvedActorNames(
                 combined,
                 AuditActivityItemDto::changedByActorId,
                 AuditActivityItemDto::withChangedByName);
@@ -115,6 +120,23 @@ public class AuditReadService {
         }).toList();
     }
 
+    private <T> List<T> withResolvedActorNames(@NonNull List<T> items,
+            Function<T, Long> actorIdGetter,
+            BiFunction<T, String, T> nameApplier) {
+        Set<Long> ids = items.stream()
+                .map(actorIdGetter)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) return items;
+        Map<Long, String> names = auditDomainHook.resolveNames(ids);
+        return items.stream()
+                .map(i -> {
+                    Long actorId = actorIdGetter.apply(i);
+                    return actorId != null ? nameApplier.apply(i, names.getOrDefault(actorId, "—")) : i;
+                })
+                .toList();
+    }
+
     private List<AuditActivityItemDto> resolveEntityExistence(List<AuditActivityItemDto> items) {
         Map<EntityType, Set<Long>> byType = items.stream()
                 .collect(Collectors.groupingBy(
@@ -122,7 +144,7 @@ public class AuditReadService {
                         Collectors.mapping(AuditActivityItemDto::entityId, Collectors.toSet())));
         Map<EntityType, Set<Long>> existingByType = byType.entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> auditDomainHelper.findExisting(e.getKey(), e.getValue())));
+                        e -> auditDomainHook.findExisting(e.getKey(), e.getValue())));
         return items.stream()
                 .map(i -> {
                     boolean exists = existingByType.getOrDefault(i.entityType(), Set.of()).contains(i.entityId());

@@ -1,22 +1,19 @@
 package org.ost.attachment.services;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import org.ost.attachment.util.YoutubeUtil;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.ost.attachment.repository.AttachmentMediaChange;
+import org.ost.attachment.repository.AttachmentRepository;
+import org.ost.attachment.repository.AttachmentSnapshotRepository;
+import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.attachment.repository.AttachmentRepository;
-import org.ost.attachment.repository.AttachmentSnapshotRepository;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -24,21 +21,17 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AttachmentSnapshotService {
 
-    record MediaChange(List<String> before, List<String> after) {}
-
     private final AttachmentRepository         attachmentRepository;
     private final AttachmentSnapshotRepository attachmentSnapshotRepository;
-    @Qualifier("attachmentObjectMapper")
-    private final ObjectMapper                 objectMapper;
 
     @Transactional
     public void capture(EntityType entityType, Long entityId, Long actorId) {
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         List<String> prevUrls    = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
-        MediaChange  diff        = buildDiff(prevUrls, currentUrls);
+        AttachmentMediaChange  diff        = buildDiff(prevUrls, currentUrls);
         if (diff == null) return;
 
-        attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), toJson(diff), actorId);
+        attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
     }
 
     public String getMediaStateAtVersion(EntityType entityType, Long entityId, int version) {
@@ -66,12 +59,12 @@ public class AttachmentSnapshotService {
     }
 
     public List<ChangeEntry> getChangesForVersion(EntityType entityType, Long entityId, int version) {
-        return attachmentSnapshotRepository.getChangesJson(entityType, entityId, version)
-                .map(this::parseMediaChanges)
+        return attachmentSnapshotRepository.findChangesByVersion(entityType, entityId, version)
+                .map(AttachmentSnapshotService::toChangeEntries)
                 .orElse(List.of());
     }
 
-    public List<AuditActivityItemDto> mergeMediaChanges(List<AuditActivityItemDto> baseItems) {
+    public List<AuditActivityItemDto> mergeAttachmentMediaChanges(List<AuditActivityItemDto> baseItems) {
         return baseItems.stream()
                 .map(item -> {
                     List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());
@@ -84,43 +77,25 @@ public class AttachmentSnapshotService {
     }
 
     public List<ChangeEntry> getChangesForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
-        return attachmentSnapshotRepository.getChangesJsonForSnapshot(entityType, entityId, snapshotId)
-                .map(this::parseMediaChanges)
+        return attachmentSnapshotRepository.findChangesBySnapshotId(entityType, entityId, snapshotId)
+                .map(AttachmentSnapshotService::toChangeEntries)
                 .orElse(List.of());
     }
 
-    @SuppressWarnings("unchecked")
-    public List<ChangeEntry> parseMediaChanges(String json) {
-        if (json == null || json.isBlank()) return List.of();
-        try {
-            List<Map<String, Object>> raw = objectMapper.readValue(json, new TypeReference<>() {});
-            return raw.stream()
-                    .map(m -> {
-                        List<String> before = (List<String>) m.getOrDefault("before", List.of());
-                        List<String> after  = (List<String>) m.getOrDefault("after",  List.of());
-                        String beforeStr = before.isEmpty() ? "—" : String.join(", ", before);
-                        String afterStr  = after.isEmpty()  ? "—" : String.join(", ", after);
-                        return (ChangeEntry) new ChangeEntry.GenericChange("audit.changes.media", beforeStr, afterStr);
-                    })
-                    .toList();
-        } catch (Exception _) {
-            return List.of();
-        }
+    private static List<ChangeEntry> toChangeEntries(List<AttachmentMediaChange> changes) {
+        return changes.stream()
+                .map(c -> {
+                    String before = c.before().isEmpty() ? "—" : String.join(", ", c.before());
+                    String after  = c.after().isEmpty()  ? "—" : String.join(", ", c.after());
+                    return (ChangeEntry) new ChangeEntry.GenericChange("audit.changes.media", before, after);
+                })
+                .toList();
     }
 
-    private static MediaChange buildDiff(List<String> prev, List<String> curr) {
+    private static AttachmentMediaChange buildDiff(List<String> prev, List<String> curr) {
         List<String> prevNames = prev.stream().map(AttachmentSnapshotService::filename).toList();
         List<String> currNames = curr.stream().map(AttachmentSnapshotService::filename).toList();
-        return Objects.equals(prevNames, currNames) ? null : new MediaChange(prevNames, currNames);
-    }
-
-    private String toJson(MediaChange diff) {
-        if (diff == null) return null;
-        try {
-            return objectMapper.writeValueAsString(List.of(diff));
-        } catch (Exception _) {
-            return null;
-        }
+        return Objects.equals(prevNames, currNames) ? null : new AttachmentMediaChange(prevNames, currNames);
     }
 
     private static String filename(String url) {

@@ -153,7 +153,7 @@ $NO_CACHE && BUILD_FLAGS="--no-cache"
 if $FILE_MODE; then
   docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 \
     | tee "$LOG" \
-    | grep --line-buffered -E "^Step [0-9]+|ERROR|Successfully built"
+    | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
 else
   docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
 fi

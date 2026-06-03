@@ -266,6 +266,18 @@ public record AuditLogProjection(
 
 ---
 
+## 2026-06-03 — AuditFieldLabelHook: field-key translation moved out of expandFields()
+
+**Decision:** `AuditActivityFieldsHook.expandFields()` now returns `FieldChange` entries with raw field keys (e.g. `"adsPageSize"`, `"title"`) instead of translated labels. A new `AuditFieldLabelHook` SPI (`platform-commons/audit.spi`) carries `supports(EntityType)` + `labelFor(String rawFieldKey)`. `AuditActivityRowRenderer.buildActivityChangesDiv()` resolves the matching label hook and translates each `fc.field()` before building spans.
+
+Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFieldsHookImpl`) implement both `AuditActivityFieldsHook` and `AuditFieldLabelHook`. `I18nService` is only called inside `labelFor()`, which is always invoked from the Vaadin UI thread (inside the renderer).
+
+**Why:** `expandFields()` was calling `I18nService.get()` which internally accesses `VaadinLocaleProvider` — a `@Scope("vaadin-ui")` scoped-proxy bean. Even though the call chain runs in the Vaadin UI thread, the scoped proxy resolution failed under certain request lifecycle conditions, throwing `ScopeNotActiveException` and leaving `.activity-feed-list` unpopulated. The fix separates data expansion (scope-independent) from label translation (UI-context-guaranteed).
+
+**Rule:** `AuditActivityFieldsHook.expandFields()` must never call `I18nService`. Label resolution is the responsibility of `AuditFieldLabelHook.labelFor()`, which is called exclusively from `AuditActivityRowRenderer` in Vaadin UI context.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears

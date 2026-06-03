@@ -17,7 +17,6 @@ import org.ost.marketplace.dto.filter.UserFilterDto;
 import org.ost.marketplace.entities.EntityMarker;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
-import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
 import org.ost.marketplace.repository.user.UserRepository;
 import org.ost.marketplace.security.AccessEvaluator;
@@ -43,11 +42,11 @@ import java.util.Set;
 @Validated
 public class UserService {
 
-    private final UserRepository      repository;
-    private final AccessEvaluator     access;
-    private final PasswordEncoder     passwordEncoder;
+    private final UserRepository           repository;
+    private final AccessEvaluator          access;
+    private final PasswordEncoder          passwordEncoder;
     private final ObjectProvider<AuditPort> auditPort;
-    private final AuthContextService  authContextService;
+    private final AuthContextService       authContextService;
 
     public List<User> getFiltered(@Valid UserFilterDto filter, int page, int size, Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -171,39 +170,29 @@ public class UserService {
     private List<ChangeEntry> expandUserFields(AuditActivityItemDto item) {
         if (!(item.snapshotData() instanceof UserSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
-        addActivityField(result, item.changes(), "name",  I18nKey.CHANGES_FIELD_NAME,  state.name());
-        addActivityField(result, item.changes(), "email", I18nKey.CHANGES_FIELD_EMAIL, state.email());
-        addActivityField(result, item.changes(), "role",  I18nKey.CHANGES_FIELD_ROLE,  state.role());
+        addActivityField(result, item.changes(), "name",  state.name());
+        addActivityField(result, item.changes(), "email", state.email());
+        addActivityField(result, item.changes(), "role",  state.role());
         return result;
     }
 
     private List<ChangeEntry> expandSettingsFields(AuditActivityItemDto item) {
         if (!(item.snapshotData() instanceof SettingsSnapshotDto state)) return item.changes();
         List<ChangeEntry> result = new ArrayList<>();
-        addSettingField(result, item.changes(), "adsPageSize",   state.adsPageSize());
-        addSettingField(result, item.changes(), "usersPageSize", state.usersPageSize());
+        addActivityField(result, item.changes(), "adsPageSize",   String.valueOf(state.adsPageSize()));
+        addActivityField(result, item.changes(), "usersPageSize", String.valueOf(state.usersPageSize()));
         return result;
     }
 
-    private static void addSettingField(List<ChangeEntry> result, List<ChangeEntry> changes, String key, int currentValue) {
-        changes.stream()
-                .filter(c -> c instanceof ChangeEntry.SettingChange sc && key.equals(sc.key()))
-                .findFirst()
-                .ifPresentOrElse(
-                        result::add,
-                        () -> result.add(new ChangeEntry.SettingChange(key, null, currentValue))
-                );
-    }
-
     private static void addActivityField(List<ChangeEntry> result, List<ChangeEntry> changes,
-                                          String field, I18nKey labelKey, String currentValue) {
+                                          String field, String currentValue) {
         ChangeEntry existing = changes.stream()
                 .filter(c -> c instanceof ChangeEntry.FieldChange fc && field.equals(fc.field()))
                 .findFirst().orElse(null);
         if (existing instanceof ChangeEntry.FieldChange fc) {
-            result.add(new ChangeEntry.GenericChange(labelKey.key(), fc.from(), fc.to()));
+            result.add(new ChangeEntry.FieldChange(field, fc.from(), fc.to()));
         } else {
-            result.add(new ChangeEntry.GenericChange(labelKey.key(), null, currentValue));
+            result.add(new ChangeEntry.FieldChange(field, null, currentValue));
         }
     }
 }

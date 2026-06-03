@@ -36,46 +36,24 @@ All repository content must be in **English**: code comments, Javadoc, README fi
 After fixing a bug, cover all affected flows with Playwright tests before marking the task complete.
 
 ## Scripts
-Always use project scripts for build, deploy, and tests — never raw docker/mvn commands:
-- `bash scripts/deploy-dev.sh` — **default deploy**: fast JAR hot-swap (requires container running); use this unless a full image rebuild is explicitly needed
-- `bash scripts/deploy.sh` — full Docker image rebuild; only when Dockerfile/dependencies change or `--reset` (DB wipe) is needed
+Always use project scripts — never raw docker/mvn commands:
+- `bash scripts/deploy-dev.sh` — dev deploy (JAR hot-swap, ~3-4 min)
+- `bash scripts/deploy.sh` — full rebuild (~7-10 min)
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
-- `mvn clean test` — JUnit tests
+- `mvn clean test 2>&1 | tee /tmp/test.log` — JUnit tests
 
-**For any long-running command** (builds, tests, docker operations): use `run_in_background: true`, then immediately attach the Monitor tool. Monitor timeout: `timeout_ms: 600000` (10 min).
+**Run all scripts synchronously** (no background, no awk pipe, no polling):
+- Use `timeout: 600000` on the Bash tool call
+- Full output is visible directly — no filtering, no grep
+- User sees all logs as-is
 
-Standard Monitor pattern for builds (log: `/tmp/deploy-dev.log`):
-```
-out=/tmp/deploy-dev.log
-tail -f "$out" | grep --line-buffered -E "ERROR|BUILD|FAILED|Started|Exception|\[INFO\] Building |\[INFO\] ---" &
-pid=$!
-while kill -0 $pid 2>/dev/null; do
-  sleep 30
-  echo "⏳ still building... ($(wc -l < "$out") lines so far)"
-done
-```
+**Before running Playwright** — kill old processes first:
+1. `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
+2. Then run: `bash scripts/playwright.sh [scenario] 2>&1`
 
-Standard Monitor pattern for tests (`mvn clean test 2>&1 | tee /tmp/test.log`, log: `/tmp/test.log`):
-```
-out=/tmp/test.log
-tail -f "$out" | grep --line-buffered -E "ERROR|FAILED|Tests run|BUILD|Exception|\[ERROR\]" &
-pid=$!
-while kill -0 $pid 2>/dev/null; do
-  sleep 30
-  echo "⏳ still testing... ($(wc -l < "$out") lines so far)"
-done
-```
-
-Standard Monitor pattern for Playwright (`bash scripts/playwright.sh [scenario] > /tmp/pw.log 2>&1`, log: `/tmp/pw.log`):
-```
-out=/tmp/pw.log
-tail -f "$out" | grep --line-buffered -E "passed|failed|flaky|✓|✘|Error|ERROR|FAILED" &
-pid=$!
-while kill -0 $pid 2>/dev/null; do
-  sleep 30
-  echo "⏳ running... ($(wc -l < "$out") lines so far)"
-done
-```
+## After Interruption
+After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.
+Wait for the next explicit user message before doing anything.
 
 ## Error Reporting
 When running any script or command that fails, immediately read the error output and show the specific error lines in the chat. Never just report "it failed" without the actual error details.

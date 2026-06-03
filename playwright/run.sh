@@ -96,6 +96,7 @@ for group in core audit attachment; do
   docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/$group/ 2>/dev/null
 done
 docker cp /app/playwright/playwright.config.js pw-runner:/tmp/
+docker cp /app/playwright/reporter.js pw-runner:/tmp/
 
 # ── Build run command ─────────────────────────────────────────────────────────
 PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"

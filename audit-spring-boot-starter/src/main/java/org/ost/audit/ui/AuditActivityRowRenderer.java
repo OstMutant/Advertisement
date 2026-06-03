@@ -14,6 +14,7 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.platform.audit.spi.AuditActivityRenderHook;
+import org.ost.platform.audit.spi.AuditFieldLabelHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.InstantFormatter;
 import org.springframework.context.annotation.Scope;
@@ -36,6 +37,7 @@ public class AuditActivityRowRenderer {
     private final AuditChangeFormatter                            activityPanel;
     private final List<AuditActivityFieldsHook>                 fieldsProviders;
     private final List<AuditActivityRenderHook>             renderStrategies;
+    private final List<AuditFieldLabelHook>                 labelProviders;
     public Div buildRow(AuditActivityItemDto item, Long viewerActorId) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
@@ -80,23 +82,26 @@ public class AuditActivityRowRenderer {
                 .filter(p -> p.supports(item.entityType()))
                 .findFirst().orElse(null);
         if (provider != null && item.snapshotData() != null) {
-            return buildActivityChangesDiv(provider.expandFields(item));
+            AuditFieldLabelHook labelHook = labelProviders.stream()
+                    .filter(h -> h.supports(item.entityType()))
+                    .findFirst().orElse(null);
+            return buildActivityChangesDiv(provider.expandFields(item), labelHook);
         }
         return activityPanel.buildChangesList(item.changes(), CSS_CHANGES);
     }
 
-    private Div buildActivityChangesDiv(List<ChangeEntry> entries) {
+    private Div buildActivityChangesDiv(List<ChangeEntry> entries, AuditFieldLabelHook labelHook) {
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            boolean unchanged = switch (entry) {
-                case ChangeEntry.FieldChange fc   -> fc.from() == null || fc.from().isBlank();
-                case ChangeEntry.SettingChange sc -> sc.from() == null;
-                case ChangeEntry.GenericChange gc -> gc.before() == null || gc.before().isBlank();
-                default                           -> false;
+            ChangeEntry resolved = labelHook != null && entry instanceof ChangeEntry.FieldChange fc
+                    ? new ChangeEntry.FieldChange(labelHook.labelFor(fc.field()), fc.from(), fc.to())
+                    : entry;
+            boolean unchanged = switch (resolved) {
+                case ChangeEntry.FieldChange fc  -> fc.from() == null || fc.from().isBlank();
+                case ChangeEntry.MediaChange mc  -> mc.before() == null || mc.before().isBlank();
             };
-            String text = activityPanel.format(entry);
-            addSpan(container, text, unchanged, CSS_CHANGES);
+            addSpan(container, activityPanel.format(resolved), unchanged, CSS_CHANGES);
         }
         return container;
     }
@@ -119,7 +124,7 @@ public class AuditActivityRowRenderer {
         List<ChangeEntry> mediaChanges = new ArrayList<>();
         List<ChangeEntry> textChanges  = new ArrayList<>();
         for (ChangeEntry entry : changes) {
-            if (entry instanceof ChangeEntry.GenericChange) {
+            if (entry instanceof ChangeEntry.MediaChange) {
                 mediaChanges.add(entry);
             } else {
                 textChanges.add(entry);

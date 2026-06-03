@@ -1,12 +1,17 @@
 package org.ost.attachment.repository;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
+import java.sql.Types;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,19 +20,21 @@ import java.util.Optional;
 @SuppressWarnings("java:S1192")
 public class AttachmentSnapshotRepository {
 
-    private final JdbcClient jdbcClient;
+    @Qualifier("attachmentObjectMapper") private final ObjectMapper objectMapper;
+    private final JdbcClient                                       jdbcClient;
 
-    public void insert(EntityType entityType, Long entityId, String[] urls, String changesJson, Long actorId) {
+    @SneakyThrows
+    public void insert(EntityType entityType, Long entityId, String[] urls, List<AttachmentMediaChange> changes, Long actorId) {
         jdbcClient.sql("""
                         INSERT INTO attachment_snapshot
                             (entity_type, entity_id, attachment_urls, changes_summary, changed_by_actor_id, created_at)
-                        VALUES (:entityType, :entityId, :urls, CAST(:changes AS JSONB), :actorId, NOW())
+                        VALUES (:entityType, :entityId, :urls, :changes, :actorId, NOW())
                         """)
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
                           .addValue("entityId",   entityId)
                           .addValue("urls",        urls)
-                          .addValue("changes",     changesJson)
+                          .addValue("changes",     objectMapper.writeValueAsString(changes), Types.OTHER)
                           .addValue("actorId",     actorId))
                   .update();
     }
@@ -89,8 +96,9 @@ public class AttachmentSnapshotRepository {
                          .optional();
     }
 
-    public Optional<String> getChangesJsonForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
-        return jdbcClient.sql("""
+    @SneakyThrows
+    public Optional<List<AttachmentMediaChange>> findChangesBySnapshotId(EntityType entityType, Long entityId, Long snapshotId) {
+        Optional<String> json = jdbcClient.sql("""
                         SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
                           AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)
@@ -109,10 +117,13 @@ public class AttachmentSnapshotRepository {
                                  .addValue("snapshotId", snapshotId))
                          .query(String.class)
                          .optional();
+        return json.isEmpty() ? Optional.empty()
+                : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
-    public Optional<String> getChangesJson(EntityType entityType, Long entityId, int version) {
-        return jdbcClient.sql("""
+    @SneakyThrows
+    public Optional<List<AttachmentMediaChange>> findChangesByVersion(EntityType entityType, Long entityId, int version) {
+        Optional<String> json = jdbcClient.sql("""
                         SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
                           AND created_at >= (
@@ -138,6 +149,8 @@ public class AttachmentSnapshotRepository {
                                  .addValue("version",    version))
                          .query(String.class)
                          .optional();
+        return json.isEmpty() ? Optional.empty()
+                : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
     private static List<String> extractUrls(ResultSet rs) {

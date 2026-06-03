@@ -24,6 +24,7 @@ module.exports = defineConfig({
   timeout: 60_000,
 
   reporter: [
+    ['./reporter.js', { outputFile: '/tmp/pw-live.log' }],
     ['list'],
     // HTML report written to /tmp/pw-report; run.sh docker-cp's it out afterward.
     ['html', { outputFolder: '/tmp/pw-report', open: 'never' }],
