@@ -16,9 +16,4 @@ public interface AuditableSnapshot {
     static <S extends AuditableSnapshot, T> T field(S snapshot, Function<S, T> getter) {
         return snapshot != null ? getter.apply(snapshot) : null;
     }
-
-    static String trunc(String s) {
-        if (s == null) return null;
-        return s.length() > 120 ? s.substring(0, 120) + "\u2026" : s;
-    }
 }

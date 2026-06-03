@@ -43,9 +43,9 @@ public class AuditChangeFormatter {
         return switch (entry) {
             case ChangeEntry.FieldChange(var field, var from, var to) -> {
                 if (from == null || from.isBlank()) {
-                    yield i18n.get(AuditI18n.CHANGES_SET, field, to);
+                    yield i18n.get(AuditI18n.CHANGES_SET, field, trunc(to));
                 }
-                yield i18n.get(AuditI18n.CHANGES_FIELD_CHANGED, field, from, to);
+                yield i18n.get(AuditI18n.CHANGES_FIELD_CHANGED, field, trunc(from), trunc(to));
             }
             case ChangeEntry.MediaChange(var before, var after) -> {
                 String label = i18n.get(AuditI18n.CHANGES_MEDIA);
@@ -55,5 +55,10 @@ public class AuditChangeFormatter {
                 yield i18n.get(AuditI18n.CHANGES_MEDIA_CHANGED, label, before, after);
             }
         };
+    }
+
+    private String trunc(String s) {
+        if (s == null || s.length() <= 120) return s;
+        return i18n.get(AuditI18n.VALUE_TRUNCATED, s.substring(0, 120));
     }
 }

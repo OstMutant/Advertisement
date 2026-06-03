@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
-import static org.ost.platform.audit.api.AuditableSnapshot.trunc;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
 @JsonTypeName("advertisement")
@@ -36,16 +35,16 @@ public record AdvertisementSnapshotDto(
         String prevTitle = field(prev, AdvertisementSnapshotDto::title);
         String prevDesc  = field(prev, AdvertisementSnapshotDto::description);
         if (!Objects.equals(prevTitle, title()))
-            changes.add(new FieldChange(Fields.title, trunc(prevTitle), trunc(title())));
+            changes.add(new FieldChange(Fields.title, prevTitle, title()));
         if (!Objects.equals(prevDesc, description()))
-            changes.add(new FieldChange(Fields.description, trunc(prevDesc), trunc(description())));
+            changes.add(new FieldChange(Fields.description, prevDesc, description()));
         return changes;
     }
 
     @Override
     public List<ChangeEntry> allFields() {
         return List.of(
-                new FieldChange(Fields.title,       null, trunc(title())),
-                new FieldChange(Fields.description, null, trunc(description())));
+                new FieldChange(Fields.title,       null, title()),
+                new FieldChange(Fields.description, null, description()));
     }
 }

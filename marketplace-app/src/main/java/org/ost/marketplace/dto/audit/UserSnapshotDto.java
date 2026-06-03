@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
-import static org.ost.platform.audit.api.AuditableSnapshot.trunc;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
 @JsonTypeName("user")
@@ -38,9 +37,9 @@ public record UserSnapshotDto(
         String prevEmail = field(prev, UserSnapshotDto::email);
         String prevRole  = field(prev, UserSnapshotDto::role);
         if (!Objects.equals(prevName, name()))
-            changes.add(new FieldChange(Fields.name,  trunc(prevName),  trunc(name())));
+            changes.add(new FieldChange(Fields.name,  prevName,  name()));
         if (!Objects.equals(prevEmail, email()))
-            changes.add(new FieldChange(Fields.email, trunc(prevEmail), trunc(email())));
+            changes.add(new FieldChange(Fields.email, prevEmail, email()));
         if (!Objects.equals(prevRole, role()))
             changes.add(new FieldChange(Fields.role,  prevRole,         role()));
         return changes;
@@ -49,8 +48,8 @@ public record UserSnapshotDto(
     @Override
     public List<ChangeEntry> allFields() {
         return List.of(
-                new FieldChange(Fields.name,  null, trunc(name())),
-                new FieldChange(Fields.email, null, trunc(email())),
+                new FieldChange(Fields.name,  null, name()),
+                new FieldChange(Fields.email, null, email()),
                 new FieldChange(Fields.role,  null, role()));
     }
 }

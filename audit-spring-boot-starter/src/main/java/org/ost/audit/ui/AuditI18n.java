@@ -19,7 +19,8 @@ public enum AuditI18n implements TranslationKey {
     CHANGES_BULLET("audit.changes.bullet"),
     CHANGES_SET("audit.changes.set"),
     CHANGES_FIELD_CHANGED("audit.changes.field.changed"),
-    CHANGES_MEDIA_CHANGED("audit.changes.media.changed");
+    CHANGES_MEDIA_CHANGED("audit.changes.media.changed"),
+    VALUE_TRUNCATED("audit.value.truncated");
 
     private final String key;
 
