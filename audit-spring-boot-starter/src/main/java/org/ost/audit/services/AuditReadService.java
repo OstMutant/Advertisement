@@ -1,6 +1,7 @@
 package org.ost.audit.services;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -19,6 +20,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuditReadService {
@@ -31,8 +33,8 @@ public class AuditReadService {
     public List<AuditHistoryItemDto> getEntityHistory(EntityType entityType, Long entityId,
                                                       Long currentUserId, boolean showAll) {
         List<AuditHistoryItemDto> history = repository
-                .findRows(entityType, entityId, showAll ? null : currentUserId)
-                .stream().limit(100).map(this::toHistoryItem).toList();
+                .findRows(entityType, entityId, showAll ? null : currentUserId, 100)
+                .stream().map(this::toHistoryItem).toList();
 
         return history.stream()
                 .map(h -> {
@@ -56,18 +58,18 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
-    public List<AuditActivityItemDto<AuditableSnapshot>> getForSubject(List<EntityRef> subjects, Long actorId) {
+    public List<AuditActivityItemDto<AuditableSnapshot>> getForSubject(List<EntityRef> subjects, Long actorId, int limit) {
         Stream<AuditLogProjection> subjectRows = subjects.stream()
-                .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null).stream());
+                .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null, limit).stream());
         Stream<AuditLogProjection> actorRows = actorId != null
-                ? repository.findRowsByActor(actorId).stream()
+                ? repository.findByActor(actorId, limit).stream()
                 : Stream.empty();
 
         List<AuditActivityItemDto<AuditableSnapshot>> items = Stream.concat(subjectRows, actorRows)
                 .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
                 .values().stream()
                 .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
-                .limit(20)
+                .limit(limit)
                 .map(this::toActivityItem)
                 .toList();
 
@@ -81,12 +83,22 @@ public class AuditReadService {
     // ── Mapping ───────────────────────────────────────────────────────────────
 
     private AuditHistoryItemDto toHistoryItem(AuditLogProjection row) {
+        if (row.snapshot() == null) {
+            log.warn("Audit row id={} has null snapshot, rendering with empty changes", row.id());
+            return new AuditHistoryItemDto(row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
+                    List.of(), row.prevId(), null, row.prevSnapshot());
+        }
         return new AuditHistoryItemDto(
                 row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.prevId(), row.snapshot(), row.prevSnapshot());
     }
 
     private AuditActivityItemDto<AuditableSnapshot> toActivityItem(AuditLogProjection row) {
+        if (row.snapshot() == null) {
+            log.warn("Audit row id={} has null snapshot, rendering with empty changes", row.id());
+            return new AuditActivityItemDto<>(row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
+                    List.of(), row.actorId(), null);
+        }
         return new AuditActivityItemDto<>(
                 row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());

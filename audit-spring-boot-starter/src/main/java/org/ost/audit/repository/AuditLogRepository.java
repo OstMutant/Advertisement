@@ -2,6 +2,7 @@ package org.ost.audit.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
@@ -37,6 +38,7 @@ import java.util.Optional;
  * {@link #getPreviousSnapshotContent}) are used by {@code DefaultAuditPort} for restore flows
  * and return typed results directly.
  */
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -73,7 +75,7 @@ public class AuditLogRepository {
 
     // ── Read — generic rows ───────────────────────────────────────────────────
 
-    public List<AuditLogProjection> findRows(EntityType entityType, Long entityId, Long filterActorId) {
+    public List<AuditLogProjection> findRows(EntityType entityType, Long entityId, Long filterActorId, int limit) {
         return jdbcClient.sql("""
                         WITH numbered AS (
                             SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
@@ -87,32 +89,45 @@ public class AuditLogRepository {
                         SELECT * FROM numbered
                         WHERE CAST(:filterActorId AS BIGINT) IS NULL OR actor_id = :filterActorId
                         ORDER BY created_at DESC
+                        LIMIT :limit
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType",    entityType.name())
                                  .addValue("entityId",      entityId)
-                                 .addValue("filterActorId", filterActorId))
+                                 .addValue("filterActorId", filterActorId)
+                                 .addValue("limit",         limit))
                          .query(projectionMapper)
                          .list();
     }
 
-    public List<AuditLogProjection> findRowsByActor(Long actorId) {
+    public List<AuditLogProjection> findByActor(Long actorId, int limit) {
         return jdbcClient.sql("""
-                        WITH entities_by_actor AS (
-                            SELECT DISTINCT entity_type, entity_id FROM audit_log WHERE actor_id = :actorId
-                        ),
-                        numbered AS (
-                            SELECT a.id, a.entity_type, a.entity_id, a.action_type, a.actor_id, a.created_at,
-                                   a.snapshot_data::text                                                                  AS snapshot_data,
-                                   ROW_NUMBER() OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at)    AS version,
-                                   LAG(a.id)                  OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at) AS prev_id,
-                                   LAG(a.snapshot_data::text) OVER (PARTITION BY a.entity_type, a.entity_id ORDER BY a.created_at) AS prev_snapshot_data
-                            FROM audit_log a
-                            JOIN entities_by_actor e ON a.entity_type = e.entity_type AND a.entity_id = e.entity_id
+                        WITH actor_rows AS (
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text AS snapshot_data
+                            FROM audit_log
+                            WHERE actor_id = :actorId
+                            ORDER BY created_at DESC
+                            LIMIT :limit
                         )
-                        SELECT * FROM numbered WHERE actor_id = :actorId ORDER BY created_at DESC
+                        SELECT ar.*,
+                               (SELECT COUNT(*) FROM audit_log b
+                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
+                                  AND b.created_at <= ar.created_at)::int AS version,
+                               (SELECT id FROM audit_log b
+                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
+                                  AND b.created_at < ar.created_at
+                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_id,
+                               (SELECT snapshot_data::text FROM audit_log b
+                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
+                                  AND b.created_at < ar.created_at
+                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_snapshot_data
+                        FROM actor_rows ar
+                        ORDER BY ar.created_at DESC
                         """)
-                         .paramSource(new MapSqlParameterSource("actorId", actorId))
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("actorId", actorId)
+                                 .addValue("limit",   limit))
                          .query(projectionMapper)
                          .list();
     }
@@ -177,8 +192,8 @@ public class AuditLogRepository {
         if (snapshot == null) return null;
         try {
             return objectMapper.writerFor(AuditableSnapshot.class).writeValueAsString(snapshot);
-        } catch (Exception _) {
-            return null;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to serialize snapshot: " + snapshot.getClass().getSimpleName(), e);
         }
     }
 
@@ -186,11 +201,13 @@ public class AuditLogRepository {
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, AuditableSnapshot.class);
-        } catch (Exception _) {
+        } catch (Exception e) {
+            log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
             return null;
         }
     }
 
+    @Slf4j
     @Component
     @RequiredArgsConstructor
     static class ProjectionMapper implements RowMapper<AuditLogProjection> {
@@ -217,7 +234,8 @@ public class AuditLogRepository {
             if (json == null || json.isBlank()) return null;
             try {
                 return objectMapper.readValue(json, AuditableSnapshot.class);
-            } catch (Exception _) {
+            } catch (Exception e) {
+                log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
                 return null;
             }
         }

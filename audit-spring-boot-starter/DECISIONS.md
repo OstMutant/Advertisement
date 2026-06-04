@@ -169,16 +169,32 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 ## 2026-05-30 — Repository unified: findRows + findRowsByActor replace domain-coupled UNION query
 
 **Decision:** `findActivityForProfile(Long userId)` removed. Replaced by two clean, domain-free methods:
-- `findRows(EntityType, Long entityId, Long filterActorId)` — entity-scoped; window functions over all rows for this entity, optional actor filter.
-- `findRowsByActor(Long actorId)` — actor-scoped; window functions over all rows where actor_id matches.
+- `findRows(EntityType, Long entityId, Long filterActorId, int limit)` — entity-scoped; window functions over all rows for this entity, optional actor filter, SQL-level LIMIT.
+- `findForActivity(List<EntityRef> subjects, Long actorId, int limit, int offset)` — unified activity query; replaces the old `findRowsByActor`.
 
-`AuditReadService.getForSubject(List<EntityRef> subjects, Long actorId)` merges streams from multiple `findRows` calls (one per subject entity) + `findRowsByActor`, deduplicates by id, sorts by `createdAt DESC`, limits to 20 in Java.
+`AuditReadService.getForSubject(List<EntityRef> subjects, Long actorId, int limit, int offset)` delegates directly to `findForActivity` — no Java dedup/sort/limit.
 
 `ProfileActivityParams` and `AuditActivityPanel.Parameters` now carry `List<EntityRef> subjects` + `Long actorId` instead of `subjectType`+`subjectId`. Marketplace passes `[EntityRef(USER, id), EntityRef(USER_SETTINGS, id)]` as subjects — the starter has zero knowledge of which entity types constitute a "profile".
 
 **Why:** The old UNION had `entity_type IN ('USER', 'USER_SETTINGS')` hardcoded — domain knowledge in the persistence layer. Now the repository is domain-free; marketplace decides which entities to include.
 
 **Rule:** `AuditLogRepository` must not contain any `EntityType` name literals or UNION queries combining domain-specific filters. One method per query axis (by entity, by actor).
+
+---
+
+## 2026-06-04 — findByActor: correlated subqueries replace window-function scan
+
+**Decision:** `findRowsByActor` removed. Replaced by `findByActor(Long actorId, int limit)`.
+
+Old `findRowsByActor`: CTE `entities_by_actor` found all distinct (entity_type, entity_id) pairs for the actor, then JOINed back to audit_log and ran window functions (`ROW_NUMBER`, `LAG`) over ALL rows of ALL those entities — unbounded as the actor's entity count grows. Java `.limit(20)` ran after all that work.
+
+New `findByActor`: CTE `actor_rows` fetches the actor's top N rows directly (indexed on `actor_id`, bounded by `LIMIT :limit`), then computes `version`, `prev_id`, `prev_snapshot_data` via correlated subqueries on only those N rows — 3 indexed point-lookups per row.
+
+`AuditReadService.getForSubject(subjects, actorId, limit)` keeps the Java merge/dedup/sort: both sources (`findRows` per subject entity, `findByActor` for actor) are now SQL-bounded, so at most `subjects.size() * limit + limit` rows ever reach Java.
+
+**Why not a single UNION SQL:** Dynamic SQL assembly in the repository (building subject predicate from `List<EntityRef>`) couples repository code to the "activity" concept and splits SQL across Java strings. Two clean static methods are simpler and easier to read.
+
+**Pagination:** `limit` is a parameter; callers currently pass `20`. True cursor/offset pagination across the merged stream requires a single UNION query — defer until needed.
 
 ---
 

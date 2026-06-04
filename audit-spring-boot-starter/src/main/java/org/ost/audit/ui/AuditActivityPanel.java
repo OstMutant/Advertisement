@@ -50,7 +50,7 @@ public class AuditActivityPanel extends Div
 
     @Override
     public AuditActivityPanel configure(Parameters p) {
-        List<AuditActivityItemDto<AuditableSnapshot>> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId());
+        List<AuditActivityItemDto<AuditableSnapshot>> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId(), 20);
         if (items.isEmpty()) {
             add(emptyState());
             return this;

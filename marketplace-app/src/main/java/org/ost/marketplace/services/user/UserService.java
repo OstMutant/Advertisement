@@ -98,9 +98,11 @@ public class UserService {
                 .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         User saved = repository.save(newUser);
-        auditPortFactory.ifAvailable(p -> p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId()));
         UserSettings defaults = UserSettings.defaultSettings();
-        auditPortFactory.ifAvailable(p -> p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId()));
+        auditPortFactory.ifAvailable(p -> {
+            p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId());
+            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId());
+        });
     }
 
     public Optional<User> findById(@NonNull Long id) {
