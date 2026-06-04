@@ -25,10 +25,18 @@ public final class YoutubeUtil {
     }
 
     public static String thumbnailUrl(String videoId) {
-        return "https://img.youtube.com/vi/" + videoId + "/mqdefault.jpg";
+        return "https://img.youtube.com/vi/%s/mqdefault.jpg".formatted(videoId);
     }
 
     public static String embedUrl(String videoId) {
-        return "https://www.youtube.com/embed/" + videoId;
+        return "https://www.youtube.com/embed/%s".formatted(videoId);
+    }
+
+    public static String watchUrl(String videoId) {
+        return "https://www.youtube.com/watch?v=%s".formatted(videoId);
+    }
+
+    public static String filename(String videoId) {
+        return "YouTube-%s".formatted(videoId);
     }
 }

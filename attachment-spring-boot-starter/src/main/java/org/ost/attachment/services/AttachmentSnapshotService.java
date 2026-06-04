@@ -102,7 +102,7 @@ public class AttachmentSnapshotService {
     private static String filename(String url) {
         if (url == null || url.isBlank()) return "";
         String ytId = YoutubeUtil.extractId(url);
-        if (ytId != null) return "YouTube-" + ytId;
+        if (ytId != null) return YoutubeUtil.filename(ytId);
         int i = url.lastIndexOf('/');
         return i >= 0 ? url.substring(i + 1) : url;
     }

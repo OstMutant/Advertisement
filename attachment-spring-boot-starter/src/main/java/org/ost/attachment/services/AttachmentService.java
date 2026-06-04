@@ -5,14 +5,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
-import org.ost.attachment.util.MediaContentTypeUtil;
 import org.ost.attachment.util.YoutubeUtil;
-import org.ost.platform.core.spi.CurrentActorHook;
-import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
-import org.ost.attachment.services.StorageService;
+import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -51,7 +49,6 @@ public class AttachmentService {
         if (url == null) return null;
         if (CT_YOUTUBE.equals(contentType)) return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(url));
         if (CT_EMBED.equals(contentType))   return null;
-        if (MediaContentTypeUtil.isUploadedVideo(contentType)) return url;
         return url;
     }
 
@@ -98,40 +95,28 @@ public class AttachmentService {
     public TempAttachment addVideoTemp(@NonNull String url) {
         String ytId = YoutubeUtil.extractId(url);
         if (ytId != null) {
-            return new TempAttachment("https://www.youtube.com/watch?v=" + ytId, "YouTube-" + ytId, CT_YOUTUBE, 0L);
+            return new TempAttachment(YoutubeUtil.watchUrl(ytId), YoutubeUtil.filename(ytId), CT_YOUTUBE, 0L);
         }
         if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
-        String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
-        return new TempAttachment(url, filename, CT_EMBED, 0L);
+        return new TempAttachment(url, embedFilename(url), CT_EMBED, 0L);
     }
 
     @Transactional
     public Attachment addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
         String ytId = YoutubeUtil.extractId(url);
+        if (url.isBlank() && ytId == null) throw new IllegalArgumentException("Invalid video URL");
+        Attachment saved;
         if (ytId != null) {
-            String watchUrl = "https://www.youtube.com/watch?v=" + ytId;
-            Attachment saved = attachmentRepository.save(Attachment.builder()
-                    .entityType(entityType)
-                    .entityId(entityId)
-                    .url(watchUrl)
-                    .filename("YouTube-" + ytId)
-                    .contentType(CT_YOUTUBE)
-                    .size(0L)
-                    .build());
-            captureMediaChanges(entityType, entityId);
-            notifyMediaChanged(entityType, entityId);
-            return saved;
+            saved = attachmentRepository.save(Attachment.builder()
+                    .entityType(entityType).entityId(entityId)
+                    .url(YoutubeUtil.watchUrl(ytId)).filename(YoutubeUtil.filename(ytId))
+                    .contentType(CT_YOUTUBE).size(0L).build());
+        } else {
+            saved = attachmentRepository.save(Attachment.builder()
+                    .entityType(entityType).entityId(entityId)
+                    .url(url).filename(embedFilename(url))
+                    .contentType(CT_EMBED).size(0L).build());
         }
-        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
-        String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
-        Attachment saved = attachmentRepository.save(Attachment.builder()
-                .entityType(entityType)
-                .entityId(entityId)
-                .url(url)
-                .filename(filename)
-                .contentType(CT_EMBED)
-                .size(0L)
-                .build());
         captureMediaChanges(entityType, entityId);
         notifyMediaChanged(entityType, entityId);
         return saved;
@@ -139,7 +124,7 @@ public class AttachmentService {
 
     public TempAttachment uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
                                      @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
-        String tempUrl = storageService.upload("temp/" + tempSessionId, filename, inputStream, contentLength, contentType);
+        String tempUrl = storageService.upload("temp/%s".formatted(tempSessionId), filename, inputStream, contentLength, contentType);
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
@@ -206,12 +191,16 @@ public class AttachmentService {
 
     // ── internals ────────────────────────────────────────────────────────────
 
+    private static String embedFilename(String url) {
+        return url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
     private static boolean isVideo(String contentType) {
         return CT_YOUTUBE.equals(contentType) || CT_EMBED.equals(contentType);
     }
 
     private static String folder(EntityType entityType, Long entityId) {
-        return entityType.name().toLowerCase() + "/" + entityId;
+        return "%s/%d".formatted(entityType.name().toLowerCase(), entityId);
     }
 
     private void notifyMediaChanged(EntityType entityType, Long entityId) {

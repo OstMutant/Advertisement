@@ -24,7 +24,7 @@ public class S3StorageService implements StorageService {
 
     @Override
     public String upload(String folder, String originalFilename, InputStream inputStream, long contentLength, String contentType) {
-        String key = folder + "/" + UUID.randomUUID() + extractExtension(originalFilename);
+        String key = "%s/%s%s".formatted(folder, UUID.randomUUID(), extractExtension(originalFilename));
         s3Client.putObject(
                 PutObjectRequest.builder().bucket(bucket).key(key).contentType(contentType).contentLength(contentLength).build(),
                 RequestBody.fromInputStream(inputStream, contentLength)
@@ -35,7 +35,7 @@ public class S3StorageService implements StorageService {
     @Override
     public String move(String fromUrl, String toFolder, String originalFilename) {
         String fromKey = extractKey(fromUrl);
-        String toKey = toFolder + "/" + UUID.randomUUID() + extractExtension(originalFilename);
+        String toKey = "%s/%s%s".formatted(toFolder, UUID.randomUUID(), extractExtension(originalFilename));
         s3Client.copyObject(CopyObjectRequest.builder().sourceBucket(bucket).sourceKey(fromKey).destinationBucket(bucket).destinationKey(toKey).build());
         s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(fromKey).build());
         return buildUrl(toKey);
@@ -59,7 +59,7 @@ public class S3StorageService implements StorageService {
     }
 
     private String buildUrl(String key) {
-        String base = publicUrl.endsWith("/") ? publicUrl : publicUrl + "/";
+        String base = publicUrl.endsWith("/") ? publicUrl : "%s/".formatted(publicUrl);
         return base + key;
     }
 

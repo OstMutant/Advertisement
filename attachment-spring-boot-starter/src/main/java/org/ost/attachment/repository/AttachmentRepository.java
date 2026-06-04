@@ -152,28 +152,18 @@ public class AttachmentRepository {
     }
 
     public MediaStats loadMediaStats(@NonNull EntityType entityType, @NonNull Long entityId) {
-        record Row(String url, String contentType) {}
-        var params = new MapSqlParameterSource()
-                .addValue("entityType", entityType.name())
-                .addValue("entityId",   entityId);
-        var main = jdbcClient.sql("""
-                        SELECT url, content_type FROM attachment
+        return jdbcClient.sql("""
+                        SELECT url, content_type, COUNT(*) OVER () AS total_count
+                        FROM attachment
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
-                        ORDER BY created_at ASC LIMIT 1
+                        ORDER BY created_at ASC
+                        LIMIT 1
                         """)
-                             .paramSource(params)
-                             .query((rs, _) -> new Row(rs.getString("url"), rs.getString("content_type")))
-                             .optional();
-        int count = jdbcClient.sql("""
-                        SELECT COUNT(*) FROM attachment
-                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
-                        """)
-                              .paramSource(params)
-                              .query(Integer.class)
-                              .optional()
-                              .orElse(0);
-        return main
-                .map(m -> new MediaStats(m.url(), m.contentType(), count))
-                .orElse(new MediaStats(null, null, count));
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType", entityType.name())
+                                 .addValue("entityId",   entityId))
+                         .query((rs, _) -> new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("total_count")))
+                         .optional()
+                         .orElse(new MediaStats(null, null, 0));
     }
 }
