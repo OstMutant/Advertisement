@@ -65,15 +65,13 @@ public class AuditReadService {
                 ? repository.findByActor(actorId, limit).stream()
                 : Stream.empty();
 
-        List<AuditActivityItemDto<AuditableSnapshot>> items = Stream.concat(subjectRows, actorRows)
+        List<AuditActivityItemDto<AuditableSnapshot>> merged = Stream.concat(subjectRows, actorRows)
                 .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
                 .values().stream()
                 .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
                 .limit(limit)
                 .map(this::toActivityItem)
                 .toList();
-
-        List<AuditActivityItemDto<AuditableSnapshot>> merged = items;
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             merged = hook.merge(subjects, merged);
         }
@@ -84,7 +82,7 @@ public class AuditReadService {
 
     private AuditHistoryItemDto toHistoryItem(AuditLogProjection row) {
         if (row.snapshot() == null) {
-            log.warn("Audit row id={} has null snapshot, rendering with empty changes", row.id());
+            warnNullSnapshot(row);
             return new AuditHistoryItemDto(row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
                     List.of(), row.prevId(), null, row.prevSnapshot());
         }
@@ -95,12 +93,16 @@ public class AuditReadService {
 
     private AuditActivityItemDto<AuditableSnapshot> toActivityItem(AuditLogProjection row) {
         if (row.snapshot() == null) {
-            log.warn("Audit row id={} has null snapshot, rendering with empty changes", row.id());
+            warnNullSnapshot(row);
             return new AuditActivityItemDto<>(row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
                     List.of(), row.actorId(), null);
         }
         return new AuditActivityItemDto<>(
                 row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
+    }
+
+    private void warnNullSnapshot(AuditLogProjection row) {
+        log.warn("Audit row id={} has null snapshot, rendering with empty changes", row.id());
     }
 }

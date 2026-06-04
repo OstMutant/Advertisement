@@ -24,6 +24,11 @@ public class ComponentFactory<T> {
         return ((Configurable<T, P>) provider.getObject()).configure(params);
     }
 
+    @SuppressWarnings("unchecked")
+    public <P, R> R buildAs(@NonNull P params) {
+        return (R) build(params);
+    }
+
     public T getIfAvailable() {
         return provider.getIfAvailable();
     }

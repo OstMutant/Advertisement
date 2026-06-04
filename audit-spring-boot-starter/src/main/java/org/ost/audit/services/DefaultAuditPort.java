@@ -1,5 +1,6 @@
 package org.ost.audit.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogRepository;
@@ -31,7 +32,7 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     @Transactional
-    public void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+    public void captureCreation(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId) {
         log.info("Audit capture: CREATED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.CREATED,
                 snapshot, resolveActor(actorId));
@@ -39,7 +40,7 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     @Transactional
-    public void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId) {
+    public void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot before, @NonNull AuditableSnapshot after, @NonNull Long actorId) {
         log.info("Audit capture: UPDATED {} id={}", after.entityType(), entityId);
         auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
                 after, resolveActor(actorId));
@@ -47,22 +48,17 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     @Transactional
-    public void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId) {
+    public void captureDeletion(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId) {
         log.info("Audit capture: DELETED {} id={}", snapshot.entityType(), entityId);
         auditLogRepository.save(snapshot.entityType(), entityId, ActionType.DELETED,
                 snapshot, resolveActor(actorId));
     }
 
     @Override
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType)
                 .flatMap(auditDomainHook::castIfKnown);
     }
 
-    @Override
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
-        return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType)
-                .flatMap(auditDomainHook::castIfKnown);
-    }
 
 }

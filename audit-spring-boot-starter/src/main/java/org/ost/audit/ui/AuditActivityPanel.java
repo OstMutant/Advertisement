@@ -4,8 +4,8 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
@@ -26,8 +26,10 @@ public class AuditActivityPanel extends Div
         implements Configurable<AuditActivityPanel, AuditActivityPanel.Parameters>,
                    Initialization<AuditActivityPanel> {
 
-    @Value
     @lombok.Builder
+    @lombok.Getter
+    @lombok.EqualsAndHashCode
+    @lombok.ToString
     public static class Parameters {
         @lombok.Builder.Default
         List<EntityRef>            subjects = List.of();
@@ -49,7 +51,7 @@ public class AuditActivityPanel extends Div
     }
 
     @Override
-    public AuditActivityPanel configure(Parameters p) {
+    public AuditActivityPanel configure(@NonNull Parameters p) {
         List<AuditActivityItemDto<AuditableSnapshot>> items = auditReadService.getForSubject(p.getSubjects(), p.getActorId(), 20);
         if (items.isEmpty()) {
             add(emptyState());

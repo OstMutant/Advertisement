@@ -49,7 +49,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final UserMapper                               mapper;
     @Getter
     private final I18nService                              i18nService;
-    private final transient ComponentFactory<OverlayFormBinder> formBinderFactory;
+    private final transient ComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final UiTextField                              nameField;
     private final UiComboBox<Role>                         roleComboBox;
     private final UiPrimaryButton                          saveButton;

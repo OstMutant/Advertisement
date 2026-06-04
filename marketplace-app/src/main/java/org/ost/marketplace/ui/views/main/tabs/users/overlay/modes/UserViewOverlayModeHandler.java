@@ -81,6 +81,22 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     protected Div buildPrimaryContent() {
         User user = params.getUser();
 
+        Div metaRow = new Div(
+                field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId())),
+                field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt())),
+                field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt())));
+        metaRow.addClassName("user-view-meta-row");
+
+        Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_VIEW)));
+        cardHeader.addClassName("overlay__view-card-header");
+
+        Div card = new Div(cardHeader, buildProfileRow(user), metaRow);
+        card.addClassName("user-view-card");
+
+        return card;
+    }
+
+    private Div buildProfileRow(User user) {
         String initials = user.getName() != null && !user.getName().isBlank()
                 ? user.getName().substring(0, Math.min(2, user.getName().length())).toUpperCase()
                 : "?";
@@ -102,21 +118,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
         Div profileRow = new Div(avatar, nameBlock);
         profileRow.addClassName("user-view-profile-row");
-
-        UiLabeledField idField      = field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId()));
-        UiLabeledField createdField = field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt()));
-        UiLabeledField updatedField = field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()));
-
-        Div metaRow = new Div(idField, createdField, updatedField);
-        metaRow.addClassName("user-view-meta-row");
-
-        Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_VIEW)));
-        cardHeader.addClassName("overlay__view-card-header");
-
-        Div card = new Div(cardHeader, profileRow, metaRow);
-        card.addClassName("user-view-card");
-
-        return card;
+        return profileRow;
     }
 
     @Override
@@ -150,7 +152,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         org.ost.marketplace.entities.Role currentRole = user.getRole();
         UserSettings currentSettings = userSettingsService.load(user.getId());
 
-        AuditActivityRowHook userBinding = auditUi.snapshotRowHook(
+        AuditActivityRowHook<UserSnapshotDto> userBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<UserSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER)
                         .isCurrent(snap -> snap.name().equals(currentName)
@@ -160,7 +162,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
                         .build());
 
-        AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
+        AuditActivityRowHook<SettingsSnapshotDto> settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
                         .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()

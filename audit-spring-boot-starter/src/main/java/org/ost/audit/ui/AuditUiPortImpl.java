@@ -2,6 +2,7 @@ package org.ost.audit.ui;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
@@ -17,7 +18,7 @@ public class AuditUiPortImpl implements AuditUiPort {
     private final ComponentFactory<AuditSnapshotBinder<?>>     snapshotBinderFactory;
 
     @Override
-    public Component buildAuditHistoryPanel(EntityHistoryParams p) {
+    public Component buildAuditHistoryPanel(@NonNull EntityHistoryParams p) {
         return historyPanelFactory.build(AuditHistoryPanel.Parameters.builder()
                 .entityType(p.getEntityType())
                 .entityId(p.getEntityId())
@@ -29,7 +30,7 @@ public class AuditUiPortImpl implements AuditUiPort {
     }
 
     @Override
-    public Component buildAuditActivityPanel(ProfileActivityParams p) {
+    public Component buildAuditActivityPanel(@NonNull ProfileActivityParams p) {
         return activityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .subjects(p.getSubjects())
                 .actorId(p.getActorId())
@@ -39,9 +40,8 @@ public class AuditUiPortImpl implements AuditUiPort {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> AuditActivityRowHook<T> snapshotRowHook(SnapshotRowHookParams<T> p) {
-        return (AuditActivityRowHook<T>) snapshotBinderFactory.build(AuditSnapshotBinder.Parameters.<T>builder()
+    public <T extends AuditableSnapshot> AuditActivityRowHook<T> snapshotRowHook(@NonNull SnapshotRowHookParams<T> p) {
+        return snapshotBinderFactory.buildAs(AuditSnapshotBinder.Parameters.<T>builder()
                 .entityType(p.getEntityType())
                 .isCurrent(p.getIsCurrent())
                 .subjectEntityId(p.getSubjectEntityId())

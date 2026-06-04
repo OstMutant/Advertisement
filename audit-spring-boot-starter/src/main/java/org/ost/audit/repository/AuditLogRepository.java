@@ -29,14 +29,13 @@ import java.util.Optional;
  * <p>Write side: {@link #save} appends a new snapshot row; {@link #deleteOlderThan} is called by the
  * cleanup scheduler.
  *
- * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findRowsByActor}
+ * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findByActor}
  * queries by actor across all entities. Both return {@link AuditLogProjection} with SQL window-function columns
  * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time — correct
  * for future pagination. Services map rows to their specific DTOs and apply limits via streams.
  *
- * <p>Snapshot-specific queries ({@link #getLastSnapshot}, {@link #getSnapshotContent},
- * {@link #getPreviousSnapshotContent}) are used by {@code DefaultAuditPort} for restore flows
- * and return typed results directly.
+ * <p>Snapshot-specific queries ({@link #getLastSnapshot}, {@link #getSnapshotContent}) are used
+ * by {@code DefaultAuditPort} for restore flows and return typed results directly.
  */
 @Slf4j
 @Repository
@@ -47,9 +46,6 @@ public class AuditLogRepository {
     @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
     private final JdbcClient                                   jdbcClient;
     private final ProjectionMapper                             projectionMapper;
-
-    private final RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> snapshotContentMapper =
-            (rs, _) -> new AuditSnapshotContentDto<>(fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
@@ -145,7 +141,7 @@ public class AuditLogRepository {
                                  .addValue("entityId",   entityId))
                          .query(String.class)
                          .optional()
-                         .map(this::fromSnapshot);
+                         .map(json -> parseSnapshot(objectMapper, json));
     }
 
     public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getSnapshotContent(Long snapshotId, EntityType entityType) {
@@ -159,34 +155,16 @@ public class AuditLogRepository {
                         WHERE a.id = :id AND a.entity_type = :entityType
                         """)
                          .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("entityType", entityType.name()))
-                         .query(snapshotContentMapper)
+                         .query(snapshotContentMapper())
                          .optional();
     }
 
-    public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
-        return jdbcClient.sql("""
-                        SELECT prev.snapshot_data::text AS snapshot_data,
-                               (SELECT COUNT(*) FROM audit_log b
-                                WHERE b.entity_type = prev.entity_type
-                                  AND b.entity_id   = prev.entity_id
-                                  AND b.created_at <= prev.created_at)::int AS version
-                        FROM audit_log cur
-                        JOIN LATERAL (
-                            SELECT entity_id, entity_type, snapshot_data, created_at
-                            FROM audit_log
-                            WHERE entity_type = :entityType
-                              AND entity_id = cur.entity_id
-                              AND created_at < cur.created_at
-                            ORDER BY created_at DESC LIMIT 1
-                        ) prev ON true
-                        WHERE cur.id = :snapshotId AND cur.entity_type = :entityType
-                        """)
-                         .paramSource(new MapSqlParameterSource().addValue("snapshotId", snapshotId).addValue("entityType", entityType.name()))
-                         .query(snapshotContentMapper)
-                         .optional();
-    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> snapshotContentMapper() {
+        return (rs, _) -> new AuditSnapshotContentDto<>(parseSnapshot(objectMapper, rs.getString("snapshot_data")), rs.getInt("version"));
+    }
 
     private String toSnapshotJson(AuditableSnapshot snapshot) {
         if (snapshot == null) return null;
@@ -197,7 +175,7 @@ public class AuditLogRepository {
         }
     }
 
-    private AuditableSnapshot fromSnapshot(String json) {
+    private static AuditableSnapshot parseSnapshot(ObjectMapper objectMapper, String json) {
         if (json == null || json.isBlank()) return null;
         try {
             return objectMapper.readValue(json, AuditableSnapshot.class);
@@ -207,7 +185,6 @@ public class AuditLogRepository {
         }
     }
 
-    @Slf4j
     @Component
     @RequiredArgsConstructor
     static class ProjectionMapper implements RowMapper<AuditLogProjection> {
@@ -221,23 +198,13 @@ public class AuditLogRepository {
                     EntityType.valueOf(rs.getString("entity_type")),
                     rs.getObject("entity_id",   Long.class),
                     ActionType.valueOf(rs.getString("action_type")),
-                    fromSnapshot(rs.getString("snapshot_data")),
+                    parseSnapshot(objectMapper, rs.getString("snapshot_data")),
                     rs.getObject("actor_id",    Long.class),
                     instant(rs, "created_at"),
                     rs.getInt("version"),
                     rs.getObject("prev_id",     Long.class),
-                    fromSnapshot(rs.getString("prev_snapshot_data"))
+                    parseSnapshot(objectMapper, rs.getString("prev_snapshot_data"))
             );
-        }
-
-        private AuditableSnapshot fromSnapshot(String json) {
-            if (json == null || json.isBlank()) return null;
-            try {
-                return objectMapper.readValue(json, AuditableSnapshot.class);
-            } catch (Exception e) {
-                log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
-                return null;
-            }
         }
 
         private static Instant instant(ResultSet rs, String col) throws SQLException {

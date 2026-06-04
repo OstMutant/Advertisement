@@ -34,8 +34,10 @@ public interface AuditUiPort {
         ObjLongConsumer<AuditHistoryItemDto>      onRestoreRequested;
     }
 
-    @Value
     @lombok.Builder
+    @lombok.Getter
+    @lombok.EqualsAndHashCode
+    @lombok.ToString
     class ProfileActivityParams {
         @lombok.Builder.Default
         List<EntityRef>            subjects = List.of();
@@ -58,5 +60,5 @@ public interface AuditUiPort {
 
     Component buildAuditActivityPanel(@NonNull ProfileActivityParams params);
 
-    <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(@NonNull SnapshotRowHookParams<T> params);
+    <T extends AuditableSnapshot> AuditActivityRowHook<T> snapshotRowHook(@NonNull SnapshotRowHookParams<T> params);
 }

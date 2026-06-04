@@ -51,7 +51,7 @@ public class AuditSnapshotBinder<T extends AuditableSnapshot>
     }
 
     @Override
-    public Component decorate(AuditActivityItemDto<T> item) {
+    public Component decorate(@NonNull AuditActivityItemDto<T> item) {
         if (item.snapshotId() == null || item.snapshotData() == null) return null;
         T snap = item.snapshotData();
         if (params.getIsCurrent().test(snap)) {

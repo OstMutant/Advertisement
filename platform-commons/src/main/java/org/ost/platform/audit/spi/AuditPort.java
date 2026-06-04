@@ -19,5 +19,4 @@ public interface AuditPort {
     void captureDeletion(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
 
     <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType);
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType);
 }

@@ -4,6 +4,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -49,7 +50,7 @@ public class AuditHistoryPanel extends Div
     }
 
     @Override
-    public AuditHistoryPanel configure(Parameters p) {
+    public AuditHistoryPanel configure(@NonNull Parameters p) {
         AuditableSnapshot currentSnapshot = auditReadService
                 .getLastSnapshot(p.getEntityType(), p.getEntityId())
                 .orElse(null);
