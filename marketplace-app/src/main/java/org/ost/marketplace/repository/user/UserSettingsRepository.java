@@ -1,6 +1,7 @@
 package org.ost.marketplace.repository.user;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.entities.UserSettings;
@@ -22,7 +23,7 @@ public class UserSettingsRepository {
     private final ObjectMapper mapper;
 
     @Transactional
-    public void save(Long userId, UserSettings settings) {
+    public void save(@NonNull Long userId, @NonNull UserSettings settings) {
         try {
             jdbcClient.sql("UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId")
                       .paramSource(new MapSqlParameterSource()
@@ -35,7 +36,7 @@ public class UserSettingsRepository {
         }
     }
 
-    public UserSettings load(Long userId) {
+    public UserSettings load(@NonNull Long userId) {
         try {
             return jdbcClient.sql("SELECT settings FROM user_information WHERE id = :userId")
                              .paramSource(new MapSqlParameterSource("userId", userId))

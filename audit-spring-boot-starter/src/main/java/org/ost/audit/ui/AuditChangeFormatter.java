@@ -3,6 +3,7 @@ package org.ost.audit.ui;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.i18n.I18nService;
@@ -24,10 +25,10 @@ public class AuditChangeFormatter {
         return badge;
     }
 
-    public Div buildChangesList(List<ChangeEntry> changes, String cssClass) {
+    public Div buildChangesList(@NonNull List<ChangeEntry> changes, @NonNull String cssClass) {
         Div container = new Div();
         container.addClassName(cssClass);
-        if (changes == null || changes.isEmpty()) return container;
+        if (changes.isEmpty()) return container;
         for (ChangeEntry entry : changes) {
             String text = format(entry);
             if (text != null && !text.isBlank()) {
@@ -39,7 +40,7 @@ public class AuditChangeFormatter {
         return container;
     }
 
-    public String format(ChangeEntry entry) {
+    public String format(@NonNull ChangeEntry entry) {
         return switch (entry) {
             case ChangeEntry.FieldChange(var field, var from, var to) -> {
                 if (from == null || from.isBlank()) {

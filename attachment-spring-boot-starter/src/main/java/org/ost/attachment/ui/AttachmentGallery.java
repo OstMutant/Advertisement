@@ -17,6 +17,7 @@ import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.server.streams.UploadHandler;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
@@ -81,14 +82,14 @@ public class AttachmentGallery extends Div {
         add(title, thumbnailsRow, emptyState);
     }
 
-    public void configureForView(EntityType entityType, Long entityId) {
+    public void configureForView(@NonNull EntityType entityType, @NonNull Long entityId) {
         this.entityType = entityType;
         this.entityId   = entityId;
         this.editMode   = false;
         refresh();
     }
 
-    public void configureForEdit(EntityType entityType, Long entityId) {
+    public void configureForEdit(@NonNull EntityType entityType, @NonNull Long entityId) {
         this.entityType = entityType;
         this.entityId   = entityId;
         this.editMode   = true;
@@ -102,7 +103,7 @@ public class AttachmentGallery extends Div {
         add(uploadButton, videoInput);
     }
 
-    public void configureForCreate(EntityType entityType, String tempSessionId) {
+    public void configureForCreate(@NonNull EntityType entityType, @NonNull String tempSessionId) {
         this.entityType = entityType;
         this.entityId   = null;
         this.editMode   = true;
@@ -116,7 +117,7 @@ public class AttachmentGallery extends Div {
         add(uploadButton, videoInput);
     }
 
-    public void commitTempUploads(EntityType entityType, Long entityId) {
+    public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId) {
         boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && !hasPendingDeletion) return;
         if (!tempUploads.isEmpty()) {

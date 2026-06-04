@@ -1,5 +1,6 @@
 package org.ost.marketplace.spi;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -25,7 +26,7 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
     }
 
     @Override
-    public List<AuditActivityItemDto<AuditableSnapshot>> merge(List<EntityRef> subjects, List<AuditActivityItemDto<AuditableSnapshot>> base) {
+    public List<AuditActivityItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditActivityItemDto<AuditableSnapshot>> base) {
         EntityRef primary = subjects.isEmpty() ? null : subjects.getFirst();
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.merge(primary, base))
@@ -33,28 +34,28 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
     }
 
     @Override
-    public List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version) {
+    public List<ChangeEntry> getAdditionalChanges(@NonNull EntityRef entity, int version) {
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.getMediaChanges(entity, version))
                 .orElse(List.of());
     }
 
     @Override
-    public boolean matchesCurrent(EntityRef entity, int version) {
+    public boolean matchesCurrent(@NonNull EntityRef entity, int version) {
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.mediaMatchCurrent(entity, version))
                 .orElse(true);
     }
 
     @Override
-    public String getMediaStateForSnapshot(EntityRef ref, Long snapshotId) {
+    public String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) {
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.getMediaStateForSnapshot(ref, snapshotId))
                 .orElse(null);
     }
 
     @Override
-    public String getMediaStateAtVersion(EntityRef ref, int version) {
+    public String getMediaStateAtVersion(@NonNull EntityRef ref, int version) {
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.getMediaStateAtVersion(ref, version))
                 .orElse(null);

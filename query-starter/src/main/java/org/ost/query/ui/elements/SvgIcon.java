@@ -28,12 +28,12 @@ public class SvgIcon extends Span implements Configurable<SvgIcon, SvgIcon.Param
     }
 
     @Override
-    public SvgIcon configure(Parameters p) {
+    public SvgIcon configure(@NonNull Parameters p) {
         setSvg(p.getResourcePath());
         return this;
     }
 
-    public void setSvg(String resourcePath) {
+    public void setSvg(@NonNull String resourcePath) {
         String svg = SvgUtil.loadSvg(resourcePath);
         if (!svg.isBlank()) {
             getElement().setProperty("innerHTML", svg);

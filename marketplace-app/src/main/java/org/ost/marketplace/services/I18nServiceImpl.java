@@ -1,5 +1,6 @@
 package org.ost.marketplace.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.LocaleProvider;
@@ -15,12 +16,12 @@ public class I18nServiceImpl implements I18nService {
     private final LocaleProvider localeProvider;
 
     @Override
-    public String get(String key, Object... args) {
+    public String get(@NonNull String key, Object... args) {
         return messageSource.getMessage(key, args, localeProvider.getCurrentLocale());
     }
 
     @Override
-    public String get(TranslationKey key, Object... args) {
+    public String get(@NonNull TranslationKey key, Object... args) {
         return messageSource.getMessage(key.key(), args, localeProvider.getCurrentLocale());
     }
 }

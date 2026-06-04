@@ -1,5 +1,6 @@
 package org.ost.marketplace.spi;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
@@ -14,7 +15,7 @@ public class MediaChangeHookImpl implements AttachmentMediaChangeHook {
     private final AdvertisementService advertisementService;
 
     @Override
-    public void onMediaChanged(EntityRef entity) {
+    public void onMediaChanged(@NonNull EntityRef entity) {
         if (entity.entityType() != EntityType.ADVERTISEMENT) return;
         advertisementService.onMediaChanged(entity.entityId());
     }

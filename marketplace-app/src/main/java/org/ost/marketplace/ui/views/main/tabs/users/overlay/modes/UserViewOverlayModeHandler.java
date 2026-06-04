@@ -121,12 +121,12 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
-        if (auditUi == null) return null;
-        return new SecondaryTabDef(
-                new Tab(getValue(ACTIVITY_TAB)),
-                "activity-feed-content",
-                () -> buildActivityContent(params.getUser(), auditUi));
+        return auditUiPortFactory.findIfAvailable()
+                .map(auditUi -> new SecondaryTabDef(
+                        new Tab(getValue(ACTIVITY_TAB)),
+                        "activity-feed-content",
+                        () -> buildActivityContent(params.getUser(), auditUi)))
+                .orElse(null);
     }
 
     @Override

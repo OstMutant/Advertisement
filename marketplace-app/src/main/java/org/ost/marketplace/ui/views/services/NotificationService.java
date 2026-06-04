@@ -11,6 +11,7 @@ import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.Getter;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.platform.core.i18n.I18nService;
@@ -25,22 +26,22 @@ public class NotificationService {
     /**
      * Convenience method for success notifications
      */
-    public void success(I18nKey key, Object... args) {
+    public void success(@NonNull I18nKey key, Object... args) {
         show(NotificationType.SUCCESS, key, args);
     }
 
-    public void success(String message) {
+    public void success(@NonNull String message) {
         show(NotificationType.SUCCESS, message);
     }
 
     /**
      * Convenience method for error notifications
      */
-    public void error(I18nKey key, Object... args) {
+    public void error(@NonNull I18nKey key, Object... args) {
         show(NotificationType.ERROR, key, args);
     }
 
-    public void error(String message) {
+    public void error(@NonNull String message) {
         show(NotificationType.ERROR, message);
     }
 

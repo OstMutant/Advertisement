@@ -1,5 +1,6 @@
 package org.ost.query.filter;
 
+import lombok.NonNull;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 
 import java.util.List;
@@ -19,16 +20,16 @@ public class SqlFilterBuilder<F> {
 
     protected final List<SqlFilterBinding<F, ?>> bindings;
 
-    public SqlFilterBuilder(List<SqlFilterBinding<F, ?>> bindings) {
+    public SqlFilterBuilder(@NonNull List<SqlFilterBinding<F, ?>> bindings) {
         this.bindings = List.copyOf(bindings);
     }
 
-    public String build(MapSqlParameterSource params, F filter, String prefix) {
+    public String build(@NonNull MapSqlParameterSource params, @NonNull F filter, @NonNull String prefix) {
         String dynamic = build(params, filter);
         return dynamic.isBlank() ? "" : prefix + dynamic;
     }
 
-    public String build(MapSqlParameterSource params, F filter) {
+    public String build(@NonNull MapSqlParameterSource params, @NonNull F filter) {
         List<SqlCondition<?>> sqlConditions = bindings.stream()
                 .<SqlCondition<?>>map(r -> r.getCondition(filter))
                 .filter(Objects::nonNull)

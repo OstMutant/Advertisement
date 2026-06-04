@@ -87,31 +87,28 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         Div settingsPanel = new Div(settingsCardHeader, form);
         settingsPanel.addClassName("overlay__form-fields-card");
 
-        Div content;
+        Div content = auditUiPortFactory.findIfAvailable()
+                .map(auditUi -> {
+                    activityPanel = new Div();
+                    activityPanel.setVisible(false);
 
-        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
-        if (auditUi != null) {
-            activityPanel = new Div();
-            activityPanel.setVisible(false);
+                    settingsTab     = new Tab(getValue(SETTINGS_SECTION_TITLE));
+                    Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
+                    tabs = new Tabs(settingsTab, activityTab);
+                    tabs.addClassName("user-view-tabs");
 
-            settingsTab      = new Tab(getValue(SETTINGS_SECTION_TITLE));
-            Tab activityTab  = new Tab(getValue(ACTIVITY_TAB));
-            tabs = new Tabs(settingsTab, activityTab);
-            tabs.addClassName("user-view-tabs");
+                    tabs.addSelectedChangeListener(event -> {
+                        boolean isSettings = event.getSelectedTab() == settingsTab;
+                        settingsPanel.setVisible(isSettings);
+                        activityPanel.setVisible(!isSettings);
+                        if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
+                            activityPanel.add(buildActivityContent(auditUi, user));
+                        }
+                    });
 
-            tabs.addSelectedChangeListener(event -> {
-                boolean isSettings = event.getSelectedTab() == settingsTab;
-                settingsPanel.setVisible(isSettings);
-                activityPanel.setVisible(!isSettings);
-                if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
-                    activityPanel.add(buildActivityContent(auditUi, user));
-                }
-            });
-
-            content = new Div(tabs, settingsPanel, activityPanel);
-        } else {
-            content = new Div(settingsPanel);
-        }
+                    return new Div(tabs, settingsPanel, activityPanel);
+                })
+                .orElseGet(() -> new Div(settingsPanel));
 
         content.addClassName("settings-overlay-content");
         layout.setContent(content);

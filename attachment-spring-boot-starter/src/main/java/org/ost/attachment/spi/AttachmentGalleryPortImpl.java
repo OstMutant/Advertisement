@@ -1,6 +1,7 @@
 package org.ost.attachment.spi;
 
 import com.vaadin.flow.component.Component;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
@@ -23,28 +24,28 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
     private final AttachmentService                     attachmentService;
 
     @Override
-    public Component buildGalleryForView(EntityRef entity) {
+    public Component buildGalleryForView(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForView(entity.entityType(), entity.entityId());
         return gallery;
     }
 
     @Override
-    public FormHandle buildGalleryForCreate(EntityType entityType, String tempSessionId) {
+    public FormHandle buildGalleryForCreate(@NonNull EntityType entityType, @NonNull String tempSessionId) {
         AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForCreate(entityType, tempSessionId);
         return new Handle(gallery);
     }
 
     @Override
-    public FormHandle buildGalleryForEdit(EntityRef entity) {
+    public FormHandle buildGalleryForEdit(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForEdit(entity.entityType(), entity.entityId());
         return new Handle(gallery);
     }
 
     @Override
-    public void openMediaLightbox(EntityRef entity) {
+    public void openMediaLightbox(@NonNull EntityRef entity) {
         List<Attachment> attachments =
                 attachmentService.getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {

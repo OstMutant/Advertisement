@@ -1,5 +1,6 @@
 package org.ost.marketplace.repository.advertisement;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
@@ -56,10 +57,10 @@ public class AdvertisementRepository {
     private final JdbcClient jdbcClient;
     private final AdvertisementCrudRepository crud;
 
-    public Advertisement save(Advertisement ad)    { return crud.save(ad); }
-    public Optional<Advertisement> findById(Long id) { return crud.findById(id); }
+    public Advertisement save(@NonNull Advertisement ad)    { return crud.save(ad); }
+    public Optional<Advertisement> findById(@NonNull Long id) { return crud.findById(id); }
 
-    public Optional<AdvertisementInfoDto> findAdvertisementById(Long id) {
+    public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
         return jdbcClient.sql("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
@@ -71,7 +72,7 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).optional();
     }
 
-    public List<AdvertisementInfoDto> findByFilter(AdvertisementFilterDto filter, Pageable pageable) {
+    public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
                 Map.entry("id",                    "a.id"),
@@ -95,14 +96,14 @@ public class AdvertisementRepository {
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(AdvertisementFilterDto filter) {
+    public Long countByFilter(@NonNull AdvertisementFilterDto filter) {
         var params = new MapSqlParameterSource();
         String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s"
                 .formatted(FILTER.build(params, filter, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
-    public void softDelete(Long id, Long deletedByUserId) {
+    public void softDelete(@NonNull Long id, Long deletedByUserId) {
         jdbcClient.sql("UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
                   .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId))
                   .update();
@@ -113,14 +114,14 @@ public class AdvertisementRepository {
                   .paramSource(new MapSqlParameterSource("days", days)).update();
     }
 
-    public List<Long> findExistingIds(Long[] ids) {
+    public List<Long> findExistingIds(@NonNull Long[] ids) {
         return jdbcClient.sql("SELECT id FROM advertisement WHERE id = ANY(:ids) AND deleted_at IS NULL")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(Long.class)
                 .list();
     }
 
-    public void updateMedia(Long entityId, AttachmentMediaSummaryDto summary) {
+    public void updateMedia(@NonNull Long entityId, @NonNull AttachmentMediaSummaryDto summary) {
         jdbcClient.sql("UPDATE advertisement SET media_url = :media_url, media_content_type = :media_content_type, media_count = :media_count WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("media_url",          summary.displayUrl())

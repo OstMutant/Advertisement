@@ -2,6 +2,7 @@ package org.ost.query.ui.filter;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -13,7 +14,7 @@ public class ValidationService<T> {
 
     private final Validator validator;
 
-    public boolean isValid(T obj) {
+    public boolean isValid(@NonNull T obj) {
         return validator.validate(obj).isEmpty();
     }
 
@@ -21,7 +22,7 @@ public class ValidationService<T> {
      * Checks field-level constraints directly on the property.
      * Note: does NOT catch class-level (@ValidRange) violations.
      */
-    public boolean isValidProperty(T obj, String property) {
+    public boolean isValidProperty(@NonNull T obj, @NonNull String property) {
         return validator.validateProperty(obj, property).isEmpty();
     }
 
@@ -30,7 +31,7 @@ public class ValidationService<T> {
      * true only if there are no violations whose property path matches the
      * given property name.
      */
-    public boolean isValidForProperty(T obj, String property) {
+    public boolean isValidForProperty(@NonNull T obj, @NonNull String property) {
         Set<ConstraintViolation<T>> violations = validator.validate(obj);
         return violations.stream()
                 .noneMatch(v -> property.equals(v.getPropertyPath().toString()));

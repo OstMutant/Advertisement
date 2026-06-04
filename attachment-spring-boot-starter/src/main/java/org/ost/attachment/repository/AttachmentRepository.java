@@ -1,5 +1,6 @@
 package org.ost.attachment.repository;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
 import org.ost.platform.core.model.EntityType;
@@ -40,25 +41,25 @@ public class AttachmentRepository {
     private final JdbcClient jdbcClient;
     private final AttachmentCrudRepository crud;
 
-    public Attachment save(Attachment attachment) {
+    public Attachment save(@NonNull Attachment attachment) {
         return crud.save(attachment);
     }
 
-    public Iterable<Attachment> saveAll(Iterable<Attachment> attachments) {
+    public Iterable<Attachment> saveAll(@NonNull Iterable<Attachment> attachments) {
         return crud.saveAll(attachments);
     }
 
-    public Optional<Attachment> findById(Long id) {
+    public Optional<Attachment> findById(@NonNull Long id) {
         return crud.findById(id);
     }
 
-    public void softDelete(Long id, Long actorId) {
+    public void softDelete(@NonNull Long id, @NonNull Long actorId) {
         jdbcClient.sql("UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId WHERE id = :id")
                   .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("actorId", actorId))
                   .update();
     }
 
-    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
+    public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
         jdbcClient.sql("""
                         UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
@@ -70,7 +71,7 @@ public class AttachmentRepository {
                   .update();
     }
 
-    public void restoreDeleteAll(EntityType entityType, Long entityId) {
+    public void restoreDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId) {
         jdbcClient.sql("""
                         UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NOT NULL
@@ -81,7 +82,7 @@ public class AttachmentRepository {
                   .update();
     }
 
-    public void restoreUndelete(EntityType entityType, Long entityId, String[] urls) {
+    public void restoreUndelete(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls) {
         jdbcClient.sql("""
                         UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL
                         WHERE entity_type = :entityType AND entity_id = :entityId AND url = ANY(:urls)
@@ -93,7 +94,7 @@ public class AttachmentRepository {
                   .update();
     }
 
-    public void restoreMarkDeleted(EntityType entityType, Long entityId, Long actorId, String[] urls) {
+    public void restoreMarkDeleted(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId, @NonNull String[] urls) {
         jdbcClient.sql("""
                         UPDATE attachment SET deleted_at = NOW(), deleted_by_actor_id = :actorId
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -107,7 +108,7 @@ public class AttachmentRepository {
                   .update();
     }
 
-    public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
+    public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT id, entity_type, entity_id, url, filename, content_type, size,
                                created_at, deleted_at, deleted_by_actor_id
@@ -121,7 +122,7 @@ public class AttachmentRepository {
                          .list();
     }
 
-    public List<String> getActiveUrls(EntityType entityType, Long entityId) {
+    public List<String> getActiveUrls(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT url FROM attachment
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
@@ -144,13 +145,13 @@ public class AttachmentRepository {
                          .list();
     }
 
-    public int deleteByUrls(List<String> urls) {
+    public int deleteByUrls(@NonNull List<String> urls) {
         return jdbcClient.sql("DELETE FROM attachment WHERE url IN (:urls)")
                          .paramSource(new MapSqlParameterSource("urls", urls))
                          .update();
     }
 
-    public MediaStats loadMediaStats(EntityType entityType, Long entityId) {
+    public MediaStats loadMediaStats(@NonNull EntityType entityType, @NonNull Long entityId) {
         record Row(String url, String contentType) {}
         var params = new MapSqlParameterSource()
                 .addValue("entityType", entityType.name())

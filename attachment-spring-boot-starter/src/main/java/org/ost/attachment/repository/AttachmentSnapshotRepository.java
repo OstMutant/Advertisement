@@ -2,6 +2,7 @@ package org.ost.attachment.repository;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.ost.platform.core.model.EntityType;
@@ -24,7 +25,7 @@ public class AttachmentSnapshotRepository {
     private final JdbcClient                                       jdbcClient;
 
     @SneakyThrows
-    public void insert(EntityType entityType, Long entityId, String[] urls, List<AttachmentMediaChange> changes, Long actorId) {
+    public void insert(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls, @NonNull List<AttachmentMediaChange> changes, @NonNull Long actorId) {
         jdbcClient.sql("""
                         INSERT INTO attachment_snapshot
                             (entity_type, entity_id, attachment_urls, changes_summary, changed_by_actor_id, created_at)
@@ -39,7 +40,7 @@ public class AttachmentSnapshotRepository {
                   .update();
     }
 
-    public List<String> getPrevUrls(EntityType entityType, Long entityId) {
+    public List<String> getPrevUrls(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT attachment_urls FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -53,7 +54,7 @@ public class AttachmentSnapshotRepository {
                          .orElse(List.of());
     }
 
-    public String[] getUrlsAtVersion(EntityType entityType, Long entityId, int version) {
+    public String[] getUrlsAtVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {
         return jdbcClient.sql("""
                         SELECT attachment_urls FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -76,7 +77,7 @@ public class AttachmentSnapshotRepository {
                          .orElse(new String[0]);
     }
 
-    public Optional<List<String>> getUrlsForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
+    public Optional<List<String>> getUrlsForSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
         return jdbcClient.sql("""
                         SELECT attachment_urls FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -97,7 +98,7 @@ public class AttachmentSnapshotRepository {
     }
 
     @SneakyThrows
-    public Optional<List<AttachmentMediaChange>> findChangesBySnapshotId(EntityType entityType, Long entityId, Long snapshotId) {
+    public Optional<List<AttachmentMediaChange>> findChangesBySnapshotId(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
         Optional<String> json = jdbcClient.sql("""
                         SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -122,7 +123,7 @@ public class AttachmentSnapshotRepository {
     }
 
     @SneakyThrows
-    public Optional<List<AttachmentMediaChange>> findChangesByVersion(EntityType entityType, Long entityId, int version) {
+    public Optional<List<AttachmentMediaChange>> findChangesByVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {
         Optional<String> json = jdbcClient.sql("""
                         SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId

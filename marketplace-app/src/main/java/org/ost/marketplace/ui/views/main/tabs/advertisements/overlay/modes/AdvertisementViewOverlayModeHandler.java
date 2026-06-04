@@ -101,12 +101,13 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
-        if (auditUi == null || !access.canOperate(params.getAd())) return null;
-        return new SecondaryTabDef(
-                new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
-                "entity-history-content",
-                () -> buildHistoryContent(params.getAd(), auditUi));
+        return auditUiPortFactory.findIfAvailable()
+                .filter(_ -> access.canOperate(params.getAd()))
+                .map(auditUi -> new SecondaryTabDef(
+                        new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
+                        "entity-history-content",
+                        () -> buildHistoryContent(params.getAd(), auditUi)))
+                .orElse(null);
     }
 
     @Override

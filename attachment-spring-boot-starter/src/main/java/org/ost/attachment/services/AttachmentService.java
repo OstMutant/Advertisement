@@ -1,5 +1,6 @@
 package org.ost.attachment.services;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
@@ -34,11 +35,11 @@ public class AttachmentService {
     private final CurrentActorHook            currentActorHook;
     private final AttachmentMediaChangeHook   mediaChangeHook;
 
-    public List<Attachment> getByEntityId(EntityType entityType, Long entityId) {
+    public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId);
     }
 
-    public AttachmentMediaSummaryDto getMediaSummary(EntityType entityType, Long entityId) {
+    public AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityType entityType, @NonNull Long entityId) {
         AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityType, entityId);
         return new AttachmentMediaSummaryDto(
                 resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
@@ -54,8 +55,8 @@ public class AttachmentService {
         return url;
     }
 
-    public Attachment upload(EntityType entityType, Long entityId, String filename,
-                             InputStream inputStream, long contentLength, String contentType) {
+    public Attachment upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
+                             @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
         String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
         try {
             Attachment saved = attachmentRepository.save(Attachment.builder()
@@ -76,7 +77,7 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void delete(Long attachmentId) {
+    public void delete(@NonNull Long attachmentId) {
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
             Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
             attachmentRepository.softDelete(attachmentId, actorId);
@@ -86,7 +87,7 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void deleteSkipSnapshot(Long attachmentId) {
+    public void deleteSkipSnapshot(@NonNull Long attachmentId) {
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
             Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
             attachmentRepository.softDelete(attachmentId, actorId);
@@ -94,18 +95,18 @@ public class AttachmentService {
         });
     }
 
-    public TempAttachment addVideoTemp(String url) {
+    public TempAttachment addVideoTemp(@NonNull String url) {
         String ytId = YoutubeUtil.extractId(url);
         if (ytId != null) {
             return new TempAttachment("https://www.youtube.com/watch?v=" + ytId, "YouTube-" + ytId, CT_YOUTUBE, 0L);
         }
-        if (url == null || url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
         String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
         return new TempAttachment(url, filename, CT_EMBED, 0L);
     }
 
     @Transactional
-    public Attachment addVideo(EntityType entityType, Long entityId, String url) {
+    public Attachment addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
         String ytId = YoutubeUtil.extractId(url);
         if (ytId != null) {
             String watchUrl = "https://www.youtube.com/watch?v=" + ytId;
@@ -121,7 +122,7 @@ public class AttachmentService {
             notifyMediaChanged(entityType, entityId);
             return saved;
         }
-        if (url == null || url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
         String filename = url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
         Attachment saved = attachmentRepository.save(Attachment.builder()
                 .entityType(entityType)
@@ -136,23 +137,23 @@ public class AttachmentService {
         return saved;
     }
 
-    public TempAttachment uploadTemp(String tempSessionId, String filename,
-                                     InputStream inputStream, long contentLength, String contentType) {
+    public TempAttachment uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
+                                     @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
         String tempUrl = storageService.upload("temp/" + tempSessionId, filename, inputStream, contentLength, contentType);
         return new TempAttachment(tempUrl, filename, contentType, contentLength);
     }
 
-    public void commitTempUploads(EntityType entityType, Long entityId, List<TempAttachment> temps) {
+    public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull List<TempAttachment> temps) {
         commitTempUploadsQuiet(entityType, entityId, temps);
         captureMediaChanges(entityType, entityId);
         notifyMediaChanged(entityType, entityId);
     }
 
-    public void captureSnapshot(EntityType entityType, Long entityId) {
+    public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
         captureMediaChanges(entityType, entityId);
     }
 
-    public void commitTempUploadsQuiet(EntityType entityType, Long entityId, @lombok.NonNull List<TempAttachment> temps) {
+    public void commitTempUploadsQuiet(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull List<TempAttachment> temps) {
         String folder = folder(entityType, entityId);
         List<Attachment> toSave = temps.stream()
                 .map(t -> {
@@ -180,8 +181,8 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long actorId) {
-        if (targetUrls == null || targetUrls.length == 0) {
+    public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] targetUrls, @NonNull Long actorId) {
+        if (targetUrls.length == 0) {
             attachmentRepository.softDeleteAll(entityType, entityId, actorId);
             notifyMediaChanged(entityType, entityId);
             return;
@@ -192,12 +193,12 @@ public class AttachmentService {
     }
 
     @Transactional
-    public void softDeleteAll(EntityType entityType, Long entityId, Long actorId) {
+    public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
         attachmentRepository.softDeleteAll(entityType, entityId, actorId);
         notifyMediaChanged(entityType, entityId);
     }
 
-    public void discardTempUploads(List<TempAttachment> temps) {
+    public void discardTempUploads(@NonNull List<TempAttachment> temps) {
         temps.stream()
              .filter(t -> !isVideo(t.contentType()))
              .forEach(t -> storageService.delete(t.tempUrl()));

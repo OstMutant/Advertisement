@@ -1,5 +1,6 @@
 package org.ost.marketplace.spi;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.dto.audit.UserSnapshotDto;
@@ -27,12 +28,12 @@ public class UserActivityFieldsHookImpl implements AuditActivityFieldsHook {
     }
 
     @Override
-    public List<ChangeEntry> expandFields(AuditActivityItemDto<AuditableSnapshot> item) {
+    public List<ChangeEntry> expandFields(@NonNull AuditActivityItemDto<AuditableSnapshot> item) {
         return userService.expandActivityFields(item);
     }
 
     @Override
-    public String labelFor(String rawFieldKey) {
+    public String labelFor(@NonNull String rawFieldKey) {
         return switch (rawFieldKey) {
             case UserSnapshotDto.Fields.name  -> i18n.get(I18nKey.CHANGES_FIELD_NAME);
             case UserSnapshotDto.Fields.email -> i18n.get(I18nKey.CHANGES_FIELD_EMAIL);
