@@ -224,23 +224,15 @@ public record AuditLogProjection(
 
 ---
 
-## 2026-06-02 — AuditHistoryRowActionsHook: restore button and current-state badge moved to marketplace
+## 2026-06-02 — DEFERRED: AuditHistoryRowActionsHook for restore button decoupling
 
-**Decision:** `AuditHistoryPanel` no longer builds the "Restore this version" button or "Current state" badge itself. Instead it calls `AuditHistoryRowActionsHook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — absent when the hook is not registered, no-op when absent.
+**Status: Not implemented.** `AuditHistoryPanel` still builds the restore button and current-state badge directly; the hook SPI does not exist yet.
 
-`AuditHistoryRowActionsHook` lives in `platform-commons/audit.spi`. Marketplace provides `AuditHistoryRowActionsHookImpl` (prefixed with `Audit` to distinguish it from other hook impls in the `spi` package).
+**Proposed design (when triggered):** Replace the direct `onRestoreRequested` callback in `AuditHistoryPanel.Parameters` with an `AuditHistoryRowActionsHook` SPI in `platform-commons/audit.spi`. The panel calls `hook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — no-op when absent. Marketplace provides `AuditHistoryRowActionsHookImpl`.
 
-`isCurrentState` is still computed in the panel (snapshot equality + `AuditActivityEnrichHook.matchesCurrent()` via SPI) and passed to the hook as a simple boolean — the hook just decides which component to render.
+**Why it should eventually be done:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern.
 
-**Why:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern. `AuditI18n.HISTORY_CURRENT_STATE` and `HISTORY_RESTORE` removed from the starter; labels now live in `I18nKey` in marketplace.
-
-**Still deferred:**
-- CSS class names (`entity-history-*`) are hardcoded in `AuditHistoryPanel`
-- Row structure (version badge, action badge, user, time) is fixed
-
-**Why:** The restore button is a marketplace business decision — the starter should not know what "restore" means or how to compare snapshots. The panel's job is to fetch and lay out history rows; actions are the caller's concern.
-
-**Trigger:** implement when a second consumer of the audit starter appears, or when the current coupling causes a maintenance problem.
+**Trigger:** implement when a second consumer of the audit starter appears, or when the current direct coupling causes a real maintenance problem. Do not implement speculatively.
 
 ---
 

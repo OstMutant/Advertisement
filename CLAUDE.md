@@ -29,9 +29,9 @@ advertisement-parent (root pom)
 **query-starter** provides two layers: SQL utilities (`SqlFilterBuilder`, `OrderByBuilder` in `org.ost.query.filter/sort`) and Vaadin UI query components (`FilterProcessor`, `SortProcessor`, field elements in `org.ost.query.ui.*`). Auto-configures `ValidationService` via `QueryAutoConfiguration`.
 
 **platform-commons** defines the cross-module contracts, organized into three semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`, `EntityNameHook`)
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`)
 - `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
-- `audit.*` — `audit.api` (`AuditableSnapshot`, `AuditedField`), `audit.dto` (`AuditActivityItemDto`, `AuditHistoryItemDto`, `AuditSnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityRenderHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`)
+- `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditHistoryItemDto`, `AuditSnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditUiPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentGalleryPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`), `attachment.model` (`AttachmentMediaContentType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
