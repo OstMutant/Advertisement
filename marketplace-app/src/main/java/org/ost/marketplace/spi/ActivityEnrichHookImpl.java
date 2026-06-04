@@ -26,32 +26,37 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
 
     @Override
     public List<AuditActivityItemDto<AuditableSnapshot>> merge(List<EntityRef> subjects, List<AuditActivityItemDto<AuditableSnapshot>> base) {
-        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
         EntityRef primary = subjects.isEmpty() ? null : subjects.getFirst();
-        return hook != null ? hook.merge(primary, base) : base;
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.merge(primary, base))
+                .orElse(base);
     }
 
     @Override
     public List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version) {
-        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
-        return hook != null ? hook.getMediaChanges(entity, version) : List.of();
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.getMediaChanges(entity, version))
+                .orElse(List.of());
     }
 
     @Override
     public boolean matchesCurrent(EntityRef entity, int version) {
-        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
-        return hook == null || hook.mediaMatchCurrent(entity, version);
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.mediaMatchCurrent(entity, version))
+                .orElse(true);
     }
 
     @Override
     public String getMediaStateForSnapshot(EntityRef ref, Long snapshotId) {
-        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
-        return hook != null ? hook.getMediaStateForSnapshot(ref, snapshotId) : null;
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.getMediaStateForSnapshot(ref, snapshotId))
+                .orElse(null);
     }
 
     @Override
     public String getMediaStateAtVersion(EntityRef ref, int version) {
-        AttachmentAuditHook hook = attachmentAuditHookFactory.getIfAvailable();
-        return hook != null ? hook.getMediaStateAtVersion(ref, version) : null;
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.getMediaStateAtVersion(ref, version))
+                .orElse(null);
     }
 }

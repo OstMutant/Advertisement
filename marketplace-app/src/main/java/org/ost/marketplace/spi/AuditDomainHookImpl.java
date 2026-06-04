@@ -2,10 +2,14 @@ package org.ost.marketplace.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
+import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditDomainHook;
+import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +22,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     private final AdvertisementService advertisementService;
     private final UserService          userService;
+    private final I18nService          i18n;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
@@ -35,9 +40,11 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     @Override
     public String resolveDisplayName(@NonNull EntityType entityType, AuditableSnapshot snapshot) {
+        if (snapshot == null) return "";
         return switch (entityType) {
-            case ADVERTISEMENT       -> advertisementService.resolveDisplayName(snapshot);
-            case USER, USER_SETTINGS -> userService.resolveDisplayName(entityType, snapshot);
+            case ADVERTISEMENT -> snapshot instanceof AdvertisementSnapshotDto ad ? ad.title() : "";
+            case USER          -> snapshot instanceof UserSnapshotDto u ? u.name() : "";
+            case USER_SETTINGS -> i18n.get(I18nKey.HEADER_SETTINGS);
         };
     }
 }

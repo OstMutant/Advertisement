@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -108,20 +107,20 @@ public class UserService {
 
     @Transactional
     public Optional<User> restoreBeforeSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPortFactory.getIfAvailable())
-                .flatMap(p -> p.getPreviousSnapshotContent(snapshotId, EntityType.USER));
-        return applyUserRestore(userId, content, actingUserId);
+        var content = auditPortFactory.findIfAvailable()
+                .flatMap(p -> p.<UserSnapshotDto>getPreviousSnapshotContent(snapshotId, EntityType.USER));
+        return applyUserRestore(userId, content.map(c -> c.snapshotData()), actingUserId);
     }
 
     @Transactional
     public Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId) {
-        Optional<AuditSnapshotContentDto> content = Optional.ofNullable(auditPortFactory.getIfAvailable())
-                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER));
-        return applyUserRestore(userId, content, actingUserId);
+        var content = auditPortFactory.findIfAvailable()
+                .flatMap(p -> p.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER));
+        return applyUserRestore(userId, content.map(c -> c.snapshotData()), actingUserId);
     }
 
-    private Optional<User> applyUserRestore(Long userId, Optional<AuditSnapshotContentDto> contentOpt, Long actingUserId) {
-        return contentOpt.flatMap(this::parseUserSnapshotDto).flatMap(snap -> {
+    private Optional<User> applyUserRestore(Long userId, Optional<UserSnapshotDto> snapOpt, Long actingUserId) {
+        return snapOpt.flatMap(snap -> {
             User before = repository.findById(userId).orElse(null);
             repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
             return repository.findById(userId).map(updated -> {
@@ -134,10 +133,6 @@ public class UserService {
         });
     }
 
-    private Optional<UserSnapshotDto> parseUserSnapshotDto(AuditSnapshotContentDto content) {
-        return content.snapshotData() instanceof UserSnapshotDto u ? Optional.of(u) : Optional.empty();
-    }
-
     public Optional<User> findByEmail(String email) {
         return repository.findByEmail(email);
     }
@@ -148,15 +143,6 @@ public class UserService {
 
     public Map<Long, String> findActorNames(Set<Long> ids) {
         return repository.findActorNames(ids.toArray(new Long[0]));
-    }
-
-    public String resolveDisplayName(EntityType entityType, AuditableSnapshot snapshot) {
-        if (snapshot == null) return "";
-        return switch (entityType) {
-            case USER -> snapshot instanceof UserSnapshotDto u ? u.name() : "";
-            case USER_SETTINGS -> "Settings";
-            default -> "";
-        };
     }
 
     public List<ChangeEntry> expandActivityFields(AuditActivityItemDto<AuditableSnapshot> item) {

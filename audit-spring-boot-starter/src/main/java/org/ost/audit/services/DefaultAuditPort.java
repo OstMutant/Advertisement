@@ -51,13 +51,17 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
-        return auditLogRepository.getSnapshotContent(snapshotId, entityType);
+    @SuppressWarnings("unchecked")
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(Long snapshotId, EntityType entityType) {
+        return auditLogRepository.getSnapshotContent(snapshotId, entityType)
+                .map(c -> (AuditSnapshotContentDto<T>) c);
     }
 
     @Override
-    public Optional<AuditSnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
-        return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType);
+    @SuppressWarnings("unchecked")
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+        return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType)
+                .map(c -> (AuditSnapshotContentDto<T>) c);
     }
 
 }

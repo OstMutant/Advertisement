@@ -17,21 +17,6 @@ public interface AuditPort {
     void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId);
     void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId);
 
-    Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType);
-    Optional<AuditSnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
-
-    default <T extends AuditableSnapshot> Optional<T> getSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
-        return getSnapshotContent(snapshotId, entityType)
-                .map(AuditSnapshotContentDto::snapshotData)
-                .filter(type::isInstance)
-                .map(type::cast);
-    }
-
-    default <T extends AuditableSnapshot> Optional<T> getPreviousSnapshotContent(Long snapshotId, EntityType entityType, Class<T> type) {
-        return getPreviousSnapshotContent(snapshotId, entityType)
-                .map(AuditSnapshotContentDto::snapshotData)
-                .filter(type::isInstance)
-                .map(type::cast);
-    }
-
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(Long snapshotId, EntityType entityType);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
 }

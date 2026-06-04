@@ -3,9 +3,7 @@ package org.ost.marketplace.services;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
@@ -84,21 +82,17 @@ public class AdvertisementService {
         );
     }
 
-    public String resolveDisplayName(AuditableSnapshot snapshot) {
-        return snapshot instanceof AdvertisementSnapshotDto ad ? ad.title() : "";
-    }
-
     @Transactional
     public boolean restore(Long advertisementId, Long snapshotId) {
         log.info("Advertisement restore: id={}, snapshotId={}", advertisementId, snapshotId);
         Advertisement current = repository.findById(advertisementId).orElse(null);
         if (current == null) return false;
         if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        AuditSnapshotContentDto content = Optional.ofNullable(auditPortFactory.getIfAvailable())
-                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
+        var content = auditPortFactory.findIfAvailable()
+                .flatMap(p -> p.<AdvertisementSnapshotDto>getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
                 .orElse(null);
         if (content == null) return false;
-        if (!(content.snapshotData() instanceof AdvertisementSnapshotDto restoredSnapshot)) return false;
+        AdvertisementSnapshotDto restoredSnapshot = content.snapshotData();
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
                 .title(restoredSnapshot.title())

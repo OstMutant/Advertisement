@@ -197,9 +197,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private void loadAndShowSettingsRestore(Long snapshotId) {
-        Optional.ofNullable(auditPortFactory.getIfAvailable())
-                .flatMap(p -> p.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class))
-                .map(dto -> UserSettings.builder().adsPageSize(dto.adsPageSize()).usersPageSize(dto.usersPageSize()).build())
+        auditPortFactory.findIfAvailable()
+                .flatMap(p -> p.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
+                .map(c -> UserSettings.builder().adsPageSize(c.snapshotData().adsPageSize()).usersPageSize(c.snapshotData().usersPageSize()).build())
                 .ifPresent(this::showSettingsRestoreConfirm);
     }
 

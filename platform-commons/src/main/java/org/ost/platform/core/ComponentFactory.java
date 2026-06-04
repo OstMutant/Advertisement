@@ -3,6 +3,7 @@ package org.ost.platform.core;
 import org.ost.platform.ui.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.util.Optional;
 import java.util.function.Consumer;
 
 public class ComponentFactory<T> {
@@ -24,6 +25,10 @@ public class ComponentFactory<T> {
 
     public T getIfAvailable() {
         return provider.getIfAvailable();
+    }
+
+    public Optional<T> findIfAvailable() {
+        return Optional.ofNullable(provider.getIfAvailable());
     }
 
     public void ifAvailable(Consumer<T> consumer) {
