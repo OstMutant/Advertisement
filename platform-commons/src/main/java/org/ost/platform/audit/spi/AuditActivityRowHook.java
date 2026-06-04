@@ -1,6 +1,7 @@
 package org.ost.platform.audit.spi;
 
 import com.vaadin.flow.component.Component;
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.EntityType;
@@ -17,5 +18,5 @@ public interface AuditActivityRowHook<T extends AuditableSnapshot> {
 
     EntityType entityType();
 
-    Component decorate(AuditActivityItemDto<T> item);
+    Component decorate(@NonNull AuditActivityItemDto<T> item);
 }

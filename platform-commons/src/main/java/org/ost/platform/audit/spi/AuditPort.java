@@ -1,5 +1,6 @@
 package org.ost.platform.audit.spi;
 
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.EntityType;
@@ -13,10 +14,10 @@ import java.util.Optional;
  * Implementation: {@code DefaultAuditPort} in audit-spring-boot-starter.
  */
 public interface AuditPort {
-    void captureCreation(Long entityId, AuditableSnapshot snapshot, Long actorId);
-    void captureUpdate(Long entityId, AuditableSnapshot before, AuditableSnapshot after, Long actorId);
-    void captureDeletion(Long entityId, AuditableSnapshot snapshot, Long actorId);
+    void captureCreation(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
+    void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot before, @NonNull AuditableSnapshot after, @NonNull Long actorId);
+    void captureDeletion(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
 
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(Long snapshotId, EntityType entityType);
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType);
 }

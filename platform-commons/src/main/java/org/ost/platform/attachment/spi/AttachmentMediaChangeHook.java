@@ -1,5 +1,6 @@
 package org.ost.platform.attachment.spi;
 
+import lombok.NonNull;
 import org.ost.platform.core.model.EntityRef;
 
 /**
@@ -15,5 +16,5 @@ import org.ost.platform.core.model.EntityRef;
  */
 public interface AttachmentMediaChangeHook {
 
-    void onMediaChanged(EntityRef entity);
+    void onMediaChanged(@NonNull EntityRef entity);
 }

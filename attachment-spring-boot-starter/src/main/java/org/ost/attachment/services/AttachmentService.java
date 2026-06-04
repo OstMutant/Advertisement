@@ -77,21 +77,21 @@ public class AttachmentService {
 
     @Transactional
     public void delete(Long attachmentId) {
-        Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
-        if (attachment == null) return;
-        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
-        attachmentRepository.softDelete(attachmentId, actorId);
-        captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
-        notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
+        attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
+            Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
+            attachmentRepository.softDelete(attachmentId, actorId);
+            captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
+            notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
+        });
     }
 
     @Transactional
     public void deleteSkipSnapshot(Long attachmentId) {
-        Attachment attachment = attachmentRepository.findById(attachmentId).orElse(null);
-        if (attachment == null) return;
-        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
-        attachmentRepository.softDelete(attachmentId, actorId);
-        notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
+        attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
+            Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
+            attachmentRepository.softDelete(attachmentId, actorId);
+            notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
+        });
     }
 
     public TempAttachment addVideoTemp(String url) {
@@ -218,9 +218,7 @@ public class AttachmentService {
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {
-        Long actorId = currentActorHook.getCurrentActorId().orElse(null);
-        if (actorId != null) {
-            attachmentSnapshotService.capture(entityType, entityId, actorId);
-        }
+        currentActorHook.getCurrentActorId().ifPresent(actorId ->
+                attachmentSnapshotService.capture(entityType, entityId, actorId));
     }
 }

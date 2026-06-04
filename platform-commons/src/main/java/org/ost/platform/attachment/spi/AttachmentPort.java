@@ -1,5 +1,6 @@
 package org.ost.platform.attachment.spi;
 
+import lombok.NonNull;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.core.model.EntityRef;
 
@@ -12,11 +13,11 @@ import org.ost.platform.core.model.EntityRef;
 public interface AttachmentPort {
 
     /** Soft-delete all attachments of an entity. Called on entity soft-delete. */
-    void softDeleteAll(EntityRef entity, Long actorId);
+    void softDeleteAll(@NonNull EntityRef entity, @NonNull Long actorId);
 
     /** Restore attachments to the state captured at the given snapshot version. */
-    void restoreToSnapshot(EntityRef entity, int snapshotVersion, Long actorId);
+    void restoreToSnapshot(@NonNull EntityRef entity, int snapshotVersion, @NonNull Long actorId);
 
     /** Display-ready summary of the entity's current attachment state. */
-    AttachmentMediaSummaryDto getMediaSummary(EntityRef entity);
+    AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity);
 }

@@ -1,9 +1,12 @@
 package org.ost.platform.audit.spi;
 
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.core.model.EntityType;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -15,9 +18,12 @@ import java.util.Set;
  */
 public interface AuditDomainHook {
 
-    Map<Long, String> resolveNames(Set<Long> actorIds);
+    Map<Long, String> resolveNames(@NonNull Set<Long> actorIds);
 
-    Set<Long> findExisting(EntityType entityType, Set<Long> entityIds);
+    Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
 
-    String resolveDisplayName(EntityType entityType, AuditableSnapshot snapshot);
+    // snapshot may be null for entities that have been hard-deleted with no retained snapshot
+    String resolveDisplayName(@NonNull EntityType entityType, AuditableSnapshot snapshot);
+
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content);
 }

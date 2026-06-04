@@ -119,7 +119,7 @@ public class UserOverlay extends AbstractEntityOverlay {
     }
 
     private void handleRestoreUser(Long snapshotId, Long entityId) {
-        Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
+        Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElseThrow();
         userService.restoreToSnapshot(entityId, snapshotId, actingUserId).ifPresentOrElse(
                 restoredUser -> {
                     notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);

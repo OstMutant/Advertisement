@@ -1,8 +1,10 @@
 package org.ost.marketplace.services;
 
 import jakarta.validation.Valid;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -39,59 +41,65 @@ public class AdvertisementService {
     private final ComponentFactory<AttachmentPort> attachmentPortFactory;
     private final AuthContextService         authContextService;
 
-    public List<AdvertisementInfoDto> getFiltered(@Valid AdvertisementFilterDto filter, int page, int size, Sort sort) {
+    public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
     }
 
-    public int count(@Valid AdvertisementFilterDto filter) {
+    public int count(@Valid @NonNull AdvertisementFilterDto filter) {
         return repository.countByFilter(filter).intValue();
     }
 
     @Transactional
-    public Advertisement save(Advertisement ad) {
+    public Advertisement save(@NonNull Advertisement ad) {
         if (ad.isNew() ? !access.isLoggedIn() : access.canNotEdit(ad)) {
             throw new AccessDeniedException("You cannot edit this advertisement");
         }
         boolean isNew = ad.isNew();
         log.info("Advertisement save: id={}, isNew={}", ad.getId(), isNew);
-        Advertisement before = isNew ? null : repository.findById(ad.getId()).orElse(null);
+        Optional<Advertisement> before = isNew ? Optional.empty() : repository.findById(ad.getId());
         Advertisement saved = repository.save(ad);
-        Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
-        if (currentUserId != null) {
+        authContextService.getCurrentUser().map(User::getId).ifPresent(currentUserId -> {
             if (isNew) {
                 auditPortFactory.ifAvailable(p -> p.captureCreation(saved.getId(), new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             } else {
-                AdvertisementSnapshotDto beforeSnapshot = before != null ? new AdvertisementSnapshotDto(before.getTitle(), before.getDescription()) : new AdvertisementSnapshotDto(null, null);
+                AdvertisementSnapshotDto beforeSnapshot = before
+                        .map(b -> new AdvertisementSnapshotDto(b.getTitle(), b.getDescription()))
+                        .orElse(new AdvertisementSnapshotDto(null, null));
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             }
-        }
+        });
         return saved;
     }
 
-    public Optional<AdvertisementInfoDto> findById(Long id) {
+    public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
         return repository.findAdvertisementById(id);
     }
 
-    public List<Long> findExistingIds(Long[] ids) {
+    public List<Long> findExistingIds(@NonNull Long[] ids) {
         return repository.findExistingIds(ids);
     }
 
-    public void onMediaChanged(Long entityId) {
+    public void onMediaChanged(@NonNull Long entityId) {
         attachmentPortFactory.ifAvailable(port ->
                 repository.updateMedia(entityId, port.getMediaSummary(new EntityRef(EntityType.ADVERTISEMENT, entityId)))
         );
     }
 
     @Transactional
-    public boolean restore(Long advertisementId, Long snapshotId) {
+    public boolean restore(@NonNull Long advertisementId, @NonNull Long snapshotId) {
         log.info("Advertisement restore: id={}, snapshotId={}", advertisementId, snapshotId);
-        Advertisement current = repository.findById(advertisementId).orElse(null);
-        if (current == null) return false;
-        if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
-        var content = auditPortFactory.findIfAvailable()
-                .flatMap(p -> p.<AdvertisementSnapshotDto>getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
-                .orElse(null);
-        if (content == null) return false;
+        return repository.findById(advertisementId)
+                .map(current -> {
+                    if (access.canNotEdit(current)) throw new AccessDeniedException("You cannot edit this advertisement");
+                    return auditPortFactory.findIfAvailable()
+                            .flatMap(p -> p.<AdvertisementSnapshotDto>getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT))
+                            .map(content -> applyRestore(current, content))
+                            .orElse(false);
+                })
+                .orElse(false);
+    }
+
+    private boolean applyRestore(@NonNull Advertisement current, @NonNull AuditSnapshotContentDto<AdvertisementSnapshotDto> content) {
         AdvertisementSnapshotDto restoredSnapshot = content.snapshotData();
         Advertisement restored = Advertisement.builder()
                 .id(current.getId())
@@ -102,11 +110,10 @@ public class AdvertisementService {
                 .build();
         AdvertisementSnapshotDto beforeSnapshot = new AdvertisementSnapshotDto(current.getTitle(), current.getDescription());
         Advertisement saved = repository.save(restored);
-        Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
-        if (currentUserId != null) {
+        authContextService.getCurrentUser().map(User::getId).ifPresent(currentUserId -> {
             auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription()), currentUserId));
             attachmentPortFactory.ifAvailable(p -> p.restoreToSnapshot(new EntityRef(EntityType.ADVERTISEMENT, saved.getId()), content.version(), currentUserId));
-        }
+        });
         return true;
     }
 
@@ -116,19 +123,17 @@ public class AdvertisementService {
     }
 
     @Transactional
-    public void delete(EntityMarker ad) {
+    public void delete(@NonNull EntityMarker ad) {
         log.info("Advertisement delete: id={}", ad.getId());
         if (access.canNotDelete(ad)) {
             throw new AccessDeniedException("You cannot delete this advertisement");
         }
-        Long currentUserId = authContextService.getCurrentUser().map(User::getId).orElse(null);
-        if (currentUserId != null) {
+        Optional<Long> currentUserId = authContextService.getCurrentUser().map(User::getId);
+        currentUserId.ifPresent(userId -> {
             repository.findById(ad.getId()).ifPresent(entity ->
-                    auditPortFactory.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), currentUserId)));
-        }
-        if (currentUserId != null) {
-            attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), currentUserId));
-        }
-        repository.softDelete(ad.getId(), currentUserId);
+                    auditPortFactory.ifAvailable(p -> p.captureDeletion(ad.getId(), new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), userId)));
+            attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, ad.getId()), userId));
+        });
+        repository.softDelete(ad.getId(), currentUserId.orElse(null));
     }
 }

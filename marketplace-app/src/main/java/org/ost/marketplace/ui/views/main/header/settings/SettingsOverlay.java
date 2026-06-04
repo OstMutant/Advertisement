@@ -11,7 +11,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import java.util.Optional;
 import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
@@ -63,12 +62,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private Tabs             tabs;
     private Tab              settingsTab;
     private UiPrimaryButton  saveBtn;
-    private transient User   currentUser;
 
     public void openSettings() {
-        currentUser = authContextService.getCurrentUser().orElse(null);
-        if (currentUser == null) return;
+        authContextService.getCurrentUser().ifPresent(this::doOpen);
+    }
 
+    private void doOpen(User user) {
         ensureInitialized();
 
         if (layout != null) layout.removeFromParent();
@@ -76,9 +75,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         layout.setBreadcrumbButton(breadcrumbBackButton);
         layout.getBreadcrumbCurrent().setText(getValue(SETTINGS_SECTION_TITLE));
 
-        UserSettings currentSettings = settingsService.load(currentUser.getId());
+        UserSettings currentSettings = settingsService.load(user.getId());
 
-        // ── Settings panel ────────────────────────────────────────────────
         FormLayout form = new FormLayout();
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         form.add(buildAdsPageSizeField(currentSettings), buildUsersPageSizeField(currentSettings));
@@ -93,11 +91,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         AuditUiPort auditUi = auditUiPortFactory.getIfAvailable();
         if (auditUi != null) {
-            // ── Activity panel (lazy) ─────────────────────────────────────────
             activityPanel = new Div();
             activityPanel.setVisible(false);
 
-            // ── Tabs ──────────────────────────────────────────────────────────
             settingsTab      = new Tab(getValue(SETTINGS_SECTION_TITLE));
             Tab activityTab  = new Tab(getValue(ACTIVITY_TAB));
             tabs = new Tabs(settingsTab, activityTab);
@@ -108,7 +104,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 settingsPanel.setVisible(isSettings);
                 activityPanel.setVisible(!isSettings);
                 if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
-                    activityPanel.add(buildActivityContent(auditUi));
+                    activityPanel.add(buildActivityContent(auditUi, user));
                 }
             });
 
@@ -122,7 +118,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         saveBtn = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
-        saveBtn.addClickListener(_ -> handleSave());
+        saveBtn.addClickListener(_ -> handleSave(user));
 
         UiIconButton closeBtn = iconButtonFactory.build(
                 UiIconButton.Parameters.builder()
@@ -151,21 +147,20 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         closeToList();
     }
 
-    private void handleSave() {
-        if (currentUser == null) return;
+    private void handleSave(User user) {
         if (saveBtn != null) saveBtn.setEnabled(false);
         try {
-            UserSettings oldSettings = settingsService.load(currentUser.getId());
+            UserSettings oldSettings = settingsService.load(user.getId());
             UserSettings newSettings = UserSettings.builder()
                     .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
                     .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                     .build();
 
-            settingsService.save(currentUser.getId(), newSettings);
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
+            settingsService.save(user.getId(), newSettings);
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(user.getId(),
                     SettingsSnapshotDto.from(oldSettings),
                     SettingsSnapshotDto.from(newSettings),
-                    currentUser.getId()));
+                    user.getId()));
             if (activityPanel != null) activityPanel.removeAll();
             if (tabs != null) tabs.setSelectedTab(settingsTab);
 
@@ -177,34 +172,34 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         }
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
-        UserSettings current = settingsService.load(currentUser.getId());
+    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi, User user) {
+        UserSettings current = settingsService.load(user.getId());
         AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
                 AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
                         .entityType(EntityType.USER_SETTINGS)
                         .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()
                                         && snap.usersPageSize() == current.getUsersPageSize())
-                        .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId))
+                        .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId, user))
                         .build());
         return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
                 .subjects(java.util.List.of(
-                        new EntityRef(EntityType.USER, currentUser.getId()),
-                        new EntityRef(EntityType.USER_SETTINGS, currentUser.getId())))
-                .actorId(currentUser.getId())
-                .viewerActorId(currentUser.getId())
+                        new EntityRef(EntityType.USER, user.getId()),
+                        new EntityRef(EntityType.USER_SETTINGS, user.getId())))
+                .actorId(user.getId())
+                .viewerActorId(user.getId())
                 .bindings(java.util.List.of(settingsBinding))
                 .build());
     }
 
-    private void loadAndShowSettingsRestore(Long snapshotId) {
+    private void loadAndShowSettingsRestore(Long snapshotId, User user) {
         auditPortFactory.findIfAvailable()
                 .flatMap(p -> p.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
                 .map(c -> UserSettings.builder().adsPageSize(c.snapshotData().adsPageSize()).usersPageSize(c.snapshotData().usersPageSize()).build())
-                .ifPresent(this::showSettingsRestoreConfirm);
+                .ifPresent(target -> showSettingsRestoreConfirm(target, user));
     }
 
-    private void showSettingsRestoreConfirm(UserSettings target) {
-        UserSettings current = settingsService.load(currentUser.getId());
+    private void showSettingsRestoreConfirm(UserSettings target, User user) {
+        UserSettings current = settingsService.load(user.getId());
         String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
 
         String adsLabel = i18nService.get("audit.changes.setting.adsPageSize");
@@ -224,12 +219,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
                         .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
                         .onConfirm(() -> {
-                            UserSettings before = settingsService.load(currentUser.getId());
-                            settingsService.save(currentUser.getId(), target);
-                            auditPortFactory.ifAvailable(p -> p.captureUpdate(currentUser.getId(),
+                            UserSettings before = settingsService.load(user.getId());
+                            settingsService.save(user.getId(), target);
+                            auditPortFactory.ifAvailable(p -> p.captureUpdate(user.getId(),
                                     SettingsSnapshotDto.from(before),
                                     SettingsSnapshotDto.from(target),
-                                    currentUser.getId()));
+                                    user.getId()));
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());
                             if (activityPanel != null) activityPanel.removeAll();

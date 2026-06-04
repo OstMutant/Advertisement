@@ -3,6 +3,7 @@ package org.ost.marketplace.services.auth;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -22,7 +23,7 @@ public class AuthService {
     private final HttpServletRequest request;
     private final HttpServletResponse response;
 
-    public boolean login(String email, String rawPassword) {
+    public boolean login(@NonNull String email, @NonNull String rawPassword) {
         try {
             Authentication auth = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, rawPassword));

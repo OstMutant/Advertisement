@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
@@ -20,10 +21,12 @@ public class DefaultAuditPort implements AuditPort {
 
     private final AuditLogRepository auditLogRepository;
     private final CurrentActorHook   currentActorHook;
+    private final AuditDomainHook    auditDomainHook;
 
     private Long resolveActor(Long actorId) {
-        if (actorId != null) return actorId;
-        return currentActorHook.getCurrentActorId().orElse(null);
+        return Optional.ofNullable(actorId)
+                .or(currentActorHook::getCurrentActorId)
+                .orElse(null);
     }
 
     @Override
@@ -51,17 +54,15 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType)
-                .map(c -> (AuditSnapshotContentDto<T>) c);
+                .flatMap(auditDomainHook::castIfKnown);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return auditLogRepository.getPreviousSnapshotContent(snapshotId, entityType)
-                .map(c -> (AuditSnapshotContentDto<T>) c);
+                .flatMap(auditDomainHook::castIfKnown);
     }
 
 }

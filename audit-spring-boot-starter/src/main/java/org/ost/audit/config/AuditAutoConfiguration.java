@@ -3,6 +3,7 @@ package org.ost.audit.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
+import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.core.spi.CurrentActorHook;
@@ -60,8 +61,9 @@ public class AuditAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean(AuditPort.class)
     DefaultAuditPort defaultAuditPort(AuditLogRepository auditLogRepository,
-                                      CurrentActorHook currentActorHook) {
-        return new DefaultAuditPort(auditLogRepository, currentActorHook);
+                                      CurrentActorHook currentActorHook,
+                                      AuditDomainHook auditDomainHook) {
+        return new DefaultAuditPort(auditLogRepository, currentActorHook, auditDomainHook);
     }
 
     @Bean

@@ -54,9 +54,9 @@ public interface AuditUiPort {
         BiConsumer<Long, Long>      onRestore;
     }
 
-    Component buildAuditHistoryPanel(EntityHistoryParams params);
+    Component buildAuditHistoryPanel(@NonNull EntityHistoryParams params);
 
-    Component buildAuditActivityPanel(ProfileActivityParams params);
+    Component buildAuditActivityPanel(@NonNull ProfileActivityParams params);
 
-    <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(SnapshotRowHookParams<T> params);
+    <T extends AuditableSnapshot> AuditActivityRowHook snapshotRowHook(@NonNull SnapshotRowHookParams<T> params);
 }

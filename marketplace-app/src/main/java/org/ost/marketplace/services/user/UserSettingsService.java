@@ -1,5 +1,6 @@
 package org.ost.marketplace.services.user;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.events.SettingsChangedEvent;
@@ -15,12 +16,12 @@ public class UserSettingsService {
     private final UserSettingsRepository    repository;
     private final ApplicationEventPublisher eventPublisher;
 
-    public UserSettings load(Long userId) {
+    public UserSettings load(@NonNull Long userId) {
         return repository.load(userId);
     }
 
     @Transactional
-    public void save(Long userId, UserSettings settings) {
+    public void save(@NonNull Long userId, @NonNull UserSettings settings) {
         repository.save(userId, settings);
         eventPublisher.publishEvent(new SettingsChangedEvent(this, userId, settings));
     }

@@ -70,15 +70,15 @@ public class HeaderBar extends HorizontalLayout {
         authRow.addClassName("header-auth-row");
 
         Span userInfo = new Span();
-        User currentUser = authContextService.getCurrentUser().orElse(null);
-
-        if (currentUser != null) {
-            userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
-            authRow.add(userInfo, createSettingsButton(), createLogoutButton());
-        } else {
-            userInfo.setText(i18n.get(HEADER_NOT_SIGNED_IN));
-            authRow.add(userInfo, createLoginButton(), createSignUpButton());
-        }
+        authContextService.getCurrentUser().ifPresentOrElse(
+                currentUser -> {
+                    userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
+                    authRow.add(userInfo, createSettingsButton(), createLogoutButton());
+                },
+                () -> {
+                    userInfo.setText(i18n.get(HEADER_NOT_SIGNED_IN));
+                    authRow.add(userInfo, createLoginButton(), createSignUpButton());
+                });
 
         return authRow;
     }

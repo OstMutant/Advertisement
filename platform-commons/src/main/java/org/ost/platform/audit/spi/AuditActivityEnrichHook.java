@@ -1,5 +1,6 @@
 package org.ost.platform.audit.spi;
 
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
@@ -16,9 +17,9 @@ import java.util.List;
  */
 public interface AuditActivityEnrichHook {
     EntityType entityType();
-    List<AuditActivityItemDto<AuditableSnapshot>> merge(List<EntityRef> subjects, List<AuditActivityItemDto<AuditableSnapshot>> base);
-    List<ChangeEntry> getAdditionalChanges(EntityRef entity, int version);
-    boolean matchesCurrent(EntityRef entity, int version);
-    default String getMediaStateForSnapshot(EntityRef ref, Long snapshotId) { return null; }
-    default String getMediaStateAtVersion(EntityRef ref, int version) { return null; }
+    List<AuditActivityItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditActivityItemDto<AuditableSnapshot>> base);
+    List<ChangeEntry> getAdditionalChanges(@NonNull EntityRef entity, int version);
+    boolean matchesCurrent(@NonNull EntityRef entity, int version);
+    default String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) { return null; }
+    default String getMediaStateAtVersion(@NonNull EntityRef ref, int version) { return null; }
 }

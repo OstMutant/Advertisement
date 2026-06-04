@@ -1,5 +1,6 @@
 package org.ost.marketplace.repository.user;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.UserProfileDto;
 import org.ost.marketplace.dto.filter.UserFilterDto;
@@ -63,11 +64,11 @@ public class UserRepository {
     private final JdbcClient jdbcClient;
     private final UserCrudRepository crud;
 
-    public User save(User user)                { return crud.save(user); }
-    public Optional<User> findById(Long id)    { return crud.findById(id); }
-    public void deleteById(Long id)            { crud.deleteById(id); }
+    public User save(@NonNull User user)                { return crud.save(user); }
+    public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
+    public void deleteById(@NonNull Long id)            { crud.deleteById(id); }
 
-    public List<User> findByFilter(UserFilterDto filter, Pageable pageable) {
+    public List<User> findByFilter(@NonNull UserFilterDto filter, @NonNull Pageable pageable) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
                 "id",         "u.id",
@@ -82,20 +83,20 @@ public class UserRepository {
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(UserFilterDto filter) {
+    public Long countByFilter(@NonNull UserFilterDto filter) {
         var params = new MapSqlParameterSource();
         String sql = "SELECT COUNT(*) FROM user_information u%s".formatted(FILTER.build(params, filter, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
-    public Optional<User> findByEmail(String email) {
+    public Optional<User> findByEmail(@NonNull String email) {
         var params = new MapSqlParameterSource();
         String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s"
                 .formatted(EMAIL_FILTER.build(params, email, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
     }
 
-    public void updateProfile(UserProfileDto dto) {
+    public void updateProfile(@NonNull UserProfileDto dto) {
         jdbcClient.sql("UPDATE user_information SET name = :name, role = :role, updated_at = NOW() WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("name", dto.name())
@@ -104,7 +105,7 @@ public class UserRepository {
                   .update();
     }
 
-    public void updateLocale(Long userId, String locale) {
+    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
         jdbcClient.sql("UPDATE user_information SET locale = :locale WHERE id = :id")
                   .paramSource(new MapSqlParameterSource()
                           .addValue("locale", locale)
@@ -112,14 +113,14 @@ public class UserRepository {
                   .update();
     }
 
-    public List<Long> findExistingIds(Long[] ids) {
+    public List<Long> findExistingIds(@NonNull Long[] ids) {
         return jdbcClient.sql("SELECT id FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(Long.class)
                 .list();
     }
 
-    public Map<Long, String> findActorNames(Long[] ids) {
+    public Map<Long, String> findActorNames(@NonNull Long[] ids) {
         return jdbcClient.sql("SELECT id, name FROM user_information WHERE id = ANY(:ids)")
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query((rs, _) -> Map.entry(rs.getObject("id", Long.class), rs.getString("name")))

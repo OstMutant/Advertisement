@@ -1,5 +1,6 @@
 package org.ost.platform.core;
 
+import lombok.NonNull;
 import org.ost.platform.ui.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 
@@ -10,7 +11,7 @@ public class ComponentFactory<T> {
 
     private final ObjectProvider<T> provider;
 
-    public ComponentFactory(ObjectProvider<T> provider) {
+    public ComponentFactory(@NonNull ObjectProvider<T> provider) {
         this.provider = provider;
     }
 
@@ -19,7 +20,7 @@ public class ComponentFactory<T> {
     }
 
     @SuppressWarnings("unchecked")
-    public <P> T build(P params) {
+    public <P> T build(@NonNull P params) {
         return ((Configurable<T, P>) provider.getObject()).configure(params);
     }
 
@@ -31,7 +32,7 @@ public class ComponentFactory<T> {
         return Optional.ofNullable(provider.getIfAvailable());
     }
 
-    public void ifAvailable(Consumer<T> consumer) {
+    public void ifAvailable(@NonNull Consumer<T> consumer) {
         provider.ifAvailable(consumer);
     }
 }

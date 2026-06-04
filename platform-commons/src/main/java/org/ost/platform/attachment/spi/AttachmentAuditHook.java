@@ -1,5 +1,6 @@
 package org.ost.platform.attachment.spi;
 
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
@@ -18,15 +19,15 @@ public interface AttachmentAuditHook {
 
     // ── Activity feed ──────────────────────────────────────────────────────────
 
-    List<AuditActivityItemDto<AuditableSnapshot>> merge(EntityRef subject, List<AuditActivityItemDto<AuditableSnapshot>> baseItems);
+    List<AuditActivityItemDto<AuditableSnapshot>> merge(@NonNull EntityRef subject, @NonNull List<AuditActivityItemDto<AuditableSnapshot>> baseItems);
 
     // ── Media history ──────────────────────────────────────────────────────────
 
-    List<ChangeEntry> getMediaChanges(EntityRef entity, int version);
+    List<ChangeEntry> getMediaChanges(@NonNull EntityRef entity, int version);
 
-    boolean mediaMatchCurrent(EntityRef entity, int version);
+    boolean mediaMatchCurrent(@NonNull EntityRef entity, int version);
 
-    String getMediaStateAtVersion(EntityRef entity, int version);
+    String getMediaStateAtVersion(@NonNull EntityRef entity, int version);
 
-    String getMediaStateForSnapshot(EntityRef entity, Long snapshotId);
+    String getMediaStateForSnapshot(@NonNull EntityRef entity, @NonNull Long snapshotId);
 }

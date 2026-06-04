@@ -1,5 +1,6 @@
 package org.ost.marketplace.services.auth;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.entities.User;
 import org.ost.marketplace.security.UserPrincipal;
@@ -35,11 +36,7 @@ public class AuthContextService {
         }
     }
 
-    public void updateCurrentUser(User user) {
-        if (user == null) {
-            log.warn("updateCurrentUser called with null user; skipping");
-            return;
-        }
+    public void updateCurrentUser(@NonNull User user) {
         try {
             Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
             UserPrincipal principal = new UserPrincipal(user);

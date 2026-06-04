@@ -54,6 +54,12 @@ advertisement-parent (root pom)
 
 **Design by contract — no defensive empty checks:** Methods trust their inputs. If a parameter is not `Optional`, the caller must pass a non-null value; `null` → fail fast (`@NonNull` or `Objects.requireNonNull`). Empty collections are the caller's responsibility — if the caller has nothing to pass, they skip the call. Methods must not have defensive `if (collection.isEmpty()) return emptyResult` guards; that logic belongs at the call site.
 
+**No `Optional` parameters:** `Optional` must never be used as a method parameter type. Callers resolve the `Optional` before calling (via `.map()` / `.flatMap()`).
+
+**`@NonNull` on parameters:** Every public method parameter that must not be null must be annotated with `lombok.NonNull`. This applies to all layers: repositories, services, hooks, ports, UI components. Lombok generates a null-check at the top of the method body — fail fast, no silent NPE.
+
+**Functional `Optional` style:** Prefer `.ifPresent()`, `.ifPresentOrElse()`, `.map()`, `.flatMap()`, `.or()` over imperative `orElse(null)` + null check. Use `orElse(null)` only when the downstream API explicitly accepts a nullable value (e.g. SQL parameters). When a method must return a nullable value, return `optional.orElse(null)` at the boundary — not in intermediate code. Early-exit with `Optional` in complex methods: `Optional<User> maybeUser = ...; if (maybeUser.isEmpty()) return; user = maybeUser.get();`
+
 ### Repository pattern
 
 **Policy:** `*CrudRepository extends CrudRepository<T, Long>` for trivial save/find; plain `@Repository` class with `JdbcClient` for bespoke queries — SQL inlined as text blocks directly in methods.

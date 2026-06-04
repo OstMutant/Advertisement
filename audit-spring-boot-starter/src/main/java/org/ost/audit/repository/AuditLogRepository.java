@@ -46,6 +46,9 @@ public class AuditLogRepository {
     private final JdbcClient                                   jdbcClient;
     private final ProjectionMapper                             projectionMapper;
 
+    private final RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> snapshotContentMapper =
+            (rs, _) -> new AuditSnapshotContentDto<>(fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
+
     // ── Write ─────────────────────────────────────────────────────────────────
 
     public void save(EntityType entityType, Long entityId, ActionType actionType,
@@ -130,7 +133,7 @@ public class AuditLogRepository {
                          .map(this::fromSnapshot);
     }
 
-    public Optional<AuditSnapshotContentDto> getSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getSnapshotContent(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql("""
                         SELECT a.snapshot_data::text AS snapshot_data,
                                (SELECT COUNT(*) FROM audit_log b
@@ -141,11 +144,11 @@ public class AuditLogRepository {
                         WHERE a.id = :id AND a.entity_type = :entityType
                         """)
                          .paramSource(new MapSqlParameterSource().addValue("id", snapshotId).addValue("entityType", entityType.name()))
-                         .query((rs, _) -> mapSnapshotContent(rs))
+                         .query(snapshotContentMapper)
                          .optional();
     }
 
-    public Optional<AuditSnapshotContentDto> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
+    public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getPreviousSnapshotContent(Long snapshotId, EntityType entityType) {
         return jdbcClient.sql("""
                         SELECT prev.snapshot_data::text AS snapshot_data,
                                (SELECT COUNT(*) FROM audit_log b
@@ -164,7 +167,7 @@ public class AuditLogRepository {
                         WHERE cur.id = :snapshotId AND cur.entity_type = :entityType
                         """)
                          .paramSource(new MapSqlParameterSource().addValue("snapshotId", snapshotId).addValue("entityType", entityType.name()))
-                         .query((rs, _) -> mapSnapshotContent(rs))
+                         .query(snapshotContentMapper)
                          .optional();
     }
 
@@ -186,10 +189,6 @@ public class AuditLogRepository {
         } catch (Exception _) {
             return null;
         }
-    }
-
-    private AuditSnapshotContentDto mapSnapshotContent(ResultSet rs) throws SQLException {
-        return new AuditSnapshotContentDto(fromSnapshot(rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
     @Component

@@ -1,5 +1,6 @@
 package org.ost.platform.audit.spi;
 
+import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.model.ChangeEntry;
@@ -15,6 +16,6 @@ import java.util.List;
  */
 public interface AuditActivityFieldsHook {
     EntityType entityType();
-    List<ChangeEntry> expandFields(AuditActivityItemDto<AuditableSnapshot> item);
-    default String labelFor(String rawFieldKey) { return rawFieldKey; }
+    List<ChangeEntry> expandFields(@NonNull AuditActivityItemDto<AuditableSnapshot> item);
+    default String labelFor(@NonNull String rawFieldKey) { return rawFieldKey; }
 }
