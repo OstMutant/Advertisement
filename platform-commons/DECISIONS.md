@@ -2,6 +2,34 @@
 
 ---
 
+## 2026-06-04 — `ComponentFactory<T>`: InjectionPoint-resolved prototype factory
+
+**Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `AuditUiPort`, `UiPrimaryButton`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:
+
+```java
+@Bean @Scope("prototype")
+public ComponentFactory<?> componentFactory(InjectionPoint ip, ConfigurableListableBeanFactory bf) {
+    ResolvableType type = ip.getField() != null
+            ? ResolvableType.forField(ip.getField())
+            : ResolvableType.forMethodParameter(ip.getMethodParameter());
+    return new ComponentFactory<>(bf.getBeanProvider(ResolvableType.forClass(type.getGeneric(0).toClass())));
+}
+```
+
+`ComponentFactory<T>` wraps `ObjectProvider<T>` and adds typed ergonomics: `get()`, `build(P params)` (for `Configurable<T,P>` prototype beans), `getIfAvailable()`, `findIfAvailable()`, `ifAvailable(Consumer<T>)`.
+
+**Why `InjectionPoint` over `ComponentFactory(Class<T>)` singleton with runtime class parameter:**
+
+The alternative — one singleton factory with `<T> T get(Class<T> type)` — pushes the type token to every call site: `factory.get(AuditPort.class)`. That is both verbose and unsound: the caller can accidentally pass the wrong class, the return type requires an unchecked cast, and the factory itself must hold a `Map<Class<?>, ObjectProvider<?>>` populated upfront. The `InjectionPoint` approach delegates type resolution entirely to Spring at wiring time: each injection site `ComponentFactory<AuditPort>` gets a correctly typed provider, no casts, no call-site class tokens, compile-time safe.
+
+**Why `ComponentFactory<T>` wrapper over direct `ObjectProvider<T>`:**
+
+`ObjectProvider` does not know about the `Configurable<T, P>` protocol — calling `build(params)` requires casting. Wrapping in `ComponentFactory<T>` keeps that cast in one place and exposes a clean, consistent API across all factory usages.
+
+**Rule:** All optional starter components in `marketplace-app` use `ComponentFactory<T>` injection. Direct `ObjectProvider<T>` fields are not used for this purpose. Starters that ship their own factories may also register `ComponentFactoryConfig` via `@ConditionalOnMissingBean` — marketplace's registration wins.
+
+---
+
 ## 2026-05-22 — Package semantics: `api` vs `spi` vs `dto`
 
 **Decision:** Three sub-packages inside each subsystem namespace carry distinct roles:
