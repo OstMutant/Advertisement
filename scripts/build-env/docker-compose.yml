@@ -1,0 +1,28 @@
+# Build environment compose file.
+#
+# Used by deploy-dev.sh to run the Maven build inside a container instead of locally.
+# This avoids requiring Java or any WSL setup on the developer's Windows machine.
+#
+# HOW IT WORKS:
+#   1. deploy-dev.bat calls: wsl bash deploy-dev.sh
+#   2. deploy-dev.sh calls: docker compose run --rm build-env
+#   3. A throwaway container starts from the build-env image (JDK 25 + Docker CLI).
+#   4. The project root is mounted at /app — Maven sees the latest source files immediately.
+#   5. The host Docker socket is mounted — the container runs `docker cp` and
+#      `docker restart` to hot-swap the JAR into the running marketplace-app container.
+#   6. build.sh runs inside: builds JAR → docker cp → docker restart marketplace-app.
+#   7. Container exits and is removed (--rm).
+#
+# FIRST RUN: builds the image (~1 min). Subsequent runs reuse the cached image.
+
+services:
+  build-env:
+    container_name: advertisement-build-env
+    build:
+      context: ../..
+      dockerfile: scripts/build-env/Dockerfile
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    entrypoint: ["sleep", "infinity"]
+    restart: unless-stopped

@@ -6,20 +6,22 @@ COPY pom.xml mvnw lombok.config ./
 COPY .mvn .mvn
 
 # Copy module POMs to leverage Docker cache for dependencies
-COPY sql-engine/pom.xml sql-engine/
-COPY advertisement-app/pom.xml advertisement-app/
-COPY storage-api/pom.xml storage-api/
-COPY storage-s3-spring-boot-starter/pom.xml storage-s3-spring-boot-starter/
+COPY query-starter/pom.xml query-starter/
+COPY platform-commons/pom.xml platform-commons/
+COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
+COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
+COPY marketplace-app/pom.xml marketplace-app/
 
 # Download dependencies (this layer is cached until pom.xml changes)
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw
 RUN ./mvnw dependency:go-offline -q
 
 # Copy the source code for all modules
-COPY sql-engine/src ./sql-engine/src
-COPY advertisement-app/src ./advertisement-app/src
-COPY storage-api/src ./storage-api/src
-COPY storage-s3-spring-boot-starter/src ./storage-s3-spring-boot-starter/src
+COPY query-starter/src ./query-starter/src
+COPY platform-commons/src ./platform-commons/src
+COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
+COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
+COPY marketplace-app/src ./marketplace-app/src
 
 # Build the project (Vaadin production mode enabled via POM profile)
 RUN ./mvnw clean package -Pproduction -DskipTests -q
@@ -28,7 +30,7 @@ FROM eclipse-temurin:25-jre
 WORKDIR /app
 
 # Copy the generated executable JAR from the application module
-COPY --from=builder /app/advertisement-app/target/*.jar app.jar
+COPY --from=builder /app/marketplace-app/target/*.jar app.jar
 
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "app.jar"]

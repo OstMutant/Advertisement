@@ -1,0 +1,54 @@
+version: '3.8'
+
+# Application service — production build verification.
+# Use together with docker-compose.db.yml and docker-compose.minio.yml before deploying to Render.
+#
+# Local DB + MinIO:
+# Start: docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build
+# Stop:  docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml down -v
+#
+# Neon DB + Supabase Storage (no local DB/MinIO needed):
+# docker-compose -f scripts/infra/docker-compose.app.yml up --build (set env vars below)
+
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: experiments
+      DB_USER: experiments_user
+      DB_PASSWORD: experiments_user_password
+      # Uncomment for Neon:
+      # DB_HOST: ep-late-flower-a43sj7qz-pooler.us-east-1.aws.neon.tech
+      # DB_NAME: neondb
+      # DB_USER: neondb_owner
+      # DB_PASSWORD: your_password
+      # DB_SSL_PARAMS: "?sslmode=require&channel_binding=require"
+      S3_ENDPOINT: http://minio:9000
+      S3_BUCKET: advertisement
+      S3_ACCESS_KEY: admin
+      S3_SECRET_KEY: admin12345
+      S3_REGION: us-east-1
+      S3_PUBLIC_URL: http://localhost:9000/advertisement
+      # Uncomment for Supabase Storage:
+      # S3_ENDPOINT: https://<project-ref>.supabase.co/storage/v1/s3
+      # S3_BUCKET: advertisement
+      # S3_ACCESS_KEY: your_supabase_access_key
+      # S3_SECRET_KEY: your_supabase_secret_key
+      # S3_REGION: auto
+      # S3_PUBLIC_URL: https://<project-ref>.supabase.co/storage/v1/object/public/advertisement
+    ports:
+      - "8080:8080"
+    # NOTE: depends_on references services from scripts/infra/docker-compose.db.yml and scripts/infra/docker-compose.minio.yml.
+    # Use this file together with those files (see commands above).
+    # When deploying with Neon + Supabase Storage, omit this file's depends_on by running the app standalone.
+    depends_on:
+      db:
+        condition: service_healthy
+      minio:
+        condition: service_healthy

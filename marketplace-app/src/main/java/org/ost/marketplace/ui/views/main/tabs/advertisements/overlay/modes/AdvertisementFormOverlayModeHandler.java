@@ -1,0 +1,167 @@
+package org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes;
+
+import com.vaadin.flow.component.dependency.Uses;
+import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.upload.Upload;
+import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.Getter;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
+import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.marketplace.entities.Advertisement;
+import org.ost.marketplace.services.AdvertisementService;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.ui.dto.AdvertisementEditDto;
+import org.ost.marketplace.ui.mappers.AdvertisementMapper;
+import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
+import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
+import org.ost.marketplace.ui.views.components.fields.UiTextArea;
+import org.ost.marketplace.ui.views.components.fields.UiTextField;
+import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
+import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.model.EntityType;
+import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.springframework.context.annotation.Scope;
+
+import java.util.UUID;
+
+
+import static org.ost.marketplace.common.I18nKey.*;
+
+@Uses(Upload.class)
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor
+public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayModeHandler<AdvertisementEditDto>
+        implements Configurable<AdvertisementFormOverlayModeHandler, AdvertisementFormOverlayModeHandler.Parameters>, I18nParams {
+
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        AdvertisementInfoDto ad;
+        @NonNull Runnable    onSave;
+        @NonNull Runnable    onCancel;
+    }
+
+    private final AdvertisementService                              advertisementService;
+    private final AdvertisementMapper                               mapper;
+    @Getter
+    private final I18nService                                       i18nService;
+    private final transient ComponentFactory<AttachmentGalleryPort> galleryPortFactory;
+    private final transient ComponentFactory<OverlayFormBinder>     formBinderFactory;
+    private final OverlayAdvertisementMetaPanel                     metaPanel;
+    private final UiTextField                                       titleField;
+    private final UiTextArea                                        descriptionField;
+    private final UiPrimaryButton                                   saveButton;
+    private final UiTertiaryButton                                  cancelButton;
+
+    private Parameters params;
+    @Getter
+    private Advertisement savedAdvertisement;
+    private AttachmentGalleryPort.FormHandle activeHandle;
+
+    @Override
+    public AdvertisementFormOverlayModeHandler configure(Parameters p) {
+        this.params = p;
+        return this;
+    }
+
+    @Override
+    public void activate(OverlayLayout layout) {
+        boolean isCreate = params.getAd() == null;
+
+        titleField.configure(UiTextField.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
+                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
+                .maxLength(255)
+                .required(true)
+                .build());
+
+        descriptionField.configure(UiTextArea.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
+                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
+                .maxLength(1000)
+                .required(true)
+                .build());
+        descriptionField.addClassName("overlay__description-text-area");
+
+        AdvertisementEditDto dto = isCreate
+                ? new AdvertisementEditDto()
+                : mapper.toAdvertisementEdit(params.getAd());
+        buildBinder(dto);
+
+        Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
+        cardHeader.addClassName("overlay__form-card-header");
+
+        Div fieldsCard = new Div(cardHeader, titleField, descriptionField);
+        fieldsCard.addClassName("overlay__form-fields-card");
+
+        Div content = new Div(fieldsCard);
+        galleryPortFactory.ifAvailable(ext -> {
+            this.activeHandle = isCreate
+                    ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
+                    : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
+            content.add(activeHandle.getComponent());
+        });
+
+        if (!isCreate) {
+            content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
+        }
+
+        saveButton.configure(UiPrimaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
+                .build());
+        cancelButton.configure(UiTertiaryButton.Parameters.builder()
+                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
+                .build());
+
+        wireSaveGuard(saveButton, params.getOnSave());
+        cancelButton.addClickListener(_ -> params.getOnCancel().run());
+
+        layout.setContent(content);
+        layout.setHeaderActions(new Div(saveButton, cancelButton));
+    }
+
+    public boolean save() {
+        return binder.save(dto -> {
+            this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
+            if (this.activeHandle != null) {
+                this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedAdvertisement.getId()));
+            }
+        });
+    }
+
+    public void discard() {
+        if (this.activeHandle != null) {
+            this.activeHandle.discard();
+        }
+    }
+
+    private void buildBinder(AdvertisementEditDto dto) {
+        binder = formBinderFactory.build(
+                OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
+                        .clazz(AdvertisementEditDto.class)
+                        .dto(dto)
+                        .build()
+        );
+        binder.getBinder().forField(titleField)
+                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED))
+                .withValidator(new StringLengthValidator(
+                        getValue(ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH), 1, 255))
+                .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
+        binder.getBinder().forField(descriptionField)
+                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
+                .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
+        binder.readInitialValues();
+    }
+}

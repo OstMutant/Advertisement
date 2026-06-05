@@ -1,0 +1,87 @@
+/* ── Form card: blue top accent ──────────────────────────────────── */
+
+.overlay__form-fields-card {
+    border-top: 3px solid #3b82f6 !important;
+}
+
+/* Header: stretches full-width over the card padding via negative margin */
+.overlay__form-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -20px -24px 16px;
+    padding: 13px 24px;
+    background: linear-gradient(to right, #eff6ff, #f0f9ff);
+    border-bottom: 1px solid #dbeafe;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #3b82f6;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.overlay__form-card-header vaadin-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+/* ── View card: green top accent (read-only mode) ────────────────── */
+
+.overlay__view-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: -20px -24px 16px;
+    padding: 13px 24px;
+    background: linear-gradient(to right, #ecfdf5, #f0fdf4);
+    border-bottom: 1px solid #a7f3d0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #059669;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.overlay__view-card-header vaadin-icon {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+/* ── Vaadin field overrides inside form cards ────────────────────── */
+
+.overlay__form-fields-card vaadin-text-field::part(input-field),
+.overlay__form-fields-card vaadin-text-area::part(input-field),
+.overlay__form-fields-card vaadin-combo-box::part(input-field),
+.overlay__form-fields-card vaadin-email-field::part(input-field),
+.overlay__form-fields-card vaadin-password-field::part(input-field),
+.overlay__form-fields-card vaadin-integer-field::part(input-field) {
+    background-color: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.overlay__form-fields-card vaadin-text-field:focus-within::part(input-field),
+.overlay__form-fields-card vaadin-text-area:focus-within::part(input-field),
+.overlay__form-fields-card vaadin-combo-box:focus-within::part(input-field),
+.overlay__form-fields-card vaadin-email-field:focus-within::part(input-field),
+.overlay__form-fields-card vaadin-password-field:focus-within::part(input-field),
+.overlay__form-fields-card vaadin-integer-field:focus-within::part(input-field) {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+    background-color: #ffffff;
+}
+
+.overlay__form-fields-card vaadin-text-field::part(label),
+.overlay__form-fields-card vaadin-text-area::part(label),
+.overlay__form-fields-card vaadin-combo-box::part(label),
+.overlay__form-fields-card vaadin-email-field::part(label),
+.overlay__form-fields-card vaadin-password-field::part(label),
+.overlay__form-fields-card vaadin-integer-field::part(label) {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #475569;
+}

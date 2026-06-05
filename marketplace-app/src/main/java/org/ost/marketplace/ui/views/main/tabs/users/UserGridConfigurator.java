@@ -1,0 +1,125 @@
+package org.ost.marketplace.ui.views.main.tabs.users;
+
+import com.vaadin.flow.component.Component;
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.grid.ColumnTextAlign;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.*;
+import org.ost.marketplace.entities.User;
+import org.ost.platform.core.i18n.I18nService;
+import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.views.rules.I18nParams;
+import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
+import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
+import org.springframework.context.annotation.Scope;
+
+import java.util.function.Consumer;
+
+import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
+import static org.ost.marketplace.common.I18nKey.*;
+
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
+public class UserGridConfigurator implements Configurable<UserGridConfigurator, UserGridConfigurator.Parameters>, I18nParams {
+
+    @Value
+    @lombok.Builder
+    public static class Parameters {
+        @NonNull Grid<User>     grid;
+        @NonNull Consumer<User> onView;
+        @NonNull Consumer<User> onEdit;
+        @NonNull Consumer<User> onDelete;
+    }
+
+    @Getter
+    private final I18nService                             i18nService;
+    private final transient ComponentFactory<EditActionButton>   editButtonFactory;
+    private final transient ComponentFactory<DeleteActionButton> deleteButtonFactory;
+
+    @Override
+    public UserGridConfigurator configure(Parameters p) {
+        Grid<User> grid = p.getGrid();
+
+        grid.setSizeFull();
+        grid.addItemClickListener(e -> p.getOnView().accept(e.getItem()));
+
+        grid.addColumn(User::getId)
+                .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ID)));
+
+        grid.addColumn(new ComponentRenderer<>(user -> {
+                    Span nameSpan = new Span(user.getName());
+                    nameSpan.addClassName("user-grid-name");
+                    Span emailSpan = new Span(user.getEmail());
+                    emailSpan.addClassName("user-grid-email");
+                    VerticalLayout layout = new VerticalLayout(nameSpan, emailSpan);
+                    layout.setSpacing(false);
+                    layout.setPadding(false);
+                    layout.setMargin(false);
+                    return layout;
+                }))
+                .setFlexGrow(1)
+                .setHeader(getDualHeader(getValue(USER_VIEW_HEADER_NAME), getValue(USER_VIEW_HEADER_EMAIL)));
+
+        grid.addColumn(new ComponentRenderer<>(user -> {
+                    Span badge = new Span(user.getRole().name());
+                    badge.addClassName("user-role-badge");
+                    badge.addClassName("user-role-" + user.getRole().name().toLowerCase());
+                    return badge;
+                }))
+                .setAutoWidth(true).setFlexGrow(0)
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ROLE)));
+
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getCreatedAt()))
+                .setAutoWidth(true).setFlexGrow(0)
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_CREATED)));
+
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()))
+                .setAutoWidth(true).setFlexGrow(0)
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
+
+        grid.addColumn(new ComponentRenderer<>(user -> {
+                    Button edit = editButtonFactory.build(
+                            EditActionButton.Parameters.builder()
+                                    .tooltip(getValue(USER_VIEW_BUTTON_EDIT))
+                                    .onClick(() -> p.getOnEdit().accept(user))
+                                    .build()
+                    );
+                    Button delete = deleteButtonFactory.build(
+                            DeleteActionButton.Parameters.builder()
+                                    .tooltip(getValue(USER_VIEW_BUTTON_DELETE))
+                                    .onClick(() -> p.getOnDelete().accept(user))
+                                    .build()
+                    );
+                    HorizontalLayout layout = new HorizontalLayout(edit, delete);
+                    layout.addClassName("user-grid-actions");
+                    return layout;
+                }))
+                .setHeader(getHeader(getValue(USER_VIEW_HEADER_ACTIONS)))
+                .setAutoWidth(true)
+                .setFlexGrow(0).setTextAlign(ColumnTextAlign.CENTER);
+
+        return this;
+    }
+
+    private static Component getHeader(String label) {
+        Span span = new Span(label);
+        span.addClassName("user-grid-header");
+        return span;
+    }
+
+    private static Component getDualHeader(String label1, String label2) {
+        HorizontalLayout layout = new HorizontalLayout(new Span(label1), new Span(" / "), new Span(label2));
+        layout.setAlignItems(CENTER);
+        layout.addClassName("user-grid-header");
+        return layout;
+    }
+}
