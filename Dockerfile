@@ -10,6 +10,7 @@ COPY query-starter/pom.xml query-starter/
 COPY platform-commons/pom.xml platform-commons/
 COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
 COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
+COPY taxon-spring-boot-starter/pom.xml taxon-spring-boot-starter/
 COPY marketplace-app/pom.xml marketplace-app/
 
 # Download dependencies (this layer is cached until pom.xml changes)
@@ -21,6 +22,7 @@ COPY query-starter/src ./query-starter/src
 COPY platform-commons/src ./platform-commons/src
 COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
+COPY taxon-spring-boot-starter/src ./taxon-spring-boot-starter/src
 COPY marketplace-app/src ./marketplace-app/src
 
 # Build the project (Vaadin production mode enabled via POM profile)
