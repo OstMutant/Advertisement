@@ -10,6 +10,7 @@ for %%d in (
     platform-commons\target
     attachment-spring-boot-starter\target
     audit-spring-boot-starter\target
+    taxon-spring-boot-starter\target
     query-starter\target
 ) do (
     if exist "%ROOT%%%d" (

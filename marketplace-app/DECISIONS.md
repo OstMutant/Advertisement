@@ -57,7 +57,7 @@ Rules:
 
 **Why:** Vaadin view beans are initialized on first HTTP request — before the user authenticates. Class-level `@PreAuthorize` on services breaks this initialization with `AuthorizationDeniedException`. The `/health` REST endpoint is intentionally public (load balancer / monitoring). Future non-public REST endpoints should use `@PreAuthorize` at the method level on the controller.
 
-**Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `AuditReadService`, `AuditReadService`, `AuditReadService`, `UserSettingsService` — confirmed broken via smoke tests.
+**Rejected:** Class-level `@PreAuthorize("isAuthenticated()")` on `AdvertisementService`, `AuditReadService`, `UserSettingsService` — confirmed broken via smoke tests.
 
 ---
 
@@ -91,7 +91,7 @@ Rules:
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
-**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`) implemented in `marketplace-app`.
+**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditReadService` + Vaadin panels `AuditHistoryPanel` / `AuditActivityPanel`) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`) implemented in `marketplace-app`.
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 

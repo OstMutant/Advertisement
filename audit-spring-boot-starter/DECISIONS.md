@@ -4,7 +4,7 @@
 
 ## Ongoing — Module structure and auto-configuration
 
-**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
+**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService` + Vaadin UI panels `AuditHistoryPanel` / `AuditActivityPanel`). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
 
 Write and read sides were initially separate modules (`audit-core` + `audit-read`) but merged — fewer modules is simpler when there is no concrete scenario requiring the write side without the read side.
 
@@ -47,11 +47,12 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ## 2026-05-19 — Starter owns `auditObjectMapper`
 
-**Decision:** `AuditAutoConfiguration` defines `@Bean("auditObjectMapper") ObjectMapper` with `FAIL_ON_UNKNOWN_PROPERTIES` disabled, `@ConditionalOnMissingBean(name = "auditObjectMapper")` for override. All audit consumers qualify injection with `@Qualifier("auditObjectMapper")`.
+Concrete adoption of the cross-starter ObjectMapper convention — see `platform-commons/DECISIONS.md` (2026-05-19, "Cross-starter convention") for rationale and rule.
 
-**Why:** The starter previously consumed `userSettingsObjectMapper` — a marketplace-specific name. The starter must work in any Spring Boot context.
-
-**Rejected:** `@Primary` on the starter's `ObjectMapper` — explicit `@Qualifier` over `@Primary` everywhere (durable project rule).
+**Per-starter specifics:**
+- Bean name: `auditObjectMapper`.
+- Defined in `AuditAutoConfiguration`, `FAIL_ON_UNKNOWN_PROPERTIES` disabled, `@ConditionalOnMissingBean(name = "auditObjectMapper")`.
+- Injection sites converted: `AuditReadService`, snapshot serialisation in `DefaultAuditPort`, activity renderers. Each carries `@Qualifier("auditObjectMapper")`.
 
 **2026-05-23 update:** `audit.enabled` property removed. Jar presence is the only toggle — no scenario exists where the jar is on the classpath but the subsystem should be disabled. `@ConditionalOnAuditEnabled` removed entirely (was a no-op marker with no `@ConditionalOnProperty`).
 
@@ -59,9 +60,14 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ## 2026-05-19 — Actor-centric SPI vocabulary; user-domain types purged
 
-**Decision:** Audit subsystem speaks about actors and subjects, not users. Key renames: `AuditUserProvider` → `CurrentActorProvider`; `UserActivityExtension` → `ActivityFeedExtension`; `AdvertisementHistoryExtension` → `MediaHistoryExtension`; `UserSnapshotState` deleted; `AuditPort.getUserStateBefore/getUserStateAt` deleted in favor of generic `getSnapshotContent/getPreviousSnapshotContent(Long, EntityType)`; DB column `user_id` → `actor_id`.
+Audit-side adoption of the cross-starter actor-centric naming convention — see `platform-commons/DECISIONS.md` (2026-05-19, "User-domain knowledge purged from contracts; actor-centric naming") for rationale.
 
-**Why:** "User" is a marketplace-specific concept. "Actor" is neutral and applies to bots, workflows, or service accounts.
+**Audit-specific renames recorded here for traceability:**
+- `AuditUserProvider` → `CurrentActorProvider` (subsequently `CurrentActorHook`).
+- `UserActivityExtension` → `ActivityFeedExtension` (subsequently folded into `AuditActivityRowHook`).
+- `AdvertisementHistoryExtension` → `MediaHistoryExtension` (subsequently removed in favour of `AttachmentAuditHook`).
+- `UserSnapshotState` deleted; `AuditPort.getUserStateBefore` / `getUserStateAt` deleted in favour of generic `getSnapshotContent` / `getPreviousSnapshotContent(Long, EntityType)`.
+- DB column `user_id` → `actor_id`.
 
 ---
 
@@ -120,7 +126,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 ### HIGH
 - ✅ `AuditActivityRowRenderer`: `addHistorySpan` / `addActivitySpan` — identical except CSS prefix → merged into `addSpan(Div, String, boolean, String cssBase)`
 - ✅ `AuditActivityRowRenderer`: `buildAdvertisementActivityFieldsList` / `buildAdvHistoryFieldsList` — extracted via `AuditActivityRenderHook` SPI; renamed to generic `buildHistoryFieldsList(h, EntityRef)`. No `EntityType.ADVERTISEMENT` hardcode remains in the starter.
-- ✅ `AuditReadService` + `AuditReadService`: `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
+- ✅ Both read paths (history + activity, now consolidated in `AuditReadService`): `resolveActorNames()` — extracted into `AuditDomainHelper.withResolvedActorNames(items, idGetter, nameApplier)`.
 
 ### MEDIUM
 - ✅ `AdvertisementFormOverlayModeHandler` / `UserFormOverlayModeHandler`: extracted `AbstractFormOverlayModeHandler<D extends EditDto>` base class with `hasChanges()` and `wireSaveGuard()`.
@@ -158,7 +164,7 @@ Subtype registration is done in `marketplace-app/JacksonConfig` via `@PostConstr
 
 **Decision:** Two related cleanups applied to the audit starter:
 
-1. **`AttachmentAuditHook` removed from audit-starter.** `AuditReadService`, `AuditReadService`, and `AuditHistoryPanel` no longer import `attachment.spi`. A new `AuditActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
+1. **`AttachmentAuditHook` removed from audit-starter.** `AuditReadService`, `AuditHistoryPanel`, and `AuditActivityPanel` no longer import `attachment.spi`. A new `AuditActivityEnrichHook` SPI (`audit.spi`) replaces the direct attachment calls — method names are domain-neutral (`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`, which delegates to `AttachmentAuditHook` via `ObjectProvider`.
 
 2. **`ObjectProvider` removed for all required hook injections.** Hooks implemented by marketplace (`CurrentActorHook`, `AuditDomainHook`, `AuditActivityEnrichHook`) are now injected as plain required fields. `ObjectProvider` is kept only for cross-starter optional deps (`AttachmentAuditHook` in marketplace) and prototype bean factories (`rendererProvider`, `Builder.provider`).
 
@@ -202,7 +208,7 @@ New `findByActor`: CTE `actor_rows` fetches the actor's top N rows directly (ind
 
 **Decision:** `changes_summary JSONB` column removed from `audit_log`. Diff is now computed at read time by ``AuditableSnapshot.diff()`` from `snapshot_data` (current row) and `prev_snapshot_data` (LAG window function). `AuditLogProjection` no longer carries `changesSummaryJson`. `AuditJsonSerializationService.fromJsonList` / `toChangesJson` removed.
 
-**Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditableSnapshot.diff()` dependency. `AuditableSnapshot.diff()` is now a read-side concern only (injected by `AuditReadService` and `AuditReadService`).
+**Why:** Pre-computing diffs at write time meant stale diffs when diff logic changed. Dynamic computation gives always-fresh results with negligible cost (max 20–100 rows). Write side (`DefaultAuditPort`, `AuditLogRepository.save`) simplified — no `AuditableSnapshot.diff()` dependency. `AuditableSnapshot.diff()` is now a read-side concern only (injected by `AuditReadService`).
 
 **Rule:** Never store pre-computed diffs. Always derive changes from snapshot pairs at read time.
 

@@ -36,9 +36,9 @@ advertisement-parent (root pom)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
-**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffService`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditLogRepository`. Read side: `AuditReadService` (consolidated history + activity reads) + Vaadin audit UI components (`AuditHistoryPanel`, `AuditActivityPanel`). Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`. Java package root: `org.ost.attachment`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `AttachmentSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupService`, `S3StorageService`. Java package root: `org.ost.attachment`.
 
 ---
 
@@ -140,8 +140,8 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 
 Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-commons`, package `core.i18n`):
 - `marketplace-app` → `CommonMessages implements TranslationKey`
-- `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
-- `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
+- `audit-spring-boot-starter` → `AuditI18n implements TranslationKey`
+- `attachment-spring-boot-starter` → `AttachmentI18n implements TranslationKey`
 
 **Rules:**
 - Never use raw `MessageSource` directly in UI components — use `I18nService.get(TranslationKey)`.
@@ -155,7 +155,7 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 `@EnableMethodSecurity` is active. **Never put `@PreAuthorize` at class level on service beans.** Vaadin initializes view beans on the first HTTP request before the user authenticates; a class-level annotation causes an `AuthorizationDeniedException` during view wiring, preventing any view from loading.
 
 - Method-level `@PreAuthorize` is fine for future REST controller endpoints.
-- Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
+- Services (`AdvertisementService`, `UserService`, etc.) intentionally have no `@PreAuthorize`.
 - `/health` is intentionally public (load balancer probe).
 
 ---
