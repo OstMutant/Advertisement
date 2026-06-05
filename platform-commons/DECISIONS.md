@@ -112,7 +112,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Why:** `AttachmentAuditHook` is an `attachment.spi` interface. Having the audit starter call it created a starter→starter coupling: audit implicitly depended on attachment being present to enrich its data. Marketplace is the correct orchestrator — it knows about both subsystems and decides how to combine them.
 
 **Call chain after this change:**
-- `AuditReadService` / `AuditReadService` / `AuditHistoryPanel` → `AuditActivityEnrichHook` (audit.spi)
+- `AuditReadService` / `AuditHistoryPanel` / `AuditActivityPanel` → `AuditActivityEnrichHook` (audit.spi)
 - `ActivityEnrichHookImpl` (marketplace) → `AttachmentAuditHook` (attachment.spi)
 - `AttachmentAuditHookImpl` (attachment-starter) → domain logic
 
@@ -171,6 +171,30 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 **Why:** "User" is a marketplace concept. Starters that talk about `userId` cannot be reused in a CRM, ticketing, or content system where the acting principal is an agent, robot, or workflow. The actor/subject vocabulary is generic; consumers map it onto their own domain.
 
 **Rejected:** Keeping `UserSnapshotState` as a "typed convenience" — locks the contract surface to a specific subject shape (name/email/role) and forces every consumer through the same fields.
+
+---
+
+## 2026-05-19 — Cross-starter convention: starter-owned `ObjectMapper` bean
+
+**Decision:** Each Spring Boot starter that needs JSON serialization defines its own named `ObjectMapper` bean and qualifies every injection site explicitly. The pattern is uniform:
+
+```java
+@Bean("<subsystem>ObjectMapper")
+@ConditionalOnMissingBean(name = "<subsystem>ObjectMapper")
+ObjectMapper <subsystem>ObjectMapper() {
+    return new ObjectMapper().configure(FAIL_ON_UNKNOWN_PROPERTIES, false);
+}
+```
+
+Internal consumers carry `@Qualifier("<subsystem>ObjectMapper")` at every injection point. Current concrete names: `auditObjectMapper` (audit-spring-boot-starter), `attachmentObjectMapper` (attachment-spring-boot-starter), `userSettingsObjectMapper` (marketplace-app, predates the convention but follows it).
+
+**Rule:** Never `@Primary` on any `ObjectMapper`. Always explicit `@Qualifier`. New starters that produce or consume JSON must follow the same pattern with their own subsystem-named bean.
+
+**Why:** Multiple `ObjectMapper` beans coexist once two or more subsystems are loaded — without explicit qualification, Spring raises `NoUniqueBeanDefinitionException`. `@Primary` was rejected as a project-wide rule (recorded as durable feedback): it masks ambiguity and silently routes injections to whichever mapper happened to win the "primary" race. Domain-specific bean names (`userSettingsObjectMapper` used to serve audit too) couple starters to the host application's naming. A subsystem-prefixed name + `@Qualifier` is unambiguous and deployable to any Spring Boot context.
+
+**Per-starter notes (kept local in each `DECISIONS.md`):** date of adoption, list of injection sites converted, any per-starter Jackson configuration differences (e.g. timezone modules).
+
+**Rejected:** `@Primary` on the starter's mapper; consuming the host application's mapper directly; reflection-based qualifier lookup.
 
 ---
 

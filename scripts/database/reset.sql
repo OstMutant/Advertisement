@@ -2,7 +2,8 @@
 -- Seed users are re-inserted so that Playwright smoke tests can run immediately.
 -- Password for all users: "password"
 
-TRUNCATE TABLE attachment_snapshot, attachment, audit_log, advertisement, user_information
+TRUNCATE TABLE taxon_assignment, taxon_translation, taxon,
+               attachment_snapshot, attachment, audit_log, advertisement, user_information
     RESTART IDENTITY CASCADE;
 
 INSERT INTO user_information (name, email, password_hash, role, created_at, updated_at, locale)
