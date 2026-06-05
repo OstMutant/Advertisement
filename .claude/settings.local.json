@@ -281,7 +281,13 @@
       "Bash(> /tmp/pw.log)",
       "Bash(xxd /tmp/pw.log)",
       "Bash(grep -v \"^[[:space:]]*$\")",
-      "Bash(javap -classpath /root/.m2/repository/org/springframework/spring-beans/7.0.2/spring-beans-7.0.2.jar org.springframework.beans.factory.InjectionPoint)"
+      "Bash(javap -classpath /root/.m2/repository/org/springframework/spring-beans/7.0.2/spring-beans-7.0.2.jar org.springframework.beans.factory.InjectionPoint)",
+      "Bash(tee /tmp/deploy.log)",
+      "Bash(awk '{print $NF}')",
+      "Bash(awk '$1 > 500 {print}')",
+      "Bash(grep -E \"\\\\.js$\")",
+      "Bash(/)",
+      "Bash(grep -rn \"AuditReadService.*AuditReadService\\\\|AuditReadService` / `AuditReadService\\\\|AuditReadService, .AuditReadService\" /app --include=\"*.md\")"
     ]
   },
   "hooks": {
