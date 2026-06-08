@@ -86,7 +86,7 @@ test.describe('Media activity', () => {
     await openHistory(page);
 
     await test.step('History shows media change after create', async () => {
-      checkMediaInText(await page.locator('.entity-history-list').textContent(), 'history-after-create');
+      checkMediaInText(await page.locator('.entity-activity-list').textContent(), 'history-after-create');
     });
     await screenshot(page, 'media-activity-01-history');
 
@@ -124,14 +124,14 @@ test.describe('Media activity', () => {
     await openHistory(page);
 
     await test.step('History shows media diff after adding second image', async () => {
-      checkMediaInText(await page.locator('.entity-history-list').textContent(), 'history-after-edit');
-      if (!(await page.locator('.entity-history-list').textContent()).includes('→'))
+      checkMediaInText(await page.locator('.entity-activity-list').textContent(), 'history-after-edit');
+      if (!(await page.locator('.entity-activity-list').textContent()).includes('→'))
         throw new Error('No diff arrow → in history');
     });
     await screenshot(page, 'media-activity-03-history-diff');
 
     await test.step('Restore button on older entry', async () => {
-      if (await page.locator('.entity-history-restore-btn').count() === 0)
+      if (await page.locator('.entity-activity-restore-btn').count() === 0)
         throw new Error('No restore button');
     });
 
@@ -141,15 +141,15 @@ test.describe('Media activity', () => {
     await page.locator('.advertisement-container').waitFor({ timeout: 5000 });
     await openAdDetail(page, AD_TITLE);
     await openHistory(page);
-    await page.locator('.entity-history-list .entity-history-restore-btn').last().click();
+    await page.locator('.entity-activity-list .entity-activity-restore-btn').last().click();
     await confirmDialog(page);
     await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
 
     await test.step('History grows after restore', async () => {
       await openHistory(page);
-      const rows = await page.locator('.entity-history-row').count();
+      const rows = await page.locator('.entity-activity-row').count();
       if (rows < 3) throw new Error(`Expected >=3 rows after restore, got ${rows}`);
-      checkMediaInText(await page.locator('.entity-history-list').textContent(), 'history-after-restore');
+      checkMediaInText(await page.locator('.entity-activity-list').textContent(), 'history-after-restore');
     });
     await screenshot(page, 'media-activity-04-after-restore');
 

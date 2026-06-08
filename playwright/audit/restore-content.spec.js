@@ -46,10 +46,10 @@ test.describe('Restore content correctness', () => {
       await screenshot(page, 'restore-content-01-history-v3');
 
       await test.step('Restore button on v1 (oldest) is present', async () => {
-        await expect(page.locator('.entity-history-restore-btn').last()).toBeVisible();
+        await expect(page.locator('.entity-activity-restore-btn').last()).toBeVisible();
       });
 
-      await page.locator('.entity-history-restore-btn').last().click();
+      await page.locator('.entity-activity-restore-btn').last().click();
       await confirmDialog(page);
       await page.locator('.overlay__view-title').waitFor({ timeout: 8000 });
 
@@ -91,7 +91,7 @@ test.describe('Restore content correctness', () => {
       await openHistory(page);
 
       await test.step('Restore to v2 (second restore button from bottom)', async () => {
-        const btns = page.locator('.entity-history-restore-btn');
+        const btns = page.locator('.entity-activity-restore-btn');
         const count = await btns.count();
         await btns.nth(count - 2).click();
         await confirmDialog(page);
@@ -143,11 +143,11 @@ test.describe('Restore content correctness', () => {
       await openActivityTab(page);
 
       await test.step('Restore button present on non-current entry', async () => {
-        await expect(page.locator('.activity-feed-list .entity-history-restore-btn').first())
+        await expect(page.locator('.activity-feed-list .entity-activity-restore-btn').first())
           .toBeVisible({ timeout: 10000 });
       });
 
-      await page.locator('.activity-feed-list .entity-history-restore-btn').first().click();
+      await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
       await page.locator('vaadin-confirm-dialog').waitFor({ timeout: 5000 }).catch(async () => {
         await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
       });
@@ -208,12 +208,12 @@ test.describe('Restore content correctness', () => {
       });
 
       await test.step('Restore button present on non-current entry', async () => {
-        await expect(page.locator('.activity-feed-list .entity-history-restore-btn').first())
+        await expect(page.locator('.activity-feed-list .entity-activity-restore-btn').first())
           .toBeVisible({ timeout: 5000 });
       });
       await screenshot(page, 'restore-content-05-user-before-restore');
 
-      await page.locator('.activity-feed-list .entity-history-restore-btn').first().click();
+      await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
       await page.evaluate(() => {
         const dialog = document.querySelector('vaadin-confirm-dialog[opened]');
         if (dialog) { const btn = dialog.querySelector('[slot="confirm-button"]'); if (btn) btn.click(); }

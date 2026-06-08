@@ -227,8 +227,10 @@ public enum I18nKey implements TranslationKey {
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
 
     // === Activity ===
-    ACTIVITY_TAB("activity.tab"),
     ACTIVITY_PROFILE_TAB("activity.profile.tab"),
+    USER_ACTIVITY_TAB("user.activity.tab"),
+    SETTINGS_ACTIVITY_TAB("settings.activity.tab"),
+    TIMELINE_TAB("timeline.tab"),
     ACTIVITY_SECTION_TITLE("activity.section.title"),
     ACTIVITY_ACTION_CREATED("activity.action.created"),
     ACTIVITY_ACTION_UPDATED("activity.action.updated"),
@@ -236,7 +238,7 @@ public enum I18nKey implements TranslationKey {
     ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
     // === Advertisement History ===
-    ADVERTISEMENT_HISTORY_TAB("advertisement.history.tab"),
+    ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
     ADVERTISEMENT_VIEW_TAB("advertisement.view.tab"),
     ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
     ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),

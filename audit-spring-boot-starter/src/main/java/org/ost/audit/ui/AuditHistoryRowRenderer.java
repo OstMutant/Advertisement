@@ -57,7 +57,7 @@ public class AuditHistoryRowRenderer implements Initialization<AuditHistoryRowRe
 
     Div buildRow(AuditHistoryItemDto h, RowContext ctx, RenderConfig cfg) {
         Div row = new Div();
-        row.addClassName("entity-history-row");
+        row.addClassName("entity-activity-row");
 
         row.add(metaRow(h, ctx));
 
@@ -75,20 +75,20 @@ public class AuditHistoryRowRenderer implements Initialization<AuditHistoryRowRe
     private Div metaRow(AuditHistoryItemDto h, RowContext ctx) {
         Div meta = new Div(versionSpan(h.version()), actionSpan(h.actionType()),
                 changedBySpan(ctx.actorNames().getOrDefault(h.actorId(), "")), timeSpan(h.createdAt()));
-        meta.addClassName("entity-history-meta");
+        meta.addClassName("entity-activity-meta");
         return meta;
     }
 
     private Span buildCurrentStateBadge() {
         Span badge = new Span(i18n.get(AuditI18n.HISTORY_CURRENT_STATE));
-        badge.addClassName("entity-history-current-badge");
+        badge.addClassName("entity-activity-current-badge");
         return badge;
     }
 
     private Button buildRestoreButton(AuditHistoryItemDto h, ObjLongConsumer<AuditHistoryItemDto> onRestore) {
         Button btn = new Button(i18n.get(AuditI18n.HISTORY_RESTORE));
         btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-        btn.addClassName("entity-history-restore-btn");
+        btn.addClassName("entity-activity-restore-btn");
         long snapId = h.snapshotId();
         btn.addClickListener(_ -> onRestore.accept(h, snapId));
         return btn;
@@ -101,26 +101,26 @@ public class AuditHistoryRowRenderer implements Initialization<AuditHistoryRowRe
 
     private static Span versionSpan(int version) {
         Span span = new Span("v" + version);
-        span.addClassName("entity-history-version");
+        span.addClassName("entity-activity-version");
         return span;
     }
 
     private Span actionSpan(ActionType actionType) {
         Span span = new Span(i18n.get(AuditI18n.forAction(actionType)));
-        span.addClassName("entity-history-action");
-        span.addClassName("entity-history-action--" + actionType.name().toLowerCase());
+        span.addClassName("entity-activity-action");
+        span.addClassName("entity-activity-action--" + actionType.name().toLowerCase());
         return span;
     }
 
     private static Span changedBySpan(String userName) {
         Span span = new Span(userName);
-        span.addClassName("entity-history-user");
+        span.addClassName("entity-activity-user");
         return span;
     }
 
     private Span timeSpan(Instant createdAt) {
         Span span = new Span(formatter.formatInstantHuman(createdAt));
-        span.addClassName("entity-history-time");
+        span.addClassName("entity-activity-time");
         return span;
     }
 

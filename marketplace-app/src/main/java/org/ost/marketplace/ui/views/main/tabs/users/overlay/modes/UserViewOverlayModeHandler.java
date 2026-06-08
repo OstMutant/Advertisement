@@ -18,15 +18,11 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
-import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.marketplace.services.user.UserSettingsService;
+import org.ost.platform.core.model.EntityType;
 import org.ost.query.ui.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
@@ -53,7 +49,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final UserSettingsService                               userSettingsService;
     private final transient ComponentFactory<AuditUiPort>           auditUiPortFactory;
     private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
     private final transient ComponentFactory<UiIconButton>          iconButtonFactory;
@@ -125,9 +120,19 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     protected SecondaryTabDef buildSecondaryTab() {
         return auditUiPortFactory.findIfAvailable()
                 .map(auditUi -> new SecondaryTabDef(
-                        new Tab(getValue(ACTIVITY_TAB)),
+                        new Tab(getValue(USER_ACTIVITY_TAB)),
                         "activity-feed-content",
                         () -> buildActivityContent(params.getUser(), auditUi)))
+                .orElse(null);
+    }
+
+    @Override
+    protected TertiaryTabDef buildTertiaryTab() {
+        return auditUiPortFactory.findIfAvailable()
+                .map(auditUi -> new TertiaryTabDef(
+                        new Tab(getValue(TIMELINE_TAB)),
+                        "activity-feed-content",
+                        () -> buildTimelineContent(params.getUser(), auditUi)))
                 .orElse(null);
     }
 
@@ -147,36 +152,20 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiPort auditUi) {
-        String currentName     = user.getName();
-        String currentEmail    = user.getEmail();
-        org.ost.marketplace.entities.Role currentRole = user.getRole();
-        UserSettings currentSettings = userSettingsService.load(user.getId());
+        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
+                .entityType(EntityType.USER)
+                .entityId(user.getId())
+                .userId(user.getId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(user))
+                .onRestoreRequested((item, entityId) -> params.getOnRestoreUser().accept(item.snapshotId(), entityId))
+                .build());
+    }
 
-        AuditActivityRowHook<UserSnapshotDto> userBinding = auditUi.snapshotRowHook(
-                AuditUiPort.SnapshotRowHookParams.<UserSnapshotDto>builder()
-                        .entityType(org.ost.platform.core.model.EntityType.USER)
-                        .isCurrent(snap -> snap.name().equals(currentName)
-                                        && snap.email() != null && snap.email().equals(currentEmail)
-                                        && currentRole != null && currentRole.name().equals(snap.role()))
-                        .subjectEntityId(user.getId())
-                        .onRestore((snapshotId, entityId) -> params.getOnRestoreUser().accept(snapshotId, entityId))
-                        .build());
-
-        AuditActivityRowHook<SettingsSnapshotDto> settingsBinding = auditUi.snapshotRowHook(
-                AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
-                        .entityType(org.ost.platform.core.model.EntityType.USER_SETTINGS)
-                        .isCurrent(snap -> snap.adsPageSize() == currentSettings.getAdsPageSize()
-                                        && snap.usersPageSize() == currentSettings.getUsersPageSize())
-                        .subjectEntityId(user.getId())
-                        .build());
-
-        return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
-                .subjects(java.util.List.of(
-                        new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER, user.getId()),
-                        new org.ost.platform.core.model.EntityRef(org.ost.platform.core.model.EntityType.USER_SETTINGS, user.getId())))
+    private com.vaadin.flow.component.Component buildTimelineContent(User user, AuditUiPort auditUi) {
+        return auditUi.buildAuditTimelinePanel(AuditUiPort.TimelineParams.builder()
                 .actorId(user.getId())
                 .viewerActorId(user.getId())
-                .bindings(java.util.List.of(userBinding, settingsBinding))
                 .build());
     }
 

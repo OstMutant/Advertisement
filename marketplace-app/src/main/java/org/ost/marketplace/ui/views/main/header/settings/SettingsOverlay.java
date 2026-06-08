@@ -11,7 +11,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.spi.AuditActivityRowHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.entities.UserSettings;
 import org.ost.marketplace.entities.User;
@@ -28,7 +27,6 @@ import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbB
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditUiPort;
-import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.ComponentFactory;
 
@@ -58,7 +56,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private OverlayLayout    layout;
     private IntegerField     adsPageSizeField;
     private IntegerField     usersPageSizeField;
-    private Div              activityPanel;
+    private Div              historyPanel;
+    private Div              timelinePanel;
     private Tabs             tabs;
     private Tab              settingsTab;
     private UiPrimaryButton  saveBtn;
@@ -89,24 +88,33 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
 
         Div content = auditUiPortFactory.findIfAvailable()
                 .map(auditUi -> {
-                    activityPanel = new Div();
-                    activityPanel.setVisible(false);
+                    historyPanel  = new Div();
+                    historyPanel.setVisible(false);
+                    timelinePanel = new Div();
+                    timelinePanel.setVisible(false);
 
-                    settingsTab     = new Tab(getValue(SETTINGS_SECTION_TITLE));
-                    Tab activityTab = new Tab(getValue(ACTIVITY_TAB));
-                    tabs = new Tabs(settingsTab, activityTab);
+                    settingsTab          = new Tab(getValue(SETTINGS_SECTION_TITLE));
+                    Tab historyTab       = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
+                    Tab timelineTab      = new Tab(getValue(TIMELINE_TAB));
+                    tabs = new Tabs(settingsTab, historyTab, timelineTab);
                     tabs.addClassName("user-view-tabs");
 
                     tabs.addSelectedChangeListener(event -> {
-                        boolean isSettings = event.getSelectedTab() == settingsTab;
+                        Tab selected    = event.getSelectedTab();
+                        boolean isSettings  = selected == settingsTab;
+                        boolean isHistory   = selected == historyTab;
                         settingsPanel.setVisible(isSettings);
-                        activityPanel.setVisible(!isSettings);
-                        if (!isSettings && activityPanel.getChildren().findFirst().isEmpty()) {
-                            activityPanel.add(buildActivityContent(auditUi, user));
+                        historyPanel.setVisible(isHistory);
+                        timelinePanel.setVisible(!isSettings && !isHistory);
+                        if (isHistory && historyPanel.getChildren().findFirst().isEmpty()) {
+                            historyPanel.add(buildHistoryContent(auditUi, user));
+                        }
+                        if (!isSettings && !isHistory && timelinePanel.getChildren().findFirst().isEmpty()) {
+                            timelinePanel.add(buildTimelineContent(auditUi, user));
                         }
                     });
 
-                    return new Div(tabs, settingsPanel, activityPanel);
+                    return new Div(tabs, settingsPanel, historyPanel, timelinePanel);
                 })
                 .orElseGet(() -> new Div(settingsPanel));
 
@@ -158,7 +166,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     SettingsSnapshotDto.from(oldSettings),
                     SettingsSnapshotDto.from(newSettings),
                     user.getId()));
-            if (activityPanel != null) activityPanel.removeAll();
+            if (historyPanel  != null) historyPanel.removeAll();
+            if (timelinePanel != null) timelinePanel.removeAll();
             if (tabs != null) tabs.setSelectedTab(settingsTab);
 
             notifications.success(SETTINGS_SAVED_SUCCESS);
@@ -169,22 +178,21 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         }
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi, User user) {
-        UserSettings current = settingsService.load(user.getId());
-        AuditActivityRowHook settingsBinding = auditUi.snapshotRowHook(
-                AuditUiPort.SnapshotRowHookParams.<SettingsSnapshotDto>builder()
-                        .entityType(EntityType.USER_SETTINGS)
-                        .isCurrent(snap -> snap.adsPageSize() == current.getAdsPageSize()
-                                        && snap.usersPageSize() == current.getUsersPageSize())
-                        .onRestore((snapshotId, entityId) -> loadAndShowSettingsRestore(snapshotId, user))
-                        .build());
-        return auditUi.buildAuditActivityPanel(AuditUiPort.ProfileActivityParams.builder()
-                .subjects(java.util.List.of(
-                        new EntityRef(EntityType.USER, user.getId()),
-                        new EntityRef(EntityType.USER_SETTINGS, user.getId())))
+    private com.vaadin.flow.component.Component buildHistoryContent(AuditUiPort auditUi, User user) {
+        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
+                .entityType(EntityType.USER_SETTINGS)
+                .entityId(user.getId())
+                .userId(user.getId())
+                .isPrivileged(true)
+                .canOperate(true)
+                .onRestoreRequested((item, entityId) -> loadAndShowSettingsRestore(item.snapshotId(), user))
+                .build());
+    }
+
+    private com.vaadin.flow.component.Component buildTimelineContent(AuditUiPort auditUi, User user) {
+        return auditUi.buildAuditTimelinePanel(AuditUiPort.TimelineParams.builder()
                 .actorId(user.getId())
                 .viewerActorId(user.getId())
-                .bindings(java.util.List.of(settingsBinding))
                 .build());
     }
 
@@ -224,7 +232,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                                     user.getId()));
                             adsPageSizeField.setValue(target.getAdsPageSize());
                             usersPageSizeField.setValue(target.getUsersPageSize());
-                            if (activityPanel != null) activityPanel.removeAll();
+                            if (historyPanel  != null) historyPanel.removeAll();
+                            if (timelinePanel != null) timelinePanel.removeAll();
                             tabs.setSelectedTab(settingsTab);
                             notifications.success(SETTINGS_RESTORED_SUCCESS);
                         })

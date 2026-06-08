@@ -52,12 +52,12 @@ test.describe('Settings defaults', () => {
 
     await test.step('Restore button is visible after first change', async () => {
       await expect(
-        page.locator('.activity-feed-list .entity-history-restore-btn').first()
+        page.locator('.activity-feed-list .entity-activity-restore-btn').first()
       ).toBeVisible({ timeout: 5000 });
     });
     await screenshot(page, 'settings-defaults-02-restore-visible');
 
-    await page.locator('.activity-feed-list .entity-history-restore-btn').first().click();
+    await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
     await confirmDialog(page, 'Оновити|Update');
     await page.waitForLoadState('networkidle');
 

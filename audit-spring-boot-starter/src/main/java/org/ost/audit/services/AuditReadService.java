@@ -58,6 +58,16 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
+    public List<AuditActivityItemDto<AuditableSnapshot>> getTimeline(Long actorId, int limit) {
+        List<AuditActivityItemDto<AuditableSnapshot>> items = repository.findByActor(actorId, limit)
+                .stream().map(this::toActivityItem).toList();
+        List<EntityRef> noSubjects = List.of();
+        for (AuditActivityEnrichHook hook : activityEnrichHooks) {
+            items = hook.merge(noSubjects, items);
+        }
+        return items;
+    }
+
     public List<AuditActivityItemDto<AuditableSnapshot>> getForSubject(List<EntityRef> subjects, Long actorId, int limit) {
         Stream<AuditLogProjection> subjectRows = subjects.stream()
                 .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null, limit).stream());

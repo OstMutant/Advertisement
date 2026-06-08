@@ -24,10 +24,10 @@ test.describe('Advertisement history', () => {
     await openHistory(page);
 
     await test.step('History list visible', async () => {
-      await expect(page.locator('.entity-history-list')).toBeVisible();
+      await expect(page.locator('.entity-activity-list')).toBeVisible();
     });
 
-    const rowCountInit = await page.locator('.entity-history-row').count();
+    const rowCountInit = await page.locator('.entity-activity-row').count();
     await test.step('History has entries after create', async () => {
       if (rowCountInit === 0) throw new Error('No history rows');
     });
@@ -44,24 +44,24 @@ test.describe('Advertisement history', () => {
 
     await openHistory(page);
 
-    const rowCountAfter = await page.locator('.entity-history-row').count();
+    const rowCountAfter = await page.locator('.entity-activity-row').count();
     await test.step('History has 2+ entries after edit', async () => {
       if (rowCountAfter < 2) throw new Error(`Expected >=2 rows, got ${rowCountAfter}`);
     });
 
     await test.step('Changes summary shown', async () => {
-      if (await page.locator('.entity-history-changes').count() === 0) throw new Error('No changes summary found');
+      if (await page.locator('.entity-activity-changes').count() === 0) throw new Error('No changes summary found');
     });
-    await screenshot(page, 'entity-history-01-after-edit');
+    await screenshot(page, 'entity-activity-01-after-edit');
 
-    const restoreBtns = page.locator('.entity-history-restore-btn');
+    const restoreBtns = page.locator('.entity-activity-restore-btn');
     await test.step('Restore buttons present', async () => {
       if (await restoreBtns.count() === 0) throw new Error('No restore buttons');
     });
 
     await test.step('Restore button is left-aligned in history row', async () => {
-      const row = page.locator('.entity-history-row').filter({ has: page.locator('.entity-history-restore-btn') }).first();
-      const btn = row.locator('.entity-history-restore-btn');
+      const row = page.locator('.entity-activity-row').filter({ has: page.locator('.entity-activity-restore-btn') }).first();
+      const btn = row.locator('.entity-activity-restore-btn');
       const rowBox = await row.boundingBox();
       const btnBox = await btn.boundingBox();
       if (btnBox.x - rowBox.x > 48)
@@ -80,14 +80,14 @@ test.describe('Advertisement history', () => {
     await test.step('View shown after restore', async () => {
       await expect(page.locator('.overlay__view-title')).toBeVisible();
     });
-    await screenshot(page, 'entity-history-02-after-restore');
+    await screenshot(page, 'entity-activity-02-after-restore');
 
     await openHistory(page);
 
     await test.step('No RESTORED badge (all entries are UPDATED)', async () => {
-      if (await page.locator('.entity-history-action--restored').count() > 0)
+      if (await page.locator('.entity-activity-action--restored').count() > 0)
         throw new Error('RESTORED badge found but should not exist');
-      if (await page.locator('.entity-history-action--updated').count() === 0)
+      if (await page.locator('.entity-activity-action--updated').count() === 0)
         throw new Error('No UPDATED badge found after restore');
     });
   });

@@ -91,13 +91,13 @@ test.describe('Settings activity', () => {
     });
 
     await test.step('Restore settings button present', async () => {
-      if (await page.locator('.activity-feed-list .entity-history-restore-btn').count() === 0)
+      if (await page.locator('.activity-feed-list .entity-activity-restore-btn').count() === 0)
         throw new Error('No restore button for settings');
     });
 
     await test.step('Restore button is left-aligned in activity row', async () => {
-      const row = page.locator('.activity-feed-row').filter({ has: page.locator('.entity-history-restore-btn') }).first();
-      const btn = row.locator('.entity-history-restore-btn');
+      const row = page.locator('.activity-feed-row').filter({ has: page.locator('.entity-activity-restore-btn') }).first();
+      const btn = row.locator('.entity-activity-restore-btn');
       const rowBox = await row.boundingBox();
       const btnBox = await btn.boundingBox();
       if (btnBox.x - rowBox.x > 48)
@@ -105,7 +105,7 @@ test.describe('Settings activity', () => {
     });
     await screenshot(page, 'settings-activity-01-activity-list');
 
-    await page.locator('.activity-feed-list .entity-history-restore-btn').nth(0).click();
+    await page.locator('.activity-feed-list .entity-activity-restore-btn').nth(0).click();
     await confirmDialog(page, 'Оновити|Update');
     await page.waitForLoadState('networkidle');
 

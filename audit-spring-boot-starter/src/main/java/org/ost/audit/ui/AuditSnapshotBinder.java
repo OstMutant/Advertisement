@@ -63,7 +63,7 @@ public class AuditSnapshotBinder<T extends AuditableSnapshot>
         if (params.getSubjectEntityId() != null && !Objects.equals(params.getSubjectEntityId(), item.entityId())) return null;
         Button btn = new Button(i18n.get(AuditI18n.ACTIVITY_RESTORE));
         btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-        btn.addClassName("entity-history-restore-btn");
+        btn.addClassName("entity-activity-restore-btn");
         btn.addClickListener(_ -> params.getOnRestore().accept(item.snapshotId(), item.entityId()));
         return btn;
     }

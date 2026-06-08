@@ -13,13 +13,13 @@ import org.ost.platform.core.ComponentFactory;
 @RequiredArgsConstructor
 public class AuditUiPortImpl implements AuditUiPort {
 
-    private final ComponentFactory<AuditHistoryPanel>          historyPanelFactory;
-    private final ComponentFactory<AuditActivityPanel>         activityPanelFactory;
-    private final ComponentFactory<AuditSnapshotBinder<?>>     snapshotBinderFactory;
+    private final ComponentFactory<AuditActivityPanel>      activityPanelFactory;
+    private final ComponentFactory<AuditTimelinePanel>      timelinePanelFactory;
+    private final ComponentFactory<AuditSnapshotBinder<?>>  snapshotBinderFactory;
 
     @Override
-    public Component buildAuditHistoryPanel(@NonNull EntityHistoryParams p) {
-        return historyPanelFactory.build(AuditHistoryPanel.Parameters.builder()
+    public Component buildAuditActivityPanel(@NonNull EntityActivityParams p) {
+        return activityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityType(p.getEntityType())
                 .entityId(p.getEntityId())
                 .userId(p.getUserId())
@@ -30,12 +30,11 @@ public class AuditUiPortImpl implements AuditUiPort {
     }
 
     @Override
-    public Component buildAuditActivityPanel(@NonNull ProfileActivityParams p) {
-        return activityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .subjects(p.getSubjects())
+    public Component buildAuditTimelinePanel(@NonNull TimelineParams p) {
+        return timelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
                 .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())
-                .bindings(p.getBindings())
+                .limit(p.getLimit())
                 .build());
     }
 

@@ -142,12 +142,12 @@ test.describe('User profile activity — cross-actor flows', () => {
     await screenshot(page, 'user-profile-activity-06-restore-button');
 
     await test.step('Restore button is present in User 1 profile', async () => {
-      await expect(page.locator('.activity-feed-list .entity-history-restore-btn').first())
+      await expect(page.locator('.activity-feed-list .entity-activity-restore-btn').first())
         .toBeVisible({ timeout: 5000 });
     });
 
     await test.step('Click restore — User 1 name reverts, admin name intact', async () => {
-      await page.locator('.activity-feed-list .entity-history-restore-btn').first().click();
+      await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
       await page.evaluate(() => {
         const dialog = document.querySelector('vaadin-confirm-dialog[opened]');
         if (dialog) {
@@ -204,7 +204,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       for (let i = 0; i < rowCount; i++) {
         const rowText = await rows.nth(i).textContent();
         if (rowText.includes(editedName)) {
-          const btnInRow = await rows.nth(i).locator('.entity-history-restore-btn').count();
+          const btnInRow = await rows.nth(i).locator('.entity-activity-restore-btn').count();
           if (btnInRow > 0)
             throw new Error(`Restore button found for cross-user edit row in admin's own activity — must not appear`);
           return;
@@ -220,7 +220,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: editedName }).first().click();
       await waitForOverlay(page);
       await openUserActivityFeed(page);
-      const restoreBtn = page.locator('.activity-feed-list .entity-history-restore-btn').first();
+      const restoreBtn = page.locator('.activity-feed-list .entity-activity-restore-btn').first();
       if (await restoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await restoreBtn.click();
         await page.evaluate(() => {

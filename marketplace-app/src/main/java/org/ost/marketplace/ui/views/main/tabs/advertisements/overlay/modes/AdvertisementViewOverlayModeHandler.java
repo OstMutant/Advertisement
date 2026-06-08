@@ -104,8 +104,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         return auditUiPortFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getAd()))
                 .map(auditUi -> new SecondaryTabDef(
-                        new Tab(getValue(ADVERTISEMENT_HISTORY_TAB)),
-                        "entity-history-content",
+                        new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB)),
+                        "entity-activity-content",
                         () -> buildHistoryContent(params.getAd(), auditUi)))
                 .orElse(null);
     }
@@ -126,7 +126,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     }
 
     private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad, AuditUiPort auditUi) {
-        return auditUi.buildAuditHistoryPanel(AuditUiPort.EntityHistoryParams.builder()
+        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
                 .entityType(EntityType.ADVERTISEMENT)
                 .entityId(ad.getId())
                 .userId(access.getCurrentUserId())

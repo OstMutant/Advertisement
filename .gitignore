@@ -28,3 +28,4 @@
 # SonarQube
 /target/sonar
 /scripts/sonar/report
+/taxon-spring-boot-starter/target

@@ -43,10 +43,10 @@ async function openAdDetail(page, title) {
 }
 
 async function openHistory(page) {
-  const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Іс|Hist/i });
+  const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Activ|активн/i });
   if (!await historyTab.isVisible()) return false;
   await historyTab.click();
-  await page.locator('.entity-history-list').waitFor({ timeout: 5000 });
+  await page.locator('.entity-activity-list').waitFor({ timeout: 5000 });
   return true;
 }
 
@@ -55,10 +55,20 @@ async function openSettings(page) {
   await waitForOverlay(page);
 }
 
-async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+async function openHistoryTab(page, overlaySelector = '.base-overlay.overlay--visible') {
   await page.locator(`${overlaySelector} vaadin-tab`)
-    .filter({ hasText: /activ|активн/i }).click();
+    .filter({ hasText: /activity|activit|активн/i }).click();
+  await page.locator(`${overlaySelector} .entity-activity-list`).first().waitFor({ timeout: 8000 });
+}
+
+async function openTimelineTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+  await page.locator(`${overlaySelector} vaadin-tab`)
+    .filter({ hasText: /timeline|таймлайн/i }).click();
   await page.locator(`${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
+}
+
+async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+  await openHistoryTab(page, overlaySelector);
 }
 
 async function confirmDialog(page, textSource = 'Оновити|Update') {
@@ -117,7 +127,7 @@ module.exports = {
   test, expect,
   loginAs,
   waitForOverlay, waitForOverlayClosed, closeOverlay,
-  openAdDetail, openHistory, openSettings, openActivityTab,
+  openAdDetail, openHistory, openSettings, openActivityTab, openHistoryTab, openTimelineTab,
   confirmDialog, createAd,
   screenshot, downloadPng,
 };

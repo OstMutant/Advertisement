@@ -1,5 +1,6 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab,
+        waitForOverlay, waitForOverlayClosed, openHistory, openSettings,
+        openHistoryTab, openTimelineTab,
         confirmDialog, downloadPng } = require('./_test-helpers');
 const fs = require('fs');
 
@@ -231,11 +232,11 @@ test.describe('Smoke: advertisement history', () => {
 
     await test.step('History tab has 2+ entries and changes summary', async () => {
       await openHistory(page);
-      await expect(page.locator('.entity-history-list')).toBeVisible();
-      const rows = await page.locator('.entity-history-row').count();
-      if (rows < 2) throw new Error(`Expected >=2 history rows, got ${rows}`);
-      if (await page.locator('.entity-history-changes').count() === 0)
-        throw new Error('No changes summary in history');
+      await expect(page.locator('.entity-activity-list')).toBeVisible();
+      const rows = await page.locator('.entity-activity-row').count();
+      if (rows < 2) throw new Error(`Expected >=2 activity rows, got ${rows}`);
+      if (await page.locator('.entity-activity-changes').count() === 0)
+        throw new Error('No changes summary in activity');
       await screenshot(page, 'smoke-history');
     });
   });
@@ -246,7 +247,7 @@ test.describe('Smoke: activity feed', () => {
     await loginAs(page);
   });
 
-  test('settings overlay shows activity tab with entries', async ({ page }) => {
+  test('settings overlay shows history and timeline tabs with entries', async ({ page }) => {
     await test.step('Create ad to generate activity', async () => {
       await page.locator('.add-advertisement-button').click();
       await waitForOverlay(page);
@@ -257,15 +258,23 @@ test.describe('Smoke: activity feed', () => {
       await waitForOverlayClosed(page);
     });
 
-    await test.step('Settings has activity tab with entries', async () => {
+    await test.step('Settings has activity tab with entity activity entries', async () => {
       await openSettings(page);
       const tabs = await page.locator('.base-overlay.overlay--visible vaadin-tab').allTextContents();
-      if (!tabs.some(t => /activ|активн/i.test(t))) throw new Error('No activity tab in settings');
-      await openActivityTab(page);
+      if (!tabs.some(t => /activity|activit|активн/i.test(t))) throw new Error('No activity tab in settings');
+      await openHistoryTab(page);
+      await expect(page.locator('.entity-activity-list').first()).toBeVisible();
+      await screenshot(page, 'smoke-settings-activity');
+    });
+
+    await test.step('Settings has timeline tab with activity entries', async () => {
+      const tabs = await page.locator('.base-overlay.overlay--visible vaadin-tab').allTextContents();
+      if (!tabs.some(t => /timeline|таймлайн/i.test(t))) throw new Error('No timeline tab in settings');
+      await openTimelineTab(page);
       await expect(page.locator('.activity-feed-list').first()).toBeVisible();
       if (await page.locator('.activity-feed-row').count() === 0)
-        throw new Error('No activity rows');
-      await screenshot(page, 'smoke-activity');
+        throw new Error('No timeline rows');
+      await screenshot(page, 'smoke-settings-timeline');
     });
   });
 });

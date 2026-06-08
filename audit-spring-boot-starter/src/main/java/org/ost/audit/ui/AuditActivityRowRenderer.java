@@ -29,14 +29,14 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-@CssImport("./entity-history.css")
+@CssImport("./entity-activity.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
 public class AuditActivityRowRenderer implements Initialization<AuditActivityRowRenderer> {
 
     private static final String CSS_CHANGES         = "activity-feed-changes";
-    private static final String CSS_HISTORY_CHANGES = "entity-history-changes";
+    private static final String CSS_HISTORY_CHANGES = "entity-activity-changes";
 
     private final I18nService                   i18n;
     private final InstantFormatter              formatter;

@@ -24,17 +24,17 @@ test.describe('Advertisement history (deep)', () => {
     await openHistory(page);
 
     await test.step('CREATED badge present after create', async () => {
-      if (await page.locator('.entity-history-action--created').count() === 0)
+      if (await page.locator('.entity-activity-action--created').count() === 0)
         throw new Error('No CREATED badge after initial save');
     });
 
     await test.step('Version v1 shown', async () => {
-      const text = await page.locator('.entity-history-list').textContent();
+      const text = await page.locator('.entity-activity-list').textContent();
       if (!text.includes('v1') && !text.includes('1')) throw new Error('No version 1 label');
     });
 
     await test.step('No restore button on only entry', async () => {
-      if (await page.locator('.entity-history-restore-btn').count() > 0)
+      if (await page.locator('.entity-activity-restore-btn').count() > 0)
         throw new Error('Restore button should not appear for the only history entry');
     });
 
@@ -50,39 +50,39 @@ test.describe('Advertisement history (deep)', () => {
       await openHistory(page);
     }
 
-    const rows = await page.locator('.entity-history-row').count();
+    const rows = await page.locator('.entity-activity-row').count();
     await test.step('3 history rows after 2 edits', async () => {
       if (rows < 3) throw new Error(`Expected >=3 rows, got ${rows}`);
     });
 
     await test.step('Version badges go v3, v2, v1', async () => {
-      const text = await page.locator('.entity-history-list').textContent();
+      const text = await page.locator('.entity-activity-list').textContent();
       if (!text.includes('v3') && !text.includes('3')) throw new Error('v3 not found');
     });
 
     await test.step('Latest row (v3) has NO restore button', async () => {
-      const firstRow = page.locator('.entity-history-row').first();
-      if (await firstRow.locator('.entity-history-restore-btn').count() > 0)
+      const firstRow = page.locator('.entity-activity-row').first();
+      if (await firstRow.locator('.entity-activity-restore-btn').count() > 0)
         throw new Error('Latest version should not have restore button');
     });
 
     await test.step('Older rows have restore buttons', async () => {
-      if (await page.locator('.entity-history-restore-btn').count() < 2)
+      if (await page.locator('.entity-activity-restore-btn').count() < 2)
         throw new Error('Expected restore buttons on older entries');
     });
 
     await test.step('UPDATED badges present', async () => {
-      if (await page.locator('.entity-history-action--updated').count() === 0)
+      if (await page.locator('.entity-activity-action--updated').count() === 0)
         throw new Error('No UPDATED badges found');
     });
 
     await test.step('Title diff shown in v3 changes', async () => {
-      if (await page.locator('.entity-history-changes').count() === 0)
+      if (await page.locator('.entity-activity-changes').count() === 0)
         throw new Error('No changes summary found');
     });
     await screenshot(page, 'history-deep-01-three-versions');
 
-    await page.locator('.entity-history-restore-btn').last().click();
+    await page.locator('.entity-activity-restore-btn').last().click();
 
     await test.step('Restore dialog shown', async () => {
       await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
@@ -98,7 +98,7 @@ test.describe('Advertisement history (deep)', () => {
     await openHistory(page);
 
     await test.step('History grows after restore', async () => {
-      const newRows = await page.locator('.entity-history-row').count();
+      const newRows = await page.locator('.entity-activity-row').count();
       if (newRows <= rows) throw new Error(`Expected more rows after restore, got ${newRows}`);
     });
     await screenshot(page, 'history-deep-02-after-restore');
