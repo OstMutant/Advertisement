@@ -1,12 +1,11 @@
 #!/bin/bash
 # Usage:
 #   ./playwright/run.sh                        — run all spec files
-#   ./playwright/run.sh core                   — run all core specs
+#   ./playwright/run.sh marketplace            — run all marketplace specs
 #   ./playwright/run.sh audit                  — run all audit specs
 #   ./playwright/run.sh attachment             — run all attachment specs
-#   ./playwright/run.sh smoke                  — run core/smoke.spec.js
+#   ./playwright/run.sh e2e                    — run all e2e specs (clean DB)
 #   ./playwright/run.sh audit/advertisement-history  — run by group/name
-#   ./playwright/run.sh smoke --ux             — with screenshots
 #   ./playwright/run.sh --ux                   — all tests with screenshots
 
 # ── Parse args ───────────────────────────────────────────────────────────────
@@ -57,12 +56,18 @@ else
     || { echo "ERROR: marketplace-app running but not responding"; docker logs --tail=30 marketplace-app; exit 1; }
 fi
 
-# ── Seed test accounts ────────────────────────────────────────────────────────
+# ── Reset / seed database ─────────────────────────────────────────────────────
 DB_CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
 if [ -n "$DB_CONTAINER" ]; then
-  docker cp /app/scripts/database/seed.sql "$DB_CONTAINER":/tmp/pw-seed.sql 2>/dev/null
-  docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
-    -f /tmp/pw-seed.sql -q 2>/dev/null && echo "Test accounts seeded." || true
+  if [ "$SCENARIO" = "e2e" ]; then
+    docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
+    docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
+      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)." || true
+  else
+    docker cp /app/scripts/database/reset.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
+    docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
+      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (seeded)." || true
+  fi
 else
   echo "WARNING: No postgres container found on port 5432 — test accounts may not exist."
 fi
@@ -81,20 +86,25 @@ fi
 INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 @playwright/test@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
 
 # ── Clean stale artifacts in container and host ───────────────────────────────
-docker exec pw-runner bash -c "rm -rf /tmp/core /tmp/audit /tmp/attachment /tmp/_test-helpers.js /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
+docker exec pw-runner bash -c "rm -rf /tmp/marketplace /tmp/audit /tmp/attachment /tmp/e2e /tmp/_test-helpers.js /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
 rm -rf /app/playwright/pw-report
 
 # ── Sync spec files ───────────────────────────────────────────────────────────
-docker exec pw-runner bash -c "mkdir -p /tmp/core /tmp/audit /tmp/attachment"
-for group in core audit attachment; do
+docker exec pw-runner bash -c "mkdir -p /tmp/marketplace /tmp/audit /tmp/attachment /tmp/e2e"
+for group in marketplace audit attachment e2e; do
   for f in /app/playwright/$group/*.spec.js; do
     [ -f "$f" ] && docker cp "$f" pw-runner:/tmp/$group/ 2>/dev/null
   done
-done
-docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/
-for group in core audit attachment; do
   docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/$group/ 2>/dev/null
 done
+if [ -d /app/playwright/e2e/_flows ]; then
+  docker exec pw-runner bash -c "mkdir -p /tmp/e2e/_flows"
+  for f in /app/playwright/e2e/_flows/*.js; do
+    [ -f "$f" ] && docker cp "$f" pw-runner:/tmp/e2e/_flows/ 2>/dev/null
+  done
+fi
+[ -f /app/playwright/e2e/_helpers.js ] && docker cp /app/playwright/e2e/_helpers.js pw-runner:/tmp/e2e/
+docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/
 docker cp /app/playwright/playwright.config.js pw-runner:/tmp/
 docker cp /app/playwright/reporter.js pw-runner:/tmp/
 
@@ -103,11 +113,9 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
 [ -n "$UX" ] && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
 
 if [ -n "$SCENARIO" ]; then
-  # Group run: core / audit / attachment
-  if [ "$SCENARIO" = "core" ] || [ "$SCENARIO" = "audit" ] || [ "$SCENARIO" = "attachment" ]; then
+  if [ "$SCENARIO" = "marketplace" ] || [ "$SCENARIO" = "audit" ] || [ "$SCENARIO" = "attachment" ] || [ "$SCENARIO" = "e2e" ]; then
     docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SCENARIO/ --config playwright.config.js"
   else
-    # Find spec by name — supports 'smoke', 'audit/advertisement-history', 'advertisement-history'
     if [[ "$SCENARIO" == */* ]]; then
       SPEC_FILE="/app/playwright/${SCENARIO%.spec}.spec.js"
     else
