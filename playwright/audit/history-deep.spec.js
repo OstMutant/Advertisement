@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
 
 test.describe('Advertisement history (deep)', () => {
   test.beforeEach(async ({ page }) => {
@@ -40,9 +40,8 @@ test.describe('Advertisement history (deep)', () => {
 
     // Edit twice to get v2 and v3
     for (const [ver, desc] of [['v2', 'Version 2'], ['v3', 'Version 3']]) {
-      await overlay.locator('vaadin-tab').filter({ hasText: /view|перегляд/i }).click();
-      await page.locator('.overlay__view-title').waitFor({ timeout: 3000 });
-      await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+      // Switch back to edit form tab (already in edit mode, Activity tab is selected)
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
       await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
       await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(desc);
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
@@ -84,11 +83,9 @@ test.describe('Advertisement history (deep)', () => {
 
     await page.locator('.entity-activity-restore-btn').last().click();
 
-    await test.step('Restore dialog shown', async () => {
-      await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-    });
-
-    await confirmDialog(page);
+    // No confirm dialog — banner appears and form is filled with restored content
+    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+    await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
 
     await test.step('Title restored to v1 value', async () => {

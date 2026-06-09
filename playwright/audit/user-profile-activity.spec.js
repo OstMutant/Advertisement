@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, openTimelineTab, screenshot } = require('./_test-helpers');
 
 const ADMIN_EMAIL = 'user3@example.com';
 
@@ -14,7 +14,14 @@ async function openFirstNonAdminProfile(page) {
 }
 
 async function openUserActivityFeed(page) {
-  await openActivityTab(page);
+  // Activity tab is in EDIT mode — enter edit mode first, then click Activity tab
+  const overlay = page.locator('.base-overlay.overlay--visible');
+  const editBtn = overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first();
+  if (await editBtn.isVisible()) await editBtn.click();
+  await page.locator('.user-form-tabs').waitFor({ timeout: 5000 });
+  const activityTab = overlay.locator('.user-form-tabs vaadin-tab').filter({ hasText: /activ|активн/i });
+  await activityTab.click();
+  await overlay.locator('.entity-activity-list').first().waitFor({ timeout: 8000 });
 }
 
 test.describe('User profile activity — cross-actor flows', () => {
@@ -46,10 +53,10 @@ test.describe('User profile activity — cross-actor flows', () => {
     await screenshot(page, 'user-profile-activity-01-settings-activity');
 
     await test.step('Activity row shows both adsPageSize AND usersPageSize', async () => {
-      const firstRow = page.locator('.activity-feed-row').first();
+      const firstRow = page.locator('.entity-activity-row').first();
       await expect(firstRow).toBeVisible({ timeout: 5000 });
 
-      const items = firstRow.locator('.activity-feed-changes-item');
+      const items = firstRow.locator('.entity-activity-changes-item');
       const texts = await items.allTextContents();
       if (texts.length < 2)
         throw new Error(`Expected >=2 field items (adsPageSize + usersPageSize), got ${texts.length}`);
@@ -91,16 +98,19 @@ test.describe('User profile activity — cross-actor flows', () => {
     await screenshot(page, 'user-profile-activity-04-user1-activity');
 
     await test.step('Admin edit appears in User 1 activity feed', async () => {
-      const rows = page.locator('.activity-feed-row');
+      const rows = page.locator('.entity-activity-row');
       if (await rows.count() === 0) throw new Error('No activity rows in User 1 profile');
 
-      const feedText = await page.locator('.activity-feed-list').first().textContent();
+      const feedText = await page.locator('.entity-activity-list').first().textContent();
       if (!feedText) throw new Error('Activity feed is empty');
     });
     await screenshot(page, 'user-profile-activity-05-edit-visible');
 
     await test.step('Revert User 1 name', async () => {
+      // openUserActivityFeed enters edit mode; escape goes edit→view, then breadcrumb closes
       await page.keyboard.press('Escape');
+      await page.waitForTimeout(300);
+      await page.locator('.overlay__breadcrumb-back').first().click();
       await waitForOverlayClosed(page).catch(() => {});
       await goToUsersTab(page);
       await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
@@ -142,26 +152,24 @@ test.describe('User profile activity — cross-actor flows', () => {
     await screenshot(page, 'user-profile-activity-06-restore-button');
 
     await test.step('Restore button is present in User 1 profile', async () => {
-      await expect(page.locator('.activity-feed-list .entity-activity-restore-btn').first())
+      await expect(page.locator('.entity-activity-list .entity-activity-restore-btn').first())
         .toBeVisible({ timeout: 5000 });
     });
 
     await test.step('Click restore — User 1 name reverts, admin name intact', async () => {
-      await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
-      await page.evaluate(() => {
-        const dialog = document.querySelector('vaadin-confirm-dialog[opened]');
-        if (dialog) {
-          const btn = dialog.querySelector('[slot="confirm-button"]');
-          if (btn) btn.click();
-        }
-      });
+      await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
+      // No confirm dialog — banner appears and form is filled with restored content
+      await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+      await page.locator('.base-overlay.overlay--visible vaadin-button')
+        .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(600);
     });
     await screenshot(page, 'user-profile-activity-07-after-restore');
 
     await test.step('Grid shows User 1 reverted — editedName gone — admin row intact', async () => {
-      await page.keyboard.press('Escape');
+      // After save → VIEW mode; use breadcrumb back to close (avoids any residual unsaved-changes check)
+      await page.locator('.overlay__breadcrumb-back').first().click();
       await waitForOverlayClosed(page).catch(() => {});
       await goToUsersTab(page);
       const names = await page.locator('vaadin-grid.user-grid .user-grid-name').allTextContents();
@@ -220,13 +228,12 @@ test.describe('User profile activity — cross-actor flows', () => {
       await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: editedName }).first().click();
       await waitForOverlay(page);
       await openUserActivityFeed(page);
-      const restoreBtn = page.locator('.activity-feed-list .entity-activity-restore-btn').first();
+      const restoreBtn = page.locator('.entity-activity-list .entity-activity-restore-btn').first();
       if (await restoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await restoreBtn.click();
-        await page.evaluate(() => {
-          const d = document.querySelector('vaadin-confirm-dialog[opened]');
-          if (d) { const b = d.querySelector('[slot="confirm-button"]'); if (b) b.click(); }
-        });
+        await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+        await page.locator('.base-overlay.overlay--visible vaadin-button')
+          .filter({ hasText: /зберегти|save/i }).click();
         await page.waitForLoadState('networkidle');
       }
     });

@@ -75,7 +75,6 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeAndRefresh)
-                            .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerFactory.build(
@@ -129,21 +128,6 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     private void closeAndRefresh() {
         session.onSaved().run();
         closeToList();
-    }
-
-    private void handleRestore(Long snapshotId) {
-        try {
-            if (advertisementService.restore(session.ad().getId(), snapshotId)) {
-                notification().success(ADVERTISEMENT_RESTORED_SUCCESS);
-                session.onSaved().run();
-                advertisementService.findById(session.ad().getId()).ifPresent(freshAd -> {
-                    session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
-                    switchTo();
-                });
-            }
-        } catch (Exception _) {
-            notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
-        }
     }
 
     @Override

@@ -20,7 +20,7 @@ import org.ost.marketplace.services.user.UserSettingsService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
+import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
@@ -48,9 +48,9 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private final transient ComponentFactory<OverlayLayout>        overlayLayoutFactory;
     private final transient ComponentFactory<AuditUiPort>          auditUiPortFactory;
     private final transient ComponentFactory<UiPrimaryButton>      primaryButtonFactory;
+    private final transient ComponentFactory<UiTertiaryButton>     tertiaryButtonFactory;
     private final transient ComponentFactory<UiIconButton>         iconButtonFactory;
     private final transient ComponentFactory<AuditPort>            auditPortFactory;
-    private final transient ComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final OverlayBreadcrumbBackButton breadcrumbBackButton;
 
     private OverlayLayout    layout;
@@ -58,15 +58,18 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private IntegerField     usersPageSizeField;
     private Div              historyPanel;
     private Div              timelinePanel;
+    private Div              restoreBanner;
     private Tabs             tabs;
     private Tab              settingsTab;
     private UiPrimaryButton  saveBtn;
+    private User             currentUser;
 
     public void openSettings() {
         authContextService.getCurrentUser().ifPresent(this::doOpen);
     }
 
     private void doOpen(User user) {
+        this.currentUser = user;
         ensureInitialized();
 
         if (layout != null) layout.removeFromParent();
@@ -83,7 +86,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         Div settingsCardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
         settingsCardHeader.addClassName("overlay__form-card-header");
 
-        Div settingsPanel = new Div(settingsCardHeader, form);
+        restoreBanner = new Div();
+        restoreBanner.addClassName("form-restore-banner");
+        restoreBanner.setText(getValue(FORM_RESTORE_BANNER));
+        restoreBanner.setVisible(false);
+
+        Div settingsPanel = new Div(settingsCardHeader, restoreBanner, form);
         settingsPanel.addClassName("overlay__form-fields-card");
 
         Div content = auditUiPortFactory.findIfAvailable()
@@ -125,6 +133,10 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
         saveBtn.addClickListener(_ -> handleSave(user));
 
+        UiTertiaryButton discardBtn = tertiaryButtonFactory.build(
+                UiTertiaryButton.Parameters.builder().labelKey(FORM_DISCARD_CHANGES).build());
+        discardBtn.addClickListener(_ -> discardSettingsChanges());
+
         UiIconButton closeBtn = iconButtonFactory.build(
                 UiIconButton.Parameters.builder()
                         .labelKey(HEADER_HOME)
@@ -132,7 +144,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                         .build());
         closeBtn.addClickListener(_ -> closeToList());
 
-        layout.setHeaderActions(new Div(saveBtn, closeBtn));
+        layout.setHeaderActions(new Div(saveBtn, discardBtn, closeBtn));
 
         add(layout);
         open();
@@ -168,7 +180,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                     user.getId()));
             if (historyPanel  != null) historyPanel.removeAll();
             if (timelinePanel != null) timelinePanel.removeAll();
-            if (tabs != null) tabs.setSelectedTab(settingsTab);
+            if (tabs          != null) tabs.setSelectedTab(settingsTab);
+            if (restoreBanner != null) restoreBanner.setVisible(false);
 
             notifications.success(SETTINGS_SAVED_SUCCESS);
         } catch (Exception e) {
@@ -200,45 +213,19 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         auditPortFactory.findIfAvailable()
                 .flatMap(p -> p.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
                 .map(c -> UserSettings.builder().adsPageSize(c.snapshotData().adsPageSize()).usersPageSize(c.snapshotData().usersPageSize()).build())
-                .ifPresent(target -> showSettingsRestoreConfirm(target, user));
+                .ifPresent(target -> {
+                    adsPageSizeField.setValue(target.getAdsPageSize());
+                    usersPageSizeField.setValue(target.getUsersPageSize());
+                    restoreBanner.setVisible(true);
+                    if (tabs != null) tabs.setSelectedTab(settingsTab);
+                });
     }
 
-    private void showSettingsRestoreConfirm(UserSettings target, User user) {
-        UserSettings current = settingsService.load(user.getId());
-        String noChange = getValue(ADVERTISEMENT_RESTORE_NO_CHANGE);
-
-        String adsLabel = i18nService.get("audit.changes.setting.adsPageSize");
-        String adsLine  = current.getAdsPageSize() == target.getAdsPageSize()
-                ? adsLabel + ": " + noChange
-                : adsLabel + ": " + current.getAdsPageSize() + " → " + target.getAdsPageSize();
-
-        String usersLabel = i18nService.get("audit.changes.setting.usersPageSize");
-        String usersLine  = current.getUsersPageSize() == target.getUsersPageSize()
-                ? usersLabel + ": " + noChange
-                : usersLabel + ": " + current.getUsersPageSize() + " → " + target.getUsersPageSize();
-
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(SETTINGS_RESTORE_CONFIRM_TITLE)
-                        .message(adsLine + "\n" + usersLine)
-                        .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
-                        .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
-                        .onConfirm(() -> {
-                            UserSettings before = settingsService.load(user.getId());
-                            settingsService.save(user.getId(), target);
-                            auditPortFactory.ifAvailable(p -> p.captureUpdate(user.getId(),
-                                    SettingsSnapshotDto.from(before),
-                                    SettingsSnapshotDto.from(target),
-                                    user.getId()));
-                            adsPageSizeField.setValue(target.getAdsPageSize());
-                            usersPageSizeField.setValue(target.getUsersPageSize());
-                            if (historyPanel  != null) historyPanel.removeAll();
-                            if (timelinePanel != null) timelinePanel.removeAll();
-                            tabs.setSelectedTab(settingsTab);
-                            notifications.success(SETTINGS_RESTORED_SUCCESS);
-                        })
-                        .build()
-        ).open();
+    private void discardSettingsChanges() {
+        UserSettings current = settingsService.load(currentUser.getId());
+        adsPageSizeField.setValue(current.getAdsPageSize());
+        usersPageSizeField.setValue(current.getUsersPageSize());
+        restoreBanner.setVisible(false);
     }
 
     private IntegerField buildAdsPageSizeField(UserSettings settings) {

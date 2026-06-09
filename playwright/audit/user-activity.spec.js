@@ -1,5 +1,5 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab } = require('./_test-helpers');
 
 test.describe('User activity', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,7 +25,7 @@ test.describe('User activity', () => {
       if (!tabs.some(t => /activ|активн/i.test(t))) throw new Error('No activity tab in settings');
     });
 
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('Activity list visible with entries', async () => {
       await expect(page.locator('.activity-feed-list').first()).toBeVisible();

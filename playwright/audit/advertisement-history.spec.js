@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, confirmDialog, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
 
 test.describe('Advertisement history', () => {
   test.beforeEach(async ({ page }) => {
@@ -21,6 +21,7 @@ test.describe('Advertisement history', () => {
       .first().click();
     await waitForOverlay(page);
 
+    // openHistory enters edit mode then clicks Activity tab
     await openHistory(page);
 
     await test.step('History list visible', async () => {
@@ -32,10 +33,8 @@ test.describe('Advertisement history', () => {
       if (rowCountInit === 0) throw new Error('No history rows');
     });
 
-    await overlay.locator('vaadin-tab').filter({ hasText: /view|перегляд/i }).click();
-    await page.locator('.overlay__view-title').waitFor({ timeout: 3000 });
-
-    await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+    // Switch back to edit form tab to make a change
+    await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
     await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 
     await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Updated description v2');
@@ -70,11 +69,11 @@ test.describe('Advertisement history', () => {
 
     await restoreBtns.last().click();
 
-    await test.step('Restore confirm dialog shown', async () => {
-      await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
-    });
+    // No confirm dialog — banner appears and form is filled with restored content
+    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
 
-    await confirmDialog(page);
+    // Save to apply the restore
+    await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.locator('.overlay__view-title').waitFor();
 
     await test.step('View shown after restore', async () => {

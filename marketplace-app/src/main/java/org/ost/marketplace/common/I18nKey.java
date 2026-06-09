@@ -219,6 +219,10 @@ public enum I18nKey implements TranslationKey {
     OVERLAY_UNSAVED_CONFIRM("overlay.unsaved.confirm"),
     OVERLAY_UNSAVED_CANCEL("overlay.unsaved.cancel"),
 
+    // === Form Restore ===
+    FORM_RESTORE_BANNER("form.restore.banner"),
+    FORM_DISCARD_CHANGES("form.discard.changes"),
+
     // === Settings ===
     SETTINGS_SECTION_TITLE("settings.section.title"),
     SETTINGS_ADS_PAGE_SIZE_LABEL("settings.adsPageSize.label"),

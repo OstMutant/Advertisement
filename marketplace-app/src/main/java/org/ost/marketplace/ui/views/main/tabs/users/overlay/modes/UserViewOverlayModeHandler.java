@@ -26,8 +26,6 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.query.ui.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
-import java.util.function.BiConsumer;
-
 import static org.ost.marketplace.common.I18nKey.*;
 
 @SpringComponent
@@ -40,10 +38,9 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull User                  user;
-        @NonNull Runnable              onEdit;
-        @NonNull Runnable              onClose;
-        @NonNull BiConsumer<Long, Long> onRestoreUser;
+        @NonNull User     user;
+        @NonNull Runnable onEdit;
+        @NonNull Runnable onClose;
     }
 
     private final AccessEvaluator                                   access;
@@ -120,16 +117,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     protected SecondaryTabDef buildSecondaryTab() {
         return auditUiPortFactory.findIfAvailable()
                 .map(auditUi -> new SecondaryTabDef(
-                        new Tab(getValue(USER_ACTIVITY_TAB)),
-                        "activity-feed-content",
-                        () -> buildActivityContent(params.getUser(), auditUi)))
-                .orElse(null);
-    }
-
-    @Override
-    protected TertiaryTabDef buildTertiaryTab() {
-        return auditUiPortFactory.findIfAvailable()
-                .map(auditUi -> new TertiaryTabDef(
                         new Tab(getValue(TIMELINE_TAB)),
                         "activity-feed-content",
                         () -> buildTimelineContent(params.getUser(), auditUi)))
@@ -149,17 +136,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getUser()));
         return new Div(editButton, closeButton);
-    }
-
-    private com.vaadin.flow.component.Component buildActivityContent(User user, AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
-                .entityType(EntityType.USER)
-                .entityId(user.getId())
-                .userId(user.getId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(user))
-                .onRestoreRequested((item, entityId) -> params.getOnRestoreUser().accept(item.snapshotId(), entityId))
-                .build());
     }
 
     private com.vaadin.flow.component.Component buildTimelineContent(User user, AuditUiPort auditUi) {

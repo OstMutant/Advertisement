@@ -3,14 +3,20 @@ package org.ost.marketplace.ui.views.main.tabs.users.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.marketplace.dto.audit.UserSnapshotDto;
 import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
+import org.ost.marketplace.security.AccessEvaluator;
+import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
@@ -23,6 +29,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
@@ -30,6 +37,8 @@ import org.springframework.context.annotation.Scope;
 import java.util.Arrays;
 
 import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.common.I18nKey.FORM_DISCARD_CHANGES;
+import static org.ost.marketplace.common.I18nKey.FORM_RESTORE_BANNER;
 
 @SpringComponent
 @Scope("prototype")
@@ -45,17 +54,24 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         @NonNull Runnable onCancel;
     }
 
-    private final UserService                              userService;
-    private final UserMapper                               mapper;
+    private final UserService                                              userService;
+    private final UserMapper                                               mapper;
+    private final AccessEvaluator                                          access;
     @Getter
-    private final I18nService                              i18nService;
+    private final I18nService                                              i18nService;
     private final transient ComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final UiTextField                              nameField;
-    private final UiComboBox<Role>                         roleComboBox;
-    private final UiPrimaryButton                          saveButton;
-    private final UiTertiaryButton                         cancelButton;
+    private final transient ComponentFactory<AuditPort>                    auditPortFactory;
+    private final transient ComponentFactory<AuditUiPort>                  auditUiPortFactory;
+    private final UiTextField                                              nameField;
+    private final UiComboBox<Role>                                         roleComboBox;
+    private final UiPrimaryButton                                          saveButton;
+    private final UiTertiaryButton                                         discardButton;
+    private final UiTertiaryButton                                         cancelButton;
 
     private Parameters params;
+    private Div        restoreBanner;
+    private Tabs       formTabs;
+    private Tab        editTab;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -80,10 +96,13 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(USER_DIALOG_BUTTON_SAVE).build());
+        discardButton.configure(UiTertiaryButton.Parameters.builder()
+                .labelKey(FORM_DISCARD_CHANGES).build());
         cancelButton.configure(UiTertiaryButton.Parameters.builder()
                 .labelKey(USER_DIALOG_BUTTON_CANCEL).build());
 
         wireSaveGuard(saveButton, params.getOnSave());
+        discardButton.addClickListener(_ -> discardChanges());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
         UserEditDto dto = mapper.toUserEdit(params.getUser());
@@ -95,8 +114,37 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         Div fieldsCard = new Div(cardHeader, nameField, roleComboBox);
         fieldsCard.addClassName("overlay__form-fields-card");
 
-        layout.setContent(new Div(fieldsCard));
-        layout.setHeaderActions(new Div(saveButton, cancelButton));
+        restoreBanner = buildRestoreBanner();
+        Div editContent = new Div(restoreBanner, fieldsCard);
+
+        Div content = auditUiPortFactory.findIfAvailable()
+                .filter(_ -> access.canOperate(params.getUser()))
+                .map(auditUi -> {
+                    formTabs = new Tabs();
+                    formTabs.addClassName("user-form-tabs");
+                    editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));
+                    Tab activityTab = new Tab(getValue(USER_ACTIVITY_TAB));
+                    formTabs.add(editTab, activityTab);
+
+                    Div activityContent = new Div();
+                    activityContent.addClassName("activity-feed-content");
+                    activityContent.setVisible(false);
+
+                    formTabs.addSelectedChangeListener(event -> {
+                        boolean isEdit = event.getSelectedTab() == editTab;
+                        editContent.setVisible(isEdit);
+                        activityContent.setVisible(!isEdit);
+                        if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
+                            activityContent.add(buildActivityContent(auditUi));
+                        }
+                    });
+
+                    return new Div(formTabs, editContent, activityContent);
+                })
+                .orElse(editContent);
+
+        layout.setContent(content);
+        layout.setHeaderActions(new Div(saveButton, discardButton, cancelButton));
     }
 
     public Long getSavedUserId() {
@@ -105,6 +153,56 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     public boolean save() {
         return binder.save(dto -> userService.save(mapper.copy(dto)));
+    }
+
+    public void loadRestored(@NonNull UserEditDto restoredDto) {
+        binder.loadRestored(restoredDto, (src, tgt) -> {
+            tgt.setName(src.getName());
+            tgt.setRole(src.getRole());
+        });
+        restoreBanner.setVisible(true);
+        if (formTabs != null) formTabs.setSelectedTab(editTab);
+    }
+
+    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
+        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
+                .entityType(EntityType.USER)
+                .entityId(params.getUser().getId())
+                .userId(params.getUser().getId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(params.getUser()))
+                .onRestoreRequested((item, entityId) -> handleRestoreFromActivity(item.snapshotId(), entityId))
+                .build());
+    }
+
+    private void handleRestoreFromActivity(Long snapshotId, Long entityId) {
+        auditPortFactory.ifAvailable(port ->
+                port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
+                        .map(content -> content.snapshotData())
+                        .ifPresent(snapshot -> {
+                            UserEditDto dto = new UserEditDto(entityId, snapshot.name(), Role.valueOf(snapshot.role()));
+                            loadRestored(dto);
+                        })
+        );
+    }
+
+    public void discardChanges() {
+        userService.findById(params.getUser().getId()).ifPresent(freshUser -> {
+            UserEditDto fresh = mapper.toUserEdit(freshUser);
+            binder.reload(fresh, (src, tgt) -> {
+                tgt.setName(src.getName());
+                tgt.setRole(src.getRole());
+            });
+            restoreBanner.setVisible(false);
+        });
+    }
+
+    private Div buildRestoreBanner() {
+        Div banner = new Div();
+        banner.addClassName("form-restore-banner");
+        banner.setText(getValue(FORM_RESTORE_BANNER));
+        banner.setVisible(false);
+        return banner;
     }
 
     private void buildBinder(UserEditDto dto) {

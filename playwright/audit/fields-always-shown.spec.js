@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab, openTimelineTab, screenshot } = require('./_test-helpers');
 
 test.describe('All fields always shown in history and activity', () => {
   test.beforeEach(async ({ page }) => {
@@ -38,9 +38,8 @@ test.describe('All fields always shown in history and activity', () => {
     });
     await screenshot(page, 'fields-01-history-created-both-fields');
 
-    await ov.locator('vaadin-tab').filter({ hasText: /view|перегляд/i }).click();
-    await page.locator('.overlay__view-title').waitFor({ timeout: 3000 });
-    await ov.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
+    // Already in edit mode (Activity tab selected) — switch back to edit form tab
+    await ov.locator('.adv-form-tabs vaadin-tab').first().click();
     await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
     await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(DESC_V2);
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
@@ -82,7 +81,7 @@ test.describe('All fields always shown in history and activity', () => {
     await waitForOverlayClosed(page);
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('CREATED activity row shows both title and description', async () => {
       const createdRow = page.locator('.activity-feed-row')
@@ -116,7 +115,7 @@ test.describe('All fields always shown in history and activity', () => {
     await waitForOverlayClosed(page);
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('UPDATED activity row (title only) shows title diff and unchanged description', async () => {
       const updatedRow = page.locator('.activity-feed-row')

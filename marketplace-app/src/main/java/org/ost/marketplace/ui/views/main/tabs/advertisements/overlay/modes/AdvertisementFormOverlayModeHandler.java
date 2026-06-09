@@ -4,6 +4,8 @@ import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -12,8 +14,12 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
 import org.ost.marketplace.entities.Advertisement;
+import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;
+import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
@@ -37,6 +43,8 @@ import java.util.UUID;
 
 
 import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.common.I18nKey.FORM_DISCARD_CHANGES;
+import static org.ost.marketplace.common.I18nKey.FORM_RESTORE_BANNER;
 
 @Uses(Upload.class)
 @SpringComponent
@@ -53,22 +61,29 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull Runnable    onCancel;
     }
 
-    private final AdvertisementService                              advertisementService;
-    private final AdvertisementMapper                               mapper;
+    private final AdvertisementService                                   advertisementService;
+    private final AdvertisementMapper                                    mapper;
+    private final AccessEvaluator                                        access;
     @Getter
-    private final I18nService                                       i18nService;
-    private final transient ComponentFactory<AttachmentGalleryPort> galleryPortFactory;
-    private final transient ComponentFactory<OverlayFormBinder>     formBinderFactory;
-    private final OverlayAdvertisementMetaPanel                     metaPanel;
-    private final UiTextField                                       titleField;
-    private final UiTextArea                                        descriptionField;
-    private final UiPrimaryButton                                   saveButton;
-    private final UiTertiaryButton                                  cancelButton;
+    private final I18nService                                            i18nService;
+    private final transient ComponentFactory<AttachmentGalleryPort>      galleryPortFactory;
+    private final transient ComponentFactory<OverlayFormBinder>          formBinderFactory;
+    private final transient ComponentFactory<AuditPort>                  auditPortFactory;
+    private final transient ComponentFactory<AuditUiPort>                auditUiPortFactory;
+    private final OverlayAdvertisementMetaPanel                          metaPanel;
+    private final UiTextField                                            titleField;
+    private final UiTextArea                                             descriptionField;
+    private final UiPrimaryButton                                        saveButton;
+    private final UiTertiaryButton                                       discardButton;
+    private final UiTertiaryButton                                       cancelButton;
 
     private Parameters params;
     @Getter
-    private Advertisement savedAdvertisement;
+    private Advertisement                    savedAdvertisement;
     private AttachmentGalleryPort.FormHandle activeHandle;
+    private Div                              restoreBanner;
+    private Tabs                             formTabs;
+    private Tab                              editTab;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -128,8 +143,21 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         wireSaveGuard(saveButton, params.getOnSave());
         cancelButton.addClickListener(_ -> params.getOnCancel().run());
 
-        layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, cancelButton));
+        restoreBanner = buildRestoreBanner();
+        content.addComponentAsFirst(restoreBanner);
+
+        if (!isCreate) {
+            discardButton.configure(UiTertiaryButton.Parameters.builder()
+                    .labelKey(FORM_DISCARD_CHANGES)
+                    .build());
+            discardButton.addClickListener(_ -> discardChanges());
+            layout.setHeaderActions(new Div(saveButton, discardButton, cancelButton));
+        } else {
+            layout.setHeaderActions(new Div(saveButton, cancelButton));
+        }
+
+        Div tabbedContent = isCreate ? content : buildTabbedContent(content);
+        layout.setContent(tabbedContent);
     }
 
     public boolean save() {
@@ -145,6 +173,87 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         if (this.activeHandle != null) {
             this.activeHandle.discard();
         }
+    }
+
+    public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
+        binder.loadRestored(restoredDto, (src, tgt) -> {
+            tgt.setTitle(src.getTitle());
+            tgt.setDescription(src.getDescription());
+        });
+        restoreBanner.setVisible(true);
+        if (formTabs != null) formTabs.setSelectedTab(editTab);
+    }
+
+    private Div buildTabbedContent(Div editContent) {
+        return auditUiPortFactory.findIfAvailable()
+                .filter(_ -> access.canOperate(params.getAd()))
+                .map(auditUi -> {
+                    formTabs = new Tabs();
+                    formTabs.addClassName("adv-form-tabs");
+                    editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
+                    Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
+                    formTabs.add(editTab, activityTab);
+
+                    Div activityContent = new Div();
+                    activityContent.addClassName("entity-activity-content");
+                    activityContent.setVisible(false);
+
+                    formTabs.addSelectedChangeListener(event -> {
+                        boolean isEdit = event.getSelectedTab() == editTab;
+                        editContent.setVisible(isEdit);
+                        activityContent.setVisible(!isEdit);
+                        if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
+                            activityContent.add(buildActivityContent(auditUi));
+                        }
+                    });
+
+                    return new Div(formTabs, editContent, activityContent);
+                })
+                .orElse(editContent);
+    }
+
+    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
+        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
+                .entityType(EntityType.ADVERTISEMENT)
+                .entityId(params.getAd().getId())
+                .userId(access.getCurrentUserId())
+                .isPrivileged(access.isPrivileged())
+                .canOperate(access.canOperate(params.getAd()))
+                .onRestoreRequested((item, entityId) -> handleRestoreFromActivity(item.snapshotId()))
+                .build());
+    }
+
+    private void handleRestoreFromActivity(Long snapshotId) {
+        auditPortFactory.ifAvailable(port ->
+                port.<AdvertisementSnapshotDto>getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT)
+                        .map(content -> content.snapshotData())
+                        .ifPresent(snapshot -> {
+                            AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
+                            dto.setTitle(snapshot.title());
+                            dto.setDescription(snapshot.description());
+                            loadRestored(dto);
+                        })
+        );
+    }
+
+    public void discardChanges() {
+        if (params.getAd() == null) return;
+        advertisementService.findById(params.getAd().getId()).ifPresent(freshAd -> {
+            AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
+            binder.reload(fresh, (src, tgt) -> {
+                tgt.setTitle(src.getTitle());
+                tgt.setDescription(src.getDescription());
+            });
+            restoreBanner.setVisible(false);
+        });
+    }
+
+    private Div buildRestoreBanner() {
+        Div banner = new Div();
+        banner.addClassName("form-restore-banner");
+        banner.setText(getValue(FORM_RESTORE_BANNER));
+        banner.setVisible(false);
+        return banner;
     }
 
     private void buildBinder(AdvertisementEditDto dto) {

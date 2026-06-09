@@ -10,16 +10,13 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.platform.audit.dto.AuditHistoryItemDto;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
@@ -27,8 +24,6 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
-
-import java.util.function.Consumer;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -45,7 +40,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         @NonNull AdvertisementInfoDto ad;
         @NonNull Runnable             onEdit;
         @NonNull Runnable             onClose;
-        @NonNull Consumer<Long>       onRestore;
     }
 
     private final AccessEvaluator                                   access;
@@ -55,8 +49,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final UiPrimaryButton                                   editButton;
     private final UiIconButton                                      closeButton;
     private final transient ComponentFactory<AttachmentGalleryPort> galleryPortFactory;
-    private final transient ComponentFactory<AuditUiPort>           auditUiPortFactory;
-    private final transient ComponentFactory<ConfirmActionDialog>   confirmDialogFactory;
 
     private Parameters params;
 
@@ -101,13 +93,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        return auditUiPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getAd()))
-                .map(auditUi -> new SecondaryTabDef(
-                        new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB)),
-                        "entity-activity-content",
-                        () -> buildHistoryContent(params.getAd(), auditUi)))
-                .orElse(null);
+        return null;
     }
 
     @Override
@@ -125,26 +111,4 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         return new Div(editButton, closeButton);
     }
 
-    private com.vaadin.flow.component.Component buildHistoryContent(AdvertisementInfoDto ad, AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
-                .entityType(EntityType.ADVERTISEMENT)
-                .entityId(ad.getId())
-                .userId(access.getCurrentUserId())
-                .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(ad))
-                .onRestoreRequested(this::showRestoreConfirm)
-                .build());
-    }
-
-    private void showRestoreConfirm(AuditHistoryItemDto h, long snapshotId) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(ADVERTISEMENT_RESTORE_CONFIRM_TITLE)
-                        .message(getValue(ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED))
-                        .confirmKey(ADVERTISEMENT_RESTORE_CONFIRM_BUTTON)
-                        .cancelKey(ADVERTISEMENT_RESTORE_CONFIRM_CANCEL)
-                        .onConfirm(() -> params.getOnRestore().accept(snapshotId))
-                        .build()
-        ).open();
-    }
 }

@@ -43,9 +43,16 @@ async function openAdDetail(page, title) {
 }
 
 async function openHistory(page) {
-  const historyTab = page.locator('.adv-overlay-tabs vaadin-tab', { hasText: /Activ|активн/i });
-  if (!await historyTab.isVisible()) return false;
-  await historyTab.click();
+  const overlay = page.locator('.advertisement-overlay');
+  // Enter edit mode first if currently in view mode
+  const editBtn = overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first();
+  if (await editBtn.isVisible()) {
+    await editBtn.click();
+    await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 5000 });
+  }
+  const activityTab = overlay.locator('.adv-form-tabs vaadin-tab').filter({ hasText: /Activ|активн/i });
+  if (!await activityTab.isVisible()) return false;
+  await activityTab.click();
   await page.locator('.entity-activity-list').waitFor({ timeout: 5000 });
   return true;
 }
@@ -58,7 +65,8 @@ async function openSettings(page) {
 async function openHistoryTab(page, overlaySelector = '.base-overlay.overlay--visible') {
   await page.locator(`${overlaySelector} vaadin-tab`)
     .filter({ hasText: /activity|activit|активн/i }).click();
-  await page.locator(`${overlaySelector} .entity-activity-list`).first().waitFor({ timeout: 8000 });
+  // Settings overlay uses .activity-feed-list; entity overlays use .entity-activity-list
+  await page.locator(`${overlaySelector} .entity-activity-list, ${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
 }
 
 async function openTimelineTab(page, overlaySelector = '.base-overlay.overlay--visible') {

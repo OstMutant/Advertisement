@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-06-08 — AuditTimelinePanel placement: view overlays only, not editors
+
+**Decision:** `AuditTimelinePanel` belongs in view-mode overlays only:
+- **Users overlay (view mode)** — admins/moderators see activity across entities for that user.
+- **Settings overlay** — authenticated user sees their own activity history.
+
+`AuditTimelinePanel` must NOT appear in any edit-mode overlay (e.g. advertisement editor).
+
+**Why:** Regular users have no access to edit overlays. Admins see entity-level activity through the Users view overlay. Edit forms are for data entry — mixing in audit history adds noise and has no defined use case.
+
+**Rule:** Any new `AuditTimelinePanel` placement must be in a view-mode overlay with a defined role and user need. Edit overlays are excluded by design.
+
+---
+
 ## Ongoing — Module structure and auto-configuration
 
 **Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.

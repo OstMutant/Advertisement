@@ -1,5 +1,5 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, closeOverlay } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, closeOverlay } = require('./_test-helpers');
 
 const AD_TITLE = 'Activity Types Test Ad';
 
@@ -51,7 +51,7 @@ test.describe('Activity types', () => {
     }
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('ADVERTISEMENT entity type badge present', async () => {
       if (await page.locator('.activity-feed-type--advertisement').count() === 0)

@@ -72,7 +72,6 @@ public class UserOverlay extends AbstractEntityOverlay {
                             .user(session.user())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
-                            .onRestoreUser(this::handleRestoreUser)
                             .build());
             case EDIT -> {
                 currentFormHandler = formModeHandlerFactory.build(
@@ -116,18 +115,6 @@ public class UserOverlay extends AbstractEntityOverlay {
         } catch (Exception e) {
             notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR, e.getMessage());
         }
-    }
-
-    private void handleRestoreUser(Long snapshotId, Long entityId) {
-        Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElseThrow();
-        userService.restoreToSnapshot(entityId, snapshotId, actingUserId).ifPresentOrElse(
-                restoredUser -> {
-                    notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
-                    session.onSaved().run();
-                    openSession(new OverlaySession(Mode.VIEW, restoredUser, session.onSaved(), false));
-                },
-                () -> notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR)
-        );
     }
 
     @Override

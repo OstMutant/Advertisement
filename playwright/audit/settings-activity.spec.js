@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, confirmDialog, createAd, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, openTimelineTab, createAd, screenshot } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -78,25 +78,25 @@ test.describe('Settings activity', () => {
     await openActivityTab(page);
 
     await test.step('Settings change appears in activity', async () => {
-      if (await page.locator('.activity-feed-row').count() === 0) throw new Error('No activity rows');
-      const body = await page.locator('.activity-feed-list').first().textContent();
-      if (!body.includes('сторінці') && !body.includes('page'))
+      if (await page.locator('.entity-activity-row').count() === 0) throw new Error('No activity rows');
+      const body = await page.locator('.entity-activity-list').first().textContent();
+      if (!body.match(/adsPageSize|usersPageSize|сторінці|page/i))
         throw new Error('Settings change summary not found in activity');
     });
 
     await test.step('Page size diff shown in activity', async () => {
-      if (await page.locator('.activity-feed-changes').count() === 0) throw new Error('No changes summary found');
-      if (!(await page.locator('.activity-feed-list').first().textContent()).includes('→'))
+      if (await page.locator('.entity-activity-changes').count() === 0) throw new Error('No changes summary found');
+      if (!(await page.locator('.entity-activity-list').first().textContent()).includes('→'))
         throw new Error('No diff arrow → found in activity');
     });
 
     await test.step('Restore settings button present', async () => {
-      if (await page.locator('.activity-feed-list .entity-activity-restore-btn').count() === 0)
+      if (await page.locator('.entity-activity-list .entity-activity-restore-btn').count() === 0)
         throw new Error('No restore button for settings');
     });
 
     await test.step('Restore button is left-aligned in activity row', async () => {
-      const row = page.locator('.activity-feed-row').filter({ has: page.locator('.entity-activity-restore-btn') }).first();
+      const row = page.locator('.entity-activity-row').filter({ has: page.locator('.entity-activity-restore-btn') }).first();
       const btn = row.locator('.entity-activity-restore-btn');
       const rowBox = await row.boundingBox();
       const btnBox = await btn.boundingBox();
@@ -105,8 +105,10 @@ test.describe('Settings activity', () => {
     });
     await screenshot(page, 'settings-activity-01-activity-list');
 
-    await page.locator('.activity-feed-list .entity-activity-restore-btn').nth(0).click();
-    await confirmDialog(page, 'Оновити|Update');
+    await page.locator('.entity-activity-list .entity-activity-restore-btn').nth(0).click();
+    // No confirm dialog — banner appears and fields are filled with restored values
+    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+    await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.waitForLoadState('networkidle');
 
     await page.locator('.settings-overlay-content vaadin-integer-field').first().waitFor({ timeout: 5000 });
@@ -130,7 +132,7 @@ test.describe('Settings activity', () => {
     await openActivityTab(page);
 
     await test.step('Activity panel visible before save', async () => {
-      await expect(page.locator('.base-overlay.overlay--visible .activity-feed-list').first()).toBeVisible();
+      await expect(page.locator('.base-overlay.overlay--visible .entity-activity-list').first()).toBeVisible();
     });
 
     await page.locator('.base-overlay.overlay--visible vaadin-button')
@@ -139,7 +141,7 @@ test.describe('Settings activity', () => {
 
     await test.step('Settings panel visible after save (not activity)', async () => {
       await expect(page.locator('.settings-overlay .overlay__form-fields-card')).toBeVisible();
-      await expect(page.locator('.settings-overlay .activity-feed-list')).toBeHidden();
+      await expect(page.locator('.settings-overlay .entity-activity-list')).toBeHidden();
     });
     await screenshot(page, 'settings-activity-04-settings-tab-after-save');
   });
@@ -152,7 +154,7 @@ test.describe('Settings activity', () => {
     await createAd(page, { title: adTitle, description: 'merge test', imagePath: imgPath });
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('Ad with image shows as one row in settings activity, not two', async () => {
       const adRowCount = await page.locator('.base-overlay.overlay--visible .activity-feed-row')

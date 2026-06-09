@@ -1,5 +1,5 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, screenshot } = require('./_test-helpers');
 
 test.describe('User edit diff', () => {
   test.beforeEach(async ({ page }) => {
@@ -29,7 +29,7 @@ test.describe('User edit diff', () => {
     });
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('Changes summary in activity', async () => {
       if (await page.locator('.activity-feed-changes').count() === 0)
