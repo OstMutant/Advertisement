@@ -64,8 +64,12 @@ public class AuditActivityListRenderer {
 
         for (AuditActivityItemDto<AuditableSnapshot> item : items) {
             if (item.changedByActorId() != null) actorIds.add(item.changedByActorId());
-            displayNames.computeIfAbsent(item.entityId(), _ ->
-                    auditDomainHook.resolveDisplayName(item.entityType(), item.snapshotData()));
+            displayNames.computeIfAbsent(item.entityId(), _ -> {
+                    AuditableSnapshot snapshot = item.snapshotData();
+                    return snapshot != null
+                            ? auditDomainHook.resolveDisplayName(item.entityType(), snapshot)
+                            : "";
+                });
             byType.computeIfAbsent(item.entityType(), _ -> new HashSet<>()).add(item.entityId());
         }
 

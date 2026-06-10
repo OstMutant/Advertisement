@@ -171,17 +171,12 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         saveBtn.setEnabled(false);
         discardBtn.setEnabled(false);
         try {
-            UserSettings oldSettings = settingsService.load(user.getId());
             UserSettings newSettings = UserSettings.builder()
                     .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
                     .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                     .build();
 
             settingsService.save(user.getId(), newSettings);
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(user.getId(),
-                    SettingsSnapshotDto.from(oldSettings),
-                    SettingsSnapshotDto.from(newSettings),
-                    user.getId()));
             if (historyPanel  != null) historyPanel.removeAll();
             if (timelinePanel != null) timelinePanel.removeAll();
             if (tabs          != null) tabs.setSelectedTab(settingsTab);

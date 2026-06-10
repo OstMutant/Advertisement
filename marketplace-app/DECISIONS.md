@@ -134,6 +134,30 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 ---
 
+## 2026-06-10 — Audit writes belong in the service layer, not the UI
+
+**Rule:** `AuditPort.captureUpdate` / `captureCreation` / `captureDeletion` must only be called from `*Service` classes — never from UI overlays, view components, or `*HookImpl` classes.
+
+**Why:** Discovered during architecture audit. `SettingsOverlay.handleSave()` was calling `auditPortFactory.captureUpdate(...)` directly — the only place in the entire UI layer that fired an audit write. All other entities (`AdvertisementService`, `UserService`) correctly place audit calls inside the service. Moving it to `UserSettingsService.save()` restores consistency and keeps the UI layer free of infrastructure concerns.
+
+**How to apply:** When a save/update/delete operation needs to be audited, put the `AuditPort` call at the end of the corresponding `*Service.save()` / `*Service.delete()` method. The UI layer calls the service; the service handles persistence + audit atomically.
+
+**Fixed in:** `UserSettingsService.save()` now loads old settings, saves, publishes the domain event, and captures the audit entry. `SettingsOverlay.handleSave()` only constructs the DTO and calls `settingsService.save()`.
+
+---
+
+## 2026-06-10 — *HookImpl must not inspect snapshot internals — delegate to the owning service
+
+**Rule:** `*HookImpl` methods must not access fields of snapshot DTOs or apply any formatting/resolution logic. Each switch branch must contain exactly one service call.
+
+**Why:** `AuditDomainHookImpl.resolveDisplayName()` was directly accessing `ad.title()` and `u.name()` from snapshot DTOs and applying a null guard — business logic embedded in a hook. The hook's role is entity-type routing only. The resolution of "what name to display for this snapshot" belongs to the service that owns the entity.
+
+**How to apply:** If a `*HookImpl` method needs entity-specific data, add a method to the corresponding `*Service` and delegate. Entity-type routing (a `switch` over `EntityType`) is the only permitted logic in a `*HookImpl`.
+
+**Fixed in:** `AuditDomainHookImpl.resolveDisplayName()` now delegates to `advertisementService.resolveDisplayName(snapshot)` and `userService.resolveDisplayName(snapshot)`. The i18n label for `USER_SETTINGS` (which has no snapshot content to display) stays in the hook as a trivial lookup, not business logic.
+
+---
+
 ## 2026-05-29 — AbstractViewOverlayModeHandler: Template Method for tabbed view overlays
 
 **Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler` (in `ui/views/components/overlay/`). The base class provides a `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`, `buildSecondaryTab()`, `buildHeaderActions()`.

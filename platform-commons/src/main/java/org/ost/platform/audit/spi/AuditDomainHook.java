@@ -22,8 +22,7 @@ public interface AuditDomainHook {
 
     Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
 
-    // snapshot may be null for entities that have been hard-deleted with no retained snapshot
-    String resolveDisplayName(@NonNull EntityType entityType, AuditableSnapshot snapshot);
+    String resolveDisplayName(@NonNull EntityType entityType, @NonNull AuditableSnapshot snapshot);
 
     <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content);
 }

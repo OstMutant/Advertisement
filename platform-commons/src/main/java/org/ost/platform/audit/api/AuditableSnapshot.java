@@ -7,11 +7,13 @@ import org.ost.platform.core.model.EntityType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "@type")
 public interface AuditableSnapshot {
     EntityType entityType();
+    Optional<String> displayName();
     List<ChangeEntry> diff(AuditableSnapshot previous);
     List<ChangeEntry.FieldChange> allFields();
 

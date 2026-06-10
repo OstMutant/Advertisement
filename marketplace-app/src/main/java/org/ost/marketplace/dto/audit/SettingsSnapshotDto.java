@@ -9,6 +9,7 @@ import org.ost.platform.core.model.EntityType;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
@@ -26,6 +27,9 @@ public record SettingsSnapshotDto(
 
     @Override
     public EntityType entityType() { return EntityType.USER_SETTINGS; }
+
+    @Override
+    public Optional<String> displayName() { return Optional.empty(); }
 
     @Override
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
