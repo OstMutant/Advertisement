@@ -284,7 +284,7 @@ public record AuditLogProjection(
 
 **Why:** The starter resolves labels via a shared `MessageSource`. Namespacing keys under `audit.changes.*` makes ownership clear and avoids collision with marketplace-owned keys.
 
-**Deferred — per-module i18n:** Each starter should eventually own its own `messages*.properties` (e.g. `i18n/audit-messages_en.properties`), loaded via a composite `MessageSource`. This eliminates audit- and attachment-specific keys from the marketplace properties files. Trigger: when a second consumer of either starter appears, or the marketplace properties file becomes unmanageable.
+**~~Deferred — per-module i18n~~ Done (2026-06-10):** `audit-messages_en/uk.properties` now live in `audit-spring-boot-starter/src/main/resources/i18n/`. `attachment-messages_en/uk.properties` live in `attachment-spring-boot-starter/src/main/resources/i18n/`. `MessageSourceConfig` registers all three basenames. `marketplace messages*.properties` retains only `audit.changes.setting.*` (domain-specific field label overrides).
 
 ---
 

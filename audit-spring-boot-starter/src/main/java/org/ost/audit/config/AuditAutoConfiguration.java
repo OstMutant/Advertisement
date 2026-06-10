@@ -15,12 +15,17 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.ost.audit.AuditPackageMarker;
+import org.ost.audit.ui.AuditActivityListRenderer;
+import org.ost.audit.ui.AuditActivityPanel;
+import org.ost.audit.ui.AuditActivityRowRenderer;
+import org.ost.audit.ui.AuditHistoryListRenderer;
+import org.ost.audit.ui.AuditHistoryRowRenderer;
+import org.ost.audit.ui.AuditSnapshotBinder;
+import org.ost.audit.ui.AuditTimelinePanel;
+import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.ComponentFactory;
-import org.springframework.beans.factory.InjectionPoint;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Scope;
-import org.springframework.core.ResolvableType;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.support.CronTrigger;
@@ -66,15 +71,50 @@ public class AuditAutoConfiguration {
         return new DefaultAuditPort(auditLogRepository, currentActorHook, auditDomainHook);
     }
 
-    @Bean
-    @Scope("prototype")
-    @ConditionalOnMissingBean
-    public ComponentFactory<?> componentFactory(InjectionPoint injectionPoint, ConfigurableListableBeanFactory beanFactory) {
-        ResolvableType type = injectionPoint.getField() != null
-                ? ResolvableType.forField(injectionPoint.getField())
-                : ResolvableType.forMethodParameter(injectionPoint.getMethodParameter());
-        Class<?> beanClass = type.getGeneric(0).toClass();
-        return new ComponentFactory<>(beanFactory.getBeanProvider(ResolvableType.forClass(beanClass)));
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditUiPort> auditUiPortFactory(ObjectProvider<AuditUiPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditTimelinePanel> auditTimelinePanelFactory(ObjectProvider<AuditTimelinePanel> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    @SuppressWarnings("rawtypes")
+    public ComponentFactory<AuditSnapshotBinder> auditSnapshotBinderFactory(ObjectProvider<AuditSnapshotBinder> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditActivityListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditHistoryListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditHistoryListRenderer> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditHistoryRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditHistoryRowRenderer> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditActivityRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
+        return new ComponentFactory<>(p);
     }
 
 }

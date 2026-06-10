@@ -6,12 +6,14 @@ import liquibase.integration.spring.SpringLiquibase;
 import org.ost.attachment.AttachmentPackageMarker;
 import org.ost.attachment.services.AttachmentCleanupService;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.attachment.ui.AttachmentGallery;
+import org.ost.attachment.ui.CardMediaLightbox;
+import org.ost.platform.attachment.spi.AttachmentAuditHook;
+import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
-import org.springframework.beans.factory.InjectionPoint;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.context.annotation.Scope;
-import org.springframework.core.ResolvableType;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -56,15 +58,29 @@ public class AttachmentAutoConfiguration {
                                 TimeZone.getTimeZone(cleanupProperties.timezone())));
     }
 
-    @Bean
-    @Scope("prototype")
-    @ConditionalOnMissingBean
-    public ComponentFactory<?> componentFactory(InjectionPoint injectionPoint, ConfigurableListableBeanFactory beanFactory) {
-        ResolvableType type = injectionPoint.getField() != null
-                ? ResolvableType.forField(injectionPoint.getField())
-                : ResolvableType.forMethodParameter(injectionPoint.getMethodParameter());
-        Class<?> beanClass = type.getGeneric(0).toClass();
-        return new ComponentFactory<>(beanFactory.getBeanProvider(ResolvableType.forClass(beanClass)));
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AttachmentPort> attachmentPortFactory(ObjectProvider<AttachmentPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AttachmentGalleryPort> attachmentGalleryPortFactory(ObjectProvider<AttachmentGalleryPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory(ObjectProvider<AttachmentAuditHook> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
+        return new ComponentFactory<>(p);
     }
 
 }
