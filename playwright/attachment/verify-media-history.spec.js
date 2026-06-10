@@ -101,7 +101,7 @@ test.describe('Verify media history', () => {
     await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
     await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
 
-    const deleteBtn = page.locator('.attachment-gallery__item .attachment-delete-btn, .attachment-gallery__item button[title*="видалити"], .attachment-gallery__item button[title*="delete"]').first();
+    const deleteBtn = page.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first();
     if (await deleteBtn.count() > 0) {
       await deleteBtn.click();
       await page.locator('.base-overlay.overlay--visible vaadin-button')

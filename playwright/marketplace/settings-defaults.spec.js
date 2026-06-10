@@ -1,5 +1,5 @@
 const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, closeOverlay,
-        openSettings, openActivityTab, confirmDialog, screenshot } = require('./_test-helpers');
+        openSettings, openActivityTab, screenshot } = require('./_test-helpers');
 
 async function signUpAndLogin(page, email, password = 'password123') {
   await page.goto('/');
@@ -52,13 +52,14 @@ test.describe('Settings defaults', () => {
 
     await test.step('Restore button is visible after first change', async () => {
       await expect(
-        page.locator('.activity-feed-list .entity-activity-restore-btn').first()
+        page.locator('.entity-activity-list .entity-activity-restore-btn').first()
       ).toBeVisible({ timeout: 5000 });
     });
     await screenshot(page, 'settings-defaults-02-restore-visible');
 
-    await page.locator('.activity-feed-list .entity-activity-restore-btn').first().click();
-    await confirmDialog(page, 'Оновити|Update');
+    await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
+    await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
+    await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.waitForLoadState('networkidle');
 
     await page.locator('.settings-overlay-content vaadin-integer-field').first().waitFor({ timeout: 5000 });

@@ -40,8 +40,7 @@ test.describe('Users view (admin)', () => {
     });
 
     await test.step('Close edit overlay', async () => {
-      await page.locator('.base-overlay.overlay--visible vaadin-button')
-        .filter({ hasText: /скасувати|cancel|закрити|close/i }).first().click();
+      await page.keyboard.press('Escape');
       await waitForOverlayClosed(page).catch(() => {});
     });
   });

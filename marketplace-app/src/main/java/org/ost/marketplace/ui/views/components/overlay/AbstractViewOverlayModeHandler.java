@@ -11,27 +11,29 @@ public abstract class AbstractViewOverlayModeHandler implements OverlayModeHandl
 
     @Override
     public final void activate(OverlayLayout layout) {
-        Tab primaryTab = buildPrimaryTab();
-        Tabs tabs = new Tabs(primaryTab);
-        tabs.addClassName(tabsCssClass());
-
         SecondaryTabDef secondary = buildSecondaryTab();
-        if (secondary != null) tabs.add(secondary.tab());
+        TertiaryTabDef  tertiary  = buildTertiaryTab();
 
-        TertiaryTabDef tertiary = buildTertiaryTab();
-        if (tertiary != null) tabs.add(tertiary.tab());
-
-        layout.setContent(assembleTabbedContent(tabs, primaryTab, buildPrimaryContent(), secondary, tertiary));
+        if (secondary == null && tertiary == null) {
+            layout.setContent(buildPrimaryContent());
+        } else {
+            Tab  primaryTab = buildPrimaryTab();
+            Tabs tabs       = new Tabs(primaryTab);
+            tabs.addClassName(tabsCssClass());
+            if (secondary != null) tabs.add(secondary.tab());
+            if (tertiary  != null) tabs.add(tertiary.tab());
+            layout.setContent(assembleTabbedContent(tabs, primaryTab, buildPrimaryContent(), secondary, tertiary));
+        }
         layout.setHeaderActions(buildHeaderActions());
     }
 
-    protected abstract String tabsCssClass();
+    protected String tabsCssClass() { return ""; }
 
-    protected abstract Tab buildPrimaryTab();
+    protected Tab buildPrimaryTab() { return null; }
 
     protected abstract Div buildPrimaryContent();
 
-    protected abstract SecondaryTabDef buildSecondaryTab();
+    protected SecondaryTabDef buildSecondaryTab() { return null; }
 
     protected TertiaryTabDef buildTertiaryTab() { return null; }
 

@@ -83,8 +83,7 @@ test.describe('Advertisement history (deep)', () => {
 
     await page.locator('.entity-activity-restore-btn').last().click();
 
-    // No confirm dialog — banner appears and form is filled with restored content
-    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+    await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
 

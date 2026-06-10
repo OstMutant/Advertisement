@@ -52,7 +52,16 @@ public class AttachmentGallery extends Div {
     private final List<TempAttachment> tempUploads        = new ArrayList<>();
     private final List<Attachment>     currentAttachments = new ArrayList<>();
     private       boolean              hasPendingDeletion = false;
-    private String tempSessionId;
+    private String   tempSessionId;
+    private Runnable onChanged;
+
+    public void setOnChangedListener(Runnable onChanged) {
+        this.onChanged = onChanged;
+    }
+
+    private void notifyChanged() {
+        if (onChanged != null) onChanged.run();
+    }
 
     @PostConstruct
     private void init() {
@@ -145,6 +154,7 @@ public class AttachmentGallery extends Div {
                 hasPendingDeletion = true;
                 currentAttachments.remove(a);
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
+                notifyChanged();
             });
         }
         return AttachmentThumbnail.forView(a, () -> getUI().ifPresent(ui -> AttachmentLightbox.open(a, ui)));
@@ -155,6 +165,7 @@ public class AttachmentGallery extends Div {
             attachmentService.discardTempUploads(List.of(temp));
             tempUploads.remove(temp);
             if (thumbnailsRow.getComponentCount() == 0) showEmpty();
+            notifyChanged();
         });
     }
 
@@ -177,6 +188,7 @@ public class AttachmentGallery extends Div {
                             tempUploads.add(temp);
                             hideEmpty();
                             thumbnailsRow.add(buildTempThumbnail(temp));
+                            notifyChanged();
                         });
                     } else if (entityId != null) {
                         Attachment saved = attachmentService.upload(
@@ -185,6 +197,7 @@ public class AttachmentGallery extends Div {
                             currentAttachments.add(saved);
                             hideEmpty();
                             thumbnailsRow.add(buildThumbnail(saved));
+                            notifyChanged();
                         });
                     }
                 } catch (Exception e) {
@@ -208,11 +221,13 @@ public class AttachmentGallery extends Div {
                     tempUploads.add(temp);
                     hideEmpty();
                     thumbnailsRow.add(buildTempThumbnail(temp));
+                    notifyChanged();
                 } else if (entityId != null) {
                     Attachment saved = attachmentService.addVideo(entityType, entityId, val);
                     currentAttachments.add(saved);
                     hideEmpty();
                     thumbnailsRow.add(buildThumbnail(saved));
+                    notifyChanged();
                 }
                 urlField.clear();
             } catch (Exception _) {

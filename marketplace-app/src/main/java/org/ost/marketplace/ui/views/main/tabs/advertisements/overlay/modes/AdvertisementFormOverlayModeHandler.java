@@ -8,6 +8,7 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -23,6 +24,7 @@ import org.ost.platform.audit.spi.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextArea;
@@ -30,6 +32,7 @@ import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
+import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.attachment.spi.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -66,22 +69,23 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final AccessEvaluator                                        access;
     @Getter
     private final I18nService                                            i18nService;
+    private final NotificationService                                    notificationService;
     private final transient ComponentFactory<AttachmentGalleryPort>      galleryPortFactory;
     private final transient ComponentFactory<OverlayFormBinder>          formBinderFactory;
     private final transient ComponentFactory<AuditPort>                  auditPortFactory;
     private final transient ComponentFactory<AuditUiPort>                auditUiPortFactory;
+    private final transient ComponentFactory<UiIconButton>               cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                          metaPanel;
     private final UiTextField                                            titleField;
     private final UiTextArea                                             descriptionField;
     private final UiPrimaryButton                                        saveButton;
     private final UiTertiaryButton                                       discardButton;
-    private final UiTertiaryButton                                       cancelButton;
 
     private Parameters params;
+    private boolean    isCreate;
     @Getter
     private Advertisement                    savedAdvertisement;
     private AttachmentGalleryPort.FormHandle activeHandle;
-    private Div                              restoreBanner;
     private Tabs                             formTabs;
     private Tab                              editTab;
 
@@ -93,7 +97,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     @Override
     public void activate(OverlayLayout layout) {
-        boolean isCreate = params.getAd() == null;
+        this.isCreate = params.getAd() == null;
 
         titleField.configure(UiTextField.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
@@ -114,6 +118,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
+        titleField.setValueChangeMode(ValueChangeMode.EAGER);
+        descriptionField.setValueChangeMode(ValueChangeMode.EAGER);
+        titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        descriptionField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
 
         Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
         cardHeader.addClassName("overlay__form-card-header");
@@ -126,6 +134,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
+            activeHandle.setOnChangedListener(() -> updateButtons(true));
             content.add(activeHandle.getComponent());
         });
 
@@ -136,25 +145,25 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
                 .build());
-        cancelButton.configure(UiTertiaryButton.Parameters.builder()
+        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
+                .icon(VaadinIcon.CLOSE.create())
                 .build());
 
         wireSaveGuard(saveButton, params.getOnSave());
-        cancelButton.addClickListener(_ -> params.getOnCancel().run());
-
-        restoreBanner = buildRestoreBanner();
-        content.addComponentAsFirst(restoreBanner);
+        closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
         if (!isCreate) {
             discardButton.configure(UiTertiaryButton.Parameters.builder()
                     .labelKey(FORM_DISCARD_CHANGES)
                     .build());
             discardButton.addClickListener(_ -> discardChanges());
-            layout.setHeaderActions(new Div(saveButton, discardButton, cancelButton));
+            layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
         } else {
-            layout.setHeaderActions(new Div(saveButton, cancelButton));
+            layout.setHeaderActions(new Div(saveButton, closeBtn));
         }
+
+        updateButtons(false);
 
         Div tabbedContent = isCreate ? content : buildTabbedContent(content);
         layout.setContent(tabbedContent);
@@ -180,7 +189,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             tgt.setTitle(src.getTitle());
             tgt.setDescription(src.getDescription());
         });
-        restoreBanner.setVisible(true);
+        notificationService.success(FORM_RESTORE_BANNER);
+        updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(editTab);
     }
 
@@ -244,16 +254,13 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 tgt.setTitle(src.getTitle());
                 tgt.setDescription(src.getDescription());
             });
-            restoreBanner.setVisible(false);
+            updateButtons(false);
         });
     }
 
-    private Div buildRestoreBanner() {
-        Div banner = new Div();
-        banner.addClassName("form-restore-banner");
-        banner.setText(getValue(FORM_RESTORE_BANNER));
-        banner.setVisible(false);
-        return banner;
+    private void updateButtons(boolean hasChanges) {
+        saveButton.setEnabled(hasChanges);
+        if (!isCreate) discardButton.setEnabled(hasChanges);
     }
 
     private void buildBinder(AdvertisementEditDto dto) {

@@ -106,8 +106,7 @@ test.describe('Settings activity', () => {
     await screenshot(page, 'settings-activity-01-activity-list');
 
     await page.locator('.entity-activity-list .entity-activity-restore-btn').nth(0).click();
-    // No confirm dialog — banner appears and fields are filled with restored values
-    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+    await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.waitForLoadState('networkidle');
 
@@ -129,6 +128,13 @@ test.describe('Settings activity', () => {
     await createAd(page, { title: `Tab Switch Test ${Date.now()}`, description: 'tab switch test' });
 
     await openSettings(page);
+
+    const sizeInput = page.locator('.settings-overlay-content vaadin-integer-field').first().locator('input');
+    const originalVal = parseInt(await sizeInput.inputValue(), 10);
+    const newVal = originalVal === 10 ? 15 : 10;
+    await sizeInput.click({ clickCount: 3 });
+    await sizeInput.fill(String(newVal));
+
     await openActivityTab(page);
 
     await test.step('Activity panel visible before save', async () => {

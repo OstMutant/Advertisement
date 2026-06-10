@@ -158,8 +158,7 @@ test.describe('User profile activity — cross-actor flows', () => {
 
     await test.step('Click restore — User 1 name reverts, admin name intact', async () => {
       await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
-      // No confirm dialog — banner appears and form is filled with restored content
-      await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+      await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForLoadState('networkidle');
@@ -231,7 +230,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       const restoreBtn = page.locator('.entity-activity-list .entity-activity-restore-btn').first();
       if (await restoreBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
         await restoreBtn.click();
-        await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+        await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
         await page.waitForLoadState('networkidle');

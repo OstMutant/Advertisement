@@ -69,8 +69,7 @@ test.describe('Advertisement history', () => {
 
     await restoreBtns.last().click();
 
-    // No confirm dialog — banner appears and form is filled with restored content
-    await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+    await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
 
     // Save to apply the restore
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();

@@ -50,8 +50,7 @@ test.describe('Restore content correctness', () => {
       });
 
       await page.locator('.entity-activity-restore-btn').last().click();
-      // No confirm dialog — banner appears and form is filled with restored content
-      await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+      await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
       await page.locator('.overlay__view-title').waitFor({ timeout: 8000 });
 
@@ -96,8 +95,7 @@ test.describe('Restore content correctness', () => {
         const btns = page.locator('.entity-activity-restore-btn');
         const count = await btns.count();
         await btns.nth(count - 2).click();
-        // No confirm dialog — banner appears and form is filled with restored content
-        await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+        await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
         await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
         await page.locator('.overlay__view-title').waitFor({ timeout: 8000 });
       });
@@ -135,24 +133,32 @@ test.describe('Restore content correctness', () => {
       const current = await getSize();
       const step1 = current === 10 ? 15 : 10;
       const step2 = current === 10 ? 20 : 5;
+      const step3 = current === 10 ? 25 : 8;
 
       await setSize(step1);
       await save();
       await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1100);
 
       await setSize(step2);
       await save();
       await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(1100);
+
+      await setSize(step3);
+      await save();
+      await page.waitForLoadState('networkidle');
 
       await openActivityTab(page);
+      await page.locator('.entity-activity-list .entity-activity-row').nth(1).waitFor({ timeout: 10000 });
 
       await test.step('Restore button present on non-current entry', async () => {
         await expect(page.locator('.entity-activity-list .entity-activity-restore-btn').first())
-          .toBeVisible({ timeout: 10000 });
+          .toBeVisible({ timeout: 5000 });
       });
 
       await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
-      await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+      await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForLoadState('networkidle');
@@ -160,8 +166,8 @@ test.describe('Restore content correctness', () => {
 
       await test.step('Size matches snapshot value of the restored entry', async () => {
         const restored = await getSize();
-        if (restored !== step1)
-          throw new Error(`Expected ${step1} (snapshot value) after restore, got ${restored}`);
+        if (restored !== step2)
+          throw new Error(`Expected ${step2} (snapshot value) after restore, got ${restored}`);
       });
       await screenshot(page, 'restore-content-04-settings-restored');
     });
@@ -173,36 +179,32 @@ test.describe('Restore content correctness', () => {
     test.beforeEach(async ({ page }) => { await loginAs(page, ADMIN_EMAIL); });
 
     test('restore reverts user to the snapshot value of the clicked entry', async ({ page }) => {
-      const intermediateName = `RestoreContentUser ${Date.now()}`;
-      const finalName        = `RestoreContentFinal ${Date.now()}`;
+      const name1 = `RestoreContentUser1 ${Date.now()}`;
+      const name2 = `RestoreContentUser2 ${Date.now()}`;
+      const name3 = `RestoreContentUser3 ${Date.now()}`;
 
-      await test.step('Rename user twice to create two history entries', async () => {
+      const renameFirstUser = async (name) => {
+        await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
+        await waitForOverlay(page);
+        const field = page.locator('.base-overlay.overlay--visible vaadin-text-field').first().locator('input');
+        await field.click({ clickCount: 3 });
+        await field.fill(name);
+        await page.locator('.base-overlay.overlay--visible vaadin-button')
+          .filter({ hasText: /зберегти|save/i }).click();
+        await waitForOverlayClosed(page);
+        await page.waitForTimeout(600);
+      };
+
+      await test.step('Rename user three times to guarantee non-current entries with diffs', async () => {
         await page.locator('vaadin-tab').filter({ hasText: /users|користувач/i }).click();
         await page.locator('vaadin-grid.user-grid').waitFor({ timeout: 8000 });
-        await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
-        await waitForOverlay(page);
-
-        const nameField = page.locator('.base-overlay.overlay--visible vaadin-text-field').first().locator('input');
-        await nameField.click({ clickCount: 3 });
-        await nameField.fill(intermediateName);
-        await page.locator('.base-overlay.overlay--visible vaadin-button')
-          .filter({ hasText: /зберегти|save/i }).click();
-        await waitForOverlayClosed(page);
-        await page.waitForTimeout(500);
-
-        await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
-        await waitForOverlay(page);
-        const nameField2 = page.locator('.base-overlay.overlay--visible vaadin-text-field').first().locator('input');
-        await nameField2.click({ clickCount: 3 });
-        await nameField2.fill(finalName);
-        await page.locator('.base-overlay.overlay--visible vaadin-button')
-          .filter({ hasText: /зберегти|save/i }).click();
-        await waitForOverlayClosed(page);
-        await page.waitForTimeout(500);
+        await renameFirstUser(name1);
+        await renameFirstUser(name2);
+        await renameFirstUser(name3);
       });
 
       await test.step('Open user profile → enter edit mode → Activity tab', async () => {
-        await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: finalName }).first().click();
+        await page.locator('vaadin-grid.user-grid .user-grid-name', { hasText: name3 }).first().click();
         await waitForOverlay(page);
         const overlay = page.locator('.base-overlay.overlay--visible');
         const editBtn = overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first();
@@ -211,6 +213,7 @@ test.describe('Restore content correctness', () => {
         const activityTab = overlay.locator('.user-form-tabs vaadin-tab').filter({ hasText: /activ|активн/i });
         await activityTab.click();
         await overlay.locator('.entity-activity-list').first().waitFor({ timeout: 8000 });
+        await page.locator('.entity-activity-list .entity-activity-row').nth(1).waitFor({ timeout: 8000 });
       });
 
       await test.step('Restore button present on non-current entry', async () => {
@@ -220,21 +223,21 @@ test.describe('Restore content correctness', () => {
       await screenshot(page, 'restore-content-05-user-before-restore');
 
       await page.locator('.entity-activity-list .entity-activity-restore-btn').first().click();
-      await page.locator('.form-restore-banner').waitFor({ timeout: 5000 });
+      await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(600);
 
-      await test.step('Name is the snapshot value of the restored entry (intermediateName)', async () => {
+      await test.step('Name is the snapshot value of the restored entry (name2)', async () => {
         await page.keyboard.press('Escape');
         await waitForOverlayClosed(page).catch(() => {});
         await page.waitForTimeout(500);
         const names = await page.locator('vaadin-grid.user-grid .user-grid-name').allTextContents();
-        if (!names.some(n => n.trim() === intermediateName))
-          throw new Error(`Expected "${intermediateName}" in grid after restore, but not found`);
-        if (names.some(n => n.trim() === finalName))
-          throw new Error(`"${finalName}" still present — restore used wrong snapshot`);
+        if (!names.some(n => n.trim() === name2))
+          throw new Error(`Expected "${name2}" in grid after restore, but not found`);
+        if (names.some(n => n.trim() === name3))
+          throw new Error(`"${name3}" still present — restore used wrong snapshot`);
       });
       await screenshot(page, 'restore-content-06-user-restored');
     });

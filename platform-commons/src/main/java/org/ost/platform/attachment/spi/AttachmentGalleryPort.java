@@ -23,5 +23,6 @@ public interface AttachmentGalleryPort {
         Component getComponent();
         void commit(@NonNull EntityRef entity);
         void discard();
+        void setOnChangedListener(@NonNull Runnable onChanged);
     }
 }

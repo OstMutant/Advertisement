@@ -182,8 +182,7 @@ test.describe('Smoke: admin flow', () => {
     await test.step('Open user edit overlay', async () => {
       await page.locator('vaadin-grid.user-grid .user-grid-actions vaadin-button').first().click();
       await waitForOverlay(page);
-      await page.locator('.base-overlay.overlay--visible vaadin-button')
-        .filter({ hasText: /скасувати|cancel|закрити|close/i }).first().click();
+      await page.keyboard.press('Escape');
       await waitForOverlayClosed(page).catch(() => {});
     });
 

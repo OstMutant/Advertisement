@@ -7,6 +7,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
@@ -58,11 +59,13 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     private IntegerField     usersPageSizeField;
     private Div              historyPanel;
     private Div              timelinePanel;
-    private Div              restoreBanner;
     private Tabs             tabs;
     private Tab              settingsTab;
     private UiPrimaryButton  saveBtn;
+    private UiTertiaryButton discardBtn;
     private User             currentUser;
+    private int              savedAdsPageSize;
+    private int              savedUsersPageSize;
 
     public void openSettings() {
         authContextService.getCurrentUser().ifPresent(this::doOpen);
@@ -78,20 +81,19 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         layout.getBreadcrumbCurrent().setText(getValue(SETTINGS_SECTION_TITLE));
 
         UserSettings currentSettings = settingsService.load(user.getId());
+        savedAdsPageSize   = currentSettings.getAdsPageSize();
+        savedUsersPageSize = currentSettings.getUsersPageSize();
 
         FormLayout form = new FormLayout();
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         form.add(buildAdsPageSizeField(currentSettings), buildUsersPageSizeField(currentSettings));
+        adsPageSizeField.addValueChangeListener(_   -> updateSettingsButtons());
+        usersPageSizeField.addValueChangeListener(_ -> updateSettingsButtons());
 
         Div settingsCardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
         settingsCardHeader.addClassName("overlay__form-card-header");
 
-        restoreBanner = new Div();
-        restoreBanner.addClassName("form-restore-banner");
-        restoreBanner.setText(getValue(FORM_RESTORE_BANNER));
-        restoreBanner.setVisible(false);
-
-        Div settingsPanel = new Div(settingsCardHeader, restoreBanner, form);
+        Div settingsPanel = new Div(settingsCardHeader, form);
         settingsPanel.addClassName("overlay__form-fields-card");
 
         Div content = auditUiPortFactory.findIfAvailable()
@@ -133,7 +135,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
         saveBtn.addClickListener(_ -> handleSave(user));
 
-        UiTertiaryButton discardBtn = tertiaryButtonFactory.build(
+        discardBtn = tertiaryButtonFactory.build(
                 UiTertiaryButton.Parameters.builder().labelKey(FORM_DISCARD_CHANGES).build());
         discardBtn.addClickListener(_ -> discardSettingsChanges());
 
@@ -145,6 +147,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         closeBtn.addClickListener(_ -> closeToList());
 
         layout.setHeaderActions(new Div(saveBtn, discardBtn, closeBtn));
+        updateSettingsButtons();
 
         add(layout);
         open();
@@ -165,7 +168,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
     }
 
     private void handleSave(User user) {
-        if (saveBtn != null) saveBtn.setEnabled(false);
+        saveBtn.setEnabled(false);
+        discardBtn.setEnabled(false);
         try {
             UserSettings oldSettings = settingsService.load(user.getId());
             UserSettings newSettings = UserSettings.builder()
@@ -181,13 +185,13 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
             if (historyPanel  != null) historyPanel.removeAll();
             if (timelinePanel != null) timelinePanel.removeAll();
             if (tabs          != null) tabs.setSelectedTab(settingsTab);
-            if (restoreBanner != null) restoreBanner.setVisible(false);
 
+            savedAdsPageSize   = newSettings.getAdsPageSize();
+            savedUsersPageSize = newSettings.getUsersPageSize();
             notifications.success(SETTINGS_SAVED_SUCCESS);
         } catch (Exception e) {
             notifications.error(e.getMessage());
-        } finally {
-            if (saveBtn != null) saveBtn.setEnabled(true);
+            updateSettingsButtons();
         }
     }
 
@@ -216,7 +220,8 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
                 .ifPresent(target -> {
                     adsPageSizeField.setValue(target.getAdsPageSize());
                     usersPageSizeField.setValue(target.getUsersPageSize());
-                    restoreBanner.setVisible(true);
+                    notifications.success(FORM_RESTORE_BANNER);
+                    updateSettingsButtons();
                     if (tabs != null) tabs.setSelectedTab(settingsTab);
                 });
     }
@@ -225,7 +230,18 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         UserSettings current = settingsService.load(currentUser.getId());
         adsPageSizeField.setValue(current.getAdsPageSize());
         usersPageSizeField.setValue(current.getUsersPageSize());
-        restoreBanner.setVisible(false);
+        savedAdsPageSize   = current.getAdsPageSize();
+        savedUsersPageSize = current.getUsersPageSize();
+        updateSettingsButtons();
+    }
+
+    private void updateSettingsButtons() {
+        Integer ads   = adsPageSizeField.getValue();
+        Integer users = usersPageSizeField.getValue();
+        boolean dirty = (ads   != null && ads   != savedAdsPageSize)
+                     || (users != null && users != savedUsersPageSize);
+        saveBtn.setEnabled(dirty);
+        discardBtn.setEnabled(dirty);
     }
 
     private IntegerField buildAdsPageSizeField(UserSettings settings) {
@@ -235,6 +251,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         adsPageSizeField.setStep(5);
         adsPageSizeField.setStepButtonsVisible(true);
         adsPageSizeField.setValue(settings.getAdsPageSize());
+        adsPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
         adsPageSizeField.setWidthFull();
         return adsPageSizeField;
     }
@@ -246,6 +263,7 @@ public class SettingsOverlay extends BaseOverlay implements I18nParams {
         usersPageSizeField.setStep(5);
         usersPageSizeField.setStepButtonsVisible(true);
         usersPageSizeField.setValue(settings.getUsersPageSize());
+        usersPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
         usersPageSizeField.setWidthFull();
         return usersPageSizeField;
     }

@@ -6,6 +6,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
+import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -21,8 +22,10 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
+import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.components.fields.UiComboBox;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
@@ -59,17 +62,17 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final AccessEvaluator                                          access;
     @Getter
     private final I18nService                                              i18nService;
+    private final NotificationService                                      notificationService;
     private final transient ComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final transient ComponentFactory<AuditPort>                    auditPortFactory;
     private final transient ComponentFactory<AuditUiPort>                  auditUiPortFactory;
+    private final transient ComponentFactory<UiIconButton>                 cancelButtonFactory;
     private final UiTextField                                              nameField;
     private final UiComboBox<Role>                                         roleComboBox;
     private final UiPrimaryButton                                          saveButton;
     private final UiTertiaryButton                                         discardButton;
-    private final UiTertiaryButton                                         cancelButton;
 
     private Parameters params;
-    private Div        restoreBanner;
     private Tabs       formTabs;
     private Tab        editTab;
 
@@ -98,15 +101,20 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .labelKey(USER_DIALOG_BUTTON_SAVE).build());
         discardButton.configure(UiTertiaryButton.Parameters.builder()
                 .labelKey(FORM_DISCARD_CHANGES).build());
-        cancelButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_CANCEL).build());
+        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
+                .labelKey(USER_DIALOG_BUTTON_CANCEL)
+                .icon(VaadinIcon.CLOSE.create())
+                .build());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());
-        cancelButton.addClickListener(_ -> params.getOnCancel().run());
+        closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
         UserEditDto dto = mapper.toUserEdit(params.getUser());
         buildBinder(dto);
+        nameField.setValueChangeMode(ValueChangeMode.EAGER);
+        nameField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        roleComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
 
         Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
@@ -114,8 +122,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         Div fieldsCard = new Div(cardHeader, nameField, roleComboBox);
         fieldsCard.addClassName("overlay__form-fields-card");
 
-        restoreBanner = buildRestoreBanner();
-        Div editContent = new Div(restoreBanner, fieldsCard);
+        Div editContent = new Div(fieldsCard);
 
         Div content = auditUiPortFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getUser()))
@@ -144,7 +151,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .orElse(editContent);
 
         layout.setContent(content);
-        layout.setHeaderActions(new Div(saveButton, discardButton, cancelButton));
+        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
+        updateButtons(false);
     }
 
     public Long getSavedUserId() {
@@ -160,7 +168,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
             tgt.setName(src.getName());
             tgt.setRole(src.getRole());
         });
-        restoreBanner.setVisible(true);
+        notificationService.success(FORM_RESTORE_BANNER);
+        updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(editTab);
     }
 
@@ -193,16 +202,13 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 tgt.setName(src.getName());
                 tgt.setRole(src.getRole());
             });
-            restoreBanner.setVisible(false);
+            updateButtons(false);
         });
     }
 
-    private Div buildRestoreBanner() {
-        Div banner = new Div();
-        banner.addClassName("form-restore-banner");
-        banner.setText(getValue(FORM_RESTORE_BANNER));
-        banner.setVisible(false);
-        return banner;
+    private void updateButtons(boolean hasChanges) {
+        saveButton.setEnabled(hasChanges);
+        discardButton.setEnabled(hasChanges);
     }
 
     private void buildBinder(UserEditDto dto) {

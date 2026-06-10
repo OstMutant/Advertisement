@@ -4,7 +4,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -59,16 +58,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     }
 
     @Override
-    protected String tabsCssClass() {
-        return "adv-overlay-tabs";
-    }
-
-    @Override
-    protected Tab buildPrimaryTab() {
-        return new Tab(getValue(ADVERTISEMENT_VIEW_TAB));
-    }
-
-    @Override
     protected Div buildPrimaryContent() {
         H2 title = new H2(params.getAd().getTitle());
         title.addClassName("overlay__view-title");
@@ -89,11 +78,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
-    }
-
-    @Override
-    protected SecondaryTabDef buildSecondaryTab() {
-        return null;
     }
 
     @Override

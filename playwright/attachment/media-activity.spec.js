@@ -1,6 +1,6 @@
 const { test, expect, loginAs,
         waitForOverlay, waitForOverlayClosed,
-        openAdDetail, openHistory, openSettings, openActivityTab, confirmDialog, screenshot } = require('./_test-helpers');
+        openAdDetail, openHistory, openSettings, openTimelineTab, screenshot } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -50,7 +50,7 @@ async function openEditMode(page) {
 }
 
 async function closeAdOverlay(page) {
-  await page.locator('.adv-overlay-tabs vaadin-tab').filter({ hasText: /view|перегляд/i }).click();
+  await page.keyboard.press('Escape');
   await page.locator('.overlay__view-title').waitFor({ timeout: 3000 });
   await page.locator('.advertisement-overlay .overlay__breadcrumb-back').click();
   await expect(page.locator('.advertisement-overlay.overlay--visible')).toBeHidden({ timeout: 8000 });
@@ -93,7 +93,7 @@ test.describe('Media activity', () => {
     await closeAdOverlay(page);
 
     await openSettings(page);
-    await openActivityTab(page);
+    await openTimelineTab(page);
 
     await test.step('Settings activity shows media change after create', async () => {
       checkMediaInText(
@@ -142,7 +142,8 @@ test.describe('Media activity', () => {
     await openAdDetail(page, AD_TITLE);
     await openHistory(page);
     await page.locator('.entity-activity-list .entity-activity-restore-btn').last().click();
-    await confirmDialog(page);
+    await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
+    await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
     await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
 
     await test.step('History grows after restore', async () => {

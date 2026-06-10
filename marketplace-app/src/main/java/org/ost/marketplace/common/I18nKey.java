@@ -243,7 +243,6 @@ public enum I18nKey implements TranslationKey {
 
     // === Advertisement History ===
     ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
-    ADVERTISEMENT_VIEW_TAB("advertisement.view.tab"),
     ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
     ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),
     ADVERTISEMENT_RESTORE_CONFIRM_BUTTON("advertisement.restore.confirm.button"),

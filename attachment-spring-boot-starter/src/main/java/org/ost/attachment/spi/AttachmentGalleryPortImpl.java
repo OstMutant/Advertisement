@@ -53,15 +53,18 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
         }
     }
 
-    private record Handle(AttachmentGallery gallery) implements FormHandle {
-        @Override public Component getComponent() {
-            return gallery;
-        }
-        @Override public void commit(EntityRef entity) {
+    private static final class Handle implements FormHandle {
+        private final AttachmentGallery gallery;
+
+        Handle(AttachmentGallery gallery) { this.gallery = gallery; }
+
+        @Override public Component getComponent() { return gallery; }
+        @Override public void commit(@NonNull EntityRef entity) {
             gallery.commitTempUploads(entity.entityType(), entity.entityId());
         }
-        @Override public void discard() {
-            gallery.discardTempUploads();
+        @Override public void discard() { gallery.discardTempUploads(); }
+        @Override public void setOnChangedListener(@NonNull Runnable onChanged) {
+            gallery.setOnChangedListener(onChanged);
         }
     }
 }
