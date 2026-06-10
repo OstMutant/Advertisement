@@ -11,7 +11,7 @@ public class MessageSourceConfig {
     @Bean
     public MessageSource messageSource() {
         ReloadableResourceBundleMessageSource source = new ReloadableResourceBundleMessageSource();
-        source.setBasename("classpath:i18n/messages");
+        source.setBasenames("classpath:i18n/messages", "classpath:i18n/audit-messages", "classpath:i18n/attachment-messages");
         source.setDefaultEncoding("UTF-8");
         return source;
     }
