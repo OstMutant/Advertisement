@@ -312,7 +312,24 @@
       "Bash(pkill -f \"docker build\")",
       "Bash(docker restart *)",
       "Bash(grep -o 'image/png[^,]\\\\{0,100\\\\}' /app/playwright/pw-report/index.html)",
-      "Bash(grep -E \"\\\\.\\(java|xml|html\\)$\")"
+      "Bash(grep -E \"\\\\.\\(java|xml|html\\)$\")",
+      "Bash(grep -A 20 \"Bug 3a.*appears in User 1 profile activity$\" /tmp/playwright2.log)",
+      "Bash(tee /tmp/playwright3.log)",
+      "Bash(tee /tmp/playwright4.log)",
+      "Bash(sed -n '253,257p' /app/marketplace-app/src/main/resources/i18n/messages_en.properties)",
+      "Bash(sed -n '253,257p' /app/marketplace-app/src/main/resources/i18n/messages_uk.properties)",
+      "Bash(tee /tmp/deploy-dev2.log)",
+      "Bash(tee /tmp/playwright5.log)",
+      "Bash(tee /tmp/playwright5b.log)",
+      "Bash(tee /tmp/playwright5c.log)",
+      "Bash(tee /tmp/playwright5d.log)",
+      "Bash(tee /tmp/playwright5e.log)",
+      "Bash(tee /tmp/playwright5f.log)",
+      "Bash(tee /tmp/playwright6.log)",
+      "Bash(tee /tmp/playwright7.log)",
+      "Bash(tee /tmp/playwright_full.log)",
+      "Bash(tee /tmp/deploy2.log)",
+      "Bash(tee /tmp/pw_final.log)"
     ]
   },
   "hooks": {
@@ -322,7 +339,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "grep -o '\"command\":\"[^\"]*\"' | grep -q '\"command\":\"git commit' && { if [ -f /tmp/commit-approved ]; then rm /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
+            "command": "cmd=$(cat | grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -q 'git commit' && { if [ -f /tmp/commit-approved ]; then rm /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
           },
           {
             "type": "command",
