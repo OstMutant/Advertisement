@@ -7,7 +7,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.entities.User;
-import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
@@ -34,10 +33,10 @@ public class UserOverlay extends AbstractEntityOverlay {
     ) {
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, user, onSaved, true); }
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
+        OverlaySession withUser(User fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final UserService                  userService;
     private final AuthContextService           authContextService;
     private final ComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
     private final ComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
@@ -100,20 +99,16 @@ public class UserOverlay extends AbstractEntityOverlay {
             if (currentFormHandler.save()) {
                 notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
-                if (session.enteredFromView()) {
-                    Long savedId = currentFormHandler.getSavedUserId();
-                    userService.findById(savedId).ifPresentOrElse(freshUser -> {
-                        session = new OverlaySession(Mode.VIEW, freshUser, session.onSaved(), false);
-                        switchTo();
-                    }, this::closeToList);
-                } else {
-                    closeToList();
-                }
+                currentFormHandler.afterSave(true);
+                User fresh = currentFormHandler.getSavedUser();
+                if (fresh != null) session = session.withUser(fresh);
             } else {
                 notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
+                currentFormHandler.afterSave(false);
             }
         } catch (Exception e) {
             notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR, e.getMessage());
+            currentFormHandler.afterSave(false);
         }
     }
 

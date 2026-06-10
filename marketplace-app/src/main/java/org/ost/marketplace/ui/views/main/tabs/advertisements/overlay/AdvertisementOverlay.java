@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.marketplace.services.AdvertisementService;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
@@ -33,10 +32,10 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     ) {
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, ad, onSaved, false); }
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, ad, onSaved, true); }
+        OverlaySession withAd(AdvertisementInfoDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport  support;
-    private final AdvertisementService           advertisementService;
     private final ComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
     private final ComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
@@ -108,20 +107,20 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
             if (currentFormHandler.save()) {
                 notification().success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
-                if (session.enteredFromView()) {
-                    Long savedId = currentFormHandler.getSavedAdvertisement().getId();
-                    advertisementService.findById(savedId).ifPresentOrElse(freshAd -> {
-                        session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
-                        switchTo();
-                    }, this::closeToList);
+                if (session.mode() == Mode.EDIT) {
+                    currentFormHandler.afterSave(true);
+                    AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
+                    if (fresh != null) session = session.withAd(fresh);
                 } else {
                     closeToList();
                 }
             } else {
                 notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
+                currentFormHandler.afterSave(false);
             }
         } catch (Exception e) {
             notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
+            currentFormHandler.afterSave(false);
         }
     }
 

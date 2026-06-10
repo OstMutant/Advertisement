@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot,
+        waitForSaved, returnToViewAfterSave } = require('./_test-helpers');
 
 test.describe('Advertisement history', () => {
   test.beforeEach(async ({ page }) => {
@@ -39,7 +40,7 @@ test.describe('Advertisement history', () => {
 
     await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Updated description v2');
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save|submit/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await waitForSaved(page);
 
     await openHistory(page);
 
@@ -73,7 +74,7 @@ test.describe('Advertisement history', () => {
 
     // Save to apply the restore
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await returnToViewAfterSave(page);
 
     await test.step('View shown after restore', async () => {
       await expect(page.locator('.overlay__view-title')).toBeVisible();

@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, downloadPng, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, downloadPng, screenshot,
+        returnToViewAfterSave, waitForSaved } = require('./_test-helpers');
 
 const AD_TITLE = 'Admin Media Edit Bug Test';
 const avatar   = seed => `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4`;
@@ -33,7 +34,7 @@ test.describe('Admin media edit — single current-state badge', () => {
       await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
       await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Updated description v2');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await returnToViewAfterSave(page);
       // Close overlay via breadcrumb back link
       await page.locator('.overlay__breadcrumb-back').click();
       await waitForOverlayClosed(page);
@@ -65,7 +66,7 @@ test.describe('Admin media edit — single current-state badge', () => {
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
 
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await returnToViewAfterSave(page);
     });
 
     // ── Step 3: admin replaces the image ──────────────────────────────────
@@ -81,7 +82,7 @@ test.describe('Admin media edit — single current-state badge', () => {
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
 
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
     });
 
     // ── Step 4: check history ─────────────────────────────────────────────

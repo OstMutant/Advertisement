@@ -75,6 +75,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private Parameters params;
     private Tabs       formTabs;
     private Tab        editTab;
+    private Div        activityContent;
+    private User       savedUser;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -133,7 +135,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                     Tab activityTab = new Tab(getValue(USER_ACTIVITY_TAB));
                     formTabs.add(editTab, activityTab);
 
-                    Div activityContent = new Div();
+                    activityContent = new Div();
                     activityContent.addClassName("activity-feed-content");
                     activityContent.setVisible(false);
 
@@ -160,8 +162,13 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     public boolean save() {
-        return binder.save(dto -> userService.save(mapper.copy(dto)));
+        return binder.save(dto -> {
+            userService.save(mapper.copy(dto));
+            userService.findById(params.getUser().getId()).ifPresent(u -> savedUser = u);
+        });
     }
+
+    public User getSavedUser() { return savedUser; }
 
     public void loadRestored(@NonNull UserEditDto restoredDto) {
         binder.loadRestored(restoredDto, (src, tgt) -> {
@@ -204,6 +211,16 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
             });
             updateButtons(false);
         });
+    }
+
+    public void afterSave(boolean success) {
+        if (success) {
+            updateButtons(false);
+            if (formTabs != null) formTabs.setSelectedTab(editTab);
+            if (activityContent != null) activityContent.removeAll();
+        } else {
+            updateButtons(true);
+        }
     }
 
     private void updateButtons(boolean hasChanges) {

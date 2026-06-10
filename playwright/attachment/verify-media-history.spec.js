@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot,
+        waitForSaved } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -106,7 +107,7 @@ test.describe('Verify media history', () => {
       await deleteBtn.click();
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
 
       await openHistory(page);
 
@@ -120,7 +121,7 @@ test.describe('Verify media history', () => {
       await test.step('Media deletion visible in history', async () => {
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
-        await page.locator('.overlay__view-title').waitFor();
+        await waitForSaved(page);
         await openHistory(page);
         const text = await page.locator('.entity-activity-list').textContent();
         if (!/(медіа|media)/i.test(text))

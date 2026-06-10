@@ -84,10 +84,12 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private Parameters params;
     private boolean    isCreate;
     @Getter
-    private Advertisement                    savedAdvertisement;
+    private Advertisement      savedAdvertisement;
+    private AdvertisementInfoDto savedInfoDto;
     private AttachmentGalleryPort.FormHandle activeHandle;
     private Tabs                             formTabs;
     private Tab                              editTab;
+    private Div                              activityContent;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -172,11 +174,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     public boolean save() {
         return binder.save(dto -> {
             this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
+            advertisementService.findById(savedAdvertisement.getId()).ifPresent(info -> this.savedInfoDto = info);
             if (this.activeHandle != null) {
                 this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedAdvertisement.getId()));
             }
         });
     }
+
+    public AdvertisementInfoDto getSavedInfoDto() { return savedInfoDto; }
 
     public void discard() {
         if (this.activeHandle != null) {
@@ -204,7 +209,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
                     formTabs.add(editTab, activityTab);
 
-                    Div activityContent = new Div();
+                    activityContent = new Div();
                     activityContent.addClassName("entity-activity-content");
                     activityContent.setVisible(false);
 
@@ -256,6 +261,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             });
             updateButtons(false);
         });
+    }
+
+    public void afterSave(boolean success) {
+        if (success) {
+            updateButtons(false);
+            if (formTabs != null) formTabs.setSelectedTab(editTab);
+            if (activityContent != null) activityContent.removeAll();
+        } else {
+            updateButtons(true);
+        }
     }
 
     private void updateButtons(boolean hasChanges) {

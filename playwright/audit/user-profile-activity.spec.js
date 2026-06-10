@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, openTimelineTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openActivityTab, openTimelineTab, screenshot,
+        closeAfterSave, returnToViewAfterSave } = require('./_test-helpers');
 
 const ADMIN_EMAIL = 'user3@example.com';
 
@@ -85,7 +86,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       await nameField.fill(editedName);
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
       await page.waitForTimeout(500);
     });
     await screenshot(page, 'user-profile-activity-03-after-admin-edit');
@@ -120,7 +121,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       await nameField.fill(originalName || 'User 1');
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
     });
   });
 
@@ -140,7 +141,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       await nameField.fill(editedName);
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
       await page.waitForTimeout(500);
     });
 
@@ -167,7 +168,11 @@ test.describe('User profile activity — cross-actor flows', () => {
     await screenshot(page, 'user-profile-activity-07-after-restore');
 
     await test.step('Grid shows User 1 reverted — editedName gone — admin row intact', async () => {
-      // After save → VIEW mode; use breadcrumb back to close (avoids any residual unsaved-changes check)
+      // After save → EDIT mode; X button navigates to VIEW (enteredFromView=true), then breadcrumb closes
+      await page.locator('.base-overlay.overlay--visible vaadin-button')
+        .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+        .first().click();
+      await page.locator('.user-view-card').waitFor({ timeout: 5000 });
       await page.locator('.overlay__breadcrumb-back').first().click();
       await waitForOverlayClosed(page).catch(() => {});
       await goToUsersTab(page);
@@ -195,7 +200,7 @@ test.describe('User profile activity — cross-actor flows', () => {
       await nameField.fill(editedName);
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
       await page.waitForTimeout(500);
     });
 
@@ -234,6 +239,7 @@ test.describe('User profile activity — cross-actor flows', () => {
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
         await page.waitForLoadState('networkidle');
+        await closeAfterSave(page);
       }
     });
   });

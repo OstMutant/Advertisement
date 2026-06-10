@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, screenshot,
+        waitForSaved, returnToViewAfterSave } = require('./_test-helpers');
 
 test.describe('Advertisement history (deep)', () => {
   test.beforeEach(async ({ page }) => {
@@ -45,7 +46,7 @@ test.describe('Advertisement history (deep)', () => {
       await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
       await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(desc);
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
       await openHistory(page);
     }
 
@@ -85,7 +86,7 @@ test.describe('Advertisement history (deep)', () => {
 
     await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
     await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+    await returnToViewAfterSave(page);
 
     await test.step('Title restored to v1 value', async () => {
       await expect(page.locator('.overlay__view-title')).toBeVisible();

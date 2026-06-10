@@ -1,4 +1,4 @@
-const { test, expect, loginAs, screenshot, waitForOverlay, waitForOverlayClosed } = require('./_test-helpers');
+const { test, expect, loginAs, screenshot, waitForOverlay, waitForOverlayClosed, closeAfterSave } = require('./_test-helpers');
 
 const ADMIN_EMAIL = 'user3@example.com';
 
@@ -33,10 +33,10 @@ test.describe('User edit — save changes', () => {
       await screenshot(page, 'user-edit-03-name-changed');
     });
 
-    await test.step('Save — overlay closes', async () => {
+    await test.step('Save — verify persists', async () => {
       const overlay = page.locator('.base-overlay.overlay--visible');
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
       await screenshot(page, 'user-edit-04-saved');
     });
 
@@ -53,7 +53,7 @@ test.describe('User edit — save changes', () => {
       await nameField.click({ clickCount: 3 });
       await nameField.fill(originalName);
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page);
+      await closeAfterSave(page);
     });
   });
 });

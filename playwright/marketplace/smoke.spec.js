@@ -1,7 +1,8 @@
 const { test, expect, loginAs, screenshot,
         waitForOverlay, waitForOverlayClosed, openHistory, openSettings,
         openHistoryTab, openTimelineTab,
-        confirmDialog, downloadPng } = require('./_test-helpers');
+        confirmDialog, downloadPng,
+        returnToViewAfterSave, waitForSaved } = require('./_test-helpers');
 const fs = require('fs');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
@@ -65,7 +66,7 @@ test.describe('Smoke: user flow', () => {
       await input.fill('Smoke Test Ad (edited)');
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await returnToViewAfterSave(page);
       const body = await page.textContent('body');
       if (!body.includes('edited')) throw new Error('Edited title not visible');
       await screenshot(page, 'user-flow-ad-edited');
@@ -98,7 +99,7 @@ test.describe('Smoke: user flow', () => {
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await returnToViewAfterSave(page);
       const imgs = await page.locator('.base-overlay.overlay--visible img').count();
       if (imgs !== 1) throw new Error(`Expected 1 image, got ${imgs}`);
     });
@@ -128,7 +129,7 @@ test.describe('Smoke: user flow', () => {
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await returnToViewAfterSave(page);
       const imgs = await page.locator('.base-overlay.overlay--visible img').count();
       if (imgs < 2) throw new Error(`Expected multiple images, got ${imgs}`);
     });
@@ -226,7 +227,7 @@ test.describe('Smoke: advertisement history', () => {
       await page.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Version two');
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
     });
 
     await test.step('History tab has 2+ entries and changes summary', async () => {

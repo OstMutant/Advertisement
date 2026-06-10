@@ -1,5 +1,5 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay } = require('./_test-helpers');
+        waitForOverlay, waitForSaved } = require('./_test-helpers');
 
 test.describe('Edit advertisement', () => {
   test.beforeEach(async ({ page }) => {
@@ -30,9 +30,9 @@ test.describe('Edit advertisement', () => {
 
     await test.step('Save changes', async () => {
       await page.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).first().click();
-      await page.locator('.overlay__view-title').waitFor();
-      const body = await page.textContent('body');
-      if (!body.includes('Updated by Playwright')) throw new Error('Updated title not visible after save');
+      await waitForSaved(page);
+      const titleValue = await page.locator('[data-testid="advertisement-overlay-field-title"] input').inputValue();
+      if (!titleValue.includes('Updated by Playwright')) throw new Error('Updated title not visible after save');
     });
   });
 });

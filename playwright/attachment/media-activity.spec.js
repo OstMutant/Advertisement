@@ -1,6 +1,7 @@
 const { test, expect, loginAs,
         waitForOverlay, waitForOverlayClosed,
-        openAdDetail, openHistory, openSettings, openTimelineTab, screenshot } = require('./_test-helpers');
+        openAdDetail, openHistory, openSettings, openTimelineTab, screenshot,
+        waitForSaved } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -119,7 +120,7 @@ test.describe('Media activity', () => {
     await page.locator('.attachment-gallery__item').nth(1).waitFor({ timeout: 10000 });
     await page.locator('.base-overlay.overlay--visible vaadin-button')
       .filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+    await waitForSaved(page);
 
     await openHistory(page);
 
@@ -144,7 +145,7 @@ test.describe('Media activity', () => {
     await page.locator('.entity-activity-list .entity-activity-restore-btn').last().click();
     await expect(page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
     await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+    await waitForSaved(page);
 
     await test.step('History grows after restore', async () => {
       await openHistory(page);

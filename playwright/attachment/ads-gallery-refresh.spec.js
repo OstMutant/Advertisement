@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot,
+        returnToViewAfterSave } = require('./_test-helpers');
 
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4`;
@@ -55,7 +56,7 @@ test.describe('Bug 2: gallery card refreshes after media deletion via view overl
     await test.step('Save — overlay returns to VIEW mode', async () => {
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+      await returnToViewAfterSave(page);
     });
     await screenshot(page, 'gallery-refresh-02-view-after-delete');
 

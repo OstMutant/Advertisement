@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot,
+        waitForSaved } = require('./_test-helpers');
 
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4`;
@@ -37,7 +38,7 @@ test.describe('Upload image', () => {
     await test.step('Save and verify image visible', async () => {
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
       const imgs = await page.locator('.base-overlay.overlay--visible img').count();
       if (imgs < 1) throw new Error(`Expected at least 1 image, got ${imgs}`);
       await screenshot(page, 'upload-image-01-saved');

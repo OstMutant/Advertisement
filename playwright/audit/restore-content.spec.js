@@ -1,6 +1,7 @@
 const { test, expect, loginAs,
         waitForOverlay, waitForOverlayClosed, openHistory,
-        openSettings, openActivityTab, closeOverlay, screenshot } = require('./_test-helpers');
+        openSettings, openActivityTab, closeOverlay, screenshot,
+        waitForSaved, returnToViewAfterSave, closeAfterSave } = require('./_test-helpers');
 
 const ADMIN_EMAIL = 'user3@example.com';
 
@@ -32,14 +33,14 @@ test.describe('Restore content correctness', () => {
         await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
         await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Second Version');
         await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-        await page.locator('.overlay__view-title').waitFor();
+        await returnToViewAfterSave(page);
       });
 
       await test.step('Edit description → Third Version', async () => {
         await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
         await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Third Version');
         await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-        await page.locator('.overlay__view-title').waitFor();
+        await returnToViewAfterSave(page);
       });
 
       await openHistory(page);
@@ -52,10 +53,9 @@ test.describe('Restore content correctness', () => {
       await page.locator('.entity-activity-restore-btn').last().click();
       await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
       await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor({ timeout: 8000 });
+      await waitForSaved(page);
 
       await test.step('Switch to edit and verify description = First Version', async () => {
-        await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
         await page.locator('[data-testid="advertisement-overlay-field-description"] textarea').waitFor();
         const desc = await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').inputValue();
         if (desc !== 'First Version')
@@ -85,7 +85,7 @@ test.describe('Restore content correctness', () => {
           await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
           await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(desc);
           await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-          await page.locator('.overlay__view-title').waitFor();
+          await returnToViewAfterSave(page);
         }
       });
 
@@ -97,11 +97,10 @@ test.describe('Restore content correctness', () => {
         await btns.nth(count - 2).click();
         await expect(overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i })).toBeEnabled({ timeout: 5000 });
         await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-        await page.locator('.overlay__view-title').waitFor({ timeout: 8000 });
+        await waitForSaved(page);
       });
 
       await test.step('Description is v2 content', async () => {
-        await overlay.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
         await page.locator('[data-testid="advertisement-overlay-field-description"] textarea').waitFor();
         const desc = await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').inputValue();
         if (desc !== 'v2 content')
@@ -191,7 +190,7 @@ test.describe('Restore content correctness', () => {
         await field.fill(name);
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
-        await waitForOverlayClosed(page);
+        await closeAfterSave(page);
         await page.waitForTimeout(600);
       };
 

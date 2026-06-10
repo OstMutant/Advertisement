@@ -129,6 +129,30 @@ function downloadPng(url, dest) {
   });
 }
 
+async function waitForSaved(page, timeout = 8000) {
+  await expect(
+    page.locator('.base-overlay.overlay--visible vaadin-button')
+      .filter({ hasText: /скинути зміни|discard changes/i })
+      .first()
+  ).toBeDisabled({ timeout });
+}
+
+async function returnToViewAfterSave(page) {
+  await page.locator('.base-overlay.overlay--visible vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first()
+    .click();
+  await page.locator('.overlay__view-title').waitFor({ timeout: 5000 });
+}
+
+async function closeAfterSave(page) {
+  await page.locator('.base-overlay.overlay--visible vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first()
+    .click();
+  await waitForOverlayClosed(page);
+}
+
 const test = base;
 
 module.exports = {
@@ -138,4 +162,5 @@ module.exports = {
   openAdDetail, openHistory, openSettings, openActivityTab, openHistoryTab, openTimelineTab,
   confirmDialog, createAd,
   screenshot, downloadPng,
+  waitForSaved, returnToViewAfterSave, closeAfterSave,
 };

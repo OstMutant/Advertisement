@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab, openTimelineTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openHistory, openSettings, openActivityTab, openTimelineTab, screenshot,
+        waitForSaved, returnToViewAfterSave } = require('./_test-helpers');
 
 test.describe('All fields always shown in history and activity', () => {
   test.beforeEach(async ({ page }) => {
@@ -43,7 +44,7 @@ test.describe('All fields always shown in history and activity', () => {
     await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
     await ov.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(DESC_V2);
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await waitForSaved(page);
 
     await openHistory(page);
 
@@ -110,7 +111,7 @@ test.describe('All fields always shown in history and activity', () => {
     await titleInput.click({ clickCount: 3 });
     await titleInput.fill(TITLE_V2);
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await returnToViewAfterSave(page);
     await ov.locator('.overlay__breadcrumb-back').first().click();
     await waitForOverlayClosed(page);
 

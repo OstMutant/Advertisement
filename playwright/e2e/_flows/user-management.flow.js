@@ -42,6 +42,10 @@ async function runSaveUserEditFlow(page, expect, role) {
     { timeout: 5000 }
   );
 
+  await page.locator('.user-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first()
+    .click();
   await page.locator('.user-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
 
   await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();

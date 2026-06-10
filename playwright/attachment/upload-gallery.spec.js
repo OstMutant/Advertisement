@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, downloadPng, screenshot,
+        waitForSaved } = require('./_test-helpers');
 const fs = require('fs');
 
 const avatar = seed =>
@@ -40,7 +41,7 @@ test.describe('Upload gallery', () => {
       await page.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await page.locator('.overlay__view-title').waitFor();
+      await waitForSaved(page);
     });
 
     await test.step('Gallery shows multiple images', async () => {
@@ -50,14 +51,13 @@ test.describe('Upload gallery', () => {
     });
 
     await test.step('Delete one image and save', async () => {
-      await page.locator('vaadin-button').filter({ hasText: /редагувати|edit/i }).first().click();
-      await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
+      // Already in edit mode after previous waitForSaved
       const deleteBtn = page.locator('.attachment-gallery__item .attachment-delete-btn, .attachment-gallery__item button').first();
       if (await deleteBtn.count() > 0) {
         await deleteBtn.click();
         await page.locator('.base-overlay.overlay--visible vaadin-button')
           .filter({ hasText: /зберегти|save/i }).click();
-        await page.locator('.overlay__view-title').waitFor();
+        await waitForSaved(page);
       }
     });
 

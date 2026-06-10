@@ -1,5 +1,6 @@
 const { test, expect, loginAs, screenshot,
-        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, closeOverlay } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, closeOverlay,
+        returnToViewAfterSave } = require('./_test-helpers');
 
 const AD_TITLE = 'Activity Types Test Ad';
 
@@ -27,7 +28,7 @@ test.describe('Activity types', () => {
     await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
     await advOverlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill('Updated content');
     await advOverlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await returnToViewAfterSave(page);
     await screenshot(page, 'acttypes-02-edited');
 
     await closeOverlay(page);

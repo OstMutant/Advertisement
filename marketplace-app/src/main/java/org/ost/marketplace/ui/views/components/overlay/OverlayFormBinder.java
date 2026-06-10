@@ -71,6 +71,7 @@ public class OverlayFormBinder<T extends EditDto>
         T dto = params.getDto();
         if (binder.writeBeanIfValid(dto)) {
             saver.save(dto);
+            binder.readBean(dto);
             this.restored = false;
             return true;
         } else {

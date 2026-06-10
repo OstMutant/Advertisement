@@ -1,5 +1,5 @@
 const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed,
-        openHistory, screenshot } = require('./_test-helpers');
+        openHistory, screenshot, waitForSaved } = require('./_test-helpers');
 const fs   = require('fs');
 const zlib = require('zlib');
 
@@ -75,16 +75,14 @@ test.describe('Media line always shown in history', () => {
     await expect(page.locator('.attachment-gallery__item')).toHaveCount(0);
 
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await waitForSaved(page);
 
-    // v3: text-only edit
-    await ov.locator('vaadin-button').filter({ hasText: /edit|редагувати/i }).first().click();
-    await page.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor();
+    // v3: text-only edit (already in edit mode after waitForSaved)
     const titleInput = page.locator('[data-testid="advertisement-overlay-field-title"] input');
     await titleInput.click({ clickCount: 3 });
     await titleInput.fill(TITLE + ' edited');
     await ov.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
-    await page.locator('.overlay__view-title').waitFor();
+    await waitForSaved(page);
 
     // verify history
     await openHistory(page);

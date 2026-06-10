@@ -18,10 +18,10 @@ async function runSubmitLoginFlow(page, expect, user) {
   await expect(page.locator('.header-settings-button')).toBeVisible({ timeout: 8000 });
 
   const labels = TAB_LABELS[user.locale];
-  await expect(page.locator('vaadin-tab').filter({ hasText: labels.advertisements }).first()).toBeVisible();
+  await expect(page.locator('vaadin-tab').filter({ hasText: labels.advertisements }).first()).toBeVisible({ timeout: 8000 });
 
   if (user.role === 'MODERATOR' || user.role === 'ADMIN') {
-    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible();
+    await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).toBeVisible({ timeout: 8000 });
   } else {
     await expect(page.locator('vaadin-tab').filter({ hasText: labels.users }).first()).not.toBeVisible();
   }

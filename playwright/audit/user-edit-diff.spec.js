@@ -1,5 +1,6 @@
 const { test, expect, loginAs,
-        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, screenshot } = require('./_test-helpers');
+        waitForOverlay, waitForOverlayClosed, openSettings, openTimelineTab, screenshot,
+        closeAfterSave } = require('./_test-helpers');
 
 test.describe('User edit diff', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,7 +26,7 @@ test.describe('User edit diff', () => {
       await nameField.fill(current.includes('Edited') ? current.replace(' Edited', '') : current + ' Edited');
       await page.locator('.base-overlay.overlay--visible vaadin-button')
         .filter({ hasText: /зберегти|save/i }).click();
-      await waitForOverlayClosed(page).catch(() => {});
+      await closeAfterSave(page);
     });
 
     await openSettings(page);

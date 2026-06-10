@@ -1,4 +1,5 @@
-const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, closeOverlay, openHistory, screenshot } = require('./_test-helpers');
+const { test, expect, loginAs, waitForOverlay, waitForOverlayClosed, closeOverlay, openHistory, screenshot,
+        returnToViewAfterSave } = require('./_test-helpers');
 const fs   = require('fs');
 const path = require('path');
 
@@ -90,7 +91,7 @@ test.describe('Upload video', () => {
         await test.step('Save and verify gallery in view mode', async () => {
             await page.locator('.base-overlay.overlay--visible vaadin-button')
                 .filter({ hasText: /зберегти|save/i }).click();
-            await page.locator('.overlay__view-title').waitFor();
+            await returnToViewAfterSave(page);
             await screenshot(page, 'upload-video-02-saved');
 
             const item = page.locator('.attachment-gallery__item').first();
