@@ -21,7 +21,4 @@ public enum AttachmentMediaContentType {
         return YOUTUBE.value.equals(value) || EMBED.value.equals(value);
     }
 
-    public static boolean isVideo(String value) {
-        return isEmbedded(value) || isUploadedVideo(value);
-    }
 }
