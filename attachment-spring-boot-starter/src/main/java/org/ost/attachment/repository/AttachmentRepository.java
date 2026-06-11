@@ -71,17 +71,6 @@ public class AttachmentRepository {
                   .update();
     }
 
-    public void restoreDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId) {
-        jdbcClient.sql("""
-                        UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL
-                        WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NOT NULL
-                        """)
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("entityType", entityType.name())
-                          .addValue("entityId",   entityId))
-                  .update();
-    }
-
     public void restoreUndelete(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls) {
         jdbcClient.sql("""
                         UPDATE attachment SET deleted_at = NULL, deleted_by_actor_id = NULL

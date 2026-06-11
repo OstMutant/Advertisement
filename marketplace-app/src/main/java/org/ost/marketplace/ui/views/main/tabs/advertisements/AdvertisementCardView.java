@@ -28,7 +28,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;

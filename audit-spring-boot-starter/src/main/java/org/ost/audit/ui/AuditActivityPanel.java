@@ -8,17 +8,16 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditHistoryItemDto;
+import org.ost.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
-import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
-import java.util.function.ObjLongConsumer;
+import java.util.function.LongConsumer;
 
 @SpringComponent
 @Scope("prototype")
@@ -30,17 +29,16 @@ public class AuditActivityPanel extends Div
     @lombok.Value
     @lombok.Builder
     public static class Parameters {
-        EntityType                           entityType;
-        Long                                 entityId;
+        EntityRef                            entityRef;
         Long                                 userId;
         boolean                              isPrivileged;
         boolean                              canOperate;
-        ObjLongConsumer<AuditHistoryItemDto> onRestoreRequested;
+        LongConsumer onRestoreRequested;
     }
 
     private final transient I18nService                                i18n;
     private final transient AuditReadService                           auditReadService;
-    private final transient ComponentFactory<AuditHistoryListRenderer> listRendererFactory;
+    private final transient ComponentFactory<AuditActivityListRenderer> listRendererFactory;
 
     @Override
     @PostConstruct
@@ -52,19 +50,19 @@ public class AuditActivityPanel extends Div
     @Override
     public AuditActivityPanel configure(@NonNull Parameters p) {
         AuditableSnapshot currentSnapshot = auditReadService
-                .getLastSnapshot(p.getEntityType(), p.getEntityId())
+                .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);
-        List<AuditHistoryItemDto> history = auditReadService
-                .getEntityHistory(p.getEntityType(), p.getEntityId(), p.getUserId(), p.isPrivileged());
-        if (history.isEmpty()) {
+        List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditReadService
+                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged());
+        if (items.isEmpty()) {
             add(emptyState());
             return this;
         }
-        AuditHistoryRowRenderer.RenderConfig cfg = new AuditHistoryRowRenderer.RenderConfig(
-                new EntityRef(p.getEntityType(), p.getEntityId()), currentSnapshot,
-                history.size(), p.isCanOperate(), p.getOnRestoreRequested());
+        AuditActivityRowRenderer.RenderConfig cfg = new AuditActivityRowRenderer.RenderConfig(
+                p.getEntityRef(), currentSnapshot,
+                items.size(), p.isCanOperate(), p.getOnRestoreRequested());
         listRendererFactory.get()
-                .buildRows(history, cfg)
+                .buildRows(items, cfg)
                 .forEach(this::add);
         return this;
     }

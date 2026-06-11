@@ -9,13 +9,13 @@ import org.ost.platform.attachment.model.AttachmentMediaContentType;
 
 import java.util.List;
 import java.util.function.IntConsumer;
+import java.util.stream.IntStream;
 
 class CardLightboxStrip extends Div {
 
     CardLightboxStrip(List<Attachment> attachments) {
         addClassName("card-lightbox__strip");
-        for (int i = 0; i < attachments.size(); i++) {
-            Attachment a = attachments.get(i);
+        for (Attachment a : attachments) {
             Image thumb = new Image(thumbSrc(a), a.getFilename());
             thumb.addClassName("card-lightbox__thumb");
             add(thumb);
@@ -24,10 +24,8 @@ class CardLightboxStrip extends Div {
 
     void onSelect(IntConsumer handler) {
         var children = getChildren().toList();
-        for (int i = 0; i < children.size(); i++) {
-            final int fi = i;
-            children.get(i).getElement().addEventListener("click", _ -> handler.accept(fi));
-        }
+        IntStream.range(0, children.size()).forEach(i ->
+                children.get(i).getElement().addEventListener("click", _ -> handler.accept(i)));
     }
 
     void setActive(int idx) {

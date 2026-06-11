@@ -15,14 +15,13 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.ost.audit.AuditPackageMarker;
-import org.ost.audit.ui.AuditActivityListRenderer;
+import org.ost.audit.ui.AuditTimelineListRenderer;
 import org.ost.audit.ui.AuditActivityPanel;
+import org.ost.audit.ui.AuditTimelineRowRenderer;
+import org.ost.audit.ui.AuditActivityListRenderer;
 import org.ost.audit.ui.AuditActivityRowRenderer;
-import org.ost.audit.ui.AuditHistoryListRenderer;
-import org.ost.audit.ui.AuditHistoryRowRenderer;
-import org.ost.audit.ui.AuditSnapshotBinder;
 import org.ost.audit.ui.AuditTimelinePanel;
-import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.ComponentScan;
@@ -92,28 +91,22 @@ public class AuditAutoConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    @SuppressWarnings("rawtypes")
-    public ComponentFactory<AuditSnapshotBinder> auditSnapshotBinderFactory(ObjectProvider<AuditSnapshotBinder> p) {
+    public ComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
         return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
+    public ComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
         return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditHistoryListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditHistoryListRenderer> p) {
+    public ComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
         return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditHistoryRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditHistoryRowRenderer> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
+    public ComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
         return new ComponentFactory<>(p);
     }
 

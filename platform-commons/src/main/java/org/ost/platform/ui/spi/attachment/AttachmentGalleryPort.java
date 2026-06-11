@@ -1,4 +1,4 @@
-package org.ost.platform.attachment.spi;
+package org.ost.platform.ui.spi.attachment;
 
 import com.vaadin.flow.component.Component;
 import lombok.NonNull;

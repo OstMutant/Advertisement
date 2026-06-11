@@ -6,7 +6,7 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
 import org.ost.attachment.util.YoutubeUtil;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Service;
@@ -65,10 +65,10 @@ public class AttachmentSnapshotService {
                 .orElse(List.of());
     }
 
-    public List<AuditActivityItemDto<AuditableSnapshot>> mergeAttachmentMediaChanges(List<AuditActivityItemDto<AuditableSnapshot>> baseItems) {
+    public List<AuditTimelineItemDto<AuditableSnapshot>> mergeAttachmentMediaChanges(List<AuditTimelineItemDto<AuditableSnapshot>> baseItems) {
         return baseItems.stream()
                 .map(item -> {
-                    List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityType(), item.entityId(), item.snapshotId());
+                    List<ChangeEntry> mediaChanges = getChangesForSnapshot(item.entityRef().entityType(), item.entityRef().entityId(), item.snapshotId());
                     if (mediaChanges.isEmpty()) return item;
                     List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
                     merged.addAll(item.changes());

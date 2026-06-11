@@ -4,7 +4,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -26,8 +26,9 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
     }
 
     @Override
-    public List<AuditActivityItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditActivityItemDto<AuditableSnapshot>> base) {
-        EntityRef primary = subjects.isEmpty() ? null : subjects.getFirst();
+    public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> base) {
+        if (subjects.isEmpty()) return base;
+        EntityRef primary = subjects.getFirst();
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.merge(primary, base))
                 .orElse(base);

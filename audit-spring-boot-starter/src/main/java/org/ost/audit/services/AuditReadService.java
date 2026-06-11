@@ -5,8 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
-import org.ost.platform.audit.dto.AuditHistoryItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
+import org.ost.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
@@ -14,11 +14,8 @@ import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -30,26 +27,27 @@ public class AuditReadService {
 
     // ── History ───────────────────────────────────────────────────────────────
 
-    public List<AuditHistoryItemDto> getEntityHistory(EntityType entityType, Long entityId,
+    public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(EntityType entityType, Long entityId,
                                                       Long currentUserId, boolean showAll) {
-        List<AuditHistoryItemDto> history = repository
-                .findRows(entityType, entityId, showAll ? null : currentUserId, 100)
-                .stream().map(this::toHistoryItem).toList();
+        EntityRef ref = new EntityRef(entityType, entityId);
+        List<AuditLogProjection> rows = repository.findRows(entityType, entityId, showAll ? null : currentUserId, 100);
+        List<AuditActivityItemDto<? extends AuditableSnapshot>> result = new ArrayList<>(rows.size());
+        for (AuditLogProjection row : rows) {
+            result.add(enrichWithMedia(toActivityItem(row), ref));
+        }
+        return result;
+    }
 
-        return history.stream()
-                .map(h -> {
-                    EntityRef ref = new EntityRef(entityType, entityId);
-                    List<ChangeEntry> mediaChanges = activityEnrichHooks.stream()
-                            .filter(hook -> hook.entityType() == entityType)
-                            .findFirst()
-                            .map(hook -> hook.getAdditionalChanges(ref, h.version()))
-                            .orElse(List.of());
-                    if (mediaChanges.isEmpty()) return h;
-                    List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
-                    combined.addAll(h.changes());
-                    return h.withChanges(combined);
-                })
-                .toList();
+    private <T extends AuditableSnapshot> AuditActivityItemDto<T> enrichWithMedia(AuditActivityItemDto<T> h, EntityRef ref) {
+        List<ChangeEntry> mediaChanges = activityEnrichHooks.stream()
+                .filter(hook -> hook.entityType() == ref.entityType())
+                .findFirst()
+                .map(hook -> hook.getAdditionalChanges(ref, h.version()))
+                .orElse(List.of());
+        if (mediaChanges.isEmpty()) return h;
+        List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
+        combined.addAll(h.changes());
+        return h.withChanges(combined);
     }
 
     public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
@@ -58,9 +56,9 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
-    public List<AuditActivityItemDto<AuditableSnapshot>> getTimeline(Long actorId, int limit) {
-        List<AuditActivityItemDto<AuditableSnapshot>> items = repository.findByActor(actorId, limit)
-                .stream().map(this::toActivityItem).toList();
+    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimeline(Long actorId, int limit) {
+        List<AuditTimelineItemDto<AuditableSnapshot>> items = repository.findByActor(actorId, limit)
+                .stream().map(this::toTimelineItem).toList();
         List<EntityRef> noSubjects = List.of();
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             items = hook.merge(noSubjects, items);
@@ -68,47 +66,28 @@ public class AuditReadService {
         return items;
     }
 
-    public List<AuditActivityItemDto<AuditableSnapshot>> getForSubject(List<EntityRef> subjects, Long actorId, int limit) {
-        Stream<AuditLogProjection> subjectRows = subjects.stream()
-                .flatMap(s -> repository.findRows(s.entityType(), s.entityId(), null, limit).stream());
-        Stream<AuditLogProjection> actorRows = actorId != null
-                ? repository.findByActor(actorId, limit).stream()
-                : Stream.empty();
-
-        List<AuditActivityItemDto<AuditableSnapshot>> merged = Stream.concat(subjectRows, actorRows)
-                .collect(Collectors.toMap(AuditLogProjection::id, r -> r, (a, _) -> a))
-                .values().stream()
-                .sorted(Comparator.comparing(AuditLogProjection::createdAt).reversed())
-                .limit(limit)
-                .map(this::toActivityItem)
-                .toList();
-        for (AuditActivityEnrichHook hook : activityEnrichHooks) {
-            merged = hook.merge(subjects, merged);
-        }
-        return merged;
-    }
-
     // ── Mapping ───────────────────────────────────────────────────────────────
 
-    private AuditHistoryItemDto toHistoryItem(AuditLogProjection row) {
+    private AuditActivityItemDto<? extends AuditableSnapshot> toActivityItem(AuditLogProjection row) {
         if (row.snapshot() == null) {
             warnNullSnapshot(row);
-            return new AuditHistoryItemDto(row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
+            return new AuditActivityItemDto<>(row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
                     List.of(), row.prevId(), null, row.prevSnapshot());
         }
-        return new AuditHistoryItemDto(
+        return new AuditActivityItemDto<>(
                 row.id(), row.version(), row.actionType(), row.actorId(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.prevId(), row.snapshot(), row.prevSnapshot());
     }
 
-    private AuditActivityItemDto<AuditableSnapshot> toActivityItem(AuditLogProjection row) {
+    private AuditTimelineItemDto<AuditableSnapshot> toTimelineItem(AuditLogProjection row) {
+        EntityRef ref = new EntityRef(row.entityType(), row.entityId());
         if (row.snapshot() == null) {
             warnNullSnapshot(row);
-            return new AuditActivityItemDto<>(row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
+            return new AuditTimelineItemDto<>(row.id(), ref, row.actionType(), row.createdAt(),
                     List.of(), row.actorId(), null);
         }
-        return new AuditActivityItemDto<>(
-                row.id(), row.entityId(), row.entityType(), row.actionType(), row.createdAt(),
+        return new AuditTimelineItemDto<>(
+                row.id(), ref, row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
     }
 

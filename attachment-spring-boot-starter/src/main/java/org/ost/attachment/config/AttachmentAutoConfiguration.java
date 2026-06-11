@@ -9,7 +9,7 @@ import org.ost.platform.core.config.CleanupProperties;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;

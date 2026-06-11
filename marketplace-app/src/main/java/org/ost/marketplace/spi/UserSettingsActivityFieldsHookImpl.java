@@ -6,7 +6,7 @@ import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.ChangeEntry;
@@ -28,7 +28,7 @@ public class UserSettingsActivityFieldsHookImpl implements AuditActivityFieldsHo
     }
 
     @Override
-    public List<ChangeEntry> expandFields(@NonNull AuditActivityItemDto<AuditableSnapshot> item) {
+    public List<ChangeEntry> expandFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
         return userService.expandActivityFields(item);
     }
 

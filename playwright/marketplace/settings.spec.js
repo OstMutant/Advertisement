@@ -24,7 +24,7 @@ test.describe('Settings', () => {
     await test.step('Change ads page size', async () => {
       const field = page.locator('.settings-overlay-content vaadin-integer-field').first().locator('input');
       await field.click({ clickCount: 3 });
-      await field.fill('20');
+      await field.fill('25');
     });
 
     await test.step('Save settings', async () => {

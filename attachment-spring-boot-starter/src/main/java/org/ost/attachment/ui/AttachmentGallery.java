@@ -53,7 +53,7 @@ public class AttachmentGallery extends Div {
     private final List<Attachment>     currentAttachments = new ArrayList<>();
     private       boolean              hasPendingDeletion = false;
     private String   tempSessionId;
-    private Runnable onChanged;
+    private transient Runnable onChanged;
 
     public void setOnChangedListener(Runnable onChanged) {
         this.onChanged = onChanged;

@@ -4,7 +4,7 @@ import com.vaadin.flow.component.Component;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;

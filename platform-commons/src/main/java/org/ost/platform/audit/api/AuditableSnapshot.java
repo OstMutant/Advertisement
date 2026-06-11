@@ -19,12 +19,10 @@ public interface AuditableSnapshot {
 
     default List<ChangeEntry> expandWithChanges(List<ChangeEntry> changes) {
         Map<String, ChangeEntry.FieldChange> index = new HashMap<>();
-        changes.forEach(c -> {
-            switch (c) {
-                case ChangeEntry.FieldChange fc -> index.put(fc.field(), fc);
-                case ChangeEntry.MediaChange _ -> {}
-            }
-        });
+        changes.stream()
+                .filter(ChangeEntry.FieldChange.class::isInstance)
+                .map(ChangeEntry.FieldChange.class::cast)
+                .forEach(fc -> index.put(fc.field(), fc));
         return allFields().stream()
                 .<ChangeEntry>map(f -> index.getOrDefault(f.field(), f))
                 .toList();

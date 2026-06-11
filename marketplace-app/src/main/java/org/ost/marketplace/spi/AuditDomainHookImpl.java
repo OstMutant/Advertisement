@@ -42,7 +42,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
         AuditableSnapshot data = content.snapshotData();
         return switch (data) {
             case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);

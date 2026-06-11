@@ -17,7 +17,7 @@ import org.ost.marketplace.entities.Role;
 import org.ost.marketplace.entities.User;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.services.user.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
@@ -32,6 +32,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -181,22 +182,21 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
-                .entityType(EntityType.USER)
-                .entityId(params.getUser().getId())
+        return auditUi.buildAuditActivityPanel(AuditUiPort.ActivityParams.builder()
+                .entityRef(new EntityRef(EntityType.USER, params.getUser().getId()))
                 .userId(params.getUser().getId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getUser()))
-                .onRestoreRequested((item, entityId) -> handleRestoreFromActivity(item.snapshotId(), entityId))
+                .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
                 .build());
     }
 
-    private void handleRestoreFromActivity(Long snapshotId, Long entityId) {
+    private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
                 port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
                         .map(content -> content.snapshotData())
                         .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(entityId, snapshot.name(), Role.valueOf(snapshot.role()));
+                            UserEditDto dto = new UserEditDto(params.getUser().getId(), snapshot.name(), Role.valueOf(snapshot.role()));
                             loadRestored(dto);
                         })
         );

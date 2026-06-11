@@ -20,7 +20,7 @@ import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
@@ -33,7 +33,7 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHa
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
@@ -228,13 +228,12 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
-                .entityType(EntityType.ADVERTISEMENT)
-                .entityId(params.getAd().getId())
+        return auditUi.buildAuditActivityPanel(AuditUiPort.ActivityParams.builder()
+                .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getAd()))
-                .onRestoreRequested((item, entityId) -> handleRestoreFromActivity(item.snapshotId()))
+                .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
                 .build());
     }
 

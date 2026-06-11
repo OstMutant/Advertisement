@@ -4,24 +4,20 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.spi.AuditActivityRowHook;
-import org.ost.platform.audit.spi.AuditUiPort;
+import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.ComponentFactory;
 
 @SpringComponent
 @RequiredArgsConstructor
 public class AuditUiPortImpl implements AuditUiPort {
 
-    private final ComponentFactory<AuditActivityPanel>      activityPanelFactory;
-    private final ComponentFactory<AuditTimelinePanel>      timelinePanelFactory;
-    private final ComponentFactory<AuditSnapshotBinder<?>>  snapshotBinderFactory;
+    private final ComponentFactory<AuditActivityPanel>  activityPanelFactory;
+    private final ComponentFactory<AuditTimelinePanel>  timelinePanelFactory;
 
     @Override
-    public Component buildAuditActivityPanel(@NonNull EntityActivityParams p) {
+    public Component buildAuditActivityPanel(@NonNull ActivityParams p) {
         return activityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityType(p.getEntityType())
-                .entityId(p.getEntityId())
+                .entityRef(p.getEntityRef())
                 .userId(p.getUserId())
                 .isPrivileged(p.isPrivileged())
                 .canOperate(p.isCanOperate())
@@ -35,16 +31,6 @@ public class AuditUiPortImpl implements AuditUiPort {
                 .actorId(p.getActorId())
                 .viewerActorId(p.getViewerActorId())
                 .limit(p.getLimit())
-                .build());
-    }
-
-    @Override
-    public <T extends AuditableSnapshot> AuditActivityRowHook<T> snapshotRowHook(@NonNull SnapshotRowHookParams<T> p) {
-        return snapshotBinderFactory.buildAs(AuditSnapshotBinder.Parameters.<T>builder()
-                .entityType(p.getEntityType())
-                .isCurrent(p.getIsCurrent())
-                .subjectEntityId(p.getSubjectEntityId())
-                .onRestore(p.getOnRestore())
                 .build());
     }
 }

@@ -3,6 +3,7 @@ package org.ost.query.config;
 import jakarta.validation.Validator;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.query.ui.elements.SortIcon;
+import org.ost.query.ui.elements.SvgIcon;
 import org.ost.query.ui.elements.fields.QueryDateTimeField;
 import org.ost.query.ui.elements.fields.QueryMultiSelectComboField;
 import org.ost.query.ui.elements.fields.QueryNumberField;
@@ -55,6 +56,11 @@ public class QueryAutoConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public ComponentFactory<SortIcon> sortIconFactory(ObjectProvider<SortIcon> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<SvgIcon> svgIconFactory(ObjectProvider<SvgIcon> p) {
         return new ComponentFactory<>(p);
     }
 }

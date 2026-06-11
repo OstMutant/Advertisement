@@ -5,7 +5,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ChangeEntry;
@@ -142,7 +142,7 @@ public class UserService {
         return repository.findActorNames(ids.toArray(new Long[0]));
     }
 
-    public List<ChangeEntry> expandActivityFields(@NonNull AuditActivityItemDto<AuditableSnapshot> item) {
+    public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
         return item.snapshotData() != null
                 ? item.snapshotData().expandWithChanges(item.changes())
                 : item.changes();

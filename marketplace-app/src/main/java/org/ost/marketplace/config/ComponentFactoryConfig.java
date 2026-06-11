@@ -19,6 +19,7 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementC
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
+import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.platform.core.ComponentFactory;
@@ -133,6 +134,11 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public ComponentFactory<UserGridConfigurator> userGridConfiguratorFactory(ObjectProvider<UserGridConfigurator> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<SettingsFormModeHandler> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
         return new ComponentFactory<>(p);
     }
 }

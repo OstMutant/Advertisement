@@ -17,7 +17,7 @@ import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;

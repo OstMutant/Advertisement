@@ -329,7 +329,16 @@
       "Bash(tee /tmp/playwright7.log)",
       "Bash(tee /tmp/playwright_full.log)",
       "Bash(tee /tmp/deploy2.log)",
-      "Bash(tee /tmp/pw_final.log)"
+      "Bash(tee /tmp/pw_final.log)",
+      "Bash(sed -i 's/^package org\\\\.ost\\\\.platform\\\\.ui\\\\.audit;/package org.ost.platform.ui.spi.audit;/' /app/platform-commons/src/main/java/org/ost/platform/ui/spi/audit/AuditUiPort.java /app/platform-commons/src/main/java/org/ost/platform/ui/spi/audit/AuditActivityRowHook.java)",
+      "Bash(sed -i 's/^package org\\\\.ost\\\\.platform\\\\.ui\\\\.attachment;/package org.ost.platform.ui.spi.attachment;/' /app/platform-commons/src/main/java/org/ost/platform/ui/spi/attachment/AttachmentGalleryPort.java)",
+      "Bash(sed -i s/toHistoryItem/toActivityItem/g /app/audit-spring-boot-starter/src/main/java/org/ost/audit/services/AuditReadService.java)",
+      "Bash(sed -i s/buildHistoryFieldsList/buildActivityFieldsList/g /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditActivityRowRenderer.java)",
+      "Bash(sed -i 's/Div buildRow\\(AuditActivityItemDto h,/Div buildRow\\(AuditActivityItemDto<AuditableSnapshot> h,/g; *)",
+      "Bash(sed -i 's/Div buildActivityFieldsList\\(AuditActivityItemDto h,/Div buildActivityFieldsList\\(AuditActivityItemDto<AuditableSnapshot> h,/g' /app/audit-spring-boot-starter/src/main/java/org/ost/audit/ui/AuditTimelineRowRenderer.java)",
+      "Bash(sed -i 's/\\\\.onRestoreRequested\\(\\(item, entityId\\) -> handleRestoreFromActivity\\(item\\\\.snapshotId\\(\\)\\)\\)/.onRestoreRequested\\(snapshotId -> handleRestoreFromActivity\\(snapshotId\\)\\)/g' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/header/settings/SettingsFormModeHandler.java /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/advertisements/overlay/modes/AdvertisementFormOverlayModeHandler.java)",
+      "Bash(sed -i 's/\\\\.onRestoreRequested\\(\\(item, entityId\\) -> handleRestoreFromActivity\\(item\\\\.snapshotId\\(\\), entityId\\)\\)/.onRestoreRequested\\(snapshotId -> handleRestoreFromActivity\\(snapshotId\\)\\)/g' /app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/main/tabs/users/overlay/modes/UserFormOverlayModeHandler.java)",
+      "Bash(tee -a /tmp/playwright.log)"
     ]
   },
   "hooks": {

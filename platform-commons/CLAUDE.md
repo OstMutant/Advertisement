@@ -24,13 +24,20 @@ NOT ALLOWED:
 
 ## Package Semantics
 
-Three sub-packages inside each subsystem namespace carry distinct roles:
+Sub-packages inside each subsystem namespace carry distinct roles:
 
 - `*.api` — what **marketplace contributes to the starter**: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`) that marketplace places on its own classes so the starter can read them. Only `audit.*` has an `api` package; attachment has no equivalent because it needs no marker contracts from marketplace.
-- `*.spi` — **extension points between modules**: interfaces declaring a callback boundary. Who calls vs. who implements varies by suffix (see table below).
+- `*.spi` — **extension points between modules** with **no Vaadin dependency**: interfaces declaring a callback boundary for domain data, events, and commands. Who calls vs. who implements varies by suffix (see table below).
 - `*.dto` — **data carriers** crossing the module boundary: plain value objects with no behavior, named with the `Dto` suffix.
 
-**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`.
+**UI extension points** that **require Vaadin** live under `org.ost.platform.ui.spi.*`, grouped by domain:
+
+- `ui.spi.audit` — `AuditUiPort`, `AuditActivityRowHook`
+- `ui.spi.attachment` — `AttachmentGalleryPort`
+
+Keeping Vaadin-dependent interfaces in a separate `ui.spi.*` root means non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
+
+**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. If a new SPI interface references `com.vaadin.flow.component.Component` → it belongs in `org.ost.platform.ui.spi.<domain>`; otherwise → `<domain>.spi`.
 
 ## SPI Interface Naming
 

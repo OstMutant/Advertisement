@@ -1,265 +1,72 @@
 package org.ost.marketplace.ui.views.main.header.settings;
 
-import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.formlayout.FormLayout;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.component.textfield.IntegerField;
-import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.entities.User;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
-import org.ost.marketplace.services.user.UserSettingsService;
+import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.services.auth.AuthContextService;
-import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
-import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
-import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.marketplace.ui.views.components.overlay.BaseOverlay;
-import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
-import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
-import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.audit.spi.AuditUiPort;
-import org.ost.platform.core.model.EntityType;
+import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
+import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.platform.core.ComponentFactory;
 
-import org.ost.marketplace.common.PaginationDefaults;
-
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.common.I18nKey.HEADER_HOME;
+import static org.ost.marketplace.common.I18nKey.SETTINGS_SAVED_SUCCESS;
+import static org.ost.marketplace.common.I18nKey.SETTINGS_SECTION_TITLE;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class SettingsOverlay extends BaseOverlay implements I18nParams {
+public class SettingsOverlay extends AbstractEntityOverlay {
 
-    @Getter
-    private final transient I18nService i18nService;
-    private final transient UserSettingsService                    settingsService;
-    private final transient NotificationService                    notifications;
-    private final transient AuthContextService                     authContextService;
-    private final transient ComponentFactory<OverlayLayout>        overlayLayoutFactory;
-    private final transient ComponentFactory<AuditUiPort>          auditUiPortFactory;
-    private final transient ComponentFactory<UiPrimaryButton>      primaryButtonFactory;
-    private final transient ComponentFactory<UiTertiaryButton>     tertiaryButtonFactory;
-    private final transient ComponentFactory<UiIconButton>         iconButtonFactory;
-    private final transient ComponentFactory<AuditPort>            auditPortFactory;
-    private final OverlayBreadcrumbBackButton breadcrumbBackButton;
+    @Getter private final transient EntityOverlaySupport    support;
+    private final transient AuthContextService              authContextService;
+    private final ComponentFactory<SettingsFormModeHandler> formHandlerFactory;
 
-    private OverlayLayout    layout;
-    private IntegerField     adsPageSizeField;
-    private IntegerField     usersPageSizeField;
-    private Div              historyPanel;
-    private Div              timelinePanel;
-    private Tabs             tabs;
-    private Tab              settingsTab;
-    private UiPrimaryButton  saveBtn;
-    private UiTertiaryButton discardBtn;
-    private User             currentUser;
-    private int              savedAdsPageSize;
-    private int              savedUsersPageSize;
+    private Long                    currentUserId;
+    private SettingsFormModeHandler currentHandler;
+
+    @Override protected String  getOverlayCssClass()   { return "settings-overlay"; }
+    @Override protected I18nKey getBreadcrumbLabelKey() { return HEADER_HOME; }
+    @Override protected boolean hasUnsavedChanges()    { return currentHandler != null && currentHandler.hasChanges(); }
 
     public void openSettings() {
-        authContextService.getCurrentUser().ifPresent(this::doOpen);
+        authContextService.getCurrentUser().ifPresent(user -> {
+            currentUserId = user.getId();
+            ensureInitialized();
+            launchSession(this::switchTo);
+        });
     }
 
-    private void doOpen(User user) {
-        this.currentUser = user;
-        ensureInitialized();
-
-        if (layout != null) layout.removeFromParent();
-        layout = overlayLayoutFactory.get();
-        layout.setBreadcrumbButton(breadcrumbBackButton);
-        layout.getBreadcrumbCurrent().setText(getValue(SETTINGS_SECTION_TITLE));
-
-        UserSettings currentSettings = settingsService.load(user.getId());
-        savedAdsPageSize   = currentSettings.getAdsPageSize();
-        savedUsersPageSize = currentSettings.getUsersPageSize();
-
-        FormLayout form = new FormLayout();
-        form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
-        form.add(buildAdsPageSizeField(currentSettings), buildUsersPageSizeField(currentSettings));
-        adsPageSizeField.addValueChangeListener(_   -> updateSettingsButtons());
-        usersPageSizeField.addValueChangeListener(_ -> updateSettingsButtons());
-
-        Div settingsCardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
-        settingsCardHeader.addClassName("overlay__form-card-header");
-
-        Div settingsPanel = new Div(settingsCardHeader, form);
-        settingsPanel.addClassName("overlay__form-fields-card");
-
-        Div content = auditUiPortFactory.findIfAvailable()
-                .map(auditUi -> {
-                    historyPanel  = new Div();
-                    historyPanel.setVisible(false);
-                    timelinePanel = new Div();
-                    timelinePanel.setVisible(false);
-
-                    settingsTab          = new Tab(getValue(SETTINGS_SECTION_TITLE));
-                    Tab historyTab       = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
-                    Tab timelineTab      = new Tab(getValue(TIMELINE_TAB));
-                    tabs = new Tabs(settingsTab, historyTab, timelineTab);
-                    tabs.addClassName("user-view-tabs");
-
-                    tabs.addSelectedChangeListener(event -> {
-                        Tab selected    = event.getSelectedTab();
-                        boolean isSettings  = selected == settingsTab;
-                        boolean isHistory   = selected == historyTab;
-                        settingsPanel.setVisible(isSettings);
-                        historyPanel.setVisible(isHistory);
-                        timelinePanel.setVisible(!isSettings && !isHistory);
-                        if (isHistory && historyPanel.getChildren().findFirst().isEmpty()) {
-                            historyPanel.add(buildHistoryContent(auditUi, user));
-                        }
-                        if (!isSettings && !isHistory && timelinePanel.getChildren().findFirst().isEmpty()) {
-                            timelinePanel.add(buildTimelineContent(auditUi, user));
-                        }
-                    });
-
-                    return new Div(tabs, settingsPanel, historyPanel, timelinePanel);
-                })
-                .orElseGet(() -> new Div(settingsPanel));
-
-        content.addClassName("settings-overlay-content");
-        layout.setContent(content);
-
-        saveBtn = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
-        saveBtn.addClickListener(_ -> handleSave(user));
-
-        discardBtn = tertiaryButtonFactory.build(
-                UiTertiaryButton.Parameters.builder().labelKey(FORM_DISCARD_CHANGES).build());
-        discardBtn.addClickListener(_ -> discardSettingsChanges());
-
-        UiIconButton closeBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder()
-                        .labelKey(HEADER_HOME)
-                        .icon(VaadinIcon.CLOSE.create())
+    @Override
+    protected void switchTo() {
+        currentHandler = formHandlerFactory.build(
+                SettingsFormModeHandler.Parameters.builder()
+                        .userId(currentUserId)
+                        .onSave(this::handleSave)
+                        .onCancel(this::closeToList)
                         .build());
-        closeBtn.addClickListener(_ -> closeToList());
-
-        layout.setHeaderActions(new Div(saveBtn, discardBtn, closeBtn));
-        updateSettingsButtons();
-
-        add(layout);
-        open();
+        currentHandler.activate(layout);
+        layout.getBreadcrumbCurrent().setText(i18n().get(SETTINGS_SECTION_TITLE));
     }
 
     @Override
-    protected void buildContent() {
-        addClassName("settings-overlay");
-        breadcrumbBackButton.configure(OverlayBreadcrumbBackButton.Parameters.builder()
-                        .labelKey(HEADER_HOME)
-                        .build())
-                .addClickListener(_ -> closeToList());
-    }
-
-    @Override
-    protected void onEsc() {
+    protected void doCancel() {
         closeToList();
     }
 
-    private void handleSave(User user) {
-        saveBtn.setEnabled(false);
-        discardBtn.setEnabled(false);
+    private void handleSave() {
         try {
-            UserSettings newSettings = UserSettings.builder()
-                    .adsPageSize(adsPageSizeField.getValue()     != null ? adsPageSizeField.getValue()   : PaginationDefaults.DEFAULT_PAGE_SIZE)
-                    .usersPageSize(usersPageSizeField.getValue() != null ? usersPageSizeField.getValue() : PaginationDefaults.DEFAULT_PAGE_SIZE)
-                    .build();
-
-            settingsService.save(user.getId(), newSettings);
-            if (historyPanel  != null) historyPanel.removeAll();
-            if (timelinePanel != null) timelinePanel.removeAll();
-            if (tabs          != null) tabs.setSelectedTab(settingsTab);
-
-            savedAdsPageSize   = newSettings.getAdsPageSize();
-            savedUsersPageSize = newSettings.getUsersPageSize();
-            notifications.success(SETTINGS_SAVED_SUCCESS);
+            if (currentHandler.save()) {
+                notification().success(SETTINGS_SAVED_SUCCESS);
+                currentHandler.afterSave(true);
+            } else {
+                currentHandler.afterSave(false);
+            }
         } catch (Exception e) {
-            notifications.error(e.getMessage());
-            updateSettingsButtons();
+            notification().error(e.getMessage());
+            currentHandler.afterSave(false);
         }
-    }
-
-    private com.vaadin.flow.component.Component buildHistoryContent(AuditUiPort auditUi, User user) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.EntityActivityParams.builder()
-                .entityType(EntityType.USER_SETTINGS)
-                .entityId(user.getId())
-                .userId(user.getId())
-                .isPrivileged(true)
-                .canOperate(true)
-                .onRestoreRequested((item, entityId) -> loadAndShowSettingsRestore(item.snapshotId(), user))
-                .build());
-    }
-
-    private com.vaadin.flow.component.Component buildTimelineContent(AuditUiPort auditUi, User user) {
-        return auditUi.buildAuditTimelinePanel(AuditUiPort.TimelineParams.builder()
-                .actorId(user.getId())
-                .viewerActorId(user.getId())
-                .build());
-    }
-
-    private void loadAndShowSettingsRestore(Long snapshotId, User user) {
-        auditPortFactory.findIfAvailable()
-                .flatMap(p -> p.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS))
-                .map(c -> UserSettings.builder().adsPageSize(c.snapshotData().adsPageSize()).usersPageSize(c.snapshotData().usersPageSize()).build())
-                .ifPresent(target -> {
-                    adsPageSizeField.setValue(target.getAdsPageSize());
-                    usersPageSizeField.setValue(target.getUsersPageSize());
-                    notifications.success(FORM_RESTORE_BANNER);
-                    updateSettingsButtons();
-                    if (tabs != null) tabs.setSelectedTab(settingsTab);
-                });
-    }
-
-    private void discardSettingsChanges() {
-        UserSettings current = settingsService.load(currentUser.getId());
-        adsPageSizeField.setValue(current.getAdsPageSize());
-        usersPageSizeField.setValue(current.getUsersPageSize());
-        savedAdsPageSize   = current.getAdsPageSize();
-        savedUsersPageSize = current.getUsersPageSize();
-        updateSettingsButtons();
-    }
-
-    private void updateSettingsButtons() {
-        Integer ads   = adsPageSizeField.getValue();
-        Integer users = usersPageSizeField.getValue();
-        boolean dirty = (ads   != null && ads   != savedAdsPageSize)
-                     || (users != null && users != savedUsersPageSize);
-        saveBtn.setEnabled(dirty);
-        discardBtn.setEnabled(dirty);
-    }
-
-    private IntegerField buildAdsPageSizeField(UserSettings settings) {
-        adsPageSizeField = new IntegerField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
-        adsPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        adsPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        adsPageSizeField.setStep(5);
-        adsPageSizeField.setStepButtonsVisible(true);
-        adsPageSizeField.setValue(settings.getAdsPageSize());
-        adsPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        adsPageSizeField.setWidthFull();
-        return adsPageSizeField;
-    }
-
-    private IntegerField buildUsersPageSizeField(UserSettings settings) {
-        usersPageSizeField = new IntegerField(getValue(SETTINGS_USERS_PAGE_SIZE_LABEL));
-        usersPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
-        usersPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
-        usersPageSizeField.setStep(5);
-        usersPageSizeField.setStepButtonsVisible(true);
-        usersPageSizeField.setValue(settings.getUsersPageSize());
-        usersPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
-        usersPageSizeField.setWidthFull();
-        return usersPageSizeField;
     }
 }
