@@ -1,4 +1,5 @@
 const { screenshot } = require('../_test-helpers');
+const { closeNotification } = require('../_helpers');
 
 async function runNavigateToUsersTabFlow(page, expect) {
   await page.locator('vaadin-tab').filter({ hasText: /Users|Користувачі/i }).first().click();
@@ -53,6 +54,7 @@ async function runSaveUserEditFlow(page, expect, role) {
   await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
 
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}`);
+  await closeNotification(page);
 }
 
 async function runPromoteUserFlow(page, expect, email, { role = null, name = null } = {}) {

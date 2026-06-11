@@ -21,29 +21,35 @@ test.describe('Authentication flow', () => {
 
   // === Section 1: Account creation ===
 
-  test('register admin EN — first user becomes ADMIN', async () => {
-    await runSignUpFlow(page, expect, TEST_USERS.adminEn);
+  test('adminEn signs up — first user is auto-promoted to ADMIN', async () => {
+    await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN');
   });
 
-  test('register user EN', async () => {
+  test('userEn signs up — gets USER role', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.userEn);
   });
 
-  test('register user UK and moderator UK candidates', async () => {
+  test('userUk signs up — gets USER role', async () => {
     await runSwitchToUkrainianFlow(page, expect);
     await runSignUpFlow(page, expect, TEST_USERS.userUk);
+  });
+
+  test('moderatorUk signs up — MODERATOR candidate', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.moderatorUk);
   });
 
-  test('register moderator EN and admin UK candidates', async () => {
+  test('moderatorEn signs up — MODERATOR candidate', async () => {
     await runSwitchToEnglishFlow(page, expect);
     await runSignUpFlow(page, expect, TEST_USERS.moderatorEn);
+  });
+
+  test('adminUk signs up — ADMIN candidate', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.adminUk);
   });
 
   // === Section 2: Role promotion ===
 
-  test('admin EN promotes moderator and admin accounts', async () => {
+  test('adminEn promotes moderatorUk and moderatorEn to MODERATOR, adminUk to ADMIN', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
@@ -55,12 +61,14 @@ test.describe('Authentication flow', () => {
 
   // === Section 3: Set UK locales ===
 
-  test('set UK locale for userUk and moderatorUk', async () => {
+  test('userUk — first login defaults to EN, switches locale to Ukrainian', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userUk);
     await runSubmitLoginFlow(page, expect, { ...TEST_USERS.userUk, locale: 'en' });
     await runSwitchToUkrainianLoggedInFlow(page, expect);
     await runLogoutFlow(page, expect);
+  });
 
+  test('moderatorUk — first login defaults to EN, switches locale to Ukrainian', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.moderatorUk);
     await runSubmitLoginFlow(page, expect, { ...TEST_USERS.moderatorUk, locale: 'en' });
     await runSwitchToUkrainianLoggedInFlow(page, expect);
@@ -69,38 +77,14 @@ test.describe('Authentication flow', () => {
 
   // === Section 4: Authentication tests ===
 
-  test('login — English locale (userEn)', async () => {
+  test('userEn logs in, cancels logout — remains authenticated', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
-  });
-
-  test('cancel logout — stays logged in', async () => {
     await runCancelLogoutFlow(page, expect);
-  });
-
-  test('confirm logout — logged out', async () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('login — Ukrainian locale (userUk)', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.userUk);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.userUk);
-    await runLogoutFlow(page, expect);
-  });
-
-  test('login — Admin role (adminEn)', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
-    await runLogoutFlow(page, expect);
-  });
-
-  test('login — Moderator role (moderatorUk)', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.moderatorUk);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorUk);
-    await runLogoutFlow(page, expect);
-  });
-
-  test('locale persists across sessions', async () => {
+  test('userEn — switched locale persists across logout and re-login', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await runSwitchToUkrainianLoggedInFlow(page, expect);
@@ -118,7 +102,7 @@ test.describe('Authentication flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('wrong password — user not logged in', async () => {
+  test('wrong password — login rejected, user stays logged out', async () => {
     await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();
     await page.locator('[data-testid="login-email-label"]').waitFor({ timeout: 5000 });
 

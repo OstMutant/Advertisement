@@ -7,12 +7,18 @@
 #   ./playwright/run.sh e2e                    — run all e2e specs (clean DB)
 #   ./playwright/run.sh audit/advertisement-history  — run by group/name
 #   ./playwright/run.sh --ux                   — all tests with screenshots
+#   ./playwright/run.sh smoke --grep "my test" — run only tests matching name
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
 SCENARIO=""
+GREP=""
+SKIP_NEXT=""
 for arg in "$@"; do
-  if [ "$arg" = "--ux" ]; then UX=1; else SCENARIO="$arg"; fi
+  if [ -n "$SKIP_NEXT" ]; then GREP="$arg"; SKIP_NEXT=""; continue; fi
+  if [ "$arg" = "--ux" ]; then UX=1;
+  elif [ "$arg" = "--grep" ]; then SKIP_NEXT=1;
+  else SCENARIO="$arg"; fi
 done
 
 # ── Ensure marketplace-app is running ──────────────────────────────────────
@@ -59,7 +65,7 @@ fi
 # ── Reset / seed database ─────────────────────────────────────────────────────
 DB_CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
 if [ -n "$DB_CONTAINER" ]; then
-  if [ "$SCENARIO" = "e2e" ]; then
+  if [ "$SCENARIO" = "e2e" ] || [[ "$SCENARIO" == e2e/* ]] || [ -f "/app/playwright/e2e/${SCENARIO%.spec}.spec.js" ]; then
     docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
     docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
       -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)." || true
@@ -114,7 +120,8 @@ PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
 
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "marketplace" ] || [ "$SCENARIO" = "audit" ] || [ "$SCENARIO" = "attachment" ] || [ "$SCENARIO" = "e2e" ]; then
-    docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SCENARIO/ --config playwright.config.js"
+    GREP_ARG=${GREP:+--grep "$GREP"}
+    docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SCENARIO/ $GREP_ARG --config playwright.config.js"
   else
     if [[ "$SCENARIO" == */* ]]; then
       SPEC_FILE="/app/playwright/${SCENARIO%.spec}.spec.js"
@@ -128,10 +135,12 @@ if [ -n "$SCENARIO" ]; then
       exit 1
     fi
     SPEC_REL="${SPEC_FILE#/app/playwright/}"
-    docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SPEC_REL --config playwright.config.js"
+    GREP_ARG=${GREP:+--grep "$GREP"}
+    docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $SPEC_REL $GREP_ARG --config playwright.config.js"
   fi
 else
-  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test --config playwright.config.js"
+  GREP_ARG=${GREP:+--grep "$GREP"}
+  docker exec pw-runner bash -c "$INSTALL_CMD && cd /tmp && $PW_ENV npx playwright test $GREP_ARG --config playwright.config.js"
 fi
 
 EXIT_CODE=$?

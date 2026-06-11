@@ -7,4 +7,12 @@ const TEST_USERS = {
   adminUk:     { name: 'Admin UK',     email: 'admin.uk@example.com',     role: 'ADMIN',     locale: 'uk', password: 'password' },
 };
 
-module.exports = { TEST_USERS };
+async function closeNotification(page) {
+  const card = page.locator('vaadin-notification-card').first();
+  const visible = await card.isVisible().catch(() => false);
+  if (!visible) return;
+  await card.locator('vaadin-button').click();
+  await card.waitFor({ state: 'hidden', timeout: 3000 });
+}
+
+module.exports = { TEST_USERS, closeNotification };

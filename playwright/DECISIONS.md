@@ -12,6 +12,22 @@
 
 ---
 
+## 2026-06-11 — No waitForTimeout — use Vaadin state attributes instead
+
+**Decision:** Never use `page.waitForTimeout()` in tests to wait for UI animations or dialog rendering. Always wait on a deterministic DOM condition.
+
+**Why:** Fixed timeouts are fragile — too short means flaky tests, too long wastes time.
+
+**Pattern for Vaadin confirm dialog (screenshot-safe):**
+```js
+await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });
+await screenshot(page, 'some-dialog');
+```
+
+**Why `:not([opening])`:** Vaadin sets `[opening]` during the CSS open animation and removes it only when the animation completes. `[opened]` alone fires at animation start (opacity still near 0 in shadow DOM). Using `[opened]:not([opening])` guarantees the overlay is fully rendered before the screenshot. Note: `page.waitForFunction` + `getComputedStyle` does NOT work here because `document.querySelector` cannot pierce Playwright's shadow DOM — use the locator selector approach instead.
+
+---
+
 ## 2026-05-12 — `--ux` flag controls screenshots
 
 **Decision:** Named screenshots are only taken and attached to the HTML report when `--ux` is passed to `run.sh`. Without `--ux`, `screenshot()` calls are no-ops.
