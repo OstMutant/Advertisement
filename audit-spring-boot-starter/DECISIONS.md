@@ -2,7 +2,7 @@
 
 ---
 
-## 2026-06-08 — AuditTimelinePanel placement: view overlays only, not editors
+## 2026-06-08 — AuditTimelinePanel placement: view overlays only, not editors *(superseded — see 2026-06-11)*
 
 **Decision:** `AuditTimelinePanel` belongs in view-mode overlays only:
 - **Users overlay (view mode)** — admins/moderators see activity across entities for that user.
@@ -13,6 +13,24 @@
 **Why:** Regular users have no access to edit overlays. Admins see entity-level activity through the Users view overlay. Edit forms are for data entry — mixing in audit history adds noise and has no defined use case.
 
 **Rule:** Any new `AuditTimelinePanel` placement must be in a view-mode overlay with a defined role and user need. Edit overlays are excluded by design.
+
+---
+
+## 2026-06-11 — PLANNED (HIGH PRIORITY): Top-level Timeline tab replaces inline timeline tabs
+
+**Decision (planned, not yet implemented):** Replace the Timeline tabs in the Users overlay and Settings overlay with a dedicated top-level **Timeline** navigation tab (alongside Listings and Users), with its own filter and pagination.
+
+**Visibility rules:**
+- USER: sees only their own actions + actions performed on entities they created (e.g. moderation decisions on their ads)
+- MODERATOR/ADMIN: full feed, filterable by actor/entity type/date
+
+**Implementation order:**
+1. Build the new top-level Timeline tab (backend query + pagination + filter UI)
+2. Only after it ships — remove Timeline tabs from `UserOverlay` (view mode) and Settings overlay, and remove the corresponding Playwright flows (`runVerifySettingsTimelineFlow`, `runVerifyUserTimelineFlow`)
+
+**Why not the other way around:** Removing old tabs before the new one is live causes a regression — users lose visibility into their own activity history.
+
+**Why better than inline tabs:** The current `AuditTimelinePanel` in the Users overlay queries by `actor_id` — it shows what the viewed user *did*, not what happened *to* them. This is low-value for an admin auditing a specific user. A dedicated top-level tab with proper filters gives full context without navigating into individual overlays.
 
 ---
 

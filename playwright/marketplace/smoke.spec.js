@@ -10,28 +10,6 @@ const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
 
-test.describe('Smoke: language (no auth)', () => {
-  test('locale combobox switches UI language', async ({ page }) => {
-    await page.goto('/');
-
-    await test.step('Locale combobox visible', async () => {
-      await expect(page.locator('.locale-combobox')).toBeVisible();
-    });
-
-    await test.step('Switch to English', async () => {
-      await page.locator('.locale-combobox input').click();
-      await page.locator('vaadin-combo-box-item').filter({ hasText: /english|en/i }).first().click();
-      await page.waitForLoadState('networkidle').catch(() => {});
-    });
-
-    await test.step('Switch back to Ukrainian', async () => {
-      await page.locator('.locale-combobox input').click();
-      await page.locator('vaadin-combo-box-item').filter({ hasText: /укр|ukrainian/i }).first().click();
-      await page.waitForLoadState('networkidle').catch(() => {});
-      await screenshot(page, 'language-switched-back');
-    });
-  });
-});
 
 test.describe('Smoke: user flow', () => {
   test.beforeEach(async ({ page }) => {

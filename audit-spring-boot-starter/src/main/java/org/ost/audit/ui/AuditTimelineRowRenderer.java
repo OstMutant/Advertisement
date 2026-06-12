@@ -1,6 +1,5 @@
 package org.ost.audit.ui;
 
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -29,7 +28,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-@CssImport("./entity-activity.css")
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor

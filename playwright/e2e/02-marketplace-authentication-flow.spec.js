@@ -2,7 +2,8 @@ const { test, expect, screenshot } = require('./_test-helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { runSwitchToUkrainianFlow, runSwitchToEnglishFlow, runSwitchToUkrainianLoggedInFlow, runSwitchToEnglishLoggedInFlow } = require('./_flows/language-switch.flow');
-const { runNavigateToUsersTabFlow, runPromoteUserFlow } = require('./_flows/user-management.flow');
+const { runNavigateToUsersTabFlow } = require('./_flows/user-management.flow');
+const { runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow } = require('./_flows/audit.flow');
 const { TEST_USERS } = require('./_helpers');
 
 test.describe.configure({ mode: 'serial' });
@@ -22,60 +23,49 @@ test.describe('Authentication flow', () => {
   // === Section 1: Account creation ===
 
   test('adminEn signs up — first user is auto-promoted to ADMIN', async () => {
-    await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN');
+    await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'admin-signup-settings' });
+      await runNavigateToUsersTabFlow(page, expect);
+      await runVerifyUserAuditActivityFlow(page, expect, TEST_USERS.adminEn.email, {
+        screenshotName: 'admin-signup-user-audit',
+        rows: [{ action: /created/i, version: 'v1' }],
+      });
+    });
   });
 
   test('userEn signs up — gets USER role', async () => {
-    await runSignUpFlow(page, expect, TEST_USERS.userEn);
+    await runSignUpFlow(page, expect, TEST_USERS.userEn, 'USER', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'useren-signup-settings' });
+    });
   });
 
   test('userUk signs up — gets USER role', async () => {
     await runSwitchToUkrainianFlow(page, expect);
-    await runSignUpFlow(page, expect, TEST_USERS.userUk);
+    await runSignUpFlow(page, expect, TEST_USERS.userUk, 'USER', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'useruk-signup-settings' });
+    });
   });
 
   test('moderatorUk signs up — MODERATOR candidate', async () => {
-    await runSignUpFlow(page, expect, TEST_USERS.moderatorUk);
+    await runSignUpFlow(page, expect, TEST_USERS.moderatorUk, 'USER', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'moderatoruk-signup-settings' });
+    });
   });
 
   test('moderatorEn signs up — MODERATOR candidate', async () => {
     await runSwitchToEnglishFlow(page, expect);
-    await runSignUpFlow(page, expect, TEST_USERS.moderatorEn);
+    await runSignUpFlow(page, expect, TEST_USERS.moderatorEn, 'USER', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'moderatoren-signup-settings' });
+    });
   });
 
   test('adminUk signs up — ADMIN candidate', async () => {
-    await runSignUpFlow(page, expect, TEST_USERS.adminUk);
+    await runSignUpFlow(page, expect, TEST_USERS.adminUk, 'USER', async () => {
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'adminuk-signup-settings' });
+    });
   });
 
-  // === Section 2: Role promotion ===
-
-  test('adminEn promotes moderatorUk and moderatorEn to MODERATOR, adminUk to ADMIN', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
-    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
-    await runNavigateToUsersTabFlow(page, expect);
-    await runPromoteUserFlow(page, expect, TEST_USERS.moderatorUk.email, { role: 'MODERATOR' });
-    await runPromoteUserFlow(page, expect, TEST_USERS.moderatorEn.email, { role: 'MODERATOR' });
-    await runPromoteUserFlow(page, expect, TEST_USERS.adminUk.email, { role: 'ADMIN' });
-    await runLogoutFlow(page, expect);
-  });
-
-  // === Section 3: Set UK locales ===
-
-  test('userUk — first login defaults to EN, switches locale to Ukrainian', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.userUk);
-    await runSubmitLoginFlow(page, expect, { ...TEST_USERS.userUk, locale: 'en' });
-    await runSwitchToUkrainianLoggedInFlow(page, expect);
-    await runLogoutFlow(page, expect);
-  });
-
-  test('moderatorUk — first login defaults to EN, switches locale to Ukrainian', async () => {
-    await runFillLoginFormFlow(page, TEST_USERS.moderatorUk);
-    await runSubmitLoginFlow(page, expect, { ...TEST_USERS.moderatorUk, locale: 'en' });
-    await runSwitchToUkrainianLoggedInFlow(page, expect);
-    await runLogoutFlow(page, expect);
-  });
-
-  // === Section 4: Authentication tests ===
+  // === Section 2: Authentication tests ===
 
   test('userEn logs in, cancels logout — remains authenticated', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);

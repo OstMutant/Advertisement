@@ -17,6 +17,7 @@
 @import url("./user-overlay.css");
 @import url("./forms.css");
 @import url("./activity-feed.css");
+@import url("./entity-activity.css");
 
 /* Global font + page background */
 html, body {
