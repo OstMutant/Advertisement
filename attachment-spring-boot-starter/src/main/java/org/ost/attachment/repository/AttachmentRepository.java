@@ -97,6 +97,21 @@ public class AttachmentRepository {
                   .update();
     }
 
+    public List<Attachment> findByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls) {
+        return jdbcClient.sql("""
+                        SELECT id, entity_type, entity_id, url, filename, content_type, size,
+                               created_at, deleted_at, deleted_by_actor_id
+                        FROM attachment
+                        WHERE entity_type = :entityType AND entity_id = :entityId AND url = ANY(:urls)
+                        """)
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType", entityType.name())
+                                 .addValue("entityId",   entityId)
+                                 .addValue("urls",       urls))
+                         .query(ROW_MAPPER)
+                         .list();
+    }
+
     public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT id, entity_type, entity_id, url, filename, content_type, size,

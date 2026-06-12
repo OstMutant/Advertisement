@@ -66,5 +66,6 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
         @Override public void setOnChangedListener(@NonNull Runnable onChanged) {
             gallery.setOnChangedListener(onChanged);
         }
+        @Override public void loadFromSnapshot(int version) { gallery.loadFromSnapshot(version); }
     }
 }

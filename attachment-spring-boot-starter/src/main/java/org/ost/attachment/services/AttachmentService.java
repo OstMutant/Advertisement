@@ -165,6 +165,17 @@ public class AttachmentService {
         }
     }
 
+    public List<Attachment> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls) {
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls);
+    }
+
+    @Transactional
+    public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] targetUrls) {
+        Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
+        restoreToUrls(entityType, entityId, targetUrls, actorId);
+        attachmentSnapshotService.capture(entityType, entityId, actorId);
+    }
+
     @Transactional
     public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] targetUrls, @NonNull Long actorId) {
         if (targetUrls.length == 0) {

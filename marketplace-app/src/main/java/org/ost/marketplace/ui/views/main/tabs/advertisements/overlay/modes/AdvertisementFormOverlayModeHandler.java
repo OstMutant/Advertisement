@@ -240,12 +240,13 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
                 port.<AdvertisementSnapshotDto>getSnapshotContent(snapshotId, EntityType.ADVERTISEMENT)
-                        .map(content -> content.snapshotData())
-                        .ifPresent(snapshot -> {
+                        .ifPresent(content -> {
+                            AdvertisementSnapshotDto snapshot = content.snapshotData();
                             AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
                             dto.setTitle(snapshot.title());
                             dto.setDescription(snapshot.description());
                             loadRestored(dto);
+                            if (activeHandle != null) activeHandle.loadFromSnapshot(content.version());
                         })
         );
     }

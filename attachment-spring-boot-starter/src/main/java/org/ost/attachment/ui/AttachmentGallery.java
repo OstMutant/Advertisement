@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentService.TempAttachment;
+import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
@@ -37,8 +38,9 @@ import java.util.UUID;
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AttachmentGallery extends Div {
 
-    private final transient AttachmentService attachmentService;
-    private final transient I18nService       i18n;
+    private final transient AttachmentService         attachmentService;
+    private final transient AttachmentSnapshotService attachmentSnapshotService;
+    private final transient I18nService               i18n;
 
     private Div              thumbnailsRow;
     private Span             emptyState;
@@ -51,7 +53,8 @@ public class AttachmentGallery extends Div {
 
     private final List<TempAttachment> tempUploads        = new ArrayList<>();
     private final List<Attachment>     currentAttachments = new ArrayList<>();
-    private       boolean              hasPendingDeletion = false;
+    private       boolean              hasPendingDeletion    = false;
+    private       boolean              pendingSnapshotRestore = false;
     private String   tempSessionId;
     private transient Runnable onChanged;
 
@@ -115,7 +118,38 @@ public class AttachmentGallery extends Div {
         add(uploadButton, videoInput);
     }
 
+    public void loadFromSnapshot(int version) {
+        String[] urls = attachmentSnapshotService.getUrlsAtVersion(entityType, entityId, version);
+        discardTempUploads();
+        pendingSnapshotRestore = true;
+        hasPendingDeletion = false;
+        currentAttachments.clear();
+        if (urls.length > 0) {
+            currentAttachments.addAll(attachmentService.getByEntityAndUrls(entityType, entityId, urls));
+        }
+        thumbnailsRow.removeAll();
+        if (currentAttachments.isEmpty()) {
+            showEmpty();
+        } else {
+            emptyState.setVisible(false);
+            setVisible(true);
+            currentAttachments.forEach(a -> thumbnailsRow.add(buildThumbnail(a)));
+        }
+        notifyChanged();
+    }
+
     public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId) {
+        if (pendingSnapshotRestore) {
+            String[] targetUrls = currentAttachments.stream().map(Attachment::getUrl).toArray(String[]::new);
+            attachmentService.restoreToUrlsAndCapture(entityType, entityId, targetUrls);
+            pendingSnapshotRestore = false;
+            if (!tempUploads.isEmpty()) {
+                attachmentService.commitTempUploads(entityType, entityId, tempUploads);
+            }
+            tempUploads.clear();
+            hasPendingDeletion = false;
+            return;
+        }
         boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && !hasPendingDeletion) return;
         if (!tempUploads.isEmpty()) {
@@ -128,6 +162,15 @@ public class AttachmentGallery extends Div {
     }
 
     public void discardTempUploads() {
+        if (pendingSnapshotRestore) {
+            pendingSnapshotRestore = false;
+            if (!tempUploads.isEmpty()) {
+                attachmentService.discardTempUploads(tempUploads);
+                tempUploads.clear();
+            }
+            refresh();
+            return;
+        }
         if (tempUploads.isEmpty()) return;
         attachmentService.discardTempUploads(tempUploads);
         tempUploads.clear();
