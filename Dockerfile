@@ -10,7 +10,6 @@ COPY query-starter/pom.xml query-starter/
 COPY platform-commons/pom.xml platform-commons/
 COPY audit-spring-boot-starter/pom.xml audit-spring-boot-starter/
 COPY attachment-spring-boot-starter/pom.xml attachment-spring-boot-starter/
-COPY marketplace-ui/pom.xml marketplace-ui/
 COPY marketplace-app/pom.xml marketplace-app/
 
 # Download dependencies (this layer is cached until pom.xml changes)
@@ -22,11 +21,10 @@ COPY query-starter/src ./query-starter/src
 COPY platform-commons/src ./platform-commons/src
 COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
-COPY marketplace-ui/src ./marketplace-ui/src
 COPY marketplace-app/src ./marketplace-app/src
 
 # Install parent POM and all dependency modules to local Maven repo before building marketplace-app
-RUN ./mvnw install -DskipTests -pl .,platform-commons,query-starter,audit-spring-boot-starter,attachment-spring-boot-starter,marketplace-ui -q
+RUN ./mvnw install -DskipTests -pl .,platform-commons,query-starter,audit-spring-boot-starter,attachment-spring-boot-starter -q
 
 # Build the application with Vaadin production mode
 RUN ./mvnw package -Pproduction -DskipTests -pl marketplace-app -q

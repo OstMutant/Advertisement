@@ -4,7 +4,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;

@@ -2,41 +2,51 @@
 
 ---
 
-## 2026-06-13 — Implemented: extract Vaadin UI into `marketplace-ui` module (phase 1)
+## 2026-06-13 — UI layer restructuring: marketplace-ui created, then merged back; domain modules planned
 
-**Decision (implemented — phase 1 complete):** The module structure now is:
+### Phase 1 (implemented): Vaadin UI extracted from starters, package namespace unified
+
+**What changed:**
+- Created `marketplace-ui` module — moved all `org.ost.audit.ui.*`, `org.ost.attachment.ui.*`, `org.ost.query.ui.*` source files out of their respective starters
+- Package names unified to `org.ost.ui.<domain>.*` pattern: `org.ost.ui.audit`, `org.ost.ui.attachment`, `org.ost.ui.query`, `org.ost.ui.marketplace`
+- `MarketplaceUiConfiguration` converted to `@AutoConfiguration` registered in `AutoConfiguration.imports` (no longer found via `@SpringBootApplication` package scan)
+- 5 CSS files moved from starter `META-INF/resources/frontend/` to `marketplace-app/src/main/frontend/themes/my-app/`; `@CssImport` annotations removed
+- `QueryAutoConfiguration` deleted; `validationService` bean moved to `MarketplaceUiConfiguration`
+
+**Why — CSS production build:** Vaadin 25 Vite production build does not include CSS from `@CssImport` on components in JAR starters. CSS in `marketplace-app/themes/my-app/` is always bundled.
+
+### Phase 2 (planned): merge marketplace-ui into marketplace-app; extract domain modules
+
+**Decision (planned, not yet implemented):** `marketplace-ui` is a transitional module — it will be absorbed into `marketplace-app`. Domain logic (Advertisement, User) moves to dedicated Spring Boot starters. Final target structure:
 
 ```
 advertisement-parent
-├── platform-commons          — SPI/DTO contracts (unchanged)
-├── query-starter             — SQL filter/sort library only (Vaadin removed)
-├── audit-starter             — audit domain logic only (Vaadin removed)
-├── attachment-starter        — attachment domain logic only (Vaadin removed)
-├── marketplace-ui            — ALL Vaadin UI (audit.ui, attachment.ui, query.ui)
-└── marketplace-app           — Spring Boot entry point + marketplace UI + SPI orchestration
+├── platform-commons                  — SPI/DTO contracts + new UserPort, AdvertisementPort
+├── query-starter                     — SQL filter/sort library (no Vaadin)
+├── audit-spring-boot-starter         — audit domain (no Vaadin)
+├── attachment-spring-boot-starter    — attachment domain (no Vaadin)
+├── user-spring-boot-starter          — User entity + UserService + UserPortImpl
+├── advertisement-spring-boot-starter — Advertisement entity + AdvertisementService + AdvertisementPortImpl
+└── marketplace-app                   — ALL Vaadin UI (absorbs marketplace-ui) + Spring Boot entry point
 ```
 
-**Phase 2 (not yet implemented):** domain modules for advertisement and user. Full planned structure:
+**Why merge marketplace-ui back into marketplace-app:** The separation adds a Maven module boundary without an architectural benefit — marketplace-app is the only consumer of marketplace-ui, and marketplace-ui cannot be reused elsewhere. The `org.ost.ui.*` package namespace is preserved; only the JAR boundary changes.
 
-**Decision (phase 2 planned, not yet implemented):** The module structure will evolve further toward:
+**Why domain starters:** Advertisement and user are distinct bounded contexts. Separating them into starters enables independent evolution and testing. `marketplace-app` becomes a thin UI + orchestration layer calling domain via `UserPort` / `AdvertisementPort` SPIs.
 
-```
-advertisement-parent
-├── platform-commons          — SPI/DTO contracts (unchanged)
-├── query-starter             — SQL filter/sort library (unchanged)
-├── audit-starter             — audit domain logic, no Vaadin UI
-├── attachment-starter        — attachment domain logic, no Vaadin UI
-├── advertisement-module      — advertisement domain: services, repositories, domain events
-├── user-module               — user domain: services, repositories, domain events
-├── marketplace-ui            — ALL Vaadin UI + CSS (depends on all starters and domain modules)
-└── marketplace-app           — Spring Boot entry point + SPI orchestration (*HookImpl, *PortImpl)
-```
+**Why — platform-commons stays unchanged:** SPI interfaces must be visible to all modules without circular dependencies. `platform-commons` remains the neutral contract zone.
 
-**Why — CSS production build limitation:** Vaadin 25 production builds (Vite) do not include CSS from `@CssImport` annotations on components in JAR starters. The `injectGlobalCss` mechanism is absent from the production bundle. Moving all Vaadin UI to a single `marketplace-ui` module eliminates the need for `@CssImport` across module boundaries — CSS lives in the theme of the UI module and is always bundled correctly.
+**Key decoupling decision — no SQL JOIN across domain boundaries:**
+`AdvertisementRepository` currently JOINs `user_information` to enrich `AdvertisementInfoDto` with creator name. After the domain split, this JOIN is replaced with a `UserPort.findActorNames(Collection<Long> ids)` call in `AdvertisementService`. The repository only queries `advertisement`; the service fetches user names in bulk and enriches the DTOs. This eliminates advertisement-starter's knowledge of the `user_information` table schema.
 
-**Why — domain separation:** Advertisement and user logic are distinct bounded contexts. Separating them enables independent evolution and testing. `marketplace-app` becomes a thin orchestrator: it wires SPI implementations (`*HookImpl`, `*PortImpl`) and holds the Spring Boot entry point.
+**SecurityConfig:** `UserDetailsService` currently depends on `UserService.findByEmail` directly. After extraction, `UserPort` gains a `findByEmail(String email)` method; `SecurityConfig` in marketplace-app injects `UserPort` instead of `UserService`.
 
-**Why — platform-commons stays:** SPI interfaces (`AuditPort`, `AttachmentPort`, `CurrentActorHook`, etc.) must be visible to both starters and marketplace without circular dependencies. `platform-commons` remains the neutral contract zone.
+**Implementation order:**
+1. Merge `marketplace-ui` → `marketplace-app`
+2. Create `user-spring-boot-starter` (simpler — no media)
+3. Create `advertisement-spring-boot-starter`
+4. Define `UserPort` + `AdvertisementPort` in `platform-commons`
+5. Update marketplace-app: Views call ports instead of services directly
 
 **Graceful degradation preserved:** `marketplace-ui` references starters via `ObjectProvider` + `optional` Maven dependencies — starter absence degrades gracefully, same as today.
 

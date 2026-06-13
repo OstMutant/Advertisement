@@ -23,7 +23,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.core.model.EntityType;
-import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.ui.query.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;

@@ -2,6 +2,51 @@
 
 ---
 
+## 2026-06-13 — PLANNED: UserPort + AdvertisementPort for domain module extraction
+
+**Decision (planned, not yet implemented):** Two new `*Port` interfaces will be added to `platform-commons` as part of the domain module extraction (see `marketplace-app/DECISIONS.md` phase 2).
+
+**`UserPort`** (`user.spi`) — marketplace-app calls user-spring-boot-starter:
+```java
+List<User> getFiltered(UserFilterDto filter, int page, int size, Sort sort);
+int count(UserFilterDto filter);
+void save(UserProfileDto dto);
+void updateLocale(Long userId, String locale);
+void delete(EntityMarker user);
+void register(SignUpDto dto);
+Optional<User> findById(Long id);
+Optional<User> findByEmail(String email);          // used by SecurityConfig
+Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId);
+List<Long> findExistingIds(Long[] ids);
+Map<Long, String> findActorNames(Collection<Long> ids);  // used by advertisement-starter
+List<ChangeEntry> expandActivityFields(AuditTimelineItemDto<AuditableSnapshot> item);
+```
+
+**`AdvertisementPort`** (`advertisement.spi`) — marketplace-app calls advertisement-spring-boot-starter:
+```java
+List<AdvertisementInfoDto> getFiltered(AdvertisementFilterDto filter, int page, int size, Sort sort);
+int count(AdvertisementFilterDto filter);
+void save(AdvertisementEditDto dto);
+Optional<AdvertisementInfoDto> findById(Long id);
+boolean restore(Long advertisementId, Long snapshotId);
+void delete(EntityMarker ad);
+void onMediaChanged(Long entityId);
+List<Long> findExistingIds(Long[] ids);
+```
+
+**Why UserPort.findActorNames is called by advertisement-starter (not marketplace):**
+`AdvertisementService` needs to enrich `AdvertisementInfoDto` with the creator's display name after removing the SQL JOIN on `user_information`. The service in advertisement-starter calls `UserPort.findActorNames` (from platform-commons) at the service layer. The implementation is provided by user-starter at runtime via Spring DI. This keeps the SQL in each starter isolated to its own table while maintaining bulk-fetch efficiency (no N+1).
+
+**Package placement:**
+- `org.ost.platform.user.spi.UserPort`
+- `org.ost.platform.advertisement.spi.AdvertisementPort`
+
+**DTOs for port signatures:** Entity types (`User`, `Advertisement`) and edit DTOs that cross the module boundary move to `platform-commons` (or the respective starter exposes them as part of its public API). Exact DTO placement to be decided during implementation.
+
+**How to apply:** Do not implement until marketplace-ui → marketplace-app merge is complete.
+
+---
+
 ## 2026-06-04 — `ComponentFactory<T>`: InjectionPoint-resolved prototype factory
 
 **Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `AuditUiPort`, `UiPrimaryButton`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:

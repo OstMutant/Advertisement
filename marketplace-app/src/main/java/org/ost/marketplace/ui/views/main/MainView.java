@@ -17,12 +17,12 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.query.ui.elements.fields.QueryDateTimeField;
-import org.ost.query.ui.elements.fields.QueryNumberField;
+import org.ost.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
-import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.ui.query.utils.TimeZoneUtil;
 
 import java.util.HashMap;
 import java.util.Map;
