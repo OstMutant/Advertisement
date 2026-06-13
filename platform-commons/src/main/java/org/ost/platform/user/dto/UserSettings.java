@@ -1,4 +1,4 @@
-package org.ost.marketplace.entities;
+package org.ost.platform.user.dto;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.Max;

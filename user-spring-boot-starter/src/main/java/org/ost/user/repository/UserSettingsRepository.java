@@ -1,11 +1,10 @@
-package org.ost.marketplace.repository.user;
+package org.ost.user.repository;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.exceptions.persistence.SettingsPersistenceException;
+import org.ost.platform.user.dto.UserSettings;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -32,7 +31,7 @@ public class UserSettingsRepository {
                       .update();
         } catch (Exception ex) {
             log.error("Failed to save settings for userId={}", userId, ex);
-            throw new SettingsPersistenceException("Failed to save settings for userId=" + userId, ex);
+            throw new RuntimeException("Failed to save settings for userId=" + userId, ex);
         }
     }
 

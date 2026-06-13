@@ -10,7 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.platform.core.i18n.LocaleProvider;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.user.services.UserService;
 import org.ost.marketplace.services.auth.AuthContextService;
 
 import java.util.List;

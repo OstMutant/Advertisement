@@ -1,29 +1,25 @@
-package org.ost.marketplace.services.user;
+package org.ost.user.services;
 
 import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.marketplace.dto.SignUpDto;
-import org.ost.marketplace.dto.UserProfileDto;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.marketplace.entities.EntityMarker;
-import org.ost.marketplace.entities.Role;
-import org.ost.marketplace.entities.User;
-import org.ost.marketplace.exceptions.authorization.AccessDeniedException;
-import org.ost.marketplace.repository.user.UserRepository;
-import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
-import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.marketplace.services.auth.AuthContextService;
+import org.ost.platform.user.dto.SignUpDto;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserProfileDto;
+import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.model.Role;
+import org.ost.user.dto.audit.SettingsSnapshotDto;
+import org.ost.user.dto.audit.UserSnapshotDto;
+import org.ost.user.entity.User;
+import org.ost.user.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -42,11 +38,9 @@ import java.util.Set;
 @Validated
 public class UserService {
 
-    private final UserRepository               repository;
-    private final AccessEvaluator              access;
-    private final PasswordEncoder              passwordEncoder;
-    private final ComponentFactory<AuditPort>  auditPortFactory;
-    private final AuthContextService           authContextService;
+    private final UserRepository              repository;
+    private final PasswordEncoder             passwordEncoder;
+    private final ComponentFactory<AuditPort> auditPortFactory;
 
     public List<User> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort));
@@ -57,20 +51,15 @@ public class UserService {
     }
 
     @Transactional
-    public void save(@NonNull UserProfileDto dto) {
+    public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
         log.info("User profile update: id={}", dto.id());
-        if (access.canNotEdit(dto)) {
-            throw new AccessDeniedException("You cannot edit this user");
-        }
         User before = repository.findById(dto.id()).orElseThrow();
         repository.updateProfile(dto);
-        repository.findById(dto.id()).ifPresent(updated -> {
-            Long changedBy = authContextService.getCurrentUser().map(User::getId).orElse(dto.id());
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                    UserSnapshotDto.from(before),
-                    UserSnapshotDto.from(updated),
-                    changedBy));
-        });
+        repository.findById(dto.id()).ifPresent(updated ->
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
+                        UserSnapshotDto.from(before),
+                        UserSnapshotDto.from(updated),
+                        actingUserId)));
     }
 
     @Transactional
@@ -79,12 +68,9 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(@NonNull EntityMarker targetUser) {
-        log.info("User delete: id={}", targetUser.getId());
-        if (access.canNotDelete(targetUser)) {
-            throw new AccessDeniedException("You cannot delete this user");
-        }
-        repository.deleteById(targetUser.getId());
+    public void delete(@NonNull Long userId) {
+        log.info("User delete: id={}", userId);
+        repository.deleteById(userId);
     }
 
     @Transactional
@@ -100,7 +86,7 @@ public class UserService {
         User saved = repository.save(newUser);
         UserSettings defaults = UserSettings.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
-            p.captureCreation(saved.getId(), UserSnapshotDto.from(saved), saved.getId());
+            p.captureCreation(saved.getId(), UserSnapshotDto.from(saved),     saved.getId());
             p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId());
         });
     }
@@ -108,7 +94,6 @@ public class UserService {
     public Optional<User> findById(@NonNull Long id) {
         return repository.findById(id);
     }
-
 
     @Transactional
     public Optional<User> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {

@@ -12,14 +12,14 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.marketplace.entities.Role;
-import org.ost.marketplace.entities.User;
+import org.ost.user.dto.audit.UserSnapshotDto;
+import org.ost.platform.user.model.Role;
+import org.ost.user.entity.User;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -128,7 +128,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         Div editContent = new Div(fieldsCard);
 
         Div content = auditUiPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getUser()))
+                .filter(_ -> access.canOperate(params.getUser().getId()))
                 .map(auditUi -> {
                     formTabs = new Tabs();
                     formTabs.addClassName("user-form-tabs");
@@ -164,7 +164,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     public boolean save() {
         return binder.save(dto -> {
-            userService.save(mapper.copy(dto));
+            userService.save(mapper.copy(dto), access.getCurrentUserId());
             userService.findById(params.getUser().getId()).ifPresent(u -> savedUser = u);
         });
     }
@@ -186,7 +186,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .entityRef(new EntityRef(EntityType.USER, params.getUser().getId()))
                 .userId(params.getUser().getId())
                 .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getUser()))
+                .canOperate(access.canOperate(params.getUser().getId()))
                 .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
                 .build());
     }

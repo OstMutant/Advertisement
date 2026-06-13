@@ -1,13 +1,13 @@
-package org.ost.marketplace.services.user;
+package org.ost.user.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.events.SettingsChangedEvent;
-import org.ost.marketplace.repository.user.UserSettingsRepository;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.user.dto.UserSettings;
+import org.ost.user.dto.audit.SettingsSnapshotDto;
+import org.ost.user.events.UserSettingsChangedEvent;
+import org.ost.user.repository.UserSettingsRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +28,7 @@ public class UserSettingsService {
     public void save(@NonNull Long userId, @NonNull UserSettings settings) {
         UserSettings old = repository.load(userId);
         repository.save(userId, settings);
-        eventPublisher.publishEvent(new SettingsChangedEvent(this, userId, settings));
+        eventPublisher.publishEvent(new UserSettingsChangedEvent(this, userId, settings));
         auditPortFactory.ifAvailable(p -> p.captureUpdate(userId,
                 SettingsSnapshotDto.from(old),
                 SettingsSnapshotDto.from(settings),

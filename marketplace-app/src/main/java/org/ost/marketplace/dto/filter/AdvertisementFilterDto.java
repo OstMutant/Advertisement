@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
-import org.ost.marketplace.validation.ValidRange;
+import org.ost.platform.core.validation.ValidRange;
 
 import java.time.Instant;
 

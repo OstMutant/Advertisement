@@ -1,9 +1,10 @@
-package org.ost.marketplace.entities;
+package org.ost.user.entity;
 
 import lombok.Builder;
 import lombok.Value;
 import lombok.With;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.user.model.Role;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -11,13 +12,12 @@ import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
 import java.util.Locale;
-import org.ost.marketplace.entities.Role;
 
 @Value
 @Builder
 @FieldNameConstants
 @Table("user_information")
-public class User implements EntityMarker {
+public class User {
 
     @Id
     Long id;
@@ -34,11 +34,6 @@ public class User implements EntityMarker {
 
     @With
     String locale;
-
-    @Override
-    public Long getOwnerUserId() {
-        return id;
-    }
 
     public Locale getLocaleAsObject() {
         return locale != null ? Locale.forLanguageTag(locale) : Locale.getDefault();

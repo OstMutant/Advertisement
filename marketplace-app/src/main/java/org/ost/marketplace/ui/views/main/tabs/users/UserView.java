@@ -10,11 +10,12 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.marketplace.entities.User;
-import org.ost.marketplace.entities.UserSettings;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.user.entity.User;
+import org.ost.platform.user.dto.UserSettings;
+import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.ui.query.QueryBlock;
@@ -37,6 +38,7 @@ import static org.ost.marketplace.common.I18nKey.*;
 public class UserView extends VerticalLayout {
 
     private final transient UserService                           userService;
+    private final transient AccessEvaluator                       access;
     private final transient I18nService                           i18n;
     private final transient NotificationService                   notificationService;
     private final QueryStatusBar<UserFilterDto>                   queryStatusBar;
@@ -141,7 +143,8 @@ public class UserView extends VerticalLayout {
                         .cancelKey(USER_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                userService.delete(user);
+                                if (access.canNotDelete(user.getId())) return;
+                                userService.delete(user.getId());
                                 notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                                 refreshGrid();
                             } catch (Exception e) {

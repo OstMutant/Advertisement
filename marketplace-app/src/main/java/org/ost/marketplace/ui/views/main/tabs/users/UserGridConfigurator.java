@@ -10,7 +10,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.core.ComponentFactory;

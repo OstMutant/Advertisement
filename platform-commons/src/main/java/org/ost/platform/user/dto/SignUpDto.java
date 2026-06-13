@@ -1,4 +1,4 @@
-package org.ost.marketplace.dto;
+package org.ost.platform.user.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;

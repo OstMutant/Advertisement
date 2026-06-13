@@ -12,7 +12,7 @@ import org.ost.marketplace.dto.AdvertisementInfoDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.entities.Advertisement;
 import org.ost.marketplace.entities.EntityMarker;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.exceptions.authorization.AccessDeniedException;

@@ -11,7 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -134,7 +134,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .build());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(params.getUser()));
+        editButton.setVisible(access.canOperate(params.getUser().getId()));
         return new Div(editButton, closeButton);
     }
 

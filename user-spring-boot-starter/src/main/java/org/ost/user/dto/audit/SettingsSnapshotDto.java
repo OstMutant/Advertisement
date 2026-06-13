@@ -1,11 +1,11 @@
-package org.ost.marketplace.dto.audit;
+package org.ost.user.dto.audit;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.experimental.FieldNameConstants;
-import org.ost.marketplace.entities.UserSettings;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.UserSettings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,7 +45,7 @@ public record SettingsSnapshotDto(
     }
 
     @Override
-    public List<ChangeEntry.FieldChange> allFields() {
+    public List<FieldChange> allFields() {
         return List.of(
                 new FieldChange(Fields.adsPageSize,   null, String.valueOf(adsPageSize())),
                 new FieldChange(Fields.usersPageSize, null, String.valueOf(usersPageSize())));

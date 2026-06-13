@@ -1,7 +1,7 @@
 package org.ost.marketplace.security;
 
-import org.ost.marketplace.entities.Role;
-import org.ost.marketplace.entities.User;
+import org.ost.platform.user.model.Role;
+import org.ost.user.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component

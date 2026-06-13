@@ -1,4 +1,4 @@
-package org.ost.marketplace.dto.filter;
+package org.ost.platform.user.dto;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Size;
@@ -7,8 +7,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
-import org.ost.marketplace.entities.Role;
-import org.ost.marketplace.validation.ValidRange;
+import org.ost.platform.core.validation.ValidRange;
+import org.ost.platform.user.model.Role;
 
 import java.time.Instant;
 import java.util.Set;
@@ -20,7 +20,7 @@ import java.util.Set;
 @Builder(toBuilder = true)
 @ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "createdAtStart must not be after createdAtEnd")
 @ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd")
-@ValidRange(start = "startId", end = "endId", message = "startId must not be greater than endId")
+@ValidRange(start = "startId",        end = "endId",        message = "startId must not be greater than endId")
 public class UserFilterDto {
 
     @Size(max = 255, message = "Name must not exceed 255 characters")

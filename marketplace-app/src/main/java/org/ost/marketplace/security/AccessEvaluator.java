@@ -1,7 +1,7 @@
 package org.ost.marketplace.security;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
@@ -44,6 +44,22 @@ public class AccessEvaluator {
                 .map(u -> roleChecker.isAdmin(u)
                         || roleChecker.isModerator(u)
                         || ownershipChecker.isOwner(u, target))
+                .orElse(false);
+    }
+
+    public boolean canNotEdit(Long ownerUserId) {
+        return !canOperate(ownerUserId);
+    }
+
+    public boolean canNotDelete(Long ownerUserId) {
+        return !canOperate(ownerUserId);
+    }
+
+    public boolean canOperate(Long ownerUserId) {
+        return currentUser()
+                .map(u -> roleChecker.isAdmin(u)
+                        || roleChecker.isModerator(u)
+                        || ownershipChecker.isOwner(u, ownerUserId))
                 .orElse(false);
     }
 

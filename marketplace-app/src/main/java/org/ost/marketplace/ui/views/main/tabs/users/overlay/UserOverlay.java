@@ -6,7 +6,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;

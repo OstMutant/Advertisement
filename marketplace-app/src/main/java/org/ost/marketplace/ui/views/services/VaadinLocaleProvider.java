@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.core.i18n.LocaleProvider;
 import org.slf4j.Logger;

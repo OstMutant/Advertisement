@@ -1,7 +1,7 @@
 package org.ost.marketplace.security;
 
 import org.jspecify.annotations.NonNull;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;

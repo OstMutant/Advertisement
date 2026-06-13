@@ -2,7 +2,7 @@ package org.ost.marketplace.services.auth;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.entities.User;
+import org.ost.user.entity.User;
 import org.ost.marketplace.security.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

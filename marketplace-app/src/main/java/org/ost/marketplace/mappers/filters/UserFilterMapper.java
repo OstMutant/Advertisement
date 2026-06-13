@@ -3,7 +3,7 @@ package org.ost.marketplace.mappers.filters;
 import org.mapstruct.Mapper;
 import org.ost.ui.query.filter.FilterMapper;
 import org.mapstruct.MappingTarget;
-import org.ost.marketplace.dto.filter.UserFilterDto;
+import org.ost.platform.user.dto.UserFilterDto;
 
 @Mapper(componentModel = "spring")
 public interface UserFilterMapper extends FilterMapper<UserFilterDto> {

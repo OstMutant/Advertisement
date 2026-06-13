@@ -1,4 +1,4 @@
-package org.ost.marketplace.validation;
+package org.ost.platform.core.validation;
 
 import jakarta.validation.Constraint;
 import jakarta.validation.Payload;
