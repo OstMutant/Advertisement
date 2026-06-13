@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.user.entity.User;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.user.services.UserService;
@@ -75,7 +75,7 @@ public class UserView extends VerticalLayout {
         initQueryBar();
         initGrid();
 
-        settingsPaginationBinding.register(paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getUsersPageSize, this::refreshGrid);
         refreshGrid();
     }
 

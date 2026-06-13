@@ -11,7 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.services.AdvertisementService;
@@ -82,7 +82,7 @@ public class AdvertisementsView extends VerticalLayout {
             }
         }, Key.KEY_N);
 
-        settingsPaginationBinding.register(paginationBar, UserSettings::getAdsPageSize, this::refresh);
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getAdsPageSize, this::refresh);
         refresh();
     }
 

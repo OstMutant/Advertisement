@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -22,7 +22,7 @@ public class UserSettingsRepository {
     private final ObjectMapper mapper;
 
     @Transactional
-    public void save(@NonNull Long userId, @NonNull UserSettings settings) {
+    public void save(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         try {
             jdbcClient.sql("UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId")
                       .paramSource(new MapSqlParameterSource()
@@ -35,23 +35,23 @@ public class UserSettingsRepository {
         }
     }
 
-    public UserSettings load(@NonNull Long userId) {
+    public UserSettingsDto load(@NonNull Long userId) {
         try {
             return jdbcClient.sql("SELECT settings FROM user_information WHERE id = :userId")
                              .paramSource(new MapSqlParameterSource("userId", userId))
                              .query(String.class)
                              .optional()
                              .map(json -> {
-                                 try { return mapper.readValue(json, UserSettings.class); }
+                                 try { return mapper.readValue(json, UserSettingsDto.class); }
                                  catch (Exception e) { throw new RuntimeException(e); }
                              })
                              .orElseGet(() -> {
                                  log.debug("settings IS NULL for userId={}, using defaults", userId);
-                                 return UserSettings.defaultSettings();
+                                 return UserSettingsDto.defaultSettings();
                              });
         } catch (Exception ex) {
             log.warn("Failed to load settings for userId={}, using defaults", userId, ex);
-            return UserSettings.defaultSettings();
+            return UserSettingsDto.defaultSettings();
         }
     }
 }

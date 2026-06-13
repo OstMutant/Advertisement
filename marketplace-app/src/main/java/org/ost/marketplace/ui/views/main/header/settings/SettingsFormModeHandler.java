@@ -13,8 +13,8 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.common.PaginationDefaults;
-import org.ost.user.dto.audit.SettingsSnapshotDto;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.user.services.UserSettingsService;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -75,7 +75,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Override
     public void activate(OverlayLayout layout) {
-        UserSettings current = settingsService.load(params.getUserId());
+        UserSettingsDto current = settingsService.load(params.getUserId());
         SettingsEditDto dto = SettingsEditDto.builder()
                 .id(params.getUserId())
                 .adsPageSize(current.getAdsPageSize())
@@ -144,7 +144,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public boolean save() {
-        return binder.save(dto -> settingsService.save(dto.getId(), UserSettings.builder()
+        return binder.save(dto -> settingsService.save(dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .build()));
@@ -162,7 +162,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public void discardChanges() {
-        UserSettings fresh = settingsService.load(params.getUserId());
+        UserSettingsDto fresh = settingsService.load(params.getUserId());
         binder.reload(
                 SettingsEditDto.builder()
                         .id(params.getUserId())
@@ -196,14 +196,14 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
                 port.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS)
-                        .map(c -> UserSettings.builder()
+                        .map(c -> UserSettingsDto.builder()
                                 .adsPageSize(c.snapshotData().adsPageSize())
                                 .usersPageSize(c.snapshotData().usersPageSize())
                                 .build())
                         .ifPresent(this::loadRestored));
     }
 
-    private void loadRestored(UserSettings restored) {
+    private void loadRestored(UserSettingsDto restored) {
         binder.loadRestored(
                 SettingsEditDto.builder()
                         .id(params.getUserId())

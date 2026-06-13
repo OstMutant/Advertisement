@@ -1,11 +1,10 @@
-package org.ost.user.dto.audit;
+package org.ost.platform.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.experimental.FieldNameConstants;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.user.entity.User;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +21,6 @@ public record UserSnapshotDto(
         String email,
         String role
 ) implements AuditableSnapshot {
-
-    public static UserSnapshotDto from(User user) {
-        return new UserSnapshotDto(user.getName(), user.getEmail(), user.getRole().name());
-    }
 
     @Override
     public EntityType entityType() { return EntityType.USER; }

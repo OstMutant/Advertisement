@@ -12,7 +12,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.user.dto.audit.UserSnapshotDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.marketplace.security.AccessEvaluator;

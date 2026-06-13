@@ -8,7 +8,7 @@ import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.data.domain.Sort;
 
 import java.util.Collection;
@@ -42,7 +42,7 @@ public interface UserPort {
 
     List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item);
 
-    UserSettings loadSettings(@NonNull Long userId);
+    UserSettingsDto loadSettings(@NonNull Long userId);
 
-    void saveSettings(@NonNull Long userId, @NonNull UserSettings settings);
+    void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings);
 }

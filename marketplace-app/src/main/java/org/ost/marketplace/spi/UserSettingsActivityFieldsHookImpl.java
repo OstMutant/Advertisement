@@ -3,7 +3,7 @@ package org.ost.marketplace.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.user.dto.audit.SettingsSnapshotDto;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.user.services.UserService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;

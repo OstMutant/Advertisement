@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserSettingsChangedHook;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -29,6 +30,12 @@ public class UserAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<UserPort> userPortFactory(ObjectProvider<UserPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<UserSettingsChangedHook> userSettingsChangedHookFactory(ObjectProvider<UserSettingsChangedHook> p) {
         return new ComponentFactory<>(p);
     }
 }

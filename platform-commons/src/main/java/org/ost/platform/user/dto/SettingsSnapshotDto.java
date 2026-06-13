@@ -1,11 +1,10 @@
-package org.ost.user.dto.audit;
+package org.ost.platform.user.dto;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.experimental.FieldNameConstants;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.user.dto.UserSettings;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -21,7 +20,7 @@ public record SettingsSnapshotDto(
         int usersPageSize
 ) implements AuditableSnapshot {
 
-    public static SettingsSnapshotDto from(UserSettings settings) {
+    public static SettingsSnapshotDto from(UserSettingsDto settings) {
         return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize());
     }
 

@@ -11,13 +11,13 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
-import org.ost.user.dto.audit.SettingsSnapshotDto;
-import org.ost.user.dto.audit.UserSnapshotDto;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.springframework.data.domain.PageRequest;
@@ -57,8 +57,8 @@ public class UserService {
         repository.updateProfile(dto);
         repository.findById(dto.id()).ifPresent(updated ->
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                        UserSnapshotDto.from(before),
-                        UserSnapshotDto.from(updated),
+                        toSnapshot(before),
+                        toSnapshot(updated),
                         actingUserId)));
     }
 
@@ -84,10 +84,10 @@ public class UserService {
                 .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
         User saved = repository.save(newUser);
-        UserSettings defaults = UserSettings.defaultSettings();
+        UserSettingsDto defaults = UserSettingsDto.defaultSettings();
         auditPortFactory.ifAvailable(p -> {
-            p.captureCreation(saved.getId(), UserSnapshotDto.from(saved),     saved.getId());
-            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults), saved.getId());
+            p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
+            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults),      saved.getId());
         });
     }
 
@@ -108,8 +108,8 @@ public class UserService {
         repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
         return repository.findById(userId).map(updated -> {
             auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                    UserSnapshotDto.from(before),
-                    UserSnapshotDto.from(updated),
+                    toSnapshot(before),
+                    toSnapshot(updated),
                     actingUserId));
             return updated;
         });
@@ -131,5 +131,9 @@ public class UserService {
         return item.snapshotData() != null
                 ? item.snapshotData().expandWithChanges(item.changes())
                 : item.changes();
+    }
+
+    private static UserSnapshotDto toSnapshot(User user) {
+        return new UserSnapshotDto(user.getName(), user.getEmail(), user.getRole().name());
     }
 }

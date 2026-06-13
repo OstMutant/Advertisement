@@ -9,7 +9,7 @@ import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
-import org.ost.platform.user.dto.UserSettings;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.model.Role;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.user.entity.User;
@@ -91,12 +91,12 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
-    public UserSettings loadSettings(@NonNull Long userId) {
+    public UserSettingsDto loadSettings(@NonNull Long userId) {
         return settingsService.load(userId);
     }
 
     @Override
-    public void saveSettings(@NonNull Long userId, @NonNull UserSettings settings) {
+    public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         settingsService.save(userId, settings);
     }
 
