@@ -89,6 +89,26 @@ Use `--reset-cache` to wipe the volume and force a full re-download (e.g. after 
 
 ---
 
+## run-local.bat
+
+Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/infra/`).
+
+```bat
+scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
+scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
+```
+
+### Profiles
+
+| Flag | Maven profile | Spring profile | Vaadin mode | Connects to |
+|------|--------------|----------------|-------------|-------------|
+| _(none)_ | default | `dev` | development | `localhost:5432`, `localhost:9000` |
+| `--prod` | `production` | `prod` | production (minified JS) | `localhost:5432`, `localhost:9000` |
+
+In `--prod` mode the local infra credentials are passed as env vars — same values as the Docker deploy but pointing to `localhost` instead of container names.
+
+---
+
 ## playwright.sh / playwright.bat
 
 Run Playwright tests. Delegates to `playwright/run.sh`.

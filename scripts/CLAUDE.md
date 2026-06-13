@@ -34,6 +34,13 @@ Verify: `docker buildx version`. The `--progress=plain` flag in `deploy.sh` then
 
 **How to run dev deploy (deploy-dev.sh):** same Monitor + tee pattern as deploy.sh, but log to `/tmp/deploy-dev.log`.
 
+### Local run (Maven, no Docker image rebuild)
+```bat
+scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
+scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
+```
+Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
+
 ### Dev deploy (fast JAR hot-swap)
 ```bash
 bash scripts/deploy-dev.sh    # Linux / WSL

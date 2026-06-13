@@ -1,4 +1,5 @@
-/.idea
+/.idea/*
+!/.idea/runConfigurations/
 
 # Maven build output
 /marketplace-app/target/

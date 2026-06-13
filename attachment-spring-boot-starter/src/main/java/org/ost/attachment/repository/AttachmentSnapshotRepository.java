@@ -40,7 +40,7 @@ public class AttachmentSnapshotRepository {
                   .update();
     }
 
-    public List<String> getPrevUrls(@NonNull EntityType entityType, @NonNull Long entityId) {
+    public Optional<List<String>> getPrevUrls(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT attachment_urls FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
@@ -50,8 +50,7 @@ public class AttachmentSnapshotRepository {
                                  .addValue("entityType", entityType.name())
                                  .addValue("entityId",   entityId))
                          .query((rs, _) -> extractUrls(rs))
-                         .optional()
-                         .orElse(List.of());
+                         .optional();
     }
 
     public String[] getUrlsAtVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {

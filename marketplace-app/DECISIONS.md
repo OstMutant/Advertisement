@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-06-13 — Planned: extract Vaadin UI into a dedicated module; domain modules for advertisement and user
+
+**Decision (planned, not yet implemented):** The module structure will evolve toward:
+
+```
+advertisement-parent
+├── platform-commons          — SPI/DTO contracts (unchanged)
+├── query-starter             — SQL filter/sort library (unchanged)
+├── audit-starter             — audit domain logic, no Vaadin UI
+├── attachment-starter        — attachment domain logic, no Vaadin UI
+├── advertisement-module      — advertisement domain: services, repositories, domain events
+├── user-module               — user domain: services, repositories, domain events
+├── marketplace-ui            — ALL Vaadin UI + CSS (depends on all starters and domain modules)
+└── marketplace-app           — Spring Boot entry point + SPI orchestration (*HookImpl, *PortImpl)
+```
+
+**Why — CSS production build limitation:** Vaadin 25 production builds (Vite) do not include CSS from `@CssImport` annotations on components in JAR starters. The `injectGlobalCss` mechanism is absent from the production bundle. Moving all Vaadin UI to a single `marketplace-ui` module eliminates the need for `@CssImport` across module boundaries — CSS lives in the theme of the UI module and is always bundled correctly.
+
+**Why — domain separation:** Advertisement and user logic are distinct bounded contexts. Separating them enables independent evolution and testing. `marketplace-app` becomes a thin orchestrator: it wires SPI implementations (`*HookImpl`, `*PortImpl`) and holds the Spring Boot entry point.
+
+**Why — platform-commons stays:** SPI interfaces (`AuditPort`, `AttachmentPort`, `CurrentActorHook`, etc.) must be visible to both starters and marketplace without circular dependencies. `platform-commons` remains the neutral contract zone.
+
+**Graceful degradation preserved:** `marketplace-ui` references starters via `ObjectProvider` + `optional` Maven dependencies — starter absence degrades gracefully, same as today.
+
+**SPI implementations:** `*HookImpl` and `*PortImpl` classes stay in `marketplace-app` (the orchestrator), not in domain modules, so domain modules remain free of starter dependencies.
+
+**How to apply:** Implement incrementally — `marketplace-ui` first (resolves the CSS bug), domain split second (advertisement-module, user-module). Do not merge all changes in one PR.
+
+---
+
 ## 2026-05-21 — Inline SQL repository style (supersedes Descriptor pattern)
 
 **Decision:** All repositories inline SQL directly in the method that executes it. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`, `SqlEntityProjection`, `SqlFixedQuery`, `RepositoryCustom`) has been fully removed from the codebase.

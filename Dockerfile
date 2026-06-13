@@ -23,8 +23,11 @@ COPY audit-spring-boot-starter/src ./audit-spring-boot-starter/src
 COPY attachment-spring-boot-starter/src ./attachment-spring-boot-starter/src
 COPY marketplace-app/src ./marketplace-app/src
 
-# Build the project (Vaadin production mode enabled via POM profile)
-RUN ./mvnw clean package -Pproduction -DskipTests -q
+# Install parent POM and starters to local Maven repo so Vaadin's frontend scanner can find their @CssImport annotations
+RUN ./mvnw install -DskipTests -pl .,platform-commons,query-starter,audit-spring-boot-starter,attachment-spring-boot-starter -q
+
+# Build the application with Vaadin production mode
+RUN ./mvnw package -Pproduction -DskipTests -pl marketplace-app -q
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app

@@ -170,6 +170,8 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   await expect(changes0).toContainText(newTitle);
   await expect(changes0).toContainText(originalDescription.substring(0, 20));
   await expect(changes0).toContainText(newDescription);
+  await expect(changes0).toContainText('YouTube-dQw4w9WgXcQ');
+  await expect(changes0).toContainText('→');
 
   const row1 = activityList.locator('.entity-activity-row').nth(1);
   await expect(row1.locator('.entity-activity-action')).toContainText(/created|створено/i);
@@ -217,6 +219,8 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(currentTitle);
   await expect(changes0).toContainText(restoredTitle);
+  await expect(changes0).toContainText('YouTube-dQw4w9WgXcQ');
+  await expect(changes0).toContainText('→');
   await screenshot(page, `${screenshotPrefix}-activity-after-restore`);
 
   await closeEditAndVerifyView(page, expect, overlay, restoredTitle, restoredDescription.substring(0, 30), `${screenshotPrefix}-view-restored`);

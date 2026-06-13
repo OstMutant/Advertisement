@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,10 +29,16 @@ public class AttachmentSnapshotService {
     @Transactional
     public void capture(EntityType entityType, Long entityId, Long actorId) {
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
-        List<String> prevUrls    = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
-        AttachmentMediaChange  diff        = buildDiff(prevUrls, currentUrls);
+        Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
+        if (prevOpt.isEmpty()) {
+            if (currentUrls.isEmpty()) return;
+            List<String> currNames = currentUrls.stream().map(AttachmentSnapshotService::filename).toList();
+            attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]),
+                    List.of(new AttachmentMediaChange(null, currNames)), actorId);
+            return;
+        }
+        AttachmentMediaChange diff = buildDiff(prevOpt.get(), currentUrls);
         if (diff == null) return;
-
         attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
     }
 
@@ -86,8 +93,10 @@ public class AttachmentSnapshotService {
     private static List<ChangeEntry> toChangeEntries(List<AttachmentMediaChange> changes) {
         return changes.stream()
                 .map(c -> {
-                    String before = c.before().isEmpty() ? "—" : String.join(", ", c.before());
-                    String after  = c.after().isEmpty()  ? "—" : String.join(", ", c.after());
+                    String before = c.before() == null    ? null
+                                  : c.before().isEmpty()  ? "—"
+                                  : String.join(", ", c.before());
+                    String after  = c.after().isEmpty()   ? "—" : String.join(", ", c.after());
                     return (ChangeEntry) new ChangeEntry.MediaChange(before, after);
                 })
                 .toList();
