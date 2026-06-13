@@ -1,4 +1,4 @@
-package org.ost.platform.core.i18n;
+package org.ost.marketplace.i18n;
 
 public interface Translatable {
     I18nService getI18nService();

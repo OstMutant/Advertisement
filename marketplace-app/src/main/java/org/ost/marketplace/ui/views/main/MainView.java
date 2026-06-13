@@ -16,7 +16,7 @@ import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;

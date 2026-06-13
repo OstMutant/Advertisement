@@ -1,6 +1,6 @@
 package org.ost.ui.query.sort;
 
-import org.ost.platform.core.i18n.TranslationKey;
+import org.ost.marketplace.i18n.TranslationKey;
 
 public record SortFieldMeta(
         String property,

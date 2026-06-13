@@ -6,7 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 
 import java.util.List;
 

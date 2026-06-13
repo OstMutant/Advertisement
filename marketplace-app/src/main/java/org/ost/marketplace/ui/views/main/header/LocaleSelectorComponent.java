@@ -8,8 +8,8 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.core.i18n.LocaleProvider;
+import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.i18n.LocaleProvider;
 import org.ost.user.services.UserService;
 import org.ost.marketplace.services.auth.AuthContextService;
 

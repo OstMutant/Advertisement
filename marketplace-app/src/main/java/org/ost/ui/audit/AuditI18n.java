@@ -1,7 +1,7 @@
 package org.ost.ui.audit;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.core.i18n.TranslationKey;
+import org.ost.marketplace.i18n.TranslationKey;
 import org.ost.platform.core.model.ActionType;
 
 @RequiredArgsConstructor

@@ -10,7 +10,7 @@ import org.ost.audit.services.AuditReadService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.audit.dto.AuditActivityItemDto;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.ui.Configurable;
 import org.ost.platform.ui.Initialization;

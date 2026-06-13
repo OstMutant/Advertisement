@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;

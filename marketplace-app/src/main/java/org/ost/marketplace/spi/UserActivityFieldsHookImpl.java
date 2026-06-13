@@ -8,7 +8,7 @@ import org.ost.user.services.UserService;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;

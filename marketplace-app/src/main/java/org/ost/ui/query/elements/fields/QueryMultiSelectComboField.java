@@ -4,10 +4,10 @@ import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.platform.core.i18n.TranslationKey;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.TranslationKey;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.core.i18n.Translatable;
+import org.ost.marketplace.i18n.Translatable;
 import org.ost.platform.ui.Initialization;
 import org.springframework.context.annotation.Scope;
 

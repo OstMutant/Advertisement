@@ -14,7 +14,7 @@ import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.user.entity.User;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;

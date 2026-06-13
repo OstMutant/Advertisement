@@ -12,7 +12,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.user.entity.User;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.LogoutDialog;

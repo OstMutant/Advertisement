@@ -2,7 +2,7 @@ package org.ost.marketplace.ui.views.rules;
 
 import org.ost.marketplace.common.I18nKey;
 import org.ost.platform.core.model.ActionType;
-import org.ost.platform.core.i18n.Translatable;
+import org.ost.marketplace.i18n.Translatable;
 
 import static org.ost.marketplace.common.I18nKey.*;
 

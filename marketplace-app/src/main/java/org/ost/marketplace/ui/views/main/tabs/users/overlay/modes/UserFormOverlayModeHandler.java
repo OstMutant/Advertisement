@@ -18,7 +18,7 @@ import org.ost.user.entity.User;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.ui.spi.audit.AuditUiPort;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;

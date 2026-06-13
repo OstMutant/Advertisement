@@ -11,7 +11,7 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.user.entity.User;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;

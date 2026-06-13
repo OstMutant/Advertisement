@@ -5,38 +5,7 @@
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                             http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
 
-    <changeSet id="01-schema" author="ostap">
-
-        <!-- ── user_information ────────────────────────────────────────────── -->
-        <createTable tableName="user_information">
-            <column name="id" type="BIGSERIAL">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="name" type="VARCHAR(255)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="email" type="VARCHAR(255)">
-                <constraints nullable="false" unique="true"/>
-            </column>
-            <column name="password_hash" type="VARCHAR(255)"/>
-            <column name="role" type="VARCHAR(50)">
-                <constraints nullable="false"/>
-            </column>
-            <column name="locale" type="VARCHAR(10)"/>
-            <column name="settings" type="JSONB" defaultValue='{"adsPageSize":20,"usersPageSize":20}'>
-                <constraints nullable="false"/>
-            </column>
-            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()">
-                <constraints nullable="false"/>
-            </column>
-            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE"/>
-        </createTable>
-
-        <sql>
-            ALTER TABLE user_information
-            ADD CONSTRAINT chk_user_role
-            CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'));
-        </sql>
+    <changeSet id="01-advertisement-schema" author="ostap">
 
         <!-- ── advertisement ───────────────────────────────────────────────── -->
         <createTable tableName="advertisement">
@@ -102,6 +71,5 @@
         </createIndex>
 
     </changeSet>
-
 
 </databaseChangeLog>

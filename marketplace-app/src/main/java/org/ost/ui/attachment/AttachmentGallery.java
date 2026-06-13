@@ -21,7 +21,7 @@ import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentService.TempAttachment;
 import org.ost.attachment.services.AttachmentSnapshotService;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 

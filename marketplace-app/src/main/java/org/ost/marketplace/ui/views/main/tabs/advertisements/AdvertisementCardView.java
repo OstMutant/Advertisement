@@ -15,7 +15,7 @@ import lombok.*;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
