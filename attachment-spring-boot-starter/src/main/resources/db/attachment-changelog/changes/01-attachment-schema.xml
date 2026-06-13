@@ -59,7 +59,7 @@
             <column name="attachment_urls" type="TEXT[]"/>
             <column name="changes_summary" type="JSONB"/>
             <column name="changed_by_actor_id" type="BIGINT"/>
-            <column name="created_at" type="TIMESTAMP" defaultValueComputed="NOW()"/>
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="NOW()"/>
         </createTable>
 
         <createIndex indexName="idx_attachment_snapshot_entity" tableName="attachment_snapshot">

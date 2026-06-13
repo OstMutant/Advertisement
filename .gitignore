@@ -33,3 +33,5 @@
 /target/sonar
 /scripts/sonar/report
 /.claude/worktrees
+/user-spring-boot-starter/target
+/advertisement-spring-boot-starter/target
