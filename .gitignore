@@ -1,5 +1,7 @@
 /.idea/*
 !/.idea/runConfigurations/
+/.claude/settings.local.json
+/.idea/runConfigurations/Application.xml
 
 # Maven build output
 /marketplace-app/target/
