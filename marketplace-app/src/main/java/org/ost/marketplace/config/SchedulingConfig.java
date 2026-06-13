@@ -1,8 +1,8 @@
 package org.ost.marketplace.config;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.services.AdvertisementService;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -15,16 +15,15 @@ import java.util.TimeZone;
 @Slf4j
 @Configuration
 @EnableScheduling
-@RequiredArgsConstructor
 public class SchedulingConfig {
 
     @Bean
-    SchedulingConfigurer advertisementCleanupScheduler(AdvertisementService advertisementService,
+    SchedulingConfigurer advertisementCleanupScheduler(ComponentFactory<AdvertisementPort> advertisementPortFactory,
                                                        CleanupProperties cleanupProperties) {
         return registrar -> registrar.addTriggerTask(
                 () -> {
                     log.info("Advertisement cleanup started, retention = {} days", cleanupProperties.retentionDays());
-                    advertisementService.cleanup(cleanupProperties.retentionDays());
+                    advertisementPortFactory.ifAvailable(p -> p.cleanup(cleanupProperties.retentionDays()));
                     log.info("Advertisement cleanup finished");
                 },
                 new CronTrigger(cleanupProperties.cronExpression(),

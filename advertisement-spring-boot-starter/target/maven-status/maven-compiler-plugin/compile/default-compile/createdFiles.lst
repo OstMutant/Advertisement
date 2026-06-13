@@ -1,0 +1,9 @@
+org/ost/advertisement/repository/AdvertisementRepository.class
+org/ost/advertisement/entity/Advertisement.class
+org/ost/advertisement/spi/MediaChangeHookImpl.class
+org/ost/advertisement/services/AdvertisementService.class
+org/ost/advertisement/config/AdvertisementAutoConfiguration.class
+org/ost/advertisement/spi/AdvertisementPortImpl.class
+org/ost/advertisement/repository/AdvertisementCrudRepository.class
+org/ost/advertisement/entity/Advertisement$Fields.class
+org/ost/advertisement/entity/Advertisement$AdvertisementBuilder.class

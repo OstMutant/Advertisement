@@ -10,11 +10,12 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.AdvertisementService;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.PaginationBar;
@@ -23,7 +24,6 @@ import org.ost.ui.query.QueryBlock;
 import org.ost.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -35,13 +35,13 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient AdvertisementService                  advertisementService;
-    private final transient AdvertisementOverlay                  overlay;
-    private final transient ComponentFactory<UiPrimaryButton>     primaryButtonFactory;
-    private final transient ComponentFactory<AdvertisementCardView> cardViewFactory;
-    private final transient ComponentFactory<EmptyStateView>      emptyStateFactory;
-    private final transient I18nService                           i18n;
-    private final transient AccessEvaluator                       access;
+    private final transient ComponentFactory<AdvertisementPort>       advertisementPortFactory;
+    private final transient AdvertisementOverlay                      overlay;
+    private final transient ComponentFactory<UiPrimaryButton>         primaryButtonFactory;
+    private final transient ComponentFactory<AdvertisementCardView>   cardViewFactory;
+    private final transient ComponentFactory<EmptyStateView>          emptyStateFactory;
+    private final transient I18nService                               i18n;
+    private final transient AccessEvaluator                           access;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -117,10 +117,14 @@ public class AdvertisementsView extends VerticalLayout {
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
-        List<AdvertisementInfoDto> ads = advertisementService.getFiltered(
-                filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort);
+        List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
+                .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort))
+                .orElse(List.of());
 
-        paginationBar.setTotalCount(advertisementService.count(filter));
+        int total = advertisementPortFactory.findIfAvailable()
+                .map(p -> p.count(filter))
+                .orElse(0);
+        paginationBar.setTotalCount(total);
 
         advertisementContainer.removeAll();
 

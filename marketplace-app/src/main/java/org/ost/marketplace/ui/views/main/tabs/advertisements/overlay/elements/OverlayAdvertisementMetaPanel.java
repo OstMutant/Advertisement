@@ -8,7 +8,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.ui.Configurable;

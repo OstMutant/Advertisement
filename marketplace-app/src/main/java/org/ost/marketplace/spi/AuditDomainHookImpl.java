@@ -3,17 +3,19 @@ package org.ost.marketplace.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
-import org.ost.marketplace.services.AdvertisementService;
-import org.ost.platform.user.dto.SettingsSnapshotDto;
-import org.ost.platform.user.dto.UserSnapshotDto;
-import org.ost.user.services.UserService;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -23,21 +25,28 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditDomainHookImpl implements AuditDomainHook {
 
-    private final AdvertisementService advertisementService;
-    private final UserService          userService;
+    private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
+    private final ComponentFactory<UserPort>          userPortFactory;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
-        return userService.findActorNames(actorIds);
+        return userPortFactory.findIfAvailable()
+                .map(p -> p.findActorNames(actorIds))
+                .orElse(Map.of());
     }
 
     @Override
     public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
         Long[] ids = entityIds.toArray(new Long[0]);
-        return Set.copyOf(switch (entityType) {
-            case ADVERTISEMENT       -> advertisementService.findExistingIds(ids);
-            case USER, USER_SETTINGS -> userService.findExistingIds(ids);
-        });
+        List<Long> found = switch (entityType) {
+            case ADVERTISEMENT       -> advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(ids))
+                    .orElse(List.of());
+            case USER, USER_SETTINGS -> userPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(ids))
+                    .orElse(List.of());
+        };
+        return Set.copyOf(found);
     }
 
     @Override

@@ -12,9 +12,9 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.core.ComponentFactory;
@@ -54,7 +54,7 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient AdvertisementService                      advertisementService;
+    private final transient ComponentFactory<AdvertisementPort>       advertisementPortFactory;
     private final transient ComponentFactory<AttachmentGalleryPort>   galleryPortFactory;
     private final transient ComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient ComponentFactory<EditActionButton>         editButtonFactory;
@@ -172,7 +172,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable onChanged) {
-        boolean canOperate = access.canOperate(ad);
+        boolean canOperate = access.canOperate(ad.getOwnerUserId());
 
         Button edit   = createEditButton(ad, onChanged, canOperate);
         Button delete = createDeleteButton(ad, onChanged, canOperate);
@@ -219,7 +219,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                advertisementService.delete(ad);
+                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId()));
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
                             } catch (Exception ex) {

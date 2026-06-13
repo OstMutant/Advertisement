@@ -2,7 +2,7 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.ui.query.sort.SortFieldMeta;
 
 import static org.ost.marketplace.common.I18nKey.*;

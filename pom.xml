@@ -24,6 +24,7 @@
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
         <module>user-spring-boot-starter</module>
+        <module>advertisement-spring-boot-starter</module>
         <module>marketplace-app</module>
     </modules>
 
@@ -68,6 +69,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>user-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>advertisement-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

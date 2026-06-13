@@ -2,7 +2,7 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
+import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.ui.query.filter.ValidationService;
 import org.ost.ui.query.filter.FilterFieldMeta;
 import org.ost.ui.query.filter.ValidationPredicates;
@@ -11,7 +11,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.function.BiPredicate;
 
-import static org.ost.marketplace.dto.filter.AdvertisementFilterDto.Fields.*;
+import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
 import static org.ost.ui.query.utils.TimeZoneUtil.toInstant;
 

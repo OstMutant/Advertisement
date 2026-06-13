@@ -1,0 +1,10 @@
+org/ost/user/entity/User$UserBuilder.class
+org/ost/user/repository/UserRepository.class
+org/ost/user/entity/User$Fields.class
+org/ost/user/spi/UserPortImpl.class
+org/ost/user/entity/User.class
+org/ost/user/repository/UserSettingsRepository.class
+org/ost/user/services/UserService.class
+org/ost/user/services/UserSettingsService.class
+org/ost/user/config/UserAutoConfiguration.class
+org/ost/user/repository/UserCrudRepository.class

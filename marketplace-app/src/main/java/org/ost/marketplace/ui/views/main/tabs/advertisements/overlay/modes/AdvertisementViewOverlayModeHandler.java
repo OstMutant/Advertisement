@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.core.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -91,7 +91,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                 .build());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(params.getAd()));
+        editButton.setVisible(access.canOperate(params.getAd().getOwnerUserId()));
         return new Div(editButton, closeButton);
     }
 

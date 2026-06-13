@@ -1,0 +1,33 @@
+package org.ost.platform.advertisement.dto;
+
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.FieldNameConstants;
+import org.ost.platform.core.validation.ValidRange;
+
+import java.time.Instant;
+
+@FieldNameConstants
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder(toBuilder = true)
+@ValidRange(start = "createdAtStart", end = "createdAtEnd", message = "createdAtStart must not be after createdAtEnd")
+@ValidRange(start = "updatedAtStart", end = "updatedAtEnd", message = "updatedAtStart must not be after updatedAtEnd")
+public class AdvertisementFilterDto {
+
+    @Size(max = 255, message = "Name must not exceed 255 characters")
+    private String title;
+
+    private Instant createdAtStart;
+    private Instant createdAtEnd;
+    private Instant updatedAtStart;
+    private Instant updatedAtEnd;
+
+    public static AdvertisementFilterDto empty() {
+        return new AdvertisementFilterDto();
+    }
+}

@@ -2,8 +2,8 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.ui.query.sort.CustomSort;
 import org.ost.marketplace.mappers.filters.AdvertisementFilterMapper;
 import org.ost.marketplace.common.I18nKey;

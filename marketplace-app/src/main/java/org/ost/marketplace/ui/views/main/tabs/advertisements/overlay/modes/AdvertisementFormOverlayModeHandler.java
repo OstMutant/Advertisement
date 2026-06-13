@@ -14,11 +14,11 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
-import org.ost.marketplace.entities.Advertisement;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.AdvertisementService;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.i18n.I18nService;
@@ -42,12 +42,7 @@ import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
-import java.util.UUID;
-
-
 import static org.ost.marketplace.common.I18nKey.*;
-import static org.ost.marketplace.common.I18nKey.FORM_DISCARD_CHANGES;
-import static org.ost.marketplace.common.I18nKey.FORM_RESTORE_BANNER;
 
 @Uses(Upload.class)
 @SpringComponent
@@ -64,27 +59,27 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull Runnable    onCancel;
     }
 
-    private final AdvertisementService                                   advertisementService;
-    private final AdvertisementMapper                                    mapper;
-    private final AccessEvaluator                                        access;
+    private final ComponentFactory<AdvertisementPort>                        advertisementPortFactory;
+    private final AdvertisementMapper                                        mapper;
+    private final AccessEvaluator                                            access;
     @Getter
-    private final I18nService                                            i18nService;
-    private final NotificationService                                    notificationService;
-    private final transient ComponentFactory<AttachmentGalleryPort>      galleryPortFactory;
-    private final transient ComponentFactory<OverlayFormBinder>          formBinderFactory;
-    private final transient ComponentFactory<AuditPort>                  auditPortFactory;
-    private final transient ComponentFactory<AuditUiPort>                auditUiPortFactory;
-    private final transient ComponentFactory<UiIconButton>               cancelButtonFactory;
-    private final OverlayAdvertisementMetaPanel                          metaPanel;
-    private final UiTextField                                            titleField;
-    private final UiTextArea                                             descriptionField;
-    private final UiPrimaryButton                                        saveButton;
-    private final UiTertiaryButton                                       discardButton;
+    private final I18nService                                                i18nService;
+    private final NotificationService                                        notificationService;
+    private final transient ComponentFactory<AttachmentGalleryPort>          galleryPortFactory;
+    private final transient ComponentFactory<OverlayFormBinder>              formBinderFactory;
+    private final transient ComponentFactory<AuditPort>                      auditPortFactory;
+    private final transient ComponentFactory<AuditUiPort>                    auditUiPortFactory;
+    private final transient ComponentFactory<UiIconButton>                   cancelButtonFactory;
+    private final OverlayAdvertisementMetaPanel                              metaPanel;
+    private final UiTextField                                                titleField;
+    private final UiTextArea                                                 descriptionField;
+    private final UiPrimaryButton                                            saveButton;
+    private final UiTertiaryButton                                           discardButton;
 
     private Parameters params;
     private boolean    isCreate;
     @Getter
-    private Advertisement      savedAdvertisement;
+    private Long                 savedId;
     private AdvertisementInfoDto savedInfoDto;
     private AttachmentGalleryPort.FormHandle activeHandle;
     private Tabs                             formTabs;
@@ -134,7 +129,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         Div content = new Div(fieldsCard);
         galleryPortFactory.ifAvailable(ext -> {
             this.activeHandle = isCreate
-                    ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, UUID.randomUUID().toString())
+                    ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, java.util.UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
             activeHandle.setOnChangedListener(() -> updateButtons(true));
             content.add(activeHandle.getComponent());
@@ -173,10 +168,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     public boolean save() {
         return binder.save(dto -> {
-            this.savedAdvertisement = advertisementService.save(mapper.toAdvertisement(dto));
-            advertisementService.findById(savedAdvertisement.getId()).ifPresent(info -> this.savedInfoDto = info);
-            if (this.activeHandle != null) {
-                this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedAdvertisement.getId()));
+            this.savedId = advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.save(new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription()), access.getCurrentUserId()))
+                    .orElse(null);
+            if (savedId != null) {
+                advertisementPortFactory.findIfAvailable()
+                        .flatMap(p -> p.findById(savedId))
+                        .ifPresent(info -> this.savedInfoDto = info);
+                if (this.activeHandle != null) {
+                    this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedId));
+                }
             }
         });
     }
@@ -201,7 +202,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     private Div buildTabbedContent(Div editContent) {
         return auditUiPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getAd()))
+                .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
                 .map(auditUi -> {
                     formTabs = new Tabs();
                     formTabs.addClassName("adv-form-tabs");
@@ -232,7 +233,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getAd()))
+                .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
                 .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
                 .build());
     }
@@ -253,14 +254,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     public void discardChanges() {
         if (params.getAd() == null) return;
-        advertisementService.findById(params.getAd().getId()).ifPresent(freshAd -> {
-            AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
-            binder.reload(fresh, (src, tgt) -> {
-                tgt.setTitle(src.getTitle());
-                tgt.setDescription(src.getDescription());
-            });
-            updateButtons(false);
-        });
+        advertisementPortFactory.findIfAvailable()
+                .flatMap(p -> p.findById(params.getAd().getId()))
+                .ifPresent(freshAd -> {
+                    AdvertisementEditDto fresh = mapper.toAdvertisementEdit(freshAd);
+                    binder.reload(fresh, (src, tgt) -> {
+                        tgt.setTitle(src.getTitle());
+                        tgt.setDescription(src.getDescription());
+                    });
+                    updateButtons(false);
+                });
     }
 
     public void afterSave(boolean success) {

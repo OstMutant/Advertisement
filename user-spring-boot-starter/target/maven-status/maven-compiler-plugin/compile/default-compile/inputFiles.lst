@@ -1,0 +1,8 @@
+/app/user-spring-boot-starter/src/main/java/org/ost/user/config/UserAutoConfiguration.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/entity/User.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/repository/UserCrudRepository.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/repository/UserRepository.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/repository/UserSettingsRepository.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/services/UserService.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/services/UserSettingsService.java
+/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java

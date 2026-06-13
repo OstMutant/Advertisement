@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.beans.factory.annotation.Qualifier;

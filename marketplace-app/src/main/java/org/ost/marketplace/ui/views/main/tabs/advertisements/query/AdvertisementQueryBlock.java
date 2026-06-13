@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
+import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.ui.query.QueryBlock;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.ui.query.elements.SortIcon;
