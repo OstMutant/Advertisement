@@ -9,4 +9,3 @@ marketplace-app/src/main/frontend/generated/
 *.md
 *.bat
 docker-compose*.yml
-.mvn/wrapper/maven-wrapper.jar

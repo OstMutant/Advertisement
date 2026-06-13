@@ -1,6 +1,5 @@
 package org.ost.query.ui;
 
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -13,7 +12,6 @@ import org.springframework.data.domain.Sort.Direction;
 import java.util.List;
 import java.util.function.BiFunction;
 
-@CssImport("./query-status-bar.css")
 public class QueryStatusBar<T> extends VerticalLayout {
 
     public record Labels(

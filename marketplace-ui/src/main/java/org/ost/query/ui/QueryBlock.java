@@ -1,12 +1,10 @@
 package org.ost.query.ui;
 
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import org.ost.query.ui.elements.action.QueryActionBlock;
 import org.ost.query.ui.filter.FilterProcessor;
 import org.ost.query.ui.sort.SortProcessor;
 
-@CssImport("./query-block.css")
 public abstract class QueryBlock<T> extends VerticalLayout {
 
     public abstract FilterProcessor<T> getFilterProcessor();

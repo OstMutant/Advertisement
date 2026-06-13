@@ -1,7 +1,6 @@
 package org.ost.attachment.ui;
 
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.dependency.CssImport;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -30,8 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-@CssImport("./attachment-gallery.css")
-@CssImport("./card-lightbox.css")
 @Slf4j
 @SpringComponent
 @Scope("prototype")

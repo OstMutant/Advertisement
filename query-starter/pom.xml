@@ -44,13 +44,6 @@
             <artifactId>spring-boot-autoconfigure</artifactId>
         </dependency>
 
-        <!-- Vaadin — UI components + Spring integration (@SpringComponent, @UIScope) -->
-        <dependency>
-            <groupId>com.vaadin</groupId>
-            <artifactId>vaadin-spring-boot-starter</artifactId>
-            <scope>provided</scope>
-        </dependency>
-
         <!-- Validation -->
         <dependency>
             <groupId>jakarta.validation</groupId>

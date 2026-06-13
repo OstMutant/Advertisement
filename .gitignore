@@ -9,6 +9,7 @@
 /attachment-spring-boot-starter/target/
 /audit-spring-boot-starter/target/
 /query-starter/target/
+/marketplace-ui/target/
 /database/
 
 # Vaadin frontend generated files

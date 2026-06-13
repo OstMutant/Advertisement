@@ -3,13 +3,9 @@ package org.ost.attachment.config;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import liquibase.integration.spring.SpringLiquibase;
-import org.ost.attachment.AttachmentPackageMarker;
 import org.ost.attachment.services.AttachmentCleanupService;
 import org.ost.platform.core.config.CleanupProperties;
-import org.ost.attachment.ui.AttachmentGallery;
-import org.ost.attachment.ui.CardMediaLightbox;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -19,6 +15,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.support.CronTrigger;
@@ -28,9 +25,10 @@ import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ComponentScan(basePackageClasses = AttachmentPackageMarker.class)
+@ComponentScan({"org.ost.attachment.services", "org.ost.attachment.spi", "org.ost.attachment.util", "org.ost.attachment.repository"})
 @EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")
 @EnableConfigurationProperties(CleanupProperties.class)
+@Import(AttachmentS3Config.class)
 public class AttachmentAutoConfiguration {
 
     @Bean("attachmentObjectMapper")
@@ -64,22 +62,7 @@ public class AttachmentAutoConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentGalleryPort> attachmentGalleryPortFactory(ObjectProvider<AttachmentGalleryPort> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
     public ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory(ObjectProvider<AttachmentAuditHook> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
         return new ComponentFactory<>(p);
     }
 

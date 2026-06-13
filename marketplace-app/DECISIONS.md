@@ -2,9 +2,23 @@
 
 ---
 
-## 2026-06-13 — Planned: extract Vaadin UI into a dedicated module; domain modules for advertisement and user
+## 2026-06-13 — Implemented: extract Vaadin UI into `marketplace-ui` module (phase 1)
 
-**Decision (planned, not yet implemented):** The module structure will evolve toward:
+**Decision (implemented — phase 1 complete):** The module structure now is:
+
+```
+advertisement-parent
+├── platform-commons          — SPI/DTO contracts (unchanged)
+├── query-starter             — SQL filter/sort library only (Vaadin removed)
+├── audit-starter             — audit domain logic only (Vaadin removed)
+├── attachment-starter        — attachment domain logic only (Vaadin removed)
+├── marketplace-ui            — ALL Vaadin UI (audit.ui, attachment.ui, query.ui)
+└── marketplace-app           — Spring Boot entry point + marketplace UI + SPI orchestration
+```
+
+**Phase 2 (not yet implemented):** domain modules for advertisement and user. Full planned structure:
+
+**Decision (phase 2 planned, not yet implemented):** The module structure will evolve further toward:
 
 ```
 advertisement-parent
@@ -28,7 +42,16 @@ advertisement-parent
 
 **SPI implementations:** `*HookImpl` and `*PortImpl` classes stay in `marketplace-app` (the orchestrator), not in domain modules, so domain modules remain free of starter dependencies.
 
-**How to apply:** Implement incrementally — `marketplace-ui` first (resolves the CSS bug), domain split second (advertisement-module, user-module). Do not merge all changes in one PR.
+**How to apply:** Domain split second (advertisement-module, user-module). Phase 1 (marketplace-ui) is done. Do not merge all changes in one PR.
+
+**What phase 1 changed:**
+- Created `marketplace-ui` module with `MarketplaceUiConfiguration` (`@Configuration` + `@ComponentScan({"org.ost.audit.ui","org.ost.attachment.ui","org.ost.query.ui"})`)
+- Moved all `org.ost.audit.ui.*`, `org.ost.attachment.ui.*`, `org.ost.query.ui.*` source files to `marketplace-ui`
+- Moved `AttachmentGalleryPortImpl` to `org.ost.marketplace.ui.spi` (found via `@SpringBootApplication` scan)
+- Deleted `QueryAutoConfiguration` entirely; validationService bean moved to `MarketplaceUiConfiguration`
+- Removed `vaadin-spring-boot-starter` from all starter pom.xml files
+- Moved 5 CSS files from starter `META-INF/resources/frontend/` to `marketplace-app/src/main/frontend/themes/my-app/`; added imports to `styles.css`; removed `@CssImport` annotations
+- `marketplace-app/pom.xml`: replaced 3 starter deps + query-starter with single `marketplace-ui` dep
 
 ---
 

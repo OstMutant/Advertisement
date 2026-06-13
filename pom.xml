@@ -23,6 +23,7 @@
         <module>platform-commons</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
+        <module>marketplace-ui</module>
         <module>marketplace-app</module>
     </modules>
 
@@ -62,6 +63,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>attachment-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>marketplace-ui</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

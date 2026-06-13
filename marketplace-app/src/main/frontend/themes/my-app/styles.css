@@ -18,6 +18,11 @@
 @import url("./forms.css");
 @import url("./activity-feed.css");
 @import url("./entity-activity.css");
+@import url("./attachment-gallery.css");
+@import url("./card-lightbox.css");
+@import url("./query-block.css");
+@import url("./query-status-bar.css");
+@import url("./sort-icon.css");
 
 /* Global font + page background */
 html, body {

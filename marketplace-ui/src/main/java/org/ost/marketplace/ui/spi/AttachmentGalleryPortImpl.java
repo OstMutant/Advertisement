@@ -1,17 +1,16 @@
-package org.ost.attachment.spi;
+package org.ost.marketplace.ui.spi;
 
-import com.vaadin.flow.component.Component;
+import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.entities.Attachment;
-import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.ui.AttachmentGallery;
 import org.ost.attachment.ui.CardMediaLightbox;
+import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.ComponentFactory;
-import com.vaadin.flow.spring.annotation.SpringComponent;
 
 import java.util.List;
 
@@ -24,7 +23,7 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
     private final AttachmentService                     attachmentService;
 
     @Override
-    public Component buildGalleryForView(@NonNull EntityRef entity) {
+    public com.vaadin.flow.component.Component buildGalleryForView(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
         gallery.configureForView(entity.entityType(), entity.entityId());
         return gallery;
@@ -58,7 +57,7 @@ public class AttachmentGalleryPortImpl implements AttachmentGalleryPort {
 
         Handle(AttachmentGallery gallery) { this.gallery = gallery; }
 
-        @Override public Component getComponent() { return gallery; }
+        @Override public com.vaadin.flow.component.Component getComponent() { return gallery; }
         @Override public void commit(@NonNull EntityRef entity) {
             gallery.commitTempUploads(entity.entityType(), entity.entityId());
         }

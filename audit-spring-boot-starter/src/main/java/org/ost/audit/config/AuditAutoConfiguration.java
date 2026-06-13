@@ -14,14 +14,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.ost.audit.AuditPackageMarker;
-import org.ost.audit.ui.AuditTimelineListRenderer;
-import org.ost.audit.ui.AuditActivityPanel;
-import org.ost.audit.ui.AuditTimelineRowRenderer;
-import org.ost.audit.ui.AuditActivityListRenderer;
-import org.ost.audit.ui.AuditActivityRowRenderer;
-import org.ost.audit.ui.AuditTimelinePanel;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.ComponentScan;
@@ -34,7 +26,7 @@ import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ComponentScan(basePackageClasses = AuditPackageMarker.class)
+@ComponentScan({"org.ost.audit.services", "org.ost.audit.repository"})
 @EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
 public class AuditAutoConfiguration {
 
@@ -72,41 +64,6 @@ public class AuditAutoConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditUiPort> auditUiPortFactory(ObjectProvider<AuditUiPort> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelinePanel> auditTimelinePanelFactory(ObjectProvider<AuditTimelinePanel> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
-        return new ComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
         return new ComponentFactory<>(p);
     }
 
