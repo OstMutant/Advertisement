@@ -10,7 +10,7 @@
 /audit-spring-boot-starter/target/
 /user-spring-boot-starter/target/
 /advertisement-spring-boot-starter/target/
-/query-starter/target/
+/query-lib/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/

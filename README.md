@@ -45,7 +45,7 @@ declaratively and kept strongly typed.
 
 ```
 advertisement-parent
-├── query-starter                      — framework-agnostic SQL query-building library
+├── query-lib                      — framework-agnostic SQL query-building library
 ├── platform-commons                — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
 ├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation

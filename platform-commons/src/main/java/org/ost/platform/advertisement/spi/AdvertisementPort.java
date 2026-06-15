@@ -23,7 +23,5 @@ public interface AdvertisementPort {
 
     void onMediaChanged(@NonNull Long entityId);
 
-    void cleanup(int retentionDays);
-
     List<Long> findExistingIds(@NonNull Long[] ids);
 }

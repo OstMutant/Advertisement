@@ -19,14 +19,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 advertisement-parent (root pom)
-├── query-starter                    — SQL filter/sort library + Vaadin UI query components (filter/sort processors, field elements)
+├── query-lib                        — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
 ├── platform-commons                 — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
 ├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
 └── marketplace-app                  — main Vaadin application
 ```
 
-**query-starter** provides two layers: SQL utilities (`SqlFilterBuilder`, `OrderByBuilder` in `org.ost.query.filter/sort`) and Vaadin UI query components (`FilterProcessor`, `SortProcessor`, field elements in `org.ost.query.ui.*`). Auto-configures `ValidationService` via `QueryAutoConfiguration`.
+**query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`)
@@ -74,7 +74,7 @@ advertisement-parent (root pom)
 
 Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
 
-→ query-starter SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder) and UI components: @query-starter/CLAUDE.md
+→ query-lib SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @query-lib/CLAUDE.md
 
 ---
 
@@ -218,7 +218,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/audit-spring-boot-starter/DECISIONS.md`
 - `/app/attachment-spring-boot-starter/DECISIONS.md`
 - `/app/platform-commons/DECISIONS.md`
-- `/app/query-starter/DECISIONS.md`
+- `/app/query-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 

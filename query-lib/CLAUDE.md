@@ -1,6 +1,6 @@
-## query-starter API
+## query-lib API
 
-SQL filter/sort library + Vaadin UI query components. Two layers in one starter.
+Plain Java SQL helper library. No Spring Boot autoconfiguration, no domain knowledge.
 
 ---
 
@@ -34,22 +34,3 @@ private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFi
 | `after(mapping, instant/long)` | `>= :param` |
 | `before(mapping, instant/long)` | `<= :param` |
 | `inSet(mapping, enumSet)` | `IN (:param)` |
-
----
-
-### UI Layer (`org.ost.query.ui.*`)
-
-| Package | Contents |
-|---|---|
-| `ui.filter` | `FilterProcessor`, `FilterFieldMeta`, `FilterMapper`, `ValidationService`, `ValidationPredicates` |
-| `ui.sort` | `SortProcessor`, `SortFieldMeta`, `CustomSort` |
-| `ui.elements` | `SortIcon`, `SvgIcon` |
-| `ui.elements.action` | `QueryActionBlock`, `QueryActionButton`, `QueryActionBlockHandler` |
-| `ui.elements.fields` | `QueryTextField`, `QueryComboField`, `QueryDateTimeField`, `QueryMultiSelectComboField`, `QueryNumberField` |
-| `ui.elements.rows` | `QueryInlineRow` |
-| `ui.utils` | `HighlighterUtil`, `TimeZoneUtil`, `SvgUtil` |
-
-UI components use `Translatable` (from `platform-commons`) instead of marketplace-specific `I18nParams`.
-All translation keys are typed as `TranslationKey` — no marketplace `I18nKey` dependency.
-
-`ValidationService` is auto-configured via `QueryAutoConfiguration` — no explicit bean declaration needed.

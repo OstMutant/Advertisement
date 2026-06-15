@@ -1,4 +1,4 @@
-package org.ost.marketplace.mappers.filters;
+package org.ost.marketplace.ui.mappers;
 
 import org.mapstruct.Mapper;
 import org.ost.ui.query.filter.FilterMapper;

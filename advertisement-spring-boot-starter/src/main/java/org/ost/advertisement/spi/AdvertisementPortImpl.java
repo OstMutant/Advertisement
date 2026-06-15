@@ -50,11 +50,6 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public void cleanup(int retentionDays) {
-        service.cleanup(retentionDays);
-    }
-
-    @Override
     public List<Long> findExistingIds(@NonNull Long[] ids) {
         return service.findExistingIds(ids);
     }

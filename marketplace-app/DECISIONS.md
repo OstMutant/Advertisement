@@ -22,7 +22,7 @@
 ```
 advertisement-parent
 ├── platform-commons                  — SPI/DTO contracts + new UserPort, AdvertisementPort
-├── query-starter                     — SQL filter/sort library (no Vaadin)
+├── query-lib                     — SQL filter/sort library (no Vaadin)
 ├── audit-spring-boot-starter         — audit domain (no Vaadin)
 ├── attachment-spring-boot-starter    — attachment domain (no Vaadin)
 ├── user-spring-boot-starter          — User entity + UserService + UserPortImpl
@@ -61,7 +61,7 @@ advertisement-parent
 - Deleted `QueryAutoConfiguration` entirely; validationService bean moved to `MarketplaceUiConfiguration`
 - Removed `vaadin-spring-boot-starter` from all starter pom.xml files
 - Moved 5 CSS files from starter `META-INF/resources/frontend/` to `marketplace-app/src/main/frontend/themes/my-app/`; added imports to `styles.css`; removed `@CssImport` annotations
-- `marketplace-app/pom.xml`: replaced 3 starter deps + query-starter with single `marketplace-ui` dep
+- `marketplace-app/pom.xml`: replaced 3 starter deps + query-lib with single `marketplace-ui` dep
 
 ---
 

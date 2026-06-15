@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.ui.query.sort.CustomSort;
 import org.ost.user.entity.User;
-import org.ost.marketplace.mappers.filters.UserFilterMapper;
+import org.ost.marketplace.ui.mappers.UserFilterMapper;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.filter.ValidationService;
 import org.ost.marketplace.common.I18nKey;

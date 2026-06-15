@@ -1,7 +1,7 @@
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/config/AdvertisementAutoConfiguration.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/entity/Advertisement.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/repository/AdvertisementCrudRepository.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/repository/AdvertisementRepository.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/services/AdvertisementService.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/spi/AdvertisementPortImpl.java
-/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/spi/MediaChangeHookImpl.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\config\AdvertisementAutoConfiguration.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\entity\Advertisement.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\repository\AdvertisementCrudRepository.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\repository\AdvertisementRepository.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\services\AdvertisementService.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\spi\AdvertisementPortImpl.java
+D:\Ost\dev\Advertisement\advertisement-spring-boot-starter\src\main\java\org\ost\advertisement\spi\MediaChangeHookImpl.java

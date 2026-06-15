@@ -19,7 +19,7 @@
     <name>Advertisement Parent</name>
 
     <modules>
-        <module>query-starter</module>
+        <module>query-lib</module>
         <module>platform-commons</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>
@@ -48,7 +48,7 @@
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
-                <artifactId>query-starter</artifactId>
+                <artifactId>query-lib</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

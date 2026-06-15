@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.ui.query.sort.CustomSort;
-import org.ost.marketplace.mappers.filters.AdvertisementFilterMapper;
+import org.ost.marketplace.ui.mappers.AdvertisementFilterMapper;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.filter.ValidationService;

@@ -1,6 +1,6 @@
-# query-starter
+# query-lib
 
-A lightweight SQL filter/sort library + Vaadin UI query components. Two layers in one starter.
+A lightweight SQL filter/sort helper library. No Spring Boot autoconfiguration.
 
 ---
 
@@ -61,7 +61,7 @@ ui/utils/
   SvgUtil                    — SVG resource loading from classpath
 ```
 
-Types in `[brackets]` are package-private — do not reference them from outside query-starter.
+Types in `[brackets]` are package-private — do not reference them from outside query-lib.
 
 ---
 
