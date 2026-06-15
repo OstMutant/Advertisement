@@ -17,7 +17,7 @@ import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
+import org.ost.ui.audit.AuditActivityPanel;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
@@ -66,7 +66,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final NotificationService                                      notificationService;
     private final transient ComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final transient ComponentFactory<AuditPort>                    auditPortFactory;
-    private final transient ComponentFactory<AuditUiPort>                  auditUiPortFactory;
+    private final transient ComponentFactory<AuditActivityPanel>           auditActivityPanelFactory;
     private final transient ComponentFactory<UiIconButton>                 cancelButtonFactory;
     private final UiTextField                                              nameField;
     private final UiComboBox<Role>                                         roleComboBox;
@@ -127,9 +127,9 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = auditUiPortFactory.findIfAvailable()
+        Div content = auditActivityPanelFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getUser().getId()))
-                .map(auditUi -> {
+                .map(_ -> {
                     formTabs = new Tabs();
                     formTabs.addClassName("user-form-tabs");
                     editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));
@@ -145,7 +145,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                         editContent.setVisible(isEdit);
                         activityContent.setVisible(!isEdit);
                         if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
-                            activityContent.add(buildActivityContent(auditUi));
+                            activityContent.add(buildActivityContent());
                         }
                     });
 
@@ -181,8 +181,8 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         if (formTabs != null) formTabs.setSelectedTab(editTab);
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.ActivityParams.builder()
+    private com.vaadin.flow.component.Component buildActivityContent() {
+        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER, params.getUser().getId()))
                 .userId(params.getUser().getId())
                 .isPrivileged(access.isPrivileged())

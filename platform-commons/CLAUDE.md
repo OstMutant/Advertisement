@@ -30,14 +30,7 @@ Sub-packages inside each subsystem namespace carry distinct roles:
 - `*.spi` — **extension points between modules** with **no Vaadin dependency**: interfaces declaring a callback boundary for domain data, events, and commands. Who calls vs. who implements varies by suffix (see table below).
 - `*.dto` — **data carriers** crossing the module boundary: plain value objects with no behavior, named with the `Dto` suffix.
 
-**UI extension points** that **require Vaadin** live under `org.ost.platform.ui.spi.*`, grouped by domain:
-
-- `ui.spi.audit` — `AuditUiPort`, `AuditActivityRowHook`
-- `ui.spi.attachment` — `AttachmentGalleryPort`
-
-Keeping Vaadin-dependent interfaces in a separate `ui.spi.*` root means non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
-
-**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. If a new SPI interface references `com.vaadin.flow.component.Component` → it belongs in `org.ost.platform.ui.spi.<domain>`; otherwise → `<domain>.spi`.
+**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. Non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
 
 ## SPI Interface Naming
 
@@ -45,8 +38,8 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
-| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries, UI components) | `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` |
-| `*Hook` | starter → marketplace | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook` |
+| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries, UI components) | `AuditPort`, `AttachmentPort`, `UserPort` |
+| `*Hook` | starter → marketplace | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 

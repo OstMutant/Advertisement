@@ -20,7 +20,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
+import org.ost.ui.audit.AuditActivityPanel;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
@@ -33,7 +33,7 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHa
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
+import org.ost.ui.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
@@ -65,10 +65,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private final I18nService                                                i18nService;
     private final NotificationService                                        notificationService;
-    private final transient ComponentFactory<AttachmentGalleryPort>          galleryPortFactory;
+    private final transient ComponentFactory<AttachmentGalleryService>        galleryServiceFactory;
     private final transient ComponentFactory<OverlayFormBinder>              formBinderFactory;
     private final transient ComponentFactory<AuditPort>                      auditPortFactory;
-    private final transient ComponentFactory<AuditUiPort>                    auditUiPortFactory;
+    private final transient ComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
     private final transient ComponentFactory<UiIconButton>                   cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                              metaPanel;
     private final UiTextField                                                titleField;
@@ -81,7 +81,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private Long                 savedId;
     private AdvertisementInfoDto savedInfoDto;
-    private AttachmentGalleryPort.FormHandle activeHandle;
+    private AttachmentGalleryService.FormHandle activeHandle;
     private Tabs                             formTabs;
     private Tab                              editTab;
     private Div                              activityContent;
@@ -127,7 +127,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        galleryPortFactory.ifAvailable(ext -> {
+        galleryServiceFactory.ifAvailable(ext -> {
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, java.util.UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
@@ -201,9 +201,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private Div buildTabbedContent(Div editContent) {
-        return auditUiPortFactory.findIfAvailable()
+        return auditActivityPanelFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
-                .map(auditUi -> {
+                .map(_ -> {
                     formTabs = new Tabs();
                     formTabs.addClassName("adv-form-tabs");
                     editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
@@ -219,7 +219,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                         editContent.setVisible(isEdit);
                         activityContent.setVisible(!isEdit);
                         if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
-                            activityContent.add(buildActivityContent(auditUi));
+                            activityContent.add(buildActivityContent());
                         }
                     });
 
@@ -228,8 +228,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .orElse(editContent);
     }
 
-    private com.vaadin.flow.component.Component buildActivityContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.ActivityParams.builder()
+    private com.vaadin.flow.component.Component buildActivityContent() {
+        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())

@@ -221,6 +221,46 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 ---
 
+## 2026-06-15 — Known decoupling debt (open backlog from codebase audit)
+
+Three categories of direct imports that violate the "marketplace-app accesses starters only via platform-commons contracts" rule. Recorded here as open work items, not accepted permanent exceptions.
+
+### 1. `org.ost.ui.audit.*` → `org.ost.audit.services.AuditReadService` (2 files)
+
+`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.ui.audit`) import `AuditReadService` directly instead of going through `AuditUiPort`.
+
+**Fix:** expose the needed query methods on `AuditUiPort` in platform-commons; implement in `AuditUiPortImpl`; replace the direct service injection in both panels.
+
+### 2. `org.ost.ui.attachment.*` → attachment-starter internals (20 import sites)
+
+`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil`, `YoutubeUtil` directly.
+
+**Root cause:** these UI components were moved from attachment-starter into marketplace-app (marketplace-ui phase) but kept their direct service/entity dependencies.
+
+**Fix:** move `MediaContentTypeUtil` and `YoutubeUtil` to platform-commons (or expose via `AttachmentPort`/`AttachmentGalleryPort`); replace direct `Attachment` entity usage with DTOs from `attachment.dto`.
+
+### 3. marketplace-app → `org.ost.user.*` internals (26 import sites)
+
+`SecurityConfig`, `UserView`, `UserOverlay`, `SignUpDialog`, `SettingsFormModeHandler`, `UserMapper`, `VaadinLocaleProvider` and others import `User` entity and `UserService`/`UserSettingsService` directly.
+
+**Root cause:** user domain was recently extracted into `user-spring-boot-starter`; imports were mechanical refactoring of the old package path.
+
+**Fix:** expose missing operations via `UserPort` in platform-commons; replace `User` entity usage at call sites with `UserDto`/`UserInfoDto` from `platform.user.dto`. `SecurityConfig` injection of `UserService` should become `UserPort.findByEmail()`.
+
+**Priority:** fix #1 first (smallest scope); then #2; then #3 (largest).
+
+### 4. `org.ost.marketplace.security.*` uses `User` entity instead of DTO
+
+`OwnershipChecker` and `RoleChecker` accept `org.ost.user.entity.User` directly in method signatures. The direction (marketplace → user-starter) is correct, but the boundary is crossed by an entity instead of a DTO.
+
+**Root cause:** `AuthContextService.getCurrentUser()` returns `Optional<User>` entity. All consumers — including `AccessEvaluator`, `RoleChecker`, `OwnershipChecker` — inherit this entity type from the auth context.
+
+**Fix:** introduce `CurrentUserDto` (or reuse an existing `UserSnapshot`) in `platform-commons`; change `AuthContextService.getCurrentUser()` to return `Optional<CurrentUserDto>`; update `OwnershipChecker`, `RoleChecker`, and `AccessEvaluator` signatures accordingly. `UserPrincipal` in user-starter adapts `User` entity → `CurrentUserDto` at the security boundary.
+
+**Blocked by:** fix #3 (`UserPort` / `UserDto` migration) — same root entity exposure.
+
+---
+
 ## 2026-05-29 — AbstractViewOverlayModeHandler: Template Method for tabbed view overlays
 
 **Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler` (in `ui/views/components/overlay/`). The base class provides a `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`, `buildSecondaryTab()`, `buildHeaderActions()`.

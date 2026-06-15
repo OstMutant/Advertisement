@@ -17,6 +17,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.List;
 
+
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
@@ -55,7 +56,7 @@ public class AuditTimelinePanel extends Div
             return this;
         }
         listRendererFactory.get()
-                .buildRows(items, p.getViewerActorId(), List.of())
+                .buildRows(items, p.getViewerActorId())
                 .forEach(this::add);
         return this;
     }

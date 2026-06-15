@@ -1,4 +1,4 @@
-package org.ost.marketplace.security;
+package org.ost.user.security;
 
 import org.jspecify.annotations.NonNull;
 import org.ost.user.entity.User;
@@ -8,7 +8,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
-
 
 public record UserPrincipal(User user) implements UserDetails {
 

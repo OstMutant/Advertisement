@@ -125,6 +125,22 @@
 
 ---
 
+## 2026-06-15 — Open: org.ost.ui.attachment.* directly imports attachment-starter internals
+
+Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox`) directly import:
+- `org.ost.attachment.entities.Attachment` — entity
+- `org.ost.attachment.services.AttachmentService` / `AttachmentSnapshotService` — services
+- `org.ost.attachment.util.MediaContentTypeUtil` / `YoutubeUtil` — utils
+
+**Root cause:** these components were moved from attachment-starter into marketplace-app (marketplace-ui merge phase) but kept their direct dependencies.
+
+**Fix:**
+- Move `MediaContentTypeUtil` and `YoutubeUtil` to `platform-commons` (`attachment.util`) or expose needed helpers via `AttachmentPort`/`AttachmentGalleryPort`
+- Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto` or similar) from `platform.attachment.dto`
+- Replace direct `AttachmentService` injection with calls through `AttachmentGalleryPort`
+
+---
+
 ## 2026-05-12 — Vaadin IFrame src patching via `Page.executeJs`
 
 **Decision:** In `CardMediaLightbox`, iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.

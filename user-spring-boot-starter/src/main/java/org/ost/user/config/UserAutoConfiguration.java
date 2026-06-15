@@ -6,6 +6,8 @@ import liquibase.integration.spring.SpringLiquibase;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
+import org.ost.user.security.UserPrincipal;
+import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -13,6 +15,15 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 
 import javax.sql.DataSource;
 
@@ -35,6 +46,35 @@ public class UserAutoConfiguration {
     @ConditionalOnMissingBean(name = "userSettingsObjectMapper")
     ObjectMapper userSettingsObjectMapper() {
         return new ObjectMapper().disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public UserDetailsService userDetailsService(UserService userService) {
+        return email -> userService.findByEmail(email)
+                .map(UserPrincipal::new)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AuthenticationManager authenticationManager(UserDetailsService userDetailsService,
+                                                       PasswordEncoder passwordEncoder) {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder);
+        return new ProviderManager(provider);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
     }
 
     @Bean

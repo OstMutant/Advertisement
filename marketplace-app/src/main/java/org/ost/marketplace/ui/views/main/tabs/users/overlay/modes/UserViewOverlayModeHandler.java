@@ -18,7 +18,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
+import org.ost.ui.audit.AuditTimelinePanel;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -46,7 +46,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final transient ComponentFactory<AuditUiPort>           auditUiPortFactory;
+    private final transient ComponentFactory<AuditTimelinePanel>    auditTimelinePanelFactory;
     private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
     private final transient ComponentFactory<UiIconButton>          iconButtonFactory;
     private final transient ComponentFactory<UiLabeledField>        labeledFieldFactory;
@@ -115,11 +115,11 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        return auditUiPortFactory.findIfAvailable()
-                .map(auditUi -> new SecondaryTabDef(
+        return auditTimelinePanelFactory.findIfAvailable()
+                .map(_ -> new SecondaryTabDef(
                         new Tab(getValue(TIMELINE_TAB)),
                         "activity-feed-content",
-                        () -> buildTimelineContent(params.getUser(), auditUi)))
+                        () -> buildTimelineContent(params.getUser())))
                 .orElse(null);
     }
 
@@ -138,8 +138,8 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         return new Div(editButton, closeButton);
     }
 
-    private com.vaadin.flow.component.Component buildTimelineContent(User user, AuditUiPort auditUi) {
-        return auditUi.buildAuditTimelinePanel(AuditUiPort.TimelineParams.builder()
+    private com.vaadin.flow.component.Component buildTimelineContent(User user) {
+        return auditTimelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
                 .actorId(user.getId())
                 .viewerActorId(user.getId())
                 .build());

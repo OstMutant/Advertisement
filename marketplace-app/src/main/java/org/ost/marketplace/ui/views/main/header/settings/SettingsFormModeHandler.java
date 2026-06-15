@@ -30,7 +30,8 @@ import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
+import org.ost.ui.audit.AuditActivityPanel;
+import org.ost.ui.audit.AuditTimelinePanel;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;
@@ -54,7 +55,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final UserSettingsService                               settingsService;
     private final transient ComponentFactory<OverlayFormBinder>    formBinderFactory;
     private final transient ComponentFactory<AuditPort>            auditPortFactory;
-    private final transient ComponentFactory<AuditUiPort>          auditUiPortFactory;
+    private final transient ComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
+    private final transient ComponentFactory<AuditTimelinePanel>   auditTimelinePanelFactory;
     private final transient ComponentFactory<UiIconButton>         cancelButtonFactory;
     private final UiPrimaryButton                                   saveButton;
     private final UiTertiaryButton                                  discardButton;
@@ -105,8 +107,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
         Div settingsContent = new Div(fieldsCard);
 
-        Div content = auditUiPortFactory.findIfAvailable()
-                .map(auditUi -> {
+        Div content = auditActivityPanelFactory.findIfAvailable()
+                .map(_ -> {
                     settingsTab       = new Tab(getValue(SETTINGS_SECTION_TITLE));
                     Tab historyTab    = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
                     Tab timelineTab   = new Tab(getValue(TIMELINE_TAB));
@@ -126,10 +128,10 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         historyContent.setVisible(isHistory);
                         timelineContent.setVisible(!isSettings && !isHistory);
                         if (isHistory && historyContent.getChildren().findFirst().isEmpty()) {
-                            historyContent.add(buildHistoryContent(auditUi));
+                            historyContent.add(buildHistoryContent());
                         }
                         if (!isSettings && !isHistory && timelineContent.getChildren().findFirst().isEmpty()) {
-                            timelineContent.add(buildTimelineContent(auditUi));
+                            timelineContent.add(buildTimelineContent());
                         }
                     });
 
@@ -176,8 +178,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         updateButtons(false);
     }
 
-    private com.vaadin.flow.component.Component buildHistoryContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditActivityPanel(AuditUiPort.ActivityParams.builder()
+    private com.vaadin.flow.component.Component buildHistoryContent() {
+        return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER_SETTINGS, params.getUserId()))
                 .userId(params.getUserId())
                 .isPrivileged(true)
@@ -186,8 +188,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .build());
     }
 
-    private com.vaadin.flow.component.Component buildTimelineContent(AuditUiPort auditUi) {
-        return auditUi.buildAuditTimelinePanel(AuditUiPort.TimelineParams.builder()
+    private com.vaadin.flow.component.Component buildTimelineContent() {
+        return auditTimelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
                 .actorId(params.getUserId())
                 .viewerActorId(params.getUserId())
                 .build());

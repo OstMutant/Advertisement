@@ -10,8 +10,7 @@ import org.ost.ui.audit.AuditTimelineListRenderer;
 import org.ost.ui.audit.AuditTimelinePanel;
 import org.ost.ui.audit.AuditTimelineRowRenderer;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
-import org.ost.platform.ui.spi.audit.AuditUiPort;
+import org.ost.ui.attachment.AttachmentGalleryService;
 import org.ost.ui.query.elements.SortIcon;
 import org.ost.ui.query.elements.SvgIcon;
 import org.ost.ui.query.elements.fields.QueryDateTimeField;
@@ -37,11 +36,6 @@ public class MarketplaceUiConfiguration {
     }
 
     // ── Audit UI factories ────────────────────────────────────────────────────
-
-    @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditUiPort> auditUiPortFactory(ObjectProvider<AuditUiPort> p) {
-        return new ComponentFactory<>(p);
-    }
 
     @Bean @ConditionalOnMissingBean
     public ComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
@@ -76,7 +70,7 @@ public class MarketplaceUiConfiguration {
     // ── Attachment UI factories ───────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentGalleryPort> attachmentGalleryPortFactory(ObjectProvider<AttachmentGalleryPort> p) {
+    public ComponentFactory<AttachmentGalleryService> attachmentGalleryServiceFactory(ObjectProvider<AttachmentGalleryService> p) {
         return new ComponentFactory<>(p);
     }
 

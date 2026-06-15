@@ -3,7 +3,7 @@ package org.ost.marketplace.services.auth;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.user.entity.User;
-import org.ost.marketplace.security.UserPrincipal;
+import org.ost.user.security.UserPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

@@ -334,6 +334,16 @@ Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFie
 
 ---
 
+## 2026-06-15 — Open: AuditReadService imported directly in marketplace UI panels
+
+`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.ui.audit`, physically in marketplace-app) inject `AuditReadService` directly — bypassing `AuditUiPort`.
+
+**Rule violation:** marketplace-app must access audit functionality only through `AuditUiPort` (platform-commons). Direct `org.ost.audit.services.*` imports in marketplace UI are forbidden.
+
+**Fix:** add the required query methods to `AuditUiPort`; implement in `AuditUiPortImpl`; remove `AuditReadService` injection from both panels. The panels then call `auditUiPort.findActivity(...)` / `auditUiPort.findTimeline(...)`.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears

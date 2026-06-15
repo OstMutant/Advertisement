@@ -28,7 +28,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.ui.spi.attachment.AttachmentGalleryPort;
+import org.ost.ui.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
@@ -55,7 +55,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
     private final transient ComponentFactory<AdvertisementPort>       advertisementPortFactory;
-    private final transient ComponentFactory<AttachmentGalleryPort>   galleryPortFactory;
+    private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient ComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient ComponentFactory<EditActionButton>         editButtonFactory;
     private final transient ComponentFactory<DeleteActionButton>       deleteButtonFactory;
@@ -116,7 +116,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryPortFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                galleryServiceFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
