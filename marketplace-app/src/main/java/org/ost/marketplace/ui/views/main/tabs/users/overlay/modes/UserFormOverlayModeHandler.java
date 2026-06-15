@@ -18,7 +18,7 @@ import org.ost.platform.user.model.Role;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.ui.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.audit.AuditActivityPanel;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;

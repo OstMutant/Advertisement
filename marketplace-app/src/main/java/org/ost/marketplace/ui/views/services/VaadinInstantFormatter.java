@@ -1,7 +1,7 @@
 package org.ost.marketplace.ui.views.services;
 
 import org.ost.marketplace.i18n.InstantFormatter;
-import org.ost.ui.query.utils.TimeZoneUtil;
+import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

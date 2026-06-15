@@ -2,7 +2,7 @@ package org.ost.marketplace.ui.views.main.tabs.users.query;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.ui.query.sort.SortFieldMeta;
+import org.ost.marketplace.ui.query.sort.SortFieldMeta;
 
 import static org.ost.marketplace.common.I18nKey.*;
 

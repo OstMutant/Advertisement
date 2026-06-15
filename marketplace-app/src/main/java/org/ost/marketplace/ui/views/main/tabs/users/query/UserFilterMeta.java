@@ -4,9 +4,9 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.model.Role;
-import org.ost.ui.query.filter.ValidationService;
-import org.ost.ui.query.filter.FilterFieldMeta;
-import org.ost.ui.query.filter.ValidationPredicates;
+import org.ost.marketplace.ui.query.filter.ValidationService;
+import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
+import org.ost.marketplace.ui.query.filter.ValidationPredicates;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -16,7 +16,7 @@ import java.util.function.BiPredicate;
 import static org.ost.platform.user.dto.UserFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.toLong;
-import static org.ost.ui.query.utils.TimeZoneUtil.toInstant;
+import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.toInstant;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFilterMeta {

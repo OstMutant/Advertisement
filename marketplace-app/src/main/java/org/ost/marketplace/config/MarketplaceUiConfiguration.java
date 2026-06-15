@@ -1,24 +1,24 @@
 package org.ost.marketplace.config;
 
 import jakarta.validation.Validator;
-import org.ost.ui.attachment.AttachmentGallery;
-import org.ost.ui.attachment.CardMediaLightbox;
-import org.ost.ui.audit.AuditActivityListRenderer;
-import org.ost.ui.audit.AuditActivityPanel;
-import org.ost.ui.audit.AuditActivityRowRenderer;
-import org.ost.ui.audit.AuditTimelineListRenderer;
-import org.ost.ui.audit.AuditTimelinePanel;
-import org.ost.ui.audit.AuditTimelineRowRenderer;
+import org.ost.marketplace.ui.attachment.AttachmentGallery;
+import org.ost.marketplace.ui.attachment.CardMediaLightbox;
+import org.ost.marketplace.ui.audit.AuditActivityListRenderer;
+import org.ost.marketplace.ui.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.audit.AuditActivityRowRenderer;
+import org.ost.marketplace.ui.audit.AuditTimelineListRenderer;
+import org.ost.marketplace.ui.audit.AuditTimelinePanel;
+import org.ost.marketplace.ui.audit.AuditTimelineRowRenderer;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.ui.attachment.AttachmentGalleryService;
-import org.ost.ui.query.elements.SortIcon;
-import org.ost.ui.query.elements.SvgIcon;
-import org.ost.ui.query.elements.fields.QueryDateTimeField;
-import org.ost.ui.query.elements.fields.QueryMultiSelectComboField;
-import org.ost.ui.query.elements.fields.QueryNumberField;
-import org.ost.ui.query.elements.fields.QueryTextField;
-import org.ost.ui.query.elements.rows.QueryInlineRow;
-import org.ost.ui.query.filter.ValidationService;
+import org.ost.marketplace.ui.attachment.AttachmentGalleryService;
+import org.ost.marketplace.ui.query.elements.SortIcon;
+import org.ost.marketplace.ui.query.elements.SvgIcon;
+import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
+import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
+import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
+import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
+import org.ost.marketplace.ui.query.filter.ValidationService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -26,7 +26,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan({"org.ost.ui.audit", "org.ost.ui.attachment", "org.ost.ui.query", "org.ost.marketplace.spi"})
+@ComponentScan({"org.ost.marketplace.ui.audit", "org.ost.marketplace.ui.attachment", "org.ost.marketplace.ui.query", "org.ost.marketplace.spi"})
 public class MarketplaceUiConfiguration {
 
     @Bean

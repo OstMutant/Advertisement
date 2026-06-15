@@ -18,12 +18,12 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.ui.audit.AuditTimelinePanel;
+import org.ost.marketplace.ui.audit.AuditTimelinePanel;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.core.model.EntityType;
-import org.ost.ui.query.utils.TimeZoneUtil;
+import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;

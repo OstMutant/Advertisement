@@ -12,7 +12,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.ui.query.utils.TimeZoneUtil;
+import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.ui.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
