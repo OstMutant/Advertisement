@@ -43,7 +43,7 @@ test.describe('Authentication flow', () => {
     await runSwitchToUkrainianFlow(page, expect);
     await runSignUpFlow(page, expect, TEST_USERS.userUk, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'useruk-signup-settings' });
-    });
+    }, 'uk');
   });
 
   test('moderatorUk signs up — MODERATOR candidate', async () => {

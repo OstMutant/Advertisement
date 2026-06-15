@@ -2,7 +2,7 @@ const { screenshot } = require('../_test-helpers');
 const { closeNotification } = require('../_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./auth.flow');
 
-async function runSignUpFlow(page, expect, user, registeredRole = 'USER', afterLoginHook = null) {
+async function runSignUpFlow(page, expect, user, registeredRole = 'USER', afterLoginHook = null, sessionLocale = 'en') {
   await page.locator('vaadin-button').filter({ hasText: /sign up|зареєструватися/i }).first().click();
   await page.locator('[data-testid="signup-name-label"]').waitFor({ timeout: 5000 });
   await screenshot(page, 'signup-dialog-open');
@@ -23,7 +23,7 @@ async function runSignUpFlow(page, expect, user, registeredRole = 'USER', afterL
   await closeNotification(page);
 
   await runFillLoginFormFlow(page, user);
-  await runSubmitLoginFlow(page, expect, { ...user, role: registeredRole }, 'en');
+  await runSubmitLoginFlow(page, expect, { ...user, role: registeredRole }, sessionLocale);
   await closeNotification(page);
   if (afterLoginHook) await afterLoginHook();
   await runLogoutFlow(page, expect);
