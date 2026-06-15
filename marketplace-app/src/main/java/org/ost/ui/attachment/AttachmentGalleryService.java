@@ -4,10 +4,8 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.services.AttachmentService;
-import org.ost.ui.attachment.AttachmentGallery;
-import org.ost.ui.attachment.CardMediaLightbox;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -18,9 +16,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentGalleryService {
 
-    private final ComponentFactory<AttachmentGallery>  galleryFactory;
-    private final ComponentFactory<CardMediaLightbox>  lightboxFactory;
-    private final AttachmentService                    attachmentService;
+    private final ComponentFactory<AttachmentGallery> galleryFactory;
+    private final ComponentFactory<CardMediaLightbox> lightboxFactory;
+    private final AttachmentPort                      attachmentPort;
 
     public Component buildGalleryForView(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
@@ -41,8 +39,8 @@ public class AttachmentGalleryService {
     }
 
     public void openMediaLightbox(@NonNull EntityRef entity) {
-        List<Attachment> attachments =
-                attachmentService.getByEntityId(entity.entityType(), entity.entityId());
+        List<AttachmentItemDto> attachments =
+                attachmentPort.getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {
             lightboxFactory.get().open(attachments, 0);
         }

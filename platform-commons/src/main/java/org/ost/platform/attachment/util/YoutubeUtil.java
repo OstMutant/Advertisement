@@ -1,7 +1,8 @@
-package org.ost.attachment.util;
+package org.ost.platform.attachment.util;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -12,7 +13,6 @@ public final class YoutubeUtil {
         "(?:youtube\\.com/(?:embed/|shorts/|v/|.*[?&]v=)" +
         "|youtu\\.be/)([^\"&?/\\s]{11})"
     );
-
 
     public static String extractId(String url) {
         if (url == null || url.isBlank()) return null;

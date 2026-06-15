@@ -9,10 +9,9 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.dom.Element;
-import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.util.MediaContentTypeUtil;
-import org.ost.attachment.util.YoutubeUtil;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
+import org.ost.platform.attachment.util.YoutubeUtil;
 
 class CardLightboxViewer extends HorizontalLayout {
 
@@ -58,9 +57,9 @@ class CardLightboxViewer extends HorizontalLayout {
         nextBtn.setVisible(visible);
     }
 
-    void update(Attachment a) {
-        String ct = a.getContentType();
-        if (MediaContentTypeUtil.isEmbedded(ct)) {
+    void update(AttachmentItemDto a) {
+        String ct = a.contentType();
+        if (AttachmentMediaContentType.isEmbedded(ct)) {
             UI.getCurrent().getPage().executeJs(
                 "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}");
             String embedUrl = embedSrc(a);
@@ -70,16 +69,16 @@ class CardLightboxViewer extends HorizontalLayout {
             mainImg.setVisible(false);
             mainVideo.setVisible(false);
             iframe.setVisible(true);
-        } else if (MediaContentTypeUtil.isUploadedVideo(ct)) {
+        } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {
             iframe.getElement().setAttribute("src", "about:blank");
             UI.getCurrent().getPage().executeJs(
                 "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';");
-            videoEl.setAttribute("src", a.getUrl());
+            videoEl.setAttribute("src", a.url());
             mainImg.setVisible(false);
             iframe.setVisible(false);
             mainVideo.setVisible(true);
             UI.getCurrent().getPage().executeJs(
-                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.src=$0; v.load();}", a.getUrl());
+                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.src=$0; v.load();}", a.url());
         } else {
             iframe.getElement().setAttribute("src", "about:blank");
             UI.getCurrent().getPage().executeJs(
@@ -87,15 +86,15 @@ class CardLightboxViewer extends HorizontalLayout {
                 "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}");
             mainVideo.setVisible(false);
             iframe.setVisible(false);
-            mainImg.setSrc(a.getUrl());
-            mainImg.setAlt(a.getFilename());
+            mainImg.setSrc(a.url());
+            mainImg.setAlt(a.filename());
             mainImg.setVisible(true);
         }
     }
 
-    private static String embedSrc(Attachment a) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.getContentType()))
-            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.getUrl()));
-        return a.getUrl();
+    private static String embedSrc(AttachmentItemDto a) {
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.contentType()))
+            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.url()));
+        return a.url();
     }
 }

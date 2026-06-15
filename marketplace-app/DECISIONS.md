@@ -223,31 +223,31 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 ## 2026-06-15 — Known decoupling debt (open backlog from codebase audit)
 
-Three categories of direct imports that violate the "marketplace-app accesses starters only via platform-commons contracts" rule. Recorded here as open work items, not accepted permanent exceptions.
+Direct imports that violate the "marketplace-app UI accesses starters only via platform-commons contracts" rule. Recorded here as open work items, not accepted permanent exceptions.
 
-### 1. `org.ost.ui.audit.*` → `org.ost.audit.services.AuditReadService` (2 files)
+**Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI components may reference each other freely. UI ports/hooks (AuditUiPort, AttachmentGalleryPort, AuditActivityRowHook) were removed as unnecessary indirection.
 
-`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.ui.audit`) import `AuditReadService` directly instead of going through `AuditUiPort`.
+### 1. ~~`org.ost.ui.audit.*` → `org.ost.audit.services.AuditReadService`~~ — superseded
 
-**Fix:** expose the needed query methods on `AuditUiPort` in platform-commons; implement in `AuditUiPortImpl`; replace the direct service injection in both panels.
+This item was based on the assumption that AuditUiPort should mediate the call. That port was removed (2026-06-15) as unnecessary indirection. `AuditActivityPanel` and `AuditTimelinePanel` calling `AuditReadService` directly **is** the legitimate service ↔ UI boundary — this is correct design, not a violation.
 
-### 2. `org.ost.ui.attachment.*` → attachment-starter internals (20 import sites)
+### 2. `org.ost.ui.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
 
-`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil`, `YoutubeUtil` directly.
+`AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil`, `YoutubeUtil` directly from attachment-starter.
 
-**Root cause:** these UI components were moved from attachment-starter into marketplace-app (marketplace-ui phase) but kept their direct service/entity dependencies.
+**Why this is a violation:** UI (marketplace-app) is calling service-layer internals of a starter directly instead of going through the platform-commons `AttachmentPort` contract.
 
-**Fix:** move `MediaContentTypeUtil` and `YoutubeUtil` to platform-commons (or expose via `AttachmentPort`/`AttachmentGalleryPort`); replace direct `Attachment` entity usage with DTOs from `attachment.dto`.
+**Fix:** expose the needed read operations on `AttachmentPort` in platform-commons (e.g. `getByEntity`, `getTempAttachments`, snapshot lookup); replace direct `AttachmentService` injection in UI components with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil`/`YoutubeUtil` to platform-commons or attachment.dto.
 
 ### 3. marketplace-app → `org.ost.user.*` internals (26 import sites)
 
-`SecurityConfig`, `UserView`, `UserOverlay`, `SignUpDialog`, `SettingsFormModeHandler`, `UserMapper`, `VaadinLocaleProvider` and others import `User` entity and `UserService`/`UserSettingsService` directly.
+`UserView`, `UserOverlay`, `SignUpDialog`, `SettingsFormModeHandler`, `UserMapper`, `VaadinLocaleProvider` and others import `User` entity and `UserService`/`UserSettingsService` directly.
 
 **Root cause:** user domain was recently extracted into `user-spring-boot-starter`; imports were mechanical refactoring of the old package path.
 
-**Fix:** expose missing operations via `UserPort` in platform-commons; replace `User` entity usage at call sites with `UserDto`/`UserInfoDto` from `platform.user.dto`. `SecurityConfig` injection of `UserService` should become `UserPort.findByEmail()`.
+**Fix:** expose missing operations via `UserPort` in platform-commons; replace `User` entity usage at call sites with `UserDto`/`UserInfoDto` from `platform.user.dto`.
 
-**Priority:** fix #1 first (smallest scope); then #2; then #3 (largest).
+**Priority:** fix #2 first; then #3 (largest).
 
 ### 4. `org.ost.marketplace.security.*` uses `User` entity instead of DTO
 

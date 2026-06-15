@@ -66,4 +66,4 @@ public List<AuditActivityItemDto> merge(EntityType t, Long id, List<AuditActivit
 }
 ```
 
-**`Default*Port` / `*PortImpl` — may coordinate.** A port is a facade over the starter's internal service layer. Orchestrating multiple service calls, resolving fallbacks, or managing transactions within the port is acceptable — it is the port's role to present a clean interface to the outside world. Logic that belongs in a domain service (business rules, data transformation) must not leak into the port.
+**`*PortImpl` — pure delegation only.** Same rule as `*HookImpl`: each method calls exactly one service method, no logic in the port itself. A port is not a facade that orchestrates — it is a thin adapter that exposes service methods through the platform-commons contract. All business logic belongs in the service.

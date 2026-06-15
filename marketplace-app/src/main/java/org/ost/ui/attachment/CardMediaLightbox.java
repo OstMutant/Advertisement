@@ -6,7 +6,7 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
-import org.ost.attachment.entities.Attachment;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -15,7 +15,7 @@ import java.util.List;
 @Scope("prototype")
 public class CardMediaLightbox {
 
-    public void open(@NonNull List<Attachment> attachments, int startIndex) {
+    public void open(@NonNull List<AttachmentItemDto> attachments, int startIndex) {
         int[] idx = {startIndex};
 
         CardLightboxViewer viewer = new CardLightboxViewer();
@@ -41,7 +41,7 @@ public class CardMediaLightbox {
     }
 
     private static void navigate(CardLightboxViewer viewer, CardLightboxStrip strip,
-                                  List<Attachment> attachments, int idx) {
+                                  List<AttachmentItemDto> attachments, int idx) {
         viewer.update(attachments.get(idx));
         strip.setActive(idx);
     }

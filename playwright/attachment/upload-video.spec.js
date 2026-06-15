@@ -101,7 +101,8 @@ test.describe('Upload video', () => {
         });
 
         await test.step('Click play icon opens attachment lightbox with video element', async () => {
-            await page.locator('.attachment-gallery__play-icon').first().click();
+            // play icon has pointer-events: none (decorative); click the item itself which triggers the lightbox
+            await page.locator('.attachment-gallery__item').first().click();
             await page.locator('.attachment-lightbox').waitFor({ timeout: 5000 });
             await screenshot(page, 'upload-video-03-lightbox');
 

@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.attachment.repository.AttachmentMediaChange;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
-import org.ost.attachment.util.YoutubeUtil;
+import org.ost.platform.attachment.util.YoutubeUtil;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;

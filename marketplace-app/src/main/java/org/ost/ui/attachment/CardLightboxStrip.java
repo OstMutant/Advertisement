@@ -2,10 +2,9 @@ package org.ost.ui.attachment;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
-import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.util.MediaContentTypeUtil;
-import org.ost.attachment.util.YoutubeUtil;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
+import org.ost.platform.attachment.util.YoutubeUtil;
 
 import java.util.List;
 import java.util.function.IntConsumer;
@@ -13,10 +12,10 @@ import java.util.stream.IntStream;
 
 class CardLightboxStrip extends Div {
 
-    CardLightboxStrip(List<Attachment> attachments) {
+    CardLightboxStrip(List<AttachmentItemDto> attachments) {
         addClassName("card-lightbox__strip");
-        for (Attachment a : attachments) {
-            Image thumb = new Image(thumbSrc(a), a.getFilename());
+        for (AttachmentItemDto a : attachments) {
+            Image thumb = new Image(thumbSrc(a), a.filename());
             thumb.addClassName("card-lightbox__thumb");
             add(thumb);
         }
@@ -33,11 +32,11 @@ class CardLightboxStrip extends Div {
         getComponentAt(idx).getElement().getClassList().add("card-lightbox__thumb--active");
     }
 
-    private static String thumbSrc(Attachment a) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.getContentType()))
-            return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.getUrl()));
-        if (MediaContentTypeUtil.isVideo(a.getContentType()))
-            return MediaContentTypeUtil.VIDEO_THUMBNAIL;
-        return a.getUrl();
+    private static String thumbSrc(AttachmentItemDto a) {
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.contentType()))
+            return YoutubeUtil.thumbnailUrl(YoutubeUtil.extractId(a.url()));
+        if (AttachmentMediaContentType.isVideo(a.contentType()))
+            return AttachmentMediaContentType.VIDEO_THUMBNAIL;
+        return a.url();
     }
 }

@@ -7,29 +7,28 @@ import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.dom.Element;
-import org.ost.attachment.entities.Attachment;
-import org.ost.attachment.util.MediaContentTypeUtil;
-import org.ost.attachment.util.YoutubeUtil;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
+import org.ost.platform.attachment.util.YoutubeUtil;
 
 class AttachmentLightbox extends Div {
 
     private static final String CLICK_EVENT      = "click";
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
-    private AttachmentLightbox(Attachment attachment) {
+    private AttachmentLightbox(AttachmentItemDto attachment) {
         addClassName("attachment-lightbox");
 
         Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> close(null));
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
-        String ct = attachment.getContentType();
-        if (MediaContentTypeUtil.isEmbedded(ct)) {
+        String ct = attachment.contentType();
+        if (AttachmentMediaContentType.isEmbedded(ct)) {
             IFrame iframe = buildIFrame(attachment);
             addClickListener(_ -> close(iframe));
             add(closeBtn, iframe);
-        } else if (MediaContentTypeUtil.isUploadedVideo(ct)) {
+        } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {
             Element videoEl = buildVideoElement(attachment);
             Div videoWrapper = new Div();
             videoWrapper.getElement().appendChild(videoEl);
@@ -40,7 +39,7 @@ class AttachmentLightbox extends Div {
             });
             add(closeBtn, videoWrapper);
         } else {
-            Image img = new Image(attachment.getUrl(), attachment.getFilename());
+            Image img = new Image(attachment.url(), attachment.filename());
             img.addClassName("attachment-lightbox__image");
             img.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
             addClickListener(_ -> removeFromParent());
@@ -48,7 +47,7 @@ class AttachmentLightbox extends Div {
         }
     }
 
-    static void open(Attachment attachment, UI ui) {
+    static void open(AttachmentItemDto attachment, UI ui) {
         ui.getElement().appendChild(new AttachmentLightbox(attachment).getElement());
     }
 
@@ -57,7 +56,7 @@ class AttachmentLightbox extends Div {
         removeFromParent();
     }
 
-    private static IFrame buildIFrame(Attachment attachment) {
+    private static IFrame buildIFrame(AttachmentItemDto attachment) {
         IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
         iframe.addClassName("attachment-lightbox__iframe");
         iframe.getElement().setAttribute("allow",
@@ -68,17 +67,17 @@ class AttachmentLightbox extends Div {
         return iframe;
     }
 
-    private static Element buildVideoElement(Attachment attachment) {
+    private static Element buildVideoElement(AttachmentItemDto attachment) {
         Element videoEl = new Element("video");
         videoEl.setAttribute("controls", "");
-        videoEl.setAttribute("src", attachment.getUrl());
+        videoEl.setAttribute("src", attachment.url());
         videoEl.getClassList().add("attachment-lightbox__video");
         return videoEl;
     }
 
-    private static String resolveEmbedUrl(Attachment attachment) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.getContentType()))
-            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.getUrl()));
-        return attachment.getUrl();
+    private static String resolveEmbedUrl(AttachmentItemDto attachment) {
+        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.contentType()))
+            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.url()));
+        return attachment.url();
     }
 }
