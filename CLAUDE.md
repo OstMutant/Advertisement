@@ -19,26 +19,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```
 advertisement-parent (root pom)
-├── query-lib                        — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
-├── platform-commons                 — shared kernel: DTOs, domain events, SPI interfaces
-├── audit-spring-boot-starter        — audit subsystem: write + read side + activity UI (auto-configured starter)
-├── attachment-spring-boot-starter   — photo/attachment module + S3 storage (auto-configured starter)
-└── marketplace-app                  — main Vaadin application
+├── query-lib                         — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
+├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
+├── audit-spring-boot-starter         — audit subsystem: write + read side (auto-configured starter)
+├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
+├── user-spring-boot-starter          — User domain: entity, service, security, UserPortImpl (auto-configured starter)
+├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
+└── marketplace-app                   — main Vaadin application (all UI)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`)
-- `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`; plus Vaadin UI extension points under `ui.spi.*`: `ui.spi.audit` (`AuditUiPort`, `AuditActivityRowHook`), `ui.spi.attachment` (`AttachmentGalleryPort`)
-- `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditHistoryItemDto`, `AuditSnapshotContentDto`, `SnapshotPayloadDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
-- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`), `attachment.model` (`AttachmentMediaContentType`)
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
+- `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
+- `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
+- `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
+- `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
+- `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
-**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffService`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`, Vaadin audit UI components. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
+**audit-spring-boot-starter** auto-configures the full audit subsystem. Write side: `DefaultAuditPort`, `AuditDiffService`, `AuditLogRepository`. Read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`. Active whenever the jar is on the classpath. Java package root: `org.ost.audit`.
 
-**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, `AttachmentGallery` (Vaadin component), SPI implementations, `AttachmentCleanupJob`, `S3StorageService`. Java package root: `org.ost.attachment`.
+**attachment-spring-boot-starter** auto-configures via Spring Boot's autoconfiguration mechanism. It owns: `Attachment` entity, `AttachmentRepository`, `PhotoSnapshotRepository`, `AttachmentService`, SPI implementations, `AttachmentCleanupJob`, `S3StorageService`. Java package root: `org.ost.attachment`.
+
+**user-spring-boot-starter** auto-configures the User domain. Owns: `User` entity, `UserRepository`, `UserService`, `UserSettingsService`, `UserPrincipal` (Spring Security), `UserPortImpl`, `UserSettingsChangedHook` dispatch. Java package root: `org.ost.user`.
+
+**advertisement-spring-boot-starter** auto-configures the Advertisement domain. Owns: `Advertisement` entity, `AdvertisementRepository`, `AdvertisementService`, `AdvertisementPortImpl`. Java package root: `org.ost.advertisement`.
 
 ---
 
@@ -46,7 +54,7 @@ advertisement-parent (root pom)
 
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
-3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserService` or `AdvertisementService`.
+3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
 3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.storage`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
@@ -73,7 +81,7 @@ advertisement-parent (root pom)
 - Hand-rolled `INSERT` / `findById` SQL is removed whenever it duplicates what `CrudRepository.save` / `.findById` already provides.
 - Starters that ship their own repositories must declare `@EnableJdbcRepositories(basePackages = "...")` in their `@AutoConfiguration`, because the marketplace `@SpringBootApplication` scan only covers `org.ost.marketplace`.
 
-Reference implementations: `UserRepository` / `AdvertisementRepository` in marketplace-app, `AttachmentRepository` in attachment-spring-boot-starter.
+Reference implementations: `UserRepository` in user-spring-boot-starter, `AdvertisementRepository` in advertisement-spring-boot-starter, `AttachmentRepository` in attachment-spring-boot-starter.
 
 → query-lib SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @query-lib/CLAUDE.md
 
@@ -140,7 +148,7 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 ### I18n in UI components
 
 Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-commons`, package `core.i18n`):
-- `marketplace-app` → `CommonMessages implements TranslationKey`
+- `marketplace-app` → `I18nKey implements TranslationKey`
 - `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
 - `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
 
@@ -176,10 +184,10 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 
 ### Package structure (marketplace-app)
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
-- `services/audit/` — entire audit subsystem: services + snapshots + diff engine + annotation
-- `services/auth/` — authentication context (interface + impl)
-- `repository/activity/`, `repository/audit/`, `repository/advertisement/`, `repository/user/` — SQL repositories + projections per domain
-- `ui/views/components/` — reusable Vaadin UI components (incl. `activity/` subpackage)
+- `services/audit/` — audit snapshot DTOs, diff engine, `@AuditedField` annotation
+- `services/auth/` — authentication context (`AuthContextService`)
+- `repository/activity/` — activity feed SQL repositories + projections
+- `ui/views/components/` — reusable Vaadin UI components (incl. `activity/`, `audit/`, `attachment/` subpackages)
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support
 

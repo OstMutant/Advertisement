@@ -2,9 +2,9 @@
 
 ---
 
-## 2026-06-13 — UI layer restructuring: marketplace-ui created, then merged back; domain modules planned
+## 2026-06-13 — UI layer restructuring: marketplace-ui created, then merged back; domain modules extracted
 
-### Phase 1 (implemented): Vaadin UI extracted from starters, package namespace unified
+### Phase 1 (completed): Vaadin UI extracted from starters, package namespace unified
 
 **What changed:**
 - Created `marketplace-ui` module — moved all `org.ost.audit.ui.*`, `org.ost.attachment.ui.*`, `org.ost.query.ui.*` source files out of their respective starters
@@ -15,9 +15,9 @@
 
 **Why — CSS production build:** Vaadin 25 Vite production build does not include CSS from `@CssImport` on components in JAR starters. CSS in `marketplace-app/themes/my-app/` is always bundled.
 
-### Phase 2 (planned): merge marketplace-ui into marketplace-app; extract domain modules
+### Phase 2 (completed): merge marketplace-ui into marketplace-app; extract domain modules
 
-**Decision (planned, not yet implemented):** `marketplace-ui` is a transitional module — it will be absorbed into `marketplace-app`. Domain logic (Advertisement, User) moves to dedicated Spring Boot starters. Final target structure:
+**Decision (completed):** `marketplace-ui` was absorbed into `marketplace-app`. Domain logic (Advertisement, User) moved to dedicated Spring Boot starters. Final structure:
 
 ```
 advertisement-parent
@@ -52,7 +52,7 @@ advertisement-parent
 
 **SPI implementations:** `*HookImpl` and `*PortImpl` classes stay in `marketplace-app` (the orchestrator), not in domain modules, so domain modules remain free of starter dependencies.
 
-**How to apply:** Domain split second (advertisement-module, user-module). Phase 1 (marketplace-ui) is done. Do not merge all changes in one PR.
+**Status:** Fully implemented. Both domain starters exist and marketplace-app imports only platform-commons contracts (`UserPort`, `AdvertisementPort`, `UserDto`, etc.).
 
 **What phase 1 changed:**
 - Created `marketplace-ui` module with `MarketplaceUiConfiguration` (`@Configuration` + `@ComponentScan({"org.ost.audit.ui","org.ost.attachment.ui","org.ost.query.ui"})`)

@@ -2,9 +2,9 @@
 
 ---
 
-## 2026-06-13 — PLANNED: UserPort + AdvertisementPort for domain module extraction
+## 2026-06-13 — UserPort + AdvertisementPort for domain module extraction (completed 2026-06-15)
 
-**Decision (planned, not yet implemented):** Two new `*Port` interfaces will be added to `platform-commons` as part of the domain module extraction (see `marketplace-app/DECISIONS.md` phase 2).
+**Decision (completed):** Two new `*Port` interfaces were added to `platform-commons` as part of the domain module extraction (see `marketplace-app/DECISIONS.md` phase 2).
 
 **`UserPort`** (`user.spi`) — marketplace-app calls user-spring-boot-starter:
 ```java
@@ -43,7 +43,7 @@ List<Long> findExistingIds(Long[] ids);
 
 **DTOs for port signatures:** Entity types (`User`, `Advertisement`) and edit DTOs that cross the module boundary move to `platform-commons` (or the respective starter exposes them as part of its public API). Exact DTO placement to be decided during implementation.
 
-**How to apply:** Do not implement until marketplace-ui → marketplace-app merge is complete.
+**Status:** Fully implemented. See marketplace-app/DECISIONS.md 2026-06-13 (phase 2 completed) and 2026-06-15 (full user decoupling).
 
 ---
 
@@ -98,9 +98,11 @@ The alternative — one singleton factory with `<T> T get(Class<T> type)` — pu
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort` (`*Port`); `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook` (`*Hook`).
 
 **2026-06-03 update:** `EntityNameHook` (merged into `AuditDomainHook`), `AuditFieldLabelHook` (merged into `AuditActivityFieldsHook`), `AuditActivityRenderHook` (merged into `AuditActivityEnrichHook`) deleted. SPI count reduced from 13 to 10.
+
+**2026-06-15 update:** `AuditUiPort`, `AuditActivityRowHook`, `AuditHistoryRowActionsHook`, `AttachmentGalleryPort` removed — UI ports/hooks are unnecessary indirection since all Vaadin UI lives in marketplace-app. `UserPort`, `AdvertisementPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook` added for domain module extraction.
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -181,7 +183,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ## Ongoing — SPI pattern for cross-module extension
 
-**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AttachmentGalleryPort`, `AttachmentMediaChangeHook`, `AuditActivityRowHook`, `AttachmentPort`, `AuditUiPort`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
+**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `AttachmentMediaChangeHook`, `AuditActivityEnrichHook`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19. UI-specific ports `AuditUiPort`, `AttachmentGalleryPort`, `AuditActivityRowHook` were removed 2026-06-15 — all Vaadin UI lives in marketplace-app, making these ports unnecessary indirection.)
 
 **Why:** Modules must not know about each other — only about contracts. The SPI pattern lets `attachment-spring-boot-starter` extend audit history without `audit-spring-boot-starter` importing attachment types.
 
@@ -259,17 +261,23 @@ core.model     — ActionType, ChangeEntry, EntityType
 core.spi       — CurrentActorHook
 ui             — Configurable, ComponentBuilder, Initialization, Provider
 
-audit.api      — AuditableSnapshot, 
-audit.codec    — SnapshotCodec
-audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
-audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
-                 AuditActivityFieldsHook, AuditActivityRowHook,
-                 AuditActivityEnrichHook, AuditHistoryRowActionsHook
+audit.api      — AuditableSnapshot
+audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto
+audit.spi      — AuditPort, AuditDomainHook,
+                 AuditActivityFieldsHook, AuditActivityEnrichHook
 
-attachment.dto     — AttachmentMediaSummaryDto
+attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentGalleryPort,
-                     AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.spi     — AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook
+
+user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
+                 UserSnapshotDto, SettingsSnapshotDto, SignUpDto
+user.model     — Role
+user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
+
+advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
+                     AdvertisementSaveDto, AdvertisementSnapshotDto
+advertisement.spi  — AdvertisementPort
 ```
 
 The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above. The `attachment.storage` package was removed on 2026-05-19 — `StorageService` and the subsystem conditional moved into `attachment-spring-boot-starter`.
