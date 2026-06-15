@@ -4,7 +4,6 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.ui.query.sort.CustomSort;
-import org.ost.user.entity.User;
 import org.ost.marketplace.ui.mappers.UserFilterMapper;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.filter.ValidationService;
@@ -35,8 +34,8 @@ public class UserQueryConfig {
     @UIScope
     public SortProcessor userSortProcessor() {
         return new SortProcessor(new CustomSort(Sort.by(
-                Sort.Order.desc(User.Fields.updatedAt),
-                Sort.Order.desc(User.Fields.createdAt)
+                Sort.Order.desc("updatedAt"),
+                Sort.Order.desc("createdAt")
         )));
     }
 

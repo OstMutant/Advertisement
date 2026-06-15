@@ -5,8 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.user.spi.UserSettingsChangedHook;
-import org.ost.user.services.UserSettingsService;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,7 +18,7 @@ import java.util.function.ToIntFunction;
 public class SettingsPaginationService implements UserSettingsChangedHook {
 
     private final AuthContextService  authContextService;
-    private final UserSettingsService settingsService;
+    private final UserPort            userPort;
 
     private final List<BindingEntry> entries = new CopyOnWriteArrayList<>();
 
@@ -26,7 +26,7 @@ public class SettingsPaginationService implements UserSettingsChangedHook {
 
     public void register(@NonNull PaginationBar bar, @NonNull ToIntFunction<UserSettingsDto> extractor, @NonNull Runnable refresh) {
         authContextService.getCurrentUser().ifPresent(user ->
-                bar.setPageSize(extractor.applyAsInt(settingsService.load(user.getId()))));
+                bar.setPageSize(extractor.applyAsInt(userPort.loadSettings(user.id()))));
         entries.add(new BindingEntry(bar, extractor, refresh));
     }
 
@@ -37,7 +37,7 @@ public class SettingsPaginationService implements UserSettingsChangedHook {
     @Override
     public void onSettingsChanged(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         authContextService.getCurrentUser()
-                .filter(u -> u.getId().equals(userId))
+                .filter(u -> u.id().equals(userId))
                 .ifPresent(_ -> entries.forEach(e ->
                         e.bar().getUI().ifPresent(ui -> ui.access(() -> {
                             e.bar().setPageSize(e.extractor().applyAsInt(settings));

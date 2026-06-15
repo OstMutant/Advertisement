@@ -15,7 +15,7 @@ import lombok.Value;
 import org.ost.marketplace.common.PaginationDefaults;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
-import org.ost.user.services.UserSettingsService;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
@@ -52,7 +52,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Getter
     private final I18nService                                       i18nService;
-    private final UserSettingsService                               settingsService;
+    private final UserPort                                          userPort;
     private final transient ComponentFactory<OverlayFormBinder>    formBinderFactory;
     private final transient ComponentFactory<AuditPort>            auditPortFactory;
     private final transient ComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
@@ -77,7 +77,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     @Override
     public void activate(OverlayLayout layout) {
-        UserSettingsDto current = settingsService.load(params.getUserId());
+        UserSettingsDto current = userPort.loadSettings(params.getUserId());
         SettingsEditDto dto = SettingsEditDto.builder()
                 .id(params.getUserId())
                 .adsPageSize(current.getAdsPageSize())
@@ -146,7 +146,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public boolean save() {
-        return binder.save(dto -> settingsService.save(dto.getId(), UserSettingsDto.builder()
+        return binder.save(dto -> userPort.saveSettings(dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .build()));
@@ -164,7 +164,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     }
 
     public void discardChanges() {
-        UserSettingsDto fresh = settingsService.load(params.getUserId());
+        UserSettingsDto fresh = userPort.loadSettings(params.getUserId());
         binder.reload(
                 SettingsEditDto.builder()
                         .id(params.getUserId())

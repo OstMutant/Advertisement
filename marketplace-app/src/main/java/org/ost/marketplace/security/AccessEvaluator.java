@@ -1,7 +1,7 @@
 package org.ost.marketplace.security;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.user.entity.User;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +24,7 @@ public class AccessEvaluator {
     }
 
     public Long getCurrentUserId() {
-        return currentUser().map(User::getId).orElse(null);
+        return currentUser().map(UserDto::id).orElse(null);
     }
 
     public boolean canView() {
@@ -63,7 +63,7 @@ public class AccessEvaluator {
                 .orElse(false);
     }
 
-    private Optional<User> currentUser() {
+    private Optional<UserDto> currentUser() {
         return authContextService.getCurrentUser();
     }
 }

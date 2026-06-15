@@ -11,7 +11,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.marketplace.common.I18nKey;
-import org.ost.user.entity.User;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -38,7 +38,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull User     user;
+        @NonNull UserDto  user;
         @NonNull Runnable onEdit;
         @NonNull Runnable onClose;
     }
@@ -71,12 +71,12 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildPrimaryContent() {
-        User user = params.getUser();
+        UserDto user = params.getUser();
 
         Div metaRow = new Div(
-                field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.getId())),
-                field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getCreatedAt())),
-                field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.getUpdatedAt())));
+                field(USER_DIALOG_FIELD_ID_LABEL,      String.valueOf(user.id())),
+                field(USER_DIALOG_FIELD_CREATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.createdAt())),
+                field(USER_DIALOG_FIELD_UPDATED_LABEL,  TimeZoneUtil.formatInstantHuman(user.updatedAt())));
         metaRow.addClassName("user-view-meta-row");
 
         Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_VIEW)));
@@ -88,22 +88,22 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         return card;
     }
 
-    private Div buildProfileRow(User user) {
-        String initials = user.getName() != null && !user.getName().isBlank()
-                ? user.getName().substring(0, Math.min(2, user.getName().length())).toUpperCase()
+    private Div buildProfileRow(UserDto user) {
+        String initials = user.name() != null && !user.name().isBlank()
+                ? user.name().substring(0, Math.min(2, user.name().length())).toUpperCase()
                 : "?";
         Div avatar = new Div(new Span(initials));
         avatar.addClassName("user-view-avatar");
 
-        H2 nameHeading = new H2(user.getName());
+        H2 nameHeading = new H2(user.name());
         nameHeading.addClassName("user-view-name");
 
-        Span emailSpan = new Span(user.getEmail());
+        Span emailSpan = new Span(user.email());
         emailSpan.addClassName("user-view-email");
 
-        Span roleBadge = new Span(user.getRole().name());
+        Span roleBadge = new Span(user.role().name());
         roleBadge.addClassName("user-role-badge");
-        roleBadge.addClassName("user-role-" + user.getRole().name().toLowerCase());
+        roleBadge.addClassName("user-role-" + user.role().name().toLowerCase());
 
         Div nameBlock = new Div(nameHeading, emailSpan, roleBadge);
         nameBlock.addClassName("user-view-name-block");
@@ -134,14 +134,14 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                         .build());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
-        editButton.setVisible(access.canOperate(params.getUser().getId()));
+        editButton.setVisible(access.canOperate(params.getUser().id()));
         return new Div(editButton, closeButton);
     }
 
-    private com.vaadin.flow.component.Component buildTimelineContent(User user) {
+    private com.vaadin.flow.component.Component buildTimelineContent(UserDto user) {
         return auditTimelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
-                .actorId(user.getId())
-                .viewerActorId(user.getId())
+                .actorId(user.id())
+                .viewerActorId(user.id())
                 .build());
     }
 

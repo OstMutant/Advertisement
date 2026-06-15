@@ -12,14 +12,14 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
-import org.ost.user.entity.User;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.ui.audit.AuditActivityPanel;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.user.services.UserService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -53,31 +53,31 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull User     user;
+        @NonNull UserDto  user;
         @NonNull Runnable onSave;
         @NonNull Runnable onCancel;
     }
 
-    private final UserService                                              userService;
-    private final UserMapper                                               mapper;
-    private final AccessEvaluator                                          access;
+    private final UserPort                                              userPort;
+    private final UserMapper                                            mapper;
+    private final AccessEvaluator                                       access;
     @Getter
-    private final I18nService                                              i18nService;
-    private final NotificationService                                      notificationService;
+    private final I18nService                                           i18nService;
+    private final NotificationService                                   notificationService;
     private final transient ComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final transient ComponentFactory<AuditPort>                    auditPortFactory;
-    private final transient ComponentFactory<AuditActivityPanel>           auditActivityPanelFactory;
-    private final transient ComponentFactory<UiIconButton>                 cancelButtonFactory;
-    private final UiTextField                                              nameField;
-    private final UiComboBox<Role>                                         roleComboBox;
-    private final UiPrimaryButton                                          saveButton;
-    private final UiTertiaryButton                                         discardButton;
+    private final transient ComponentFactory<AuditPort>                 auditPortFactory;
+    private final transient ComponentFactory<AuditActivityPanel>        auditActivityPanelFactory;
+    private final transient ComponentFactory<UiIconButton>              cancelButtonFactory;
+    private final UiTextField                                           nameField;
+    private final UiComboBox<Role>                                      roleComboBox;
+    private final UiPrimaryButton                                       saveButton;
+    private final UiTertiaryButton                                      discardButton;
 
     private Parameters params;
     private Tabs       formTabs;
     private Tab        editTab;
     private Div        activityContent;
-    private User       savedUser;
+    private UserDto    savedUser;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -128,7 +128,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         Div editContent = new Div(fieldsCard);
 
         Div content = auditActivityPanelFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getUser().getId()))
+                .filter(_ -> access.canOperate(params.getUser().id()))
                 .map(_ -> {
                     formTabs = new Tabs();
                     formTabs.addClassName("user-form-tabs");
@@ -159,17 +159,17 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     }
 
     public Long getSavedUserId() {
-        return params.getUser().getId();
+        return params.getUser().id();
     }
 
     public boolean save() {
         return binder.save(dto -> {
-            userService.save(mapper.copy(dto), access.getCurrentUserId());
-            userService.findById(params.getUser().getId()).ifPresent(u -> savedUser = u);
+            userPort.save(mapper.copy(dto), access.getCurrentUserId());
+            userPort.findById(params.getUser().id()).ifPresent(u -> savedUser = u);
         });
     }
 
-    public User getSavedUser() { return savedUser; }
+    public UserDto getSavedUser() { return savedUser; }
 
     public void loadRestored(@NonNull UserEditDto restoredDto) {
         binder.loadRestored(restoredDto, (src, tgt) -> {
@@ -183,10 +183,10 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     private com.vaadin.flow.component.Component buildActivityContent() {
         return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
-                .entityRef(new EntityRef(EntityType.USER, params.getUser().getId()))
-                .userId(params.getUser().getId())
+                .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
+                .userId(params.getUser().id())
                 .isPrivileged(access.isPrivileged())
-                .canOperate(access.canOperate(params.getUser().getId()))
+                .canOperate(access.canOperate(params.getUser().id()))
                 .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
                 .build());
     }
@@ -196,14 +196,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
                         .map(content -> content.snapshotData())
                         .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(params.getUser().getId(), snapshot.name(), Role.valueOf(snapshot.role()));
+                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()));
                             loadRestored(dto);
                         })
         );
     }
 
     public void discardChanges() {
-        userService.findById(params.getUser().getId()).ifPresent(freshUser -> {
+        userPort.findById(params.getUser().id()).ifPresent(freshUser -> {
             UserEditDto fresh = mapper.toUserEdit(freshUser);
             binder.reload(fresh, (src, tgt) -> {
                 tgt.setName(src.getName());

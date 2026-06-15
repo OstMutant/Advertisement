@@ -10,7 +10,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
-import org.ost.user.entity.User;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.ui.query.utils.TimeZoneUtil;
 import org.ost.platform.core.ComponentFactory;
@@ -33,10 +33,10 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull Grid<User>     grid;
-        @NonNull Consumer<User> onView;
-        @NonNull Consumer<User> onEdit;
-        @NonNull Consumer<User> onDelete;
+        @NonNull Grid<UserDto>     grid;
+        @NonNull Consumer<UserDto> onView;
+        @NonNull Consumer<UserDto> onEdit;
+        @NonNull Consumer<UserDto> onDelete;
     }
 
     @Getter
@@ -46,19 +46,19 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
 
     @Override
     public UserGridConfigurator configure(Parameters p) {
-        Grid<User> grid = p.getGrid();
+        Grid<UserDto> grid = p.getGrid();
 
         grid.setSizeFull();
         grid.addItemClickListener(e -> p.getOnView().accept(e.getItem()));
 
-        grid.addColumn(User::getId)
+        grid.addColumn(UserDto::id)
                 .setAutoWidth(true).setFlexGrow(0).setTextAlign(ColumnTextAlign.END)
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_ID)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Span nameSpan = new Span(user.getName());
+                    Span nameSpan = new Span(user.name());
                     nameSpan.addClassName("user-grid-name");
-                    Span emailSpan = new Span(user.getEmail());
+                    Span emailSpan = new Span(user.email());
                     emailSpan.addClassName("user-grid-email");
                     VerticalLayout layout = new VerticalLayout(nameSpan, emailSpan);
                     layout.setSpacing(false);
@@ -70,19 +70,19 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                 .setHeader(getDualHeader(getValue(USER_VIEW_HEADER_NAME), getValue(USER_VIEW_HEADER_EMAIL)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Span badge = new Span(user.getRole().name());
+                    Span badge = new Span(user.role().name());
                     badge.addClassName("user-role-badge");
-                    badge.addClassName("user-role-" + user.getRole().name().toLowerCase());
+                    badge.addClassName("user-role-" + user.role().name().toLowerCase());
                     return badge;
                 }))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_ROLE)));
 
-        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getCreatedAt()))
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.createdAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_CREATED)));
 
-        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.getUpdatedAt()))
+        grid.addColumn(user -> TimeZoneUtil.formatInstantHuman(user.updatedAt()))
                 .setAutoWidth(true).setFlexGrow(0)
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
 

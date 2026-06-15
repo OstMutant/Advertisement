@@ -33,7 +33,7 @@ public class SettingsOverlay extends AbstractEntityOverlay {
 
     public void openSettings() {
         authContextService.getCurrentUser().ifPresent(user -> {
-            currentUserId = user.getId();
+            currentUserId = user.id();
             ensureInitialized();
             launchSession(this::switchTo);
         });

@@ -1,26 +1,25 @@
 package org.ost.marketplace.security;
 
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.model.Role;
-import org.ost.user.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class RoleChecker {
 
-    public boolean isAdmin(User user) {
+    public boolean isAdmin(UserDto user) {
         return hasRole(user, Role.ADMIN);
     }
 
-    public boolean isModerator(User user) {
+    public boolean isModerator(UserDto user) {
         return hasRole(user, Role.MODERATOR);
     }
 
-    public boolean isUser(User user) {
+    public boolean isUser(UserDto user) {
         return hasRole(user, Role.USER);
     }
 
-    private boolean hasRole(User user, Role role) {
-        return user != null && user.getRole() == role;
+    private boolean hasRole(UserDto user, Role role) {
+        return user != null && user.role() == role;
     }
 }
-

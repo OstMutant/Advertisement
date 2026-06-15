@@ -11,7 +11,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.user.entity.User;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog;
@@ -72,7 +71,7 @@ public class HeaderBar extends HorizontalLayout {
         Span userInfo = new Span();
         authContextService.getCurrentUser().ifPresentOrElse(
                 currentUser -> {
-                    userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.getEmail()));
+                    userInfo.setText(i18n.get(HEADER_SIGNED_IN, currentUser.email()));
                     authRow.add(userInfo, createSettingsButton(), createLogoutButton());
                 },
                 () -> {

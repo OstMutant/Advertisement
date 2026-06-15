@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.user.services.UserService;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.dialogs.BaseDialog;
@@ -29,7 +29,7 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class SignUpDialog extends BaseDialog implements I18nParams {
 
-    private final transient UserService                             userService;
+    private final transient UserPort                                userPort;
     @Getter
     private final transient I18nService                             i18nService;
     private final transient NotificationService                     notificationService;
@@ -107,7 +107,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         binder.forField(emailField)
                 .withValidator(email -> {
                     try {
-                        return email != null && userService.findByEmail(email.trim()).isEmpty();
+                        return email != null && userPort.findByEmail(email.trim()).isEmpty();
                     } catch (Exception e) {
                         log.warn("Failed to check email uniqueness", e);
                         return false;
@@ -124,7 +124,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         }
         try {
             binder.writeBean(dto);
-            userService.register(dto);
+            userPort.register(dto);
             notificationService.success(SIGNUP_SUCCESS);
             close();
         } catch (Exception ex) {

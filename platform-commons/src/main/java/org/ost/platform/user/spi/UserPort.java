@@ -22,7 +22,9 @@ public interface UserPort {
 
     int count(@NonNull UserFilterDto filter);
 
-    void save(@NonNull UserProfileDto dto);
+    void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId);
+
+    void refreshCurrentUserInContext(@NonNull Long userId);
 
     void updateLocale(@NonNull Long userId, @NonNull String locale);
 

@@ -65,6 +65,25 @@ advertisement-parent
 
 ---
 
+## 2026-06-15 — Full user decoupling: marketplace-app no longer imports org.ost.user.* internals
+
+**What changed:**
+- Added `AuthenticatedPrincipal` SPI interface to `platform-commons` (`org.ost.platform.user.spi`) — the single contract that `marketplace-app` uses to extract `UserDto` from the Spring Security principal.
+- `UserPrincipal` (user-starter) now implements `AuthenticatedPrincipal.toUserDto()` — extracts `UserDto` without exposing the `User` entity.
+- `AuthContextService` rewritten: no `UserPrincipal`/`User` imports; reads `AuthenticatedPrincipal` via pattern matching; returns `Optional<UserDto>`.
+- `UserPort` gains two new methods: `save(UserProfileDto, Long actingUserId)` (corrects the actor-id bug) and `refreshCurrentUserInContext(Long userId)` (reloads `User` entity + updates Spring Security principal — stays inside user-starter).
+- All 22 files in marketplace-app that imported `org.ost.user.entity.User`, `org.ost.user.services.UserService`, `org.ost.user.services.UserSettingsService`, or `org.ost.user.security.UserPrincipal` now use `UserDto`/`UserPort` from platform-commons exclusively.
+- `UserSortMeta` and `UserQueryConfig`: `User.Fields.*` replaced with string literals (field names are stable).
+- `UserMapper` now maps `UserDto → UserEditDto` instead of `User → UserEditDto`.
+
+**Why:** Enforces the module import rule — marketplace may only import starters via platform-commons contracts. `User` entity and service internals are not published contracts.
+
+**Key design — `AuthenticatedPrincipal` in platform-commons:** Two modules need this interface (marketplace reads it, user-starter implements it) so it belongs in platform-commons as a SPI, not in either module.
+
+**Key design — `refreshCurrentUserInContext` in `UserPort`:** Updating the Spring Security principal requires creating a `UserPrincipal(User)` — which needs the password hash (not in `UserDto`). Moving this responsibility into `UserPortImpl` (user-starter) avoids exposing either `User` entity or password hash across the module boundary.
+
+---
+
 ## 2026-05-21 — Inline SQL repository style (supersedes Descriptor pattern)
 
 **Decision:** All repositories inline SQL directly in the method that executes it. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`, `SqlEntityProjection`, `SqlFixedQuery`, `RepositoryCustom`) has been fully removed from the codebase.
