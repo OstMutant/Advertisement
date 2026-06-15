@@ -1,6 +1,5 @@
 package org.ost.marketplace.ui.views.main.header.dialogs;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
@@ -92,7 +91,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
             close();
             notificationService.success(LOGIN_SUCCESS);
             localeProvider.refreshCurrentLocale();
-            UI.getCurrent().getPage().reload();
+            getUI().ifPresent(ui -> ui.getPage().reload());
         } else {
             notificationService.error(LOGIN_ERROR);
         }

@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
 public class UiTextField extends TextField
         implements Configurable<UiTextField, UiTextField.Parameters>, I18nParams, Initialization<UiTextField> {

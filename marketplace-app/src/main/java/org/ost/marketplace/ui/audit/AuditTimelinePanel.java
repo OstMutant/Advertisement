@@ -5,6 +5,7 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -20,7 +21,7 @@ import java.util.List;
 
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AuditTimelinePanel extends Div
         implements Configurable<AuditTimelinePanel, AuditTimelinePanel.Parameters>,
                    Initialization<AuditTimelinePanel> {

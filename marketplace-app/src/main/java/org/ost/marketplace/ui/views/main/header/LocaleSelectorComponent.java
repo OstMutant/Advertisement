@@ -81,7 +81,7 @@ public class LocaleSelectorComponent extends HorizontalLayout {
             }
         });
         localeProvider.refreshCurrentLocale();
-        UI.getCurrent().getPage().reload();
+        getUI().ifPresent(ui -> ui.getPage().reload());
     }
 
     private record LocaleWrapper(String label, Locale locale) {
