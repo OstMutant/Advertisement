@@ -4,7 +4,7 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;

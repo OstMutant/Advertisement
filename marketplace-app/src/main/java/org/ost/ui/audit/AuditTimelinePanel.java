@@ -6,7 +6,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.audit.services.AuditReadService;
+import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.ComponentFactory;
@@ -37,7 +37,7 @@ public class AuditTimelinePanel extends Div
     }
 
     private final transient I18nService                                 i18n;
-    private final transient AuditReadService                            auditReadService;
+    private final transient AuditPort                                   auditPort;
     private final transient ComponentFactory<AuditTimelineListRenderer> listRendererFactory;
 
     @Override
@@ -50,7 +50,7 @@ public class AuditTimelinePanel extends Div
     @Override
     public AuditTimelinePanel configure(@NonNull Parameters p) {
         List<AuditTimelineItemDto<AuditableSnapshot>> items =
-                auditReadService.getTimeline(p.getActorId(), p.getLimit());
+                auditPort.getTimeline(p.getActorId(), p.getLimit());
         if (items.isEmpty()) {
             add(emptyState());
             return this;

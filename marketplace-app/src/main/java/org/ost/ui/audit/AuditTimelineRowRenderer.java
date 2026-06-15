@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.ui.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
 import org.ost.marketplace.i18n.I18nService;

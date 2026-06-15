@@ -1,4 +1,4 @@
-package org.ost.audit.dto;
+package org.ost.platform.audit.dto;
 
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ActionType;

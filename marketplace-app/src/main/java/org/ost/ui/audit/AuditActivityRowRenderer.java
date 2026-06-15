@@ -9,7 +9,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.i18n.InstantFormatter;

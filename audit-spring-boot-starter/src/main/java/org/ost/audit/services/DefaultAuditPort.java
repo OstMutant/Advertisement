@@ -5,7 +5,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
@@ -13,6 +15,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Slf4j
@@ -23,12 +26,15 @@ public class DefaultAuditPort implements AuditPort {
     private final AuditLogRepository auditLogRepository;
     private final CurrentActorHook   currentActorHook;
     private final AuditDomainHook    auditDomainHook;
+    private final AuditReadService   auditReadService;
 
     private Long resolveActor(Long actorId) {
         return Optional.ofNullable(actorId)
                 .or(currentActorHook::getCurrentActorId)
                 .orElse(null);
     }
+
+    // ── write side ────────────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -60,5 +66,22 @@ public class DefaultAuditPort implements AuditPort {
                 .flatMap(auditDomainHook::castIfKnown);
     }
 
+    // ── read side (UI) ────────────────────────────────────────────────────────
 
+    @Override
+    public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(
+            @NonNull EntityType entityType, @NonNull Long entityId,
+            @NonNull Long userId, boolean showAll) {
+        return auditReadService.getEntityActivity(entityType, entityId, userId, showAll);
+    }
+
+    @Override
+    public Optional<AuditableSnapshot> getLastSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
+        return auditReadService.getLastSnapshot(entityType, entityId);
+    }
+
+    @Override
+    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimeline(@NonNull Long actorId, int limit) {
+        return auditReadService.getTimeline(actorId, limit);
+    }
 }

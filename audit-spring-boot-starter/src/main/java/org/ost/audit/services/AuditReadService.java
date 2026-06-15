@@ -6,7 +6,7 @@ import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
