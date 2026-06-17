@@ -7,16 +7,17 @@ async function runNavigateToUsersTabFlow(page, expect) {
   await screenshot(page, 'user-management-users-tab');
 }
 
-async function runOpenUserViewDialogFlow(page, email) {
+async function runFilterUserByEmailFlow(page, email) {
   await page.locator('.user-list-layout .query-status-bar').click();
   await page.locator('.user-query-block').waitFor({ timeout: 5000 });
-
   await page.locator('.user-query-block vaadin-text-field[placeholder="Email"] input').fill(email);
   await page.locator('.user-query-block vaadin-button[title*="Apply"], .user-query-block vaadin-button[title*="Застосувати"]').click();
+}
 
+async function runOpenUserViewDialogFlow(page, email) {
+  await runFilterUserByEmailFlow(page, email);
   await page.locator('.user-grid-name:visible').first().waitFor({ timeout: 5000 });
   await page.locator('.user-grid-name:visible').first().click();
-
   await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-view-dialog-opened');
 }
@@ -29,10 +30,7 @@ async function runOpenUserEditViaViewFlow(page, email) {
 }
 
 async function runOpenUserEditViaListFlow(page, email) {
-  await page.locator('.user-list-layout .query-status-bar').click();
-  await page.locator('.user-query-block').waitFor({ timeout: 5000 });
-  await page.locator('.user-query-block vaadin-text-field[placeholder="Email"] input').fill(email);
-  await page.locator('.user-query-block vaadin-button[title*="Apply"], .user-query-block vaadin-button[title*="Застосувати"]').click();
+  await runFilterUserByEmailFlow(page, email);
   await page.locator('vaadin-button[title="Edit"], vaadin-button[title="Редагувати"]').first().waitFor({ timeout: 5000 });
   await page.locator('vaadin-button[title="Edit"], vaadin-button[title="Редагувати"]').first().click();
   await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
@@ -124,6 +122,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
 module.exports = {
   runNavigateToUsersTabFlow,
+  runFilterUserByEmailFlow,
   runOpenUserViewDialogFlow,
   runOpenUserEditViaViewFlow,
   runOpenUserEditViaListFlow,

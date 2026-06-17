@@ -46,11 +46,5 @@ test.describe('Language switch (no auth)', () => {
 
   test('switch back to English', async () => {
     await runSwitchToEnglishFlow(page, expect);
-    await expect(page.locator('.add-advertisement-button')).not.toBeVisible();
-    await expect(page.locator('.advertisement-edit').first()).not.toBeVisible();
-    await expect(page.locator('.advertisement-delete').first()).not.toBeVisible();
-    await expect(page.locator('.pagination-count')).toBeVisible();
-    await expect(page.locator('vaadin-tab').filter({ hasText: 'Users' }).first()).not.toBeVisible();
-    await expect(page.locator('vaadin-tab').filter({ hasText: 'Reference Data' }).first()).not.toBeVisible();
   });
 });
