@@ -264,6 +264,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     });
                     updateButtons(false);
                 });
+        if (activeHandle != null) activeHandle.discard();
     }
 
     public void afterSave(boolean success) {

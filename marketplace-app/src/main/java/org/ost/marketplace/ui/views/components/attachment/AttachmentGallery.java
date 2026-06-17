@@ -46,9 +46,9 @@ public class AttachmentGallery extends Div {
     private EntityType entityType;
     private Long       entityId;
 
-    private final List<TempAttachmentDto>   tempUploads           = new ArrayList<>();
-    private final List<AttachmentItemDto>   currentAttachments    = new ArrayList<>();
-    private       boolean                   hasPendingDeletion    = false;
+    private final List<TempAttachmentDto>   tempUploads            = new ArrayList<>();
+    private final List<AttachmentItemDto>   currentAttachments     = new ArrayList<>();
+    private final List<Long>                pendingDeletions       = new ArrayList<>();
     private       boolean                   pendingSnapshotRestore = false;
     private String   tempSessionId;
     private transient Runnable onChanged;
@@ -91,7 +91,7 @@ public class AttachmentGallery extends Div {
         this.editMode      = true;
         this.tempSessionId = UUID.randomUUID().toString();
         tempUploads.clear();
-        hasPendingDeletion = false;
+        pendingDeletions.clear();
         removeEditControlsIfPresent();
         refresh();
         uploadButton = new AttachmentUploadButton(buildUploadHandler());
@@ -117,7 +117,6 @@ public class AttachmentGallery extends Div {
         String[] urls = attachmentPort.getSnapshotUrlsAtVersion(entityType, entityId, version);
         discardTempUploads();
         pendingSnapshotRestore = true;
-        hasPendingDeletion = false;
         currentAttachments.clear();
         if (urls.length > 0) {
             currentAttachments.addAll(attachmentPort.getByEntityAndUrls(entityType, entityId, urls));
@@ -142,18 +141,19 @@ public class AttachmentGallery extends Div {
                 attachmentPort.commitTempUploads(entityType, entityId, tempUploads);
             }
             tempUploads.clear();
-            hasPendingDeletion = false;
+            pendingDeletions.clear();
             return;
         }
         boolean isCreate = (this.entityId == null);
-        if (tempUploads.isEmpty() && !hasPendingDeletion) return;
+        if (tempUploads.isEmpty() && pendingDeletions.isEmpty()) return;
+        pendingDeletions.forEach(id -> attachmentPort.deleteSkipSnapshot(id));
+        pendingDeletions.clear();
         if (!tempUploads.isEmpty()) {
             attachmentPort.commitTempUploads(entityType, entityId, tempUploads);
         } else if (!isCreate) {
             attachmentPort.captureSnapshot(entityType, entityId);
         }
         tempUploads.clear();
-        hasPendingDeletion = false;
     }
 
     public void discardTempUploads() {
@@ -163,12 +163,18 @@ public class AttachmentGallery extends Div {
                 attachmentPort.discardTempUploads(tempUploads);
                 tempUploads.clear();
             }
+            pendingDeletions.clear();
             refresh();
             return;
         }
-        if (tempUploads.isEmpty()) return;
-        attachmentPort.discardTempUploads(tempUploads);
-        tempUploads.clear();
+        if (!tempUploads.isEmpty()) {
+            attachmentPort.discardTempUploads(tempUploads);
+            tempUploads.clear();
+        }
+        if (!pendingDeletions.isEmpty()) {
+            pendingDeletions.clear();
+            refresh();
+        }
     }
 
     private void refresh() {
@@ -188,8 +194,7 @@ public class AttachmentGallery extends Div {
     private AttachmentThumbnail buildThumbnail(AttachmentItemDto a) {
         if (editMode) {
             return AttachmentThumbnail.forEdit(a, () -> {
-                attachmentPort.deleteSkipSnapshot(a.id());
-                hasPendingDeletion = true;
+                pendingDeletions.add(a.id());
                 currentAttachments.remove(a);
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
                 notifyChanged();

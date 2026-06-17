@@ -1,8 +1,0 @@
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\config\UserAutoConfiguration.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\entity\User.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\repository\UserCrudRepository.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\repository\UserRepository.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\repository\UserSettingsRepository.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\services\UserService.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\services\UserSettingsService.java
-D:\Ost\dev\Advertisement\user-spring-boot-starter\src\main\java\org\ost\user\spi\UserPortImpl.java

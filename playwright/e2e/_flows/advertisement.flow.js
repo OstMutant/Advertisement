@@ -147,6 +147,19 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
   await screenshot(page, `${screenshotPrefix}-media-deleted`);
 
+  // Discard — verify title/description and media are restored
+  await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+  await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
+  await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
+  await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(initialCount, { timeout: 8000 });
+  await screenshot(page, `${screenshotPrefix}-discarded`);
+
+  // Redo: delete all media again
+  for (let i = 0; i < initialCount; i++) {
+    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(initialCount - i - 1, { timeout: 5000 });
+  }
+
   const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
   await titleInput.clear();
   await titleInput.fill(newTitle);
