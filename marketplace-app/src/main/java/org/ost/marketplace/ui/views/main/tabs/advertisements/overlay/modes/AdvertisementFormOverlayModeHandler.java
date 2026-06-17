@@ -20,7 +20,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.ui.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
@@ -33,7 +33,7 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHa
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.marketplace.ui.attachment.AttachmentGalleryService;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;

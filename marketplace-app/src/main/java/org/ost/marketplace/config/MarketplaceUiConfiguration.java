@@ -1,16 +1,16 @@
 package org.ost.marketplace.config;
 
 import jakarta.validation.Validator;
-import org.ost.marketplace.ui.attachment.AttachmentGallery;
-import org.ost.marketplace.ui.attachment.CardMediaLightbox;
-import org.ost.marketplace.ui.audit.AuditActivityListRenderer;
-import org.ost.marketplace.ui.audit.AuditActivityPanel;
-import org.ost.marketplace.ui.audit.AuditActivityRowRenderer;
-import org.ost.marketplace.ui.audit.AuditTimelineListRenderer;
-import org.ost.marketplace.ui.audit.AuditTimelinePanel;
-import org.ost.marketplace.ui.audit.AuditTimelineRowRenderer;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentGallery;
+import org.ost.marketplace.ui.views.components.attachment.CardMediaLightbox;
+import org.ost.marketplace.ui.views.components.audit.AuditActivityListRenderer;
+import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.AuditActivityRowRenderer;
+import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;
+import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
+import org.ost.marketplace.ui.views.components.audit.AuditTimelineRowRenderer;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.marketplace.ui.attachment.AttachmentGalleryService;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.SvgIcon;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
@@ -26,7 +26,7 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan({"org.ost.marketplace.ui.audit", "org.ost.marketplace.ui.attachment", "org.ost.marketplace.ui.query", "org.ost.marketplace.spi"})
+@ComponentScan({"org.ost.marketplace.ui.views.components.audit", "org.ost.marketplace.ui.views.components.attachment", "org.ost.marketplace.ui.query", "org.ost.marketplace.spi"})
 public class MarketplaceUiConfiguration {
 
     @Bean

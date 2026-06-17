@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.audit;
+package org.ost.marketplace.ui.views.components.audit;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;

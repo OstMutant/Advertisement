@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.attachment;
+package org.ost.marketplace.ui.views.components.attachment;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.i18n.TranslationKey;

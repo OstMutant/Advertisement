@@ -30,8 +30,8 @@ import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.ui.Configurable;
-import org.ost.marketplace.ui.audit.AuditActivityPanel;
-import org.ost.marketplace.ui.audit.AuditTimelinePanel;
+import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
+import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;

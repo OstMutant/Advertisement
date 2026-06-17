@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.attachment;
+package org.ost.marketplace.ui.views.components.attachment;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.spring.annotation.SpringComponent;

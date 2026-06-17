@@ -1,4 +1,4 @@
-package org.ost.marketplace.ui.audit;
+package org.ost.marketplace.ui.views.components.audit;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.i18n.TranslationKey;
