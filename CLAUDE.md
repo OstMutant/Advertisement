@@ -187,7 +187,7 @@ Each module owns its translation key enum implementing `TranslationKey` (defined
 - `services/audit/` — audit snapshot DTOs, diff engine, `@AuditedField` annotation
 - `services/auth/` — authentication context (`AuthContextService`)
 - `repository/activity/` — activity feed SQL repositories + projections
-- `ui/views/components/` — reusable Vaadin UI components (incl. `activity/`, `audit/`, `attachment/` subpackages)
+- `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/` subpackages)
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support
 

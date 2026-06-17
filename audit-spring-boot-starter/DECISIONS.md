@@ -336,7 +336,7 @@ Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFie
 
 ## 2026-06-15 — Open: AuditReadService imported directly in marketplace UI panels
 
-`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.ui.audit`, physically in marketplace-app) inject `AuditReadService` directly — bypassing `AuditUiPort`.
+`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.marketplace.ui.views.components.audit`, physically in marketplace-app) inject `AuditReadService` directly — bypassing `AuditUiPort`.
 
 **Rule violation:** marketplace-app must access audit functionality only through `AuditUiPort` (platform-commons). Direct `org.ost.audit.services.*` imports in marketplace UI are forbidden.
 

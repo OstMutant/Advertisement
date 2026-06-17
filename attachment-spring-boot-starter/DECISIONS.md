@@ -125,7 +125,7 @@
 
 ---
 
-## 2026-06-15 — Open: org.ost.ui.attachment.* directly imports attachment-starter internals
+## 2026-06-15 — Open: org.ost.marketplace.ui.views.components.attachment.* directly imports attachment-starter internals
 
 Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox`) directly import:
 - `org.ost.attachment.entities.Attachment` — entity

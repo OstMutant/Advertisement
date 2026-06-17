@@ -30,7 +30,7 @@ advertisement-parent
 └── marketplace-app                   — ALL Vaadin UI (absorbs marketplace-ui) + Spring Boot entry point
 ```
 
-**Why merge marketplace-ui back into marketplace-app:** The separation adds a Maven module boundary without an architectural benefit — marketplace-app is the only consumer of marketplace-ui, and marketplace-ui cannot be reused elsewhere. The `org.ost.ui.*` package namespace is preserved; only the JAR boundary changes.
+**Why merge marketplace-ui back into marketplace-app:** The separation adds a Maven module boundary without an architectural benefit — marketplace-app is the only consumer of marketplace-ui, and marketplace-ui cannot be reused elsewhere. All classes were re-homed under `org.ost.marketplace.ui.*`; only the JAR boundary changed.
 
 **Why domain starters:** Advertisement and user are distinct bounded contexts. Separating them into starters enables independent evolution and testing. `marketplace-app` becomes a thin UI + orchestration layer calling domain via `UserPort` / `AdvertisementPort` SPIs.
 
@@ -246,11 +246,11 @@ Direct imports that violate the "marketplace-app UI accesses starters only via p
 
 **Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI components may reference each other freely. UI ports/hooks (AuditUiPort, AttachmentGalleryPort, AuditActivityRowHook) were removed as unnecessary indirection.
 
-### 1. ~~`org.ost.ui.audit.*` → `org.ost.audit.services.AuditReadService`~~ — superseded
+### 1. ~~`org.ost.marketplace.ui.views.components.audit.*` → `org.ost.audit.services.AuditReadService`~~ — superseded
 
 This item was based on the assumption that AuditUiPort should mediate the call. That port was removed (2026-06-15) as unnecessary indirection. `AuditActivityPanel` and `AuditTimelinePanel` calling `AuditReadService` directly **is** the legitimate service ↔ UI boundary — this is correct design, not a violation.
 
-### 2. `org.ost.ui.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
+### 2. `org.ost.marketplace.ui.views.components.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
 
 `AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil`, `YoutubeUtil` directly from attachment-starter.
 
