@@ -15,6 +15,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserPort {
 
@@ -38,7 +39,7 @@ public interface UserPort {
 
     Optional<UserDto> findByEmail(@NonNull String email);
 
-    List<Long> findExistingIds(@NonNull Long[] ids);
+    Set<Long> findExistingIds(@NonNull Set<Long> ids);
 
     Map<Long, String> findActorNames(@NonNull Collection<Long> ids);
 

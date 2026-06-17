@@ -23,6 +23,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -47,7 +48,7 @@ public class AdvertisementService {
         boolean isNew = dto.id() == null;
         log.info("Advertisement save: id={}, isNew={}", dto.id(), isNew);
         Optional<Advertisement> before = isNew ? Optional.empty() : repository.findById(dto.id());
-        Advertisement ad = buildEntity(dto, before);
+        Advertisement ad = buildEntity(dto, before.orElse(null));
         Advertisement saved = repository.save(ad);
         AdvertisementSnapshotDto savedSnapshot = new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription());
         if (isNew) {
@@ -65,8 +66,8 @@ public class AdvertisementService {
         return repository.findAdvertisementById(id);
     }
 
-    public List<Long> findExistingIds(@NonNull Long[] ids) {
-        return repository.findExistingIds(ids);
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
     }
 
     public void onMediaChanged(@NonNull Long entityId) {
@@ -91,13 +92,13 @@ public class AdvertisementService {
         repository.deleteOlderThan(retentionDays);
     }
 
-    private static Advertisement buildEntity(@NonNull AdvertisementSaveDto dto, @NonNull Optional<Advertisement> before) {
+    private static Advertisement buildEntity(@NonNull AdvertisementSaveDto dto, Advertisement before) {
         return Advertisement.builder()
                 .id(dto.id())
                 .title(dto.title())
                 .description(dto.description())
-                .createdAt(before.map(Advertisement::getCreatedAt).orElse(null))
-                .createdByUserId(before.map(Advertisement::getCreatedByUserId).orElse(null))
+                .createdAt(before != null ? before.getCreatedAt() : null)
+                .createdByUserId(before != null ? before.getCreatedByUserId() : null)
                 .build();
     }
 }

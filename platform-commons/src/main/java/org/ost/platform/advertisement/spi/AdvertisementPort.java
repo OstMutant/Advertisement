@@ -8,6 +8,7 @@ import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface AdvertisementPort {
 
@@ -23,5 +24,5 @@ public interface AdvertisementPort {
 
     void onMediaChanged(@NonNull Long entityId);
 
-    List<Long> findExistingIds(@NonNull Long[] ids);
+    Set<Long> findExistingIds(@NonNull Set<Long> ids);
 }

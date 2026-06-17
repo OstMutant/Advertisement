@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
@@ -34,6 +35,10 @@ public class AttachmentService {
 
     public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId);
+    }
+
+    public List<AttachmentItemDto> getByEntityIdDtos(@NonNull EntityType entityType, @NonNull Long entityId) {
+        return attachmentRepository.getByEntityId(entityType, entityId).stream().map(AttachmentService::toDto).toList();
     }
 
     public AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityType entityType, @NonNull Long entityId) {
@@ -172,6 +177,11 @@ public class AttachmentService {
         return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls);
     }
 
+    public List<AttachmentItemDto> getByEntityAndUrlsDtos(@NonNull EntityType entityType, @NonNull Long entityId,
+                                                          @NonNull String[] urls) {
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(AttachmentService::toDto).toList();
+    }
+
     @Transactional
     public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
                                         @NonNull String[] targetUrls) {
@@ -205,7 +215,20 @@ public class AttachmentService {
              .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
+    public AttachmentItemDto uploadDto(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
+                                       @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
+        return toDto(upload(entityType, entityId, filename, inputStream, contentLength, contentType));
+    }
+
+    public AttachmentItemDto addVideoDto(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
+        return toDto(addVideo(entityType, entityId, url));
+    }
+
     // ── internals ────────────────────────────────────────────────────────────
+
+    public static AttachmentItemDto toDto(Attachment a) {
+        return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
+    }
 
     private static String embedFilename(String url) {
         return url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");

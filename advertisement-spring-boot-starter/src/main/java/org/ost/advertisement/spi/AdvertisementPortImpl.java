@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -50,7 +51,7 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public List<Long> findExistingIds(@NonNull Long[] ids) {
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return service.findExistingIds(ids);
     }
 }

@@ -2,7 +2,6 @@ package org.ost.attachment.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
@@ -46,17 +45,13 @@ public class DefaultAttachmentPort implements AttachmentPort {
 
     @Override
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return attachmentService.getByEntityId(entityType, entityId).stream()
-                .map(DefaultAttachmentPort::toDto)
-                .toList();
+        return attachmentService.getByEntityIdDtos(entityType, entityId);
     }
 
     @Override
     public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                                                       @NonNull String[] urls) {
-        return attachmentService.getByEntityAndUrls(entityType, entityId, urls).stream()
-                .map(DefaultAttachmentPort::toDto)
-                .toList();
+        return attachmentService.getByEntityAndUrlsDtos(entityType, entityId, urls);
     }
 
     @Override
@@ -77,7 +72,7 @@ public class DefaultAttachmentPort implements AttachmentPort {
     public AttachmentItemDto upload(@NonNull EntityType entityType, @NonNull Long entityId,
                                     @NonNull String filename, @NonNull InputStream inputStream,
                                     long contentLength, @NonNull String contentType) {
-        return toDto(attachmentService.upload(entityType, entityId, filename, inputStream, contentLength, contentType));
+        return attachmentService.uploadDto(entityType, entityId, filename, inputStream, contentLength, contentType);
     }
 
     @Override
@@ -88,7 +83,7 @@ public class DefaultAttachmentPort implements AttachmentPort {
     @Override
     public AttachmentItemDto addVideo(@NonNull EntityType entityType, @NonNull Long entityId,
                                       @NonNull String url) {
-        return toDto(attachmentService.addVideo(entityType, entityId, url));
+        return attachmentService.addVideoDto(entityType, entityId, url);
     }
 
     // ── gallery commit/discard ────────────────────────────────────────────────
@@ -120,9 +115,4 @@ public class DefaultAttachmentPort implements AttachmentPort {
         attachmentService.restoreToUrlsAndCapture(entityType, entityId, targetUrls);
     }
 
-    // ── internals ────────────────────────────────────────────────────────────
-
-    private static AttachmentItemDto toDto(Attachment a) {
-        return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
-    }
 }

@@ -2,7 +2,6 @@ package org.ost.user.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;
@@ -13,21 +12,17 @@ import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.user.entity.User;
-import org.ost.user.security.UserPrincipal;
 import org.ost.user.services.UserService;
 import org.ost.user.services.UserSettingsService;
 import org.springframework.data.domain.Sort;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserPortImpl implements UserPort {
@@ -52,18 +47,7 @@ public class UserPortImpl implements UserPort {
 
     @Override
     public void refreshCurrentUserInContext(@NonNull Long userId) {
-        try {
-            User user = userService.findById(userId).orElseThrow();
-            UserPrincipal principal = new UserPrincipal(user);
-            Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
-            Authentication newAuth = currentAuth != null
-                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
-                    : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
-            SecurityContextHolder.getContext().setAuthentication(newAuth);
-            log.debug("Refreshed security principal for user id={}", userId);
-        } catch (Exception ex) {
-            log.error("Failed to refresh security principal for user id={}", userId, ex);
-        }
+        userService.refreshSecurityContext(userId);
     }
 
     @Override
@@ -97,7 +81,7 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
-    public List<Long> findExistingIds(@NonNull Long[] ids) {
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return userService.findExistingIds(ids);
     }
 

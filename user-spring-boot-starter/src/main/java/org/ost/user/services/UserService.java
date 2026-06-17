@@ -20,8 +20,12 @@ import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
+import org.ost.user.security.UserPrincipal;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,12 +119,27 @@ public class UserService {
         });
     }
 
+    public void refreshSecurityContext(@NonNull Long userId) {
+        try {
+            User user = repository.findById(userId).orElseThrow();
+            UserPrincipal principal = new UserPrincipal(user);
+            Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+            Authentication newAuth = currentAuth != null
+                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
+                    : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(newAuth);
+            log.debug("Refreshed security principal for user id={}", userId);
+        } catch (Exception ex) {
+            log.error("Failed to refresh security principal for user id={}", userId, ex);
+        }
+    }
+
     public Optional<User> findByEmail(@NonNull String email) {
         return repository.findByEmail(email);
     }
 
-    public List<Long> findExistingIds(@NonNull Long[] ids) {
-        return repository.findExistingIds(ids);
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
     }
 
     public Map<Long, String> findActorNames(@NonNull Set<Long> ids) {

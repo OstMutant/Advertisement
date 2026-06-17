@@ -15,7 +15,6 @@ import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Component;
 
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -37,16 +36,14 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     @Override
     public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
-        Long[] ids = entityIds.toArray(new Long[0]);
-        List<Long> found = switch (entityType) {
+        return switch (entityType) {
             case ADVERTISEMENT       -> advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(ids))
-                    .orElse(List.of());
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
             case USER, USER_SETTINGS -> userPortFactory.findIfAvailable()
-                    .map(p -> p.findExistingIds(ids))
-                    .orElse(List.of());
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
         };
-        return Set.copyOf(found);
     }
 
     @Override
