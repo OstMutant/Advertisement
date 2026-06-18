@@ -1,4 +1,4 @@
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 
 async function runOpenFilterPanelFlow(page, expect) {
   await page.locator('.query-status-bar').first().click();

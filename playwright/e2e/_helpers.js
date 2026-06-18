@@ -1,3 +1,9 @@
+const fs    = require('fs');
+const https = require('https');
+const { test, expect } = require('@playwright/test');
+
+// ── Test users ────────────────────────────────────────────────────────────────
+
 const TEST_USERS = {
   userEn:      { name: 'User EN',      email: 'user.en@example.com',      role: 'USER',      locale: 'en', password: 'password' },
   userUk:      { name: 'User UK',      email: 'user.uk@example.com',      role: 'USER',      locale: 'uk', password: 'password' },
@@ -7,7 +13,47 @@ const TEST_USERS = {
   adminUk:     { name: 'Admin UK',     email: 'admin.uk@example.com',     role: 'ADMIN',     locale: 'uk', password: 'password' },
 };
 
-const { test } = require('@playwright/test');
+// ── Media constants ───────────────────────────────────────────────────────────
+
+const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+
+const avatar = seed =>
+  `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+
+// ── Overlay helpers ───────────────────────────────────────────────────────────
+
+async function waitForOverlay(page, timeout = 10000) {
+  await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
+}
+
+async function waitForOverlayClosed(page, timeout = 10000) {
+  await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout });
+}
+
+async function closeOverlay(page) {
+  await page.locator('.overlay__breadcrumb-back').click();
+  await waitForOverlayClosed(page).catch(() => {});
+}
+
+// ── Navigation helpers ────────────────────────────────────────────────────────
+
+async function openSettings(page) {
+  await page.locator('.header-settings-button').click();
+  await waitForOverlay(page);
+}
+
+async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+  await page.locator(`${overlaySelector} vaadin-tab`)
+    .filter({ hasText: /activity|activit|активн/i }).click();
+  await page.locator(`${overlaySelector} .entity-activity-list, ${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
+}
+
+async function switchToTab(page, tabName, itemSelector) {
+  await page.locator('vaadin-tab').filter({ hasText: tabName }).first().click();
+  await page.locator(itemSelector).first().waitFor({ timeout: 8000 });
+}
+
+// ── Notification helpers ──────────────────────────────────────────────────────
 
 async function closeNotification(page) {
   // Loop to handle multiple stacked notifications (e.g. restore + auto-save triggers 2 cards).
@@ -33,4 +79,32 @@ async function screenshotThenClose(page, name) {
   await closeNotification(page);
 }
 
-module.exports = { TEST_USERS, closeNotification, screenshotThenClose };
+// ── Screenshot helper ─────────────────────────────────────────────────────────
+
+async function screenshot(page, name) {
+  if (!process.env.PW_SCREENSHOTS) return;
+  const buffer = await page.screenshot({ fullPage: false });
+  await test.info().attach(name, { body: buffer, contentType: 'image/png' });
+}
+
+// ── Download helper ───────────────────────────────────────────────────────────
+
+function downloadPng(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, res => {
+      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
+      res.pipe(file);
+      file.on('finish', () => file.close(resolve));
+    }).on('error', reject);
+  });
+}
+
+module.exports = {
+  test, expect,
+  TEST_USERS, YT_URL, avatar,
+  waitForOverlay, waitForOverlayClosed, closeOverlay,
+  openSettings, openActivityTab, switchToTab,
+  closeNotification, screenshotThenClose,
+  screenshot, downloadPng,
+};

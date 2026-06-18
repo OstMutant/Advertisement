@@ -1,4 +1,4 @@
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 
 async function runFillLoginFormFlow(page, user) {
   await page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first().click();

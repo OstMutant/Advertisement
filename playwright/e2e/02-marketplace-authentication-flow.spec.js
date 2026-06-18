@@ -1,4 +1,4 @@
-const { test, expect, screenshot } = require('./_test-helpers');
+const { test, expect, screenshot } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { runSwitchToUkrainianFlow, runSwitchToEnglishFlow, runSwitchToUkrainianLoggedInFlow, runSwitchToEnglishLoggedInFlow } = require('./_flows/language-switch.flow');

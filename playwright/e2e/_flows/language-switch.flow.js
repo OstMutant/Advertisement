@@ -1,4 +1,4 @@
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 
 // Default locale resolution (no auth):
 //   VaadinLocaleProvider → Vaadin session locale → browser Accept-Language

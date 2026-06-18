@@ -1,4 +1,4 @@
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
 
 async function runNavigateToUsersTabFlow(page, expect) {

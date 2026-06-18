@@ -1,4 +1,4 @@
-const { screenshot, downloadPng } = require('../_test-helpers');
+const { screenshot, downloadPng } = require('../_helpers');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 

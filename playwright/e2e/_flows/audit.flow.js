@@ -1,4 +1,4 @@
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow } = require('./user-management.flow');
 
 async function runOpenSettingsFlow(page) {

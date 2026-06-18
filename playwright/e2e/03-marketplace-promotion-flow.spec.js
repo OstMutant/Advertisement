@@ -1,8 +1,7 @@
-const { test, expect } = require('./_test-helpers');
+const { test, expect, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
 const { runNavigateToUsersTabFlow, runPromoteUserFlow } = require('./_flows/user-management.flow');
-const { TEST_USERS } = require('./_helpers');
 
 test.describe.configure({ mode: 'serial' });
 

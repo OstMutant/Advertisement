@@ -1,5 +1,5 @@
 const { expect } = require('@playwright/test');
-const { screenshot } = require('../_test-helpers');
+const { screenshot } = require('../_helpers');
 
 // ── panel helpers ─────────────────────────────────────────────────────────────
 

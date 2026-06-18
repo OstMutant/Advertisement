@@ -1,4 +1,4 @@
-const { test, expect, screenshot, openSettings, openActivityTab, closeOverlay, switchToTab } = require('./_test-helpers');
+const { test, expect, screenshot, openSettings, openActivityTab, closeOverlay, switchToTab } = require('./_helpers');
 const { TEST_USERS, screenshotThenClose } = require('./_helpers');
 const { signUpBulk, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
 const {
