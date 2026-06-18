@@ -11,12 +11,14 @@
 
 # ── Parse args ───────────────────────────────────────────────────────────────
 UX=""
+FULL=""
 SCENARIO=""
 GREP=""
 SKIP_NEXT=""
 for arg in "$@"; do
   if [ -n "$SKIP_NEXT" ]; then GREP="$arg"; SKIP_NEXT=""; continue; fi
   if [ "$arg" = "--ux" ]; then UX=1;
+  elif [ "$arg" = "--full" ]; then FULL=1;
   elif [ "$arg" = "--grep" ]; then SKIP_NEXT=1;
   else SCENARIO="$arg"; fi
 done
@@ -116,7 +118,8 @@ docker cp /app/playwright/reporter.js pw-runner:/tmp/
 
 # ── Build run command ─────────────────────────────────────────────────────────
 PW_ENV="PLAYWRIGHT_BROWSERS_PATH=/ms-playwright"
-[ -n "$UX" ] && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
+[ -n "$UX" ]   && PW_ENV="$PW_ENV PW_SCREENSHOTS=1"
+[ -n "$FULL" ] && PW_ENV="$PW_ENV PW_FULL=1"
 
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "marketplace" ] || [ "$SCENARIO" = "audit" ] || [ "$SCENARIO" = "attachment" ] || [ "$SCENARIO" = "e2e" ]; then
