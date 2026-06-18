@@ -1,13 +1,14 @@
-const { test, expect, screenshot } = require('./_test-helpers');
-const { TEST_USERS } = require('./_helpers');
+const { test, expect, screenshot, openSettings, openActivityTab, closeOverlay, switchToTab } = require('./_test-helpers');
+const { TEST_USERS, screenshotThenClose } = require('./_helpers');
 const { signUpBulk, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
 const {
   openQueryPanel, clearFilter, applyFilter,
-  clickSort, resetDefaultSorts,
-  fillText, fillNumber, fillRole, setDateRange,
+  resetDefaultSorts,
+  fillText, fillNumber, fillRole,
   getTotalCount,
-  goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
+  verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
+const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -135,105 +136,37 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'adv-filter-title-partial');
     await clearFilter(page, ADV_BLOCK);
 
-    // ── created at date range filter (created today) ──────────────────────────
-    const today = new Date().toISOString().slice(0, 10);
-    await setDateRange(page, ADV_BLOCK, 0, today, today);
-    await applyFilter(page, ADV_BLOCK);
-    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT);
-    await screenshot(page, 'adv-filter-created-range');
-    await clearFilter(page, ADV_BLOCK);
+    // ── date range filters (created/updated today + boundary cases) ──────────
+    await verifyDateRangeFilters(page, ADV_BLOCK, 'adv', SEED_COUNT);
 
-    // ── updated at date range filter (updated today) ──────────────────────────
-    await setDateRange(page, ADV_BLOCK, 2, today, today);
-    await applyFilter(page, ADV_BLOCK);
-    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT);
-    await screenshot(page, 'adv-filter-updated-range');
-    await clearFilter(page, ADV_BLOCK);
-
-    // ── sort title ASC / DESC ─────────────────────────────────────────────────
-    // Default sort is "Updated At DESC, Created At DESC"; clear resets to that default.
-    // Reset both to NEUTRAL so Title is the only active sort.
-    await resetDefaultSorts(page, ADV_BLOCK);
-    await fillText(page, ADV_BLOCK, 'Title', 'Seed');
-    await applyFilter(page, ADV_BLOCK);
-
-    await clickSort(page, ADV_BLOCK, 'Title', ADV_ITEM); // NEUTRAL → ASC
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 01', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-title-asc');
-
-    await clickSort(page, ADV_BLOCK, 'Title', ADV_ITEM); // ASC → DESC
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 50', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-title-desc');
-
-    // ── sort created at DESC / ASC ────────────────────────────────────────────
-    // After clearFilter: defaults restored (Updated At DESC, Created At DESC).
-    // Remove Updated At by clicking once → only Created At DESC remains.
-    await clearFilter(page, ADV_BLOCK);
-    await clickSort(page, ADV_BLOCK, 'Updated At', ADV_ITEM); // DESC → NEUTRAL
-    await fillText(page, ADV_BLOCK, 'Title', 'Seed');
-    await applyFilter(page, ADV_BLOCK);
-    // Sort: Created At DESC → last created = Seed Advertisement 50
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 50', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-created-desc');
-
-    await clickSort(page, ADV_BLOCK, 'Created At', ADV_ITEM); // DESC → ASC
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 01', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-created-asc');
-
-    // ── sort updated at DESC / ASC ────────────────────────────────────────────
-    // After clearFilter: defaults restored. Remove Created At → only Updated At DESC remains.
-    await clearFilter(page, ADV_BLOCK);
-    await clickSort(page, ADV_BLOCK, 'Created At', ADV_ITEM); // DESC → NEUTRAL
-    await fillText(page, ADV_BLOCK, 'Title', 'Seed');
-    await applyFilter(page, ADV_BLOCK);
-    // Sort: Updated At DESC → last updated = Seed Advertisement 50
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 50', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-updated-desc');
-
-    await clickSort(page, ADV_BLOCK, 'Updated At', ADV_ITEM); // DESC → ASC
-    await expect(page.locator(`${ADV_ITEM} .advertisement-title`).first())
-      .toContainText('Seed Advertisement 01', { timeout: 8000 });
-    await screenshot(page, 'adv-sort-updated-asc');
+    // ── sorts ─────────────────────────────────────────────────────────────────
+    await verifySortColumn(page, {
+      block: ADV_BLOCK, sortCol: 'Title', itemSelector: ADV_ITEM,
+      assertSelector: `${ADV_ITEM} .advertisement-title`,
+      setup: { reset: 'all', filter: { field: 'Title', value: 'Seed' } },
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+    });
+    await verifySortColumn(page, {
+      block: ADV_BLOCK, sortCol: 'Created At', itemSelector: ADV_ITEM,
+      assertSelector: `${ADV_ITEM} .advertisement-title`,
+      setup: { reset: 'Updated At', filter: { field: 'Title', value: 'Seed' } },
+      startDesc: true,
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+    });
+    await verifySortColumn(page, {
+      block: ADV_BLOCK, sortCol: 'Updated At', itemSelector: ADV_ITEM,
+      assertSelector: `${ADV_ITEM} .advertisement-title`,
+      setup: { reset: 'Created At', filter: { field: 'Title', value: 'Seed' } },
+      startDesc: true,
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+    });
 
     // ── pagination ────────────────────────────────────────────────────────────
     await clearFilter(page, ADV_BLOCK);
     await resetDefaultSorts(page, ADV_BLOCK);
     await fillText(page, ADV_BLOCK, 'Title', 'Seed');
     await applyFilter(page, ADV_BLOCK);
-
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`1\u201320 of ${SEED_COUNT}`, { timeout: 8000 });
-    await screenshot(page, 'adv-pagination-page1');
-
-    await goToNextPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`21\u201340 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'adv-pagination-page2');
-
-    await goToNextPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`41\u201350 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'adv-pagination-page3');
-
-    await goToFirstPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`1\u201320 of ${SEED_COUNT}`, { timeout: 5000 });
-
-    await goToLastPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`41\u201350 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'adv-pagination-last');
-
-    await goToPrevPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`21\u201340 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'adv-pagination-prev');
-
+    await verifyPagination(page, 'adv', SEED_COUNT);
     await clearFilter(page, ADV_BLOCK);
     await logoutBulk(page);
   });
@@ -263,6 +196,13 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-email-partial');
     await clearFilter(page, USER_BLOCK);
 
+    // ── email nonexistent → 0 results ────────────────────────────────────────
+    await fillText(page, USER_BLOCK, 'Email', 'no-such-xyz@example.com');
+    await applyFilter(page, USER_BLOCK);
+    await expect(page.locator('.pagination-count:visible')).toContainText('0', { timeout: 8000 });
+    await screenshot(page, 'user-filter-email-no-results');
+    await clearFilter(page, USER_BLOCK);
+
     // ── name partial match → 50 results ──────────────────────────────────────
     await fillText(page, USER_BLOCK, 'Name', 'Seed');
     await applyFilter(page, USER_BLOCK);
@@ -277,6 +217,13 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-role-user');
     await clearFilter(page, USER_BLOCK);
 
+    // ── role filter (ADMIN) — at least 1 result (full run may have 2 if adminUk promoted) ──
+    await fillRole(page, USER_BLOCK, 'ADMIN');
+    await applyFilter(page, USER_BLOCK);
+    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(1);
+    await screenshot(page, 'user-filter-role-admin');
+    await clearFilter(page, USER_BLOCK);
+
     // ── ID range filter ───────────────────────────────────────────────────────
     await fillNumber(page, USER_BLOCK, 'ID', 1, 10);
     await applyFilter(page, USER_BLOCK);
@@ -286,138 +233,115 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-id-range');
     await clearFilter(page, USER_BLOCK);
 
-    // ── created at date range filter (users created today) ────────────────────
-    const today = new Date().toISOString().slice(0, 10);
-    await setDateRange(page, USER_BLOCK, 0, today, today);
-    await applyFilter(page, USER_BLOCK);
-    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT);
-    await screenshot(page, 'user-filter-created-range');
-    await clearFilter(page, USER_BLOCK);
+    // ── date range filters (created/updated today + boundary cases) ──────────
+    await verifyDateRangeFilters(page, USER_BLOCK, 'user', SEED_COUNT);
 
-    // ── updated at date range filter (users updated today) ────────────────────
-    await setDateRange(page, USER_BLOCK, 2, today, today);
-    await applyFilter(page, USER_BLOCK);
-    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT);
-    await screenshot(page, 'user-filter-updated-range');
-    await clearFilter(page, USER_BLOCK);
-
-    // ── sort name ASC / DESC (filtered to seed users for predictable order) ───
-    await resetDefaultSorts(page, USER_BLOCK);
-    await fillText(page, USER_BLOCK, 'Name', 'Seed');
-    await applyFilter(page, USER_BLOCK);
-
-    await clickSort(page, USER_BLOCK, 'Name', USER_ITEM); // NEUTRAL → ASC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 01', { timeout: 8000 });
-    await screenshot(page, 'user-sort-name-asc');
-
-    await clickSort(page, USER_BLOCK, 'Name', USER_ITEM); // ASC → DESC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 50', { timeout: 8000 });
-    await screenshot(page, 'user-sort-name-desc');
-
-    // ── sort email ASC / DESC ─────────────────────────────────────────────────
-    await clearFilter(page, USER_BLOCK);
-    await resetDefaultSorts(page, USER_BLOCK);
-    await fillText(page, USER_BLOCK, 'Email', 'seed.user');
-    await applyFilter(page, USER_BLOCK);
-
-    await clickSort(page, USER_BLOCK, 'Email', USER_ITEM); // NEUTRAL → ASC
-    await expect(page.locator('.user-grid-email').first())
-      .toContainText('seed.user01@example.com', { timeout: 8000 });
-    await screenshot(page, 'user-sort-email-asc');
-
-    await clickSort(page, USER_BLOCK, 'Email', USER_ITEM); // ASC → DESC
-    await expect(page.locator('.user-grid-email').first())
-      .toContainText('seed.user50@example.com', { timeout: 8000 });
-    await screenshot(page, 'user-sort-email-desc');
-
-    // ── sort ID ASC / DESC ────────────────────────────────────────────────────
-    await clearFilter(page, USER_BLOCK);
-    await resetDefaultSorts(page, USER_BLOCK);
-    await fillText(page, USER_BLOCK, 'Name', 'Seed');
-    await applyFilter(page, USER_BLOCK);
-
-    await clickSort(page, USER_BLOCK, 'ID', USER_ITEM); // NEUTRAL → ASC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 01', { timeout: 8000 });
-    await screenshot(page, 'user-sort-id-asc');
-
-    await clickSort(page, USER_BLOCK, 'ID', USER_ITEM); // ASC → DESC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 50', { timeout: 8000 });
-    await screenshot(page, 'user-sort-id-desc');
-
-    // ── sort role ASC / DESC ──────────────────────────────────────────────────
+    // ── sorts ─────────────────────────────────────────────────────────────────
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'Name', itemSelector: USER_ITEM,
+      assertSelector: USER_ITEM,
+      setup: { reset: 'all', filter: { field: 'Name', value: 'Seed' } },
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+    });
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'Email', itemSelector: USER_ITEM,
+      assertSelector: '.user-grid-email',
+      setup: { reset: 'clearAll', filter: { field: 'Email', value: 'seed.user' } },
+      firstAsc: 'seed.user01@example.com', firstDesc: 'seed.user50@example.com', prefix: 'user',
+    });
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'ID', itemSelector: USER_ITEM,
+      assertSelector: USER_ITEM,
+      setup: { reset: 'clearAll', filter: { field: 'Name', value: 'Seed' } },
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+    });
     // ADMIN < USER alphabetically: ASC → adminEn (ADMIN) first; DESC → seed users (USER) first.
-    await clearFilter(page, USER_BLOCK);
-    await resetDefaultSorts(page, USER_BLOCK);
-
-    await clickSort(page, USER_BLOCK, 'Role', USER_ITEM); // NEUTRAL → ASC
-    await expect(page.locator('.user-role-badge').first()).toContainText('ADMIN', { timeout: 8000 });
-    await screenshot(page, 'user-sort-role-asc');
-
-    await clickSort(page, USER_BLOCK, 'Role', USER_ITEM); // ASC → DESC
-    await expect(page.locator('.user-role-badge').first()).toContainText('USER', { timeout: 8000 });
-    await screenshot(page, 'user-sort-role-desc');
-
-    // ── sort created at DESC / ASC ────────────────────────────────────────────
-    await clearFilter(page, USER_BLOCK);
-    await clickSort(page, USER_BLOCK, 'Updated At', USER_ITEM); // DESC → NEUTRAL
-    await fillText(page, USER_BLOCK, 'Name', 'Seed');
-    await applyFilter(page, USER_BLOCK);
-    // Sort: Created At DESC → last registered seed user appears first
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 50', { timeout: 8000 });
-    await screenshot(page, 'user-sort-created-desc');
-
-    await clickSort(page, USER_BLOCK, 'Created At', USER_ITEM); // DESC → ASC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 01', { timeout: 8000 });
-    await screenshot(page, 'user-sort-created-asc');
-
-    // ── sort updated at DESC / ASC ────────────────────────────────────────────
-    await clearFilter(page, USER_BLOCK);
-    await clickSort(page, USER_BLOCK, 'Created At', USER_ITEM); // DESC → NEUTRAL
-    await fillText(page, USER_BLOCK, 'Name', 'Seed');
-    await applyFilter(page, USER_BLOCK);
-    // Sort: Updated At DESC → last registered seed user appears first (updatedAt = createdAt for seed users)
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 50', { timeout: 8000 });
-    await screenshot(page, 'user-sort-updated-desc');
-
-    await clickSort(page, USER_BLOCK, 'Updated At', USER_ITEM); // DESC → ASC
-    await expect(page.locator(USER_ITEM).first()).toContainText('Seed User 01', { timeout: 8000 });
-    await screenshot(page, 'user-sort-updated-asc');
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'Role', itemSelector: USER_ITEM,
+      assertSelector: '.user-role-badge',
+      setup: { reset: 'clearAll' },
+      firstAsc: 'ADMIN', firstDesc: 'USER', prefix: 'user',
+    });
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'Created At', itemSelector: USER_ITEM,
+      assertSelector: USER_ITEM,
+      setup: { reset: 'Updated At', filter: { field: 'Name', value: 'Seed' } },
+      startDesc: true,
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+    });
+    await verifySortColumn(page, {
+      block: USER_BLOCK, sortCol: 'Updated At', itemSelector: USER_ITEM,
+      assertSelector: USER_ITEM,
+      setup: { reset: 'Created At', filter: { field: 'Name', value: 'Seed' } },
+      startDesc: true,
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+    });
 
     // ── pagination ────────────────────────────────────────────────────────────
     await clearFilter(page, USER_BLOCK);
     await resetDefaultSorts(page, USER_BLOCK);
     await fillText(page, USER_BLOCK, 'Email', 'seed.user');
     await applyFilter(page, USER_BLOCK);
-
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`1\u201320 of ${SEED_COUNT}`, { timeout: 8000 });
-    await screenshot(page, 'user-pagination-page1');
-
-    await goToNextPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`21\u201340 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'user-pagination-page2');
-
-    await goToNextPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`41\u201350 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'user-pagination-page3');
-
-    await goToFirstPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`1\u201320 of ${SEED_COUNT}`, { timeout: 5000 });
-
-    await goToLastPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`41\u201350 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'user-pagination-last');
-
-    await goToPrevPage(page);
-    await expect(page.locator('.pagination-count:visible'))
-      .toContainText(`21\u201340 of ${SEED_COUNT}`, { timeout: 5000 });
-    await screenshot(page, 'user-pagination-prev');
-
+    await verifyPagination(page, 'user', SEED_COUNT);
     await clearFilter(page, USER_BLOCK);
+    await logoutBulk(page);
+  });
+
+  // ── Test 5: settings page sizes, activity verification, restore ───────────
+
+  test('settings: change page sizes, verify in activity and views, restore defaults', async () => {
+    test.setTimeout(3 * 60 * 1000);
+    await loginBulk(page, TEST_USERS.adminEn);
+
+    // ── verify page size defaults are 20 before any change ───────────────────
+    const { adsPageSize: adsDefault, usersPageSize: usersDefault } = await getPageSizes(page);
+    expect(adsDefault).toBe(20);
+    expect(usersDefault).toBe(20);
+
+    // ── change both page sizes, verify change appears in activity ─────────────
+    await changePageSizes(page, 5, 3);
+    await screenshotThenClose(page, 'settings-changed');
+
+    await openActivityTab(page);
+    await expect(page.locator('.entity-activity-list .entity-activity-row').first())
+      .toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'settings-activity-after-change');
+    await closeOverlay(page);
+
+    // ── verify new page sizes are applied in both views ───────────────────────
+    await switchToTab(page, 'Advertisements', ADV_ITEM);
+    await expect(page.locator('.pagination-count:visible'))
+      .toContainText('1\u20135 of', { timeout: 5000 });
+    await screenshot(page, 'settings-ads-page-size-5');
+
+    await switchToTab(page, 'Users', USER_ITEM);
+    await expect(page.locator('.pagination-count:visible'))
+      .toContainText('1\u20133 of', { timeout: 5000 });
+    await screenshot(page, 'settings-users-page-size-3');
+
+    // ── restore defaults via activity, verify restore entry recorded ──────────
+    await openSettings(page);
+    await openActivityTab(page);
+    await restoreLatestFromActivity(page);
+    await screenshotThenClose(page, 'settings-restored');
+
+    await openActivityTab(page);
+    const activityCount = await page.locator('.entity-activity-list .entity-activity-row').count();
+    expect(activityCount).toBeGreaterThanOrEqual(2);
+    await screenshot(page, 'settings-activity-after-restore');
+    await closeOverlay(page);
+
+    // ── verify default page sizes (20) are restored in both views ─────────────
+    await switchToTab(page, 'Advertisements', ADV_ITEM);
+    await expect(page.locator('.pagination-count:visible'))
+      .toContainText('1\u201320 of', { timeout: 5000 });
+    await screenshot(page, 'settings-ads-restored-20');
+
+    await switchToTab(page, 'Users', USER_ITEM);
+    await expect(page.locator('.pagination-count:visible'))
+      .toContainText('1\u201320 of', { timeout: 5000 });
+    await screenshot(page, 'settings-users-restored-20');
+
     await logoutBulk(page);
   });
 });

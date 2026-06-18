@@ -2,13 +2,29 @@ const { closeNotification } = require('../_helpers');
 
 async function signUpBulk(page, { name, email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /sign up/i }).first().click();
-  await page.locator('[data-testid="signup-name-label"]').waitFor({ timeout: 5000 });
+  // Wait for dialog overlay (not the inner text-field) — Vaadin text-fields can appear hidden
+  // to Playwright during the opening animation even though the overlay is already attached.
+  await page.locator('vaadin-dialog-overlay[theme~="signup-dialog"]').waitFor({ state: 'visible', timeout: 8000 });
+  // fill() auto-waits for interactability, handling any remaining CSS animation on inner inputs.
   await page.locator('[data-testid="signup-name-label"] input').fill(name);
   await page.locator('[data-testid="signup-email-label"] input').fill(email);
   await page.locator('[data-testid="signup-password-label"] input').fill(password);
   await page.getByRole('button', { name: /sign up/i }).last().click();
-  await page.locator('vaadin-dialog-overlay[theme~="signup-dialog"]').waitFor({ state: 'hidden', timeout: 8000 });
-  await closeNotification(page);
+  // On serial retry the user may already exist — dialog stays open with an error notification.
+  // Dismiss the notification and close the dialog so the loop can continue.
+  const dialog = page.locator('vaadin-dialog-overlay[theme~="signup-dialog"]');
+  const closed = await dialog.waitFor({ state: 'hidden', timeout: 8000 }).then(() => true).catch(() => false);
+  if (!closed) {
+    await closeNotification(page);
+    // Close the dialog via JS — keyboard is unreliable when page may be detaching on retry
+    await page.evaluate(() => {
+      const d = document.querySelector('vaadin-dialog[theme~="signup-dialog"]');
+      if (d) d.opened = false;
+    });
+    await dialog.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  } else {
+    await closeNotification(page);
+  }
 }
 
 async function loginBulk(page, { email, password }) {

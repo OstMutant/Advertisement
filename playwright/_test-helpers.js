@@ -62,6 +62,11 @@ async function openSettings(page) {
   await waitForOverlay(page);
 }
 
+async function switchToTab(page, tabName, itemSelector) {
+  await page.locator('vaadin-tab').filter({ hasText: tabName }).first().click();
+  await page.locator(itemSelector).first().waitFor({ timeout: 8000 });
+}
+
 async function openHistoryTab(page, overlaySelector = '.base-overlay.overlay--visible') {
   await page.locator(`${overlaySelector} vaadin-tab`)
     .filter({ hasText: /activity|activit|активн/i }).click();
@@ -160,6 +165,7 @@ module.exports = {
   loginAs,
   waitForOverlay, waitForOverlayClosed, closeOverlay,
   openAdDetail, openHistory, openSettings, openActivityTab, openHistoryTab, openTimelineTab,
+  switchToTab,
   confirmDialog, createAd,
   screenshot, downloadPng,
   waitForSaved, returnToViewAfterSave, closeAfterSave,

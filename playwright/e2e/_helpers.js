@@ -7,12 +7,30 @@ const TEST_USERS = {
   adminUk:     { name: 'Admin UK',     email: 'admin.uk@example.com',     role: 'ADMIN',     locale: 'uk', password: 'password' },
 };
 
+const { test } = require('@playwright/test');
+
 async function closeNotification(page) {
-  const card = page.locator('vaadin-notification-card').first();
-  const visible = await card.isVisible().catch(() => false);
-  if (!visible) return;
-  await card.locator('vaadin-button').click();
-  await card.waitFor({ state: 'hidden', timeout: 3000 });
+  // Loop to handle multiple stacked notifications (e.g. restore + auto-save triggers 2 cards).
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const card = page.locator('vaadin-notification-card').first();
+    if (!await card.isVisible().catch(() => false)) return;
+    await card.locator('vaadin-button').click().catch(() => {});
+    // Wait until no notification cards remain in DOM (covers the case where a new card
+    // replaces the closed one — .first() would otherwise shift to the new card and loop endlessly).
+    const cleared = await page.waitForFunction(
+      () => !document.querySelector('vaadin-notification-card'),
+      { timeout: 8000 }
+    ).then(() => true).catch(() => false);
+    if (cleared) return;
+  }
 }
 
-module.exports = { TEST_USERS, closeNotification };
+async function screenshotThenClose(page, name) {
+  if (process.env.PW_SCREENSHOTS) {
+    const buffer = await page.screenshot({ fullPage: false });
+    await test.info().attach(name, { body: buffer, contentType: 'image/png' });
+  }
+  await closeNotification(page);
+}
+
+module.exports = { TEST_USERS, closeNotification, screenshotThenClose };

@@ -1,3 +1,4 @@
+const { expect } = require('@playwright/test');
 const { screenshot } = require('../_test-helpers');
 
 // ── panel helpers ─────────────────────────────────────────────────────────────
@@ -144,6 +145,127 @@ async function goToLastPage(page) {
   await waitForVaadin(page);
 }
 
+// ── sort verification ─────────────────────────────────────────────────────────
+
+// Verifies ASC/DESC sort for one column including setup, assertions and screenshots.
+//
+// setup.reset:
+//   'all'        → resetDefaultSorts only (clearFilter already done by caller)
+//   'clearAll'   → clearFilter + resetDefaultSorts
+//   '<column>'   → clearFilter + clickSort(column) to neutralise one default sort,
+//                  leaving the other default active at DESC (use with startDesc: true)
+//
+// startDesc: true when the column starts at DESC after setup (Created At / Updated At);
+//   asserts DESC first, then clicks → ASC.
+async function verifySortColumn(page, {
+  block, sortCol, itemSelector, assertSelector,
+  setup,
+  startDesc = false,
+  firstAsc, firstDesc,
+  prefix,
+}) {
+  if (setup?.reset === 'all') {
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset === 'clearAll') {
+    await clearFilter(page, block);
+    await resetDefaultSorts(page, block);
+  } else if (setup?.reset) {
+    await clearFilter(page, block);
+    await clickSort(page, block, setup.reset, itemSelector);
+  }
+  if (setup?.filter) {
+    await fillText(page, block, setup.filter.field, setup.filter.value);
+    await applyFilter(page, block);
+  }
+
+  const slug = sortCol.toLowerCase().replace(/ /g, '-');
+  if (startDesc) {
+    await expect(page.locator(assertSelector).first()).toContainText(firstDesc, { timeout: 8000 });
+    await screenshot(page, `${prefix}-sort-${slug}-desc`);
+    // Sort cycle is NEUTRAL→ASC→DESC→NEUTRAL; from DESC two clicks reach ASC.
+    await clickSort(page, block, sortCol, itemSelector); // DESC → NEUTRAL
+    await clickSort(page, block, sortCol, itemSelector); // NEUTRAL → ASC
+    await expect(page.locator(assertSelector).first()).toContainText(firstAsc, { timeout: 8000 });
+    await screenshot(page, `${prefix}-sort-${slug}-asc`);
+  } else {
+    await clickSort(page, block, sortCol, itemSelector);
+    await expect(page.locator(assertSelector).first()).toContainText(firstAsc, { timeout: 8000 });
+    await screenshot(page, `${prefix}-sort-${slug}-asc`);
+    await clickSort(page, block, sortCol, itemSelector);
+    await expect(page.locator(assertSelector).first()).toContainText(firstDesc, { timeout: 8000 });
+    await screenshot(page, `${prefix}-sort-${slug}-desc`);
+  }
+}
+
+// ── date range filter verification ───────────────────────────────────────────
+
+// Verifies created-at and updated-at date range filters for a given query block.
+// Expects at least `minCount` results for today's range and 0 for boundary dates.
+async function verifyDateRangeFilters(page, block, prefix, minCount) {
+  const today = new Date().toISOString().slice(0, 10);
+
+  await setDateRange(page, block, 0, today, today);
+  await applyFilter(page, block);
+  expect(await getTotalCount(page)).toBeGreaterThanOrEqual(minCount);
+  await screenshot(page, `${prefix}-filter-created-range`);
+  await clearFilter(page, block);
+
+  await setDateRange(page, block, 2, today, today);
+  await applyFilter(page, block);
+  expect(await getTotalCount(page)).toBeGreaterThanOrEqual(minCount);
+  await screenshot(page, `${prefix}-filter-updated-range`);
+  await clearFilter(page, block);
+
+  await setDateRange(page, block, 0, '2099-12-31', undefined);
+  await applyFilter(page, block);
+  expect(await getTotalCount(page)).toBe(0);
+  await screenshot(page, `${prefix}-filter-created-future-start`);
+  await clearFilter(page, block);
+
+  await setDateRange(page, block, 0, undefined, '2000-01-01');
+  await applyFilter(page, block);
+  expect(await getTotalCount(page)).toBe(0);
+  await screenshot(page, `${prefix}-filter-created-past-end`);
+  await clearFilter(page, block);
+}
+
+// ── pagination verification ───────────────────────────────────────────────────
+
+// Verifies 3-page navigation (next×2, first, last, prev) against a 20-per-page
+// default with `total` records. Assumes the caller has already applied a filter
+// that yields exactly `total` results and is on page 1.
+async function verifyPagination(page, prefix, total) {
+  const last = total;
+
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`1\u201320 of ${total}`, { timeout: 8000 });
+  await screenshot(page, `${prefix}-pagination-page1`);
+
+  await goToNextPage(page);
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`21\u201340 of ${total}`, { timeout: 5000 });
+  await screenshot(page, `${prefix}-pagination-page2`);
+
+  await goToNextPage(page);
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`41\u2013${last} of ${total}`, { timeout: 5000 });
+  await screenshot(page, `${prefix}-pagination-page3`);
+
+  await goToFirstPage(page);
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`1\u201320 of ${total}`, { timeout: 5000 });
+
+  await goToLastPage(page);
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`41\u2013${last} of ${total}`, { timeout: 5000 });
+  await screenshot(page, `${prefix}-pagination-last`);
+
+  await goToPrevPage(page);
+  await expect(page.locator('.pagination-count:visible'))
+    .toContainText(`21\u201340 of ${total}`, { timeout: 5000 });
+  await screenshot(page, `${prefix}-pagination-prev`);
+}
+
 module.exports = {
   openQueryPanel, closeQueryPanel,
   applyFilter, clearFilter,
@@ -151,4 +273,5 @@ module.exports = {
   fillText, fillNumber, fillRole, setDateRange,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
+  verifyPagination, verifyDateRangeFilters, verifySortColumn,
 };
