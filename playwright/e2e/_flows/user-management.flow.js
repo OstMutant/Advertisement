@@ -98,6 +98,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await expect(changes0).toContainText(`"${role}"`);
   await expect(changes0).toContainText(user.name);
   await expect(changes0).toContainText(user.email);
+  await expect(row0.locator('.entity-activity-changes-item--unchanged').first()).toBeVisible();
 
   const row1 = activityList.locator('.entity-activity-row').nth(1);
   await expect(row1.locator('.entity-activity-action')).toContainText(/created/i);

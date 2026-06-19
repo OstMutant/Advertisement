@@ -14,7 +14,7 @@ async function runCloseSettingsFlow(page) {
   await page.locator('.settings-overlay').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
-// rows: [{ action, version, actor }] — all fields optional
+// rows: [{ action, version, actor, changesIncludes, hasUnchangedItem, hasDiff }] — all fields optional
 async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName, rows }) {
   const list = scope.locator('.entity-activity-list');
   await list.waitFor({ timeout: 5000 });
@@ -24,6 +24,17 @@ async function runVerifyEntityActivityFlow(page, expect, scope, { screenshotName
     if (row.action != null)  await expect(r.locator('.entity-activity-action')).toContainText(row.action);
     if (row.version != null) await expect(r.locator('.entity-activity-version')).toContainText(row.version);
     if (row.actor != null)   await expect(r.locator('.entity-activity-user')).toContainText(row.actor);
+    if (row.changesIncludes != null) {
+      for (const text of row.changesIncludes) {
+        await expect(r.locator('.entity-activity-changes-item').filter({ hasText: text }).first()).toBeVisible();
+      }
+    }
+    if (row.hasUnchangedItem) {
+      await expect(r.locator('.entity-activity-changes-item--unchanged').first()).toBeVisible();
+    }
+    if (row.hasDiff) {
+      await expect(r.locator('.entity-activity-changes')).toContainText('→');
+    }
   }
   await screenshot(page, screenshotName);
 }

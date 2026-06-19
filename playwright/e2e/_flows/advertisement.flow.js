@@ -163,6 +163,16 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   const card = cardByTitle(page, title);
   await verifyCardInList(page, expect, card, description, 3, `${screenshotPrefix}-card`);
   await openLightboxAndNavigate(page, card, screenshotPrefix);
+
+  await test.step('single history entry has no restore button', async () => {
+    const freshCard = cardByTitle(page, title);
+    const overlay = await openCardOverlay(page, freshCard, `${screenshotPrefix}-single-history`);
+    await switchToEditMode(page, overlay, null);
+    const activityList = await openActivityTab(overlay);
+    await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(0);
+    await closeOverlayToList(page, overlay);
+  });
 }
 
 async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, screenshotPrefix }) {
@@ -278,6 +288,8 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   // After restore: auto-switches to "Basic information" tab, form populated with v1 values + 3 media items
   const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
   await expect(titleInput).toHaveValue(restoredTitle, { timeout: 8000 });
+  const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
+  await expect(descInput).toHaveValue(restoredDescription, { timeout: 5000 });
   await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-restored-in-form`);
 
