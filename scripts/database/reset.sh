@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# Resets the local database to a clean state with minimal seed data.
-# Run before Playwright smoke tests when you want a fresh start.
+# Truncates all application data. Run manually when you need a clean DB without restarting the app.
 #
-# Usage: bash database/reset.sh
+# Usage: bash scripts/reset-db.sh
 set -euo pipefail
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc): database reset error ==="; exit $_rc' ERR
@@ -32,6 +31,6 @@ fi
 PGPASSWORD="$DB_PASSWORD" psql \
     -h "$DB_HOST" -p "$DB_PORT" \
     -U "$DB_USER" -d "$DB_NAME" \
-    -f "$SCRIPT_DIR/reset.sql"
+    -f "$SCRIPT_DIR/reset-clean.sql"
 
-echo "Database reset complete — 3 seed users inserted (user1-user3@example.com, password: password)."
+echo "Database reset complete — all data truncated."

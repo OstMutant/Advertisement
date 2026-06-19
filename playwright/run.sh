@@ -67,15 +67,9 @@ fi
 # ── Reset / seed database ─────────────────────────────────────────────────────
 DB_CONTAINER=$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)
 if [ -n "$DB_CONTAINER" ]; then
-  if [ "$SCENARIO" = "e2e" ] || [[ "$SCENARIO" == e2e/* ]] || [ -f "/app/playwright/e2e/${SCENARIO%.spec}.spec.js" ]; then
-    docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
-    docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
-      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)." || true
-  else
-    docker cp /app/scripts/database/reset.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
-    docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
-      -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (seeded)." || true
-  fi
+  docker cp /app/scripts/database/reset-clean.sql "$DB_CONTAINER":/tmp/pw-reset.sql 2>/dev/null
+  docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments \
+    -f /tmp/pw-reset.sql -q 2>/dev/null && echo "Database reset (clean)." || true
 else
   echo "WARNING: No postgres container found on port 5432 — test accounts may not exist."
 fi

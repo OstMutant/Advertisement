@@ -135,18 +135,18 @@ Results: `http://localhost:9099/dashboard?id=advertisement`
 
 ---
 
-## reset-db.sh / reset-db.bat
+## scripts/database/reset.sh / reset.bat
 
-Reset the local database to a clean state with 3 minimal seed users. Run before Playwright tests when you need a fresh start.
+Truncates all application data without restarting the app or touching MinIO volumes. Use when you need a clean DB for manual testing.
 
 ```bash
-bash scripts/reset-db.sh
-scripts\reset-db.bat
+bash scripts/database/reset.sh
+scripts\database\reset.bat
 ```
 
-**Self-healing:** if the DB container is stopped — starts it automatically. If it does not exist — starts it via `scripts/infra/docker-compose.db.yml`.
+**Self-healing:** if the DB container is stopped — starts it automatically.
 
-**vs `deploy.sh --reset`:** `reset-db.sh` only truncates tables and re-inserts 3 seed users — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min). Use `reset-db.sh` when you want a clean DB without touching MinIO or rebuilding the app.
+**vs `deploy.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
 
 ---
 
@@ -224,6 +224,6 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 scripts/
   infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
   build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
-  database/        — SQL scripts and database helpers (reset.sh, reset.sql)
+  database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
 ```

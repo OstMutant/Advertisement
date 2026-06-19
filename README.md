@@ -153,7 +153,6 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
 | `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright tests (delegates to `playwright/run.sh`) |
 | `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube analysis (delegates to `scripts/sonar/run.sh`) |
-| `scripts/reset-db.sh` / `scripts/reset-db.bat` | Reset DB to clean state with 3 minimal users (delegates to `scripts/database/reset.sh`) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
@@ -174,12 +173,7 @@ All database scripts live in `scripts/database/`:
 
 | File | Purpose |
 |---|---|
-| `scripts/database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
-| `scripts/database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
-
-```bash
-bash scripts/reset-db.sh   # wipe and re-seed minimal data before Playwright tests
-```
+| `scripts/database/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
 
 ---
 
