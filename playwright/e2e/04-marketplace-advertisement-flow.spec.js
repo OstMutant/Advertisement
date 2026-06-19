@@ -1,7 +1,11 @@
 const fs = require('fs');
-const { test, expect, screenshot, waitForOverlay, waitForOverlayClosed, closeOverlay, TEST_USERS, YT_URL, avatar, downloadPng } = require('./_helpers');
+const { test, expect, screenshot, waitForOverlayClosed, closeOverlay, TEST_USERS, YT_URL, avatar, downloadPng } = require('./_helpers');
+
+async function waitForOverlay(page, timeout = 10000) {
+  await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
+}
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
-const { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow } = require('./_flows/advertisement.flow');
+const { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow } = require('./_flows/advertisement.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -14,6 +18,11 @@ const CREATE = {
 const UPDATE = {
   enAd: { title: 'EN Advertisement Updated', description: 'Updated description for the EN advertisement.' },
   ukAd: { title: 'UK Оголошення Оновлено',  description: 'Оновлений опис для UK оголошення.'             },
+};
+
+const CROSS_UPDATE = {
+  enAd: { title: 'EN Advertisement Moderated', description: 'Description updated by moderator.'      },
+  ukAd: { title: 'UK Оголошення Адмін',        description: 'Опис оновлений адміністратором.'        },
 };
 
 test.describe('Advertisement flow', () => {
@@ -102,6 +111,46 @@ test.describe('Advertisement flow', () => {
       currentTitle: UPDATE.ukAd.title,
       restoredTitle: CREATE.ukAd.title, restoredDescription: CREATE.ukAd.description,
       screenshotPrefix: 'adv-useruk-restore',
+    });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('moderatorEn edits EN advertisement — cross-user edit with badge check', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle:       CREATE.enAd.title,
+      originalDescription: CREATE.enAd.description,
+      newTitle:            CROSS_UPDATE.enAd.title,
+      newDescription:      CROSS_UPDATE.enAd.description,
+      startingVersion:     4,
+      checkCurrentBadge:   true,
+      screenshotPrefix:    'adv-moderatoren-edit',
+    });
+    await runCrossUserMediaReplaceFlow(page, expect, {
+      adTitle:          CROSS_UPDATE.enAd.title,
+      startingVersion:  6,
+      screenshotPrefix: 'adv-moderatoren-media',
+    });
+    await runLogoutFlow(page, expect);
+  });
+
+  test('adminEn edits UK advertisement — cross-user edit with badge check', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await runEditAdvertisementFlow(page, expect, {
+      originalTitle:       CREATE.ukAd.title,
+      originalDescription: CREATE.ukAd.description,
+      newTitle:            CROSS_UPDATE.ukAd.title,
+      newDescription:      CROSS_UPDATE.ukAd.description,
+      startingVersion:     4,
+      checkCurrentBadge:   true,
+      screenshotPrefix:    'adv-adminen-edit-uk',
+    });
+    await runCrossUserMediaReplaceFlow(page, expect, {
+      adTitle:          CROSS_UPDATE.ukAd.title,
+      startingVersion:  6,
+      screenshotPrefix: 'adv-adminen-media-uk',
     });
     await runLogoutFlow(page, expect);
   });

@@ -1,5 +1,28 @@
-const { test, expect, screenshot, openSettings, openActivityTab, closeOverlay, switchToTab } = require('./_helpers');
-const { TEST_USERS, screenshotThenClose } = require('./_helpers');
+const { test, expect, screenshot, closeOverlay, closeNotification, TEST_USERS } = require('./_helpers');
+
+async function openSettings(page) {
+  await page.locator('.header-settings-button').click();
+  await page.locator('.base-overlay.overlay--visible').waitFor({ timeout: 10000 });
+}
+
+async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
+  await page.locator(`${overlaySelector} vaadin-tab`)
+    .filter({ hasText: /activity|activit|активн/i }).click();
+  await page.locator(`${overlaySelector} .entity-activity-list, ${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
+}
+
+async function switchToTab(page, tabName, itemSelector) {
+  await page.locator('vaadin-tab').filter({ hasText: tabName }).first().click();
+  await page.locator(itemSelector).first().waitFor({ timeout: 8000 });
+}
+
+async function screenshotThenClose(page, name) {
+  if (process.env.PW_SCREENSHOTS) {
+    const buffer = await page.screenshot({ fullPage: false });
+    await test.info().attach(name, { body: buffer, contentType: 'image/png' });
+  }
+  await closeNotification(page);
+}
 const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
 const {
   openQueryPanel, clearFilter, applyFilter,

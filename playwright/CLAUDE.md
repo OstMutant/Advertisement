@@ -47,6 +47,12 @@ bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seed
 - Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
 
+### Helper organization rules
+
+- `e2e/_helpers.js` — only truly shared utilities used across **multiple** files: `TEST_USERS`, media constants, overlay/notification helpers, `screenshot`, `downloadPng`. Do NOT add anything that is only used in one spec or one flow file.
+- `e2e/_flows/*.flow.js` — flow-specific helpers live in the same file where they are used. Extract to a shared flow file only when two or more flow files need the same helper.
+- Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
+
 ### Adding new scenarios
 1. Create `/app/playwright/my-scenario.spec.js`
 2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`

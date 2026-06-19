@@ -22,10 +22,6 @@ const avatar = seed =>
 
 // ── Overlay helpers ───────────────────────────────────────────────────────────
 
-async function waitForOverlay(page, timeout = 10000) {
-  await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
-}
-
 async function waitForOverlayClosed(page, timeout = 10000) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout });
 }
@@ -33,24 +29,6 @@ async function waitForOverlayClosed(page, timeout = 10000) {
 async function closeOverlay(page) {
   await page.locator('.overlay__breadcrumb-back').click();
   await waitForOverlayClosed(page).catch(() => {});
-}
-
-// ── Navigation helpers ────────────────────────────────────────────────────────
-
-async function openSettings(page) {
-  await page.locator('.header-settings-button').click();
-  await waitForOverlay(page);
-}
-
-async function openActivityTab(page, overlaySelector = '.base-overlay.overlay--visible') {
-  await page.locator(`${overlaySelector} vaadin-tab`)
-    .filter({ hasText: /activity|activit|активн/i }).click();
-  await page.locator(`${overlaySelector} .entity-activity-list, ${overlaySelector} .activity-feed-list`).first().waitFor({ timeout: 8000 });
-}
-
-async function switchToTab(page, tabName, itemSelector) {
-  await page.locator('vaadin-tab').filter({ hasText: tabName }).first().click();
-  await page.locator(itemSelector).first().waitFor({ timeout: 8000 });
 }
 
 // ── Notification helpers ──────────────────────────────────────────────────────
@@ -69,14 +47,6 @@ async function closeNotification(page) {
     ).then(() => true).catch(() => false);
     if (cleared) return;
   }
-}
-
-async function screenshotThenClose(page, name) {
-  if (process.env.PW_SCREENSHOTS) {
-    const buffer = await page.screenshot({ fullPage: false });
-    await test.info().attach(name, { body: buffer, contentType: 'image/png' });
-  }
-  await closeNotification(page);
 }
 
 // ── Screenshot helper ─────────────────────────────────────────────────────────
@@ -103,8 +73,7 @@ function downloadPng(url, dest) {
 module.exports = {
   test, expect,
   TEST_USERS, YT_URL, avatar,
-  waitForOverlay, waitForOverlayClosed, closeOverlay,
-  openSettings, openActivityTab, switchToTab,
-  closeNotification, screenshotThenClose,
+  waitForOverlayClosed, closeOverlay,
+  closeNotification,
   screenshot, downloadPng,
 };

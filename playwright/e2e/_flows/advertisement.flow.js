@@ -1,4 +1,5 @@
-const { screenshot, downloadPng } = require('../_helpers');
+const fs = require('fs');
+const { test, screenshot, downloadPng } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
@@ -86,6 +87,28 @@ async function verifyCardInList(page, expect, card, description, mediaCount, scr
   await screenshot(page, screenshotName);
 }
 
+async function deleteAllGalleryItems(expect, overlay) {
+  const count = await overlay.locator('.attachment-gallery__item').count();
+  for (let i = 0; i < count; i++) {
+    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count - i - 1, { timeout: 5000 });
+  }
+}
+
+async function assertSingleCurrentBadge(page, expect, overlay, screenshotName) {
+  const activityList = await openActivityTab(overlay);
+  const badgeCount = await activityList.locator('.entity-activity-current-badge').count();
+  expect(badgeCount).toBe(1);
+  await screenshot(page, screenshotName);
+}
+
+async function assertLatestActivityVersion(page, overlay, expect, version, screenshotName) {
+  const activityList = await openActivityTab(overlay);
+  await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version'))
+    .toContainText(`v${version}`);
+  await screenshot(page, screenshotName);
+}
+
 async function openLightboxAndNavigate(page, card, screenshotPrefix) {
   await card.locator('.advertisement-thumbnail-wrapper').click();
   await page.locator('.card-lightbox__content').waitFor({ timeout: 5000 });
@@ -142,70 +165,100 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   await openLightboxAndNavigate(page, card, screenshotPrefix);
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, screenshotPrefix }) {
-  const overlay = await openCardOverlay(page, cardByTitle(page, originalTitle), screenshotPrefix);
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, screenshotPrefix }) {
+  const editVersion       = startingVersion + 1;
+  const textEditVersion   = startingVersion + 2;
+  const rowsAfterEdit     = editVersion;
+  const rowsAfterTextEdit = textEditVersion;
 
+  const overlay = await openCardOverlay(page, cardByTitle(page, originalTitle), screenshotPrefix);
   await switchToEditMode(page, overlay, screenshotPrefix);
 
-  // Delete all media
-  const initialCount = await overlay.locator('.attachment-gallery__item').count();
-  for (let i = 0; i < initialCount; i++) {
-    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
-    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(initialCount - i - 1, { timeout: 5000 });
+  await test.step('discard restores state', async () => {
+    const count = await overlay.locator('.attachment-gallery__item').count();
+    await deleteAllGalleryItems(expect, overlay);
+    await screenshot(page, `${screenshotPrefix}-media-deleted`);
+
+    await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
+    await screenshot(page, `${screenshotPrefix}-discarded`);
+  });
+
+  await test.step(`edit and save v${editVersion} — delete all media, update title and description`, async () => {
+    await deleteAllGalleryItems(expect, overlay);
+
+    const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
+    await titleInput.clear();
+    await titleInput.fill(newTitle);
+
+    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
+    await descInput.clear();
+    await descInput.fill(newDescription);
+    await screenshot(page, `${screenshotPrefix}-form-updated`);
+
+    await saveAndWaitForIdle(page, expect, overlay, screenshotPrefix);
+
+    const activityList = await openActivityTab(overlay);
+    await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsAfterEdit, { timeout: 5000 });
+
+    const row0 = activityList.locator('.entity-activity-row').nth(0);
+    await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
+    await expect(row0.locator('.entity-activity-version')).toContainText(`v${editVersion}`);
+    const changes0 = row0.locator('.entity-activity-changes');
+    await expect(changes0).toContainText(originalTitle);
+    await expect(changes0).toContainText(newTitle);
+    await expect(changes0).toContainText(originalDescription.substring(0, 20));
+    await expect(changes0).toContainText(newDescription);
+    await expect(changes0).toContainText('YouTube-dQw4w9WgXcQ');
+    await expect(changes0).toContainText('→');
+
+    const lastRow = activityList.locator('.entity-activity-row').nth(rowsAfterEdit - 1);
+    await expect(lastRow.locator('.entity-activity-action')).toContainText(/created|створено/i);
+    await expect(lastRow.locator('.entity-activity-version')).toContainText('v1');
+    await expect(lastRow.locator('.entity-activity-changes')).toContainText(originalTitle);
+    await screenshot(page, `${screenshotPrefix}-activity`);
+  });
+
+  const textOnlyDescription = newDescription + ' (v3)';
+
+  await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion`, async () => {
+    await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').waitFor({ timeout: 3000 });
+
+    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
+    await descInput.clear();
+    await descInput.fill(textOnlyDescription);
+    await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-v3`);
+
+    const activityList = await openActivityTab(overlay);
+    await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsAfterTextEdit, { timeout: 5000 });
+
+    const textEditRow = activityList.locator('.entity-activity-row').nth(0);
+    await expect(textEditRow.locator('.entity-activity-version')).toContainText(`v${textEditVersion}`);
+    const rowTexts = await textEditRow.locator('.entity-activity-changes-item').allTextContents();
+    const mediaLine = rowTexts.find(t => /медіа|media/i.test(t));
+    expect(mediaLine).toBeTruthy();
+    expect(mediaLine).toContain('—');
+    await screenshot(page, `${screenshotPrefix}-v3-activity`);
+  });
+
+  if (checkCurrentBadge) {
+    await test.step('activity shows exactly one current-state badge', async () => {
+      await assertSingleCurrentBadge(page, expect, overlay, `${screenshotPrefix}-badge`);
+    });
   }
-  await screenshot(page, `${screenshotPrefix}-media-deleted`);
 
-  // Discard — verify title/description and media are restored
-  await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
-  await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
-  await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
-  await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(initialCount, { timeout: 8000 });
-  await screenshot(page, `${screenshotPrefix}-discarded`);
+  await test.step('view reflects saved state', async () => {
+    await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
+  });
 
-  // Redo: delete all media again
-  for (let i = 0; i < initialCount; i++) {
-    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
-    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(initialCount - i - 1, { timeout: 5000 });
-  }
-
-  const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
-  await titleInput.clear();
-  await titleInput.fill(newTitle);
-
-  const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
-  await descInput.clear();
-  await descInput.fill(newDescription);
-  await screenshot(page, `${screenshotPrefix}-form-updated`);
-
-  await saveAndWaitForIdle(page, expect, overlay, screenshotPrefix);
-
-  // Activity tab — 2 rows: v2 updated, v1 created
-  const activityList = await openActivityTab(overlay);
-  await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
-
-  const row0 = activityList.locator('.entity-activity-row').nth(0);
-  await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
-  await expect(row0.locator('.entity-activity-version')).toContainText('v2');
-  const changes0 = row0.locator('.entity-activity-changes');
-  await expect(changes0).toContainText(originalTitle);
-  await expect(changes0).toContainText(newTitle);
-  await expect(changes0).toContainText(originalDescription.substring(0, 20));
-  await expect(changes0).toContainText(newDescription);
-  await expect(changes0).toContainText('YouTube-dQw4w9WgXcQ');
-  await expect(changes0).toContainText('→');
-
-  const row1 = activityList.locator('.entity-activity-row').nth(1);
-  await expect(row1.locator('.entity-activity-action')).toContainText(/created|створено/i);
-  await expect(row1.locator('.entity-activity-version')).toContainText('v1');
-  await expect(row1.locator('.entity-activity-changes')).toContainText(originalTitle);
-  await screenshot(page, `${screenshotPrefix}-activity`);
-
-  await closeEditAndVerifyView(page, expect, overlay, newTitle, newDescription, `${screenshotPrefix}-view-updated`);
-
-  await closeOverlayToList(page, overlay);
-
-  const updatedCard = cardByTitle(page, newTitle);
-  await verifyCardInList(page, expect, updatedCard, newDescription, 0, `${screenshotPrefix}-list-updated`);
+  await test.step('card reflects saved state', async () => {
+    await closeOverlayToList(page, overlay);
+    const updatedCard = cardByTitle(page, newTitle);
+    await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
+  });
 }
 
 async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, screenshotPrefix }) {
@@ -213,11 +266,11 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
 
   await switchToEditMode(page, overlay, null);
 
-  // Activity tab — 2 rows before restore
+  // Activity tab — 3 rows before restore (v3 text-only, v2 media+text, v1 created)
   const activityList = await openActivityTab(overlay);
-  await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 5000 });
+  await expect(activityList.locator('.entity-activity-row')).toHaveCount(3, { timeout: 5000 });
 
-  const v1Row = activityList.locator('.entity-activity-row').nth(1);
+  const v1Row = activityList.locator('.entity-activity-row').nth(2);
   await expect(v1Row.locator('.entity-activity-version')).toContainText('v1');
   await screenshot(page, `${screenshotPrefix}-before-restore`);
   await v1Row.locator('.entity-activity-restore-btn').click();
@@ -230,13 +283,13 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
 
   await saveAndWaitForIdle(page, expect, overlay, screenshotPrefix);
 
-  // Activity tab — 3 rows: v3 updated, v2 updated, v1 created
+  // Activity tab — 4 rows: v4 restored, v3 text-only, v2 media+text, v1 created
   const activityListAfter = await openActivityTab(overlay);
-  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(3, { timeout: 5000 });
+  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(4, { timeout: 5000 });
 
   const row0 = activityListAfter.locator('.entity-activity-row').nth(0);
   await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
-  await expect(row0.locator('.entity-activity-version')).toContainText('v3');
+  await expect(row0.locator('.entity-activity-version')).toContainText('v4');
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(currentTitle);
   await expect(changes0).toContainText(restoredTitle);
@@ -253,4 +306,46 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await openLightboxAndNavigate(page, restoredCard, screenshotPrefix);
 }
 
-module.exports = { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow };
+async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVersion, screenshotPrefix }) {
+  const addVersion     = startingVersion + 1;
+  const replaceVersion = startingVersion + 2;
+
+  const img1 = `/tmp/${screenshotPrefix}-media-a.png`;
+  const img2 = `/tmp/${screenshotPrefix}-media-b.png`;
+  await downloadPng(avatar(`${screenshotPrefix}-a`), img1);
+  await downloadPng(avatar(`${screenshotPrefix}-b`), img2);
+
+  const overlay = await openCardOverlay(page, cardByTitle(page, adTitle), screenshotPrefix);
+  await switchToEditMode(page, overlay, null);
+
+  await test.step(`cross-user adds image — v${addVersion}`, async () => {
+    await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(img1);
+    await overlay.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
+    await screenshot(page, `${screenshotPrefix}-image-added`);
+    await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-add`);
+    await assertLatestActivityVersion(page, overlay, expect, addVersion, `${screenshotPrefix}-add-activity`);
+  });
+
+  await test.step(`cross-user replaces image — v${replaceVersion}`, async () => {
+    // Switch back to Basic Information tab to access the gallery
+    await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+
+    await overlay.locator('.attachment-gallery__item .attachment-gallery__delete-btn').first().click();
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(0, { timeout: 5000 });
+    await overlay.locator('vaadin-upload input[type="file"]').setInputFiles(img2);
+    await overlay.locator('.attachment-gallery__item').first().waitFor({ timeout: 10000 });
+    await screenshot(page, `${screenshotPrefix}-image-replaced`);
+    await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-replace`);
+    await assertLatestActivityVersion(page, overlay, expect, replaceVersion, `${screenshotPrefix}-replace-activity`);
+  });
+
+  await test.step('exactly one current-state badge after cross-user media add and replace', async () => {
+    await assertSingleCurrentBadge(page, expect, overlay, `${screenshotPrefix}-badge-final`);
+  });
+
+  await closeOverlayToList(page, overlay);
+  [img1, img2].forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
+}
+
+module.exports = { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow };

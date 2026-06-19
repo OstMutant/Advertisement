@@ -1,6 +1,20 @@
 const { screenshot } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
 
+async function closeUserOverlay(page) {
+  await page.locator('.user-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first()
+    .click();
+  await page.locator('.user-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+async function clearUserFilter(page) {
+  await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();
+  await page.locator('.user-list-layout .query-status-bar').click();
+  await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
+}
+
 async function runNavigateToUsersTabFlow(page, expect) {
   await page.locator('vaadin-tab').filter({ hasText: /Users|Користувачі/i }).first().click();
   await page.locator('.user-list-layout').waitFor({ timeout: 5000 });
@@ -108,19 +122,18 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-view`);
 
   // VIEW → close
-  await closeBtn.click();
-  await page.locator('.user-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
+  await closeUserOverlay(page);
 
   // Check role in grid (filter still active)
   await expect(page.locator('.user-list-layout .user-role-badge:visible').first()).toContainText(role);
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-grid`);
 
-  await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();
-  await page.locator('.user-list-layout .query-status-bar').click();
-  await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
+  await clearUserFilter(page);
 }
 
 module.exports = {
+  closeUserOverlay,
+  clearUserFilter,
   runNavigateToUsersTabFlow,
   runFilterUserByEmailFlow,
   runOpenUserViewDialogFlow,

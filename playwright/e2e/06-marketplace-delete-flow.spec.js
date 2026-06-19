@@ -1,6 +1,6 @@
 const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
-const { runNavigateToUsersTabFlow, runFilterUserByEmailFlow } = require('./_flows/user-management.flow');
+const { runNavigateToUsersTabFlow, runFilterUserByEmailFlow, clearUserFilter } = require('./_flows/user-management.flow');
 const { cancelDeleteDialog, confirmDeleteDialog, runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -90,9 +90,7 @@ test.describe('Delete flow', () => {
     });
 
     await test.step('clear filter — deleted user absent from full list', async () => {
-      await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();
-      await page.locator('.user-list-layout .query-status-bar').click();
-      await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
+      await clearUserFilter(page);
       await expect(
         page.locator('.user-grid-name:visible').filter({ hasText: USER_TO_DELETE.name })
       ).toHaveCount(0, { timeout: 5000 });

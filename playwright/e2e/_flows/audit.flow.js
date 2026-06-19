@@ -1,5 +1,5 @@
 const { screenshot } = require('../_helpers');
-const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow } = require('./user-management.flow');
+const { runOpenUserEditViaListFlow, runOpenUserViewDialogFlow, closeUserOverlay, clearUserFilter } = require('./user-management.flow');
 
 async function runOpenSettingsFlow(page) {
   await page.locator('.header-settings-button').click();
@@ -64,15 +64,8 @@ async function runVerifyUserAuditActivityFlow(page, expect, email, { screenshotN
   await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
   await runVerifyEntityActivityFlow(page, expect, page.locator('.user-overlay'), { screenshotName, rows });
 
-  await page.locator('.user-overlay vaadin-button')
-    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
-    .first()
-    .click();
-  await page.locator('.user-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 5000 });
-
-  await page.locator('.user-query-block vaadin-button[title*="Clear"], .user-query-block vaadin-button[title*="Очистити"]').click();
-  await page.locator('.user-list-layout .query-status-bar').click();
-  await page.locator('.user-query-block').waitFor({ state: 'hidden', timeout: 3000 });
+  await closeUserOverlay(page);
+  await clearUserFilter(page);
 }
 
 module.exports = {
