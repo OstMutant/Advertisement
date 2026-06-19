@@ -327,6 +327,9 @@ test.describe('Seed data and query validation', () => {
     await openActivityTab(page);
     await expect(page.locator('.entity-activity-list .entity-activity-row').first())
       .toBeVisible({ timeout: 5000 });
+    const firstActivityRow = page.locator('.entity-activity-list .entity-activity-row').first();
+    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /adsPageSize|Оголошень/i }).first()).toBeVisible();
+    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /usersPageSize|Користувач/i }).first()).toBeVisible();
     await screenshot(page, 'settings-activity-after-change');
     await closeOverlay(page);
 
@@ -363,6 +366,20 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.pagination-count:visible'))
       .toContainText('1\u201320 of', { timeout: 5000 });
     await screenshot(page, 'settings-users-restored-20');
+
+    // ── verify save from activity tab switches view back to settings form ────
+    await openSettings(page);
+    const tabSizeInput = page.locator('.settings-overlay-content vaadin-integer-field').nth(0).locator('input');
+    await tabSizeInput.click({ clickCount: 3 });
+    await tabSizeInput.fill('15');
+    await openActivityTab(page);
+    await page.locator('.base-overlay.overlay--visible vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+    await page.waitForLoadState('networkidle');
+    await expect(page.locator('.overlay__form-fields-card')).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'settings-tab-switch-after-save');
+    await openActivityTab(page);
+    await restoreLatestFromActivity(page);
+    await closeOverlay(page);
 
     await logoutBulk(page);
   });

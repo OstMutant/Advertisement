@@ -69,6 +69,7 @@ async function runFillUserRoleFlow(page, { role, name }) {
 
 
 async function runSaveUserEditFlow(page, expect, role) {
+  await expect(page.locator('.user-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i })).toBeEnabled({ timeout: 5000 });
   await page.locator('.user-overlay vaadin-button').filter({ hasText: /Save|Зберегти/i }).click();
   await expect(page.locator('vaadin-notification-container')).toContainText(
     /User updated successfully|Користувача успішно оновлено/i,
@@ -76,6 +77,14 @@ async function runSaveUserEditFlow(page, expect, role) {
   );
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}`);
   await closeNotification(page);
+}
+
+async function closeUserOverlayFromEdit(page) {
+  await page.locator('.user-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first().click();
+  await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
+  await closeUserOverlay(page);
 }
 
 async function runPromoteUserFlow(page, expect, user, { role = null, name = null } = {}) {
@@ -110,12 +119,10 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
   await screenshot(page, `user-management-promoted-${role.toLowerCase()}-edit-activity`);
 
-  const closeBtn = page.locator('.user-overlay vaadin-button')
-    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
-    .first();
-
   // EDIT → VIEW
-  await closeBtn.click();
+  await page.locator('.user-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .first().click();
   await page.locator('.user-overlay vaadin-button').filter({ hasText: /Edit|Редагувати/ }).waitFor({ state: 'visible', timeout: 5000 });
 
   // Check role in VIEW mode
@@ -134,6 +141,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
 module.exports = {
   closeUserOverlay,
+  closeUserOverlayFromEdit,
   clearUserFilter,
   runNavigateToUsersTabFlow,
   runFilterUserByEmailFlow,

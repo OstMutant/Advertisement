@@ -80,6 +80,9 @@ async function runVerifyUserAuditActivityFlow(page, expect, email, { screenshotN
 }
 
 module.exports = {
+  runOpenSettingsFlow,
+  runCloseSettingsFlow,
+  runVerifyEntityActivityFlow,
   runVerifySettingsActivityFlow,
   runVerifySettingsAfterSignupFlow,
   runVerifyUserAuditActivityFlow,
