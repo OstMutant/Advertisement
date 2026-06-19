@@ -146,6 +146,8 @@ scripts\reset-db.bat
 
 **Self-healing:** if the DB container is stopped — starts it automatically. If it does not exist — starts it via `scripts/infra/docker-compose.db.yml`.
 
+**vs `deploy.sh --reset`:** `reset-db.sh` only truncates tables and re-inserts 3 seed users — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min). Use `reset-db.sh` when you want a clean DB without touching MinIO or rebuilding the app.
+
 ---
 
 ## clean.bat
