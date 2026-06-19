@@ -1,4 +1,5 @@
 const { screenshot, downloadPng } = require('../_helpers');
+const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
@@ -80,6 +81,7 @@ async function verifyCardInList(page, expect, card, description, mediaCount, scr
     await expect(card.locator('.advertisement-thumbnail-wrapper')).toHaveCount(0);
   } else if (mediaCount != null) {
     await expect(card.locator('.advertisement-thumbnail-badge')).toContainText(String(mediaCount));
+    await expect(card.locator('img').first()).toHaveAttribute('src', /.+/);
   }
   await screenshot(page, screenshotName);
 }
@@ -90,7 +92,13 @@ async function openLightboxAndNavigate(page, card, screenshotPrefix) {
   await screenshot(page, `${screenshotPrefix}-lightbox-first`);
   await page.locator('.card-lightbox__nav').nth(1).click();
   await screenshot(page, `${screenshotPrefix}-lightbox-next`);
-  await page.locator('.card-lightbox__close').click();
+  // Verify WebM video item (thumb index 2 — YouTube=0, image=1, WebM=2)
+  await clickLightboxThumb(page, 2);
+  await waitForVideoWrapperVisible(page);
+  const videoSrc = await getVideoSrc(page);
+  if (!videoSrc) throw new Error('Card lightbox: no video src for WebM item');
+  await screenshot(page, `${screenshotPrefix}-lightbox-video`);
+  await page.locator('.card-lightbox__close').click({ force: true });
   await page.locator('.card-lightbox__content').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -245,4 +253,4 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await openLightboxAndNavigate(page, restoredCard, screenshotPrefix);
 }
 
-module.exports = { runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow };
+module.exports = { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow };
