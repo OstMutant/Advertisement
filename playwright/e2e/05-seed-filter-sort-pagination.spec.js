@@ -1,6 +1,6 @@
 const { test, expect, screenshot, openSettings, openActivityTab, closeOverlay, switchToTab } = require('./_helpers');
 const { TEST_USERS, screenshotThenClose } = require('./_helpers');
-const { signUpBulk, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
+const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = require('./_flows/seed.flow');
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
@@ -93,11 +93,10 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 1: seed users ────────────────────────────────────────────────────
 
-  test(`seed ${SEED_COUNT} users via signup`, async () => {
+  test(`seed ${SEED_COUNT} users via signup`, async ({ browser }) => {
     test.setTimeout(5 * 60 * 1000);
-    for (let i = 1; i <= SEED_COUNT; i++) {
-      await signUpBulk(page, seedUser(i));
-    }
+    const users = Array.from({ length: SEED_COUNT }, (_, i) => seedUser(i + 1));
+    await signUpBulkParallel(browser, users, 3);
   });
 
   // ── Test 2: seed advertisements ───────────────────────────────────────────

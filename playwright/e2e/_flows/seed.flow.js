@@ -53,4 +53,29 @@ async function createAdvertisementBulk(page, { title, description }) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });
 }
 
-module.exports = { signUpBulk, loginBulk, logoutBulk, createAdvertisementBulk };
+async function signUpBulkParallel(browser, users, poolSize = 3) {
+  const groups = Array.from({ length: poolSize }, () => []);
+  users.forEach((user, i) => groups[i % poolSize].push(user));
+
+  const delay = ms => new Promise(r => setTimeout(r, ms));
+
+  await Promise.all(
+    groups.filter(g => g.length > 0).map(async (groupUsers, idx) => {
+      // Stagger context startups to avoid hammering the Vaadin server simultaneously
+      await delay(idx * 500);
+      const context = await browser.newContext();
+      const ctxPage = await context.newPage();
+      try {
+        await ctxPage.goto('/');
+        await ctxPage.locator('vaadin-tab').filter({ hasText: /Advertisements|Оголошення/i }).first().waitFor({ timeout: 15000 });
+        for (const user of groupUsers) {
+          await signUpBulk(ctxPage, user);
+        }
+      } finally {
+        await context.close();
+      }
+    })
+  );
+}
+
+module.exports = { signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk };
