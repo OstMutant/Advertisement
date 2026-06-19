@@ -24,7 +24,11 @@ bash /app/playwright/run.sh                  # all tests
 bash /app/playwright/run.sh smoke            # one scenario
 bash /app/playwright/run.sh smoke --ux       # with local screenshots for AI analysis
 bash /app/playwright/run.sh --ux             # all tests with screenshots
+bash /app/playwright/run.sh e2e --ux         # e2e suite (specs 01–06, skips spec 05 seed)
+bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seeds 50 users + 50 ads)
 ```
+
+**`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 100 entities). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.
 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
