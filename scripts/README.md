@@ -148,19 +148,6 @@ scripts\reset-db.bat
 
 ---
 
-## seed-db.sh / seed-db.bat
-
-Insert 50 dev users (USER / MODERATOR / ADMIN mix) and sample advertisements. Safe to run multiple times — uses `ON CONFLICT DO NOTHING`.
-
-```bash
-bash scripts/seed-db.sh
-scripts\seed-db.bat
-```
-
-**Self-healing:** same DB auto-start behavior as `reset-db.sh`.
-
----
-
 ## clean.bat
 
 Removes Maven `target/` directories, Vaadin generated frontend files, and Playwright artifacts.
@@ -235,6 +222,6 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 scripts/
   infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
   build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
-  database/        — SQL scripts and database helpers (reset.sh, seed.sh)
+  database/        — SQL scripts and database helpers (reset.sh, reset.sql)
   sonar/           — SonarQube configuration and scanner
 ```

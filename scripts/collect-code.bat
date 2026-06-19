@@ -72,7 +72,6 @@ call :CheckRootFile "scripts\infra\docker-compose.app.yml"
 call :CheckRootFile "scripts\infra\docker-compose.db.yml"
 call :CheckRootFile "scripts\infra\docker-compose.minio.yml"
 call :CheckRootFile "lombok.config"
-call :CheckRootFile "database\seed.sql"
 call :CheckRootFile "database\reset.sql"
 call :CheckRootFile "database\reset.sh"
 

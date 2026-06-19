@@ -154,7 +154,6 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright tests (delegates to `playwright/run.sh`) |
 | `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube analysis (delegates to `scripts/sonar/run.sh`) |
 | `scripts/reset-db.sh` / `scripts/reset-db.bat` | Reset DB to clean state with 3 minimal users (delegates to `scripts/database/reset.sh`) |
-| `scripts/seed-db.sh` / `scripts/seed-db.bat` | Insert 50 dev users + advertisements (delegates to `scripts/database/seed.sh`) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
@@ -175,13 +174,10 @@ All database scripts live in `scripts/database/`:
 
 | File | Purpose |
 |---|---|
-| `scripts/database/seed.sql` | 50 dev users (USER / MODERATOR / ADMIN mix) + advertisements. Run manually via `seed-db.sh`. |
-| `scripts/database/seed.sh` | Shell wrapper for `seed.sql`. Safe to run multiple times — uses `ON CONFLICT DO NOTHING`. |
 | `scripts/database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
 | `scripts/database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
 
 ```bash
-bash scripts/seed-db.sh    # populate with 50 dev users (first time or after clean)
 bash scripts/reset-db.sh   # wipe and re-seed minimal data before Playwright tests
 ```
 
