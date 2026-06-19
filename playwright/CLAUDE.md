@@ -54,6 +54,6 @@ bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seed
 - Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
 
 ### Adding new scenarios
-1. Create `/app/playwright/my-scenario.spec.js`
-2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`
+1. Create `/app/playwright/e2e/my-scenario.spec.js`
+2. `const { test, expect, screenshot } = require('./_helpers');`
 3. Run with `bash /app/playwright/run.sh my-scenario`

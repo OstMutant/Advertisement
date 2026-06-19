@@ -716,6 +716,6 @@ Screenshots: `fields-03-activity-created-both-fields`, `fields-04-activity-updat
 
 ## Adding a new scenario
 
-1. Create `/app/playwright/my-scenario.spec.js`
-2. `const { test, expect, loginAs, ... } = require('./_test-helpers');`
+1. Create `/app/playwright/e2e/my-scenario.spec.js`
+2. `const { test, expect, screenshot } = require('./_helpers');`
 3. Run with: `bash /app/playwright/run.sh my-scenario`

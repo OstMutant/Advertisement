@@ -94,7 +94,7 @@ fi
 INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 @playwright/test@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
 
 # ── Clean stale artifacts in container and host ───────────────────────────────
-docker exec pw-runner bash -c "rm -rf /tmp/marketplace /tmp/audit /tmp/attachment /tmp/e2e /tmp/_test-helpers.js /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
+docker exec pw-runner bash -c "rm -rf /tmp/marketplace /tmp/audit /tmp/attachment /tmp/e2e /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
 rm -rf /app/playwright/pw-report
 
 # ── Sync spec files ───────────────────────────────────────────────────────────
@@ -103,7 +103,6 @@ for group in marketplace audit attachment e2e; do
   for f in /app/playwright/$group/*.spec.js; do
     [ -f "$f" ] && docker cp "$f" pw-runner:/tmp/$group/ 2>/dev/null
   done
-  docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/$group/ 2>/dev/null
 done
 if [ -d /app/playwright/e2e/_flows ]; then
   docker exec pw-runner bash -c "mkdir -p /tmp/e2e/_flows"
@@ -112,7 +111,6 @@ if [ -d /app/playwright/e2e/_flows ]; then
   done
 fi
 [ -f /app/playwright/e2e/_helpers.js ] && docker cp /app/playwright/e2e/_helpers.js pw-runner:/tmp/e2e/
-docker cp /app/playwright/_test-helpers.js pw-runner:/tmp/
 docker cp /app/playwright/playwright.config.js pw-runner:/tmp/
 docker cp /app/playwright/reporter.js pw-runner:/tmp/
 

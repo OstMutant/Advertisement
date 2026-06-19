@@ -34,4 +34,4 @@ await screenshot(page, 'some-dialog');
 
 **Why:** Screenshots slow down CI runs and add noise to reports when not needed for UX analysis. Keeping them opt-in makes the default run fast and clean.
 
-**Implementation:** `run.sh` sets `PW_SCREENSHOTS=1` env var when `--ux` is present; `_test-helpers.js` `screenshot()` guards on `process.env.PW_SCREENSHOTS`. Screenshots are attached to the HTML report via `test.info().attach()` and stored in `pw-report/data/`.
+**Implementation:** `run.sh` sets `PW_SCREENSHOTS=1` env var when `--ux` is present; `e2e/_helpers.js` `screenshot()` guards on `process.env.PW_SCREENSHOTS`. Screenshots are attached to the HTML report via `test.info().attach()` and stored in `pw-report/data/`.
