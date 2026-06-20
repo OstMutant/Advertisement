@@ -27,7 +27,10 @@
 .user-query-block vaadin-combo-box::part(input-field),
 .user-query-block vaadin-multi-select-combo-box::part(input-field),
 .user-query-block vaadin-number-field::part(input-field),
-.user-query-block vaadin-integer-field::part(input-field) {
+.user-query-block vaadin-integer-field::part(input-field),
+.timeline-query-block vaadin-multi-select-combo-box::part(input-field),
+.timeline-query-block vaadin-date-picker::part(input-field),
+.timeline-query-block vaadin-time-picker::part(input-field) {
     background:    #ffffff;
     border:        1.5px solid #dbeafe;
     border-radius: 8px;
@@ -45,7 +48,10 @@
 .user-query-block vaadin-time-picker:focus-within::part(input-field),
 .user-query-block vaadin-combo-box:focus-within::part(input-field),
 .user-query-block vaadin-multi-select-combo-box:focus-within::part(input-field),
-.user-query-block vaadin-number-field:focus-within::part(input-field) {
+.user-query-block vaadin-number-field:focus-within::part(input-field),
+.timeline-query-block vaadin-multi-select-combo-box:focus-within::part(input-field),
+.timeline-query-block vaadin-date-picker:focus-within::part(input-field),
+.timeline-query-block vaadin-time-picker:focus-within::part(input-field) {
     border-color: #3b82f6;
     box-shadow:   0 0 0 3px rgba(59,130,246,0.12);
 }

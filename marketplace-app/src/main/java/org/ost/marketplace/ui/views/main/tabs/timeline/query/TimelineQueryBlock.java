@@ -8,26 +8,20 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.user.dto.UserDto;
-import org.ost.platform.user.dto.UserFilterDto;
-import org.ost.platform.user.spi.UserPort;
-import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
-import org.ost.marketplace.ui.query.elements.fields.QueryLazyComboField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
+import org.ost.marketplace.ui.query.elements.fields.UserPickerField;
 import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.data.domain.Sort;
 
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTION_TYPE;
-import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTOR;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_DATE_END;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_DATE_START;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ENTITY_TYPE;
@@ -48,12 +42,10 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
     private final transient SortProcessor                           sortProcessor;
 
     private final transient AccessEvaluator                                            access;
-    private final transient UserPort                                                   userPort;
     private final transient UiComponentFactory<QueryMultiSelectComboField<EntityType>> entityTypeComboFactory;
     private final transient UiComponentFactory<QueryMultiSelectComboField<ActionType>> actionTypeComboFactory;
     private final transient UiComponentFactory<QueryDateTimeField>                     dateTimeFieldFactory;
-    @SuppressWarnings("rawtypes")
-    private final transient UiComponentFactory<QueryLazyComboField>                    lazyComboFactory;
+    private final transient UiComponentFactory<UserPickerField>                        userPickerFactory;
     private final transient UiComponentFactory<QueryInlineRow>                         inlineRowFactory;
     private final transient UiComponentFactory<SortIcon>                               sortIconFactory;
 
@@ -61,7 +53,6 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
     private final QueryActionBlock queryActionBlock;
 
     @PostConstruct
-    @SuppressWarnings("unchecked")
     private void initLayout() {
         addClassName("timeline-query-block");
         setVisible(false);
@@ -101,17 +92,7 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
 
         // Actor row (admin/mod only)
         if (access.canView()) {
-            QueryLazyComboField<UserDto> actorField = lazyComboFactory.build(
-                    QueryLazyComboField.Parameters.<UserDto>builder()
-                            .placeholderKey(TIMELINE_FILTER_ACTOR)
-                            .labelGenerator(UserDto::name)
-                            .fetchCallback(query -> userPort.getFiltered(
-                                    UserFilterDto.builder().name(query.getFilter().orElse(null)).build(),
-                                    query.getOffset(), query.getLimit(),
-                                    Sort.by(Sort.Order.asc("name"))).stream())
-                            .countCallback(query -> userPort.count(
-                                    UserFilterDto.builder().name(query.getFilter().orElse(null)).build()))
-                            .build());
+            UserPickerField actorField = userPickerFactory.get();
             QueryInlineRow actorRow = inlineRowFactory.build(
                     QueryInlineRow.Parameters.builder()
                             .labelKey(TIMELINE_SORT_ACTOR).filterField(actorField).build());

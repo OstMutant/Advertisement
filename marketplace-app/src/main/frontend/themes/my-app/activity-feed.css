@@ -60,9 +60,9 @@
     color:      #1e40af;
 }
 
-.activity-feed-type--settings {
-    background: #d1fae5;
-    color:      #065f46;
+.activity-feed-type--user_settings {
+    background: #ede9fe;
+    color:      #5b21b6;
 }
 
 .activity-feed-name {

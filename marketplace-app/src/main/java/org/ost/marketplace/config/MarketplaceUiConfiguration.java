@@ -13,7 +13,7 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.SvgIcon;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
-import org.ost.marketplace.ui.query.elements.fields.QueryLazyComboField;
+import org.ost.marketplace.ui.query.elements.fields.UserPickerField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
 import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
@@ -103,8 +103,7 @@ public class MarketplaceUiConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    @SuppressWarnings("rawtypes")
-    public UiComponentFactory<QueryLazyComboField> queryLazyComboFieldFactory(ObjectProvider<QueryLazyComboField> p) {
+    public UiComponentFactory<UserPickerField> userPickerFieldFactory(ObjectProvider<UserPickerField> p) {
         return new UiComponentFactory<>(p);
     }
 

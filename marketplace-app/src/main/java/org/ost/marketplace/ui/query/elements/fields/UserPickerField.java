@@ -1,0 +1,153 @@
+package org.ost.marketplace.ui.query.elements.fields;
+
+import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.customfield.CustomField;
+import com.vaadin.flow.component.dialog.Dialog;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.orderedlayout.FlexComponent;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.data.provider.CallbackDataProvider;
+import com.vaadin.flow.data.provider.ConfigurableFilterDataProvider;
+import com.vaadin.flow.data.provider.DataProvider;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.core.Initialization;
+import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.spi.UserPort;
+import org.springframework.context.annotation.Scope;
+import org.springframework.data.domain.Sort;
+
+import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTOR;
+import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_ACTOR;
+
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor
+public class UserPickerField extends CustomField<UserDto>
+        implements Initialization<UserPickerField> {
+
+    private final transient UserPort    userPort;
+    private final transient I18nService i18nService;
+
+    private UserDto currentValue;
+    private Span    displaySpan;
+    private Button  clearButton;
+
+    @PostConstruct
+    @Override
+    public UserPickerField init() {
+        addClassName("user-picker-field");
+
+        displaySpan = new Span(i18nService.get(TIMELINE_FILTER_ACTOR));
+        displaySpan.addClassName("user-picker-placeholder");
+
+        clearButton = new Button(VaadinIcon.CLOSE_SMALL.create());
+        clearButton.addClassName("user-picker-clear");
+        clearButton.setVisible(false);
+        clearButton.addClickListener(e -> clearValue());
+
+        Button openButton = new Button(VaadinIcon.SEARCH.create());
+        openButton.addClassName("user-picker-open");
+        openButton.addClickListener(e -> openDialog());
+
+        HorizontalLayout layout = new HorizontalLayout(displaySpan, clearButton, openButton);
+        layout.setAlignItems(FlexComponent.Alignment.CENTER);
+        layout.setPadding(false);
+        add(layout);
+
+        return this;
+    }
+
+    private void clearValue() {
+        currentValue = null;
+        displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
+        displaySpan.addClassName("user-picker-placeholder");
+        clearButton.setVisible(false);
+        setModelValue(null, true);
+    }
+
+    private void selectUser(UserDto user) {
+        currentValue = user;
+        displaySpan.setText(user.name());
+        displaySpan.removeClassName("user-picker-placeholder");
+        clearButton.setVisible(true);
+        setModelValue(user, true);
+    }
+
+    private void openDialog() {
+        Dialog dialog = new Dialog();
+        dialog.setHeaderTitle(i18nService.get(TIMELINE_FILTER_ACTOR));
+        dialog.setWidth("400px");
+
+        TextField searchField = new TextField();
+        searchField.setPlaceholder(i18nService.get(TIMELINE_FILTER_ACTOR));
+        searchField.setClearButtonVisible(true);
+        searchField.setWidthFull();
+
+        Grid<UserDto> grid = new Grid<>();
+
+        grid.addColumn(UserDto::name).setHeader(i18nService.get(TIMELINE_SORT_ACTOR));
+        grid.setWidthFull();
+        grid.setHeight("300px");
+
+        CallbackDataProvider<UserDto, String> dataProvider = DataProvider.fromFilteringCallbacks(
+                query -> userPort.getFiltered(
+                        UserFilterDto.builder().name(query.getFilter().orElse(null)).build(),
+                        query.getOffset() / Math.max(1, query.getLimit()),
+                        query.getLimit(),
+                        Sort.by(Sort.Order.asc("name"))).stream(),
+                query -> userPort.count(
+                        UserFilterDto.builder().name(query.getFilter().orElse(null)).build())
+        );
+        ConfigurableFilterDataProvider<UserDto, Void, String> filterable = dataProvider.withConfigurableFilter();
+        grid.setItems(filterable);
+
+        Button searchButton = new Button(VaadinIcon.SEARCH.create(),
+                e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
+        searchButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY_INLINE);
+        searchField.setSuffixComponent(searchButton);
+
+        searchField.addValueChangeListener(e ->
+                filterable.setFilter(e.getValue().isBlank() ? null : e.getValue()));
+
+        grid.asSingleSelect().addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                selectUser(e.getValue());
+                dialog.close();
+            }
+        });
+
+        VerticalLayout content = new VerticalLayout(searchField, grid);
+        content.setPadding(false);
+        content.setWidthFull();
+        dialog.add(content);
+        dialog.open();
+    }
+
+    @Override
+    protected UserDto generateModelValue() {
+        return currentValue;
+    }
+
+    @Override
+    protected void setPresentationValue(UserDto value) {
+        currentValue = value;
+        if (value == null) {
+            displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
+            displaySpan.addClassName("user-picker-placeholder");
+            clearButton.setVisible(false);
+        } else {
+            displaySpan.setText(value.name());
+            displaySpan.removeClassName("user-picker-placeholder");
+            clearButton.setVisible(true);
+        }
+    }
+}
