@@ -9,7 +9,7 @@ import org.ost.marketplace.ui.views.components.audit.AuditActivityRowRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineRowRenderer;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.SvgIcon;
@@ -38,87 +38,87 @@ public class MarketplaceUiConfiguration {
     // ── Audit UI factories ────────────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelinePanel> auditTimelinePanelFactory(ObjectProvider<AuditTimelinePanel> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditTimelinePanel> auditTimelinePanelFactory(ObjectProvider<AuditTimelinePanel> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
+        return new UiComponentFactory<>(p);
     }
 
     // ── Attachment UI factories ───────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentGalleryService> attachmentGalleryServiceFactory(ObjectProvider<AttachmentGalleryService> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AttachmentGalleryService> attachmentGalleryServiceFactory(ObjectProvider<AttachmentGalleryService> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
+        return new UiComponentFactory<>(p);
     }
 
     // ── Query UI factories ────────────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<QueryTextField> queryTextFieldFactory(ObjectProvider<QueryTextField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<QueryTextField> queryTextFieldFactory(ObjectProvider<QueryTextField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<QueryDateTimeField> queryDateTimeFieldFactory(ObjectProvider<QueryDateTimeField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<QueryDateTimeField> queryDateTimeFieldFactory(ObjectProvider<QueryDateTimeField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<QueryNumberField> queryNumberFieldFactory(ObjectProvider<QueryNumberField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<QueryNumberField> queryNumberFieldFactory(ObjectProvider<QueryNumberField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
     @SuppressWarnings("rawtypes")
-    public ComponentFactory<QueryMultiSelectComboField> queryMultiSelectComboFieldFactory(ObjectProvider<QueryMultiSelectComboField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<QueryMultiSelectComboField> queryMultiSelectComboFieldFactory(ObjectProvider<QueryMultiSelectComboField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<QueryInlineRow> queryInlineRowFactory(ObjectProvider<QueryInlineRow> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<QueryInlineRow> queryInlineRowFactory(ObjectProvider<QueryInlineRow> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<SortIcon> sortIconFactory(ObjectProvider<SortIcon> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<SortIcon> sortIconFactory(ObjectProvider<SortIcon> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<SvgIcon> svgIconFactory(ObjectProvider<SvgIcon> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<SvgIcon> svgIconFactory(ObjectProvider<SvgIcon> p) {
+        return new UiComponentFactory<>(p);
     }
 }

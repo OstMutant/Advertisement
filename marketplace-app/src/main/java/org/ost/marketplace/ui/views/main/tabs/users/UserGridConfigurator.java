@@ -13,8 +13,8 @@ import lombok.*;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
@@ -41,8 +41,8 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
 
     @Getter
     private final I18nService                             i18nService;
-    private final transient ComponentFactory<EditActionButton>   editButtonFactory;
-    private final transient ComponentFactory<DeleteActionButton> deleteButtonFactory;
+    private final transient UiComponentFactory<EditActionButton>   editButtonFactory;
+    private final transient UiComponentFactory<DeleteActionButton> deleteButtonFactory;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {

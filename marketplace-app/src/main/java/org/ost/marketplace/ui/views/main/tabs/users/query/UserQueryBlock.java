@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.model.Role;
 import org.ost.marketplace.ui.query.QueryBlock;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
@@ -33,12 +33,12 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
     @Qualifier("userSortProcessor")
     private final transient SortProcessor                  sortProcessor;
 
-    private final transient ComponentFactory<QueryTextField>                    textFieldFactory;
-    private final transient ComponentFactory<QueryNumberField>                  numberFieldFactory;
-    private final transient ComponentFactory<QueryDateTimeField>                dateTimeFieldFactory;
-    private final transient ComponentFactory<QueryMultiSelectComboField<Role>>  roleComboFactory;
-    private final transient ComponentFactory<QueryInlineRow>                    inlineRowFactory;
-    private final transient ComponentFactory<SortIcon>                          sortIconFactory;
+    private final transient UiComponentFactory<QueryTextField>                    textFieldFactory;
+    private final transient UiComponentFactory<QueryNumberField>                  numberFieldFactory;
+    private final transient UiComponentFactory<QueryDateTimeField>                dateTimeFieldFactory;
+    private final transient UiComponentFactory<QueryMultiSelectComboField<Role>>  roleComboFactory;
+    private final transient UiComponentFactory<QueryInlineRow>                    inlineRowFactory;
+    private final transient UiComponentFactory<SortIcon>                          sortIconFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -56,7 +56,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon idSort = sortIconFactory.get();
         QueryInlineRow idRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_ID).sortIcon(idSort)
+                        .labelKey(USER_SORT_ID).sortIcon(idSort)
                         .filterField(idMinField).filterField(idMaxField).build());
 
         // Name row
@@ -65,7 +65,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon nameSort = sortIconFactory.get();
         QueryInlineRow nameRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
+                        .labelKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
 
         // Email row
         QueryTextField emailField = textFieldFactory.build(
@@ -73,7 +73,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon emailSort = sortIconFactory.get();
         QueryInlineRow emailRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
+                        .labelKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
 
         // Role row
         QueryMultiSelectComboField<Role> roleField = roleComboFactory.build(
@@ -82,7 +82,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon roleSort = sortIconFactory.get();
         QueryInlineRow roleRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
+                        .labelKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
 
         // Created date row
         QueryDateTimeField createdStart = dateTimeFieldFactory.build(
@@ -96,7 +96,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon createdSort = sortIconFactory.get();
         QueryInlineRow createdRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_CREATED).sortIcon(createdSort)
+                        .labelKey(USER_SORT_CREATED).sortIcon(createdSort)
                         .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
@@ -111,7 +111,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         SortIcon updatedSort = sortIconFactory.get();
         QueryInlineRow updatedRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(USER_SORT_UPDATED).sortIcon(updatedSort)
+                        .labelKey(USER_SORT_UPDATED).sortIcon(updatedSort)
                         .filterField(updatedStart).filterField(updatedEnd).build());
 
         add(idRow, nameRow, emailRow, roleRow, createdRow, updatedRow, queryActionBlock);

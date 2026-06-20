@@ -19,10 +19,9 @@ import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
@@ -46,10 +45,10 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final transient ComponentFactory<AuditTimelinePanel>    auditTimelinePanelFactory;
-    private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
-    private final transient ComponentFactory<UiIconButton>          iconButtonFactory;
-    private final transient ComponentFactory<UiLabeledField>        labeledFieldFactory;
+    private final transient UiComponentFactory<AuditTimelinePanel>    auditTimelinePanelFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>       primaryButtonFactory;
+    private final transient UiComponentFactory<UiIconButton>          iconButtonFactory;
+    private final transient UiComponentFactory<UiLabeledField>        labeledFieldFactory;
 
     private Parameters params;
 

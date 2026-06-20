@@ -1,14 +1,15 @@
 package org.ost.marketplace.ui.query.elements.fields;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.i18n.TranslationKey;
+
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.platform.ui.Configurable;
-import org.ost.marketplace.i18n.Translatable;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Configurable;
+
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDefaultBorder;
@@ -18,12 +19,12 @@ import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDefaultBorde
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
 public class QueryComboField<T> extends ComboBox<T>
-        implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, Translatable, Initialization<QueryComboField<T>> {
+        implements Configurable<QueryComboField<T>, QueryComboField.Parameters<T>>, Initialization<QueryComboField<T>> {
 
     @Value
     @lombok.Builder
     public static class Parameters<T> {
-        @NonNull TranslationKey placeholderKey;
+        @NonNull I18nKey placeholderKey;
         @NonNull T[]     items;
     }
 
@@ -41,7 +42,7 @@ public class QueryComboField<T> extends ComboBox<T>
 
     @Override
     public QueryComboField<T> configure(Parameters<T> p) {
-        setPlaceholder(getValue(p.getPlaceholderKey()));
+        setPlaceholder(i18nService.get(p.getPlaceholderKey()));
         setItems(p.getItems());
         return this;
     }

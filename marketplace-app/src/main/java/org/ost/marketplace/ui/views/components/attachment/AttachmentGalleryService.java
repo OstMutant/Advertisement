@@ -6,7 +6,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
@@ -16,8 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentGalleryService {
 
-    private final ComponentFactory<AttachmentGallery> galleryFactory;
-    private final ComponentFactory<CardMediaLightbox> lightboxFactory;
+    private final UiComponentFactory<AttachmentGallery> galleryFactory;
+    private final UiComponentFactory<CardMediaLightbox> lightboxFactory;
     private final AttachmentPort                      attachmentPort;
 
     public Component buildGalleryForView(@NonNull EntityRef entity) {

@@ -1,15 +1,16 @@
 package org.ost.marketplace.ui.query.elements.fields;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.i18n.TranslationKey;
+
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.platform.ui.Configurable;
-import org.ost.marketplace.i18n.Translatable;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Configurable;
+
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDefaultBorder;
@@ -19,12 +20,12 @@ import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDefaultBorde
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
 public class QueryNumberField extends NumberField
-        implements Configurable<QueryNumberField, QueryNumberField.Parameters>, Translatable, Initialization<QueryNumberField> {
+        implements Configurable<QueryNumberField, QueryNumberField.Parameters>, Initialization<QueryNumberField> {
 
     @Value
     @lombok.Builder
     public static class Parameters {
-        @NonNull TranslationKey placeholderKey;
+        @NonNull I18nKey placeholderKey;
     }
 
     @Getter
@@ -42,7 +43,7 @@ public class QueryNumberField extends NumberField
 
     @Override
     public QueryNumberField configure(Parameters p) {
-        setPlaceholder(getValue(p.getPlaceholderKey()));
+        setPlaceholder(i18nService.get(p.getPlaceholderKey()));
         return this;
     }
 }

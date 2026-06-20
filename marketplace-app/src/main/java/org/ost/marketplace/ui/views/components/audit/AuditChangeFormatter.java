@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -20,7 +21,7 @@ public class AuditChangeFormatter {
         if (changedByActorId == null || changedByActorId == 0 || changedByActorId.equals(viewerActorId)) {
             return null;
         }
-        Span badge = new Span(i18n.get(AuditI18n.CHANGES_EDITOR, changedByName));
+        Span badge = new Span(i18n.get(I18nKey.AUDIT_CHANGES_EDITOR, changedByName));
         badge.addClassName("activity-feed-editor");
         return badge;
     }
@@ -32,7 +33,7 @@ public class AuditChangeFormatter {
         for (ChangeEntry entry : changes) {
             String text = format(entry);
             if (text != null && !text.isBlank()) {
-                Span item = new Span(i18n.get(AuditI18n.CHANGES_BULLET, text));
+                Span item = new Span(i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
                 item.addClassName(cssClass + "-item");
                 container.add(item);
             }
@@ -44,22 +45,22 @@ public class AuditChangeFormatter {
         return switch (entry) {
             case ChangeEntry.FieldChange(var field, var from, var to) -> {
                 if (from == null || from.isBlank()) {
-                    yield i18n.get(AuditI18n.CHANGES_SET, field, trunc(to));
+                    yield i18n.get(I18nKey.AUDIT_CHANGES_SET, field, trunc(to));
                 }
-                yield i18n.get(AuditI18n.CHANGES_FIELD_CHANGED, field, trunc(from), trunc(to));
+                yield i18n.get(I18nKey.AUDIT_CHANGES_FIELD_CHANGED, field, trunc(from), trunc(to));
             }
             case ChangeEntry.MediaChange(var before, var after) -> {
-                String label = i18n.get(AuditI18n.CHANGES_MEDIA);
+                String label = i18n.get(I18nKey.AUDIT_CHANGES_MEDIA);
                 if (before == null || before.isBlank()) {
-                    yield i18n.get(AuditI18n.CHANGES_SET, label, after);
+                    yield i18n.get(I18nKey.AUDIT_CHANGES_SET, label, after);
                 }
-                yield i18n.get(AuditI18n.CHANGES_MEDIA_CHANGED, label, before, after);
+                yield i18n.get(I18nKey.AUDIT_CHANGES_MEDIA_CHANGED, label, before, after);
             }
         };
     }
 
     private String trunc(String s) {
         if (s == null || s.length() <= 120) return s;
-        return i18n.get(AuditI18n.VALUE_TRUNCATED, s.substring(0, 120));
+        return i18n.get(I18nKey.AUDIT_VALUE_TRUNCATED, s.substring(0, 120));
     }
 }

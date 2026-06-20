@@ -8,10 +8,10 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.i18n.TranslationKey;
+
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.Translatable;
-import org.ost.platform.ui.Initialization;
+
+import org.ost.marketplace.ui.core.Initialization;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
@@ -19,14 +19,14 @@ import org.springframework.data.domain.Sort.Direction;
 import java.util.Arrays;
 
 import static java.util.Optional.ofNullable;
-import static org.ost.marketplace.ui.query.QueryMessages.SORT_ICON_TOOLTIP;
+import static org.ost.marketplace.common.I18nKey.SORT_ICON_TOOLTIP;
 
-import org.ost.marketplace.ui.query.QueryMessages;
+import org.ost.marketplace.common.I18nKey;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class SortIcon extends Span implements Initialization<SortIcon>, Translatable {
+public class SortIcon extends Span implements Initialization<SortIcon> {
 
     @Getter
     private final transient I18nService i18nService;
@@ -56,13 +56,13 @@ public class SortIcon extends Span implements Initialization<SortIcon>, Translat
     @AllArgsConstructor
     @Getter
     public enum SortIconState {
-        NEUTRAL(null, "icons/sort-neutral.svg", QueryMessages.SORT_ICON_NEUTRAL),
-        ASC(Direction.ASC, "icons/sort-asc.svg", QueryMessages.SORT_ICON_ASC),
-        DESC(Direction.DESC, "icons/sort-desc.svg", QueryMessages.SORT_ICON_DESC);
+        NEUTRAL(null, "icons/sort-neutral.svg", I18nKey.SORT_ICON_NEUTRAL),
+        ASC(Direction.ASC, "icons/sort-asc.svg", I18nKey.SORT_ICON_ASC),
+        DESC(Direction.DESC, "icons/sort-desc.svg", I18nKey.SORT_ICON_DESC);
 
         private final Direction direction;
         private final String path;
-        private final TranslationKey tooltipKey;
+        private final I18nKey tooltipKey;
 
         public static SortIconState fromDirection(Direction dir) {
             return ofNullable(dir).map(v -> v == Direction.ASC ? ASC : DESC).orElse(NEUTRAL);
@@ -81,7 +81,7 @@ public class SortIcon extends Span implements Initialization<SortIcon>, Translat
     @PostConstruct
     public SortIcon init() {
         addClassName("sort-icon");
-        setTitle(getValue(SORT_ICON_TOOLTIP));
+        setTitle(i18nService.get(SORT_ICON_TOOLTIP));
         add(icon);
         addClickListener(_ -> cycleDirection());
         return this;
@@ -100,7 +100,7 @@ public class SortIcon extends Span implements Initialization<SortIcon>, Translat
     private void switchIcon() {
         SortIconState state = SortIconState.fromDirection(currentDirection);
         icon.setSvg(state.getPath());
-        icon.setTitle(getValue(state.getTooltipKey()));
+        icon.setTitle(i18nService.get(state.getTooltipKey()));
     }
 
     public void setColor(SortHighlightColor sortHighlightColor) {

@@ -12,7 +12,7 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -36,8 +36,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     }
 
     @Getter private final EntityOverlaySupport  support;
-    private final ComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
-    private final ComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession                      session;
     private AdvertisementFormOverlayModeHandler currentFormHandler;

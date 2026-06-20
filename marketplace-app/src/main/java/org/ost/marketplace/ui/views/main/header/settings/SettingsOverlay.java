@@ -8,7 +8,7 @@ import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.HEADER_HOME;
 import static org.ost.marketplace.common.I18nKey.SETTINGS_SAVED_SUCCESS;
@@ -22,7 +22,7 @@ public class SettingsOverlay extends AbstractEntityOverlay {
 
     @Getter private final transient EntityOverlaySupport    support;
     private final transient AuthContextService              authContextService;
-    private final ComponentFactory<SettingsFormModeHandler> formHandlerFactory;
+    private final UiComponentFactory<SettingsFormModeHandler> formHandlerFactory;
 
     private Long                    currentUserId;
     private SettingsFormModeHandler currentHandler;

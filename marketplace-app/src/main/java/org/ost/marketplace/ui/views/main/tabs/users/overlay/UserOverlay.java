@@ -12,7 +12,7 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import static org.ost.marketplace.common.I18nKey.*;
 
@@ -36,8 +36,8 @@ public class UserOverlay extends AbstractEntityOverlay {
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final ComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
-    private final ComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession            session;
     private UserFormOverlayModeHandler currentFormHandler;

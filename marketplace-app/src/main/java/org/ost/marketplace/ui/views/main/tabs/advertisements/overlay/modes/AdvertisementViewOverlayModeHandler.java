@@ -19,8 +19,8 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -47,7 +47,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final OverlayAdvertisementMetaPanel                     metaPanel;
     private final UiPrimaryButton                                   editButton;
     private final UiIconButton                                      closeButton;
-    private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
+    private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
 
     private Parameters params;
 

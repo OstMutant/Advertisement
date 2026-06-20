@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -10,10 +11,10 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -39,7 +40,7 @@ public class AuditTimelinePanel extends Div
 
     private final transient I18nService                                 i18n;
     private final transient AuditPort                                   auditPort;
-    private final transient ComponentFactory<AuditTimelineListRenderer> listRendererFactory;
+    private final transient UiComponentFactory<AuditTimelineListRenderer> listRendererFactory;
 
     @Override
     @PostConstruct
@@ -63,7 +64,7 @@ public class AuditTimelinePanel extends Div
     }
 
     private Span emptyState() {
-        Span span = new Span(i18n.get(AuditI18n.ACTIVITY_EMPTY));
+        Span span = new Span(i18n.get(I18nKey.AUDIT_ACTIVITY_EMPTY));
         span.addClassName("activity-feed-empty");
         return span;
     }

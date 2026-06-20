@@ -15,7 +15,7 @@ import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.PaginationBar;
@@ -35,11 +35,11 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class AdvertisementsView extends VerticalLayout {
 
-    private final transient ComponentFactory<AdvertisementPort>       advertisementPortFactory;
+    private final transient UiComponentFactory<AdvertisementPort>       advertisementPortFactory;
     private final transient AdvertisementOverlay                      overlay;
-    private final transient ComponentFactory<UiPrimaryButton>         primaryButtonFactory;
-    private final transient ComponentFactory<AdvertisementCardView>   cardViewFactory;
-    private final transient ComponentFactory<EmptyStateView>          emptyStateFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>         primaryButtonFactory;
+    private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
+    private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
 

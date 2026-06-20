@@ -10,8 +10,8 @@ import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent

@@ -17,10 +17,10 @@ import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.security.AccessEvaluator;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
@@ -54,12 +54,12 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient ComponentFactory<AdvertisementPort>       advertisementPortFactory;
-    private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
-    private final transient ComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
-    private final transient ComponentFactory<EditActionButton>         editButtonFactory;
-    private final transient ComponentFactory<DeleteActionButton>       deleteButtonFactory;
-    private final transient ComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
+    private final transient UiComponentFactory<AdvertisementPort>       advertisementPortFactory;
+    private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
+    private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
+    private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
+    private final transient UiComponentFactory<DeleteActionButton>       deleteButtonFactory;
+    private final transient UiComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
 

@@ -6,7 +6,7 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.TranslationKey;
+import org.ost.marketplace.common.I18nKey;
 import org.springframework.data.domain.Sort.Direction;
 
 import java.util.List;
@@ -15,12 +15,12 @@ import java.util.function.BiFunction;
 public class QueryStatusBar<T> extends VerticalLayout {
 
     public record Labels(
-            TranslationKey filtersNone,
-            TranslationKey filtersPrefix,
-            TranslationKey sortNone,
-            TranslationKey sortPrefix,
-            TranslationKey sortAsc,
-            TranslationKey sortDesc) {
+            I18nKey filtersNone,
+            I18nKey filtersPrefix,
+            I18nKey sortNone,
+            I18nKey sortPrefix,
+            I18nKey sortAsc,
+            I18nKey sortDesc) {
     }
 
     private final Span filterInfo = span("query-status-bar-filter-info");
@@ -67,11 +67,11 @@ public class QueryStatusBar<T> extends VerticalLayout {
         toggleIcon.setText(open ? "▾" : "▸");
     }
 
-    private String buildStatusText(List<String> items, TranslationKey noneKey, TranslationKey prefixKey) {
+    private String buildStatusText(List<String> items, I18nKey noneKey, I18nKey prefixKey) {
         return items.isEmpty() ? i18n.get(noneKey) : i18n.get(prefixKey) + " " + String.join(", ", items);
     }
 
-    private BiFunction<TranslationKey, Direction, String> getSortDescriptionFunction() {
+    private BiFunction<I18nKey, Direction, String> getSortDescriptionFunction() {
         return (i18nKey, direction) -> {
             String label          = i18n.get(i18nKey);
             String directionLabel = switch (direction) {

@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.attachment;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -65,13 +66,13 @@ public class AttachmentGallery extends Div {
     private void init() {
         addClassName("attachment-gallery");
 
-        Span title = new Span(i18n.get(AttachmentI18n.GALLERY_TITLE));
+        Span title = new Span(i18n.get(I18nKey.ATTACHMENT_GALLERY_TITLE));
         title.addClassName("attachment-gallery__title");
 
         thumbnailsRow = new Div();
         thumbnailsRow.addClassName("attachment-gallery__thumbnails");
 
-        emptyState = new Span(i18n.get(AttachmentI18n.GALLERY_EMPTY));
+        emptyState = new Span(i18n.get(I18nKey.ATTACHMENT_GALLERY_EMPTY));
         emptyState.addClassName("attachment-gallery__empty");
         emptyState.setVisible(false);
 
@@ -245,7 +246,7 @@ public class AttachmentGallery extends Div {
                     }
                 } catch (Exception e) {
                     log.error("Failed to upload attachment: {}", filename, e);
-                    ui.access(() -> showError(i18n.get(AttachmentI18n.GALLERY_UPLOAD_ERROR)));
+                    ui.access(() -> showError(i18n.get(I18nKey.ATTACHMENT_GALLERY_UPLOAD_ERROR)));
                 }
             }
         };
@@ -253,7 +254,7 @@ public class AttachmentGallery extends Div {
 
     private HorizontalLayout buildVideoInput() {
         TextField urlField = new TextField();
-        urlField.setPlaceholder(i18n.get(AttachmentI18n.VIDEO_PLACEHOLDER));
+        urlField.setPlaceholder(i18n.get(I18nKey.ATTACHMENT_VIDEO_PLACEHOLDER));
         urlField.setWidthFull();
 
         Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
@@ -274,7 +275,7 @@ public class AttachmentGallery extends Div {
                 }
                 urlField.clear();
             } catch (Exception _) {
-                showError(i18n.get(AttachmentI18n.VIDEO_INVALID));
+                showError(i18n.get(I18nKey.ATTACHMENT_VIDEO_INVALID));
             }
         });
 

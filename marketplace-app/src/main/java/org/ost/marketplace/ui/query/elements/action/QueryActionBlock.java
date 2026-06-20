@@ -7,13 +7,13 @@ import com.vaadin.flow.shared.Registration;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.Objects;
 
-import static org.ost.marketplace.ui.query.QueryMessages.ACTIONS_APPLY_TOOLTIP;
-import static org.ost.marketplace.ui.query.QueryMessages.ACTIONS_CLEAR_TOOLTIP;
+import static org.ost.marketplace.common.I18nKey.ACTIONS_APPLY_TOOLTIP;
+import static org.ost.marketplace.common.I18nKey.ACTIONS_CLEAR_TOOLTIP;
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDirtyOrClean;
 
 @SpringComponent

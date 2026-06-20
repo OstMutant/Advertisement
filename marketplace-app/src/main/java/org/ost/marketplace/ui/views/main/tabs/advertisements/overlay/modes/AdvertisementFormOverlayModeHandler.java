@@ -37,8 +37,8 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -59,17 +59,17 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         @NonNull Runnable    onCancel;
     }
 
-    private final ComponentFactory<AdvertisementPort>                        advertisementPortFactory;
+    private final UiComponentFactory<AdvertisementPort>                        advertisementPortFactory;
     private final AdvertisementMapper                                        mapper;
     private final AccessEvaluator                                            access;
     @Getter
     private final I18nService                                                i18nService;
     private final NotificationService                                        notificationService;
-    private final transient ComponentFactory<AttachmentGalleryService>        galleryServiceFactory;
-    private final transient ComponentFactory<OverlayFormBinder>              formBinderFactory;
-    private final transient ComponentFactory<AuditPort>                      auditPortFactory;
-    private final transient ComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
-    private final transient ComponentFactory<UiIconButton>                   cancelButtonFactory;
+    private final transient UiComponentFactory<AttachmentGalleryService>        galleryServiceFactory;
+    private final transient UiComponentFactory<OverlayFormBinder>              formBinderFactory;
+    private final transient UiComponentFactory<AuditPort>                      auditPortFactory;
+    private final transient UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
+    private final transient UiComponentFactory<UiIconButton>                   cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                              metaPanel;
     private final UiTextField                                                titleField;
     private final UiTextArea                                                 descriptionField;

@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -7,7 +8,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
@@ -78,7 +79,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     private Span actionSpan(ActionType actionType) {
-        Span span = new Span(i18n.get(AuditI18n.forAction(actionType)));
+        Span span = new Span(i18n.get(I18nKey.forAction(actionType)));
         span.addClassName("activity-feed-action");
         span.addClassName("activity-feed-action--" + actionType.name().toLowerCase());
         return span;
@@ -169,7 +170,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
-            addSpan(container, i18n.get(AuditI18n.CHANGES_SET, i18n.get(AuditI18n.CHANGES_MEDIA), mediaText), true, cssBase);
+            addSpan(container, i18n.get(I18nKey.AUDIT_CHANGES_SET, i18n.get(I18nKey.AUDIT_CHANGES_MEDIA), mediaText), true, cssBase);
         }
 
         return container;
@@ -181,7 +182,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
     private void addSpan(Div container, String text, boolean unchanged, String cssBase) {
         if (text == null || text.isBlank()) return;
-        Span span = new Span(i18n.get(AuditI18n.CHANGES_BULLET, text));
+        Span span = new Span(i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
         span.addClassName(cssBase + "-item");
         if (unchanged) span.addClassName(cssBase + "-item--unchanged");
         container.add(span);

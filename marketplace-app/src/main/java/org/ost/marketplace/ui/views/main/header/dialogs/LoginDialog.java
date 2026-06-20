@@ -17,7 +17,7 @@ import org.ost.marketplace.ui.views.components.fields.UiEmailField;
 import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.common.I18nKey.*;
@@ -34,10 +34,10 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     private final NotificationService                    notificationService;
     private final LocaleProvider                         localeProvider;
     private final DialogLayout                           layout;
-    private final transient ComponentFactory<UiEmailField>      emailFieldFactory;
-    private final transient ComponentFactory<UiPasswordField>   passwordFieldFactory;
-    private final transient ComponentFactory<UiPrimaryButton>   primaryButtonFactory;
-    private final transient ComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
+    private final transient UiComponentFactory<UiEmailField>      emailFieldFactory;
+    private final transient UiComponentFactory<UiPasswordField>   passwordFieldFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>   primaryButtonFactory;
+    private final transient UiComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;

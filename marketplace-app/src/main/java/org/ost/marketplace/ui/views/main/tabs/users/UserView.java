@@ -23,7 +23,7 @@ import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import java.util.List;
 import java.util.Set;
@@ -42,8 +42,8 @@ public class UserView extends VerticalLayout {
     private final transient I18nService                            i18n;
     private final transient NotificationService                    notificationService;
     private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
-    private final transient ComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
-    private final transient ComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
+    private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
+    private final transient UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final UserOverlay                                      overlay;
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;

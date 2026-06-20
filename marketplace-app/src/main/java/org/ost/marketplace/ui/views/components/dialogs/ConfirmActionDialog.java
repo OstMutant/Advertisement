@@ -13,8 +13,8 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.common.I18nKey;
 import org.ost.marketplace.i18n.I18nService;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
@@ -43,8 +43,8 @@ public final class ConfirmActionDialog extends BaseDialog
     @Getter
     private final transient I18nService                          i18nService;
     private final           DialogLayout                         layout;
-    private final transient ComponentFactory<UiPrimaryButton>    primaryButtonFactory;
-    private final transient ComponentFactory<UiTertiaryButton>   tertiaryButtonFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>    primaryButtonFactory;
+    private final transient UiComponentFactory<UiTertiaryButton>   tertiaryButtonFactory;
 
     @Override
     @PostConstruct

@@ -22,7 +22,7 @@ import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -32,113 +32,113 @@ import org.springframework.context.annotation.Configuration;
 public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiPrimaryButton> uiPrimaryButtonFactory(ObjectProvider<UiPrimaryButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiPrimaryButton> uiPrimaryButtonFactory(ObjectProvider<UiPrimaryButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiTertiaryButton> uiTertiaryButtonFactory(ObjectProvider<UiTertiaryButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiTertiaryButton> uiTertiaryButtonFactory(ObjectProvider<UiTertiaryButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiIconButton> uiIconButtonFactory(ObjectProvider<UiIconButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiIconButton> uiIconButtonFactory(ObjectProvider<UiIconButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiTextField> uiTextFieldFactory(ObjectProvider<UiTextField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiTextField> uiTextFieldFactory(ObjectProvider<UiTextField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiEmailField> uiEmailFieldFactory(ObjectProvider<UiEmailField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiEmailField> uiEmailFieldFactory(ObjectProvider<UiEmailField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiPasswordField> uiPasswordFieldFactory(ObjectProvider<UiPasswordField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiPasswordField> uiPasswordFieldFactory(ObjectProvider<UiPasswordField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UiLabeledField> uiLabeledFieldFactory(ObjectProvider<UiLabeledField> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UiLabeledField> uiLabeledFieldFactory(ObjectProvider<UiLabeledField> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<EditActionButton> editActionButtonFactory(ObjectProvider<EditActionButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<EditActionButton> editActionButtonFactory(ObjectProvider<EditActionButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<DeleteActionButton> deleteActionButtonFactory(ObjectProvider<DeleteActionButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<DeleteActionButton> deleteActionButtonFactory(ObjectProvider<DeleteActionButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<EmptyStateView> emptyStateViewFactory(ObjectProvider<EmptyStateView> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<EmptyStateView> emptyStateViewFactory(ObjectProvider<EmptyStateView> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<ConfirmActionDialog> confirmActionDialogFactory(ObjectProvider<ConfirmActionDialog> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<ConfirmActionDialog> confirmActionDialogFactory(ObjectProvider<ConfirmActionDialog> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<OverlayLayout> overlayLayoutFactory(ObjectProvider<OverlayLayout> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<OverlayLayout> overlayLayoutFactory(ObjectProvider<OverlayLayout> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<OverlayBreadcrumbBackButton> overlayBreadcrumbBackButtonFactory(ObjectProvider<OverlayBreadcrumbBackButton> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<OverlayBreadcrumbBackButton> overlayBreadcrumbBackButtonFactory(ObjectProvider<OverlayBreadcrumbBackButton> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
     @SuppressWarnings("rawtypes")
-    public ComponentFactory<OverlayFormBinder> overlayFormBinderFactory(ObjectProvider<OverlayFormBinder> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<OverlayFormBinder> overlayFormBinderFactory(ObjectProvider<OverlayFormBinder> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AdvertisementCardView> advertisementCardViewFactory(ObjectProvider<AdvertisementCardView> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AdvertisementCardView> advertisementCardViewFactory(ObjectProvider<AdvertisementCardView> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AdvertisementCardMetaPanel> advertisementCardMetaPanelFactory(ObjectProvider<AdvertisementCardMetaPanel> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AdvertisementCardMetaPanel> advertisementCardMetaPanelFactory(ObjectProvider<AdvertisementCardMetaPanel> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AdvertisementViewOverlayModeHandler> advertisementViewOverlayModeHandlerFactory(ObjectProvider<AdvertisementViewOverlayModeHandler> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AdvertisementViewOverlayModeHandler> advertisementViewOverlayModeHandlerFactory(ObjectProvider<AdvertisementViewOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<AdvertisementFormOverlayModeHandler> advertisementFormOverlayModeHandlerFactory(ObjectProvider<AdvertisementFormOverlayModeHandler> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<AdvertisementFormOverlayModeHandler> advertisementFormOverlayModeHandlerFactory(ObjectProvider<AdvertisementFormOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UserViewOverlayModeHandler> userViewOverlayModeHandlerFactory(ObjectProvider<UserViewOverlayModeHandler> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UserViewOverlayModeHandler> userViewOverlayModeHandlerFactory(ObjectProvider<UserViewOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UserFormOverlayModeHandler> userFormOverlayModeHandlerFactory(ObjectProvider<UserFormOverlayModeHandler> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UserFormOverlayModeHandler> userFormOverlayModeHandlerFactory(ObjectProvider<UserFormOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<UserGridConfigurator> userGridConfiguratorFactory(ObjectProvider<UserGridConfigurator> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<UserGridConfigurator> userGridConfiguratorFactory(ObjectProvider<UserGridConfigurator> p) {
+        return new UiComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public ComponentFactory<SettingsFormModeHandler> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
-        return new ComponentFactory<>(p);
+    public UiComponentFactory<SettingsFormModeHandler> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
+        return new UiComponentFactory<>(p);
     }
 }

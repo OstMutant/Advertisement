@@ -5,7 +5,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.ui.dto.EditDto;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.Configurable;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.BiConsumer;

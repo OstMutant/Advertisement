@@ -1,10 +1,10 @@
 package org.ost.marketplace.common;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.i18n.TranslationKey;
+import org.ost.platform.core.model.ActionType;
 
 @RequiredArgsConstructor
-public enum I18nKey implements TranslationKey {
+public enum I18nKey {
     // === Header ===
     HEADER_SIGNED_IN("header.signedIn"),
     HEADER_NOT_SIGNED_IN("header.notSignedIn"),
@@ -180,6 +180,27 @@ public enum I18nKey implements TranslationKey {
     ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
     ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
     ATTACHMENT_GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),
+    ATTACHMENT_VIDEO_PLACEHOLDER("attachment.video.placeholder"),
+    ATTACHMENT_VIDEO_INVALID("attachment.video.invalid"),
+
+    // === Audit ===
+    AUDIT_HISTORY_EMPTY("audit.history.empty"),
+    AUDIT_HISTORY_CURRENT_STATE("audit.history.current.state"),
+    AUDIT_HISTORY_RESTORE("audit.history.restore"),
+    AUDIT_ACTIVITY_EMPTY("audit.activity.empty"),
+    AUDIT_ACTIVITY_CURRENT_STATE("audit.activity.current.state"),
+    AUDIT_ACTIVITY_RESTORE("audit.activity.restore"),
+    AUDIT_ACTIVITY_ACTION_CREATED("audit.activity.action.created"),
+    AUDIT_ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
+    AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
+    AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
+    AUDIT_CHANGES_MEDIA("audit.changes.media"),
+    AUDIT_CHANGES_EDITOR("audit.changes.editor"),
+    AUDIT_CHANGES_BULLET("audit.changes.bullet"),
+    AUDIT_CHANGES_SET("audit.changes.set"),
+    AUDIT_CHANGES_FIELD_CHANGED("audit.changes.field.changed"),
+    AUDIT_CHANGES_MEDIA_CHANGED("audit.changes.media.changed"),
+    AUDIT_VALUE_TRUNCATED("audit.value.truncated"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
@@ -268,8 +289,15 @@ public enum I18nKey implements TranslationKey {
 
     private final String key;
 
-    @Override
     public String key() { return key; }
+
+    public static I18nKey forAction(ActionType actionType) {
+        return switch (actionType) {
+            case CREATED -> AUDIT_ACTIVITY_ACTION_CREATED;
+            case UPDATED -> AUDIT_ACTIVITY_ACTION_UPDATED;
+            case DELETED -> AUDIT_ACTIVITY_ACTION_DELETED;
+        };
+    }
 
     public String toTestId() {
         return name().toLowerCase().replace('_', '-');

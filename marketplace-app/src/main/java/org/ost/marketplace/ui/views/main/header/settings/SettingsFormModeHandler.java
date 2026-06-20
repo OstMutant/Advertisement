@@ -25,11 +25,11 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.springframework.context.annotation.Scope;
@@ -53,11 +53,11 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     @Getter
     private final I18nService                                       i18nService;
     private final UserPort                                          userPort;
-    private final transient ComponentFactory<OverlayFormBinder>    formBinderFactory;
-    private final transient ComponentFactory<AuditPort>            auditPortFactory;
-    private final transient ComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
-    private final transient ComponentFactory<AuditTimelinePanel>   auditTimelinePanelFactory;
-    private final transient ComponentFactory<UiIconButton>         cancelButtonFactory;
+    private final transient UiComponentFactory<OverlayFormBinder>    formBinderFactory;
+    private final transient UiComponentFactory<AuditPort>            auditPortFactory;
+    private final transient UiComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
+    private final transient UiComponentFactory<AuditTimelinePanel>   auditTimelinePanelFactory;
+    private final transient UiComponentFactory<UiIconButton>         cancelButtonFactory;
     private final UiPrimaryButton                                   saveButton;
     private final UiTertiaryButton                                  discardButton;
 

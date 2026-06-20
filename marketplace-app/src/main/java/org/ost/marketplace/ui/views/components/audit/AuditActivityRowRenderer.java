@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
@@ -17,7 +18,7 @@ import org.ost.marketplace.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -82,13 +83,13 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
     }
 
     private Span buildCurrentStateBadge() {
-        Span badge = new Span(i18n.get(AuditI18n.HISTORY_CURRENT_STATE));
+        Span badge = new Span(i18n.get(I18nKey.AUDIT_HISTORY_CURRENT_STATE));
         badge.addClassName("entity-activity-current-badge");
         return badge;
     }
 
     private Button buildRestoreButton(AuditActivityItemDto<? extends AuditableSnapshot> h, LongConsumer onRestore) {
-        Button btn = new Button(i18n.get(AuditI18n.HISTORY_RESTORE));
+        Button btn = new Button(i18n.get(I18nKey.AUDIT_HISTORY_RESTORE));
         btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
         btn.addClassName("entity-activity-restore-btn");
         btn.addClickListener(_ -> onRestore.accept(h.snapshotId()));
@@ -107,7 +108,7 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
     }
 
     private Span actionSpan(ActionType actionType) {
-        Span span = new Span(i18n.get(AuditI18n.forAction(actionType)));
+        Span span = new Span(i18n.get(I18nKey.forAction(actionType)));
         span.addClassName("entity-activity-action");
         span.addClassName("entity-activity-action--" + actionType.name().toLowerCase());
         return span;

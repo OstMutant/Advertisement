@@ -1,4 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
+import org.ost.marketplace.common.I18nKey;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -10,11 +11,11 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
-import org.ost.platform.ui.Configurable;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -39,7 +40,7 @@ public class AuditActivityPanel extends Div
 
     private final transient I18nService                                i18n;
     private final transient AuditPort                                  auditPort;
-    private final transient ComponentFactory<AuditActivityListRenderer> listRendererFactory;
+    private final transient UiComponentFactory<AuditActivityListRenderer> listRendererFactory;
 
     @Override
     @PostConstruct
@@ -69,7 +70,7 @@ public class AuditActivityPanel extends Div
     }
 
     private Span emptyState() {
-        Span span = new Span(i18n.get(AuditI18n.HISTORY_EMPTY));
+        Span span = new Span(i18n.get(I18nKey.AUDIT_HISTORY_EMPTY));
         span.addClassName("entity-activity-empty");
         return span;
     }

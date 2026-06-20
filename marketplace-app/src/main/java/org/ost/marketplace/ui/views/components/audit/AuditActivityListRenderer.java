@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 public class AuditActivityListRenderer {
 
     private final AuditDomainHook                                    auditDomainHook;
-    private final ComponentFactory<AuditActivityRowRenderer>          rowRendererFactory;
+    private final UiComponentFactory<AuditActivityRowRenderer>          rowRendererFactory;
 
     List<Div> buildRows(List<AuditActivityItemDto<? extends AuditableSnapshot>> items, AuditActivityRowRenderer.RenderConfig cfg) {
         AuditActivityRowRenderer.RowContext ctx = new AuditActivityRowRenderer.RowContext(resolveActorNames(items));

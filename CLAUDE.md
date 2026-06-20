@@ -31,8 +31,8 @@ advertisement-parent (root pom)
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
-- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.i18n` (`I18nService`, `TranslationKey`, etc.), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
-- `ui.*` — generic UI contracts (no Vaadin dependency): `Configurable`, `ComponentBuilder`, `Initialization`, `Provider`
+- `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
+- `ui.*` — `Configurable<T,P>` (used by `ComponentFactory.build()` which lives in `core`; starters depend on both)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
@@ -107,12 +107,6 @@ public class MyPanel extends Div
         Runnable onCancel;
     }
 
-    @SpringComponent
-    @RequiredArgsConstructor
-    public static class Builder extends ComponentBuilder<MyPanel, Parameters> {
-        @Getter private final ObjectProvider<MyPanel> provider;
-    }
-
     @Override @PostConstruct
     public MyPanel init() {
         // structural setup only: CSS classes, layout skeleton — no data, no service calls
@@ -128,13 +122,18 @@ public class MyPanel extends Div
 }
 ```
 
+Instantiation via `ComponentFactory<MyPanel>` (declared as a bean in `ComponentFactoryConfig`):
+```java
+componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).build());
+```
+
 **Rules:**
 - `init()` — structural setup only. No data, no service calls.
 - `configure()` — data + behavior. Called once after `init()`.
 - `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
-- Inner `Builder` class is required for all `Configurable` beans — wraps `ObjectProvider` via `ComponentBuilder`.
-- `Configurable`, `ComponentBuilder`, `Initialization` live in `platform-commons` (`ui`) so all modules can use them.
+- `Configurable` lives in `org.ost.platform.ui` (platform-commons, needed by `ComponentFactory`).
+- `Initialization` lives in `org.ost.marketplace.ui` (marketplace-app only).
 
 **When NOT to use Configurable:**
 - Component has distinct modes with different UI structure → use explicit named methods:
@@ -147,10 +146,12 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 
 ### I18n in UI components
 
-Each module owns its translation key enum implementing `TranslationKey` (defined in `platform-commons`, package `core.i18n`):
-- `marketplace-app` → `I18nKey implements TranslationKey`
-- `audit-spring-boot-starter` → `AuditMessages implements TranslationKey`
-- `attachment-spring-boot-starter` → `AttachmentMessages implements TranslationKey`
+`TranslationKey`, `I18nService`, `Translatable`, `InstantFormatter`, `LocaleProvider` all live in `org.ost.marketplace.i18n` (marketplace-app). Starters have no i18n infrastructure of their own — all UI i18n lives in marketplace-app.
+
+Translation key enums:
+- `org.ost.marketplace.common.I18nKey` — main app keys
+- `org.ost.marketplace.ui.views.components.audit.AuditI18n` — audit UI keys
+- `org.ost.marketplace.ui.views.components.attachment.AttachmentI18n` — attachment UI keys
 
 **Rules:**
 - Never use raw `MessageSource` directly in UI components — use `I18nService.get(TranslationKey)`.
