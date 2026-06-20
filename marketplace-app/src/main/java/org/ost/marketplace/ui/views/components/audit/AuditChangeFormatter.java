@@ -17,8 +17,8 @@ public class AuditChangeFormatter {
 
     private final I18nService i18n;
 
-    public Span buildEditorBadge(Long changedByActorId, String changedByName, Long viewerActorId) {
-        if (changedByActorId == null || changedByActorId == 0 || changedByActorId.equals(viewerActorId)) {
+    public Span buildEditorBadge(Long changedByActorId, String changedByName) {
+        if (changedByActorId == null || changedByActorId == 0) {
             return null;
         }
         Span badge = new Span(i18n.get(I18nKey.AUDIT_CHANGES_EDITOR, changedByName));

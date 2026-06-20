@@ -7,12 +7,14 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -81,7 +83,12 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimeline(@NonNull Long actorId, int limit) {
-        return auditReadService.getTimeline(actorId, limit);
+    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(@NonNull AuditTimelineFilterDto filter, @NonNull Sort sort, int page, int size) {
+        return auditReadService.getTimelinePage(filter, sort, page, size);
+    }
+
+    @Override
+    public int countTimeline(@NonNull AuditTimelineFilterDto filter) {
+        return auditReadService.countTimeline(filter);
     }
 }

@@ -209,6 +209,18 @@ public enum I18nKey {
     // === Main Tabs ===
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),
+    MAIN_TAB_TIMELINE("main.tab.timeline"),
+
+    // === Timeline Filter ===
+    TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
+    TIMELINE_FILTER_ACTION_TYPE("timeline.filter.actionType"),
+    TIMELINE_FILTER_ACTOR("timeline.filter.actor"),
+    TIMELINE_FILTER_DATE_START("timeline.filter.date.start"),
+    TIMELINE_FILTER_DATE_END("timeline.filter.date.end"),
+    TIMELINE_FILTER_TIME_START("timeline.filter.time.start"),
+    TIMELINE_FILTER_TIME_END("timeline.filter.time.end"),
+    TIMELINE_SORT_CREATED_AT("timeline.sort.createdAt"),
+    TIMELINE_SORT_ACTOR("timeline.sort.actor"),
 
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),
@@ -248,6 +260,7 @@ public enum I18nKey {
     SETTINGS_SECTION_TITLE("settings.section.title"),
     SETTINGS_ADS_PAGE_SIZE_LABEL("settings.adsPageSize.label"),
     SETTINGS_USERS_PAGE_SIZE_LABEL("settings.usersPageSize.label"),
+    SETTINGS_TIMELINE_PAGE_SIZE_LABEL("settings.timelinePageSize.label"),
     SETTINGS_SAVE_BUTTON("settings.save.button"),
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
 
@@ -285,7 +298,8 @@ public enum I18nKey {
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
-    CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize");
+    CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
+    CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize");
 
     private final String key;
 

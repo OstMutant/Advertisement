@@ -27,7 +27,7 @@ public class QueryInlineRow extends HorizontalLayout
     @lombok.Builder
     public static class Parameters {
         @NonNull  I18nKey         labelKey;
-        @NonNull  SortIcon        sortIcon;
+        SortIcon                  sortIcon;
         @Singular List<Component> filterFields;
     }
 
@@ -43,7 +43,10 @@ public class QueryInlineRow extends HorizontalLayout
 
     @Override
     public QueryInlineRow configure(Parameters p) {
-        HorizontalLayout labelAndSort = new HorizontalLayout(new Span(i18nService.get(p.getLabelKey())), p.getSortIcon());
+        Span label = new Span(i18nService.get(p.getLabelKey()));
+        HorizontalLayout labelAndSort = p.getSortIcon() != null
+                ? new HorizontalLayout(label, p.getSortIcon())
+                : new HorizontalLayout(label);
         labelAndSort.addClassName("query-inline-label-sort");
         HorizontalLayout filters = new HorizontalLayout(p.getFilterFields().toArray(new Component[0]));
         filters.addClassName("query-inline-filters");

@@ -39,6 +39,10 @@ public record SqlCondition<R>(
         return applyIfPresent(filterMapping, value, SqlOperator.EQUALS, Function.identity());
     }
 
+    public static SqlCondition<Long> equalsTo(SqlFilterMapping filterMapping, Long value) {
+        return applyIfPresent(filterMapping, value, SqlOperator.EQUALS, Function.identity());
+    }
+
     public static SqlCondition<Timestamp> after(SqlFilterMapping filterMapping, Instant value) {
         return applyIfPresent(filterMapping, value, SqlOperator.GREATER_OR_EQUAL, Timestamp::from);
     }

@@ -4,8 +4,10 @@ import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 import java.util.Optional;
@@ -28,5 +30,7 @@ public interface AuditPort {
 
     Optional<AuditableSnapshot> getLastSnapshot(@NonNull EntityType entityType, @NonNull Long entityId);
 
-    List<AuditTimelineItemDto<AuditableSnapshot>> getTimeline(@NonNull Long actorId, int limit);
+    List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(@NonNull AuditTimelineFilterDto filter, @NonNull Sort sort, int page, int size);
+
+    int countTimeline(@NonNull AuditTimelineFilterDto filter);
 }

@@ -5,12 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.audit.repository.AuditLogProjection;
 import org.ost.audit.repository.AuditLogRepository;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -56,14 +58,18 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
-    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimeline(Long actorId, int limit) {
-        List<AuditTimelineItemDto<AuditableSnapshot>> items = repository.findByActor(actorId, limit)
+    public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
+        List<AuditTimelineItemDto<AuditableSnapshot>> items = repository.findTimeline(filter, sort, page, size)
                 .stream().map(this::toTimelineItem).toList();
         List<EntityRef> noSubjects = List.of();
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             items = hook.merge(noSubjects, items);
         }
         return items;
+    }
+
+    public int countTimeline(AuditTimelineFilterDto filter) {
+        return repository.countTimeline(filter);
     }
 
     // ── Mapping ───────────────────────────────────────────────────────────────

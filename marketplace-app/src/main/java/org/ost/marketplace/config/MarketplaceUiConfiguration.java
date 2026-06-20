@@ -7,13 +7,13 @@ import org.ost.marketplace.ui.views.components.audit.AuditActivityListRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityRowRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;
-import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineRowRenderer;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.SvgIcon;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryLazyComboField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
 import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
@@ -39,11 +39,6 @@ public class MarketplaceUiConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory(ObjectProvider<AuditActivityPanel> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditTimelinePanel> auditTimelinePanelFactory(ObjectProvider<AuditTimelinePanel> p) {
         return new UiComponentFactory<>(p);
     }
 
@@ -104,6 +99,12 @@ public class MarketplaceUiConfiguration {
     @Bean @ConditionalOnMissingBean
     @SuppressWarnings("rawtypes")
     public UiComponentFactory<QueryMultiSelectComboField> queryMultiSelectComboFieldFactory(ObjectProvider<QueryMultiSelectComboField> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    @SuppressWarnings("rawtypes")
+    public UiComponentFactory<QueryLazyComboField> queryLazyComboFieldFactory(ObjectProvider<QueryLazyComboField> p) {
         return new UiComponentFactory<>(p);
     }
 

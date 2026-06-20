@@ -18,7 +18,6 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -45,7 +44,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final transient UiComponentFactory<AuditTimelinePanel>    auditTimelinePanelFactory;
     private final transient UiComponentFactory<UiPrimaryButton>       primaryButtonFactory;
     private final transient UiComponentFactory<UiIconButton>          iconButtonFactory;
     private final transient UiComponentFactory<UiLabeledField>        labeledFieldFactory;
@@ -114,12 +112,7 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected SecondaryTabDef buildSecondaryTab() {
-        return auditTimelinePanelFactory.findIfAvailable()
-                .map(_ -> new SecondaryTabDef(
-                        new Tab(getValue(TIMELINE_TAB)),
-                        "activity-feed-content",
-                        () -> buildTimelineContent(params.getUser())))
-                .orElse(null);
+        return null;
     }
 
     @Override
@@ -135,13 +128,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getUser().id()));
         return new Div(editButton, closeButton);
-    }
-
-    private com.vaadin.flow.component.Component buildTimelineContent(UserDto user) {
-        return auditTimelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
-                .actorId(user.id())
-                .viewerActorId(user.id())
-                .build());
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {

@@ -60,7 +60,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
             Map<Long, String> displayNames,
             Set<EntityRef>    existingRefs) {}
 
-    Div buildRow(@NonNull AuditTimelineItemDto<AuditableSnapshot> item, @NonNull Long viewerActorId, @NonNull RowContext ctx) {
+    Div buildRow(@NonNull AuditTimelineItemDto<AuditableSnapshot> item, @NonNull RowContext ctx) {
         Div row = new Div();
         row.addClassName("activity-feed-row");
         if (!ctx.existingRefs().contains(item.entityRef()))
@@ -71,7 +71,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
         String changedByName = item.changedByActorId() != null
                 ? ctx.actorNames().getOrDefault(item.changedByActorId(), "") : null;
-        Span editor = changeFormatter.buildEditorBadge(item.changedByActorId(), changedByName, viewerActorId);
+        Span editor = changeFormatter.buildEditorBadge(item.changedByActorId(), changedByName);
         if (editor != null) row.add(editor);
 
         row.add(buildActivityFieldsList(item));

@@ -6,9 +6,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
+import org.ost.query.filter.SqlBoundFilter;
+import org.ost.query.filter.SqlFilterBuilder;
+import org.ost.query.sort.OrderByBuilder;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Sort;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -21,7 +26,18 @@ import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actionTypes;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorId;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.entityTypes;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.fromDate;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.toDate;
+import static org.ost.query.filter.SqlCondition.after;
+import static org.ost.query.filter.SqlCondition.before;
+import static org.ost.query.filter.SqlCondition.equalsTo;
+import static org.ost.query.filter.SqlCondition.inSet;
 
 /**
  * Persistence layer for the audit subsystem. All reads and writes go through {@code audit_log} table.
@@ -29,8 +45,8 @@ import java.util.Optional;
  * <p>Write side: {@link #save} appends a new snapshot row; {@link #deleteOlderThan} is called by the
  * cleanup scheduler.
  *
- * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findByActor}
- * queries by actor across all entities. Both return {@link AuditLogProjection} with SQL window-function columns
+ * <p>Read side: {@link #findRows} queries by entity (with optional actor filter); {@link #findTimeline}
+ * queries a filtered, paginated cross-entity feed. Both return {@link AuditLogProjection} with SQL window-function columns
  * ({@code version}, {@code prev_id}, {@code prev_snapshot_data}) pre-computed at query time — correct
  * for future pagination. Services map rows to their specific DTOs and apply limits via streams.
  *
@@ -42,6 +58,16 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
+
+    private static final Map<String, String> SORT_ALIASES = Map.of("created_at", "al.created_at");
+
+    private static final SqlFilterBuilder<AuditTimelineFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
+            SqlBoundFilter.of(actorId,     "al.actor_id",    (m, v) -> equalsTo(m, v.getActorId())),
+            SqlBoundFilter.of(entityTypes, "al.entity_type", (m, v) -> inSet(m, v.getEntityTypes())),
+            SqlBoundFilter.of(actionTypes, "al.action_type", (m, v) -> inSet(m, v.getActionTypes())),
+            SqlBoundFilter.of(fromDate,    "al.created_at",  (m, v) -> after(m, v.getFromDate())),
+            SqlBoundFilter.of(toDate,      "al.created_at",  (m, v) -> before(m, v.getToDate()))
+    ));
 
     @Qualifier("auditObjectMapper") private final ObjectMapper objectMapper;
     private final JdbcClient                                   jdbcClient;
@@ -96,36 +122,45 @@ public class AuditLogRepository {
                          .list();
     }
 
-    public List<AuditLogProjection> findByActor(Long actorId, int limit) {
-        return jdbcClient.sql("""
-                        WITH actor_rows AS (
-                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
-                                   snapshot_data::text AS snapshot_data
-                            FROM audit_log
-                            WHERE actor_id = :actorId
-                            ORDER BY created_at DESC
-                            LIMIT :limit
+    public List<AuditLogProjection> findTimeline(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("limit",  size)
+                .addValue("offset", (long) page * size);
+        String innerOrderBy = OrderByBuilder.build(sort, SORT_ALIASES);
+        if (innerOrderBy.isBlank()) innerOrderBy = " ORDER BY al.created_at DESC";
+        String outerOrderBy = innerOrderBy.replace("al.", "f.");
+        String sql = """
+                        WITH filtered AS (
+                            SELECT al.id, al.entity_type, al.entity_id, al.action_type, al.actor_id, al.created_at,
+                                   al.snapshot_data::text AS snapshot_data
+                            FROM audit_log al
+                            WHERE 1=1%s
+                            %s
+                            LIMIT :limit OFFSET :offset
                         )
-                        SELECT ar.*,
+                        SELECT f.*,
                                (SELECT COUNT(*) FROM audit_log b
-                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
-                                  AND b.created_at <= ar.created_at)::int AS version,
+                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
+                                  AND b.created_at <= f.created_at)::int AS version,
                                (SELECT id FROM audit_log b
-                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
-                                  AND b.created_at < ar.created_at
+                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
+                                  AND b.created_at < f.created_at
                                 ORDER BY b.created_at DESC LIMIT 1)      AS prev_id,
                                (SELECT snapshot_data::text FROM audit_log b
-                                WHERE b.entity_type = ar.entity_type AND b.entity_id = ar.entity_id
-                                  AND b.created_at < ar.created_at
+                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
+                                  AND b.created_at < f.created_at
                                 ORDER BY b.created_at DESC LIMIT 1)      AS prev_snapshot_data
-                        FROM actor_rows ar
-                        ORDER BY ar.created_at DESC
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("actorId", actorId)
-                                 .addValue("limit",   limit))
-                         .query(projectionMapper)
-                         .list();
+                        FROM filtered f
+                        %s
+                        """.formatted(FILTER.build(params, filter, " AND "), innerOrderBy, outerOrderBy);
+        return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
+    }
+
+    public int countTimeline(AuditTimelineFilterDto filter) {
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        String sql = "SELECT COUNT(*) FROM audit_log al WHERE 1=1%s"
+                .formatted(FILTER.build(params, filter, " AND "));
+        return jdbcClient.sql(sql).paramSource(params).query(Integer.class).single();
     }
 
     // ── Read — snapshot-specific (used by DefaultAuditPort for restore flows) ─

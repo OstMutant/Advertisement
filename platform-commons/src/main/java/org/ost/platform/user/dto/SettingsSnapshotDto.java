@@ -17,11 +17,12 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 @FieldNameConstants
 public record SettingsSnapshotDto(
         int adsPageSize,
-        int usersPageSize
+        int usersPageSize,
+        int timelinePageSize
 ) implements AuditableSnapshot {
 
     public static SettingsSnapshotDto from(UserSettingsDto settings) {
-        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize());
+        return new SettingsSnapshotDto(settings.getAdsPageSize(), settings.getUsersPageSize(), settings.getTimelinePageSize());
     }
 
     @Override
@@ -33,20 +34,24 @@ public record SettingsSnapshotDto(
     @Override
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         SettingsSnapshotDto prev = previous instanceof SettingsSnapshotDto p ? p : null;
-        Integer prevAds   = field(prev, SettingsSnapshotDto::adsPageSize);
-        Integer prevUsers = field(prev, SettingsSnapshotDto::usersPageSize);
+        Integer prevAds      = field(prev, SettingsSnapshotDto::adsPageSize);
+        Integer prevUsers    = field(prev, SettingsSnapshotDto::usersPageSize);
+        Integer prevTimeline = field(prev, SettingsSnapshotDto::timelinePageSize);
         List<ChangeEntry> changes = new ArrayList<>();
         if (prev == null || prev.adsPageSize() != adsPageSize())
             changes.add(new FieldChange(Fields.adsPageSize,   prevAds   == null ? null : String.valueOf(prevAds),   String.valueOf(adsPageSize())));
         if (prev == null || prev.usersPageSize() != usersPageSize())
             changes.add(new FieldChange(Fields.usersPageSize, prevUsers == null ? null : String.valueOf(prevUsers), String.valueOf(usersPageSize())));
+        if (prev == null || prev.timelinePageSize() != timelinePageSize())
+            changes.add(new FieldChange(Fields.timelinePageSize, prevTimeline == null ? null : String.valueOf(prevTimeline), String.valueOf(timelinePageSize())));
         return changes;
     }
 
     @Override
     public List<FieldChange> allFields() {
         return List.of(
-                new FieldChange(Fields.adsPageSize,   null, String.valueOf(adsPageSize())),
-                new FieldChange(Fields.usersPageSize, null, String.valueOf(usersPageSize())));
+                new FieldChange(Fields.adsPageSize,      null, String.valueOf(adsPageSize())),
+                new FieldChange(Fields.usersPageSize,    null, String.valueOf(usersPageSize())),
+                new FieldChange(Fields.timelinePageSize, null, String.valueOf(timelinePageSize())));
     }
 }

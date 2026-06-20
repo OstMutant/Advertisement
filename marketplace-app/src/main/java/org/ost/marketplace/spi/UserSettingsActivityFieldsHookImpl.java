@@ -35,9 +35,10 @@ public class UserSettingsActivityFieldsHookImpl implements AuditActivityFieldsHo
     @Override
     public String labelFor(@NonNull String rawFieldKey) {
         return switch (rawFieldKey) {
-            case SettingsSnapshotDto.Fields.adsPageSize   -> i18n.get(I18nKey.CHANGES_SETTING_ADS_PAGE_SIZE);
-            case SettingsSnapshotDto.Fields.usersPageSize -> i18n.get(I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE);
-            default                                       -> rawFieldKey;
+            case SettingsSnapshotDto.Fields.adsPageSize      -> i18n.get(I18nKey.CHANGES_SETTING_ADS_PAGE_SIZE);
+            case SettingsSnapshotDto.Fields.usersPageSize    -> i18n.get(I18nKey.CHANGES_SETTING_USERS_PAGE_SIZE);
+            case SettingsSnapshotDto.Fields.timelinePageSize -> i18n.get(I18nKey.CHANGES_SETTING_TIMELINE_PAGE_SIZE);
+            default                                          -> rawFieldKey;
         };
     }
 }

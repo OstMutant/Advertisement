@@ -32,7 +32,6 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
-import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -57,7 +56,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final transient UiComponentFactory<OverlayFormBinder>    formBinderFactory;
     private final transient ComponentFactory<AuditPort>              auditPortFactory;
     private final transient UiComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
-    private final transient UiComponentFactory<AuditTimelinePanel>   auditTimelinePanelFactory;
     private final transient UiComponentFactory<UiIconButton>         cancelButtonFactory;
     private final UiPrimaryButton                                   saveButton;
     private final UiTertiaryButton                                  discardButton;
@@ -65,10 +63,10 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private Parameters   params;
     private IntegerField adsPageSizeField;
     private IntegerField usersPageSizeField;
+    private IntegerField timelinePageSizeField;
     private Tabs         formTabs;
     private Tab          settingsTab;
     private Div          historyContent;
-    private Div          timelineContent;
 
     @Override
     public SettingsFormModeHandler configure(Parameters p) {
@@ -83,6 +81,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .id(params.getUserId())
                 .adsPageSize(current.getAdsPageSize())
                 .usersPageSize(current.getUsersPageSize())
+                .timelinePageSize(current.getTimelinePageSize())
                 .build();
 
         saveButton.configure(UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
@@ -99,11 +98,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         buildBinder(dto);
         adsPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         usersPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        timelinePageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
 
         Div cardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, adsPageSizeField, usersPageSizeField);
+        Div fieldsCard = new Div(cardHeader, adsPageSizeField, usersPageSizeField, timelinePageSizeField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div settingsContent = new Div(fieldsCard);
@@ -112,31 +112,22 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .map(_ -> {
                     settingsTab       = new Tab(getValue(SETTINGS_SECTION_TITLE));
                     Tab historyTab    = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
-                    Tab timelineTab   = new Tab(getValue(TIMELINE_TAB));
-                    formTabs          = new Tabs(settingsTab, historyTab, timelineTab);
+                    formTabs          = new Tabs(settingsTab, historyTab);
                     formTabs.addClassName("user-view-tabs");
 
                     historyContent  = new Div();
                     historyContent.setVisible(false);
-                    timelineContent = new Div();
-                    timelineContent.setVisible(false);
 
                     formTabs.addSelectedChangeListener(event -> {
-                        Tab selected     = event.getSelectedTab();
-                        boolean isSettings = selected == settingsTab;
-                        boolean isHistory  = selected == historyTab;
+                        boolean isSettings = event.getSelectedTab() == settingsTab;
                         settingsContent.setVisible(isSettings);
-                        historyContent.setVisible(isHistory);
-                        timelineContent.setVisible(!isSettings && !isHistory);
-                        if (isHistory && historyContent.getChildren().findFirst().isEmpty()) {
+                        historyContent.setVisible(!isSettings);
+                        if (!isSettings && historyContent.getChildren().findFirst().isEmpty()) {
                             historyContent.add(buildHistoryContent());
-                        }
-                        if (!isSettings && !isHistory && timelineContent.getChildren().findFirst().isEmpty()) {
-                            timelineContent.add(buildTimelineContent());
                         }
                     });
 
-                    return new Div(formTabs, settingsContent, historyContent, timelineContent);
+                    return new Div(formTabs, settingsContent, historyContent);
                 })
                 .orElse(settingsContent);
 
@@ -150,14 +141,14 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         return binder.save(dto -> userPort.saveSettings(dto.getId(), UserSettingsDto.builder()
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .build()));
     }
 
     public void afterSave(boolean success) {
         if (success) {
-            if (historyContent  != null) historyContent.removeAll();
-            if (timelineContent != null) timelineContent.removeAll();
-            if (formTabs        != null) formTabs.setSelectedTab(settingsTab);
+            if (historyContent != null) historyContent.removeAll();
+            if (formTabs       != null) formTabs.setSelectedTab(settingsTab);
             updateButtons(false);
         } else {
             updateButtons(true);
@@ -171,10 +162,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .id(params.getUserId())
                         .adsPageSize(fresh.getAdsPageSize())
                         .usersPageSize(fresh.getUsersPageSize())
+                        .timelinePageSize(fresh.getTimelinePageSize())
                         .build(),
                 (src, tgt) -> {
                     tgt.setAdsPageSize(src.getAdsPageSize());
                     tgt.setUsersPageSize(src.getUsersPageSize());
+                    tgt.setTimelinePageSize(src.getTimelinePageSize());
                 });
         updateButtons(false);
     }
@@ -189,19 +182,13 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .build());
     }
 
-    private com.vaadin.flow.component.Component buildTimelineContent() {
-        return auditTimelinePanelFactory.build(AuditTimelinePanel.Parameters.builder()
-                .actorId(params.getUserId())
-                .viewerActorId(params.getUserId())
-                .build());
-    }
-
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
                 port.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS)
                         .map(c -> UserSettingsDto.builder()
                                 .adsPageSize(c.snapshotData().adsPageSize())
                                 .usersPageSize(c.snapshotData().usersPageSize())
+                                .timelinePageSize(c.snapshotData().timelinePageSize())
                                 .build())
                         .ifPresent(this::loadRestored));
     }
@@ -212,10 +199,12 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .id(params.getUserId())
                         .adsPageSize(restored.getAdsPageSize())
                         .usersPageSize(restored.getUsersPageSize())
+                        .timelinePageSize(restored.getTimelinePageSize())
                         .build(),
                 (src, tgt) -> {
                     tgt.setAdsPageSize(src.getAdsPageSize());
                     tgt.setUsersPageSize(src.getUsersPageSize());
+                    tgt.setTimelinePageSize(src.getTimelinePageSize());
                 });
         updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(settingsTab);
@@ -245,12 +234,23 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         usersPageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
         usersPageSizeField.setWidthFull();
 
+        timelinePageSizeField = new IntegerField(getValue(SETTINGS_TIMELINE_PAGE_SIZE_LABEL));
+        timelinePageSizeField.setMin(1);
+        timelinePageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
+        timelinePageSizeField.setStep(1);
+        timelinePageSizeField.setStepButtonsVisible(true);
+        timelinePageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
+        timelinePageSizeField.setWidthFull();
+
         binder.getBinder().forField(adsPageSizeField)
                 .asRequired()
                 .bind(SettingsEditDto::getAdsPageSize, SettingsEditDto::setAdsPageSize);
         binder.getBinder().forField(usersPageSizeField)
                 .asRequired()
                 .bind(SettingsEditDto::getUsersPageSize, SettingsEditDto::setUsersPageSize);
+        binder.getBinder().forField(timelinePageSizeField)
+                .asRequired()
+                .bind(SettingsEditDto::getTimelinePageSize, SettingsEditDto::setTimelinePageSize);
         binder.readInitialValues();
     }
 

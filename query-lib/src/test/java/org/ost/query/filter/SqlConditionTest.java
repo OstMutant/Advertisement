@@ -42,7 +42,20 @@ class SqlConditionTest {
 
     @Test
     void equalsTo_null_returnsNull() {
-        assertThat(SqlCondition.equalsTo(MAPPING, null)).isNull();
+        assertThat(SqlCondition.equalsTo(MAPPING, (String) null)).isNull();
+    }
+
+    @Test
+    void equalsTo_long_nonNull_returnsCondition() {
+        var condition = SqlCondition.equalsTo(MAPPING, 42L);
+        assertThat(condition).isNotNull();
+        assertThat(condition.value()).isEqualTo(42L);
+        assertThat(condition.operator()).isEqualTo(SqlOperator.EQUALS);
+    }
+
+    @Test
+    void equalsTo_long_null_returnsNull() {
+        assertThat(SqlCondition.equalsTo(MAPPING, (Long) null)).isNull();
     }
 
     // ── after / before (Instant) ──────────────────────────────────────────────

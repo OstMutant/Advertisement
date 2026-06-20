@@ -27,13 +27,13 @@ public class AuditTimelineListRenderer {
     private final AuditDomainHook                            auditDomainHook;
     private final UiComponentFactory<AuditTimelineRowRenderer> rowRendererFactory;
 
-    List<Div> buildRows(List<AuditTimelineItemDto<AuditableSnapshot>> items, Long viewerActorId) {
+    public List<Div> buildRows(List<AuditTimelineItemDto<AuditableSnapshot>> items) {
         AuditTimelineRowRenderer.RowContext ctx = buildRowContext(items);
         AuditTimelineRowRenderer renderer = rowRendererFactory.get();
 
         List<Div> rows = new ArrayList<>(items.size());
         for (AuditTimelineItemDto<AuditableSnapshot> item : items) {
-            rows.add(renderer.buildRow(item, viewerActorId, ctx));
+            rows.add(renderer.buildRow(item, ctx));
         }
         return rows;
     }
