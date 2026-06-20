@@ -7,8 +7,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.auth.AuthService;
-import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.LocaleProvider;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.dialogs.BaseDialog;
@@ -20,7 +20,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @Slf4j
 @SpringComponent

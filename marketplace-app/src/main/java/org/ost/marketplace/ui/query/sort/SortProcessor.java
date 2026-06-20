@@ -1,7 +1,7 @@
 package org.ost.marketplace.ui.query.sort;
 
 import lombok.Getter;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.SortIcon.SortHighlightColor;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlockHandler;

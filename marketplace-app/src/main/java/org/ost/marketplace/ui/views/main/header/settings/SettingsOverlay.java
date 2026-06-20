@@ -4,15 +4,15 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import static org.ost.marketplace.common.I18nKey.HEADER_HOME;
-import static org.ost.marketplace.common.I18nKey.SETTINGS_SAVED_SUCCESS;
-import static org.ost.marketplace.common.I18nKey.SETTINGS_SECTION_TITLE;
+import static org.ost.marketplace.services.i18n.I18nKey.HEADER_HOME;
+import static org.ost.marketplace.services.i18n.I18nKey.SETTINGS_SAVED_SUCCESS;
+import static org.ost.marketplace.services.i18n.I18nKey.SETTINGS_SECTION_TITLE;
 
 @SpringComponent
 @UIScope

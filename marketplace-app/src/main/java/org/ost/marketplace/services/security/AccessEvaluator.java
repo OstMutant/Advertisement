@@ -1,4 +1,4 @@
-package org.ost.marketplace.security;
+package org.ost.marketplace.services.security;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserDto;

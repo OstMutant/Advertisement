@@ -2,12 +2,12 @@ package org.ost.marketplace.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;

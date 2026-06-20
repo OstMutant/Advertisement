@@ -1,6 +1,4 @@
-package org.ost.marketplace.i18n;
-
-import org.ost.marketplace.common.I18nKey;
+package org.ost.marketplace.services.i18n;
 
 public interface I18nService {
     String get(String key, Object... args);

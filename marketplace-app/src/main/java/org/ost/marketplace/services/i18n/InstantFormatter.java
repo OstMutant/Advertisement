@@ -1,4 +1,4 @@
-package org.ost.marketplace.i18n;
+package org.ost.marketplace.services.i18n;
 
 import java.time.Instant;
 

@@ -11,7 +11,7 @@ import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Scope;
 import java.util.function.Consumer;
 
 import static com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment.CENTER;
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")

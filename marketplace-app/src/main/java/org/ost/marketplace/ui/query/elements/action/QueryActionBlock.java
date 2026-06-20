@@ -12,8 +12,8 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.Objects;
 
-import static org.ost.marketplace.common.I18nKey.ACTIONS_APPLY_TOOLTIP;
-import static org.ost.marketplace.common.I18nKey.ACTIONS_CLEAR_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.ACTIONS_APPLY_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.ACTIONS_CLEAR_TOOLTIP;
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDirtyOrClean;
 
 @SpringComponent

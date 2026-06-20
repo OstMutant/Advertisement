@@ -1,4 +1,4 @@
-package org.ost.marketplace.common;
+package org.ost.marketplace.ui.dto;
 
 public interface Identifiable {
 

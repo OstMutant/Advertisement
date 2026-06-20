@@ -1,5 +1,5 @@
 package org.ost.marketplace.ui.query.elements.fields;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 
 import com.vaadin.flow.component.customfield.CustomField;
 import com.vaadin.flow.component.datepicker.DatePicker;
@@ -10,7 +10,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
 
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Configurable;
 
 import org.ost.marketplace.ui.core.Initialization;

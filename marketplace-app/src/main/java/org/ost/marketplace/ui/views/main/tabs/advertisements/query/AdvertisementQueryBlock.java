@@ -17,7 +17,7 @@ import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope

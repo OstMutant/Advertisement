@@ -1,5 +1,5 @@
 package org.ost.marketplace.ui.views.components.audit;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -13,8 +13,8 @@ import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.InstantFormatter;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;

@@ -9,7 +9,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -18,7 +18,7 @@ import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")

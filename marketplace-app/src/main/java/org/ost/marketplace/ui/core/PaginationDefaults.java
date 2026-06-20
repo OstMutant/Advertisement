@@ -1,4 +1,4 @@
-package org.ost.marketplace.common;
+package org.ost.marketplace.ui.core;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;

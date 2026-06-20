@@ -10,10 +10,10 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.platform.user.dto.UserDto;
-import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
@@ -25,7 +25,7 @@ import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")

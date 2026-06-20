@@ -1,9 +1,7 @@
-package org.ost.marketplace.services;
+package org.ost.marketplace.services.i18n;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.LocaleProvider;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 

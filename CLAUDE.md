@@ -32,7 +32,6 @@ advertisement-parent (root pom)
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
-- `ui.*` — `Configurable<T,P>` (used by `ComponentFactory.build()` which lives in `core`; starters depend on both)
 - `audit.*` — `audit.api` (`AuditableSnapshot`), `audit.dto` (`AuditActivityItemDto`, `AuditSnapshotContentDto`, `AuditTimelineItemDto`), `audit.spi` (`AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
@@ -122,7 +121,7 @@ public class MyPanel extends Div
 }
 ```
 
-Instantiation via `ComponentFactory<MyPanel>` (declared as a bean in `ComponentFactoryConfig`):
+Instantiation via `UiComponentFactory<MyPanel>` (declared as a bean in `ComponentFactoryConfig`):
 ```java
 componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).build());
 ```
@@ -132,8 +131,11 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 - `configure()` — data + behavior. Called once after `init()`.
 - `Parameters` as Java record when ≤4 simple fields: `new MyPanel.Parameters(id, name)`.
 - `Parameters` with Lombok `@Builder` when 5+ fields or any `Runnable`/`Consumer` callback.
-- `Configurable` lives in `org.ost.platform.ui` (platform-commons, needed by `ComponentFactory`).
-- `Initialization` lives in `org.ost.marketplace.ui` (marketplace-app only).
+- `Configurable` lives in `org.ost.marketplace.ui.core` (marketplace-app).
+- `Initialization` lives in `org.ost.marketplace.ui.core` (marketplace-app).
+- `UiComponentFactory<T>` (marketplace-app `ui.core`) extends `ComponentFactory<T>` (platform-commons) and adds `build(P params)` for UI prototype wiring.
+- Use `UiComponentFactory<T>` for Configurable prototype UI beans (those that implement `Configurable` and need `.build(params)`).
+- Use `ComponentFactory<T>` for optional singleton services/ports (e.g. `AdvertisementPort`, `AuditPort`) — starters declare `ComponentFactory<X>` beans, inject as `ComponentFactory<X>` even in UI classes.
 
 **When NOT to use Configurable:**
 - Component has distinct modes with different UI structure → use explicit named methods:
@@ -146,17 +148,16 @@ A `build(Long id, String name, Role role, ...)` method with 4+ positional args i
 
 ### I18n in UI components
 
-`TranslationKey`, `I18nService`, `Translatable`, `InstantFormatter`, `LocaleProvider` all live in `org.ost.marketplace.i18n` (marketplace-app). Starters have no i18n infrastructure of their own — all UI i18n lives in marketplace-app.
+`I18nService`, `InstantFormatter`, `LocaleProvider` live in `org.ost.marketplace.services.i18n` (marketplace-app). Starters have no i18n infrastructure of their own — all UI i18n lives in marketplace-app. `TranslationKey` and `Translatable` interfaces have been deleted.
 
-Translation key enums:
-- `org.ost.marketplace.common.I18nKey` — main app keys
-- `org.ost.marketplace.ui.views.components.audit.AuditI18n` — audit UI keys
-- `org.ost.marketplace.ui.views.components.attachment.AttachmentI18n` — attachment UI keys
+Translation keys — single consolidated enum:
+- `org.ost.marketplace.services.i18n.I18nKey` — all app keys (main app, audit, attachment). Has `forAction(ActionType)` static method.
 
 **Rules:**
-- Never use raw `MessageSource` directly in UI components — use `I18nService.get(TranslationKey)`.
+- Never use raw `MessageSource` directly in UI components — use `I18nService.get(I18nKey)`.
 - Never use `msg(String key, String fallback)` — missing keys must fail fast, not silently fall back.
 - Never build keys dynamically: `"changes.field." + fieldName` — use typed enum with explicit mapping.
+- `I18nParams` interface: implement `getI18nService()` to get `getValue(I18nKey, ...)` and `formatAction(ActionType)` as defaults.
 
 ---
 
@@ -187,7 +188,11 @@ Translation key enums:
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
 - `services/audit/` — audit snapshot DTOs, diff engine, `@AuditedField` annotation
 - `services/auth/` — authentication context (`AuthContextService`)
+- `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
+- `services/security/` — security beans (`AccessEvaluator`, `RoleChecker`, `OwnershipChecker`, etc.)
 - `repository/activity/` — activity feed SQL repositories + projections
+- `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
+- `ui/dto/` — `Identifiable` and other shared UI DTOs
 - `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/` subpackages)
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support

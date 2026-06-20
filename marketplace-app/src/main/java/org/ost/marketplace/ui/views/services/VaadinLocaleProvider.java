@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Scope;
 import org.springframework.context.annotation.ScopedProxyMode;
 import org.ost.marketplace.services.auth.AuthContextService;
-import org.ost.marketplace.i18n.LocaleProvider;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

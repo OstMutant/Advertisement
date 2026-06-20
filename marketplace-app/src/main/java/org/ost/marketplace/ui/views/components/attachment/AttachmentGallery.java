@@ -1,5 +1,5 @@
 package org.ost.marketplace.ui.views.components.attachment;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nKey;
 
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
@@ -21,7 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 

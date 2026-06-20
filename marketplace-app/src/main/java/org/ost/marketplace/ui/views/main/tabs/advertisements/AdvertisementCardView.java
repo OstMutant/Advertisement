@@ -14,10 +14,11 @@ import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
-import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.core.Initialization;
@@ -33,7 +34,7 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
@@ -54,7 +55,7 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient UiComponentFactory<AdvertisementPort>       advertisementPortFactory;
+    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient UiComponentFactory<EditActionButton>         editButtonFactory;

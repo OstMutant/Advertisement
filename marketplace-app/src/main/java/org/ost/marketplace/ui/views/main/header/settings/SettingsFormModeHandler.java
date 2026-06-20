@@ -12,7 +12,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
-import org.ost.marketplace.common.PaginationDefaults;
+import org.ost.marketplace.ui.core.PaginationDefaults;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.spi.UserPort;
@@ -26,7 +26,8 @@ import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
@@ -34,7 +35,7 @@ import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelinePanel;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
@@ -54,7 +55,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final I18nService                                       i18nService;
     private final UserPort                                          userPort;
     private final transient UiComponentFactory<OverlayFormBinder>    formBinderFactory;
-    private final transient UiComponentFactory<AuditPort>            auditPortFactory;
+    private final transient ComponentFactory<AuditPort>              auditPortFactory;
     private final transient UiComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
     private final transient UiComponentFactory<AuditTimelinePanel>   auditTimelinePanelFactory;
     private final transient UiComponentFactory<UiIconButton>         cancelButtonFactory;

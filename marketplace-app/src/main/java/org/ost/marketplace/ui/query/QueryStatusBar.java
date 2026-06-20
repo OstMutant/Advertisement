@@ -5,8 +5,8 @@ import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import lombok.Getter;
-import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.springframework.data.domain.Sort.Direction;
 
 import java.util.List;

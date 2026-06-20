@@ -8,16 +8,16 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.marketplace.i18n.I18nService;
-import org.ost.marketplace.i18n.LocaleProvider;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.platform.user.spi.UserPort;
 
 import java.util.List;
 import java.util.Locale;
 
-import static org.ost.marketplace.common.I18nKey.LOCALE_ENGLISH;
-import static org.ost.marketplace.common.I18nKey.LOCALE_UKRAINIAN;
+import static org.ost.marketplace.services.i18n.I18nKey.LOCALE_ENGLISH;
+import static org.ost.marketplace.services.i18n.I18nKey.LOCALE_UKRAINIAN;
 
 @SpringComponent
 @UIScope

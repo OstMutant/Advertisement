@@ -16,10 +16,10 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.platform.user.spi.UserPort;
-import org.ost.marketplace.security.AccessEvaluator;
+import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -32,6 +32,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.ui.core.Configurable;
@@ -40,9 +41,9 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.Arrays;
 
-import static org.ost.marketplace.common.I18nKey.*;
-import static org.ost.marketplace.common.I18nKey.FORM_DISCARD_CHANGES;
-import static org.ost.marketplace.common.I18nKey.FORM_RESTORE_BANNER;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.FORM_DISCARD_CHANGES;
+import static org.ost.marketplace.services.i18n.I18nKey.FORM_RESTORE_BANNER;
 
 @SpringComponent
 @Scope("prototype")
@@ -65,7 +66,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final I18nService                                           i18nService;
     private final NotificationService                                   notificationService;
     private final transient UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final transient UiComponentFactory<AuditPort>                 auditPortFactory;
+    private final transient ComponentFactory<AuditPort>                   auditPortFactory;
     private final transient UiComponentFactory<AuditActivityPanel>        auditActivityPanelFactory;
     private final transient UiComponentFactory<UiIconButton>              cancelButtonFactory;
     private final UiTextField                                           nameField;

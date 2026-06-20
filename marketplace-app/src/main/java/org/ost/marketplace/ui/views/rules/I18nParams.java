@@ -1,10 +1,10 @@
 package org.ost.marketplace.ui.views.rules;
 
-import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.ActionType;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 public interface I18nParams {
 

@@ -4,7 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.marketplace.ui.query.sort.SortFieldMeta;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserSortMeta {

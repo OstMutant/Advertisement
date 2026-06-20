@@ -1,4 +1,4 @@
-package org.ost.marketplace.common;
+package org.ost.marketplace.services.i18n;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.ActionType;
