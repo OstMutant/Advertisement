@@ -47,12 +47,15 @@ async function runVerifySettingsActivityFlow(page, expect, { screenshotName, row
   await runCloseSettingsFlow(page);
 }
 
-async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName }) {
+async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, privileged = false }) {
   await runOpenSettingsFlow(page);
 
   const fields = page.locator('.settings-overlay-content vaadin-integer-field');
   const adsValue = await fields.nth(0).locator('input').inputValue();
-  const usersValue = await fields.nth(1).locator('input').inputValue();
+  let usersValue;
+  if (privileged) {
+    usersValue = await fields.nth(1).locator('input').inputValue();
+  }
   await screenshot(page, `${screenshotName}-defaults`);
 
   await page.locator('.settings-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
@@ -63,7 +66,9 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName }
   await expect(row.locator('.entity-activity-action')).toContainText(/created|створено/i);
   await expect(row.locator('.entity-activity-version')).toContainText('v1');
   await expect(row).toContainText(adsValue);
-  await expect(row).toContainText(usersValue);
+  if (privileged) {
+    await expect(row).toContainText(usersValue);
+  }
   await screenshot(page, `${screenshotName}-activity`);
 
   await runCloseSettingsFlow(page);

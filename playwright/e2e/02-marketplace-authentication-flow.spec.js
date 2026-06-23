@@ -24,7 +24,7 @@ test.describe('Authentication flow', () => {
 
   test('adminEn signs up — first user is auto-promoted to ADMIN', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN', async () => {
-      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'admin-signup-settings' });
+      await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'admin-signup-settings', privileged: true });
       await runNavigateToUsersTabFlow(page, expect);
       await runVerifyUserAuditActivityFlow(page, expect, TEST_USERS.adminEn.email, {
         screenshotName: 'admin-signup-user-audit',

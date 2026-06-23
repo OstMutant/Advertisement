@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.PaginationDefaults;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSettingsDto;
@@ -53,6 +54,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     @Getter
     private final I18nService                                       i18nService;
     private final UserPort                                          userPort;
+    private final AccessEvaluator                                   access;
     private final transient UiComponentFactory<OverlayFormBinder>    formBinderFactory;
     private final transient ComponentFactory<AuditPort>              auditPortFactory;
     private final transient UiComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
@@ -96,14 +98,19 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
         buildBinder(dto);
+        boolean privileged = access.canView();
         adsPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        usersPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        timelinePageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        if (privileged) {
+            usersPageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+            timelinePageSizeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        }
 
         Div cardHeader = new Div(VaadinIcon.COG.create(), new Span(getValue(SETTINGS_SECTION_TITLE)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, adsPageSizeField, usersPageSizeField, timelinePageSizeField);
+        Div fieldsCard = privileged
+                ? new Div(cardHeader, adsPageSizeField, usersPageSizeField, timelinePageSizeField)
+                : new Div(cardHeader, adsPageSizeField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div settingsContent = new Div(fieldsCard);
