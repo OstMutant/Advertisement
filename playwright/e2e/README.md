@@ -75,18 +75,18 @@ Promotes accounts to their final roles, sets UK locales, verifies cross-actor us
 
 ## 04 — Advertisement flow
 
-Full lifecycle: create → edit → restore → cross-user edit, with media and audit coverage.
+Full lifecycle: create → edit → restore → cross-user edit, with media, audit and timeline coverage.
 
 | Test | Flow |
 |------|------|
 | userEn creates advertisement | login → create (title+desc+YouTube+image+WebM) → activity (v1, no restore btn) → lightbox (play icon, video src) |
 | userUk creates advertisement | same flow in Ukrainian |
-| userEn edits advertisement | login → discard changes check → edit (delete all media, new title+desc) → activity (v2 → diff, media field) → text-only edit → activity (v3) → grid (updated title+desc) |
-| userUk edits advertisement | same flow |
-| userEn restores advertisement | login → activity (3 rows) → restore v1 → form (title+desc+3 media) → save → activity (v4 restore entry → diff) → VIEW → grid (restored title+desc+3 media) |
+| userEn edits advertisement | login → **discard: delete all media → discard → gallery restored** → **discard: add YouTube to existing gallery → discard → gallery restored** → edit (delete all media, new title+desc) → save v2 → activity (diff: title+desc+media) → text-only edit → save v3 → activity (media field shows `—`) → grid (updated title+desc) → **admin login → timeline filtered by ADVERTISEMENT → ≥2 updated rows** |
+| userUk edits advertisement | same flow → **admin timeline check → ≥4 updated rows** |
+| userEn restores advertisement | login → activity (3 rows) → restore v1 → form (title+desc+3 media) → save v4 → activity (restore diff) → VIEW → grid (restored title+desc+3 media) |
 | userUk restores advertisement | same flow |
-| moderatorEn edits EN advertisement — cross-user edit with badge check | login as moderator → edit ad → activity (current-editor badge) → media replace |
-| adminEn edits UK advertisement — cross-user edit with badge check | login as admin → edit ad → activity (current-editor badge) → media replace |
+| moderatorEn edits EN advertisement | login as moderator → edit (discard checks + save) → activity (current-editor badge) → media add+replace → **timeline filtered by ADVERTISEMENT → ≥4 updated rows** |
+| adminEn edits UK advertisement | login as admin → edit (discard checks + save) → activity (current-editor badge) → media add+replace → **timeline filtered by ADVERTISEMENT → ≥4 updated rows** |
 | userEn verifies lightbox | YouTube→image blanks iframe; WebM→image stops video |
 
 ---
