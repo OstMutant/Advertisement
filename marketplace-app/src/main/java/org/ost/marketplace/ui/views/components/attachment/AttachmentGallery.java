@@ -143,6 +143,8 @@ public class AttachmentGallery extends Div {
             }
             tempUploads.clear();
             pendingDeletions.clear();
+            this.entityId = entityId;
+            refresh();
             return;
         }
         boolean isCreate = (this.entityId == null);
@@ -155,6 +157,8 @@ public class AttachmentGallery extends Div {
             attachmentPort.captureSnapshot(entityType, entityId);
         }
         tempUploads.clear();
+        this.entityId = entityId;
+        refresh();
     }
 
     public void discardTempUploads() {

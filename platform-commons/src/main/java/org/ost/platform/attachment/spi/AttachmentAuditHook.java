@@ -19,7 +19,7 @@ public interface AttachmentAuditHook {
 
     // ── Activity feed ──────────────────────────────────────────────────────────
 
-    List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull EntityRef subject, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems);
+    List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems);
 
     // ── Media history ──────────────────────────────────────────────────────────
 

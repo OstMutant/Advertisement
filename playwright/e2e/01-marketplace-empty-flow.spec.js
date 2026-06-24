@@ -15,7 +15,7 @@ test.describe('Language switch (no auth)', () => {
     await page.close();
   });
 
-  test('open app — default locale is English', async () => {
+  test('app loads — English locale, no admin controls visible', async () => {
     await runOpenDefaultLocaleFlow(page, expect);
     await expect(page.locator('.add-advertisement-button')).not.toBeVisible();
     await expect(page.locator('.advertisement-edit').first()).not.toBeVisible();
@@ -25,7 +25,7 @@ test.describe('Language switch (no auth)', () => {
     await expect(page.locator('vaadin-tab').filter({ hasText: 'Reference Data' }).first()).not.toBeVisible();
   });
 
-  test('switch to Ukrainian', async () => {
+  test('language switch — Ukrainian locale active', async () => {
     await runSwitchToUkrainianFlow(page, expect);
     await expect(page.locator('.add-advertisement-button')).not.toBeVisible();
     await expect(page.locator('.advertisement-edit').first()).not.toBeVisible();
@@ -35,7 +35,7 @@ test.describe('Language switch (no auth)', () => {
     await expect(page.locator('vaadin-tab').filter({ hasText: 'Довідники' }).first()).not.toBeVisible();
   });
 
-  test('advertisement filter panel accessible without login', async () => {
+  test('unauthenticated user — filter panel accessible, title filter, apply and clear', async () => {
     await runOpenFilterPanelFlow(page, expect);
     await runFillTitleFilterFlow(page, 'Test');
     await runApplyFilterFlow(page, expect);
@@ -44,7 +44,7 @@ test.describe('Language switch (no auth)', () => {
     await runCloseFilterPanelFlow(page, expect);
   });
 
-  test('switch back to English', async () => {
+  test('language switch — English locale restored', async () => {
     await runSwitchToEnglishFlow(page, expect);
   });
 });

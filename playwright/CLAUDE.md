@@ -53,6 +53,21 @@ bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seed
 - `e2e/_flows/*.flow.js` — flow-specific helpers live in the same file where they are used. Extract to a shared flow file only when two or more flow files need the same helper.
 - Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
 
+### Test naming pattern
+
+```
+{actor} {action} {subject} — {verification1}, {verification2}, {verification3}
+```
+
+Example: `moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check`
+
+Rules:
+- After the dash: list each major verified behaviour explicitly
+- Use concrete operation words: "discard", "save with activity diff", "add and replace media", "timeline check", "restore", "pagination"
+- Avoid vague labels like "badge check", "flow" as the only descriptor
+- Version numbers (v5/v6) → plain words ("two saves", "three edits")
+- Include "timeline check" when timeline is verified, "activity diff" when diff content is asserted
+
 ### Adding new scenarios
 1. Create `/app/playwright/e2e/my-scenario.spec.js`
 2. `const { test, expect, screenshot } = require('./_helpers');`

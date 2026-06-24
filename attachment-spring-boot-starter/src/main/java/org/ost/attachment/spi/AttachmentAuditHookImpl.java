@@ -21,7 +21,7 @@ public class AttachmentAuditHookImpl implements AttachmentAuditHook {
     // ── Activity feed ──────────────────────────────────────────────────────────
 
     @Override
-    public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull EntityRef subject, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems) {
+    public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems) {
         return attachmentSnapshotService.mergeAttachmentMediaChanges(baseItems);
     }
 

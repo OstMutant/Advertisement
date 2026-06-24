@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { test, screenshot, downloadPng } = require('../_helpers');
+const { test, screenshot, downloadPng, closeNotification } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
@@ -48,6 +48,7 @@ async function saveAndWaitForIdle(page, expect, overlay, screenshotPrefix) {
   await expect(
     overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first()
   ).toBeDisabled({ timeout: 8000 });
+  await closeNotification(page);
   await screenshot(page, `${screenshotPrefix}-saved`);
 }
 
@@ -95,11 +96,10 @@ async function deleteAllGalleryItems(expect, overlay) {
   }
 }
 
-async function assertSingleCurrentBadge(page, expect, overlay, screenshotName) {
+async function assertSingleCurrentBadge(page, expect, overlay) {
   const activityList = await openActivityTab(overlay);
   const badgeCount = await activityList.locator('.entity-activity-current-badge').count();
   expect(badgeCount).toBe(1);
-  await screenshot(page, screenshotName);
 }
 
 async function assertLatestActivityVersion(page, overlay, expect, version, screenshotName) {
@@ -190,6 +190,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await screenshot(page, `${screenshotPrefix}-media-deleted`);
 
     await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+    await closeNotification(page);
     await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
     await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
@@ -204,6 +205,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     const discardBtn = overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first();
     await expect(discardBtn).toBeEnabled({ timeout: 5000 });
     await discardBtn.click();
+    await closeNotification(page);
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
     await screenshot(page, `${screenshotPrefix}-discarded-add`);
   });
@@ -268,7 +270,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
   if (checkCurrentBadge) {
     await test.step('activity shows exactly one current-state badge', async () => {
-      await assertSingleCurrentBadge(page, expect, overlay, `${screenshotPrefix}-badge`);
+      await assertSingleCurrentBadge(page, expect, overlay);
     });
   }
 
@@ -296,6 +298,7 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   await expect(v1Row.locator('.entity-activity-version')).toContainText('v1');
   await screenshot(page, `${screenshotPrefix}-before-restore`);
   await v1Row.locator('.entity-activity-restore-btn').click();
+  await closeNotification(page);
 
   // After restore: auto-switches to "Basic information" tab, form populated with v1 values + 3 media items
   const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
@@ -365,7 +368,7 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   });
 
   await test.step('exactly one current-state badge after cross-user media add and replace', async () => {
-    await assertSingleCurrentBadge(page, expect, overlay, `${screenshotPrefix}-badge-final`);
+    await assertSingleCurrentBadge(page, expect, overlay);
   });
 
   await closeOverlayToList(page, overlay);

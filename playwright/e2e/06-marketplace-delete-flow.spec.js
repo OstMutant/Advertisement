@@ -25,7 +25,7 @@ test.describe('Delete flow', () => {
     await page.close();
   });
 
-  test('userEn: cancel delete keeps card, confirm delete removes card and list shrinks', async () => {
+  test('userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
 
@@ -58,7 +58,7 @@ test.describe('Delete flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn: cancel delete keeps user row, confirm delete removes row and grid shrinks', async () => {
+  test('adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
 

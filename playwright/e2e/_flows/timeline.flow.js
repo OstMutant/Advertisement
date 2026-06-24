@@ -30,8 +30,10 @@ async function assertFeedHasRow(page, expect, { action, entityType, editor, scre
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Asserts at least minCount feed rows match the given criteria
-async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, screenshotName } = {}) {
+// Asserts at least minCount feed rows match the given criteria.
+// Optional: titleText checks that at least one row's .activity-feed-name contains the text.
+//           actorText checks that at least one row's .activity-feed-editor contains the text.
+async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, actorText, screenshotName } = {}) {
   const feed = page.locator('.activity-feed');
   await feed.waitFor({ timeout: 8000 });
   let rows = feed.locator('.activity-feed-row');
@@ -40,6 +42,16 @@ async function assertTimelineHasRows(page, expect, { action, entityType, minCoun
   await expect(rows.first()).toBeVisible({ timeout: 8000 });
   const count = await rows.count();
   expect(count).toBeGreaterThanOrEqual(minCount);
+  if (titleText) {
+    await expect(
+      rows.filter({ has: page.locator('.activity-feed-name', { hasText: titleText }) }).first()
+    ).toBeVisible({ timeout: 5000 });
+  }
+  if (actorText) {
+    await expect(
+      rows.filter({ has: page.locator('.activity-feed-editor', { hasText: actorText }) }).first()
+    ).toBeVisible({ timeout: 5000 });
+  }
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
@@ -103,6 +115,16 @@ async function fillActionType(page, value) {
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+async function fillActorPicker(page, userName) {
+  await page.locator('.user-picker-open').click();
+  const dialog = page.locator('vaadin-dialog-overlay[opened]');
+  await dialog.waitFor({ state: 'visible', timeout: 5000 });
+  const cell = page.locator('vaadin-grid-cell-content').filter({ hasText: new RegExp(`^${userName}$`) });
+  await cell.first().waitFor({ timeout: 8000 });
+  await cell.first().click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
 module.exports = {
   openTimelineTab,
   openTimelineFilter,
@@ -114,5 +136,6 @@ module.exports = {
   assertActorPickerVisible,
   fillEntityType,
   fillActionType,
+  fillActorPicker,
   TIMELINE_BLOCK,
 };

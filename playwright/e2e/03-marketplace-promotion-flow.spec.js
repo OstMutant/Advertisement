@@ -20,7 +20,7 @@ test.describe('Promotion flow', () => {
 
   // === Section 1: Role promotion ===
 
-  test('adminEn promotes moderatorUk to MODERATOR', async () => {
+  test('adminEn promotes moderatorUk to MODERATOR — activity shows updated role, role badge in view and grid', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
@@ -30,7 +30,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn promotes moderatorEn to MODERATOR', async () => {
+  test('adminEn promotes moderatorEn to MODERATOR — activity shows updated role, role badge in view and grid', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
@@ -40,7 +40,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn promotes adminUk to ADMIN', async () => {
+  test('adminEn promotes adminUk to ADMIN — activity shows updated role, role badge in view and grid', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
@@ -52,21 +52,21 @@ test.describe('Promotion flow', () => {
 
   // === Section 2: Set UK locales ===
 
-  test('userUk — first login defaults to EN, switches locale to Ukrainian', async () => {
+  test('userUk — first login in English, switches to Ukrainian locale', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userUk);
     await runSubmitLoginFlow(page, expect, { ...TEST_USERS.userUk, locale: 'en' });
     await runSwitchToUkrainianLoggedInFlow(page, expect);
     await runLogoutFlow(page, expect);
   });
 
-  test('moderatorUk — first login defaults to EN, switches locale to Ukrainian', async () => {
+  test('moderatorUk — first login in English, switches to Ukrainian locale', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.moderatorUk);
     await runSubmitLoginFlow(page, expect, { ...TEST_USERS.moderatorUk, locale: 'en' });
     await runSwitchToUkrainianLoggedInFlow(page, expect);
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn: cross-actor user name edit visible in activity and grid, restore reverts', async () => {
+  test('adminEn edits userEn name — activity diff, grid updated, restore reverts name', async () => {
     const editedName = `AdminCrossEdit-${Date.now()}`;
     let originalName;
 

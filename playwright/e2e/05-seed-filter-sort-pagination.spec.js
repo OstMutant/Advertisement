@@ -32,7 +32,7 @@ const {
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
-const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
+const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -118,7 +118,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 1: seed users ────────────────────────────────────────────────────
 
-  test(`seed ${SEED_COUNT} users via signup`, async ({ browser }) => {
+  test(`seed ${SEED_COUNT} users — parallel signup`, async ({ browser }) => {
     test.setTimeout(5 * 60 * 1000);
     const users = Array.from({ length: SEED_COUNT }, (_, i) => seedUser(i + 1));
     await signUpBulkParallel(browser, users, 1);
@@ -126,7 +126,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 2: seed advertisements ───────────────────────────────────────────
 
-  test(`seed ${SEED_COUNT} advertisements as adminEn`, async () => {
+  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories`, async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     for (let i = 1; i <= SEED_COUNT; i++) {
@@ -137,7 +137,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 3: advertisement filters, sort, pagination ───────────────────────
 
-  test('advertisement filters, sort, and pagination', async () => {
+  test('advertisements — title, date and category filters, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
@@ -197,7 +197,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 4: user filters, sort, pagination ────────────────────────────────
 
-  test('user filters, sort, and pagination', async () => {
+  test('users — email, role and date filters, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Users' }).first().click();
@@ -313,7 +313,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 5: settings page sizes, activity verification, restore ───────────
 
-  test('settings: change page sizes, verify in activity and views, restore defaults', async () => {
+  test('adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults', async () => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
@@ -388,7 +388,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 6: timeline filter and pagination ────────────────────────────────
 
-  test('timeline: entity type filter, action filter, actor picker, pagination', async () => {
+  test('adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination', async () => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
@@ -407,12 +407,36 @@ test.describe('Seed data and query validation', () => {
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     await assertAllRowsHaveType(page, expect, 'advertisement', 'timeline-filter-entity-advertisement');
 
+    // Filter by USER entity type — all rows must be user
+    await clearFilter(page, TIMELINE_BLOCK);
+    await fillEntityType(page, 'USER');
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await assertAllRowsHaveType(page, expect, 'user', 'timeline-filter-entity-user');
+
     // Filter by CREATED action — all rows must be created
     await clearFilter(page, TIMELINE_BLOCK);
     await fillActionType(page, 'CREATED');
     await applyFilter(page, TIMELINE_BLOCK);
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     await assertAllRowsHaveAction(page, expect, 'created', 'timeline-filter-action-created');
+
+    // Filter by UPDATED action — all rows must be updated
+    await clearFilter(page, TIMELINE_BLOCK);
+    await fillActionType(page, 'UPDATED');
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await assertAllRowsHaveAction(page, expect, 'updated', 'timeline-filter-action-updated');
+
+    // Filter by actor (adminEn) — result count must be less than unfiltered total
+    await clearFilter(page, TIMELINE_BLOCK);
+    await fillActorPicker(page, TEST_USERS.adminEn.name);
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    const actorFilteredCount = await getTotalCount(page);
+    expect(actorFilteredCount).toBeGreaterThan(0);
+    expect(actorFilteredCount).toBeLessThan(total);
+    await screenshot(page, 'timeline-filter-actor-adminen');
 
     // Clear and verify pagination navigates correctly
     await clearFilter(page, TIMELINE_BLOCK);

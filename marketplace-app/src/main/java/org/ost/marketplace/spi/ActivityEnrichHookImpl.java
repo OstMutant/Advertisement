@@ -27,8 +27,8 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
 
     @Override
     public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> base) {
-        return subjects.stream().findFirst()
-                .flatMap(primary -> attachmentAuditHookFactory.findIfAvailable().map(h -> h.merge(primary, base)))
+        return attachmentAuditHookFactory.findIfAvailable()
+                .map(h -> h.merge(subjects, base))
                 .orElse(base);
     }
 

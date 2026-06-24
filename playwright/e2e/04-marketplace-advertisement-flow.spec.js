@@ -38,7 +38,7 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement with YouTube, image and video', async () => {
+  test('userEn creates advertisement — YouTube, image and video, lightbox plays video, single activity row', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create' });
@@ -65,14 +65,14 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userUk creates advertisement with YouTube, image and video', async () => {
+  test('userUk creates advertisement — YouTube, image and video, single activity row', async () => {
     await runFillLoginFormFlow(page, CREATE.ukAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
     await runCreateAdvertisementFlow(page, expect, { title: CREATE.ukAd.title, description: CREATE.ukAd.description, screenshotPrefix: 'adv-useruk-create' });
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn edits advertisement — removes all media, updates title and description', async () => {
+  test('userEn edits advertisement — discard, two saves with activity diff, admin timeline check', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runEditAdvertisementFlow(page, expect, {
@@ -89,12 +89,12 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, screenshotName: 'adv-useren-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, titleText: UPDATE.enAd.title, screenshotName: 'adv-useren-edit-timeline-admin' });
       await runLogoutFlow(page, expect);
     });
   });
 
-  test('userUk edits advertisement — removes all media, updates title and description', async () => {
+  test('userUk edits advertisement — discard, two saves with activity diff, admin timeline check', async () => {
     await runFillLoginFormFlow(page, CREATE.ukAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
     await runEditAdvertisementFlow(page, expect, {
@@ -111,12 +111,12 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'adv-useruk-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: UPDATE.ukAd.title, screenshotName: 'adv-useruk-edit-timeline-admin' });
       await runLogoutFlow(page, expect);
     });
   });
 
-  test('userEn restores advertisement to original version', async () => {
+  test('userEn restores advertisement — activity diff shows restored media and text, view and card updated', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runRestoreAdvertisementFlow(page, expect, {
@@ -127,7 +127,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userUk restores advertisement to original version', async () => {
+  test('userUk restores advertisement — activity diff shows restored media and text, view and card updated', async () => {
     await runFillLoginFormFlow(page, CREATE.ukAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
     await runRestoreAdvertisementFlow(page, expect, {
@@ -138,7 +138,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('moderatorEn edits EN advertisement — cross-user edit with badge check', async () => {
+  test('moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.moderatorEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.moderatorEn);
     await runEditAdvertisementFlow(page, expect, {
@@ -159,11 +159,11 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'timeline-moderatoren-edit-ad' });
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.enAd.title, actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits UK advertisement — cross-user edit with badge check', async () => {
+  test('adminEn edits UK advertisement — discard, two saves with activity diff, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runEditAdvertisementFlow(page, expect, {
@@ -184,11 +184,11 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'timeline-adminen-edit-ad' });
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn verifies lightbox — YouTube→image blanks iframe; WebM→image stops video', async () => {
+  test('userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video', async () => {
     const imgPath = '/tmp/lightbox-avatar.png';
     await downloadPng(avatar('lightbox'), imgPath);
 

@@ -22,7 +22,7 @@ test.describe('Authentication flow', () => {
 
   // === Section 1: Account creation ===
 
-  test('adminEn signs up — first user is auto-promoted to ADMIN', async () => {
+  test('adminEn signs up — first user auto-promoted to ADMIN, settings open, timeline and user audit created', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'admin-signup-settings', privileged: true });
       await openTimelineTab(page);
@@ -38,33 +38,33 @@ test.describe('Authentication flow', () => {
     });
   });
 
-  test('userEn signs up — gets USER role', async () => {
+  test('userEn signs up — USER role assigned, settings open, activity created', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.userEn, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'useren-signup-settings' });
     });
   });
 
-  test('userUk signs up — gets USER role', async () => {
+  test('userUk signs up — USER role assigned, settings open, activity created', async () => {
     await runSwitchToUkrainianFlow(page, expect);
     await runSignUpFlow(page, expect, TEST_USERS.userUk, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'useruk-signup-settings' });
     }, 'uk');
   });
 
-  test('moderatorUk signs up — MODERATOR candidate', async () => {
+  test('moderatorUk signs up — USER role assigned, activity created', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.moderatorUk, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'moderatoruk-signup-settings' });
     });
   });
 
-  test('moderatorEn signs up — MODERATOR candidate', async () => {
+  test('moderatorEn signs up — USER role assigned, activity created', async () => {
     await runSwitchToEnglishFlow(page, expect);
     await runSignUpFlow(page, expect, TEST_USERS.moderatorEn, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'moderatoren-signup-settings' });
     });
   });
 
-  test('adminUk signs up — ADMIN candidate', async () => {
+  test('adminUk signs up — USER role assigned, activity created', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.adminUk, 'USER', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'adminuk-signup-settings' });
     });
@@ -72,14 +72,14 @@ test.describe('Authentication flow', () => {
 
   // === Section 2: Authentication tests ===
 
-  test('userEn logs in, cancels logout — remains authenticated', async () => {
+  test('userEn logs in — cancel logout keeps session, confirm logout works', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await runCancelLogoutFlow(page, expect);
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn — switched locale persists across logout and re-login', async () => {
+  test('userEn — locale persists across logout and re-login', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
     await runSwitchToUkrainianLoggedInFlow(page, expect);
