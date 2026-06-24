@@ -45,14 +45,28 @@ declaratively and kept strongly typed.
 
 ```
 advertisement-parent
-├── query-lib                      — framework-agnostic SQL query-building library
-├── platform-commons                — shared kernel: DTOs, domain events, SPI interfaces
-├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
-├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation
-└── marketplace-app                 — Vaadin application (depends on all modules above)
+├── query-lib                         — framework-agnostic SQL query-building library
+├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
+├── audit-spring-boot-starter         — audit subsystem: write side + read side
+├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
+├── user-spring-boot-starter          — User domain + Spring Security integration
+├── advertisement-spring-boot-starter — Advertisement domain
+└── marketplace-app                   — Vaadin application (all UI)
 ```
 
-Significant architectural decisions for each module are recorded in per-module `DECISIONS.md` files.
+Per-module documentation:
+
+| Module | README | Decisions |
+|---|---|---|
+| query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
+| platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
+| audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
+| attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
+| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
+| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
+| marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
+| playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
+| scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |
 
 ---
 

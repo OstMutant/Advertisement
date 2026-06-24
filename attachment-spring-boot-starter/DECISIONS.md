@@ -2,33 +2,9 @@
 
 ---
 
-## 2026-05-19 — Attachment descriptors migrated to Read/Write namespace pattern
+## ~~2026-05-19 — Attachment descriptors migrated to Read/Write namespace~~ *(removed 2026-05-21)*
 
-**Decision:** `AttachmentDescriptor` and `AttachmentSnapshotDescriptor` are `final` namespace classes (private constructor) that implement the new `SqlEntityDescriptor` marker interface from `query-starter`. Each descriptor splits its body into two symmetric inner classes:
-
-- `Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param factories. `AttachmentSnapshotDescriptor.Read` additionally hosts the `extractUrls(ResultSet)` row helper.
-- `Write` — `SqlWriteCommand` constants and write-side param factories. `DELETE_BY_URLS` moved from "read" mix to `Write` (it is a delete command).
-
-`AttachmentDescriptor` no longer extends `SqlEntityProjection<Attachment>` — the projection is owned via `Read.PROJECTION`. Callers obtain it explicitly (`AttachmentDescriptor.Read.PROJECTION`) instead of relying on `new AttachmentDescriptor()` doubling as projection + RowMapper.
-
-**Why:** The previous "flat descriptor + tiny `Write` bucket for column names" arrangement intermixed UPDATE/DELETE/SELECT SQL and param factories with no visual separation. The new layout makes the SQL boundary side explicit at the call site (`AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`) and gives a single grep target (`SqlEntityDescriptor`) for finding all dual-side descriptors in the project.
-
-**Rejected:** Generic marker (`SqlEntityDescriptor<T>`) — does not fit `AttachmentSnapshotDescriptor` which has no full-row projection (queries return `String[]` and JSON text directly). Non-generic marker keeps both descriptors uniform.
-
----
-
-## 2026-05-19 — AttachmentRepository migrated to CrudRepository + Custom split
-
-**Decision:** Aligned attachment-starter with the project-wide repository policy (see `CLAUDE.md` → Repository pattern):
-- `Attachment` entity gained `@Table("attachment")`, `@Id`, `@CreatedDate`.
-- `AttachmentRepository` is now an interface extending `CrudRepository<Attachment, Long> + AttachmentRepositoryCustom`.
-- `AttachmentRepositoryCustomImpl` keeps the bespoke soft-delete / restore / cleanup / media-stats queries against `AttachmentDescriptor`.
-- Removed `INSERT` SqlWriteCommand, `insertParams`, `FIND_BY_ID_SQL`, `findByIdParams` from `AttachmentDescriptor` — superseded by `save()` / `findById()`.
-- `AttachmentAutoConfiguration` declares `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` so the starter is self-contained; the marketplace `@SpringBootApplication` scan does not cover `org.ost.attachment.*`.
-
-**Why:** Eliminates a duplicated INSERT/SELECT-by-id path that Spring Data JDBC already provides, and brings attachment-starter in line with the `User` / `Advertisement` repository structure so future contributors meet one pattern across the codebase.
-
-**Rejected:** Migrating bespoke soft-delete / restore / cleanup / media-stats queries to derived repository methods — those queries depend on PostgreSQL-specific features (`ANY(:urls)`, `MAKE_INTERVAL`, `ROW_NUMBER()` etc.) and stay on `JdbcClient`.
+`AttachmentDescriptor`, `AttachmentSnapshotDescriptor`, and `SqlEntityDescriptor` were introduced then removed. The Read/Write namespace descriptor pattern was superseded by the standard project-wide repository pattern (`@Repository` + `JdbcClient` + inline SQL text blocks). No descriptor or projection pattern remains in the codebase.
 
 ---
 
@@ -125,19 +101,19 @@
 
 ---
 
-## 2026-06-15 — Open: org.ost.marketplace.ui.views.components.attachment.* directly imports attachment-starter internals
+## 2026-06-15 — Open: marketplace-app attachment UI imports starter internals directly
 
 Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox`) directly import:
 - `org.ost.attachment.entities.Attachment` — entity
 - `org.ost.attachment.services.AttachmentService` / `AttachmentSnapshotService` — services
-- `org.ost.attachment.util.MediaContentTypeUtil` / `YoutubeUtil` — utils
+- `org.ost.attachment.util.MediaContentTypeUtil` — util
 
-**Root cause:** these components were moved from attachment-starter into marketplace-app (marketplace-ui merge phase) but kept their direct dependencies.
+**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
 
-**Fix:**
-- Move `MediaContentTypeUtil` and `YoutubeUtil` to `platform-commons` (`attachment.util`) or expose needed helpers via `AttachmentPort`
-- Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto` or similar) from `platform.attachment.dto`
-- Replace direct `AttachmentService` injection with calls through `AttachmentPort` (add read methods as needed)
+**Remaining fix:**
+- Move `MediaContentTypeUtil` to `platform-commons` (`attachment.util`)
+- Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto`) from `platform.attachment.dto`
+- Replace direct `AttachmentService` injection with calls through `AttachmentPort`
 
 **Note:** `AttachmentGalleryPort` was removed (2026-06-15) — do not re-introduce it. Route through `AttachmentPort` instead.
 

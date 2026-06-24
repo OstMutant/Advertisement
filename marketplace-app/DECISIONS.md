@@ -2,66 +2,13 @@
 
 ---
 
-## 2026-06-13 — UI layer restructuring: marketplace-ui created, then merged back; domain modules extracted
+## 2026-06-13 — UI layer restructuring: all Vaadin UI consolidated in marketplace-app
 
-### Phase 1 (completed): Vaadin UI extracted from starters, package namespace unified
+**Final state:** All Vaadin UI lives in `marketplace-app` (`org.ost.marketplace.ui.*`). No starter contains UI code. `marketplace-app` imports starters only via platform-commons contracts (`UserPort`, `AdvertisementPort`, `AuditPort`, `AttachmentPort`, `UserDto`, etc.). `*HookImpl` and `*PortImpl` orchestrators live in `marketplace-app`.
 
-**What changed:**
-- Created `marketplace-ui` module — moved all `org.ost.audit.ui.*`, `org.ost.attachment.ui.*`, `org.ost.query.ui.*` source files out of their respective starters
-- Package names unified to `org.ost.ui.<domain>.*` pattern: `org.ost.ui.audit`, `org.ost.ui.attachment`, `org.ost.ui.query`, `org.ost.ui.marketplace`
-- `MarketplaceUiConfiguration` converted to `@AutoConfiguration` registered in `AutoConfiguration.imports` (no longer found via `@SpringBootApplication` package scan)
-- 5 CSS files moved from starter `META-INF/resources/frontend/` to `marketplace-app/src/main/frontend/themes/my-app/`; `@CssImport` annotations removed
-- `QueryAutoConfiguration` deleted; `validationService` bean moved to `MarketplaceUiConfiguration`
+**Why:** Two phases — (1) UI extracted from individual starters into a short-lived `marketplace-ui` module; (2) `marketplace-ui` merged back into `marketplace-app` (no second consumer existed, Maven module boundary added cost with no benefit) and domain logic moved to dedicated starters (`user-spring-boot-starter`, `advertisement-spring-boot-starter`).
 
-**Why — CSS production build:** Vaadin 25 Vite production build does not include CSS from `@CssImport` on components in JAR starters. CSS in `marketplace-app/themes/my-app/` is always bundled.
-
-### Phase 2 (completed): merge marketplace-ui into marketplace-app; extract domain modules
-
-**Decision (completed):** `marketplace-ui` was absorbed into `marketplace-app`. Domain logic (Advertisement, User) moved to dedicated Spring Boot starters. Final structure:
-
-```
-advertisement-parent
-├── platform-commons                  — SPI/DTO contracts + new UserPort, AdvertisementPort
-├── query-lib                     — SQL filter/sort library (no Vaadin)
-├── audit-spring-boot-starter         — audit domain (no Vaadin)
-├── attachment-spring-boot-starter    — attachment domain (no Vaadin)
-├── user-spring-boot-starter          — User entity + UserService + UserPortImpl
-├── advertisement-spring-boot-starter — Advertisement entity + AdvertisementService + AdvertisementPortImpl
-└── marketplace-app                   — ALL Vaadin UI (absorbs marketplace-ui) + Spring Boot entry point
-```
-
-**Why merge marketplace-ui back into marketplace-app:** The separation adds a Maven module boundary without an architectural benefit — marketplace-app is the only consumer of marketplace-ui, and marketplace-ui cannot be reused elsewhere. All classes were re-homed under `org.ost.marketplace.ui.*`; only the JAR boundary changed.
-
-**Why domain starters:** Advertisement and user are distinct bounded contexts. Separating them into starters enables independent evolution and testing. `marketplace-app` becomes a thin UI + orchestration layer calling domain via `UserPort` / `AdvertisementPort` SPIs.
-
-**Why — platform-commons stays unchanged:** SPI interfaces must be visible to all modules without circular dependencies. `platform-commons` remains the neutral contract zone.
-
-**Key decoupling decision — no SQL JOIN across domain boundaries:**
-`AdvertisementRepository` currently JOINs `user_information` to enrich `AdvertisementInfoDto` with creator name. After the domain split, this JOIN is replaced with a `UserPort.findActorNames(Collection<Long> ids)` call in `AdvertisementService`. The repository only queries `advertisement`; the service fetches user names in bulk and enriches the DTOs. This eliminates advertisement-starter's knowledge of the `user_information` table schema.
-
-**SecurityConfig:** `UserDetailsService` currently depends on `UserService.findByEmail` directly. After extraction, `UserPort` gains a `findByEmail(String email)` method; `SecurityConfig` in marketplace-app injects `UserPort` instead of `UserService`.
-
-**Implementation order:**
-1. Merge `marketplace-ui` → `marketplace-app`
-2. Create `user-spring-boot-starter` (simpler — no media)
-3. Create `advertisement-spring-boot-starter`
-4. Define `UserPort` + `AdvertisementPort` in `platform-commons`
-5. Update marketplace-app: Views call ports instead of services directly
-
-**Graceful degradation preserved:** `marketplace-ui` references starters via `ObjectProvider` + `optional` Maven dependencies — starter absence degrades gracefully, same as today.
-
-**SPI implementations:** `*HookImpl` and `*PortImpl` classes stay in `marketplace-app` (the orchestrator), not in domain modules, so domain modules remain free of starter dependencies.
-
-**Status:** Fully implemented. Both domain starters exist and marketplace-app imports only platform-commons contracts (`UserPort`, `AdvertisementPort`, `UserDto`, etc.).
-
-**What phase 1 changed:**
-- Created `marketplace-ui` module with `MarketplaceUiConfiguration` (`@Configuration` + `@ComponentScan({"org.ost.audit.ui","org.ost.attachment.ui","org.ost.query.ui"})`)
-- Moved all `org.ost.audit.ui.*`, `org.ost.attachment.ui.*`, `org.ost.query.ui.*` source files to `marketplace-ui`
-- Moved `AttachmentGalleryPortImpl` to `org.ost.marketplace.ui.spi` (found via `@SpringBootApplication` scan)
-- Deleted `QueryAutoConfiguration` entirely; validationService bean moved to `MarketplaceUiConfiguration`
-- Removed `vaadin-spring-boot-starter` from all starter pom.xml files
-- Moved 5 CSS files from starter `META-INF/resources/frontend/` to `marketplace-app/src/main/frontend/themes/my-app/`; added imports to `styles.css`; removed `@CssImport` annotations
-- `marketplace-app/pom.xml`: replaced 3 starter deps + query-lib with single `marketplace-ui` dep
+**CSS rule:** All CSS lives in `marketplace-app/src/main/frontend/themes/my-app/` — Vaadin 25 Vite build does not include CSS from `@CssImport` in JAR starters.
 
 ---
 
@@ -181,15 +128,11 @@ Rules:
 
 ---
 
-## 2026-05-21 — AuditSnapshotBinder coupling in marketplace-app UI is intentional
+## 2026-05-21 — AuditSnapshotBinder used directly in marketplace-app
 
-~~**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.AuditSnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.~~
+**Decision:** `AuditSnapshotBinder` is used directly in `marketplace-app` UI components. `AuditUiPort` was removed (2026-06-15) as unnecessary indirection — all Vaadin UI lives in marketplace-app, so there is no second consumer that would require the SPI.
 
-~~**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.~~
-
-**Superseded 2026-06-02:** Direct import removed via `AuditUiPort.snapshotRowHook(...)`.
-
-**2026-06-15 update:** `AuditUiPort` itself removed — all Vaadin UI lives in marketplace-app, making the port unnecessary indirection. `AuditSnapshotBinder` may now be used directly in marketplace-app UI components — this is the correct and expected pattern.
+**Rule:** Do not re-introduce `AuditUiPort`.
 
 ---
 
@@ -212,7 +155,7 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 **Why not make platform-commons a starter:** platform-commons contains only pure Java contracts (DTOs, SPI interfaces, annotations). All Vaadin UI lives in marketplace-app; `AuditActivityRowHook`, `AuditUiPort`, and `AttachmentGalleryPort` were removed (2026-06-15) — platform-commons has no Vaadin dependency. Adding `@AutoConfiguration` to commons is unnecessary — the plain-class pattern is simpler and sufficient.
 
-**Prerequisite for any component moved to commons:** replace all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) with platform-commons equivalents (`TranslationKey`, constructor parameters).
+**Prerequisite for any component moved to commons:** remove all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) — pass them as constructor parameters instead. `TranslationKey` was deleted and does not exist in platform-commons.
 
 **Supersedes:** the earlier `advertisement-ui-core` proposal.
 
@@ -248,17 +191,15 @@ Direct imports that violate the "marketplace-app UI accesses starters only via p
 
 **Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI components may reference each other freely. UI ports/hooks (AuditUiPort, AttachmentGalleryPort, AuditActivityRowHook) were removed as unnecessary indirection.
 
-### 1. ~~`org.ost.marketplace.ui.views.components.audit.*` → `org.ost.audit.services.AuditReadService`~~ — superseded
+### 1. `org.ost.marketplace.ui.views.components.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
 
-This item was based on the assumption that AuditUiPort should mediate the call. That port was removed (2026-06-15) as unnecessary indirection. `AuditActivityPanel` and `AuditTimelinePanel` calling `AuditReadService` directly **is** the legitimate service ↔ UI boundary — this is correct design, not a violation.
+`AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil` directly from attachment-starter.
 
-### 2. `org.ost.marketplace.ui.views.components.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
-
-`AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil`, `YoutubeUtil` directly from attachment-starter.
+**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
 
 **Why this is a violation:** UI (marketplace-app) is calling service-layer internals of a starter directly instead of going through the platform-commons `AttachmentPort` contract.
 
-**Fix:** expose the needed read operations on `AttachmentPort` in platform-commons (e.g. `getByEntity`, `getTempAttachments`, snapshot lookup); replace direct `AttachmentService` injection in UI components with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil`/`YoutubeUtil` to platform-commons or attachment.dto.
+**Fix:** expose needed read operations on `AttachmentPort` in platform-commons; replace direct `AttachmentService` injection with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil` to platform-commons.
 
 ### 3. marketplace-app → `org.ost.user.*` internals (26 import sites)
 
