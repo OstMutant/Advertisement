@@ -172,10 +172,8 @@ public class AttachmentGallery extends Div {
             attachmentPort.discardTempUploads(tempUploads);
             tempUploads.clear();
         }
-        if (!pendingDeletions.isEmpty()) {
-            pendingDeletions.clear();
-            refresh();
-        }
+        pendingDeletions.clear();
+        refresh();
     }
 
     private void refresh() {

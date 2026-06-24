@@ -30,6 +30,19 @@ async function assertFeedHasRow(page, expect, { action, entityType, editor, scre
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+// Asserts at least minCount feed rows match the given criteria
+async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, screenshotName } = {}) {
+  const feed = page.locator('.activity-feed');
+  await feed.waitFor({ timeout: 8000 });
+  let rows = feed.locator('.activity-feed-row');
+  if (action)     rows = rows.filter({ has: page.locator(`.activity-feed-action--${action}`) });
+  if (entityType) rows = rows.filter({ has: page.locator(`.activity-feed-type--${entityType}`) });
+  await expect(rows.first()).toBeVisible({ timeout: 8000 });
+  const count = await rows.count();
+  expect(count).toBeGreaterThanOrEqual(minCount);
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
 // Asserts all visible feed rows have the given entity type CSS class
 async function assertAllRowsHaveType(page, expect, entityType, screenshotName) {
   const rows = page.locator('.activity-feed .activity-feed-row');
@@ -95,6 +108,7 @@ module.exports = {
   openTimelineFilter,
   closeTimelineFilter,
   assertFeedHasRow,
+  assertTimelineHasRows,
   assertAllRowsHaveType,
   assertAllRowsHaveAction,
   assertActorPickerVisible,

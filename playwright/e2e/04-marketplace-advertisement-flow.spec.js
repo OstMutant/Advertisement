@@ -6,7 +6,7 @@ async function waitForOverlay(page, timeout = 10000) {
 }
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow } = require('./_flows/advertisement.flow');
-const { openTimelineTab, assertFeedHasRow } = require('./_flows/timeline.flow');
+const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -81,6 +81,17 @@ test.describe('Advertisement flow', () => {
       screenshotPrefix: 'adv-useren-edit',
     });
     await runLogoutFlow(page, expect);
+
+    await test.step('admin verifies timeline shows advertisement updates', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+      await openTimelineTab(page);
+      await openTimelineFilter(page);
+      await fillEntityType(page, 'ADVERTISEMENT');
+      await closeTimelineFilter(page);
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, screenshotName: 'adv-useren-edit-timeline-admin' });
+      await runLogoutFlow(page, expect);
+    });
   });
 
   test('userUk edits advertisement — removes all media, updates title and description', async () => {
@@ -92,6 +103,17 @@ test.describe('Advertisement flow', () => {
       screenshotPrefix: 'adv-useruk-edit',
     });
     await runLogoutFlow(page, expect);
+
+    await test.step('admin verifies timeline shows advertisement updates', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+      await openTimelineTab(page);
+      await openTimelineFilter(page);
+      await fillEntityType(page, 'ADVERTISEMENT');
+      await closeTimelineFilter(page);
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'adv-useruk-edit-timeline-admin' });
+      await runLogoutFlow(page, expect);
+    });
   });
 
   test('userEn restores advertisement to original version', async () => {
@@ -134,7 +156,10 @@ test.describe('Advertisement flow', () => {
       screenshotPrefix: 'adv-moderatoren-media',
     });
     await openTimelineTab(page);
-    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'advertisement', screenshotName: 'timeline-moderatoren-edit-ad' });
+    await openTimelineFilter(page);
+    await fillEntityType(page, 'ADVERTISEMENT');
+    await closeTimelineFilter(page);
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'timeline-moderatoren-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -156,7 +181,10 @@ test.describe('Advertisement flow', () => {
       screenshotPrefix: 'adv-adminen-media-uk',
     });
     await openTimelineTab(page);
-    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'advertisement', screenshotName: 'timeline-adminen-edit-ad' });
+    await openTimelineFilter(page);
+    await fillEntityType(page, 'ADVERTISEMENT');
+    await closeTimelineFilter(page);
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 

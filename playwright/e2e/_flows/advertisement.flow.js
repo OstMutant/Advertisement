@@ -194,6 +194,18 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
     await screenshot(page, `${screenshotPrefix}-discarded`);
+
+    // Adding media to existing gallery then discarding must also restore original count
+    await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
+    await overlay.locator('.attachment-gallery__video-input vaadin-button').click();
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count + 1, { timeout: 10000 });
+    await screenshot(page, `${screenshotPrefix}-media-added-to-existing`);
+
+    const discardBtn = overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first();
+    await expect(discardBtn).toBeEnabled({ timeout: 5000 });
+    await discardBtn.click();
+    await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
+    await screenshot(page, `${screenshotPrefix}-discarded-add`);
   });
 
   await test.step(`edit and save v${editVersion} — delete all media, update title and description`, async () => {
