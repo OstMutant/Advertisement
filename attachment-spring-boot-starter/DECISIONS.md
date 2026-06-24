@@ -45,7 +45,7 @@
 **Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `MediaChangeHookImpl` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
 
 **Deferred:**
-- `EntityRef(EntityType, Long)` record — would collapse the repeated `(entityType, entityId)` pair argument; deferred as cosmetic.
+- ✅ `EntityRef(EntityType, Long)` record — implemented in `platform-commons/core.model`; used throughout all starters and marketplace-app.
 - `EntityType.storageKey()` method — currently the S3 folder uses `name().toLowerCase()`; a typed method would let entities customize their storage segment if ever needed.
 - `AttachmentGalleryExtension`/`AdvertisementHistoryExtension` naming — the latter still carries "Advertisement" in its name but is generic over `EntityType`; rename deferred until a second consumer exists.
 

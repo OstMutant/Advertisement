@@ -8,15 +8,16 @@
 
 **`UserPort`** (`user.spi`) — marketplace-app calls user-spring-boot-starter:
 ```java
-List<User> getFiltered(UserFilterDto filter, int page, int size, Sort sort);
+List<UserDto> getFiltered(UserFilterDto filter, int page, int size, Sort sort);
 int count(UserFilterDto filter);
-void save(UserProfileDto dto);
+void save(UserProfileDto dto, Long actingUserId);
 void updateLocale(Long userId, String locale);
 void delete(EntityMarker user);
 void register(SignUpDto dto);
-Optional<User> findById(Long id);
-Optional<User> findByEmail(String email);          // used by SecurityConfig
-Optional<User> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId);
+Optional<UserDto> findById(Long id);
+Optional<UserDto> findByEmail(String email);          // used by SecurityConfig
+Optional<UserDto> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId);
+void refreshCurrentUserInContext(Long userId);
 List<Long> findExistingIds(Long[] ids);
 Map<Long, String> findActorNames(Collection<Long> ids);  // used by advertisement-starter
 List<ChangeEntry> expandActivityFields(AuditTimelineItemDto<AuditableSnapshot> item);

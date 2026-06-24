@@ -201,25 +201,13 @@ Direct imports that violate the "marketplace-app UI accesses starters only via p
 
 **Fix:** expose needed read operations on `AttachmentPort` in platform-commons; replace direct `AttachmentService` injection with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil` to platform-commons.
 
-### 3. marketplace-app → `org.ost.user.*` internals (26 import sites)
+### ✅ 3. marketplace-app → `org.ost.user.*` internals — RESOLVED (2026-06-15)
 
-`UserView`, `UserOverlay`, `SignUpDialog`, `SettingsFormModeHandler`, `UserMapper`, `VaadinLocaleProvider` and others import `User` entity and `UserService`/`UserSettingsService` directly.
+All 22 files that previously imported `org.ost.user.entity.User`, `org.ost.user.services.UserService`, `org.ost.user.services.UserSettingsService`, or `org.ost.user.security.UserPrincipal` now use `UserDto`/`UserPort` from platform-commons exclusively. See "2026-06-15 — Full user decoupling" entry above.
 
-**Root cause:** user domain was recently extracted into `user-spring-boot-starter`; imports were mechanical refactoring of the old package path.
+### ✅ 4. `org.ost.marketplace.security.*` uses `User` entity instead of DTO — RESOLVED (2026-06-15)
 
-**Fix:** expose missing operations via `UserPort` in platform-commons; replace `User` entity usage at call sites with `UserDto`/`UserInfoDto` from `platform.user.dto`.
-
-**Priority:** fix #2 first; then #3 (largest).
-
-### 4. `org.ost.marketplace.security.*` uses `User` entity instead of DTO
-
-`OwnershipChecker` and `RoleChecker` accept `org.ost.user.entity.User` directly in method signatures. The direction (marketplace → user-starter) is correct, but the boundary is crossed by an entity instead of a DTO.
-
-**Root cause:** `AuthContextService.getCurrentUser()` returns `Optional<User>` entity. All consumers — including `AccessEvaluator`, `RoleChecker`, `OwnershipChecker` — inherit this entity type from the auth context.
-
-**Fix:** introduce `CurrentUserDto` (or reuse an existing `UserSnapshot`) in `platform-commons`; change `AuthContextService.getCurrentUser()` to return `Optional<CurrentUserDto>`; update `OwnershipChecker`, `RoleChecker`, and `AccessEvaluator` signatures accordingly. `UserPrincipal` in user-starter adapts `User` entity → `CurrentUserDto` at the security boundary.
-
-**Blocked by:** fix #3 (`UserPort` / `UserDto` migration) — same root entity exposure.
+`OwnershipChecker`, `RoleChecker`, and `AccessEvaluator` were updated as part of the full user decoupling. `AuthContextService.getCurrentUser()` now returns `Optional<UserDto>`; security classes no longer import `org.ost.user.entity.User`. `AuthenticatedPrincipal` SPI in platform-commons is the boundary — `UserPrincipal` (user-starter) implements it and exposes `toUserDto()`.
 
 ---
 
