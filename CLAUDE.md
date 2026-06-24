@@ -125,6 +125,8 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 
+Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` — their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and `platform-commons/DECISIONS.md` (port interfaces).
+
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.
 - When a decision contradicts or supersedes an existing entry, update or annotate the existing entry rather than only adding a new one.

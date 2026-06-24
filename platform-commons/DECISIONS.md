@@ -207,8 +207,8 @@ Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPo
 
 **Decision:** All user-domain types removed from `platform-commons`; SPIs renamed so the audit/attachment surface speaks about "actors" (whoever performs the action) and "subjects" (whoever is observed), not "users".
 
-- `Role` enum → moved to `marketplace-app` (`org.ost.marketplace.entities`). It was never used by either starter — only by domain code.
-- `UserSettings` → moved to `marketplace-app`. Contracts no longer ship a settings record.
+- `Role` enum → moved initially to `marketplace-app`, then promoted to `platform-commons/user.model` (2026-06-13) when `user-spring-boot-starter` was extracted and `UserPort` needed it as part of the domain contract.
+- `UserSettings` → moved to `marketplace-app` then superseded by `UserSettingsDto` in `platform-commons/user.dto`.
 - `UserSnapshotState` → deleted from `audit.dto`. The starter does not parse user payloads; consumers (`marketplace-app`) read raw `SnapshotContent` via `AuditPort.getSnapshotContent` / `getPreviousSnapshotContent` and deserialize their own `UserSnapshot`.
 - `AuditPort.getUserStateBefore(Long)` / `getUserStateAt(Long)` → deleted. Replaced by the generic pair `getSnapshotContent(Long, EntityType)` / `getPreviousSnapshotContent(Long, EntityType)`.
 - `AuditUserProvider` / `CurrentUserProvider` → renamed to `CurrentActorHook` (`getCurrentActorId(): Optional<Long>`). "Actor" is the audit-side concept; "user" leaked the marketplace domain.
@@ -250,19 +250,17 @@ Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPo
 
 ```
 core.config    — CleanupProperties
-core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
-core.model     — ActionType, ChangeEntry, EntityType
+core.model     — ActionType, ChangeEntry, EntityType, EntityRef
 core.spi       — CurrentActorHook
-ui             — Configurable, ComponentBuilder, Initialization, Provider
 
 audit.api      — AuditableSnapshot
-audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto
-audit.spi      — AuditPort, AuditDomainHook,
-                 AuditActivityFieldsHook, AuditActivityEnrichHook
+audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto, AuditTimelineFilterDto
+audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
 attachment.spi     — AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.util    — YoutubeUtil
 
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
                  UserSnapshotDto, SettingsSnapshotDto, SignUpDto
@@ -274,8 +272,6 @@ advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
 advertisement.spi  — AdvertisementPort
 ```
 
-The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above. The `attachment.storage` package was removed on 2026-05-19 — `StorageService` and the subsystem conditional moved into `attachment-spring-boot-starter`.
-
-`PaginationDefaults` moved to `marketplace-app` (only used there).
+Note: `core.i18n` (`I18nService`, `TranslationKey`) and `ui` (`Configurable`, `Initialization`) were removed from platform-commons — all i18n and UI contracts live in `marketplace-app`. `attachment.event` and `attachment.storage` packages were also removed.
 
 **Why:** The old structure mixed audit, attachment, and shared types in `events.*` with no clear ownership. The new structure makes it immediately obvious which package belongs to which subsystem and where SPIs live.

@@ -6,9 +6,8 @@ ALLOWED:
 - Stable platform abstractions (SPI interfaces, Port/Hook interfaces)
 - Shared value objects and cross-module DTOs
 - Domain events and marker annotations
-- i18n primitives (`TranslationKey`, `I18nService`)
-- Generic UI contracts (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`)
 - Core config records (`CleanupProperties`)
+- Utility classes used by ≥2 modules (e.g. `YoutubeUtil` in `attachment.util`)
 
 NOT ALLOWED:
 - Business logic of any kind
