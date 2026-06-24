@@ -2,6 +2,7 @@ const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
 const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit } = require('./_flows/user-management.flow');
+const { openTimelineTab, assertFeedHasRow } = require('./_flows/timeline.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -24,6 +25,8 @@ test.describe('Promotion flow', () => {
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runPromoteUserFlow(page, expect, TEST_USERS.moderatorUk, { role: 'MODERATOR' });
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-moderatoruk-promoted' });
     await runLogoutFlow(page, expect);
   });
 
@@ -32,6 +35,8 @@ test.describe('Promotion flow', () => {
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runPromoteUserFlow(page, expect, TEST_USERS.moderatorEn, { role: 'MODERATOR' });
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-moderatoren-promoted' });
     await runLogoutFlow(page, expect);
   });
 
@@ -40,6 +45,8 @@ test.describe('Promotion flow', () => {
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runNavigateToUsersTabFlow(page, expect);
     await runPromoteUserFlow(page, expect, TEST_USERS.adminUk, { role: 'ADMIN' });
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-adminuk-promoted' });
     await runLogoutFlow(page, expect);
   });
 
@@ -110,6 +117,8 @@ test.describe('Promotion flow', () => {
       await clearUserFilter(page);
     });
 
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-cross-actor-restore' });
     await runLogoutFlow(page, expect);
   });
 });

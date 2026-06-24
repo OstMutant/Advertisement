@@ -6,6 +6,7 @@ async function waitForOverlay(page, timeout = 10000) {
 }
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow } = require('./_flows/advertisement.flow');
+const { openTimelineTab, assertFeedHasRow } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
 
 test.describe.configure({ mode: 'serial' });
@@ -132,6 +133,8 @@ test.describe('Advertisement flow', () => {
       startingVersion:  6,
       screenshotPrefix: 'adv-moderatoren-media',
     });
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'advertisement', screenshotName: 'timeline-moderatoren-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -152,6 +155,8 @@ test.describe('Advertisement flow', () => {
       startingVersion:  6,
       screenshotPrefix: 'adv-adminen-media-uk',
     });
+    await openTimelineTab(page);
+    await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'advertisement', screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 

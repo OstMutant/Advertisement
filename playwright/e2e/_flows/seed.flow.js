@@ -2,9 +2,9 @@ const { closeNotification } = require('../_helpers');
 
 async function signUpBulk(page, { name, email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /sign up/i }).first().click();
-  // Wait for dialog overlay (not the inner text-field) — Vaadin text-fields can appear hidden
-  // to Playwright during the opening animation even though the overlay is already attached.
-  await page.locator('vaadin-dialog-overlay[theme~="signup-dialog"]').waitFor({ state: 'visible', timeout: 8000 });
+  // Wait for Vaadin to set [opened] on the dialog overlay — the element is attached but hidden
+  // during the opening animation, so waiting for state:'visible' races with the CSS transition.
+  await page.locator('vaadin-dialog-overlay[theme~="signup-dialog"][opened]').waitFor({ state: 'attached', timeout: 12000 });
   // fill() auto-waits for interactability, handling any remaining CSS animation on inner inputs.
   await page.locator('[data-testid="signup-name-label"] input').fill(name);
   await page.locator('[data-testid="signup-email-label"] input').fill(email);
@@ -44,6 +44,8 @@ async function logoutBulk(page) {
 }
 
 async function createAdvertisementBulk(page, { title, description }) {
+  // Wait for button to be stable — Vaadin may reconnect after heavy prior load, temporarily detaching DOM
+  await page.locator('.add-advertisement-button').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('.add-advertisement-button').click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
@@ -58,6 +60,7 @@ async function signUpBulkParallel(browser, users, poolSize = 3) {
   users.forEach((user, i) => groups[i % poolSize].push(user));
 
   const delay = ms => new Promise(r => setTimeout(r, ms));
+  const failed = [];
 
   await Promise.all(
     groups.filter(g => g.length > 0).map(async (groupUsers, idx) => {
@@ -69,13 +72,32 @@ async function signUpBulkParallel(browser, users, poolSize = 3) {
         await ctxPage.goto('/');
         await ctxPage.locator('vaadin-tab').filter({ hasText: /Advertisements|Оголошення/i }).first().waitFor({ timeout: 15000 });
         for (const user of groupUsers) {
-          await signUpBulk(ctxPage, user);
+          try {
+            await signUpBulk(ctxPage, user);
+          } catch (_) {
+            failed.push(user);
+          }
         }
       } finally {
         await context.close();
       }
     })
   );
+
+  // Retry any users that failed in the parallel phase — run serially for stability
+  if (failed.length > 0) {
+    const context = await browser.newContext();
+    const ctxPage = await context.newPage();
+    try {
+      await ctxPage.goto('/');
+      await ctxPage.locator('vaadin-tab').filter({ hasText: /Advertisements|Оголошення/i }).first().waitFor({ timeout: 15000 });
+      for (const user of failed) {
+        await signUpBulk(ctxPage, user);
+      }
+    } finally {
+      await context.close();
+    }
+  }
 }
 
 module.exports = { signUpBulk, signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk };

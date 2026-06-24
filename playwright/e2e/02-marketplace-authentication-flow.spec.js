@@ -1,10 +1,10 @@
-const { test, expect, screenshot } = require('./_helpers');
+const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runCancelLogoutFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { runSwitchToUkrainianFlow, runSwitchToEnglishFlow, runSwitchToUkrainianLoggedInFlow, runSwitchToEnglishLoggedInFlow } = require('./_flows/language-switch.flow');
 const { runNavigateToUsersTabFlow } = require('./_flows/user-management.flow');
 const { runVerifySettingsAfterSignupFlow, runVerifyUserAuditActivityFlow } = require('./_flows/audit.flow');
-const { TEST_USERS } = require('./_helpers');
+const { openTimelineTab, openTimelineFilter, closeTimelineFilter, assertFeedHasRow, assertActorPickerVisible } = require('./_flows/timeline.flow'); // adminEn only — Timeline tab is ADMIN/MOD only
 
 test.describe.configure({ mode: 'serial' });
 
@@ -25,6 +25,11 @@ test.describe('Authentication flow', () => {
   test('adminEn signs up — first user is auto-promoted to ADMIN', async () => {
     await runSignUpFlow(page, expect, TEST_USERS.adminEn, 'ADMIN', async () => {
       await runVerifySettingsAfterSignupFlow(page, expect, { screenshotName: 'admin-signup-settings', privileged: true });
+      await openTimelineTab(page);
+      await openTimelineFilter(page);
+      await assertActorPickerVisible(page, expect, true);
+      await closeTimelineFilter(page);
+      await assertFeedHasRow(page, expect, { action: 'created', entityType: 'user', screenshotName: 'admin-signup-timeline' });
       await runNavigateToUsersTabFlow(page, expect);
       await runVerifyUserAuditActivityFlow(page, expect, TEST_USERS.adminEn.email, {
         screenshotName: 'admin-signup-user-audit',

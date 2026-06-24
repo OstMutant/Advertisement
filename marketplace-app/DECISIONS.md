@@ -173,7 +173,7 @@ Rules:
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
-**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`) implemented in `marketplace-app`.
+**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`) lives in `audit-spring-boot-starter`. All Vaadin audit UI lives in `marketplace-app`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`) implemented in `marketplace-app`.
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
@@ -187,7 +187,9 @@ Rules:
 
 ~~**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.~~
 
-**Superseded 2026-06-02:** Direct import removed. `AuditUiPort` (platform-commons) now exposes `snapshotRowHook(SnapshotRowHookParams<T>)` — marketplace calls it via the existing `ObjectProvider<AuditUiPort>`. `AuditUiPortImpl` (audit-starter) creates the `AuditSnapshotBinder` internally. The `audit-spring-boot-starter` dependency in `marketplace-app/pom.xml` is now `<optional>true</optional>`. Marketplace has zero imports from `org.ost.audit.*`.
+**Superseded 2026-06-02:** Direct import removed via `AuditUiPort.snapshotRowHook(...)`.
+
+**2026-06-15 update:** `AuditUiPort` itself removed — all Vaadin UI lives in marketplace-app, making the port unnecessary indirection. `AuditSnapshotBinder` may now be used directly in marketplace-app UI components — this is the correct and expected pattern.
 
 ---
 
@@ -208,7 +210,7 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 **Why no separate module:** multiplying modules has real cost (pom.xml overhead, dependency graph complexity). The plain-class + local `@Bean` pattern achieves sharing with zero new modules and zero `@AutoConfiguration`.
 
-**Why not make platform-commons a starter:** platform-commons already has `vaadin-core` and Vaadin types in its SPI signatures (`AuditActivityRowHook`, `AuditUiPort`, `AttachmentGalleryPort` all return `com.vaadin.flow.component.Component`). The "Vaadin-free contracts" claim was already fiction. However, adding `@AutoConfiguration` to commons is still unnecessary — the plain-class pattern is simpler and sufficient.
+**Why not make platform-commons a starter:** platform-commons contains only pure Java contracts (DTOs, SPI interfaces, annotations). All Vaadin UI lives in marketplace-app; `AuditActivityRowHook`, `AuditUiPort`, and `AttachmentGalleryPort` were removed (2026-06-15) — platform-commons has no Vaadin dependency. Adding `@AutoConfiguration` to commons is unnecessary — the plain-class pattern is simpler and sufficient.
 
 **Prerequisite for any component moved to commons:** replace all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) with platform-commons equivalents (`TranslationKey`, constructor parameters).
 
@@ -280,6 +282,18 @@ This item was based on the assumption that AuditUiPort should mediate the call. 
 
 ---
 
+## 2026-06-23 — DONE: Top-level Timeline tab
+
+**Decision:** Added a dedicated **Timeline** navigation tab (alongside Listings and Users) with filter, sort, and pagination. Inline timeline tabs removed from UserOverlay and SettingsOverlay.
+
+**Components:** `TimelineView` (`@UIScope`), `TimelineQueryBlock` (filter panel), `AuditTimelineListRenderer`, `AuditTimelineRowRenderer`, `PaginationBar`. Visibility gated by `access.canView()` — MODERATOR/ADMIN only. USER role sees only their own activity (actor filter forced server-side by `AccessEvaluator`).
+
+**Key lesson:** `TimelineView` must override `setVisible(boolean)` to call `refreshFeed()` — tab switching in `MainView` uses `setVisible()`, not component detach/attach, so `@PostConstruct` alone produces stale data after mutations.
+
+**Closes:** `audit-spring-boot-starter/DECISIONS.md` 2026-06-11 (planned top-level Timeline tab).
+
+---
+
 ## 2026-05-29 — AbstractViewOverlayModeHandler: Template Method for tabbed view overlays
 
 **Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler` (in `ui/views/components/overlay/`). The base class provides a `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`, `buildSecondaryTab()`, `buildHeaderActions()`.
@@ -289,3 +303,19 @@ The `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loa
 **Why:** `AdvertisementViewOverlayModeHandler` and `UserViewOverlayModeHandler` had identical tab-switching and lazy-loading boilerplate (~15 lines each). More view handlers are planned; the base class gives each one a consistent structure with zero boilerplate.
 
 **Rejected:** `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean — passing live UI components (`Tabs`, `Tab`, `Div`) as `Parameters` violated the project convention that Parameters carry data/config, not pre-built component trees.
+
+---
+
+## [OPEN GOAL] Activity field visibility: filter by viewer's role vs. actor's role at change time
+
+**Problem:** Settings activity rows show all changed fields (`adsPageSize`, `usersPageSize`, `timelinePageSize`). For USER role, only `adsPageSize` is configurable — the other two fields appear in their activity log but have no meaning in their UI context.
+
+**Current state:** no filtering; all fields shown to all roles.
+
+**Option A — filter by current viewer role (simple, acceptable edge case):**
+In settings activity rendering, hide change items for `usersPageSize`/`timelinePageSize` when `!access.canView()`. A user demoted MODERATOR → USER would see a truncated view of their own historical changes — accepted as a rare, low-impact case.
+
+**Option B — filter by actor's role at the time of the change (accurate, complex):**
+Store `role` in `SettingsSnapshotDto`; at render time filter by what was accessible to the actor then. Requires Liquibase migration + snapshot model change.
+
+**Recommendation:** Option A when implemented. The MOD→USER demotion edge case is rare and semantically acceptable (those fields are no longer configurable for that user anyway).

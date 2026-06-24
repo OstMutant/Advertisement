@@ -51,10 +51,12 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await runOpenSettingsFlow(page);
 
   const fields = page.locator('.settings-overlay-content vaadin-integer-field');
+  await expect(fields).toHaveCount(privileged ? 3 : 1, { timeout: 5000 });
   const adsValue = await fields.nth(0).locator('input').inputValue();
-  let usersValue;
+  let usersValue, timelineValue;
   if (privileged) {
     usersValue = await fields.nth(1).locator('input').inputValue();
+    timelineValue = await fields.nth(2).locator('input').inputValue();
   }
   await screenshot(page, `${screenshotName}-defaults`);
 
@@ -68,6 +70,7 @@ async function runVerifySettingsAfterSignupFlow(page, expect, { screenshotName, 
   await expect(row).toContainText(adsValue);
   if (privileged) {
     await expect(row).toContainText(usersValue);
+    await expect(row).toContainText(timelineValue);
   }
   await screenshot(page, `${screenshotName}-activity`);
 

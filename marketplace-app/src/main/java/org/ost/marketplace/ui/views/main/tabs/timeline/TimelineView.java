@@ -73,6 +73,12 @@ public class TimelineView extends VerticalLayout {
         settingsPaginationBinding.unregister();
     }
 
+    @Override
+    public void setVisible(boolean visible) {
+        super.setVisible(visible);
+        if (visible) refreshFeed();
+    }
+
     private void refreshFeed() {
         AuditPort auditPort = auditPortFactory.getIfAvailable();
         if (auditPort == null) {

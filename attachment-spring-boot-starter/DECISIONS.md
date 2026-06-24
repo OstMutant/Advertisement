@@ -32,13 +32,13 @@
 
 ---
 
-## 2026-05-07 — Attachment logic extracted from marketplace-app
+## 2026-05-07 — Attachment domain logic extracted from marketplace-app
 
-**Decision:** All attachment/photo domain logic (entity, repository, UI components `AttachmentGallery`, `CardMediaLightbox`) lives in this module, not in `marketplace-app`.
+**Decision:** All attachment/photo domain logic (entity, repository, services) lives in this module, not in `marketplace-app`.
 
 **Why:** Enables two independent deployments — the attachment module can be used without the advertisement app. The starter is auto-configured via Spring Boot's autoconfiguration mechanism.
 
-**Rejected:** Keeping UI components in `marketplace-app` — would couple the UI to the app module and prevent reuse.
+**2026-06-13 update:** UI components (`AttachmentGallery`, `CardMediaLightbox`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`) were moved to `marketplace-app` as part of the UI monolith consolidation. The starter now owns only domain logic and JdbcClient persistence — no Vaadin UI.
 
 ---
 
@@ -54,7 +54,7 @@
 
 ## 2026-05-13 — IFrame sandbox attribute on all video embeds
 
-**Decision:** All `IFrame` components for video embedding in `AttachmentGallery` and `CardMediaLightbox` carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
+**Decision:** All `IFrame` components for video embedding (`AttachmentGallery`, `CardMediaLightbox` — now in `marketplace-app`) carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
 
 **Why:** Without `sandbox`, the embedded iframe has unrestricted browser capabilities. The chosen flags are the minimum required for YouTube and generic embed playback.
 
@@ -117,11 +117,11 @@
 
 2. **i18n enum rename:** `AttachmentMessages` → `AttachmentI18n`. Matches `AuditI18n` naming. All UI keys live in this enum; callers use `I18nService.get(AttachmentI18n.*)`.
 
-3. **Port registration via `@SpringComponent`:** `AttachmentGalleryPortImpl` and `DefaultAttachmentPort` are now `@SpringComponent`/`@Component` classes discovered by ComponentScan, not explicit `@Bean` methods in `AttachmentAutoConfiguration`. Matches how audit-starter registers `AuditUiPortImpl` and `DefaultAuditPort`. Minimizes `AutoConfiguration` to infrastructure-only concerns (Liquibase, ObjectMapper, cleanup scheduler).
+3. **Port registration via `@Component`:** `DefaultAttachmentPort` is now a `@Component` class discovered by ComponentScan, not an explicit `@Bean` method in `AttachmentAutoConfiguration`. Minimizes `AutoConfiguration` to infrastructure-only concerns (Liquibase, ObjectMapper, cleanup scheduler).
 
 **Why:** Reducing cognitive overhead when reading across starters — identical conventions allow pattern recognition. `AutoConfiguration` should be lean: only beans that require `@ConditionalOnMissingBean` or infrastructure setup belong there.
 
-**Note:** `AttachmentGalleryPortImpl` uses `@SpringComponent` (Vaadin alias) instead of `@Component` to avoid a naming conflict with `com.vaadin.flow.component.Component` which is also imported in that class. `DefaultAttachmentPort` uses standard `@Component`.
+**Note:** `AttachmentGalleryPort` and `AttachmentGalleryPortImpl` were removed (2026-06-15) — all UI logic moved to marketplace-app; the port was unnecessary indirection.
 
 ---
 
@@ -135,9 +135,11 @@ Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`,
 **Root cause:** these components were moved from attachment-starter into marketplace-app (marketplace-ui merge phase) but kept their direct dependencies.
 
 **Fix:**
-- Move `MediaContentTypeUtil` and `YoutubeUtil` to `platform-commons` (`attachment.util`) or expose needed helpers via `AttachmentPort`/`AttachmentGalleryPort`
+- Move `MediaContentTypeUtil` and `YoutubeUtil` to `platform-commons` (`attachment.util`) or expose needed helpers via `AttachmentPort`
 - Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto` or similar) from `platform.attachment.dto`
-- Replace direct `AttachmentService` injection with calls through `AttachmentGalleryPort`
+- Replace direct `AttachmentService` injection with calls through `AttachmentPort` (add read methods as needed)
+
+**Note:** `AttachmentGalleryPort` was removed (2026-06-15) — do not re-introduce it. Route through `AttachmentPort` instead.
 
 ---
 

@@ -2,41 +2,31 @@
 
 ---
 
-## 2026-06-08 — AuditTimelinePanel placement: view overlays only, not editors *(superseded — see 2026-06-11)*
+## 2026-06-08 — AuditTimelinePanel placement: view overlays only, not editors *(superseded — see 2026-06-11 and 2026-06-23)*
 
-**Decision:** `AuditTimelinePanel` belongs in view-mode overlays only:
-- **Users overlay (view mode)** — admins/moderators see activity across entities for that user.
-- **Settings overlay** — authenticated user sees their own activity history.
+**Decision:** `AuditTimelinePanel` belongs in view-mode overlays only (Users overlay, Settings overlay).
 
-`AuditTimelinePanel` must NOT appear in any edit-mode overlay (e.g. advertisement editor).
-
-**Why:** Regular users have no access to edit overlays. Admins see entity-level activity through the Users view overlay. Edit forms are for data entry — mixing in audit history adds noise and has no defined use case.
-
-**Rule:** Any new `AuditTimelinePanel` placement must be in a view-mode overlay with a defined role and user need. Edit overlays are excluded by design.
+**2026-06-23 update:** `AuditTimelinePanel` removed entirely. Inline timeline tabs in UserOverlay and SettingsOverlay were replaced by the top-level Timeline tab (see 2026-06-11). The placement rules in this entry no longer apply.
 
 ---
 
-## 2026-06-11 — PLANNED (HIGH PRIORITY): Top-level Timeline tab replaces inline timeline tabs
+## 2026-06-11 — DONE (2026-06-23): Top-level Timeline tab replaces inline timeline tabs
 
-**Decision (planned, not yet implemented):** Replace the Timeline tabs in the Users overlay and Settings overlay with a dedicated top-level **Timeline** navigation tab (alongside Listings and Users), with its own filter and pagination.
+**Decision:** Replaced the Timeline tabs in the Users overlay and Settings overlay with a dedicated top-level **Timeline** navigation tab (alongside Listings and Users), with its own filter, sort, and pagination.
 
 **Visibility rules:**
-- USER: sees only their own actions + actions performed on entities they created (e.g. moderation decisions on their ads)
-- MODERATOR/ADMIN: full feed, filterable by actor/entity type/date
+- USER: sees only their own activity (actor filter forced by `AccessEvaluator`)
+- MODERATOR/ADMIN: full feed, filterable by actor/entity type/action type/date
 
-**Implementation order:**
-1. Build the new top-level Timeline tab (backend query + pagination + filter UI)
-2. Only after it ships — remove Timeline tabs from `UserOverlay` (view mode) and Settings overlay, and remove the corresponding Playwright flows (`runVerifySettingsTimelineFlow`, `runVerifyUserTimelineFlow`)
+**Implementation:** `TimelineView` (marketplace-app) with `TimelineQueryBlock` filter panel, `AuditTimelineListRenderer`, `PaginationBar`, and `SettingsPaginationBinding`. Inline `AuditTimelinePanel` tabs in `UserOverlay` and `SettingsOverlay` removed. Backend query via `AuditPort.getTimelinePage` / `countTimeline`.
 
-**Why not the other way around:** Removing old tabs before the new one is live causes a regression — users lose visibility into their own activity history.
-
-**Why better than inline tabs:** The current `AuditTimelinePanel` in the Users overlay queries by `actor_id` — it shows what the viewed user *did*, not what happened *to* them. This is low-value for an admin auditing a specific user. A dedicated top-level tab with proper filters gives full context without navigating into individual overlays.
+**Why better than inline tabs:** The per-overlay timeline queried by `actor_id` only. A top-level tab with proper filters gives full audit context without navigating into individual overlays.
 
 ---
 
 ## Ongoing — Module structure and auto-configuration
 
-**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
+**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditHistoryService`, `AuditQueryService`, `ActivityService`). All Vaadin UI lives in `marketplace-app`. Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
 
 Write and read sides were initially separate modules (`audit-core` + `audit-read`) but merged — fewer modules is simpler when there is no concrete scenario requiring the write side without the read side.
 
@@ -65,15 +55,11 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ---
 
-## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + AuditActivityRowHook SPI
+## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + AuditActivityRowHook SPI *(superseded 2026-06-15 — removed)*
 
-**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
+**Decision (historical):** Profile activity panels were built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)` with `AuditActivityRowHook` SPI list for per-row UI decoration without starter knowledge of snapshot shape.
 
-`AuditSnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
-
-**Why:** The previous pattern parsed snapshot JSON inside the starter — coupling it to specific user/settings shapes. The SPI puts shape knowledge on the consumer side.
-
-**Rejected:** Decorator wrapper around `AuditActivityPanel`; abstract `ActivityRowDecorator` requiring subclasses per shape.
+**2026-06-15 superseded:** `AuditUiPort`, `AuditActivityRowHook`, and `AuditHistoryRowActionsHook` removed. All Vaadin UI lives in marketplace-app — UI ports/hooks are unnecessary indirection. `AuditSnapshotBinder` is now instantiated directly in marketplace-app UI components. Marketplace panels call audit services directly via `ComponentFactory<AuditPort>` — the legitimate service ↔ UI boundary.
 
 ---
 
@@ -162,7 +148,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### MEDIUM-LOW
 - ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `AuditActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
-- ✅ `AuditSnapshotBinder` coupling removed. `AuditUiPort.snapshotRowHook(SnapshotRowHookParams<T>)` added; `AuditUiPortImpl` creates the binder internally. See `marketplace-app/DECISIONS.md` 2026-05-21 (superseded).
+- ✅ `AuditSnapshotBinder` coupling removed (via `AuditUiPort` — itself removed 2026-06-15; `AuditSnapshotBinder` now used directly in marketplace-app). See `marketplace-app/DECISIONS.md` 2026-05-21.
 
 ---
 
@@ -272,15 +258,9 @@ public record AuditLogProjection(
 
 ---
 
-## 2026-06-02 — DEFERRED: AuditHistoryRowActionsHook for restore button decoupling
+## 2026-06-02 — CANCELLED: AuditHistoryRowActionsHook for restore button decoupling *(see 2026-06-15)*
 
-**Status: Not implemented.** `AuditHistoryPanel` still builds the restore button and current-state badge directly; the hook SPI does not exist yet.
-
-**Proposed design (when triggered):** Replace the direct `onRestoreRequested` callback in `AuditHistoryPanel.Parameters` with an `AuditHistoryRowActionsHook` SPI in `platform-commons/audit.spi`. The panel calls `hook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — no-op when absent. Marketplace provides `AuditHistoryRowActionsHookImpl`.
-
-**Why it should eventually be done:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern.
-
-**Trigger:** implement when a second consumer of the audit starter appears, or when the current direct coupling causes a real maintenance problem. Do not implement speculatively.
+**2026-06-15:** `AuditHistoryRowActionsHook` was never implemented and is now cancelled. All Vaadin UI — including `AuditHistoryPanel` and the restore button — lives in marketplace-app. There is no second starter consumer that would require this SPI. The restore button callback (`onRestoreRequested`) in `AuditHistoryPanel.Parameters` is the correct and sufficient pattern for a UI-monolith architecture.
 
 ---
 
@@ -302,7 +282,7 @@ public record AuditLogProjection(
 
 **Why:** The starter resolves labels via a shared `MessageSource`. Namespacing keys under `audit.changes.*` makes ownership clear and avoids collision with marketplace-owned keys.
 
-**~~Deferred — per-module i18n~~ Done (2026-06-10):** `audit-messages_en/uk.properties` now live in `audit-spring-boot-starter/src/main/resources/i18n/`. `attachment-messages_en/uk.properties` live in `attachment-spring-boot-starter/src/main/resources/i18n/`. `MessageSourceConfig` registers all three basenames. `marketplace messages*.properties` retains only `audit.changes.setting.*` (domain-specific field label overrides).
+**i18n consolidation:** All `messages_en.properties` / `messages_uk.properties` files live in `marketplace-app/src/main/resources/i18n/` — including all `audit.*` and `attachment.*` keys. The starter does not ship its own properties files. `I18nKey` is a single consolidated enum in `org.ost.marketplace.services.i18n.I18nKey`.
 
 ---
 
@@ -334,13 +314,13 @@ Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFie
 
 ---
 
-## 2026-06-15 — Open: AuditReadService imported directly in marketplace UI panels
+## 2026-06-15 — Resolved: AuditReadService direct injection in marketplace UI panels
 
-`AuditActivityPanel` and `AuditTimelinePanel` (in `org.ost.marketplace.ui.views.components.audit`, physically in marketplace-app) inject `AuditReadService` directly — bypassing `AuditUiPort`.
+`AuditActivityPanel`, `AuditTimelinePanel`, and related UI components in `org.ost.marketplace.ui.views.components.audit` inject `AuditReadService` directly from `org.ost.audit.services.*`.
 
-**Rule violation:** marketplace-app must access audit functionality only through `AuditUiPort` (platform-commons). Direct `org.ost.audit.services.*` imports in marketplace UI are forbidden.
+**This is correct design.** All Vaadin UI lives in marketplace-app. `AuditUiPort` was removed as unnecessary indirection (2026-06-15). Marketplace UI calling audit starter services directly IS the legitimate service ↔ UI boundary — not a violation.
 
-**Fix:** add the required query methods to `AuditUiPort`; implement in `AuditUiPortImpl`; remove `AuditReadService` injection from both panels. The panels then call `auditUiPort.findActivity(...)` / `auditUiPort.findTimeline(...)`.
+**Rule:** marketplace-app UI may import `org.ost.audit.services.*` directly via `ComponentFactory<AuditPort>` or direct injection. `AuditUiPort` must not be re-introduced.
 
 ---
 

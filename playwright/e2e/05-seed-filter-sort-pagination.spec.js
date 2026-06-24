@@ -32,6 +32,8 @@ const {
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
+const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
+const { goToNextPage } = require('./_flows/filter.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -119,7 +121,7 @@ test.describe('Seed data and query validation', () => {
   test(`seed ${SEED_COUNT} users via signup`, async ({ browser }) => {
     test.setTimeout(5 * 60 * 1000);
     const users = Array.from({ length: SEED_COUNT }, (_, i) => seedUser(i + 1));
-    await signUpBulkParallel(browser, users, 3);
+    await signUpBulkParallel(browser, users, 1);
   });
 
   // ── Test 2: seed advertisements ───────────────────────────────────────────
@@ -380,6 +382,46 @@ test.describe('Seed data and query validation', () => {
     await openActivityTab(page);
     await restoreLatestFromActivity(page);
     await closeOverlay(page);
+
+    await logoutBulk(page);
+  });
+
+  // ── Test 6: timeline filter and pagination ────────────────────────────────
+
+  test('timeline: entity type filter, action filter, actor picker, pagination', async () => {
+    test.setTimeout(3 * 60 * 1000);
+    await loginBulk(page, TEST_USERS.adminEn);
+
+    await openTimelineTab(page);
+
+    const total = await getTotalCount(page);
+    expect(total).toBeGreaterThan(SEED_COUNT);
+    await screenshot(page, 'timeline-total-count');
+
+    await openTimelineFilter(page);
+    await assertActorPickerVisible(page, expect, true);
+
+    // Filter by ADVERTISEMENT entity type — all rows must be advertisement
+    await fillEntityType(page, 'ADVERTISEMENT');
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await assertAllRowsHaveType(page, expect, 'advertisement', 'timeline-filter-entity-advertisement');
+
+    // Filter by CREATED action — all rows must be created
+    await clearFilter(page, TIMELINE_BLOCK);
+    await fillActionType(page, 'CREATED');
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await assertAllRowsHaveAction(page, expect, 'created', 'timeline-filter-action-created');
+
+    // Clear and verify pagination navigates correctly
+    await clearFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await expect(page.locator('.pagination-count:visible')).toContainText('1\u201320 of', { timeout: 8000 });
+    await goToNextPage(page);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    await expect(page.locator('.pagination-count:visible')).toContainText('21\u201340 of', { timeout: 8000 });
+    await screenshot(page, 'timeline-pagination-page2');
 
     await logoutBulk(page);
   });

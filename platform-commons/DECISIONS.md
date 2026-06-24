@@ -49,7 +49,7 @@ List<Long> findExistingIds(Long[] ids);
 
 ## 2026-06-04 — `ComponentFactory<T>`: InjectionPoint-resolved prototype factory
 
-**Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `AuditUiPort`, `UiPrimaryButton`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:
+**Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:
 
 ```java
 @Bean @Scope("prototype")
@@ -221,17 +221,11 @@ Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPo
 
 ---
 
-## 2026-05-19 — Activity decoration via SPI: `AuditActivityRowHook` + `AuditUiPort.buildProfileActivityPanel`
+## 2026-05-19 — Activity decoration via SPI: `AuditActivityRowHook` + `AuditUiPort.buildProfileActivityPanel` *(superseded 2026-06-15 — removed)*
 
-**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
+**Decision (historical):** Profile activity panels were built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)` with an `AuditActivityRowHook` SPI list for per-row UI decoration.
 
-`AuditSnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `AuditSnapshotBinder<SettingsSnapshotDto>` and/or `AuditSnapshotBinder<UserSnapshotDto>` per panel.
-
-**Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `AuditActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
-
-**Rejected:**
-- Decorator wrapper around `AuditActivityPanel` — adds an extra layer with no payoff; the SPI list is enough.
-- Abstract `ActivityRowDecorator` requiring subclasses per shape — duplicates the Builder+Parameters pattern already used everywhere else (`Configurable<T, P>` per CLAUDE.md).
+**2026-06-15 superseded:** `AuditUiPort`, `AuditActivityRowHook`, and `AuditHistoryRowActionsHook` removed from platform-commons. All Vaadin UI lives in marketplace-app — UI ports/hooks are unnecessary indirection with no cross-module consumer. Marketplace UI components use `AuditSnapshotBinder` directly and call audit services via `ComponentFactory<AuditPort>`.
 
 ---
 
