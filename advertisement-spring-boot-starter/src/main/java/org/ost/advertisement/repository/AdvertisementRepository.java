@@ -19,6 +19,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
@@ -72,7 +73,8 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).optional();
     }
 
-    public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable) {
+    public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
+                                                    Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
                 Map.entry("id",                    "a.id"),
@@ -91,16 +93,22 @@ public class AdvertisementRepository {
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
                                a.media_url, a.media_content_type, a.media_count
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
-                        WHERE a.deleted_at IS NULL%s%s%s""")
-                .formatted(FILTER.build(params, filter, " AND "), orderBy, pageLimit(params, pageable));
+                        WHERE a.deleted_at IS NULL%s%s%s%s""")
+                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(@NonNull AdvertisementFilterDto filter) {
+    public Long countByFilter(@NonNull AdvertisementFilterDto filter, Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s"
-                .formatted(FILTER.build(params, filter, " AND "));
+        String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s%s"
+                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
+    }
+
+    private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
+        if (ids == null) return "";
+        params.addValue("allowedIds", ids);
+        return " AND a.id IN (:allowedIds)";
     }
 
     public void softDelete(@NonNull Long id, Long deletedByUserId) {

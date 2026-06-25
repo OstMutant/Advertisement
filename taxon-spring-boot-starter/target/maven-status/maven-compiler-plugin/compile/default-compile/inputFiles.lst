@@ -1,0 +1,15 @@
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/TaxonPackageMarker.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/config/TaxonAutoConfiguration.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/config/TaxonProperties.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/entities/Taxon.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/entities/TaxonAssignment.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/entities/TaxonTranslation.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonAssignmentRepository.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonCrudRepository.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonFilter.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonRepository.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonTranslationRepository.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/DefaultTaxonPort.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/TaxonAssignmentService.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/TaxonService.java
+/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/TaxonTranslationData.java

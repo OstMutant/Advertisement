@@ -15,6 +15,7 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -34,13 +35,31 @@ public class AdvertisementService {
     private final AdvertisementRepository              repository;
     private final ComponentFactory<AuditPort>          auditPortFactory;
     private final ComponentFactory<AttachmentPort>     attachmentPortFactory;
+    private final ComponentFactory<TaxonPort>          taxonPortFactory;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort));
+        Set<Long> allowedIds = resolveCategoryFilter(filter);
+        if (allowedIds != null && allowedIds.isEmpty()) {
+            return List.of();
+        }
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
-        return repository.countByFilter(filter).intValue();
+        Set<Long> allowedIds = resolveCategoryFilter(filter);
+        if (allowedIds != null && allowedIds.isEmpty()) {
+            return 0;
+        }
+        return repository.countByFilter(filter, allowedIds).intValue();
+    }
+
+    private Set<Long> resolveCategoryFilter(AdvertisementFilterDto filter) {
+        if (filter.getCategoryIds() == null) {
+            return null;
+        }
+        return taxonPortFactory.findIfAvailable()
+                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, filter.getCategoryIds()))
+                .orElse(null);
     }
 
     @Transactional

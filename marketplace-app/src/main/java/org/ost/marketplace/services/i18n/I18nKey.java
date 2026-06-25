@@ -161,6 +161,7 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_CREATED_END("advertisement.filter.time.created.end"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_START("advertisement.filter.time.updated.start"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
+    ADVERTISEMENT_FILTER_CATEGORIES("advertisement.filter.categories"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
@@ -210,6 +211,7 @@ public enum I18nKey {
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),
     MAIN_TAB_TIMELINE("main.tab.timeline"),
+    MAIN_TAB_REFERENCE_DATA("main.tab.referenceData"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -297,9 +299,14 @@ public enum I18nKey {
     CHANGES_FIELD_NAME("changes.field.name"),
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
+    CHANGES_FIELD_CATEGORY("changes.field.category"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
-    CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize");
+    CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
+
+    // === Taxon / Category ===
+    TAXON_CATEGORY_ASSIGNED("taxon.category.assigned"),
+    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned");
 
     private final String key;
 
