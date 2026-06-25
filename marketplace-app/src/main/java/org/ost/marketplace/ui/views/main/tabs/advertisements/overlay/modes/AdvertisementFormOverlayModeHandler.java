@@ -152,15 +152,11 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         wireSaveGuard(saveButton, params.getOnSave());
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
-        if (!isCreate) {
-            discardButton.configure(UiTertiaryButton.Parameters.builder()
-                    .labelKey(FORM_DISCARD_CHANGES)
-                    .build());
-            discardButton.addClickListener(_ -> discardChanges());
-            layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
-        } else {
-            layout.setHeaderActions(new Div(saveButton, closeBtn));
-        }
+        discardButton.configure(UiTertiaryButton.Parameters.builder()
+                .labelKey(FORM_DISCARD_CHANGES)
+                .build());
+        discardButton.addClickListener(_ -> discardChanges());
+        layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
 
         updateButtons(false);
 
@@ -253,7 +249,15 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     public void discardChanges() {
-        if (params.getAd() == null) return;
+        if (params.getAd() == null) {
+            binder.reload(new AdvertisementEditDto(), (src, tgt) -> {
+                tgt.setTitle(src.getTitle());
+                tgt.setDescription(src.getDescription());
+            });
+            updateButtons(false);
+            if (activeHandle != null) activeHandle.discard();
+            return;
+        }
         advertisementPortFactory.findIfAvailable()
                 .flatMap(p -> p.findById(params.getAd().getId()))
                 .ifPresent(freshAd -> {
@@ -279,7 +283,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     private void updateButtons(boolean hasChanges) {
         saveButton.setEnabled(hasChanges);
-        if (!isCreate) discardButton.setEnabled(hasChanges);
+        discardButton.setEnabled(hasChanges);
     }
 
     private void buildBinder(AdvertisementEditDto dto) {

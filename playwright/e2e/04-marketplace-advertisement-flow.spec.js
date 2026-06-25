@@ -38,7 +38,7 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement — YouTube, image and video, lightbox plays video, single activity row', async () => {
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, single activity row', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create' });

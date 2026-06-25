@@ -135,6 +135,17 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
 
+  await test.step('create discard clears form', async () => {
+    await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+    await screenshot(page, `${screenshotPrefix}-discard-before`);
+
+    await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue('', { timeout: 5000 });
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue('', { timeout: 5000 });
+    await screenshot(page, `${screenshotPrefix}-discarded`);
+  });
+
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
