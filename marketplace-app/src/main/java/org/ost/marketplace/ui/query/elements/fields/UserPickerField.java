@@ -34,6 +34,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_ACTOR;
 public class UserPickerField extends CustomField<UserDto>
         implements Initialization<UserPickerField> {
 
+    private static final String PLACEHOLDER_CSS = "user-picker-placeholder";
+
     private final transient UserPort    userPort;
     private final transient I18nService i18nService;
 
@@ -47,7 +49,7 @@ public class UserPickerField extends CustomField<UserDto>
         addClassName("user-picker-field");
 
         displaySpan = new Span(i18nService.get(TIMELINE_FILTER_ACTOR));
-        displaySpan.addClassName("user-picker-placeholder");
+        displaySpan.addClassName(PLACEHOLDER_CSS);
 
         clearButton = new Button(VaadinIcon.CLOSE_SMALL.create());
         clearButton.addClassName("user-picker-clear");
@@ -69,7 +71,7 @@ public class UserPickerField extends CustomField<UserDto>
     private void clearValue() {
         currentValue = null;
         displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
-        displaySpan.addClassName("user-picker-placeholder");
+        displaySpan.addClassName(PLACEHOLDER_CSS);
         clearButton.setVisible(false);
         setModelValue(null, true);
     }
@@ -77,7 +79,7 @@ public class UserPickerField extends CustomField<UserDto>
     private void selectUser(UserDto user) {
         currentValue = user;
         displaySpan.setText(user.name());
-        displaySpan.removeClassName("user-picker-placeholder");
+        displaySpan.removeClassName(PLACEHOLDER_CSS);
         clearButton.setVisible(true);
         setModelValue(user, true);
     }
@@ -142,11 +144,11 @@ public class UserPickerField extends CustomField<UserDto>
         currentValue = value;
         if (value == null) {
             displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
-            displaySpan.addClassName("user-picker-placeholder");
+            displaySpan.addClassName(PLACEHOLDER_CSS);
             clearButton.setVisible(false);
         } else {
             displaySpan.setText(value.name());
-            displaySpan.removeClassName("user-picker-placeholder");
+            displaySpan.removeClassName(PLACEHOLDER_CSS);
             clearButton.setVisible(true);
         }
     }

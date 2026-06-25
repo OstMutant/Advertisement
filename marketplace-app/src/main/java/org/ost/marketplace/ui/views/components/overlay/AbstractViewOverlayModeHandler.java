@@ -79,9 +79,8 @@ public abstract class AbstractViewOverlayModeHandler implements OverlayModeHandl
             }
         });
 
-        Div wrapper = tertiaryContent != null
+        return tertiaryContent != null
                 ? new Div(tabs, primaryContent, secondaryContent, tertiaryContent)
                 : new Div(tabs, primaryContent, secondaryContent);
-        return wrapper;
     }
 }

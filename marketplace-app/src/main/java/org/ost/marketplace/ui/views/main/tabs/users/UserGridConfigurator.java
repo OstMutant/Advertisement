@@ -41,8 +41,8 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
 
     @Getter
     private final I18nService                             i18nService;
-    private final transient UiComponentFactory<EditActionButton>   editButtonFactory;
-    private final transient UiComponentFactory<DeleteActionButton> deleteButtonFactory;
+    private final UiComponentFactory<EditActionButton>   editButtonFactory;
+    private final UiComponentFactory<DeleteActionButton> deleteButtonFactory;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {

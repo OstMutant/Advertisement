@@ -36,18 +36,18 @@ import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_CREATED_AT
 public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
 
     @Getter
-    private final transient FilterProcessor<AuditTimelineFilterDto> filterProcessor;
+    private final FilterProcessor<AuditTimelineFilterDto>                 filterProcessor;
     @Getter
     @Qualifier("timelineSortProcessor")
-    private final transient SortProcessor                           sortProcessor;
+    private final SortProcessor                                           sortProcessor;
 
-    private final transient AccessEvaluator                                            access;
-    private final transient UiComponentFactory<QueryMultiSelectComboField<EntityType>> entityTypeComboFactory;
-    private final transient UiComponentFactory<QueryMultiSelectComboField<ActionType>> actionTypeComboFactory;
-    private final transient UiComponentFactory<QueryDateTimeField>                     dateTimeFieldFactory;
-    private final transient UiComponentFactory<UserPickerField>                        userPickerFactory;
-    private final transient UiComponentFactory<QueryInlineRow>                         inlineRowFactory;
-    private final transient UiComponentFactory<SortIcon>                               sortIconFactory;
+    private final AccessEvaluator                                            access;
+    private final UiComponentFactory<QueryMultiSelectComboField<EntityType>> entityTypeComboFactory;
+    private final UiComponentFactory<QueryMultiSelectComboField<ActionType>> actionTypeComboFactory;
+    private final UiComponentFactory<QueryDateTimeField>                     dateTimeFieldFactory;
+    private final UiComponentFactory<UserPickerField>                        userPickerFactory;
+    private final UiComponentFactory<QueryInlineRow>                         inlineRowFactory;
+    private final UiComponentFactory<SortIcon>                               sortIconFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;

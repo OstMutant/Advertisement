@@ -47,7 +47,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final OverlayAdvertisementMetaPanel                     metaPanel;
     private final UiPrimaryButton                                   editButton;
     private final UiIconButton                                      closeButton;
-    private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
+    private final UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
 
     private Parameters params;
 

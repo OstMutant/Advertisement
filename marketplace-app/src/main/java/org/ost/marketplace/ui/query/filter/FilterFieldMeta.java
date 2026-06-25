@@ -1,7 +1,5 @@
 package org.ost.marketplace.ui.query.filter;
 
-import org.ost.marketplace.ui.query.filter.ValidationService;
-
 import java.time.Instant;
 import java.util.Objects;
 import java.util.function.BiConsumer;

@@ -44,9 +44,9 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final transient UiComponentFactory<UiPrimaryButton>       primaryButtonFactory;
-    private final transient UiComponentFactory<UiIconButton>          iconButtonFactory;
-    private final transient UiComponentFactory<UiLabeledField>        labeledFieldFactory;
+    private final UiComponentFactory<UiPrimaryButton>  primaryButtonFactory;
+    private final UiComponentFactory<UiIconButton>     iconButtonFactory;
+    private final UiComponentFactory<UiLabeledField>   labeledFieldFactory;
 
     private Parameters params;
 

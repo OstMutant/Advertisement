@@ -149,7 +149,7 @@ public class AttachmentGallery extends Div {
         }
         boolean isCreate = (this.entityId == null);
         if (tempUploads.isEmpty() && pendingDeletions.isEmpty()) return;
-        pendingDeletions.forEach(id -> attachmentPort.deleteSkipSnapshot(id));
+        pendingDeletions.forEach(attachmentPort::deleteSkipSnapshot);
         pendingDeletions.clear();
         if (!tempUploads.isEmpty()) {
             attachmentPort.commitTempUploads(entityType, entityId, tempUploads);

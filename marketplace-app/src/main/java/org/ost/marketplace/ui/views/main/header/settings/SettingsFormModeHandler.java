@@ -55,10 +55,10 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final I18nService                                       i18nService;
     private final UserPort                                          userPort;
     private final AccessEvaluator                                   access;
-    private final transient UiComponentFactory<OverlayFormBinder>    formBinderFactory;
-    private final transient ComponentFactory<AuditPort>              auditPortFactory;
-    private final transient UiComponentFactory<AuditActivityPanel>   auditActivityPanelFactory;
-    private final transient UiComponentFactory<UiIconButton>         cancelButtonFactory;
+    private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
+    private final ComponentFactory<AuditPort>                           auditPortFactory;
+    private final UiComponentFactory<AuditActivityPanel>                auditActivityPanelFactory;
+    private final UiComponentFactory<UiIconButton>                      cancelButtonFactory;
     private final UiPrimaryButton                                   saveButton;
     private final UiTertiaryButton                                  discardButton;
 
@@ -217,7 +217,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         if (formTabs != null) formTabs.setSelectedTab(settingsTab);
     }
 
-    @SuppressWarnings("unchecked")
     private void buildBinder(SettingsEditDto dto) {
         binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<SettingsEditDto>builder()

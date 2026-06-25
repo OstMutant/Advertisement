@@ -31,7 +31,8 @@ public class MarketplaceUiConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    ValidationService<?> validationService(Validator validator) {
+    @SuppressWarnings("rawtypes")
+    ValidationService validationService(Validator validator) {
         return new ValidationService<>(validator);
     }
 

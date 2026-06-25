@@ -66,11 +66,11 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private final I18nService                                                i18nService;
     private final NotificationService                                        notificationService;
-    private final transient UiComponentFactory<AttachmentGalleryService>        galleryServiceFactory;
-    private final transient UiComponentFactory<OverlayFormBinder>              formBinderFactory;
-    private final transient ComponentFactory<AuditPort>                        auditPortFactory;
-    private final transient UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
-    private final transient UiComponentFactory<UiIconButton>                   cancelButtonFactory;
+    private final UiComponentFactory<AttachmentGalleryService>                    galleryServiceFactory;
+    private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>   formBinderFactory;
+    private final ComponentFactory<AuditPort>                                   auditPortFactory;
+    private final UiComponentFactory<AuditActivityPanel>                        auditActivityPanelFactory;
+    private final UiComponentFactory<UiIconButton>                              cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                              metaPanel;
     private final UiTextField                                                titleField;
     private final UiTextArea                                                 descriptionField;

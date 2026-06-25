@@ -65,10 +65,10 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     @Getter
     private final I18nService                                           i18nService;
     private final NotificationService                                   notificationService;
-    private final transient UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
-    private final transient ComponentFactory<AuditPort>                   auditPortFactory;
-    private final transient UiComponentFactory<AuditActivityPanel>        auditActivityPanelFactory;
-    private final transient UiComponentFactory<UiIconButton>              cancelButtonFactory;
+    private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
+    private final ComponentFactory<AuditPort>                        auditPortFactory;
+    private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
+    private final UiComponentFactory<UiIconButton>                   cancelButtonFactory;
     private final UiTextField                                           nameField;
     private final UiComboBox<Role>                                      roleComboBox;
     private final UiPrimaryButton                                       saveButton;

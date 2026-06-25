@@ -176,7 +176,7 @@ public class AuditLogRepository {
                                  .addValue("entityId",   entityId))
                          .query(String.class)
                          .optional()
-                         .map(json -> parseSnapshot(objectMapper, json));
+                         .map(json -> ProjectionMapper.parseSnapshot(objectMapper, json));
     }
 
     public Optional<AuditSnapshotContentDto<? extends AuditableSnapshot>> getSnapshotContent(Long snapshotId, EntityType entityType) {
@@ -198,7 +198,7 @@ public class AuditLogRepository {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private RowMapper<AuditSnapshotContentDto<? extends AuditableSnapshot>> snapshotContentMapper() {
-        return (rs, _) -> new AuditSnapshotContentDto<>(parseSnapshot(objectMapper, rs.getString("snapshot_data")), rs.getInt("version"));
+        return (rs, _) -> new AuditSnapshotContentDto<>(ProjectionMapper.parseSnapshot(objectMapper, rs.getString("snapshot_data")), rs.getInt("version"));
     }
 
     private String toSnapshotJson(AuditableSnapshot snapshot) {
@@ -210,16 +210,7 @@ public class AuditLogRepository {
         }
     }
 
-    private static AuditableSnapshot parseSnapshot(ObjectMapper objectMapper, String json) {
-        if (json == null || json.isBlank()) return null;
-        try {
-            return objectMapper.readValue(json, AuditableSnapshot.class);
-        } catch (Exception e) {
-            log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
-            return null;
-        }
-    }
-
+    @Slf4j
     @Component
     @RequiredArgsConstructor
     static class ProjectionMapper implements RowMapper<AuditLogProjection> {
@@ -245,6 +236,16 @@ public class AuditLogRepository {
         private static Instant instant(ResultSet rs, String col) throws SQLException {
             Timestamp ts = rs.getTimestamp(col);
             return ts != null ? ts.toInstant() : null;
+        }
+
+        static AuditableSnapshot parseSnapshot(ObjectMapper objectMapper, String json) {
+            if (json == null || json.isBlank()) return null;
+            try {
+                return objectMapper.readValue(json, AuditableSnapshot.class);
+            } catch (Exception e) {
+                log.warn("Failed to deserialize snapshot: {}", json.substring(0, Math.min(json.length(), 120)), e);
+                return null;
+            }
         }
     }
 

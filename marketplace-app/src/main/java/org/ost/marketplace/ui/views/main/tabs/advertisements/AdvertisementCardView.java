@@ -223,8 +223,8 @@ public class AdvertisementCardView extends HorizontalLayout
                                 advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId()));
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
-                            } catch (Exception ex) {
-                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+                            } catch (Exception _) {
+                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
                             }
                         })
                         .build()

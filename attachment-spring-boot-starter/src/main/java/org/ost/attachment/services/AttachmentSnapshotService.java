@@ -93,10 +93,13 @@ public class AttachmentSnapshotService {
     private static List<ChangeEntry> toChangeEntries(List<AttachmentMediaChange> changes) {
         return changes.stream()
                 .map(c -> {
-                    String before = c.before() == null    ? null
-                                  : c.before().isEmpty()  ? "—"
-                                  : String.join(", ", c.before());
-                    String after  = c.after().isEmpty()   ? "—" : String.join(", ", c.after());
+                    String before;
+                    if (c.before() == null) {
+                        before = null;
+                    } else {
+                        before = c.before().isEmpty() ? "—" : String.join(", ", c.before());
+                    }
+                    String after  = c.after().isEmpty() ? "—" : String.join(", ", c.after());
                     return (ChangeEntry) new ChangeEntry.MediaChange(before, after);
                 })
                 .toList();
