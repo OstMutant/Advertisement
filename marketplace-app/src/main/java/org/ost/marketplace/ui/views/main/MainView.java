@@ -21,7 +21,7 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
-import org.ost.marketplace.ui.views.main.tabs.referencedata.TaxonManagementView;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.ReferenceDataView;
 import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
@@ -52,7 +52,7 @@ public class MainView extends VerticalLayout {
     private final transient AdvertisementsView advertisementsView;
     private final transient UserView usersView;
     private final transient TimelineView timelineView;
-    private final transient TaxonManagementView taxonManagementView;
+    private final transient ReferenceDataView referenceDataView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
     private final transient ComponentFactory<TaxonPort> taxonPortFactory;
@@ -88,9 +88,9 @@ public class MainView extends VerticalLayout {
             taxonPortFactory.findIfAvailable().ifPresent(_ -> {
                 Tab refDataTab = new Tab(i18n.get(MAIN_TAB_REFERENCE_DATA));
                 tabs.add(refDataTab);
-                pages.add(taxonManagementView);
-                tabsToPages.put(refDataTab, taxonManagementView);
-                taxonManagementView.setVisible(false);
+                pages.add(referenceDataView);
+                tabsToPages.put(refDataTab, referenceDataView);
+                referenceDataView.setVisible(false);
             });
         }
 

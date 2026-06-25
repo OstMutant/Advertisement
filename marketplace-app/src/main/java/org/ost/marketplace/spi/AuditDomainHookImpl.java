@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.taxon.dto.CategoryChangeSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
@@ -57,7 +58,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
         AuditableSnapshot data = content.snapshotData();
         return switch (data) {
-            case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _, CategoryChangeSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
+            case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _, CategoryChangeSnapshotDto _, TaxonSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
             default -> {
                 log.error("Snapshot type mismatch for entityType={}", data.entityType());
                 yield Optional.empty();

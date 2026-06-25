@@ -15,6 +15,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.TaxonOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -41,6 +42,7 @@ public class TaxonManagementView extends VerticalLayout {
     private final TaxonOverlay                             overlay;
     private final UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final UiComponentFactory<UiIconButton>         iconButtonFactory;
+    private final UiComponentFactory<UiPrimaryButton>      primaryButtonFactory;
 
     private VerticalLayout listContainer;
 
@@ -56,34 +58,33 @@ public class TaxonManagementView extends VerticalLayout {
         listContainer.setSpacing(false);
         listContainer.setWidthFull();
 
-        Div addBtn = buildAddButton();
-        Div header = buildHeader(addBtn);
-
+        Div header = buildHeader();
         add(header, listContainer, overlay);
         refresh();
     }
 
-    private Div buildHeader(Div addBtn) {
+    private Div buildHeader() {
         Span title = new Span(i18n.get(REFERENCE_DATA_TAB_CATEGORIES));
         title.addClassName("taxon-section-title");
+
+        UiPrimaryButton addBtn = primaryButtonFactory.build(
+                UiPrimaryButton.Parameters.builder()
+                        .labelKey(REFERENCE_DATA_BUTTON_ADD)
+                        .icon(VaadinIcon.PLUS.create())
+                        .build());
+        addBtn.addClassName("taxon-add-button");
+        addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
 
         Div header = new Div(title, addBtn);
         header.addClassName("taxon-section-header");
         return header;
     }
 
-    private Div buildAddButton() {
-        Div btn = new Div(VaadinIcon.PLUS.create(), new Span(i18n.get(REFERENCE_DATA_BUTTON_ADD)));
-        btn.addClassName("taxon-add-button");
-        btn.addClickListener(_ -> overlay.openForCreate(this::refresh));
-        return btn;
-    }
-
     private void refresh() {
         listContainer.removeAll();
         taxonPortFactory.ifAvailable(port -> {
-            List<TaxonDto> all        = port.listAllByType(TaxonType.CATEGORY, java.util.Locale.ENGLISH, true);
-            Map<Long, Long> counts    = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CATEGORY);
+            List<TaxonDto> all     = port.listAllByType(TaxonType.CATEGORY, java.util.Locale.ENGLISH, true);
+            Map<Long, Long> counts = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CATEGORY);
 
             List<TaxonDto> active  = all.stream().filter(t -> !t.isDeleted()).toList();
             List<TaxonDto> deleted = all.stream().filter(TaxonDto::isDeleted).toList();
@@ -125,8 +126,13 @@ public class TaxonManagementView extends VerticalLayout {
         row.setJustifyContentMode(JustifyContentMode.START);
         row.expand(nameSpan);
 
+        if (!isDeleted) {
+            nameSpan.addClickListener(_ -> overlay.openForView(taxon, this::refresh));
+        }
+
         Div wrapper = new Div(row);
         wrapper.addClassName("taxon-row-wrapper");
+
         return wrapper;
     }
 
@@ -139,20 +145,20 @@ public class TaxonManagementView extends VerticalLayout {
                     .labelKey(TAXON_VIEW_TOOLTIP_RESTORE)
                     .icon(VaadinIcon.ARROW_BACKWARD.create())
                     .build());
-            restoreBtn.addClickListener(_ -> doRestore(taxon));
+            restoreBtn.addClickListener(e -> { e.getSource().getParent().ifPresent(p -> {}); doRestore(taxon); });
             actions.add(restoreBtn);
         } else {
             UiIconButton editBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
                     .labelKey(TAXON_VIEW_TOOLTIP_EDIT)
                     .icon(VaadinIcon.PENCIL.create())
                     .build());
-            editBtn.addClickListener(_ -> overlay.openForEdit(taxon, this::refresh));
+            editBtn.addClickListener(e -> overlay.openForEdit(taxon, this::refresh));
 
             UiIconButton deleteBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
                     .labelKey(TAXON_VIEW_TOOLTIP_DELETE)
                     .icon(VaadinIcon.TRASH.create())
                     .build());
-            deleteBtn.addClickListener(_ -> confirmAndDelete(taxon));
+            deleteBtn.addClickListener(e -> confirmAndDelete(taxon));
 
             actions.add(editBtn, deleteBtn);
         }

@@ -1,8 +1,56 @@
-const { test, expect, screenshot, TEST_USERS } = require('./_helpers');
+const { test, expect, screenshot, closeNotification, TEST_USERS } = require('./_helpers');
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
 const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit } = require('./_flows/user-management.flow');
-const { openTimelineTab, assertFeedHasRow } = require('./_flows/timeline.flow');
+const { openTimelineTab, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
+
+// Section 3 helpers — taxon management
+async function openRefDataTab(page) {
+  await page.locator('vaadin-tab').filter({ hasText: 'Reference Data' }).click();
+  await page.locator('.taxon-management-view').waitFor({ timeout: 8000 });
+}
+
+async function waitForTaxonOverlay(page) {
+  await page.locator('.taxon-overlay.overlay--visible').waitFor({ timeout: 8000 });
+}
+
+async function closeTaxonOverlay(page) {
+  await page.locator('.taxon-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .click();
+  await page.locator('.taxon-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
+}
+
+async function fillTaxonLocale(page, locale, name, desc) {
+  const overlay = page.locator('.taxon-overlay');
+  const idx     = locale === 'EN' ? 0 : 1;
+  const content = overlay.locator('.taxon-locale-content').nth(idx);
+  await content.locator('vaadin-text-field input').fill(name);
+  await content.locator('vaadin-text-area textarea').fill(desc);
+}
+
+async function createCategory(page, { nameEn, descEn, nameUk, descUk }) {
+  await page.locator('.taxon-add-button').click();
+  await waitForTaxonOverlay(page);
+  await fillTaxonLocale(page, 'EN', nameEn, descEn);
+  await fillTaxonLocale(page, 'UK', nameUk, descUk);
+  await page.locator('.taxon-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+  await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+  await closeNotification(page);
+  await closeTaxonOverlay(page);
+}
+
+async function openTaxonEdit(page, name) {
+  const row = page.locator('.taxon-row-wrapper')
+    .filter({ has: page.locator('.taxon-row-name', { hasText: name }) });
+  await row.locator('vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
+    .click();
+  await waitForTaxonOverlay(page);
+}
+
+const CAT1 = { nameEn: 'Electronics', descEn: 'Electronic devices and accessories',         nameUk: 'Електроніка', descUk: 'Електронні пристрої та аксесуари' };
+const CAT2 = { nameEn: 'Vehicles',    descEn: 'Cars, motorcycles and other vehicles',       nameUk: 'Транспорт',   descUk: 'Автомобілі, мотоцикли та інший транспорт' };
 
 test.describe.configure({ mode: 'serial' });
 
@@ -119,6 +167,119 @@ test.describe('Promotion flow', () => {
 
     await openTimelineTab(page);
     await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-cross-actor-restore' });
+    await runLogoutFlow(page, expect);
+  });
+
+  // === Section 3: Reference Data — Category management ===
+
+  test('adminEn creates categories Electronics and Vehicles — both in list, create discard clears form', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await openRefDataTab(page);
+    await screenshot(page, 'taxon-00-ref-data-tab');
+
+    await test.step('discard in CREATE mode — fields clear, save button disabled', async () => {
+      await page.locator('.taxon-add-button').click();
+      await waitForTaxonOverlay(page);
+      await fillTaxonLocale(page, 'EN', 'Temp Name', 'Temp description long enough to be valid here');
+      const overlay    = page.locator('.taxon-overlay');
+      const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      const discardBtn = overlay.locator('vaadin-button').filter({ hasText: 'Discard changes' });
+      await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+      await expect(discardBtn).toBeEnabled();
+      await screenshot(page, 'taxon-01-create-discard-filled');
+      await discardBtn.click();
+      await expect(saveBtn).toBeDisabled({ timeout: 3000 });
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue('', { timeout: 3000 });
+      await screenshot(page, 'taxon-01-create-discard-cleared');
+      await closeTaxonOverlay(page);
+    });
+
+    await test.step('create Electronics', async () => {
+      await createCategory(page, CAT1);
+      await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
+    });
+
+    await test.step('create Vehicles', async () => {
+      await createCategory(page, CAT2);
+      await expect(page.locator('.taxon-row-name', { hasText: CAT2.nameEn })).toBeVisible({ timeout: 5000 });
+    });
+
+    await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible();
+    await expect(page.locator('.taxon-row-name', { hasText: CAT2.nameEn })).toBeVisible();
+    await screenshot(page, 'taxon-02-two-categories-in-list');
+
+    await runLogoutFlow(page, expect);
+  });
+
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, timeline shows taxon entries', async () => {
+    await runFillLoginFormFlow(page, TEST_USERS.adminEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
+    await openRefDataTab(page);
+
+    await test.step('discard in EDIT mode — modified name reverts to original', async () => {
+      await openTaxonEdit(page, CAT1.nameEn);
+      const overlay = page.locator('.taxon-overlay');
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CAT1.nameEn, { timeout: 5000 });
+      await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('Electronics MODIFIED');
+      const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      const discardBtn = overlay.locator('vaadin-button').filter({ hasText: 'Discard changes' });
+      await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+      await screenshot(page, 'taxon-03-edit-discard-modified');
+      await discardBtn.click();
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CAT1.nameEn, { timeout: 5000 });
+      await expect(saveBtn).toBeDisabled({ timeout: 3000 });
+      await screenshot(page, 'taxon-03-edit-discard-reverted');
+      await closeTaxonOverlay(page);
+    });
+
+    await test.step('edit Electronics name and save — activity shows v2 update row', async () => {
+      await openTaxonEdit(page, CAT1.nameEn);
+      const overlay = page.locator('.taxon-overlay');
+      await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('Electronics v2');
+      const saveBtn = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+      await saveBtn.click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await screenshot(page, 'taxon-04-edit-saved');
+
+      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
+      const activityList = overlay.locator('.entity-activity-list');
+      await activityList.waitFor({ timeout: 5000 });
+      await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 8000 });
+      await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
+      await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version')).toContainText('v2');
+      await expect(activityList.locator('.entity-activity-row').nth(1).locator('.entity-activity-version')).toContainText('v1');
+      await screenshot(page, 'taxon-04-activity-two-rows');
+    });
+
+    await test.step('restore from activity v1 — form reverts to original name, save applies restore', async () => {
+      const overlay      = page.locator('.taxon-overlay');
+      const activityList = overlay.locator('.entity-activity-list');
+      const v1Row        = activityList.locator('.entity-activity-row').nth(1);
+      await v1Row.locator('.entity-activity-restore-btn').click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      // form switches back to Edit tab with original name
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CAT1.nameEn, { timeout: 5000 });
+      await screenshot(page, 'taxon-05-restored-form');
+      const saveBtn = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      await expect(saveBtn).toBeEnabled();
+      await saveBtn.click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await closeTaxonOverlay(page);
+      await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-05-restored-in-list');
+    });
+
+    await test.step('timeline — taxon created and updated entries visible', async () => {
+      await openTimelineTab(page);
+      await assertTimelineHasRows(page, expect, { entityType: 'taxon', action: 'created', minCount: 1, screenshotName: 'taxon-06-timeline-created' });
+      await assertTimelineHasRows(page, expect, { entityType: 'taxon', action: 'updated', minCount: 1, screenshotName: 'taxon-06-timeline-updated' });
+    });
+
     await runLogoutFlow(page, expect);
   });
 });

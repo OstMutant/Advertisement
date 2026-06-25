@@ -347,7 +347,8 @@ public enum I18nKey {
     TAXON_VIEW_TOOLTIP_DELETE("taxon.view.tooltip.delete"),
     TAXON_VIEW_TOOLTIP_RESTORE("taxon.view.tooltip.restore"),
     TAXON_VIEW_DELETED_LABEL("taxon.view.deleted.label"),
-    TAXON_VIEW_EMPTY("taxon.view.empty");
+    TAXON_VIEW_EMPTY("taxon.view.empty"),
+    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit");
 
     private final String key;
 

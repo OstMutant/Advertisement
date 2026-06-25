@@ -2,6 +2,9 @@ package org.ost.taxon.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.taxon.config.TaxonProperties;
 import org.ost.taxon.entities.Taxon;
@@ -27,6 +30,7 @@ public class TaxonService {
     private final TaxonRepository            taxonRepository;
     private final TaxonTranslationRepository translationRepository;
     private final TaxonProperties            properties;
+    private final ComponentFactory<AuditPort> auditPortFactory;
 
     @Transactional
     public Taxon create(@NonNull TaxonType type, String code,
@@ -40,6 +44,10 @@ public class TaxonService {
                 .updatedBy(actorId)
                 .build());
         translationRepository.saveAll(taxon.getId(), toEntities(taxon.getId(), translations));
+        TaxonSnapshotDto snapshot = buildSnapshotFromData(translations);
+        if (actorId != null) {
+            auditPortFactory.ifAvailable(p -> p.captureCreation(taxon.getId(), snapshot, actorId));
+        }
         return taxon;
     }
 
@@ -49,6 +57,8 @@ public class TaxonService {
         validateTranslations(translations);
         Taxon existing = taxonRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Taxon not found: " + id));
+        List<TaxonTranslation> beforeTranslations = translationRepository.findAllByTaxonId(id);
+        TaxonSnapshotDto beforeSnapshot = buildSnapshotFromTranslations(beforeTranslations);
         Taxon updated = Taxon.builder()
                 .id(existing.getId())
                 .type(existing.getType())
@@ -61,6 +71,10 @@ public class TaxonService {
                 .build();
         taxonRepository.save(updated);
         translationRepository.saveAll(id, toEntities(id, translations));
+        TaxonSnapshotDto afterSnapshot = buildSnapshotFromData(translations);
+        if (actorId != null) {
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(id, beforeSnapshot, afterSnapshot, actorId));
+        }
         return updated;
     }
 
@@ -115,5 +129,24 @@ public class TaxonService {
                         .description(e.getValue().description())
                         .build())
                 .toList();
+    }
+
+    private TaxonSnapshotDto buildSnapshotFromData(Map<Locale, TaxonTranslationData> translations) {
+        TaxonTranslationData en = translations.get(Locale.ENGLISH);
+        TaxonTranslationData uk = translations.get(Locale.forLanguageTag("uk"));
+        return new TaxonSnapshotDto(
+                en != null ? en.name()        : null,
+                en != null ? en.description() : null,
+                uk != null ? uk.name()        : null,
+                uk != null ? uk.description() : null);
+    }
+
+    private TaxonSnapshotDto buildSnapshotFromTranslations(List<TaxonTranslation> translations) {
+        String nameEn = null, descEn = null, nameUk = null, descUk = null;
+        for (TaxonTranslation t : translations) {
+            if ("en".equals(t.getLocale()))       { nameEn = t.getName(); descEn = t.getDescription(); }
+            else if ("uk".equals(t.getLocale()))  { nameUk = t.getName(); descUk = t.getDescription(); }
+        }
+        return new TaxonSnapshotDto(nameEn, descEn, nameUk, descUk);
     }
 }

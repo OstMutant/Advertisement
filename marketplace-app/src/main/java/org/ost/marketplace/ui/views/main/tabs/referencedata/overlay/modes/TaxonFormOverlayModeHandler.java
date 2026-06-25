@@ -3,6 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.html.H4;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
@@ -33,6 +34,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.context.annotation.Scope;
@@ -144,24 +146,17 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(TAXON_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Tab enLocaleTab = new Tab(getValue(TAXON_OVERLAY_LOCALE_TAB_EN));
-        Tab ukLocaleTab = new Tab(getValue(TAXON_OVERLAY_LOCALE_TAB_UK));
-        Tabs localeTabs = new Tabs(enLocaleTab, ukLocaleTab);
-        localeTabs.addClassName("taxon-locale-tabs");
-
+        H4 enLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_EN));
+        enLabel.addClassName("taxon-locale-label");
         Div enContent = new Div(nameEnField, descriptionEnField);
         enContent.addClassName("taxon-locale-content");
+
+        H4 ukLabel = new H4(getValue(TAXON_OVERLAY_LOCALE_TAB_UK));
+        ukLabel.addClassName("taxon-locale-label");
         Div ukContent = new Div(nameUkField, descriptionUkField);
         ukContent.addClassName("taxon-locale-content");
-        ukContent.setVisible(false);
 
-        localeTabs.addSelectedChangeListener(event -> {
-            boolean isEn = event.getSelectedTab() == enLocaleTab;
-            enContent.setVisible(isEn);
-            ukContent.setVisible(!isEn);
-        });
-
-        Div fieldsCard = new Div(cardHeader, localeTabs, enContent, ukContent);
+        Div fieldsCard = new Div(cardHeader, enLabel, enContent, ukLabel, ukContent);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div editContent = new Div(fieldsCard);
@@ -244,8 +239,36 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.isPrivileged())
-                .onRestoreRequested(null)
+                .onRestoreRequested(this::handleRestoreFromActivity)
                 .build());
+    }
+
+    private void handleRestoreFromActivity(long snapshotId) {
+        auditPortFactory.ifAvailable(port ->
+                port.<TaxonSnapshotDto>getSnapshotContent(snapshotId, EntityType.TAXON)
+                        .ifPresent(content -> {
+                            TaxonSnapshotDto snapshot = content.snapshotData();
+                            TaxonEditDto dto = new TaxonEditDto();
+                            dto.setId(params.getTaxon().getId());
+                            dto.setNameEn(snapshot.nameEn());
+                            dto.setDescriptionEn(snapshot.descriptionEn());
+                            dto.setNameUk(snapshot.nameUk());
+                            dto.setDescriptionUk(snapshot.descriptionUk());
+                            loadRestored(dto);
+                        })
+        );
+    }
+
+    public void loadRestored(@NonNull TaxonEditDto restoredDto) {
+        binder.loadRestored(restoredDto, (src, tgt) -> {
+            tgt.setNameEn(src.getNameEn());
+            tgt.setDescriptionEn(src.getDescriptionEn());
+            tgt.setNameUk(src.getNameUk());
+            tgt.setDescriptionUk(src.getDescriptionUk());
+        });
+        notificationService.success(FORM_RESTORE_BANNER);
+        updateButtons(true);
+        if (topTabs != null) topTabs.setSelectedTab(editTab);
     }
 
     private TaxonEditDto buildDto() {
