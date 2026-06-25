@@ -2,21 +2,21 @@ package org.ost.marketplace.ui.views.main.tabs.users.query;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.marketplace.entities.Role;
-import org.ost.query.ui.filter.ValidationService;
-import org.ost.query.ui.filter.FilterFieldMeta;
-import org.ost.query.ui.filter.ValidationPredicates;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.model.Role;
+import org.ost.marketplace.ui.query.filter.ValidationService;
+import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
+import org.ost.marketplace.ui.query.filter.ValidationPredicates;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.function.BiPredicate;
 
-import static org.ost.marketplace.dto.filter.UserFilterDto.Fields.*;
+import static org.ost.platform.user.dto.UserFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.toLong;
-import static org.ost.query.ui.utils.TimeZoneUtil.toInstant;
+import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.toInstant;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class UserFilterMeta {

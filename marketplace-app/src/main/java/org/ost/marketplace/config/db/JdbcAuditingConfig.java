@@ -2,8 +2,8 @@ package org.ost.marketplace.config.db;
 
 import lombok.RequiredArgsConstructor;
 import org.jspecify.annotations.NonNull;
-import org.ost.marketplace.entities.User;
 import org.ost.marketplace.services.auth.AuthContextService;
+import org.ost.platform.user.dto.UserDto;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -21,6 +21,6 @@ public class JdbcAuditingConfig implements AuditorAware<Long> {
 
     @Override
     public @NonNull Optional<Long> getCurrentAuditor() {
-        return authContextService.getCurrentUser().map(User::getId);
+        return authContextService.getCurrentUser().map(UserDto::id);
     }
 }

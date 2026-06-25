@@ -20,10 +20,6 @@
     <dependencies>
         <dependency>
             <groupId>org.ost</groupId>
-            <artifactId>query-starter</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.ost</groupId>
             <artifactId>platform-commons</artifactId>
         </dependency>
         <dependency>
@@ -33,6 +29,18 @@
         <dependency>
             <groupId>org.ost</groupId>
             <artifactId>attachment-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>user-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>advertisement-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>query-lib</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>

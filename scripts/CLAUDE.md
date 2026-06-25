@@ -10,6 +10,37 @@ After build, Docker garbage is pruned automatically (`image prune`, `container p
 
 Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only.
 
+**Streaming output requirement — BuildKit + buildx:**
+Docker Engine must have BuildKit enabled (`"features": {"buildkit": true}` in Docker Engine JSON config) AND the `buildx` CLI plugin must be installed at `~/.docker/cli-plugins/docker-buildx`. Without the binary, Docker silently falls back to the legacy builder which buffers all output without a TTY — no streaming. Install once:
+```bash
+mkdir -p ~/.docker/cli-plugins
+curl -Lo ~/.docker/cli-plugins/docker-buildx \
+  https://github.com/docker/buildx/releases/download/v0.21.0/buildx-v0.21.0.linux-amd64
+chmod +x ~/.docker/cli-plugins/docker-buildx
+```
+Verify: `docker buildx version`. The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming.
+
+**How to run deploy.sh:**
+1. First launch Monitor with `persistent: true` watching `/tmp/deploy.log`:
+   - Every 10s check if file size changed
+   - If 1 minute with no new output → report "process may be stuck"
+   - If ERROR appears in new output → report immediately
+   - If BUILD SUCCESS or Started Application → report and stop
+2. Then run synchronously (user sees streaming output):
+   ```
+   bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log
+   ```
+   with `timeout: 600000`
+
+**How to run dev deploy (deploy-dev.sh):** same Monitor + tee pattern as deploy.sh, but log to `/tmp/deploy-dev.log`.
+
+### Local run (Maven, no Docker image rebuild)
+```bat
+scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
+scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
+```
+Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already running. Use when you need to compare local vs Docker behaviour.
+
 ### Dev deploy (fast JAR hot-swap)
 ```bash
 bash scripts/deploy-dev.sh    # Linux / WSL
@@ -39,3 +70,20 @@ scripts\sonar.bat            # Windows
 The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`.
 
 **IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
+
+---
+
+## Running Playwright Tests
+
+**How to run playwright.sh:**
+1. Kill stale processes: `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
+2. Launch Monitor with `persistent: true` watching `/tmp/playwright.log`:
+   - Poll every 10s for new output
+   - If 2 minutes with no new output → report "process may be stuck"
+   - If `failed` or `Error` appears → report immediately
+   - If `passed` summary line appears → report and stop
+3. Then run synchronously (user sees streaming output):
+   ```
+   bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log
+   ```
+   with `timeout: 600000`

@@ -13,8 +13,8 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.springframework.stereotype.Service;
 
 @Service

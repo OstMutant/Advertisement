@@ -1,12 +1,16 @@
-/.idea
+/.idea/*
+!/.idea/runConfigurations/
+/.claude/settings.local.json
+/.idea/runConfigurations/Application.xml
 
 # Maven build output
 /marketplace-app/target/
 /platform-commons/target/
 /attachment-spring-boot-starter/target/
 /audit-spring-boot-starter/target/
-/query-starter/target/
-/database/
+/user-spring-boot-starter/target/
+/advertisement-spring-boot-starter/target/
+/query-lib/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
@@ -28,3 +32,6 @@
 # SonarQube
 /target/sonar
 /scripts/sonar/report
+/.claude/worktrees
+/user-spring-boot-starter/target
+/advertisement-spring-boot-starter/target

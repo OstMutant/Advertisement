@@ -2,13 +2,13 @@ package org.ost.marketplace.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Component;
@@ -19,7 +19,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
-    private final UserService userService;
+    private final UserPort userPort;
     private final I18nService i18n;
 
     @Override
@@ -28,8 +28,8 @@ public class UserActivityFieldsHookImpl implements AuditActivityFieldsHook {
     }
 
     @Override
-    public List<ChangeEntry> expandFields(@NonNull AuditActivityItemDto<AuditableSnapshot> item) {
-        return userService.expandActivityFields(item);
+    public List<ChangeEntry> expandFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
+        return userPort.expandActivityFields(item);
     }
 
     @Override

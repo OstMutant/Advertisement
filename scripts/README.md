@@ -89,6 +89,26 @@ Use `--reset-cache` to wipe the volume and force a full re-download (e.g. after 
 
 ---
 
+## run-local.bat
+
+Run the application locally via Maven without a Docker image rebuild. Requires DB and MinIO already running (start via `scripts/infra/`).
+
+```bat
+scripts\run-local.bat           REM dev profile — Vaadin dev mode, port 8080
+scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 8080
+```
+
+### Profiles
+
+| Flag | Maven profile | Spring profile | Vaadin mode | Connects to |
+|------|--------------|----------------|-------------|-------------|
+| _(none)_ | default | `dev` | development | `localhost:5432`, `localhost:9000` |
+| `--prod` | `production` | `prod` | production (minified JS) | `localhost:5432`, `localhost:9000` |
+
+In `--prod` mode the local infra credentials are passed as env vars — same values as the Docker deploy but pointing to `localhost` instead of container names.
+
+---
+
 ## playwright.sh / playwright.bat
 
 Run Playwright tests. Delegates to `playwright/run.sh`.
@@ -115,29 +135,18 @@ Results: `http://localhost:9099/dashboard?id=advertisement`
 
 ---
 
-## reset-db.sh / reset-db.bat
+## scripts/database/reset.sh / reset.bat
 
-Reset the local database to a clean state with 3 minimal seed users. Run before Playwright tests when you need a fresh start.
-
-```bash
-bash scripts/reset-db.sh
-scripts\reset-db.bat
-```
-
-**Self-healing:** if the DB container is stopped — starts it automatically. If it does not exist — starts it via `scripts/infra/docker-compose.db.yml`.
-
----
-
-## seed-db.sh / seed-db.bat
-
-Insert 50 dev users (USER / MODERATOR / ADMIN mix) and sample advertisements. Safe to run multiple times — uses `ON CONFLICT DO NOTHING`.
+Truncates all application data without restarting the app or touching MinIO volumes. Use when you need a clean DB for manual testing.
 
 ```bash
-bash scripts/seed-db.sh
-scripts\seed-db.bat
+bash scripts/database/reset.sh
+scripts\database\reset.bat
 ```
 
-**Self-healing:** same DB auto-start behavior as `reset-db.sh`.
+**Self-healing:** if the DB container is stopped — starts it automatically.
+
+**vs `deploy.sh --reset`:** `reset.sh` only truncates tables — containers and volumes stay intact, completes in ~1s. `deploy.sh --reset` destroys all containers and Docker volumes (DB + MinIO), then does a full rebuild (~7-10 min).
 
 ---
 
@@ -215,6 +224,6 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 scripts/
   infra/           — Docker Compose files for local infrastructure (DB, MinIO, app stack)
   build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
-  database/        — SQL scripts and database helpers (reset.sh, seed.sh)
+  database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
 ```

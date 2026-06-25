@@ -14,6 +14,16 @@ COMPOSE_FILE="/app/scripts/sonar/docker-compose.sonar.yml"
 SCANNER_CONTAINER="sonar-scanner"
 PROPS_FILE="/app/scripts/sonar/sonar-project.properties"
 
+# ── Ensure docker compose plugin is available ────────────────────────────────
+if ! docker compose version &>/dev/null; then
+  echo "docker compose plugin not found — installing..."
+  mkdir -p ~/.docker/cli-plugins
+  curl -Lo ~/.docker/cli-plugins/docker-compose \
+    https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64
+  chmod +x ~/.docker/cli-plugins/docker-compose
+  echo "docker compose installed."
+fi
+
 # ── Ensure SonarQube server is running ───────────────────────────────────────
 if ! curl -s -o /dev/null "$SONAR_URL/api/system/status"; then
   echo "SonarQube not running — starting..."
@@ -23,6 +33,20 @@ if ! curl -s -o /dev/null "$SONAR_URL/api/system/status"; then
     sleep 5
   done
   echo "SonarQube ready."
+fi
+
+# ── Ensure sonar token is valid; regenerate via admin/admin if not ───────────
+CURRENT_TOKEN=$(grep "^sonar.token=" "$PROPS_FILE" | cut -d= -f2)
+if ! curl -s -u "$CURRENT_TOKEN:" "$SONAR_URL/api/authentication/validate" | grep -q '"valid":true'; then
+  echo "Sonar token invalid or missing — generating new token..."
+  NEW_TOKEN=$(curl -s -u admin:admin -X POST "$SONAR_URL/api/user_tokens/generate" \
+    -d "name=claude-$(date +%s)" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+  if [ -z "$NEW_TOKEN" ]; then
+    echo "ERROR: failed to generate SonarQube token. Check admin credentials."
+    exit 1
+  fi
+  sed -i "s|^sonar.token=.*|sonar.token=$NEW_TOKEN|" "$PROPS_FILE"
+  echo "New token saved to sonar-project.properties."
 fi
 
 # ── Reuse scanner container if already running, otherwise start it ────────────
@@ -38,12 +62,16 @@ else
   fi
 fi
 
+# ── Compile all modules ───────────────────────────────────────────────────────
+echo "Compiling modules..."
+mvn -f /app/pom.xml compile -q -DskipTests 2>&1
+
 # ── Copy source and compiled files to container ───────────────────────────────
 echo "Copying source files..."
 docker exec --user root "$SCANNER_CONTAINER" rm -rf /tmp/sonar-src
 docker exec "$SCANNER_CONTAINER" mkdir -p /tmp/sonar-src
 
-for module in query-starter platform-commons audit-spring-boot-starter attachment-spring-boot-starter marketplace-app; do
+for module in query-lib platform-commons audit-spring-boot-starter attachment-spring-boot-starter marketplace-app; do
   if [ -d "/app/$module/src/main/java" ]; then
     docker exec "$SCANNER_CONTAINER" mkdir -p "/tmp/sonar-src/$module/src/main/java"
     docker cp "/app/$module/src/main/java/." "$SCANNER_CONTAINER:/tmp/sonar-src/$module/src/main/java/"

@@ -45,14 +45,28 @@ declaratively and kept strongly typed.
 
 ```
 advertisement-parent
-├── query-starter                      — framework-agnostic SQL query-building library
-├── platform-commons                — shared kernel: DTOs, domain events, SPI interfaces
-├── audit-spring-boot-starter       — audit subsystem: write side + read side + activity UI
-├── attachment-spring-boot-starter  — photo/attachment module + S3 storage implementation
-└── marketplace-app                 — Vaadin application (depends on all modules above)
+├── query-lib                         — framework-agnostic SQL query-building library
+├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
+├── audit-spring-boot-starter         — audit subsystem: write side + read side
+├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
+├── user-spring-boot-starter          — User domain + Spring Security integration
+├── advertisement-spring-boot-starter — Advertisement domain
+└── marketplace-app                   — Vaadin application (all UI)
 ```
 
-Significant architectural decisions for each module are recorded in per-module `DECISIONS.md` files.
+Per-module documentation:
+
+| Module | README | Decisions |
+|---|---|---|
+| query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
+| platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
+| audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
+| attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
+| user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
+| advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
+| marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
+| playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
+| scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |
 
 ---
 
@@ -153,8 +167,6 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
 | `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright tests (delegates to `playwright/run.sh`) |
 | `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube analysis (delegates to `scripts/sonar/run.sh`) |
-| `scripts/reset-db.sh` / `scripts/reset-db.bat` | Reset DB to clean state with 3 minimal users (delegates to `scripts/database/reset.sh`) |
-| `scripts/seed-db.sh` / `scripts/seed-db.bat` | Insert 50 dev users + advertisements (delegates to `scripts/database/seed.sh`) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
@@ -175,15 +187,7 @@ All database scripts live in `scripts/database/`:
 
 | File | Purpose |
 |---|---|
-| `scripts/database/seed.sql` | 50 dev users (USER / MODERATOR / ADMIN mix) + advertisements. Run manually via `seed-db.sh`. |
-| `scripts/database/seed.sh` | Shell wrapper for `seed.sql`. Safe to run multiple times — uses `ON CONFLICT DO NOTHING`. |
-| `scripts/database/reset.sql` | Truncates all tables and inserts 3 minimal seed users. Used to reset state before Playwright test runs. |
-| `scripts/database/reset.sh` | Shell wrapper for `reset.sql`. Reads DB connection from env vars (defaults to local dev values). |
-
-```bash
-bash scripts/seed-db.sh    # populate with 50 dev users (first time or after clean)
-bash scripts/reset-db.sh   # wipe and re-seed minimal data before Playwright tests
-```
+| `scripts/database/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
 
 ---
 

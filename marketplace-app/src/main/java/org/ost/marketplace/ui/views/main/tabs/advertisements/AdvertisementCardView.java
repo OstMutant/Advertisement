@@ -12,15 +12,16 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.marketplace.services.AdvertisementService;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
@@ -28,12 +29,12 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.spi.AttachmentGalleryPort;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")
@@ -54,12 +55,12 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient AdvertisementService                      advertisementService;
-    private final transient ComponentFactory<AttachmentGalleryPort>   galleryPortFactory;
-    private final transient ComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
-    private final transient ComponentFactory<EditActionButton>         editButtonFactory;
-    private final transient ComponentFactory<DeleteActionButton>       deleteButtonFactory;
-    private final transient ComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
+    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
+    private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
+    private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
+    private final transient UiComponentFactory<DeleteActionButton>       deleteButtonFactory;
+    private final transient UiComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
 
@@ -116,7 +117,7 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryPortFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                galleryServiceFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
@@ -172,7 +173,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable onChanged) {
-        boolean canOperate = access.canOperate(ad);
+        boolean canOperate = access.canOperate(ad.getOwnerUserId());
 
         Button edit   = createEditButton(ad, onChanged, canOperate);
         Button delete = createDeleteButton(ad, onChanged, canOperate);
@@ -219,11 +220,11 @@ public class AdvertisementCardView extends HorizontalLayout
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                advertisementService.delete(ad);
+                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId()));
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
-                            } catch (Exception ex) {
-                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+                            } catch (Exception _) {
+                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
                             }
                         })
                         .build()

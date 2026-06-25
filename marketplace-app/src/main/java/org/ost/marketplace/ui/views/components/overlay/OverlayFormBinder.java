@@ -5,8 +5,10 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.ui.dto.EditDto;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.ui.core.Configurable;
 import org.springframework.context.annotation.Scope;
+
+import java.util.function.BiConsumer;
 
 @Slf4j
 @SpringComponent
@@ -32,6 +34,8 @@ public class OverlayFormBinder<T extends EditDto>
     @Getter
     private Binder<T> binder;
 
+    private boolean restored = false;
+
     @Override
     public OverlayFormBinder<T> configure(Parameters<T> p) {
         this.params = p;
@@ -48,13 +52,27 @@ public class OverlayFormBinder<T extends EditDto>
     }
 
     public boolean hasChanges() {
-        return binder.hasChanges();
+        return binder.hasChanges() || restored;
+    }
+
+    public void loadRestored(@NonNull T source, @NonNull BiConsumer<T, T> applier) {
+        applier.accept(source, params.getDto());
+        binder.readBean(params.getDto());
+        this.restored = true;
+    }
+
+    public void reload(@NonNull T source, @NonNull BiConsumer<T, T> applier) {
+        applier.accept(source, params.getDto());
+        binder.readBean(params.getDto());
+        this.restored = false;
     }
 
     public boolean save(Saver<T> saver) {
         T dto = params.getDto();
         if (binder.writeBeanIfValid(dto)) {
             saver.save(dto);
+            binder.readBean(dto);
+            this.restored = false;
             return true;
         } else {
             return false;

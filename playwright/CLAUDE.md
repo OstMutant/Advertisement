@@ -24,7 +24,11 @@ bash /app/playwright/run.sh                  # all tests
 bash /app/playwright/run.sh smoke            # one scenario
 bash /app/playwright/run.sh smoke --ux       # with local screenshots for AI analysis
 bash /app/playwright/run.sh --ux             # all tests with screenshots
+bash /app/playwright/run.sh e2e --ux         # e2e suite (specs 01–06, skips spec 05 seed)
+bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seeds 50 users + 50 ads)
 ```
+
+**`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 100 entities). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.
 
 **IMPORTANT:** Volume mounts don't work from inside the claude container (Docker socket path issue).
 `run.sh` uses `docker cp` internally — always use `run.sh`, never raw `docker run -v`.
@@ -43,7 +47,28 @@ bash /app/playwright/run.sh --ux             # all tests with screenshots
 - Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
 
+### Helper organization rules
+
+- `e2e/_helpers.js` — only truly shared utilities used across **multiple** files: `TEST_USERS`, media constants, overlay/notification helpers, `screenshot`, `downloadPng`. Do NOT add anything that is only used in one spec or one flow file.
+- `e2e/_flows/*.flow.js` — flow-specific helpers live in the same file where they are used. Extract to a shared flow file only when two or more flow files need the same helper.
+- Spec-specific helpers (navigation, tab switching, etc.) that are only used in one spec file belong as local functions at the top of that spec file.
+
+### Test naming pattern
+
+```
+{actor} {action} {subject} — {verification1}, {verification2}, {verification3}
+```
+
+Example: `moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check`
+
+Rules:
+- After the dash: list each major verified behaviour explicitly
+- Use concrete operation words: "discard", "save with activity diff", "add and replace media", "timeline check", "restore", "pagination"
+- Avoid vague labels like "badge check", "flow" as the only descriptor
+- Version numbers (v5/v6) → plain words ("two saves", "three edits")
+- Include "timeline check" when timeline is verified, "activity diff" when diff content is asserted
+
 ### Adding new scenarios
-1. Create `/app/playwright/my-scenario.spec.js`
-2. `const { test, expect, loginAs, screenshot } = require('./_test-helpers');`
+1. Create `/app/playwright/e2e/my-scenario.spec.js`
+2. `const { test, expect, screenshot } = require('./_helpers');`
 3. Run with `bash /app/playwright/run.sh my-scenario`

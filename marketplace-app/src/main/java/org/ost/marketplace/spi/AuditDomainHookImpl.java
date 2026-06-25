@@ -3,17 +3,16 @@ package org.ost.marketplace.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.dto.audit.AdvertisementSnapshotDto;
-import org.ost.marketplace.dto.audit.SettingsSnapshotDto;
-import org.ost.marketplace.dto.audit.UserSnapshotDto;
-import org.ost.marketplace.services.AdvertisementService;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.spi.UserPort;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -25,27 +24,31 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AuditDomainHookImpl implements AuditDomainHook {
 
-    private final AdvertisementService advertisementService;
-    private final UserService          userService;
-    private final I18nService          i18n;
+    private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
+    private final ComponentFactory<UserPort>          userPortFactory;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
-        return userService.findActorNames(actorIds);
+        return userPortFactory.findIfAvailable()
+                .map(p -> p.findActorNames(actorIds))
+                .orElse(Map.of());
     }
 
     @Override
     public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
-        Long[] ids = entityIds.toArray(new Long[0]);
-        return Set.copyOf(switch (entityType) {
-            case ADVERTISEMENT       -> advertisementService.findExistingIds(ids);
-            case USER, USER_SETTINGS -> userService.findExistingIds(ids);
-        });
+        return switch (entityType) {
+            case ADVERTISEMENT       -> advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
+            case USER, USER_SETTINGS -> userPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
+        };
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
         AuditableSnapshot data = content.snapshotData();
         return switch (data) {
             case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
@@ -57,12 +60,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     }
 
     @Override
-    public String resolveDisplayName(@NonNull EntityType entityType, AuditableSnapshot snapshot) {
-        if (snapshot == null) return "";
-        return switch (entityType) {
-            case ADVERTISEMENT -> snapshot instanceof AdvertisementSnapshotDto ad ? ad.title() : "";
-            case USER          -> snapshot instanceof UserSnapshotDto u ? u.name() : "";
-            case USER_SETTINGS -> i18n.get(I18nKey.HEADER_SETTINGS);
-        };
+    public String resolveDisplayName(@NonNull EntityType entityType, @NonNull AuditableSnapshot snapshot) {
+        return snapshot.displayName().orElse("");
     }
 }

@@ -1,45 +1,47 @@
 package org.ost.marketplace.ui.views.services.pagination;
 
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.events.SettingsChangedEvent;
-import org.ost.marketplace.services.user.UserSettingsService;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.spi.UserPort;
+import org.ost.platform.user.spi.UserSettingsChangedHook;
+import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.ToIntFunction;
 
-@SpringComponent
+@Component
 @RequiredArgsConstructor
-public class SettingsPaginationService {
+public class SettingsPaginationService implements UserSettingsChangedHook {
 
     private final AuthContextService  authContextService;
-    private final UserSettingsService settingsService;
+    private final UserPort            userPort;
 
-    public void applyOnInit(PaginationBar paginationBar, ToIntFunction<UserSettings> pageSizeExtractor) {
+    private final List<BindingEntry> entries = new CopyOnWriteArrayList<>();
+
+    record BindingEntry(PaginationBar bar, ToIntFunction<UserSettingsDto> extractor, Runnable refresh) {}
+
+    public void register(@NonNull PaginationBar bar, @NonNull ToIntFunction<UserSettingsDto> extractor, @NonNull Runnable refresh) {
         authContextService.getCurrentUser().ifPresent(user ->
-                paginationBar.setPageSize(pageSizeExtractor.applyAsInt(settingsService.load(user.getId())))
-        );
+                bar.setPageSize(extractor.applyAsInt(userPort.loadSettings(user.id()))));
+        entries.add(new BindingEntry(bar, extractor, refresh));
     }
 
-    public void handleSettingsChanged(
-            SettingsChangedEvent event,
-            PaginationBar paginationBar,
-            ToIntFunction<UserSettings> pageSizeExtractor,
-            Runnable refresh) {
+    public void unregister(@NonNull PaginationBar bar) {
+        entries.removeIf(e -> e.bar() == bar);
+    }
 
+    @Override
+    public void onSettingsChanged(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         authContextService.getCurrentUser()
-                .filter(u -> u.getId().equals(event.getUserId()))
-                .ifPresent(_ -> {
-                    UI ui = UI.getCurrent();
-                    if (ui != null) {
-                        ui.access(() -> {
-                            paginationBar.setPageSize(pageSizeExtractor.applyAsInt(event.getSettings()));
-                            refresh.run();
-                        });
-                    }
-                });
+                .filter(u -> u.id().equals(userId))
+                .ifPresent(_ -> entries.forEach(e ->
+                        e.bar().getUI().ifPresent(ui -> ui.access(() -> {
+                            e.bar().setPageSize(e.extractor().applyAsInt(settings));
+                            e.refresh().run();
+                        }))));
     }
 }

@@ -15,20 +15,22 @@ import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.security.AccessEvaluator;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.query.ui.elements.fields.QueryDateTimeField;
-import org.ost.query.ui.elements.fields.QueryNumberField;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
-import org.ost.query.ui.utils.TimeZoneUtil;
+import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.ost.marketplace.common.I18nKey.MAIN_TAB_ADVERTISEMENTS;
-import static org.ost.marketplace.common.I18nKey.MAIN_TAB_USERS;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_TIMELINE;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 
 @Route("")
 @RequiredArgsConstructor
@@ -45,6 +47,7 @@ public class MainView extends VerticalLayout {
     private final transient HeaderBar headerBar;
     private final transient AdvertisementsView advertisementsView;
     private final transient UserView usersView;
+    private final transient TimelineView timelineView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
 
@@ -69,6 +72,12 @@ public class MainView extends VerticalLayout {
             pages.add(usersView);
             tabsToPages.put(usersTab, usersView);
             usersView.setVisible(false);
+
+            Tab timelineTab = new Tab(i18n.get(MAIN_TAB_TIMELINE));
+            tabs.add(timelineTab);
+            pages.add(timelineView);
+            tabsToPages.put(timelineTab, timelineView);
+            timelineView.setVisible(false);
         }
 
         tabs.addSelectedChangeListener(_ -> {

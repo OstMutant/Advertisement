@@ -2,43 +2,19 @@
 
 ---
 
-## 2026-05-19 — Attachment descriptors migrated to Read/Write namespace pattern
+## ~~2026-05-19 — Attachment descriptors migrated to Read/Write namespace~~ *(removed 2026-05-21)*
 
-**Decision:** `AttachmentDescriptor` and `AttachmentSnapshotDescriptor` are `final` namespace classes (private constructor) that implement the new `SqlEntityDescriptor` marker interface from `query-starter`. Each descriptor splits its body into two symmetric inner classes:
-
-- `Read` — `PROJECTION` (a `SqlEntityProjection<T>` with inline `mapRow`), `SELECT_*` SQL constants, read-side param factories. `AttachmentSnapshotDescriptor.Read` additionally hosts the `extractUrls(ResultSet)` row helper.
-- `Write` — `SqlWriteCommand` constants and write-side param factories. `DELETE_BY_URLS` moved from "read" mix to `Write` (it is a delete command).
-
-`AttachmentDescriptor` no longer extends `SqlEntityProjection<Attachment>` — the projection is owned via `Read.PROJECTION`. Callers obtain it explicitly (`AttachmentDescriptor.Read.PROJECTION`) instead of relying on `new AttachmentDescriptor()` doubling as projection + RowMapper.
-
-**Why:** The previous "flat descriptor + tiny `Write` bucket for column names" arrangement intermixed UPDATE/DELETE/SELECT SQL and param factories with no visual separation. The new layout makes the SQL boundary side explicit at the call site (`AttachmentDescriptor.Read.PROJECTION` ↔ `AttachmentDescriptor.Write.SOFT_DELETE`) and gives a single grep target (`SqlEntityDescriptor`) for finding all dual-side descriptors in the project.
-
-**Rejected:** Generic marker (`SqlEntityDescriptor<T>`) — does not fit `AttachmentSnapshotDescriptor` which has no full-row projection (queries return `String[]` and JSON text directly). Non-generic marker keeps both descriptors uniform.
+`AttachmentDescriptor`, `AttachmentSnapshotDescriptor`, and `SqlEntityDescriptor` were introduced then removed. The Read/Write namespace descriptor pattern was superseded by the standard project-wide repository pattern (`@Repository` + `JdbcClient` + inline SQL text blocks). No descriptor or projection pattern remains in the codebase.
 
 ---
 
-## 2026-05-19 — AttachmentRepository migrated to CrudRepository + Custom split
+## 2026-05-07 — Attachment domain logic extracted from marketplace-app
 
-**Decision:** Aligned attachment-starter with the project-wide repository policy (see `CLAUDE.md` → Repository pattern):
-- `Attachment` entity gained `@Table("attachment")`, `@Id`, `@CreatedDate`.
-- `AttachmentRepository` is now an interface extending `CrudRepository<Attachment, Long> + AttachmentRepositoryCustom`.
-- `AttachmentRepositoryCustomImpl` keeps the bespoke soft-delete / restore / cleanup / media-stats queries against `AttachmentDescriptor`.
-- Removed `INSERT` SqlWriteCommand, `insertParams`, `FIND_BY_ID_SQL`, `findByIdParams` from `AttachmentDescriptor` — superseded by `save()` / `findById()`.
-- `AttachmentAutoConfiguration` declares `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` so the starter is self-contained; the marketplace `@SpringBootApplication` scan does not cover `org.ost.attachment.*`.
-
-**Why:** Eliminates a duplicated INSERT/SELECT-by-id path that Spring Data JDBC already provides, and brings attachment-starter in line with the `User` / `Advertisement` repository structure so future contributors meet one pattern across the codebase.
-
-**Rejected:** Migrating bespoke soft-delete / restore / cleanup / media-stats queries to derived repository methods — those queries depend on PostgreSQL-specific features (`ANY(:urls)`, `MAKE_INTERVAL`, `ROW_NUMBER()` etc.) and stay on `JdbcClient`.
-
----
-
-## 2026-05-07 — Attachment logic extracted from marketplace-app
-
-**Decision:** All attachment/photo domain logic (entity, repository, UI components `AttachmentGallery`, `CardMediaLightbox`) lives in this module, not in `marketplace-app`.
+**Decision:** All attachment/photo domain logic (entity, repository, services) lives in this module, not in `marketplace-app`.
 
 **Why:** Enables two independent deployments — the attachment module can be used without the advertisement app. The starter is auto-configured via Spring Boot's autoconfiguration mechanism.
 
-**Rejected:** Keeping UI components in `marketplace-app` — would couple the UI to the app module and prevent reuse.
+**2026-06-13 update:** UI components (`AttachmentGallery`, `CardMediaLightbox`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`) were moved to `marketplace-app` as part of the UI monolith consolidation. The starter now owns only domain logic and JdbcClient persistence — no Vaadin UI.
 
 ---
 
@@ -54,7 +30,7 @@
 
 ## 2026-05-13 — IFrame sandbox attribute on all video embeds
 
-**Decision:** All `IFrame` components for video embedding in `AttachmentGallery` and `CardMediaLightbox` carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
+**Decision:** All `IFrame` components for video embedding (`AttachmentGallery`, `CardMediaLightbox` — now in `marketplace-app`) carry `sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
 
 **Why:** Without `sandbox`, the embedded iframe has unrestricted browser capabilities. The chosen flags are the minimum required for YouTube and generic embed playback.
 
@@ -69,7 +45,7 @@
 **Migration:** Hard cutover — no compatibility shims, no fallback `EntityType.ADVERTISEMENT` defaults. DB and MinIO were wiped because this is dev-only state. Marketplace-app wires `EntityType.ADVERTISEMENT` explicitly at every call site; `MediaChangeHookImpl` (in marketplace-app) reacts to changes and updates the advertisement table's denormalized media columns.
 
 **Deferred:**
-- `EntityRef(EntityType, Long)` record — would collapse the repeated `(entityType, entityId)` pair argument; deferred as cosmetic.
+- ✅ `EntityRef(EntityType, Long)` record — implemented in `platform-commons/core.model`; used throughout all starters and marketplace-app.
 - `EntityType.storageKey()` method — currently the S3 folder uses `name().toLowerCase()`; a typed method would let entities customize their storage segment if ever needed.
 - `AttachmentGalleryExtension`/`AdvertisementHistoryExtension` naming — the latter still carries "Advertisement" in its name but is generic over `EntityType`; rename deferred until a second consumer exists.
 
@@ -117,11 +93,29 @@
 
 2. **i18n enum rename:** `AttachmentMessages` → `AttachmentI18n`. Matches `AuditI18n` naming. All UI keys live in this enum; callers use `I18nService.get(AttachmentI18n.*)`.
 
-3. **Port registration via `@SpringComponent`:** `AttachmentGalleryPortImpl` and `DefaultAttachmentPort` are now `@SpringComponent`/`@Component` classes discovered by ComponentScan, not explicit `@Bean` methods in `AttachmentAutoConfiguration`. Matches how audit-starter registers `AuditUiPortImpl` and `DefaultAuditPort`. Minimizes `AutoConfiguration` to infrastructure-only concerns (Liquibase, ObjectMapper, cleanup scheduler).
+3. **Port registration via `@Component`:** `DefaultAttachmentPort` is now a `@Component` class discovered by ComponentScan, not an explicit `@Bean` method in `AttachmentAutoConfiguration`. Minimizes `AutoConfiguration` to infrastructure-only concerns (Liquibase, ObjectMapper, cleanup scheduler).
 
 **Why:** Reducing cognitive overhead when reading across starters — identical conventions allow pattern recognition. `AutoConfiguration` should be lean: only beans that require `@ConditionalOnMissingBean` or infrastructure setup belong there.
 
-**Note:** `AttachmentGalleryPortImpl` uses `@SpringComponent` (Vaadin alias) instead of `@Component` to avoid a naming conflict with `com.vaadin.flow.component.Component` which is also imported in that class. `DefaultAttachmentPort` uses standard `@Component`.
+**Note:** `AttachmentGalleryPort` and `AttachmentGalleryPortImpl` were removed (2026-06-15) — all UI logic moved to marketplace-app; the port was unnecessary indirection.
+
+---
+
+## 2026-06-15 — Open: marketplace-app attachment UI imports starter internals directly
+
+Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox`) directly import:
+- `org.ost.attachment.entities.Attachment` — entity
+- `org.ost.attachment.services.AttachmentService` / `AttachmentSnapshotService` — services
+- `org.ost.attachment.util.MediaContentTypeUtil` — util
+
+**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
+
+**Remaining fix:**
+- Move `MediaContentTypeUtil` to `platform-commons` (`attachment.util`)
+- Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto`) from `platform.attachment.dto`
+- Replace direct `AttachmentService` injection with calls through `AttachmentPort`
+
+**Note:** `AttachmentGalleryPort` was removed (2026-06-15) — do not re-introduce it. Route through `AttachmentPort` instead.
 
 ---
 

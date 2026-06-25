@@ -8,23 +8,23 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.core.i18n.LocaleProvider;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.services.auth.AuthContextService;
+import org.ost.platform.user.spi.UserPort;
 
 import java.util.List;
 import java.util.Locale;
 
-import static org.ost.marketplace.common.I18nKey.LOCALE_ENGLISH;
-import static org.ost.marketplace.common.I18nKey.LOCALE_UKRAINIAN;
+import static org.ost.marketplace.services.i18n.I18nKey.LOCALE_ENGLISH;
+import static org.ost.marketplace.services.i18n.I18nKey.LOCALE_UKRAINIAN;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 public class LocaleSelectorComponent extends HorizontalLayout {
 
-    private final transient UserService userService;
+    private final transient UserPort userPort;
     private final transient I18nService i18n;
     private final transient LocaleProvider localeProvider;
     private final transient AuthContextService authContextService;
@@ -72,8 +72,8 @@ public class LocaleSelectorComponent extends HorizontalLayout {
 
     private void handleLocaleChange(Locale newLocale) {
         authContextService.getCurrentUser().ifPresentOrElse(currentUser -> {
-            userService.updateLocale(currentUser.getId(), newLocale.toLanguageTag());
-            authContextService.updateCurrentUser(currentUser.withLocale(newLocale.toLanguageTag()));
+            userPort.updateLocale(currentUser.id(), newLocale.toLanguageTag());
+            userPort.refreshCurrentUserInContext(currentUser.id());
         }, () -> {
             UI ui = UI.getCurrent();
             if (ui != null && ui.getSession() != null) {
@@ -81,7 +81,7 @@ public class LocaleSelectorComponent extends HorizontalLayout {
             }
         });
         localeProvider.refreshCurrentLocale();
-        UI.getCurrent().getPage().reload();
+        getUI().ifPresent(ui -> ui.getPage().reload());
     }
 
     private record LocaleWrapper(String label, Locale locale) {

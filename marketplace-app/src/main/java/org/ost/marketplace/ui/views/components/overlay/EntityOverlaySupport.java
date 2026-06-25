@@ -4,14 +4,14 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -21,9 +21,9 @@ public class EntityOverlaySupport {
 
     private final I18nService                                          i18n;
     private final NotificationService                                  notification;
-    private final ComponentFactory<OverlayBreadcrumbBackButton>        breadcrumbBackButtonFactory;
-    private final ComponentFactory<OverlayLayout>                      overlayLayoutFactory;
-    private final ComponentFactory<ConfirmActionDialog>                confirmDialogFactory;
+    private final UiComponentFactory<OverlayBreadcrumbBackButton>        breadcrumbBackButtonFactory;
+    private final UiComponentFactory<OverlayLayout>                      overlayLayoutFactory;
+    private final UiComponentFactory<ConfirmActionDialog>                confirmDialogFactory;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
         OverlayBreadcrumbBackButton btn = breadcrumbBackButtonFactory.build(

@@ -6,9 +6,8 @@ ALLOWED:
 - Stable platform abstractions (SPI interfaces, Port/Hook interfaces)
 - Shared value objects and cross-module DTOs
 - Domain events and marker annotations
-- i18n primitives (`TranslationKey`, `I18nService`)
-- Generic UI contracts (`Configurable`, `ComponentBuilder`, `Initialization`, `Provider`)
 - Core config records (`CleanupProperties`)
+- Utility classes used by ≥2 modules (e.g. `YoutubeUtil` in `attachment.util`)
 
 NOT ALLOWED:
 - Business logic of any kind
@@ -24,13 +23,13 @@ NOT ALLOWED:
 
 ## Package Semantics
 
-Three sub-packages inside each subsystem namespace carry distinct roles:
+Sub-packages inside each subsystem namespace carry distinct roles:
 
-- `*.api` — what **marketplace contributes to the starter**: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`) that marketplace places on its own classes so the starter can read them. Only `audit.*` has an `api` package; attachment has no equivalent because it needs no marker contracts from marketplace.
-- `*.spi` — **extension points between modules**: interfaces declaring a callback boundary. Who calls vs. who implements varies by suffix (see table below).
+- `*.api` — what **marketplace contributes to the starter**: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`) that marketplace places on its own classes so the starter can read them. Only `audit.*` has an `api` package; other subsystems need no marker contracts from marketplace.
+- `*.spi` — **extension points between modules** with **no Vaadin dependency**: interfaces declaring a callback boundary for domain data, events, and commands. Who calls vs. who implements varies by suffix (see table below).
 - `*.dto` — **data carriers** crossing the module boundary: plain value objects with no behavior, named with the `Dto` suffix.
 
-**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`.
+**Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. Non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
 
 ## SPI Interface Naming
 
@@ -38,8 +37,8 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
-| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries, UI components) | `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` |
-| `*Hook` | starter → marketplace | starter calls back for domain data, events, or UI contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook` |
+| `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort` |
+| `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook`, `UserSettingsChangedHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 
@@ -66,4 +65,4 @@ public List<AuditActivityItemDto> merge(EntityType t, Long id, List<AuditActivit
 }
 ```
 
-**`Default*Port` / `*PortImpl` — may coordinate.** A port is a facade over the starter's internal service layer. Orchestrating multiple service calls, resolving fallbacks, or managing transactions within the port is acceptable — it is the port's role to present a clean interface to the outside world. Logic that belongs in a domain service (business rules, data transformation) must not leak into the port.
+**`*PortImpl` — pure delegation only.** Same rule as `*HookImpl`: each method calls exactly one service method, no logic in the port itself. A port is not a facade that orchestrates — it is a thin adapter that exposes service methods through the platform-commons contract. All business logic belongs in the service.

@@ -10,25 +10,26 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.dto.filter.UserFilterDto;
-import org.ost.marketplace.entities.User;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.spi.UserPort;
+import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
-import org.ost.query.ui.QueryBlock;
-import org.ost.query.ui.QueryStatusBar;
+import org.ost.marketplace.ui.query.QueryBlock;
+import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.UserOverlay;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @Slf4j
 @SpringComponent
@@ -36,24 +37,25 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class UserView extends VerticalLayout {
 
-    private final transient UserService                           userService;
-    private final transient I18nService                           i18n;
-    private final transient NotificationService                   notificationService;
-    private final QueryStatusBar<UserFilterDto>                   queryStatusBar;
-    private final transient ComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
-    private final transient ComponentFactory<ConfirmActionDialog> confirmDialogFactory;
-    private final UserOverlay                                     overlay;
-    private final PaginationBar                                   paginationBar;
-    private final transient SettingsPaginationBinding             settingsPaginationBinding;
+    private final transient UserPort                               userPort;
+    private final transient AccessEvaluator                        access;
+    private final transient I18nService                            i18n;
+    private final transient NotificationService                    notificationService;
+    private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
+    private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
+    private final transient UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
+    private final UserOverlay                                      overlay;
+    private final PaginationBar                                    paginationBar;
+    private final transient SettingsPaginationBinding              settingsPaginationBinding;
 
-    private Grid<User> grid;
+    private Grid<UserDto> grid;
 
     @PostConstruct
     protected void init() {
         addClassName("user-list-layout");
         setWidthFull();
 
-        grid = new Grid<>(User.class, false);
+        grid = new Grid<>(UserDto.class, false);
         grid.addClassName("user-grid");
         grid.setWidthFull();
         grid.setAllRowsVisible(true);
@@ -73,7 +75,7 @@ public class UserView extends VerticalLayout {
         initQueryBar();
         initGrid();
 
-        settingsPaginationBinding.register(paginationBar, UserSettings::getUsersPageSize, this::refreshGrid);
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getUsersPageSize, this::refreshGrid);
         refreshGrid();
     }
 
@@ -113,8 +115,8 @@ public class UserView extends VerticalLayout {
         var sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         try {
-            List<User> pageData   = userService.getFiltered(currentFilter, page, size, sort);
-            int        totalCount = userService.count(currentFilter);
+            List<UserDto> pageData   = userPort.getFiltered(currentFilter, page, size, sort);
+            int           totalCount = userPort.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
             grid.setItems(pageData);
         } catch (ConstraintViolationException ex) {
@@ -132,20 +134,21 @@ public class UserView extends VerticalLayout {
         }
     }
 
-    private void confirmAndDelete(User user) {
+    private void confirmAndDelete(UserDto user) {
         confirmDialogFactory.build(
                 ConfirmActionDialog.Parameters.builder()
                         .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.getName(), user.getId()))
+                        .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.id()))
                         .confirmKey(USER_VIEW_CONFIRM_DELETE_BUTTON)
                         .cancelKey(USER_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                userService.delete(user);
+                                if (access.canNotDelete(user.id())) return;
+                                userPort.delete(user.id());
                                 notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                                 refreshGrid();
                             } catch (Exception e) {
-                                log.error("Error deleting user id={}", user.getId(), e);
+                                log.error("Error deleting user id={}", user.id(), e);
                                 notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
                             }
                         })

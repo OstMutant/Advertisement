@@ -8,7 +8,7 @@ Available modules and their DECISIONS.md paths:
 - audit-starter      → /app/audit-spring-boot-starter/DECISIONS.md
 - attachment-starter → /app/attachment-spring-boot-starter/DECISIONS.md
 - platform-commons   → /app/platform-commons/DECISIONS.md
-- query-starter      → /app/query-starter/DECISIONS.md
+- query-lib          → /app/query-lib/DECISIONS.md
 - playwright         → /app/playwright/DECISIONS.md
 - scripts            → /app/scripts/DECISIONS.md
 

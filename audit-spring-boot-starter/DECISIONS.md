@@ -2,9 +2,23 @@
 
 ---
 
+## 2026-06-11 — DONE (2026-06-23): Top-level Timeline tab replaces inline timeline tabs
+
+**Decision:** Replaced the Timeline tabs in the Users overlay and Settings overlay with a dedicated top-level **Timeline** navigation tab (alongside Listings and Users), with its own filter, sort, and pagination.
+
+**Visibility rules:**
+- USER: sees only their own activity (actor filter forced by `AccessEvaluator`)
+- MODERATOR/ADMIN: full feed, filterable by actor/entity type/action type/date
+
+**Implementation:** `TimelineView` (marketplace-app) with `TimelineQueryBlock` filter panel, `AuditTimelineListRenderer`, `PaginationBar`, and `SettingsPaginationBinding`. Inline `AuditTimelinePanel` tabs in `UserOverlay` and `SettingsOverlay` removed. Backend query via `AuditPort.getTimelinePage` / `countTimeline`.
+
+**Why better than inline tabs:** The per-overlay timeline queried by `actor_id` only. A top-level tab with proper filters gives full audit context without navigating into individual overlays.
+
+---
+
 ## Ongoing — Module structure and auto-configuration
 
-**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin UI components). Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
+**Decision:** `audit-spring-boot-starter` owns the full audit subsystem — write side (`DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`) and read side (`AuditHistoryService`, `AuditQueryService`, `ActivityService`). All Vaadin UI lives in `marketplace-app`. Auto-configured via a single `AuditAutoConfiguration`. Active whenever the jar is on the classpath — jar presence is the toggle.
 
 Write and read sides were initially separate modules (`audit-core` + `audit-read`) but merged — fewer modules is simpler when there is no concrete scenario requiring the write side without the read side.
 
@@ -30,18 +44,6 @@ Write and read sides were initially separate modules (`audit-core` + `audit-read
 `audit-spring-boot-starter` contains zero knowledge of advertisement-specific entities, field names, or business logic. The module is reusable in any Spring Boot + Vaadin project without modification.
 
 Key changes that completed decoupling: `AdvertisementHistoryProjection` → generic `EntityHistoryProjection`; `AdvertisementHistoryDto` → `AuditHistoryItemDto` with `SnapshotPayload`; `ActivityProjection` uses single generic query; display name resolution delegated to `EntityDisplayNameResolver` SPI; CSS classes renamed to domain-neutral vocabulary (`entity-history-*`, `activity-feed-*`).
-
----
-
-## 2026-05-19 — Profile activity decoration via AuditSnapshotBinder + AuditActivityRowHook SPI
-
-**Decision:** Profile activity panels are built through `AuditUiExtension.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI without the starter understanding the snapshot shape.
-
-`AuditSnapshotBinder<T>` (Spring prototype bean, `Configurable<T, Parameters<T>>`) is the canonical generic implementation: deserializes `AuditActivityItemDto.snapshotData` into consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", optionally fires a `BiConsumer<Long, T>` for restore.
-
-**Why:** The previous pattern parsed snapshot JSON inside the starter — coupling it to specific user/settings shapes. The SPI puts shape knowledge on the consumer side.
-
-**Rejected:** Decorator wrapper around `AuditActivityPanel`; abstract `ActivityRowDecorator` requiring subclasses per shape.
 
 ---
 
@@ -130,7 +132,7 @@ Full codebase review identified the following issues. Items marked ✅ are done.
 
 ### MEDIUM-LOW
 - ✅ `AuditMessages.fieldLabel()` hardcoded marketplace field names (`title`, `description`, `name`, `email`, `role`). Removed `fieldLabel()` + 5 `CHANGES_FIELD_*` constants from `AuditMessages`. `AuditActivityFieldsHook` implementations in marketplace now return `GenericChange(labelKey.key(), from, to)` entries instead of raw `FieldChange`. `buildActivityChangesDiv` updated to detect unchanged `GenericChange` entries (`before == null`). New `AdvertisementActivityFieldsHookImpl` added for `EntityType.ADVERTISEMENT`.
-- ✅ `AuditSnapshotBinder` coupling removed. `AuditUiPort.snapshotRowHook(SnapshotRowHookParams<T>)` added; `AuditUiPortImpl` creates the binder internally. See `marketplace-app/DECISIONS.md` 2026-05-21 (superseded).
+- ✅ `AuditSnapshotBinder` coupling removed (via `AuditUiPort` — itself removed 2026-06-15; `AuditSnapshotBinder` now used directly in marketplace-app). See `marketplace-app/DECISIONS.md` 2026-05-21.
 
 ---
 
@@ -214,21 +216,20 @@ New `findByActor`: CTE `actor_rows` fetches the actor's top N rows directly (ind
 
 ```java
 public record AuditLogProjection(
-    Long       id,
-    EntityType entityType,
-    Long       entityId,
-    ActionType actionType,
-    String     snapshotDataJson,
-    String     changesSummaryJson,
-    Long       actorId,
-    Instant    createdAt,
-    int        version,
-    Long       prevId,
-    String     prevSnapshotDataJson
+    Long              id,
+    EntityType        entityType,
+    Long              entityId,
+    ActionType        actionType,
+    AuditableSnapshot snapshot,
+    Long              actorId,
+    Instant           createdAt,
+    int               version,
+    Long              prevId,
+    AuditableSnapshot prevSnapshot
 ) {}
 ```
 
-- `AuditReadService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshotDataJson`)
+- `AuditReadService` maps `AuditLogProjection` → `AuditHistoryItemDto` (uses `version`, `prevId`, `prevSnapshot`)
 - `AuditReadService` maps `AuditLogProjection` → `AuditActivityItemDto` (uses `version` for `AuditActivityEnrichHook.getAdditionalChanges`)
 - Repository has one `RowMapper<AuditLogProjection>`, no dependency on service-layer DTOs or hooks
 
@@ -240,27 +241,19 @@ public record AuditLogProjection(
 
 ---
 
-## 2026-06-02 — DEFERRED: AuditHistoryRowActionsHook for restore button decoupling
+## 2026-06-02 — CANCELLED: AuditHistoryRowActionsHook for restore button decoupling *(see 2026-06-15)*
 
-**Status: Not implemented.** `AuditHistoryPanel` still builds the restore button and current-state badge directly; the hook SPI does not exist yet.
-
-**Proposed design (when triggered):** Replace the direct `onRestoreRequested` callback in `AuditHistoryPanel.Parameters` with an `AuditHistoryRowActionsHook` SPI in `platform-commons/audit.spi`. The panel calls `hook.buildRowActions(item, isCurrentState, onRestore)` via `ObjectProvider` — no-op when absent. Marketplace provides `AuditHistoryRowActionsHookImpl`.
-
-**Why it should eventually be done:** The restore button is a marketplace business decision. The starter's panel should only lay out history rows; what actions appear per row is the caller's concern.
-
-**Trigger:** implement when a second consumer of the audit starter appears, or when the current direct coupling causes a real maintenance problem. Do not implement speculatively.
+**2026-06-15:** `AuditHistoryRowActionsHook` was never implemented and is now cancelled. All Vaadin UI — including `AuditHistoryPanel` and the restore button — lives in marketplace-app. There is no second starter consumer that would require this SPI. The restore button callback (`onRestoreRequested`) in `AuditHistoryPanel.Parameters` is the correct and sufficient pattern for a UI-monolith architecture.
 
 ---
 
-## 2026-06-02 — Audit-starter owns its own i18n; display labels removed from AuditUiPort params
+## 2026-06-02 — i18n consolidated into marketplace-app; all audit keys in I18nKey enum
 
-**Decision:** All display label strings (empty-state text, "current state" badge, "restore" button text) were previously passed from marketplace into `AuditUiPort` params (`labelEmpty`, `labelCurrentState`, `labelRestore`, `emptyLabel`, `currentLabel`, `restoreLabel`). These parameters have been removed. The audit-starter resolves all its own labels via `AuditI18n` enum + `I18nService`.
+**Decision:** Display label strings were previously passed from marketplace into `AuditUiPort` params. After `AuditUiPort` was removed (2026-06-15), all audit i18n keys live in `org.ost.marketplace.services.i18n.I18nKey` (marketplace-app) under the `audit.*` namespace prefix (e.g. `AUDIT_ACTIVITY_EMPTY`, `AUDIT_HISTORY_RESTORE`). The starter does not ship its own properties files or i18n enum.
 
-`AuditMessages` renamed to `AuditI18n` (implements `TranslationKey`). All keys now carry the `audit.` namespace prefix (e.g. `audit.activity.empty`, `audit.history.restore`). The enum is internal to the starter — marketplace never references it.
+**Why:** All Vaadin UI lives in marketplace-app — the starter has no rendering concern. Centralizing keys in one enum gives compile-time safety and eliminates MessageSource lookup by raw string.
 
-**Why:** Passing display strings across a module boundary couples the caller to the starter's internal rendering decisions. The starter is responsible for how it looks; the caller is responsible for what it shows.
-
-**Rule:** `AuditUiPort` params must carry only data (entity IDs, subjects, callbacks, predicates) — never display strings or i18n keys.
+**Rule:** Audit display strings resolved only inside marketplace-app UI components via `I18nService.get(I18nKey.*)`. Never pass label strings across the module boundary.
 
 ---
 
@@ -270,19 +263,7 @@ public record AuditLogProjection(
 
 **Why:** The starter resolves labels via a shared `MessageSource`. Namespacing keys under `audit.changes.*` makes ownership clear and avoids collision with marketplace-owned keys.
 
-**Deferred — per-module i18n:** Each starter should eventually own its own `messages*.properties` (e.g. `i18n/audit-messages_en.properties`), loaded via a composite `MessageSource`. This eliminates audit- and attachment-specific keys from the marketplace properties files. Trigger: when a second consumer of either starter appears, or the marketplace properties file becomes unmanageable.
-
----
-
-## 2026-06-03 — AuditFieldLabelHook: field-key translation moved out of expandFields() *(superseded — see below)*
-
-**Decision:** `AuditActivityFieldsHook.expandFields()` now returns `FieldChange` entries with raw field keys (e.g. `"adsPageSize"`, `"title"`) instead of translated labels. A new `AuditFieldLabelHook` SPI (`platform-commons/audit.spi`) carries `supports(EntityType)` + `labelFor(String rawFieldKey)`. `AuditActivityRowRenderer.buildActivityChangesDiv()` resolves the matching label hook and translates each `fc.field()` before building spans.
-
-Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFieldsHookImpl`) implement both `AuditActivityFieldsHook` and `AuditFieldLabelHook`. `I18nService` is only called inside `labelFor()`, which is always invoked from the Vaadin UI thread (inside the renderer).
-
-**Why:** `expandFields()` was calling `I18nService.get()` which internally accesses `VaadinLocaleProvider` — a `@Scope("vaadin-ui")` scoped-proxy bean. Even though the call chain runs in the Vaadin UI thread, the scoped proxy resolution failed under certain request lifecycle conditions, throwing `ScopeNotActiveException` and leaving `.activity-feed-list` unpopulated. The fix separates data expansion (scope-independent) from label translation (UI-context-guaranteed).
-
-**Rule:** `AuditActivityFieldsHook.expandFields()` must never call `I18nService`. Label resolution is the responsibility of `AuditFieldLabelHook.labelFor()`, which is called exclusively from `AuditActivityRowRenderer` in Vaadin UI context.
+**i18n consolidation:** All `messages_en.properties` / `messages_uk.properties` files live in `marketplace-app/src/main/resources/i18n/` — including all `audit.*` and `attachment.*` keys. The starter does not ship its own properties files. `I18nKey` is a single consolidated enum in `org.ost.marketplace.services.i18n.I18nKey`.
 
 ---
 
@@ -299,6 +280,16 @@ Marketplace implementations (`ActivityFieldsHookImpl`, `AdvertisementActivityFie
 **Why:** Each pair was always co-implemented in one class — the split served no isolation purpose, just added indirection. Merging reduces the interface count from 13 to 10, eliminates 4 files, and makes the natural coupling explicit at the interface level.
 
 **Rule:** `AuditActivityFieldsHook.expandFields()` must still never call `I18nService`. `labelFor()` is the correct place for i18n (invoked from the UI thread in the renderer).
+
+---
+
+## 2026-06-15 — Resolved: AuditReadService direct injection in marketplace UI panels
+
+`AuditActivityPanel`, `AuditTimelinePanel`, and related UI components in `org.ost.marketplace.ui.views.components.audit` inject `AuditReadService` directly from `org.ost.audit.services.*`.
+
+**This is correct design.** All Vaadin UI lives in marketplace-app. `AuditUiPort` was removed as unnecessary indirection (2026-06-15). Marketplace UI calling audit starter services directly IS the legitimate service ↔ UI boundary — not a violation.
+
+**Rule:** marketplace-app UI may import `org.ost.audit.services.*` directly via `ComponentFactory<AuditPort>` or direct injection. `AuditUiPort` must not be re-introduced.
 
 ---
 

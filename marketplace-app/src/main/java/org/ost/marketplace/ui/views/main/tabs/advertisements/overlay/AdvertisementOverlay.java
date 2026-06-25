@@ -5,17 +5,16 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.AdvertisementInfoDto;
-import org.ost.marketplace.services.AdvertisementService;
-import org.ost.marketplace.common.I18nKey;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -33,12 +32,12 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     ) {
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, ad, onSaved, false); }
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, ad, onSaved, true); }
+        OverlaySession withAd(AdvertisementInfoDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport  support;
-    private final AdvertisementService           advertisementService;
-    private final ComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
-    private final ComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession                      session;
     private AdvertisementFormOverlayModeHandler currentFormHandler;
@@ -75,7 +74,6 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
                             .ad(session.ad())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeAndRefresh)
-                            .onRestore(this::handleRestore)
                             .build());
             case EDIT, CREATE -> {
                 currentFormHandler = formModeHandlerFactory.build(
@@ -109,41 +107,26 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
             if (currentFormHandler.save()) {
                 notification().success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
-                if (session.enteredFromView()) {
-                    Long savedId = currentFormHandler.getSavedAdvertisement().getId();
-                    advertisementService.findById(savedId).ifPresentOrElse(freshAd -> {
-                        session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
-                        switchTo();
-                    }, this::closeToList);
+                if (session.mode() == Mode.EDIT) {
+                    currentFormHandler.afterSave(true);
+                    AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
+                    if (fresh != null) session = session.withAd(fresh);
                 } else {
                     closeToList();
                 }
             } else {
                 notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
+                currentFormHandler.afterSave(false);
             }
         } catch (Exception e) {
             notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
+            currentFormHandler.afterSave(false);
         }
     }
 
     private void closeAndRefresh() {
         session.onSaved().run();
         closeToList();
-    }
-
-    private void handleRestore(Long snapshotId) {
-        try {
-            if (advertisementService.restore(session.ad().getId(), snapshotId)) {
-                notification().success(ADVERTISEMENT_RESTORED_SUCCESS);
-                session.onSaved().run();
-                advertisementService.findById(session.ad().getId()).ifPresent(freshAd -> {
-                    session = new OverlaySession(Mode.VIEW, freshAd, session.onSaved(), false);
-                    switchTo();
-                });
-            }
-        } catch (Exception _) {
-            notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
-        }
     }
 
     @Override

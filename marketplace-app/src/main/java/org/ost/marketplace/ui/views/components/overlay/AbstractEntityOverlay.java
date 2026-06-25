@@ -1,7 +1,7 @@
 package org.ost.marketplace.ui.views.components.overlay;
 
-import org.ost.marketplace.common.I18nKey;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
 

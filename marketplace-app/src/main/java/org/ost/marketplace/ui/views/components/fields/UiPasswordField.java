@@ -4,16 +4,16 @@ import com.vaadin.flow.component.textfield.PasswordField;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.ui.Configurable;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
-import org.ost.platform.ui.Initialization;
+import org.ost.marketplace.ui.core.Initialization;
 import org.springframework.context.annotation.Scope;
 
 @SpringComponent
 @Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
+@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @SuppressWarnings("java:S110")
 public class UiPasswordField extends PasswordField
         implements Configurable<UiPasswordField, UiPasswordField.Parameters>, I18nParams, Initialization<UiPasswordField> {

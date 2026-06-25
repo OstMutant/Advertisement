@@ -1,10 +1,11 @@
 package org.ost.attachment.spi;
 
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.springframework.stereotype.Component;
@@ -20,29 +21,29 @@ public class AttachmentAuditHookImpl implements AttachmentAuditHook {
     // ── Activity feed ──────────────────────────────────────────────────────────
 
     @Override
-    public List<AuditActivityItemDto<AuditableSnapshot>> merge(EntityRef subject, List<AuditActivityItemDto<AuditableSnapshot>> baseItems) {
+    public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems) {
         return attachmentSnapshotService.mergeAttachmentMediaChanges(baseItems);
     }
 
     // ── Media history ──────────────────────────────────────────────────────────
 
     @Override
-    public List<ChangeEntry> getMediaChanges(EntityRef entity, int version) {
+    public List<ChangeEntry> getMediaChanges(@NonNull EntityRef entity, int version) {
         return attachmentSnapshotService.getChangesForVersion(entity.entityType(), entity.entityId(), version);
     }
 
     @Override
-    public boolean mediaMatchCurrent(EntityRef entity, int version) {
+    public boolean mediaMatchCurrent(@NonNull EntityRef entity, int version) {
         return attachmentSnapshotService.mediaMatchCurrent(entity.entityType(), entity.entityId(), version);
     }
 
     @Override
-    public String getMediaStateAtVersion(EntityRef entity, int version) {
+    public String getMediaStateAtVersion(@NonNull EntityRef entity, int version) {
         return attachmentSnapshotService.getMediaStateAtVersion(entity.entityType(), entity.entityId(), version);
     }
 
     @Override
-    public String getMediaStateForSnapshot(EntityRef entity, Long snapshotId) {
+    public String getMediaStateForSnapshot(@NonNull EntityRef entity, @NonNull Long snapshotId) {
         return attachmentSnapshotService.getMediaStateForSnapshot(entity.entityType(), entity.entityId(), snapshotId);
     }
 }

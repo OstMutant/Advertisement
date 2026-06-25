@@ -6,9 +6,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.dto.SignUpDto;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.marketplace.services.user.UserService;
+import org.ost.platform.user.dto.SignUpDto;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.dialogs.BaseDialog;
@@ -18,10 +18,10 @@ import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @Slf4j
 @SpringComponent
@@ -29,16 +29,16 @@ import static org.ost.marketplace.common.I18nKey.*;
 @RequiredArgsConstructor
 public class SignUpDialog extends BaseDialog implements I18nParams {
 
-    private final transient UserService                             userService;
+    private final transient UserPort                                userPort;
     @Getter
     private final transient I18nService                             i18nService;
     private final transient NotificationService                     notificationService;
     private final           DialogLayout                            layout;
-    private final transient ComponentFactory<UiTextField>           textFieldFactory;
-    private final transient ComponentFactory<UiEmailField>          emailFieldFactory;
-    private final transient ComponentFactory<UiPasswordField>       passwordFieldFactory;
-    private final transient ComponentFactory<UiPrimaryButton>       primaryButtonFactory;
-    private final transient ComponentFactory<UiTertiaryButton>      tertiaryButtonFactory;
+    private final transient UiComponentFactory<UiTextField>           textFieldFactory;
+    private final transient UiComponentFactory<UiEmailField>          emailFieldFactory;
+    private final transient UiComponentFactory<UiPasswordField>       passwordFieldFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>       primaryButtonFactory;
+    private final transient UiComponentFactory<UiTertiaryButton>      tertiaryButtonFactory;
 
     private UiTextField     nameField;
     private UiEmailField    emailField;
@@ -107,7 +107,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         binder.forField(emailField)
                 .withValidator(email -> {
                     try {
-                        return email != null && userService.findByEmail(email.trim()).isEmpty();
+                        return email != null && userPort.findByEmail(email.trim()).isEmpty();
                     } catch (Exception e) {
                         log.warn("Failed to check email uniqueness", e);
                         return false;
@@ -124,7 +124,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         }
         try {
             binder.writeBean(dto);
-            userService.register(dto);
+            userPort.register(dto);
             notificationService.success(SIGNUP_SUCCESS);
             close();
         } catch (Exception ex) {

@@ -14,11 +14,7 @@ public abstract class AbstractFormOverlayModeHandler<D extends EditDto> implemen
     protected static void wireSaveGuard(UiPrimaryButton saveBtn, Runnable onSave) {
         saveBtn.addClickListener(_ -> {
             saveBtn.setEnabled(false);
-            try {
-                onSave.run();
-            } finally {
-                saveBtn.setEnabled(true);
-            }
+            onSave.run();
         });
     }
 }

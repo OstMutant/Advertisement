@@ -2,7 +2,7 @@ package org.ost.platform.attachment.spi;
 
 import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditActivityItemDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 
@@ -19,7 +19,7 @@ public interface AttachmentAuditHook {
 
     // ── Activity feed ──────────────────────────────────────────────────────────
 
-    List<AuditActivityItemDto<AuditableSnapshot>> merge(@NonNull EntityRef subject, @NonNull List<AuditActivityItemDto<AuditableSnapshot>> baseItems);
+    List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> baseItems);
 
     // ── Media history ──────────────────────────────────────────────────────────
 

@@ -16,14 +16,18 @@ The `marketplace-app` container is started automatically if stopped. Test accoun
 
 ```bash
 bash /app/playwright/run.sh                        # all tests
-bash /app/playwright/run.sh core                   # all core tests
+bash /app/playwright/run.sh e2e                    # e2e suite (01–06), skips spec 05 seed
+bash /app/playwright/run.sh e2e --full             # e2e suite including spec 05 (seeds 50 users + 50 ads, ~2 min extra)
 bash /app/playwright/run.sh audit                  # all audit tests
 bash /app/playwright/run.sh attachment             # all attachment tests
 bash /app/playwright/run.sh smoke                  # one scenario by name
 bash /app/playwright/run.sh audit/advertisement-history  # by group/name
 bash /app/playwright/run.sh --ux                   # all tests with screenshots
+bash /app/playwright/run.sh e2e --full --ux        # full e2e suite with screenshots
 bash /app/playwright/run.sh smoke --ux             # one scenario with screenshots
 ```
+
+> **`--full`**: spec `05-seed-filter-sort-pagination` is skipped by default because it takes ~2 min to create 100 seed entities. Add `--full` to include it. Required when testing pagination, filter edge cases with large data sets, or verifying spec 06 delete flow against a fully seeded database.
 
 ### Windows
 
@@ -712,6 +716,6 @@ Screenshots: `fields-03-activity-created-both-fields`, `fields-04-activity-updat
 
 ## Adding a new scenario
 
-1. Create `/app/playwright/my-scenario.spec.js`
-2. `const { test, expect, loginAs, ... } = require('./_test-helpers');`
+1. Create `/app/playwright/e2e/my-scenario.spec.js`
+2. `const { test, expect, screenshot } = require('./_helpers');`
 3. Run with: `bash /app/playwright/run.sh my-scenario`

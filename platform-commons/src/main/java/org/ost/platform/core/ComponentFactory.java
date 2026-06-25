@@ -1,7 +1,6 @@
 package org.ost.platform.core;
 
 import lombok.NonNull;
-import org.ost.platform.ui.Configurable;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.Optional;
@@ -17,16 +16,6 @@ public class ComponentFactory<T> {
 
     public T get() {
         return provider.getObject();
-    }
-
-    @SuppressWarnings("unchecked")
-    public <P> T build(@NonNull P params) {
-        return ((Configurable<T, P>) provider.getObject()).configure(params);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <P, R> R buildAs(@NonNull P params) {
-        return (R) build(params);
     }
 
     public T getIfAvailable() {

@@ -5,18 +5,16 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.common.I18nKey;
-import org.ost.marketplace.entities.User;
-import org.ost.marketplace.services.user.UserService;
-import org.ost.marketplace.services.auth.AuthContextService;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -28,19 +26,18 @@ public class UserOverlay extends AbstractEntityOverlay {
 
     private record OverlaySession(
             Mode mode,
-            @NonNull User user,
+            @NonNull UserDto user,
             @NonNull Runnable onSaved,
             boolean enteredFromView
     ) {
         OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, user, onSaved, true); }
         OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
+        OverlaySession withUser(UserDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
-    private final UserService                  userService;
-    private final AuthContextService           authContextService;
-    private final ComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
-    private final ComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
+    private final UiComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
+    private final UiComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession            session;
     private UserFormOverlayModeHandler currentFormHandler;
@@ -49,12 +46,12 @@ public class UserOverlay extends AbstractEntityOverlay {
     @Override protected I18nKey              getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
     @Override protected boolean              hasUnsavedChanges()    { return currentFormHandler != null && currentFormHandler.hasChanges(); }
 
-    public void openForView(User user, Runnable onChanged) {
+    public void openForView(UserDto user, Runnable onChanged) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.VIEW, user, onChanged, false));
     }
 
-    public void openForEdit(User user, Runnable onSaved) {
+    public void openForEdit(UserDto user, Runnable onSaved) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.EDIT, user, onSaved, false));
     }
@@ -72,7 +69,6 @@ public class UserOverlay extends AbstractEntityOverlay {
                             .user(session.user())
                             .onEdit(this::switchToEdit)
                             .onClose(this::closeToList)
-                            .onRestoreUser(this::handleRestoreUser)
                             .build());
             case EDIT -> {
                 currentFormHandler = formModeHandlerFactory.build(
@@ -87,7 +83,7 @@ public class UserOverlay extends AbstractEntityOverlay {
 
         handler.activate(layout);
 
-        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT ? session.user().getName() : "");
+        layout.getBreadcrumbCurrent().setText(session.mode() == Mode.EDIT ? session.user().name() : "");
         layout.getBreadcrumbCurrent().setVisible(session.mode() == Mode.EDIT);
     }
 
@@ -101,33 +97,17 @@ public class UserOverlay extends AbstractEntityOverlay {
             if (currentFormHandler.save()) {
                 notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
-                if (session.enteredFromView()) {
-                    Long savedId = currentFormHandler.getSavedUserId();
-                    userService.findById(savedId).ifPresentOrElse(freshUser -> {
-                        session = new OverlaySession(Mode.VIEW, freshUser, session.onSaved(), false);
-                        switchTo();
-                    }, this::closeToList);
-                } else {
-                    closeToList();
-                }
+                currentFormHandler.afterSave(true);
+                UserDto fresh = currentFormHandler.getSavedUser();
+                if (fresh != null) session = session.withUser(fresh);
             } else {
                 notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
+                currentFormHandler.afterSave(false);
             }
         } catch (Exception e) {
             notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR, e.getMessage());
+            currentFormHandler.afterSave(false);
         }
-    }
-
-    private void handleRestoreUser(Long snapshotId, Long entityId) {
-        Long actingUserId = authContextService.getCurrentUser().map(User::getId).orElseThrow();
-        userService.restoreToSnapshot(entityId, snapshotId, actingUserId).ifPresentOrElse(
-                restoredUser -> {
-                    notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
-                    session.onSaved().run();
-                    openSession(new OverlaySession(Mode.VIEW, restoredUser, session.onSaved(), false));
-                },
-                () -> notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR)
-        );
     }
 
     @Override

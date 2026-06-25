@@ -42,14 +42,17 @@ Always use project scripts — never raw docker/mvn commands:
 - `bash scripts/playwright.sh [scenario]` — Playwright tests
 - `mvn clean test 2>&1 | tee /tmp/test.log` — JUnit tests
 
-**Run all scripts synchronously** (no background, no awk pipe, no polling):
-- Use `timeout: 600000` on the Bash tool call
-- Full output is visible directly — no filtering, no grep
-- User sees all logs as-is
+**Run all scripts with Monitor + tee pattern:**
+1. Launch Monitor (`persistent: true`) watching the log file every 10s — reports stuck/error/success
+2. Run synchronously with `timeout: 600000` piped to `tee /tmp/<script>.log`
+3. User sees full streaming output directly
 
 **Before running Playwright** — kill old processes first:
 1. `docker exec pw-runner pkill -f "node.*playwright" 2>/dev/null; true`
-2. Then run: `bash scripts/playwright.sh [scenario] 2>&1`
+2. Launch Monitor watching `/tmp/playwright.log` (10s interval, catch `failed|Error|passed`)
+3. Then run: `bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log`
+
+**Before running deploy.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log`
 
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.

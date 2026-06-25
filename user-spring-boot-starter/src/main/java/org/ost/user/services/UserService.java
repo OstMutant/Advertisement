@@ -1,0 +1,158 @@
+package org.ost.user.services;
+
+import jakarta.validation.Valid;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
+import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.ChangeEntry;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.user.dto.SettingsSnapshotDto;
+import org.ost.platform.user.dto.SignUpDto;
+import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserProfileDto;
+import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.model.Role;
+import org.ost.user.entity.User;
+import org.ost.user.repository.UserRepository;
+import org.ost.user.security.UserPrincipal;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+@Validated
+public class UserService {
+
+    private final UserRepository              repository;
+    private final PasswordEncoder             passwordEncoder;
+    private final ComponentFactory<AuditPort> auditPortFactory;
+
+    public List<User> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort));
+    }
+
+    public int count(@Valid @NonNull UserFilterDto filter) {
+        return repository.countByFilter(filter).intValue();
+    }
+
+    @Transactional
+    public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
+        log.info("User profile update: id={}", dto.id());
+        User before = repository.findById(dto.id()).orElseThrow();
+        repository.updateProfile(dto);
+        repository.findById(dto.id()).ifPresent(updated ->
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
+                        toSnapshot(before),
+                        toSnapshot(updated),
+                        actingUserId)));
+    }
+
+    @Transactional
+    public void updateLocale(@NonNull Long userId, @NonNull String locale) {
+        repository.updateLocale(userId, locale);
+    }
+
+    @Transactional
+    public void delete(@NonNull Long userId) {
+        log.info("User delete: id={}", userId);
+        repository.deleteById(userId);
+    }
+
+    @Transactional
+    public void register(@Valid @NonNull SignUpDto dto) {
+        log.info("User register: email={}", dto.getEmail());
+        boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
+        User newUser = User.builder()
+                .name(dto.getName().trim())
+                .email(dto.getEmail().trim())
+                .passwordHash(passwordEncoder.encode(dto.getPassword().trim()))
+                .role(isFirstUser ? Role.ADMIN : Role.USER)
+                .build();
+        User saved = repository.save(newUser);
+        UserSettingsDto defaults = UserSettingsDto.defaultSettings();
+        auditPortFactory.ifAvailable(p -> {
+            p.captureCreation(saved.getId(), toSnapshot(saved),                       saved.getId());
+            p.captureCreation(saved.getId(), SettingsSnapshotDto.from(defaults),      saved.getId());
+        });
+    }
+
+    public Optional<User> findById(@NonNull Long id) {
+        return repository.findById(id);
+    }
+
+    @Transactional
+    public Optional<User> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
+        return auditPortFactory.findIfAvailable()
+                .flatMap(p -> p.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER))
+                .map(AuditSnapshotContentDto::snapshotData)
+                .flatMap(snap -> applyUserRestore(userId, snap, actingUserId));
+    }
+
+    private Optional<User> applyUserRestore(@NonNull Long userId, @NonNull UserSnapshotDto snap, @NonNull Long actingUserId) {
+        User before = repository.findById(userId).orElseThrow();
+        repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
+        return repository.findById(userId).map(updated -> {
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
+                    toSnapshot(before),
+                    toSnapshot(updated),
+                    actingUserId));
+            return updated;
+        });
+    }
+
+    public void refreshSecurityContext(@NonNull Long userId) {
+        try {
+            User user = repository.findById(userId).orElseThrow();
+            UserPrincipal principal = new UserPrincipal(user);
+            Authentication currentAuth = SecurityContextHolder.getContext().getAuthentication();
+            Authentication newAuth = currentAuth != null
+                    ? new UsernamePasswordAuthenticationToken(principal, currentAuth.getCredentials(), principal.getAuthorities())
+                    : new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
+            SecurityContextHolder.getContext().setAuthentication(newAuth);
+            log.debug("Refreshed security principal for user id={}", userId);
+        } catch (Exception ex) {
+            log.error("Failed to refresh security principal for user id={}", userId, ex);
+        }
+    }
+
+    public Optional<User> findByEmail(@NonNull String email) {
+        return repository.findByEmail(email);
+    }
+
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
+    }
+
+    public Map<Long, String> findActorNames(@NonNull Set<Long> ids) {
+        return repository.findActorNames(ids.toArray(new Long[0]));
+    }
+
+    public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
+        return item.snapshotData() != null
+                ? item.snapshotData().expandWithChanges(item.changes())
+                : item.changes();
+    }
+
+    private static UserSnapshotDto toSnapshot(User user) {
+        return new UserSnapshotDto(user.getName(), user.getEmail(), user.getRole().name());
+    }
+}

@@ -8,19 +8,16 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.config.CleanupProperties;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.audit.services.AuditCleanupService;
+import org.ost.audit.services.AuditReadService;
 import org.ost.audit.services.DefaultAuditPort;
 import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
-import org.ost.audit.AuditPackageMarker;
 import org.ost.platform.core.ComponentFactory;
-import org.springframework.beans.factory.InjectionPoint;
-import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Scope;
-import org.springframework.core.ResolvableType;
 import org.springframework.data.jdbc.repository.config.EnableJdbcRepositories;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 import org.springframework.scheduling.support.CronTrigger;
@@ -30,7 +27,7 @@ import java.util.TimeZone;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ComponentScan(basePackageClasses = AuditPackageMarker.class)
+@ComponentScan({"org.ost.audit.services", "org.ost.audit.repository"})
 @EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
 public class AuditAutoConfiguration {
 
@@ -62,19 +59,14 @@ public class AuditAutoConfiguration {
     @ConditionalOnMissingBean(AuditPort.class)
     DefaultAuditPort defaultAuditPort(AuditLogRepository auditLogRepository,
                                       CurrentActorHook currentActorHook,
-                                      AuditDomainHook auditDomainHook) {
-        return new DefaultAuditPort(auditLogRepository, currentActorHook, auditDomainHook);
+                                      AuditDomainHook auditDomainHook,
+                                      AuditReadService auditReadService) {
+        return new DefaultAuditPort(auditLogRepository, currentActorHook, auditDomainHook, auditReadService);
     }
 
-    @Bean
-    @Scope("prototype")
-    @ConditionalOnMissingBean
-    public ComponentFactory<?> componentFactory(InjectionPoint injectionPoint, ConfigurableListableBeanFactory beanFactory) {
-        ResolvableType type = injectionPoint.getField() != null
-                ? ResolvableType.forField(injectionPoint.getField())
-                : ResolvableType.forMethodParameter(injectionPoint.getMethodParameter());
-        Class<?> beanClass = type.getGeneric(0).toClass();
-        return new ComponentFactory<>(beanFactory.getBeanProvider(ResolvableType.forClass(beanClass)));
+    @Bean @ConditionalOnMissingBean
+    public ComponentFactory<AuditPort> auditPortFactory(ObjectProvider<AuditPort> p) {
+        return new ComponentFactory<>(p);
     }
 
 }

@@ -3,23 +3,23 @@ package org.ost.platform.audit.dto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.ChangeEntry;
-import org.ost.platform.core.model.EntityType;
 
 import java.time.Instant;
 import java.util.List;
 
 public record AuditActivityItemDto<T extends AuditableSnapshot>(
         Long              snapshotId,
-        Long              entityId,
-        EntityType        entityType,
+        int               version,
         ActionType        actionType,
+        Long              actorId,
         Instant           createdAt,
         List<ChangeEntry> changes,
-        Long              changedByActorId,
-        T                 snapshotData
+        Long              prevSnapshotId,
+        T                 snapshotData,
+        T                 prevSnapshotData
 ) {
     public AuditActivityItemDto<T> withChanges(List<ChangeEntry> newChanges) {
-        return new AuditActivityItemDto<>(snapshotId, entityId, entityType, actionType,
-                createdAt, newChanges, changedByActorId, snapshotData);
+        return new AuditActivityItemDto<>(snapshotId, version, actionType, actorId,
+                createdAt, newChanges, prevSnapshotId, snapshotData, prevSnapshotData);
     }
 }

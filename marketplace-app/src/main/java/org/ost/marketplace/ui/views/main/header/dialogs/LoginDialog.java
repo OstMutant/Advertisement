@@ -1,6 +1,5 @@
 package org.ost.marketplace.ui.views.main.header.dialogs;
 
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
@@ -8,8 +7,8 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.auth.AuthService;
-import org.ost.platform.core.i18n.I18nService;
-import org.ost.platform.core.i18n.LocaleProvider;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.dialogs.BaseDialog;
@@ -18,10 +17,10 @@ import org.ost.marketplace.ui.views.components.fields.UiEmailField;
 import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.platform.core.ComponentFactory;
+import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @Slf4j
 @SpringComponent
@@ -35,10 +34,10 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     private final NotificationService                    notificationService;
     private final LocaleProvider                         localeProvider;
     private final DialogLayout                           layout;
-    private final transient ComponentFactory<UiEmailField>      emailFieldFactory;
-    private final transient ComponentFactory<UiPasswordField>   passwordFieldFactory;
-    private final transient ComponentFactory<UiPrimaryButton>   primaryButtonFactory;
-    private final transient ComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
+    private final transient UiComponentFactory<UiEmailField>      emailFieldFactory;
+    private final transient UiComponentFactory<UiPasswordField>   passwordFieldFactory;
+    private final transient UiComponentFactory<UiPrimaryButton>   primaryButtonFactory;
+    private final transient UiComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
@@ -92,7 +91,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
             close();
             notificationService.success(LOGIN_SUCCESS);
             localeProvider.refreshCurrentLocale();
-            UI.getCurrent().getPage().reload();
+            getUI().ifPresent(ui -> ui.getPage().reload());
         } else {
             notificationService.error(LOGIN_ERROR);
         }

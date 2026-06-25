@@ -11,45 +11,76 @@ public abstract class AbstractViewOverlayModeHandler implements OverlayModeHandl
 
     @Override
     public final void activate(OverlayLayout layout) {
-        Tab primaryTab = buildPrimaryTab();
-        Tabs tabs = new Tabs(primaryTab);
-        tabs.addClassName(tabsCssClass());
-
         SecondaryTabDef secondary = buildSecondaryTab();
-        if (secondary != null) tabs.add(secondary.tab());
+        TertiaryTabDef  tertiary  = buildTertiaryTab();
 
-        layout.setContent(assembleTabbedContent(tabs, primaryTab, buildPrimaryContent(), secondary));
+        if (secondary == null && tertiary == null) {
+            layout.setContent(buildPrimaryContent());
+        } else {
+            Tab  primaryTab = buildPrimaryTab();
+            Tabs tabs       = new Tabs(primaryTab);
+            tabs.addClassName(tabsCssClass());
+            if (secondary != null) tabs.add(secondary.tab());
+            if (tertiary  != null) tabs.add(tertiary.tab());
+            layout.setContent(assembleTabbedContent(tabs, primaryTab, buildPrimaryContent(), secondary, tertiary));
+        }
         layout.setHeaderActions(buildHeaderActions());
     }
 
-    protected abstract String tabsCssClass();
+    protected String tabsCssClass() { return ""; }
 
-    protected abstract Tab buildPrimaryTab();
+    protected Tab buildPrimaryTab() { return null; }
 
     protected abstract Div buildPrimaryContent();
 
-    protected abstract SecondaryTabDef buildSecondaryTab();
+    protected SecondaryTabDef buildSecondaryTab() { return null; }
+
+    protected TertiaryTabDef buildTertiaryTab() { return null; }
 
     protected abstract Div buildHeaderActions();
 
     public record SecondaryTabDef(Tab tab, String cssClass, Supplier<Component> loader) {}
 
+    public record TertiaryTabDef(Tab tab, String cssClass, Supplier<Component> loader) {}
+
     private static Div assembleTabbedContent(Tabs tabs, Tab primaryTab, Div primaryContent,
-                                             SecondaryTabDef secondary) {
+                                             SecondaryTabDef secondary, TertiaryTabDef tertiary) {
         if (secondary == null) {
             return new Div(tabs, primaryContent);
         }
         Div secondaryContent = new Div();
         secondaryContent.addClassName(secondary.cssClass());
         secondaryContent.setVisible(false);
+
+        Div tertiaryContent;
+        if (tertiary != null) {
+            tertiaryContent = new Div();
+            tertiaryContent.addClassName(tertiary.cssClass());
+            tertiaryContent.setVisible(false);
+        } else {
+            tertiaryContent = null;
+        }
+
         tabs.addSelectedChangeListener(event -> {
-            boolean isPrimary = event.getSelectedTab() == primaryTab;
+            Tab selected = event.getSelectedTab();
+            boolean isPrimary   = selected == primaryTab;
+            boolean isSecondary = selected == secondary.tab();
             primaryContent.setVisible(isPrimary);
-            secondaryContent.setVisible(!isPrimary);
-            if (!isPrimary && secondaryContent.getChildren().findFirst().isEmpty()) {
+            secondaryContent.setVisible(isSecondary);
+            if (isSecondary && secondaryContent.getChildren().findFirst().isEmpty()) {
                 secondaryContent.add(secondary.loader().get());
             }
+            if (tertiaryContent != null) {
+                boolean isTertiary = !isPrimary && !isSecondary;
+                tertiaryContent.setVisible(isTertiary);
+                if (isTertiary && tertiaryContent.getChildren().findFirst().isEmpty()) {
+                    tertiaryContent.add(tertiary.loader().get());
+                }
+            }
         });
-        return new Div(tabs, primaryContent, secondaryContent);
+
+        return tertiaryContent != null
+                ? new Div(tabs, primaryContent, secondaryContent, tertiaryContent)
+                : new Div(tabs, primaryContent, secondaryContent);
     }
 }

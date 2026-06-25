@@ -2,9 +2,55 @@
 
 ---
 
+## 2026-06-13 — UserPort + AdvertisementPort for domain module extraction (completed 2026-06-15)
+
+**Decision (completed):** Two new `*Port` interfaces were added to `platform-commons` as part of the domain module extraction (see `marketplace-app/DECISIONS.md` phase 2).
+
+**`UserPort`** (`user.spi`) — marketplace-app calls user-spring-boot-starter:
+```java
+List<UserDto> getFiltered(UserFilterDto filter, int page, int size, Sort sort);
+int count(UserFilterDto filter);
+void save(UserProfileDto dto, Long actingUserId);
+void updateLocale(Long userId, String locale);
+void delete(EntityMarker user);
+void register(SignUpDto dto);
+Optional<UserDto> findById(Long id);
+Optional<UserDto> findByEmail(String email);          // used by SecurityConfig
+Optional<UserDto> restoreToSnapshot(Long userId, Long snapshotId, Long actingUserId);
+void refreshCurrentUserInContext(Long userId);
+List<Long> findExistingIds(Long[] ids);
+Map<Long, String> findActorNames(Collection<Long> ids);  // used by advertisement-starter
+List<ChangeEntry> expandActivityFields(AuditTimelineItemDto<AuditableSnapshot> item);
+```
+
+**`AdvertisementPort`** (`advertisement.spi`) — marketplace-app calls advertisement-spring-boot-starter:
+```java
+List<AdvertisementInfoDto> getFiltered(AdvertisementFilterDto filter, int page, int size, Sort sort);
+int count(AdvertisementFilterDto filter);
+void save(AdvertisementEditDto dto);
+Optional<AdvertisementInfoDto> findById(Long id);
+boolean restore(Long advertisementId, Long snapshotId);
+void delete(EntityMarker ad);
+void onMediaChanged(Long entityId);
+List<Long> findExistingIds(Long[] ids);
+```
+
+**Why UserPort.findActorNames is called by advertisement-starter (not marketplace):**
+`AdvertisementService` needs to enrich `AdvertisementInfoDto` with the creator's display name after removing the SQL JOIN on `user_information`. The service in advertisement-starter calls `UserPort.findActorNames` (from platform-commons) at the service layer. The implementation is provided by user-starter at runtime via Spring DI. This keeps the SQL in each starter isolated to its own table while maintaining bulk-fetch efficiency (no N+1).
+
+**Package placement:**
+- `org.ost.platform.user.spi.UserPort`
+- `org.ost.platform.advertisement.spi.AdvertisementPort`
+
+**DTOs for port signatures:** Entity types (`User`, `Advertisement`) and edit DTOs that cross the module boundary move to `platform-commons` (or the respective starter exposes them as part of its public API). Exact DTO placement to be decided during implementation.
+
+**Status:** Fully implemented. See marketplace-app/DECISIONS.md 2026-06-13 (phase 2 completed) and 2026-06-15 (full user decoupling).
+
+---
+
 ## 2026-06-04 — `ComponentFactory<T>`: InjectionPoint-resolved prototype factory
 
-**Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `AuditUiPort`, `UiPrimaryButton`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:
+**Decision:** Optional starter dependencies (`AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, etc.) in `marketplace-app` are injected as `ComponentFactory<T>`, not as raw `ObjectProvider<T>`. A single prototype `@Bean ComponentFactory<?>` in `ComponentFactoryConfig` resolves the concrete type `T` by inspecting `InjectionPoint` at wiring time:
 
 ```java
 @Bean @Scope("prototype")
@@ -53,9 +99,11 @@ The alternative — one singleton factory with `<T> T get(Class<T> type)` — pu
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGalleryPort` (`*Port`); `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`, `AuditActivityEnrichHook`, `AuditHistoryRowActionsHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` (`*Hook`).
+Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort` (`*Port`); `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook` (`*Hook`).
 
 **2026-06-03 update:** `EntityNameHook` (merged into `AuditDomainHook`), `AuditFieldLabelHook` (merged into `AuditActivityFieldsHook`), `AuditActivityRenderHook` (merged into `AuditActivityEnrichHook`) deleted. SPI count reduced from 13 to 10.
+
+**2026-06-15 update:** `AuditUiPort`, `AuditActivityRowHook`, `AuditHistoryRowActionsHook`, `AttachmentGalleryPort` removed — UI ports/hooks are unnecessary indirection since all Vaadin UI lives in marketplace-app. `UserPort`, `AdvertisementPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook` added for domain module extraction.
 
 **Why:** The initial 7-suffix convention (`*Extension`, `*Consumer`, `*Provider`, `*Resolver`, `*Checker`, `*Binding`) created too many distinctions with no practical difference in implementation strategy. All "starter → marketplace" callbacks were consolidated under `*Hook`; the two directions (marketplace→starter and starter→marketplace) are the only distinctions that matter.
 
@@ -136,7 +184,7 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ## Ongoing — SPI pattern for cross-module extension
 
-**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AttachmentGalleryPort`, `AttachmentMediaChangeHook`, `AuditActivityRowHook`, `AttachmentPort`, `AuditUiPort`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19.)
+**Decision:** Cross-module extension points are defined as SPI interfaces in `platform-commons` (e.g. `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `AttachmentMediaChangeHook`, `AuditActivityEnrichHook`). Each starter provides its own implementation; `marketplace-app` calls them via `ObjectProvider.ifAvailable()`. (`StorageService` was an SPI candidate but had no cross-module consumer — moved into `attachment-spring-boot-starter` on 2026-05-19. UI-specific ports `AuditUiPort`, `AttachmentGalleryPort`, `AuditActivityRowHook` were removed 2026-06-15 — all Vaadin UI lives in marketplace-app, making these ports unnecessary indirection.)
 
 **Why:** Modules must not know about each other — only about contracts. The SPI pattern lets `attachment-spring-boot-starter` extend audit history without `audit-spring-boot-starter` importing attachment types.
 
@@ -160,8 +208,8 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 **Decision:** All user-domain types removed from `platform-commons`; SPIs renamed so the audit/attachment surface speaks about "actors" (whoever performs the action) and "subjects" (whoever is observed), not "users".
 
-- `Role` enum → moved to `marketplace-app` (`org.ost.marketplace.entities`). It was never used by either starter — only by domain code.
-- `UserSettings` → moved to `marketplace-app`. Contracts no longer ship a settings record.
+- `Role` enum → moved initially to `marketplace-app`, then promoted to `platform-commons/user.model` (2026-06-13) when `user-spring-boot-starter` was extracted and `UserPort` needed it as part of the domain contract.
+- `UserSettings` → moved to `marketplace-app` then superseded by `UserSettingsDto` in `platform-commons/user.dto`.
 - `UserSnapshotState` → deleted from `audit.dto`. The starter does not parse user payloads; consumers (`marketplace-app`) read raw `SnapshotContent` via `AuditPort.getSnapshotContent` / `getPreviousSnapshotContent` and deserialize their own `UserSnapshot`.
 - `AuditPort.getUserStateBefore(Long)` / `getUserStateAt(Long)` → deleted. Replaced by the generic pair `getSnapshotContent(Long, EntityType)` / `getPreviousSnapshotContent(Long, EntityType)`.
 - `AuditUserProvider` / `CurrentUserProvider` → renamed to `CurrentActorHook` (`getCurrentActorId(): Optional<Long>`). "Actor" is the audit-side concept; "user" leaked the marketplace domain.
@@ -174,17 +222,11 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ---
 
-## 2026-05-19 — Activity decoration via SPI: `AuditActivityRowHook` + `AuditUiPort.buildProfileActivityPanel`
+## 2026-05-19 — Activity decoration via SPI: `AuditActivityRowHook` + `AuditUiPort.buildProfileActivityPanel` *(superseded 2026-06-15 — removed)*
 
-**Decision:** Profile activity panels (per-subject feeds) are now built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)`. Consumers pass in a list of `AuditActivityRowHook` — an SPI with `entityType()` + `decorate(AuditActivityItemDto): Component` — to attach per-row UI (e.g. "current state" badges, "restore" buttons) without the starter understanding the snapshot shape.
+**Decision (historical):** Profile activity panels were built through `AuditUiPort.buildProfileActivityPanel(ProfileActivityParams)` with an `AuditActivityRowHook` SPI list for per-row UI decoration.
 
-`AuditSnapshotBinder<T>` (in `audit-spring-boot-starter`) is the canonical generic implementation: it deserializes `AuditActivityItemDto.snapshotData` into the consumer-provided `Class<T>`, checks a consumer-provided `Predicate<T>` for "is current", and optionally fires a consumer-provided `BiConsumer<Long, T>` for restore. Marketplace consumers (`SettingsOverlay`, `UserViewOverlayModeHandler`) build one `AuditSnapshotBinder<SettingsSnapshotDto>` and/or `AuditSnapshotBinder<UserSnapshotDto>` per panel.
-
-**Why:** The previous pattern parsed snapshot JSON inside the starter to decide rendering — coupling the starter to specific user/settings shapes. With `AuditActivityRowHook`, the starter only knows: "for this row's entityType, ask the hook what (if any) decoration to attach." The shape of the snapshot stays in the consumer.
-
-**Rejected:**
-- Decorator wrapper around `AuditActivityPanel` — adds an extra layer with no payoff; the SPI list is enough.
-- Abstract `ActivityRowDecorator` requiring subclasses per shape — duplicates the Builder+Parameters pattern already used everywhere else (`Configurable<T, P>` per CLAUDE.md).
+**2026-06-15 superseded:** `AuditUiPort`, `AuditActivityRowHook`, and `AuditHistoryRowActionsHook` removed from platform-commons. All Vaadin UI lives in marketplace-app — UI ports/hooks are unnecessary indirection with no cross-module consumer. Marketplace UI components use `AuditSnapshotBinder` directly and call audit services via `ComponentFactory<AuditPort>`.
 
 ---
 
@@ -209,26 +251,28 @@ Current assignments: `AuditPort`, `AttachmentPort`, `AuditUiPort`, `AttachmentGa
 
 ```
 core.config    — CleanupProperties
-core.i18n      — I18nService, InstantFormatter, LocaleProvider, TranslationKey
-core.model     — ActionType, ChangeEntry, EntityType
+core.model     — ActionType, ChangeEntry, EntityType, EntityRef
 core.spi       — CurrentActorHook
-ui             — Configurable, ComponentBuilder, Initialization, Provider
 
-audit.api      — AuditableSnapshot, 
-audit.codec    — SnapshotCodec
-audit.dto      — AuditActivityItemDto, AuditHistoryItemDto, AuditSnapshotContentDto, SnapshotPayloadDto
-audit.spi      — AuditPort, AuditUiPort, AuditDomainHook,
-                 AuditActivityFieldsHook, AuditActivityRowHook,
-                 AuditActivityEnrichHook, AuditHistoryRowActionsHook
+audit.api      — AuditableSnapshot
+audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto, AuditTimelineFilterDto
+audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook
 
-attachment.dto     — AttachmentMediaSummaryDto
+attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentGalleryPort,
-                     AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.spi     — AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.util    — YoutubeUtil
+
+user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
+                 UserSnapshotDto, SettingsSnapshotDto, SignUpDto
+user.model     — Role
+user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
+
+advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
+                     AdvertisementSaveDto, AdvertisementSnapshotDto
+advertisement.spi  — AdvertisementPort
 ```
 
-The `attachment.event` package was removed on 2026-05-18 — see the SPI-replaces-events entry above. The `attachment.storage` package was removed on 2026-05-19 — `StorageService` and the subsystem conditional moved into `attachment-spring-boot-starter`.
-
-`PaginationDefaults` moved to `marketplace-app` (only used there).
+Note: `core.i18n` (`I18nService`, `TranslationKey`) and `ui` (`Configurable`, `Initialization`) were removed from platform-commons — all i18n and UI contracts live in `marketplace-app`. `attachment.event` and `attachment.storage` packages were also removed.
 
 **Why:** The old structure mixed audit, attachment, and shared types in `events.*` with no clear ownership. The new structure makes it immediately obvious which package belongs to which subsystem and where SPIs live.

@@ -1,13 +1,11 @@
 package org.ost.marketplace.ui.views.services.pagination;
 
 import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.entities.UserSettings;
-import org.ost.marketplace.events.SettingsChangedEvent;
 import org.ost.marketplace.ui.views.components.PaginationBar;
-import org.springframework.context.ApplicationListener;
+import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.context.annotation.Scope;
-import org.springframework.context.event.ApplicationEventMulticaster;
 
 import java.util.function.ToIntFunction;
 
@@ -16,18 +14,16 @@ import java.util.function.ToIntFunction;
 @RequiredArgsConstructor
 public class SettingsPaginationBinding {
 
-    private final SettingsPaginationService   support;
-    private final ApplicationEventMulticaster eventMulticaster;
+    private final SettingsPaginationService support;
 
-    private ApplicationListener<SettingsChangedEvent> listener;
+    private PaginationBar bar;
 
-    public void register(PaginationBar bar, ToIntFunction<UserSettings> pageSizeExtractor, Runnable refresh) {
-        support.applyOnInit(bar, pageSizeExtractor);
-        listener = event -> support.handleSettingsChanged(event, bar, pageSizeExtractor, refresh);
-        eventMulticaster.addApplicationListener(listener);
+    public void register(@NonNull PaginationBar bar, @NonNull ToIntFunction<UserSettingsDto> extractor, @NonNull Runnable refresh) {
+        this.bar = bar;
+        support.register(bar, extractor, refresh);
     }
 
     public void unregister() {
-        if (listener != null) eventMulticaster.removeApplicationListener(listener);
+        if (bar != null) support.unregister(bar);
     }
 }

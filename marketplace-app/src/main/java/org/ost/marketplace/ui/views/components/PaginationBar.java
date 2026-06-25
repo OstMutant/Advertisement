@@ -8,15 +8,15 @@ import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
-import org.ost.platform.core.i18n.I18nService;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
 import java.util.function.Consumer;
 
-import org.ost.marketplace.common.PaginationDefaults;
+import org.ost.marketplace.ui.core.PaginationDefaults;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @Scope("prototype")

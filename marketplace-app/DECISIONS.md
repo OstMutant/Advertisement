@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-06-13 — UI layer restructuring: all Vaadin UI consolidated in marketplace-app
+
+**Final state:** All Vaadin UI lives in `marketplace-app` (`org.ost.marketplace.ui.*`). No starter contains UI code. `marketplace-app` imports starters only via platform-commons contracts (`UserPort`, `AdvertisementPort`, `AuditPort`, `AttachmentPort`, `UserDto`, etc.). `*HookImpl` and `*PortImpl` orchestrators live in `marketplace-app`.
+
+**Why:** Two phases — (1) UI extracted from individual starters into a short-lived `marketplace-ui` module; (2) `marketplace-ui` merged back into `marketplace-app` (no second consumer existed, Maven module boundary added cost with no benefit) and domain logic moved to dedicated starters (`user-spring-boot-starter`, `advertisement-spring-boot-starter`).
+
+**CSS rule:** All CSS lives in `marketplace-app/src/main/frontend/themes/my-app/` — Vaadin 25 Vite build does not include CSS from `@CssImport` in JAR starters.
+
+---
+
+## 2026-06-15 — Full user decoupling: marketplace-app no longer imports org.ost.user.* internals
+
+**What changed:**
+- Added `AuthenticatedPrincipal` SPI interface to `platform-commons` (`org.ost.platform.user.spi`) — the single contract that `marketplace-app` uses to extract `UserDto` from the Spring Security principal.
+- `UserPrincipal` (user-starter) now implements `AuthenticatedPrincipal.toUserDto()` — extracts `UserDto` without exposing the `User` entity.
+- `AuthContextService` rewritten: no `UserPrincipal`/`User` imports; reads `AuthenticatedPrincipal` via pattern matching; returns `Optional<UserDto>`.
+- `UserPort` gains two new methods: `save(UserProfileDto, Long actingUserId)` (corrects the actor-id bug) and `refreshCurrentUserInContext(Long userId)` (reloads `User` entity + updates Spring Security principal — stays inside user-starter).
+- All 22 files in marketplace-app that imported `org.ost.user.entity.User`, `org.ost.user.services.UserService`, `org.ost.user.services.UserSettingsService`, or `org.ost.user.security.UserPrincipal` now use `UserDto`/`UserPort` from platform-commons exclusively.
+- `UserSortMeta` and `UserQueryConfig`: `User.Fields.*` replaced with string literals (field names are stable).
+- `UserMapper` now maps `UserDto → UserEditDto` instead of `User → UserEditDto`.
+
+**Why:** Enforces the module import rule — marketplace may only import starters via platform-commons contracts. `User` entity and service internals are not published contracts.
+
+**Key design — `AuthenticatedPrincipal` in platform-commons:** Two modules need this interface (marketplace reads it, user-starter implements it) so it belongs in platform-commons as a SPI, not in either module.
+
+**Key design — `refreshCurrentUserInContext` in `UserPort`:** Updating the Spring Security principal requires creating a `UserPrincipal(User)` — which needs the password hash (not in `UserDto`). Moving this responsibility into `UserPortImpl` (user-starter) avoids exposing either `User` entity or password hash across the module boundary.
+
+---
+
 ## 2026-05-21 — Inline SQL repository style (supersedes Descriptor pattern)
 
 **Decision:** All repositories inline SQL directly in the method that executes it. No `TABLE`, `ALIAS`, `SOURCE`, or single-use SQL string constants. The Descriptor layer (`SqlEntityDescriptor`, `SqlCommand`, `SqlDescriptorField`, `SqlEntityProjection`, `SqlFixedQuery`, `RepositoryCustom`) has been fully removed from the codebase.
@@ -91,7 +120,7 @@ Rules:
 
 ## 2026-05-13 — Audit subsystem extracted to audit-spring-boot-starter
 
-**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditReadService`, `AuditReadService`, `AuditReadService`, Vaadin audit UI) lives in `audit-spring-boot-starter`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `EntityNameHook`, `AuditActivityFieldsHook`, `AuditActivityRowHook`) implemented in `marketplace-app`.
+**Decision:** The full audit subsystem (write side: `DefaultAuditPort`, `AuditableSnapshot.diff()`, `AuditLogRepository`; read side: `AuditHistoryService`, `AuditQueryService`, `ActivityService`) lives in `audit-spring-boot-starter`. All Vaadin audit UI lives in `marketplace-app`. Domain services call `AuditPort` (contract interface). The starter contains zero advertisement-specific knowledge — all domain coupling is expressed through SPIs (`AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`) implemented in `marketplace-app`.
 
 **Why:** Audit is infrastructure, not domain. Enables deploying audit-free variants. `AuditableSnapshot` marker interface carries `entityType()` — eliminates stringly-typed entity-type strings.
 
@@ -99,13 +128,11 @@ Rules:
 
 ---
 
-## 2026-05-21 — AuditSnapshotBinder coupling in marketplace-app UI is intentional
+## 2026-05-21 — AuditSnapshotBinder used directly in marketplace-app
 
-~~**Decision:** `SettingsOverlay` and `UserViewOverlayModeHandler` import `org.ost.audit.ui.AuditSnapshotBinder` directly. This is a known, accepted coupling — not a decoupling violation to fix.~~
+**Decision:** `AuditSnapshotBinder` is used directly in `marketplace-app` UI components. `AuditUiPort` was removed (2026-06-15) as unnecessary indirection — all Vaadin UI lives in marketplace-app, so there is no second consumer that would require the SPI.
 
-~~**Rejected:** Abstracting `AuditSnapshotBinder.Builder` behind an SPI in `platform-commons` — over-engineering for a single implementation.~~
-
-**Superseded 2026-06-02:** Direct import removed. `AuditUiPort` (platform-commons) now exposes `snapshotRowHook(SnapshotRowHookParams<T>)` — marketplace calls it via the existing `ObjectProvider<AuditUiPort>`. `AuditUiPortImpl` (audit-starter) creates the `AuditSnapshotBinder` internally. The `audit-spring-boot-starter` dependency in `marketplace-app/pom.xml` is now `<optional>true</optional>`. Marketplace has zero imports from `org.ost.audit.*`.
+**Rule:** Do not re-introduce `AuditUiPort`.
 
 ---
 
@@ -126,11 +153,73 @@ PaginationBar paginationBar(I18nService i18nService) {
 
 **Why no separate module:** multiplying modules has real cost (pom.xml overhead, dependency graph complexity). The plain-class + local `@Bean` pattern achieves sharing with zero new modules and zero `@AutoConfiguration`.
 
-**Why not make platform-commons a starter:** platform-commons already has `vaadin-core` and Vaadin types in its SPI signatures (`AuditActivityRowHook`, `AuditUiPort`, `AttachmentGalleryPort` all return `com.vaadin.flow.component.Component`). The "Vaadin-free contracts" claim was already fiction. However, adding `@AutoConfiguration` to commons is still unnecessary — the plain-class pattern is simpler and sufficient.
+**Why not make platform-commons a starter:** platform-commons contains only pure Java contracts (DTOs, SPI interfaces, annotations). All Vaadin UI lives in marketplace-app; `AuditActivityRowHook`, `AuditUiPort`, and `AttachmentGalleryPort` were removed (2026-06-15) — platform-commons has no Vaadin dependency. Adding `@AutoConfiguration` to commons is unnecessary — the plain-class pattern is simpler and sufficient.
 
-**Prerequisite for any component moved to commons:** replace all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) with platform-commons equivalents (`TranslationKey`, constructor parameters).
+**Prerequisite for any component moved to commons:** remove all marketplace-specific imports (`I18nKey`, `I18nParams`, `PaginationDefaults`) — pass them as constructor parameters instead. `TranslationKey` was deleted and does not exist in platform-commons.
 
 **Supersedes:** the earlier `advertisement-ui-core` proposal.
+
+---
+
+## 2026-06-10 — Audit writes belong in the service layer, not the UI
+
+**Rule:** `AuditPort.captureUpdate` / `captureCreation` / `captureDeletion` must only be called from `*Service` classes — never from UI overlays, view components, or `*HookImpl` classes.
+
+**Why:** Discovered during architecture audit. `SettingsOverlay.handleSave()` was calling `auditPortFactory.captureUpdate(...)` directly — the only place in the entire UI layer that fired an audit write. All other entities (`AdvertisementService`, `UserService`) correctly place audit calls inside the service. Moving it to `UserSettingsService.save()` restores consistency and keeps the UI layer free of infrastructure concerns.
+
+**How to apply:** When a save/update/delete operation needs to be audited, put the `AuditPort` call at the end of the corresponding `*Service.save()` / `*Service.delete()` method. The UI layer calls the service; the service handles persistence + audit atomically.
+
+**Fixed in:** `UserSettingsService.save()` now loads old settings, saves, publishes the domain event, and captures the audit entry. `SettingsOverlay.handleSave()` only constructs the DTO and calls `settingsService.save()`.
+
+---
+
+## 2026-06-10 — *HookImpl must not inspect snapshot internals — delegate to the owning service
+
+**Rule:** `*HookImpl` methods must not access fields of snapshot DTOs or apply any formatting/resolution logic. Each switch branch must contain exactly one service call.
+
+**Why:** `AuditDomainHookImpl.resolveDisplayName()` was directly accessing `ad.title()` and `u.name()` from snapshot DTOs and applying a null guard — business logic embedded in a hook. The hook's role is entity-type routing only. The resolution of "what name to display for this snapshot" belongs to the service that owns the entity.
+
+**How to apply:** If a `*HookImpl` method needs entity-specific data, add a method to the corresponding `*Service` and delegate. Entity-type routing (a `switch` over `EntityType`) is the only permitted logic in a `*HookImpl`.
+
+**Fixed in:** `AuditDomainHookImpl.resolveDisplayName()` now delegates to `advertisementService.resolveDisplayName(snapshot)` and `userService.resolveDisplayName(snapshot)`. The i18n label for `USER_SETTINGS` (which has no snapshot content to display) stays in the hook as a trivial lookup, not business logic.
+
+---
+
+## 2026-06-15 — Known decoupling debt (open backlog from codebase audit)
+
+Direct imports that violate the "marketplace-app UI accesses starters only via platform-commons contracts" rule. Recorded here as open work items, not accepted permanent exceptions.
+
+**Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI components may reference each other freely. UI ports/hooks (AuditUiPort, AttachmentGalleryPort, AuditActivityRowHook) were removed as unnecessary indirection.
+
+### 1. `org.ost.marketplace.ui.views.components.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
+
+`AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil` directly from attachment-starter.
+
+**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
+
+**Why this is a violation:** UI (marketplace-app) is calling service-layer internals of a starter directly instead of going through the platform-commons `AttachmentPort` contract.
+
+**Fix:** expose needed read operations on `AttachmentPort` in platform-commons; replace direct `AttachmentService` injection with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil` to platform-commons.
+
+### ✅ 3. marketplace-app → `org.ost.user.*` internals — RESOLVED (2026-06-15)
+
+All 22 files that previously imported `org.ost.user.entity.User`, `org.ost.user.services.UserService`, `org.ost.user.services.UserSettingsService`, or `org.ost.user.security.UserPrincipal` now use `UserDto`/`UserPort` from platform-commons exclusively. See "2026-06-15 — Full user decoupling" entry above.
+
+### ✅ 4. `org.ost.marketplace.security.*` uses `User` entity instead of DTO — RESOLVED (2026-06-15)
+
+`OwnershipChecker`, `RoleChecker`, and `AccessEvaluator` were updated as part of the full user decoupling. `AuthContextService.getCurrentUser()` now returns `Optional<UserDto>`; security classes no longer import `org.ost.user.entity.User`. `AuthenticatedPrincipal` SPI in platform-commons is the boundary — `UserPrincipal` (user-starter) implements it and exposes `toUserDto()`.
+
+---
+
+## 2026-06-23 — DONE: Top-level Timeline tab
+
+**Decision:** Added a dedicated **Timeline** navigation tab (alongside Listings and Users) with filter, sort, and pagination. Inline timeline tabs removed from UserOverlay and SettingsOverlay.
+
+**Components:** `TimelineView` (`@UIScope`), `TimelineQueryBlock` (filter panel), `AuditTimelineListRenderer`, `AuditTimelineRowRenderer`, `PaginationBar`. Visibility gated by `access.canView()` — MODERATOR/ADMIN only. USER role sees only their own activity (actor filter forced server-side by `AccessEvaluator`).
+
+**Key lesson:** `TimelineView` must override `setVisible(boolean)` to call `refreshFeed()` — tab switching in `MainView` uses `setVisible()`, not component detach/attach, so `@PostConstruct` alone produces stale data after mutations.
+
+**Closes:** `audit-spring-boot-starter/DECISIONS.md` 2026-06-11 (planned top-level Timeline tab).
 
 ---
 
@@ -143,3 +232,19 @@ The `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loa
 **Why:** `AdvertisementViewOverlayModeHandler` and `UserViewOverlayModeHandler` had identical tab-switching and lazy-loading boilerplate (~15 lines each). More view handlers are planned; the base class gives each one a consistent structure with zero boilerplate.
 
 **Rejected:** `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean — passing live UI components (`Tabs`, `Tab`, `Div`) as `Parameters` violated the project convention that Parameters carry data/config, not pre-built component trees.
+
+---
+
+## [OPEN GOAL] Activity field visibility: filter by viewer's role vs. actor's role at change time
+
+**Problem:** Settings activity rows show all changed fields (`adsPageSize`, `usersPageSize`, `timelinePageSize`). For USER role, only `adsPageSize` is configurable — the other two fields appear in their activity log but have no meaning in their UI context.
+
+**Current state:** no filtering; all fields shown to all roles.
+
+**Option A — filter by current viewer role (simple, acceptable edge case):**
+In settings activity rendering, hide change items for `usersPageSize`/`timelinePageSize` when `!access.canView()`. A user demoted MODERATOR → USER would see a truncated view of their own historical changes — accepted as a rare, low-impact case.
+
+**Option B — filter by actor's role at the time of the change (accurate, complex):**
+Store `role` in `SettingsSnapshotDto`; at render time filter by what was accessible to the actor then. Requires Liquibase migration + snapshot model change.
+
+**Recommendation:** Option A when implemented. The MOD→USER demotion edge case is rare and semantically acceptable (those fields are no longer configurable for that user anyway).

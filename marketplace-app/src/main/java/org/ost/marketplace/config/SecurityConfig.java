@@ -1,24 +1,13 @@
 package org.ost.marketplace.config;
 
-import com.vaadin.flow.server.HandlerHelper;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.security.UserPrincipal;
-import org.ost.marketplace.services.user.UserService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.RequestMatcher;
 
@@ -27,35 +16,12 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private static final String SERVLET_MAPPING_PATH = "/";
-
-    private final UserService userService;
-
-    private final RequestMatcher vaadinInternalRequestMatcher = this::isVaadinInternalRequest;
-
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return email -> userService.findByEmail(email)
-                .map(UserPrincipal::new)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
-    }
-
-    @Bean
-    public AuthenticationManager authenticationManager(PasswordEncoder passwordEncoder) {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider(userDetailsService());
-        provider.setPasswordEncoder(passwordEncoder);
-        return new ProviderManager(provider);
-    }
-
-    @Bean
-    public SecurityContextRepository securityContextRepository() {
-        return new HttpSessionSecurityContextRepository();
-    }
+    private final SecurityContextRepository securityContextRepository;
+    private final RequestMatcher vaadinInternalRequestMatcher;
 
     @Bean
     @SuppressWarnings({"java:S112", "java:S1130"})
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   SecurityContextRepository securityContextRepository) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(vaadinInternalRequestMatcher).permitAll()
@@ -68,9 +34,5 @@ public class SecurityConfig {
                 .logout(AbstractHttpConfigurer::disable);
 
         return http.build();
-    }
-
-    private boolean isVaadinInternalRequest(HttpServletRequest request) {
-        return HandlerHelper.isFrameworkInternalRequest(SERVLET_MAPPING_PATH, request);
     }
 }

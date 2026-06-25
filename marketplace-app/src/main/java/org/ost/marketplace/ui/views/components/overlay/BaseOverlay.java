@@ -3,7 +3,6 @@ package org.ost.marketplace.ui.views.components.overlay;
 import com.vaadin.flow.component.Key;
 import com.vaadin.flow.component.ShortcutRegistration;
 import com.vaadin.flow.component.Shortcuts;
-import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.html.Div;
 
 public abstract class BaseOverlay extends Div {
@@ -23,7 +22,7 @@ public abstract class BaseOverlay extends Div {
     }
 
     protected void open() {
-        UI.getCurrent().getPage().executeJs(
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
                 "var el = $0;" +
                         "var y  = Math.round(window.scrollY);" +
                         "el.dataset.savedScroll       = y;" +
@@ -31,22 +30,22 @@ public abstract class BaseOverlay extends Div {
                         "document.body.style.top      = '-' + y + 'px';" +
                         "document.body.style.width    = '100%';",
                 getElement()
-        );
+        ));
         addClassName("overlay--visible");
-        escShortcut = Shortcuts.addShortcutListener(UI.getCurrent(), this::onEsc, Key.ESCAPE);
+        getUI().ifPresent(ui -> escShortcut = Shortcuts.addShortcutListener(ui, this::onEsc, Key.ESCAPE));
     }
 
     protected void closeToList() {
         removeClassName("overlay--visible");
         unregisterEsc();
-        UI.getCurrent().getPage().executeJs(
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
                 "var y = parseInt($0.dataset.savedScroll || '0', 10);" +
                         "document.body.style.position = '';" +
                         "document.body.style.top      = '';" +
                         "document.body.style.width    = '';" +
                         "window.scrollTo(0, y);",
                 getElement()
-        );
+        ));
     }
 
     private void unregisterEsc() {

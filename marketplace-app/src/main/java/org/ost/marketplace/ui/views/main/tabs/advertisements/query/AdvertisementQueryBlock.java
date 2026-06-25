@@ -5,19 +5,19 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.dto.filter.AdvertisementFilterDto;
-import org.ost.query.ui.QueryBlock;
-import org.ost.platform.core.ComponentFactory;
-import org.ost.query.ui.elements.SortIcon;
-import org.ost.query.ui.elements.action.QueryActionBlock;
-import org.ost.query.ui.elements.fields.QueryDateTimeField;
-import org.ost.query.ui.elements.fields.QueryTextField;
-import org.ost.query.ui.elements.rows.QueryInlineRow;
-import org.ost.query.ui.filter.FilterProcessor;
-import org.ost.query.ui.sort.SortProcessor;
+import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
+import org.ost.marketplace.ui.query.QueryBlock;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.query.elements.SortIcon;
+import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
+import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
+import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
+import org.ost.marketplace.ui.query.filter.FilterProcessor;
+import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
 
-import static org.ost.marketplace.common.I18nKey.*;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
@@ -30,10 +30,10 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
     @Qualifier("advertisementSortProcessor")
     private final transient SortProcessor                           sortProcessor;
 
-    private final transient ComponentFactory<QueryTextField>      textFieldFactory;
-    private final transient ComponentFactory<QueryDateTimeField>  dateTimeFieldFactory;
-    private final transient ComponentFactory<QueryInlineRow>      inlineRowFactory;
-    private final transient ComponentFactory<SortIcon>            sortIconFactory;
+    private final transient UiComponentFactory<QueryTextField>      textFieldFactory;
+    private final transient UiComponentFactory<QueryDateTimeField>  dateTimeFieldFactory;
+    private final transient UiComponentFactory<QueryInlineRow>      inlineRowFactory;
+    private final transient UiComponentFactory<SortIcon>            sortIconFactory;
 
     @Getter
     private final QueryActionBlock queryActionBlock;
@@ -50,7 +50,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         SortIcon titleSort = sortIconFactory.get();
         QueryInlineRow titleRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
+                        .labelKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
 
         // Created date row
         QueryDateTimeField createdStart = dateTimeFieldFactory.build(
@@ -64,7 +64,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         SortIcon createdSort = sortIconFactory.get();
         QueryInlineRow createdRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
+                        .labelKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
                         .filterField(createdStart).filterField(createdEnd).build());
 
         // Updated date row
@@ -79,7 +79,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         SortIcon updatedSort = sortIconFactory.get();
         QueryInlineRow updatedRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()
-                        .labelTranslationKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
+                        .labelKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
                         .filterField(updatedStart).filterField(updatedEnd).build());
 
         add(titleRow, createdRow, updatedRow, queryActionBlock);
