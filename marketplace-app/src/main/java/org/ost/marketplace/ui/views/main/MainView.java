@@ -21,14 +21,18 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.TaxonManagementView;
 import org.ost.marketplace.ui.views.main.tabs.timeline.TimelineView;
 import org.ost.marketplace.ui.views.main.tabs.users.UserView;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.taxon.spi.TaxonPort;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_ADVERTISEMENTS;
+import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_TIMELINE;
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 
@@ -48,8 +52,10 @@ public class MainView extends VerticalLayout {
     private final transient AdvertisementsView advertisementsView;
     private final transient UserView usersView;
     private final transient TimelineView timelineView;
+    private final transient TaxonManagementView taxonManagementView;
     private final transient AccessEvaluator access;
     private final transient I18nService i18n;
+    private final transient ComponentFactory<TaxonPort> taxonPortFactory;
 
     @PostConstruct
     public void init() {
@@ -78,6 +84,14 @@ public class MainView extends VerticalLayout {
             pages.add(timelineView);
             tabsToPages.put(timelineTab, timelineView);
             timelineView.setVisible(false);
+
+            taxonPortFactory.findIfAvailable().ifPresent(_ -> {
+                Tab refDataTab = new Tab(i18n.get(MAIN_TAB_REFERENCE_DATA));
+                tabs.add(refDataTab);
+                pages.add(taxonManagementView);
+                tabsToPages.put(refDataTab, taxonManagementView);
+                taxonManagementView.setVisible(false);
+            });
         }
 
         tabs.addSelectedChangeListener(_ -> {

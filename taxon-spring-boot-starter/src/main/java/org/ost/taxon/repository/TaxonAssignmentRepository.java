@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -115,5 +116,19 @@ public class TaxonAssignmentRepository {
                          .paramSource(new MapSqlParameterSource("taxonId", taxonId))
                          .query(Long.class)
                          .single();
+    }
+
+    public Map<Long, Long> countByTaxonIds(@NonNull Set<Long> taxonIds) {
+        return jdbcClient.sql("""
+                        SELECT taxon_id, COUNT(*) AS cnt
+                        FROM taxon_assignment
+                        WHERE taxon_id IN (:taxonIds)
+                        GROUP BY taxon_id
+                        """)
+                         .paramSource(new MapSqlParameterSource("taxonIds", taxonIds))
+                         .query((rs, _) -> Map.entry(rs.getLong("taxon_id"), rs.getLong("cnt")))
+                         .list()
+                         .stream()
+                         .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

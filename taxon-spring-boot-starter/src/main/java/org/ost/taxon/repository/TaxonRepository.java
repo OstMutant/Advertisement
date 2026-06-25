@@ -17,6 +17,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.ost.query.filter.SqlCondition.like;
 
@@ -97,6 +98,15 @@ public class TaxonRepository {
                          .paramSource(new MapSqlParameterSource("type", type.name()))
                          .query(Long.class)
                          .single();
+    }
+
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return jdbcClient.sql("SELECT id FROM taxon WHERE id IN (:ids)")
+                         .paramSource(new MapSqlParameterSource("ids", ids))
+                         .query(Long.class)
+                         .list()
+                         .stream()
+                         .collect(java.util.stream.Collectors.toSet());
     }
 
     public Optional<Taxon> findByTypeAndCode(@NonNull TaxonType type, @NonNull String code) {

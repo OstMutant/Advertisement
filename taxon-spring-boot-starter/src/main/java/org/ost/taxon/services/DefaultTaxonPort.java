@@ -4,6 +4,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.taxon.config.TaxonProperties;
@@ -107,6 +108,73 @@ public class DefaultTaxonPort implements TaxonPort {
         return assignmentService.findEntityIdsByTaxonIds(entityType, taxonIds);
     }
 
+    // ── Management operations ───────────────────────────────────────────────
+
+    @Override
+    public List<TaxonDto> listAllByType(@NonNull TaxonType type, @NonNull Locale locale, boolean includeDeleted) {
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.of(null, includeDeleted), Sort.by("id"));
+        if (taxa.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = taxa.stream().map(Taxon::getId).toList();
+        Map<Long, List<TaxonTranslation>> byTaxon = taxonService.getTranslationsForMany(ids)
+                .stream()
+                .collect(Collectors.groupingBy(TaxonTranslation::getTaxonId));
+        return taxa.stream()
+                .map(t -> toDto(t, byTaxon.getOrDefault(t.getId(), List.of()), locale))
+                .toList();
+    }
+
+    @Override
+    public List<TaxonTranslationDto> getTranslations(@NonNull Long taxonId) {
+        return taxonService.getTranslations(taxonId).stream()
+                .map(t -> TaxonTranslationDto.builder()
+                        .locale(t.getLocale())
+                        .name(t.getName())
+                        .description(t.getDescription())
+                        .build())
+                .toList();
+    }
+
+    @Override
+    public Map<Long, Long> getUsageCounts(@NonNull TaxonType type) {
+        List<Taxon> taxa = taxonService.listByType(type, TaxonFilter.all(), Sort.unsorted());
+        if (taxa.isEmpty()) {
+            return Map.of();
+        }
+        Set<Long> ids = taxa.stream().map(Taxon::getId).collect(Collectors.toSet());
+        return assignmentService.countByTaxonIds(ids);
+    }
+
+    @Override
+    public Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations,
+                       Long actorId) {
+        Map<Locale, TaxonTranslationData> data = toTranslationData(translations);
+        return taxonService.create(type, null, data, actorId).getId();
+    }
+
+    @Override
+    public void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations,
+                       Long actorId) {
+        Map<Locale, TaxonTranslationData> data = toTranslationData(translations);
+        taxonService.update(id, data, actorId);
+    }
+
+    @Override
+    public void softDelete(@NonNull Long id) {
+        taxonService.softDelete(id);
+    }
+
+    @Override
+    public void restore(@NonNull Long id) {
+        taxonService.restore(id);
+    }
+
+    @Override
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return taxonService.findExistingIds(ids);
+    }
+
     // ── internal helpers ───────────────────────────────────────────────────
 
     private List<TaxonDto> resolveDtos(List<Long> taxonIds, Locale locale, boolean activeOnly) {
@@ -150,6 +218,14 @@ public class DefaultTaxonPort implements TaxonPort {
                 .description(description)
                 .deleted(taxon.getDeletedAt() != null)
                 .build();
+    }
+
+    private Map<Locale, TaxonTranslationData> toTranslationData(Map<Locale, TaxonTranslationDto> translations) {
+        return translations.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        e -> new TaxonTranslationData(e.getValue().getName(), e.getValue().getDescription())
+                ));
     }
 
     TaxonTranslation resolveTranslation(List<TaxonTranslation> translations, Locale locale) {

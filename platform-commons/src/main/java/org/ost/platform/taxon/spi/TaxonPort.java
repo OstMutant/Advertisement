@@ -3,6 +3,7 @@ package org.ost.platform.taxon.spi;
 import lombok.NonNull;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.dto.TaxonTranslationDto;
 import org.ost.platform.taxon.model.TaxonType;
 
 import java.util.List;
@@ -57,4 +58,30 @@ public interface TaxonPort {
      */
     Set<Long> findEntityIdsWithAnyTaxon(@NonNull EntityType entityType,
                                         @NonNull Set<Long> taxonIds);
+
+    // ── Management operations ───────────────────────────────────────────────
+
+    /** All entries of a given type, optionally including soft-deleted ones, localised. */
+    List<TaxonDto> listAllByType(@NonNull TaxonType type, @NonNull Locale locale, boolean includeDeleted);
+
+    /** All locale translations for a given taxon entry. Used by the edit overlay. */
+    List<TaxonTranslationDto> getTranslations(@NonNull Long taxonId);
+
+    /** Usage counts (assignment count) per taxon id for all entries of a given type. */
+    Map<Long, Long> getUsageCounts(@NonNull TaxonType type);
+
+    /** Creates a new taxon entry with the given translations. Returns the new entry's id. */
+    Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId);
+
+    /** Updates all translations for the given taxon entry. */
+    void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId);
+
+    /** Soft-deletes the given taxon entry. */
+    void softDelete(@NonNull Long id);
+
+    /** Restores a soft-deleted taxon entry. */
+    void restore(@NonNull Long id);
+
+    /** Returns the subset of the given ids that exist in the taxon table. Used by audit findExisting. */
+    Set<Long> findExistingIds(@NonNull Set<Long> ids);
 }

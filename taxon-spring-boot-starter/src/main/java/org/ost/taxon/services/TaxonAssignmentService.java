@@ -71,4 +71,8 @@ public class TaxonAssignmentService {
     public Set<Long> findEntityIdsByTaxonIds(@NonNull EntityType entityType, @NonNull Set<Long> taxonIds) {
         return assignmentRepository.findEntityIdsByTaxonIds(entityType.name(), taxonIds);
     }
+
+    public Map<Long, Long> countByTaxonIds(@NonNull Set<Long> taxonIds) {
+        return assignmentRepository.countByTaxonIds(taxonIds);
+    }
 }

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -89,6 +90,10 @@ public class TaxonService {
 
     public List<TaxonTranslation> getTranslationsForMany(@NonNull List<Long> taxonIds) {
         return translationRepository.findAllByTaxonIds(taxonIds);
+    }
+
+    public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
+        return taxonRepository.findExistingIds(ids);
     }
 
     private void validateTranslations(@NonNull Map<Locale, TaxonTranslationData> translations) {

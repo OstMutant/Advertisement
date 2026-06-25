@@ -306,7 +306,48 @@ public enum I18nKey {
 
     // === Taxon / Category ===
     TAXON_CATEGORY_ASSIGNED("taxon.category.assigned"),
-    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned");
+    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned"),
+
+    // === Reference Data tab ===
+    REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
+    REFERENCE_DATA_BUTTON_ADD("reference.data.button.add"),
+    REFERENCE_DATA_USAGE_COUNT("reference.data.usage.count"),
+
+    // === Taxon Overlay ===
+    TAXON_OVERLAY_TITLE_NEW("taxon.overlay.title.new"),
+    TAXON_OVERLAY_TITLE_EDIT("taxon.overlay.title.edit"),
+    TAXON_OVERLAY_TAB_EDIT("taxon.overlay.tab.edit"),
+    TAXON_OVERLAY_TAB_ACTIVITY("taxon.overlay.tab.activity"),
+    TAXON_OVERLAY_LOCALE_TAB_EN("taxon.overlay.locale.tab.en"),
+    TAXON_OVERLAY_LOCALE_TAB_UK("taxon.overlay.locale.tab.uk"),
+    TAXON_OVERLAY_FIELD_NAME("taxon.overlay.field.name"),
+    TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER("taxon.overlay.field.name.placeholder"),
+    TAXON_OVERLAY_FIELD_DESCRIPTION("taxon.overlay.field.description"),
+    TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER("taxon.overlay.field.description.placeholder"),
+    TAXON_OVERLAY_SECTION_LABEL("taxon.overlay.section.label"),
+    TAXON_OVERLAY_VALIDATION_NAME_REQUIRED("taxon.overlay.validation.name.required"),
+    TAXON_OVERLAY_VALIDATION_NAME_LENGTH("taxon.overlay.validation.name.length"),
+    TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("taxon.overlay.validation.description.required"),
+    TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("taxon.overlay.validation.description.length"),
+    TAXON_OVERLAY_NOTIFICATION_SUCCESS("taxon.overlay.notification.success"),
+    TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED("taxon.overlay.notification.validation.failed"),
+    TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR("taxon.overlay.notification.save.error"),
+    TAXON_OVERLAY_BUTTON_SAVE("taxon.overlay.button.save"),
+    TAXON_OVERLAY_BUTTON_CANCEL("taxon.overlay.button.cancel"),
+
+    // === Taxon Management ===
+    TAXON_VIEW_CONFIRM_DELETE_TITLE("taxon.view.confirm.delete.title"),
+    TAXON_VIEW_CONFIRM_DELETE_TEXT("taxon.view.confirm.delete.text"),
+    TAXON_VIEW_CONFIRM_DELETE_BUTTON("taxon.view.confirm.delete.button"),
+    TAXON_VIEW_CONFIRM_CANCEL_BUTTON("taxon.view.confirm.cancel.button"),
+    TAXON_VIEW_NOTIFICATION_DELETED("taxon.view.notification.deleted"),
+    TAXON_VIEW_NOTIFICATION_DELETE_ERROR("taxon.view.notification.delete.error"),
+    TAXON_VIEW_NOTIFICATION_RESTORED("taxon.view.notification.restored"),
+    TAXON_VIEW_TOOLTIP_EDIT("taxon.view.tooltip.edit"),
+    TAXON_VIEW_TOOLTIP_DELETE("taxon.view.tooltip.delete"),
+    TAXON_VIEW_TOOLTIP_RESTORE("taxon.view.tooltip.restore"),
+    TAXON_VIEW_DELETED_LABEL("taxon.view.deleted.label"),
+    TAXON_VIEW_EMPTY("taxon.view.empty");
 
     private final String key;
 
