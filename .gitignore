@@ -11,6 +11,7 @@
 /user-spring-boot-starter/target/
 /advertisement-spring-boot-starter/target/
 /query-lib/target/
+/taxon-spring-boot-starter/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
