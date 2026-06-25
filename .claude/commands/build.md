@@ -1,19 +1,14 @@
-Rebuild the marketplace-app Docker image and start a fresh container.
+Rebuild the marketplace-app Docker image and start a fresh container using the project deploy script.
 
 Steps:
-1. Stop and remove existing container: `docker rm -f marketplace-app`
-2. Build image (this takes a few minutes): `docker build -f Dockerfile -t marketplace-app .`
-3. Start container:
-```
-docker run -d --name marketplace-app --network host \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST=localhost -e DB_PORT=5432 -e DB_NAME=experiments \
-  -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
-  -e S3_ENDPOINT=http://localhost:9000 -e S3_BUCKET=advertisement \
-  -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
-  -e S3_REGION=us-east-1 -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
-  marketplace-app
-```
-4. Monitor startup: run `docker logs -f marketplace-app` with run_in_background: true,
-   then use the Monitor tool and wait for "Started Application" in the output
-5. Report success and confirm the app is ready for Playwright tests
+1. Launch Monitor tool (persistent: true) watching /tmp/deploy.log every 10s:
+   - If 1 minute with no new output → report "process may be stuck"
+   - If ERROR appears in new output → report immediately
+   - If BUILD SUCCESS or Started Application → report and call TaskStop on the monitor task
+2. Run synchronously (timeout: 600000):
+   ```
+   bash scripts/deploy.sh 2>&1 | tee /tmp/deploy.log
+   ```
+   Optional flags: `--reset` to wipe DB/MinIO volumes, `--restart-infra` to restart containers only.
+3. After deploy completes — call TaskStop on the monitor task if not already stopped.
+4. Report success and confirm the app is ready.

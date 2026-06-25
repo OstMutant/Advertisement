@@ -12,6 +12,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
@@ -78,6 +79,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private Tabs       formTabs;
     private Tab        editTab;
     private Div        activityContent;
+    @Getter
     private UserDto    savedUser;
 
     @Override
@@ -170,8 +172,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         });
     }
 
-    public UserDto getSavedUser() { return savedUser; }
-
     public void loadRestored(@NonNull UserEditDto restoredDto) {
         binder.loadRestored(restoredDto, (src, tgt) -> {
             tgt.setName(src.getName());
@@ -188,14 +188,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .userId(params.getUser().id())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getUser().id()))
-                .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
+                .onRestoreRequested(this::handleRestoreFromActivity)
                 .build());
     }
 
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
                 port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
-                        .map(content -> content.snapshotData())
+                        .map(AuditSnapshotContentDto::snapshotData)
                         .ifPresent(snapshot -> {
                             UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()));
                             loadRestored(dto);

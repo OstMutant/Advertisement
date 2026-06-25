@@ -111,11 +111,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     @Override
-    protected SecondaryTabDef buildSecondaryTab() {
-        return null;
-    }
-
-    @Override
     protected Div buildHeaderActions() {
         UiPrimaryButton editButton = primaryButtonFactory.build(
                 UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());

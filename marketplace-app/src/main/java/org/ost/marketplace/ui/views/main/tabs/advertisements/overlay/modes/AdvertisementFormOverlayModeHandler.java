@@ -81,6 +81,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private boolean    isCreate;
     @Getter
     private Long                 savedId;
+    @Getter
     private AdvertisementInfoDto savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
     private Tabs                             formTabs;
@@ -183,8 +184,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         });
     }
 
-    public AdvertisementInfoDto getSavedInfoDto() { return savedInfoDto; }
-
     public void discard() {
         if (this.activeHandle != null) {
             this.activeHandle.discard();
@@ -235,7 +234,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getAd().getOwnerUserId()))
-                .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
+                .onRestoreRequested(this::handleRestoreFromActivity)
                 .build());
     }
 

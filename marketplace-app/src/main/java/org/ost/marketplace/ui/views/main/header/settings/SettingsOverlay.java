@@ -20,12 +20,12 @@ import static org.ost.marketplace.services.i18n.I18nKey.SETTINGS_SECTION_TITLE;
 @SuppressWarnings("java:S110")
 public class SettingsOverlay extends AbstractEntityOverlay {
 
-    @Getter private final EntityOverlaySupport support;
-    private final AuthContextService           authContextService;
-    private final UiComponentFactory<SettingsFormModeHandler> formHandlerFactory;
+    @Getter private final transient EntityOverlaySupport support;
+    private final transient AuthContextService           authContextService;
+    private final transient UiComponentFactory<SettingsFormModeHandler> formHandlerFactory;
 
     private Long                    currentUserId;
-    private SettingsFormModeHandler currentHandler;
+    private transient SettingsFormModeHandler currentHandler;
 
     @Override protected String  getOverlayCssClass()   { return "settings-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return HEADER_HOME; }

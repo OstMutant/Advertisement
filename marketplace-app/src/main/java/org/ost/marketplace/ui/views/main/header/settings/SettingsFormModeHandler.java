@@ -185,7 +185,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .userId(params.getUserId())
                 .isPrivileged(true)
                 .canOperate(true)
-                .onRestoreRequested(snapshotId -> handleRestoreFromActivity(snapshotId))
+                .onRestoreRequested(this::handleRestoreFromActivity)
                 .build());
     }
 
