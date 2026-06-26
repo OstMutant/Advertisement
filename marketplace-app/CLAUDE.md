@@ -65,6 +65,15 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 
 ---
 
+## Overlay, View, and Query Layer Rules
+
+Detailed cross-cutting rules for the Overlay pattern (OverlaySession, switchTo vs launchSession,
+currentFormHandler reset, afterSave update), View pattern (init() structure, refresh() guard),
+Query Layer (FilterMeta/SortMeta Fields.* constants), and Form Handler pattern (buildTabbedContent,
+buildBinder) are documented in: @../.claude/rules.md
+
+---
+
 ## I18n
 
 `I18nService`, `InstantFormatter`, `LocaleProvider` live in `org.ost.marketplace.services.i18n`. Starters have no i18n infrastructure of their own — all UI i18n lives here.
