@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+# Architecture documentation sync — runs before every commit.
+# Updates docs/architecture/, DECISIONS.md, CLAUDE.md, README.md, and
+# features/issues/ based on what files are staged.
+#
+# Bypass: SKIP_AUDIT=1 git commit
+# Install: bash scripts/install-hooks.sh
+
+set -euo pipefail
+
+[ "${SKIP_AUDIT:-0}" = "1" ] && exit 0
+
+ROOT="$(git rev-parse --show-toplevel)"
+STAGED="$(git diff --name-only --cached 2>/dev/null || true)"
+
+# ── Fast path: no source changes ──────────────────────────────────────────────
+if ! echo "$STAGED" | grep -qE '\.(java|xml|sql|properties|yml)$'; then
+  exit 0
+fi
+
+# ── Map staged files to documentation targets ─────────────────────────────────
+TARGETS=()
+echo "$STAGED" | grep -qE 'pom\.xml' \
+  && TARGETS+=("01-module-dependencies")
+echo "$STAGED" | grep -qE '(platform-commons.*spi|.*Port[A-Z]|.*Hook[A-Z]|.*Impl\.java)' \
+  && TARGETS+=("02-spi-map")
+echo "$STAGED" | grep -qE 'db/changelog' \
+  && TARGETS+=("04-database-erd")
+echo "$STAGED" | grep -qE '(Service|Repository)\.java' \
+  && TARGETS+=("05-sequence-diagrams")
+echo "$STAGED" | grep -qE '\.java$' \
+  && TARGETS+=("06-coupling-analysis" "07-risk-report" "08-scorecard")
+
+[ ${#TARGETS[@]} -eq 0 ] && exit 0
+
+# ── Run claude -p ─────────────────────────────────────────────────────────────
+STAGED_LIST="$(echo "$STAGED" | tr '\n' ' ')"
+TARGETS_LIST="${TARGETS[*]}"
+
+echo "→ [audit-diff] Staged: $STAGED_LIST"
+echo "→ [audit-diff] Targets: $TARGETS_LIST"
+echo "→ [audit-diff] Syncing documentation (may take 1-2 min)..."
+
+PROMPT="$(cat <<PROMPT
+Run /audit-diff with base ref HEAD~1.
+
+Staged files: $STAGED_LIST
+Affected targets: $TARGETS_LIST
+
+Follow the instructions in $ROOT/.claude/commands/audit-diff.md exactly.
+Read actual source files before updating each target.
+PROMPT
+)"
+
+if command -v claude &>/dev/null; then
+  timeout 240 claude -p "$PROMPT" --dangerously-skip-permissions 2>/dev/null \
+    && echo "→ [audit-diff] Done." \
+    || echo "→ [audit-diff] Warning: sync timed out or failed — commit proceeds without doc update."
+else
+  echo "→ [audit-diff] Warning: claude CLI not found — skipping doc sync. Install Claude Code to enable."
+fi
+
+# ── Stage updated docs ────────────────────────────────────────────────────────
+_stage() { git add "$1" 2>/dev/null || true; }
+
+_stage "$ROOT/docs/architecture/"
+_stage "$ROOT/features/issues/"
+_stage "$ROOT/README.md"
+_stage "$ROOT/CHANGELOG.md"
+
+# Stage all DECISIONS.md and CLAUDE.md in all modules
+while IFS= read -r f; do _stage "$f"; done < <(
+  find "$ROOT" -name "DECISIONS.md" -not -path "*/.git/*" 2>/dev/null
+)
+while IFS= read -r f; do _stage "$f"; done < <(
+  find "$ROOT" -name "CLAUDE.md" -not -path "*/.git/*" 2>/dev/null
+)
+
+# ── Playwright coverage check (interactive only, skipped in CI) ───────────────
+UI_CHANGED=false
+echo "$STAGED" | grep -qE '(marketplace-app/.*ui/|Service\.java|changelog/)' && UI_CHANGED=true
+
+if $UI_CHANGED && [ -t 0 ]; then
+  echo ""
+  echo "⚠  UI/backend changes detected — do Playwright tests need updating?"
+  echo "   Coverage map: docs/test-coverage.md"
+  printf "   [y] Mark for coverage update  [n] Skip > "
+  read -r PW_RESPONSE 2>/dev/null || PW_RESPONSE="n"
+  if [ "$PW_RESPONSE" = "y" ]; then
+    echo "   → Add Playwright tests in a follow-up commit."
+    if [ -f "$ROOT/docs/test-coverage.md" ]; then
+      {
+        echo ""
+        echo "<!-- needs-coverage ($(date +%Y-%m-%d)): $(echo "$STAGED" | grep -E 'ui/|Service\.java' | head -3 | tr '\n' ' ') -->"
+      } >> "$ROOT/docs/test-coverage.md"
+      _stage "$ROOT/docs/test-coverage.md"
+    fi
+  fi
+fi
+
+exit 0
