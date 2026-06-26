@@ -50,9 +50,10 @@ Analyzed `@RequiredArgsConstructor` classes for excessive parameter counts (>5 =
 |-------|--------|--------------|------|
 | DefaultAuditPort | audit-starter | 4 (auditLogRepo, currentActorHook, auditDomainHook, auditReadService) | LOW — All cohesive to audit operations |
 | AuditDomainHookImpl | marketplace-app | 4+ (multiple ComponentFactory fields) | LOW — Factory pattern justifies count |
-| AccessEvaluator | marketplace-app | 2 (roleChecker, ownershipChecker) | HIGH — Should come from UserPort; tight coupling to user internals |
+| AccessEvaluator | marketplace-app | 2 (userPort, authContextService) | LOW — ✅ Fixed (ADR-016, 2026-06-15) |
+| DefaultTaxonPort | taxon-starter | 3 (taxonService, assignmentService, properties) | LOW — Cohesive to taxon operations |
 
-**Finding:** Most classes have 1-3 dependencies. Only AccessEvaluator is problematic due to tightly coupling to internal user.security.* classes.
+**Finding:** Most classes have 1-3 dependencies. AccessEvaluator coupling violation resolved.
 
 ---
 
@@ -111,19 +112,23 @@ SELECT * FROM advertisement WHERE deleted_at IS NULL AND ...;
 
 ### 1. marketplace-app → All Starters (Tight Binding)
 
-marketplace-app directly depends on all starters. If any starter has an issue, the app fails.
+marketplace-app directly depends on all starters (including taxon-spring-boot-starter). If any starter has an issue, the app fails.
 
 **Impact:** No true optionality despite some starters marked `<optional>`.
 
 **Mitigation:** Starters are core to the app; this coupling is acceptable.
 
-### 2. Optional Dependencies Not Guarded
+### 2. Optional Dependencies Not Guarded (OPEN)
 
 audit and attachment starters are marked `<optional>true/>` in advertisement pom.xml, but code assumes they exist.
 
 **Impact:** Exclude either starter → runtime ClassNotFoundException.
 
 **Mitigation:** Either make required (remove `<optional>`) or add ObjectProvider guards in code.
+
+### 3. ✅ RESOLVED — Marketplace → User Internal Import Coupling (2026-06-15)
+
+`AccessEvaluator` previously bypassed the SPI by importing `org.ost.user.security.*` classes directly. Now resolved — see ADR-016.
 
 ---
 
@@ -265,7 +270,7 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
-| Fix AccessEvaluator internal imports | HIGH | SMALL | Refactor to use UserPort |
+| ~~Fix AccessEvaluator internal imports~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-016, 2026-06-15) |
 | Resolve optional dependencies | MEDIUM | SMALL | Remove `<optional>` or add ObjectProvider guards |
 | Centralize authorization checks | MEDIUM | MEDIUM | Extract AuthorizationService if auth logic grows |
 | Partition audit_log table | LOW | LARGE | Future scaling concern; not urgent |
@@ -285,7 +290,7 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 | **SPI Contract Safety** | MEDIUM | Hook implementations not compile-checked |
 | **Performance** | MEDIUM | Audit log growth unbounded; indexes adequate for now |
 | **Security** | MEDIUM | RBAC scattered; UserPrincipal well-integrated |
-| **Coupling** | HIGH | AccessEvaluator breaks modular boundary |
+| **Coupling** | LOW-MEDIUM | AccessEvaluator fixed (ADR-016); optional deps still unguarded |
 
 **Critical Action:** Fix AccessEvaluator to use UserPort instead of importing user.security.* classes.
 

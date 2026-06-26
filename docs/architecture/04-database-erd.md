@@ -68,12 +68,40 @@ erDiagram
         timestamp created_at
     }
     
+    TAXON {
+        bigint id PK
+        varchar type
+        varchar code
+        timestamp deleted_at
+        timestamp created_at
+        timestamp updated_at
+        bigint created_by
+        bigint updated_by
+    }
+
+    TAXON_TRANSLATION {
+        bigint taxon_id PK,FK
+        varchar locale PK
+        varchar name
+        varchar description
+    }
+
+    TAXON_ASSIGNMENT {
+        varchar entity_type PK
+        bigint entity_id PK
+        bigint taxon_id PK,FK
+        timestamp assigned_at
+        bigint assigned_by
+    }
+
     USER_INFORMATION ||--o{ ADVERTISEMENT : "creates"
     USER_INFORMATION ||--o{ ADVERTISEMENT : "modifies"
     USER_INFORMATION ||--o{ ADVERTISEMENT : "deletes"
     ADVERTISEMENT ||--o{ ATTACHMENT : "owns"
     ATTACHMENT ||--o{ ATTACHMENT_SNAPSHOT : "has_snapshots"
     AUDIT_LOG ||--o{ USER_INFORMATION : "actor_is"
+    TAXON ||--o{ TAXON_TRANSLATION : "has_translations"
+    TAXON ||--o{ TAXON_ASSIGNMENT : "assigned_via"
 ```
 
 ## Table Schemas
@@ -233,6 +261,68 @@ erDiagram
   - DELETE: `{"snapshot": {...}}`
 - JSONB allows flexible schema for different entity types
 - Audit_snapshot table (not yet populated) will support point-in-time recovery
+
+---
+
+### taxon
+
+**Module:** `taxon-spring-boot-starter`  
+**Changelog:** `/app/taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `id` | BIGSERIAL | PK | Auto-increment |
+| `type` | VARCHAR(64) | NOT NULL | Classifier type (e.g., 'CATEGORY') |
+| `code` | VARCHAR(64) | | Optional stable code (unique per type when set) |
+| `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp (NULL = active) |
+| `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
+| `updated_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Last update timestamp |
+| `created_by` | BIGINT | | User ID who created the entry |
+| `updated_by` | BIGINT | | User ID who last updated |
+
+**Indexes:**
+- `idx_taxon_type_deleted_at` (type, deleted_at) — for listing active/all entries by type
+- `uidx_taxon_type_code` UNIQUE PARTIAL `(type, code) WHERE code IS NOT NULL` — stable code enforcement
+
+---
+
+### taxon_translation
+
+**Module:** `taxon-spring-boot-starter`  
+**Changelog:** `/app/taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `taxon_id` | BIGINT | PK, FK → taxon(id) CASCADE DELETE | Owner taxon entry |
+| `locale` | VARCHAR(8) | PK | BCP-47 language tag (e.g., 'en', 'uk') |
+| `name` | VARCHAR(255) | NOT NULL | Localised display name |
+| `description` | VARCHAR(2000) | NOT NULL | Localised description |
+
+**Indexes:**
+- `idx_taxon_translation_locale_name` (locale, name) — name-search within a locale
+
+---
+
+### taxon_assignment
+
+**Module:** `taxon-spring-boot-starter`  
+**Changelog:** `/app/taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml`
+
+| Column | Type | Constraints | Notes |
+|--------|------|-------------|-------|
+| `entity_type` | VARCHAR(64) | PK | Entity type ('ADVERTISEMENT', 'USER', etc.) |
+| `entity_id` | BIGINT | PK | ID of the entity being classified |
+| `taxon_id` | BIGINT | PK, FK → taxon(id) | Assigned taxon entry |
+| `assigned_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | When the assignment was made |
+| `assigned_by` | BIGINT | | User ID who made the assignment |
+
+**Indexes:**
+- `idx_taxon_assignment_taxon_id` (taxon_id) — for reverse lookup (find all entities with a given taxon)
+
+**Notes:**
+- Generic: any entity type can have taxons assigned (no FK to advertisement table)
+- Idempotent assignment (replaceAssignments handles add/remove diff)
+- Used for filtering advertisements by category without exposing the join table to marketplace UI
 
 ---
 

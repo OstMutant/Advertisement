@@ -294,6 +294,60 @@ sequenceDiagram
 
 ---
 
+---
+
+## 7. Taxon Category Assignment to Advertisement
+
+**Classes involved:**
+- `org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler` (saves categories on form submit)
+- `org.ost.platform.taxon.spi.TaxonPort` (interface)
+- `org.ost.taxon.services.DefaultTaxonPort` (implementation)
+- `org.ost.taxon.services.TaxonAssignmentService` (business logic)
+- `org.ost.platform.taxon.spi.TaxonAuditHook` (callback to marketplace)
+- `org.ost.marketplace.spi.TaxonAuditHookImpl` (records to audit log)
+
+```mermaid
+sequenceDiagram
+    participant UI as AdvertisementFormOverlayModeHandler
+    participant TaxonPort as TaxonPort
+    participant TaxonImpl as DefaultTaxonPort
+    participant AssignService as TaxonAssignmentService
+    participant AuditHook as TaxonAuditHook
+    participant HookImpl as TaxonAuditHookImpl
+    participant TaxonActivity as TaxonActivityService
+
+    UI->>UI: user selects categories in form
+    UI->>TaxonPort: replaceAssignments(ADVERTISEMENT, advId, taxonIds)
+
+    TaxonPort->>TaxonImpl: (delegation)
+    TaxonImpl->>AssignService: replaceAssignments(ADVERTISEMENT, advId, taxonIds, actorId)
+
+    AssignService->>AssignService: load existing assignments
+    AssignService->>AssignService: compute added/removed diff
+
+    loop For each removed taxon
+        AssignService->>AssignService: DELETE FROM taxon_assignment
+        AssignService->>AuditHook: onAssignmentChanged(ADVERTISEMENT, advId, taxonId, UNASSIGNED)
+        AuditHook->>HookImpl: (delegation)
+        HookImpl->>TaxonActivity: recordAssignmentChange(...)
+        TaxonActivity->>TaxonActivity: write audit_log entry
+    end
+
+    loop For each added taxon
+        AssignService->>AssignService: INSERT INTO taxon_assignment
+        AssignService->>AuditHook: onAssignmentChanged(ADVERTISEMENT, advId, taxonId, ASSIGNED)
+        AuditHook->>HookImpl: (delegation)
+        HookImpl->>TaxonActivity: recordAssignmentChange(...)
+        TaxonActivity->>TaxonActivity: write audit_log entry
+    end
+
+    AssignService-->>TaxonImpl: void
+    TaxonImpl-->>TaxonPort: void
+    TaxonPort-->>UI: void
+```
+
+---
+
 ## Key Interaction Patterns
 
 ### Port Pattern (Marketplace → Starter)

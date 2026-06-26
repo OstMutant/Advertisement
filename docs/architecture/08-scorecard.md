@@ -35,7 +35,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ---
 
-## 2. Coupling (Score: 6/10)
+## 2. Coupling (Score: 8/10)
 
 **Definition:** Loose coupling between modules; changes in one do not ripple through others.
 
@@ -44,22 +44,17 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ All inter-module calls through platform-commons SPI (Ports/Hooks)
 - ✓ No Vaadin in starters (clean separation of concerns)
 - ✓ Repositories not imported by UI directly (all through Ports)
-- ✗ **AccessEvaluator imports org.ost.user.security.OwnershipChecker and RoleChecker** (HIGH VIOLATION)
-  - These are internal implementation details, not SPI contracts
-  - Breaks modular boundary; user module cannot be refactored without affecting marketplace
-  - File: `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
-- ✗ Optional audit/attachment dependencies not guarded; runtime assumptions
+- ✓ **AccessEvaluator fixed (ADR-016, 2026-06-15)** — now uses `UserPort` + `AuthContextService` only; no `org.ost.user.*` internal imports
+- ✗ Optional audit/attachment dependencies not guarded; runtime assumptions remain
 - ~ Advertisement has FK to user; tight schema coupling (acceptable but limits independence)
 
-**Why 6, not higher:**
-- AccessEvaluator violation is a clear modularity breach
-- Starters assume audit/attachment will exist despite being marked optional
+**Why 8, not 9+:**
+- Optional deps (audit/attachment in advertisement-starter) are still unguarded — runtime risk if excluded
 - No way to swap audit or attachment implementations (tightly wired via Spring beans)
 
 **Improvements:**
-1. **URGENT:** Refactor AccessEvaluator to use UserPort instead of user.security.* classes
-2. Add ObjectProvider guards for optional starters in advertisement-spring-boot-starter
-3. Consider making all starter implementations injectable (allow swapping)
+1. Add ObjectProvider guards for optional starters in advertisement-spring-boot-starter
+2. Consider making all starter implementations injectable (allow swapping)
 
 ---
 
@@ -113,7 +108,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ---
 
-## 5. Domain Isolation (Score: 7/10)
+## 5. Domain Isolation (Score: 8/10)
 
 **Definition:** Domains are separated; interactions only through contracts.
 
@@ -122,21 +117,19 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ Advertisement domain: CRUD and ownership checks, doesn't know about attachments (except via hook)
 - ✓ Audit domain: cross-cutting, doesn't know domain semantics (calls hooks to understand)
 - ✓ Attachment domain: file storage, knows about entity_type/entity_id generically
-- ✓ Taxon domain: taxonomy management, self-contained
-- ~ Advertisement imports AuditPort + AttachmentPort but only calls via interfaces ✓
-- ~ Attachment → Advertisement via MediaChangeHook (allows notification without import) ✓
-- ✗ Advertisement → User via database FK (schema coupling, not code import)
-- ✗ AccessEvaluator imports user.security.* (breaks isolation)
+- ✓ Taxon domain: taxonomy management, self-contained; no FK to advertisement
+- ✓ Advertisement imports AuditPort + AttachmentPort but only calls via interfaces ✓
+- ✓ Attachment → Advertisement via MediaChangeHook (allows notification without import) ✓
+- ✓ AccessEvaluator fixed (ADR-016, 2026-06-15) — no more user.security.* imports
+- ~ Advertisement → User via database FK (schema coupling, not code import; acceptable)
 
-**Why 7, not higher:**
-- Domains are well-isolated via code boundaries (SPI)
+**Why 8, not higher:**
 - Database FK coupling between advertisement and user is acceptable but limits independence
-- AccessEvaluator violation breaks isolation in security layer
+- Taxon filtering uses `TaxonPort.findEntityIdsWithAnyTaxon()` to avoid exposing taxon_assignment table — correct pattern
 
 **Improvements:**
-1. Fix AccessEvaluator (see Coupling, point 1)
-2. Document that User is a mandatory core domain (not truly optional)
-3. Consider extracting UserReference SPI if independence becomes critical
+1. Document that User is a mandatory core domain (not truly optional)
+2. Consider extracting UserReference SPI if independence becomes critical
 
 ---
 
@@ -200,13 +193,13 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 | Dimension | Score | Status |
 |-----------|-------|--------|
 | **Modularity** | 7/10 | GOOD — Starters modular; marketplace-app is coordinator |
-| **Coupling** | 6/10 | FAIR — SPI solid; AccessEvaluator violation is critical |
+| **Coupling** | 8/10 | GOOD — AccessEvaluator fixed (ADR-016); optional deps still unguarded |
 | **Cohesion** | 8/10 | GOOD — Each module single responsibility |
 | **SPI Design** | 8/10 | GOOD — Clear, consistent, well-executed |
-| **Domain Isolation** | 7/10 | GOOD — Code isolated; schema coupling acceptable |
+| **Domain Isolation** | 8/10 | GOOD — AccessEvaluator fixed; schema coupling acceptable |
 | **Database Design** | 8/10 | GOOD — Flexible schema, proper indexing, soft-delete support |
 | **Testability** | 7/10 | GOOD — Mockable contracts; SPI testing requires discipline |
-| **AVERAGE** | **7.1/10** | **GOOD** |
+| **AVERAGE** | **7.7/10** | **GOOD** |
 
 ---
 
@@ -224,23 +217,20 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ## Critical Issues
 
-1. **AccessEvaluator Coupling (HIGH):**
-   - Imports org.ost.user.security.* (internal classes)
-   - Breaks modular boundary
-   - Fix: Use UserPort instead
+1. ~~**AccessEvaluator Coupling (HIGH)**~~ — ✅ Resolved (ADR-016, 2026-06-15)
 
 2. **Optional Dependencies Not Guarded (MEDIUM):**
-   - audit/attachment marked optional but not protected with ObjectProvider
+   - audit/attachment marked optional in advertisement-starter pom.xml but not protected with ObjectProvider
    - Runtime failure if excluded
-   - Fix: Remove optional or add guards
+   - Fix: Remove `<optional>` or add guards
 
 ---
 
 ## Recommendations (Priority Order)
 
 ### 1. URGENT (Sprint 1)
-- [ ] Refactor AccessEvaluator to use UserPort + ComponentFactory<UserPort>
-- [ ] Remove OwnershipChecker / RoleChecker utility classes or extract as SPI methods
+- [x] Refactor AccessEvaluator to use UserPort + ComponentFactory<UserPort> — ✅ Done (ADR-016, 2026-06-15)
+- [x] Remove OwnershipChecker / RoleChecker utility classes or extract as SPI methods — ✅ Done (ADR-016, 2026-06-15)
 
 ### 2. HIGH (Sprint 2)
 - [ ] Decide: make audit/attachment required (remove optional) OR add ObjectProvider guards in AdvertisementService
@@ -262,7 +252,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ## Conclusion
 
-**Rating: 7.1/10 (GOOD)**
+**Rating: 7.7/10 (GOOD)**
 
 This is a well-structured modular monolith with solid architectural foundations:
 - Clear module boundaries enforced via SPI contracts

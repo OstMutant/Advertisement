@@ -3,6 +3,7 @@
 **Type:** improvement — architectural
 **Module:** attachment-spring-boot-starter + marketplace-app
 **Priority:** high — violates module independence rule
+**Status:** ✅ RESOLVED (2026-06-26)
 
 ## Problem
 
@@ -29,3 +30,10 @@ instead of going through `AttachmentPort` / platform-commons DTOs:
 - Do NOT re-introduce `AttachmentGalleryPort` — it was removed 2026-06-15.
   Route through the existing `AttachmentPort` instead.
 - `YoutubeUtil` is already in `platform-commons/attachment.util` — use as reference.
+
+## Resolution
+
+All violations cleared as of 2026-06-26:
+- `MediaContentTypeUtil` merged into `AttachmentMediaContentType` enum in `platform-commons/attachment.model`
+- All marketplace-app attachment UI components now import only from `org.ost.platform.attachment.*`
+- No `org.ost.attachment.*` (starter-internal) imports remain in marketplace-app

@@ -1,39 +1,14 @@
 # Coupling Analysis
 
-## Architecture Violations Found
+## Architecture Violations — Current State
 
-### 1. Marketplace → Starter Internal Imports (VIOLATION)
+### ✅ RESOLVED: Marketplace → Starter Internal Imports (2026-06-15)
 
-**Severity:** HIGH — Breaks module independence
+**Previously:** `AccessEvaluator` imported `org.ost.user.security.OwnershipChecker` and `org.ost.user.security.RoleChecker` directly.
 
-**Finding:**
-```
-/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java
-```
+**Resolution (ADR-016):** `AccessEvaluator` now depends only on `UserPort` (platform-commons SPI) and `AuthContextService`. Role and ownership checks go through `UserPort.isAdmin()`, `UserPort.isModerator()`, `UserPort.isOwner()`. All 22 files in marketplace-app now use `UserDto`/`UserPort` exclusively.
 
-**Violations:**
-- Line: imports `org.ost.user.security.OwnershipChecker`
-- Line: imports `org.ost.user.security.RoleChecker`
-
-**Impact:**
-- marketplace-app directly depends on `org.ost.user.security.*` internal classes
-- These classes are implementation details of the user-spring-boot-starter, not part of the SPI contract
-- If user module is refactored, marketplace-app breaks
-- User starter can no longer be optionally deployed
-
-**Correct Pattern:**
-```java
-// WRONG (current):
-import org.ost.user.security.OwnershipChecker;
-import org.ost.user.security.RoleChecker;
-
-// CORRECT:
-import org.ost.platform.user.spi.UserPort;
-// Call UserPort methods instead of using utility classes directly
-```
-
-**Recommendation:**
-Refactor `AccessEvaluator` to accept `UserPort` (via `ComponentFactory<UserPort>`) and implement ownership/role checking through port methods instead of importing internal classes.
+**File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java`
 
 ---
 
@@ -180,13 +155,13 @@ Option 1 (remove optional) is simplest. Audit and attachment are core to the mar
 | Module | Java Files | Largest File | Notes |
 |--------|-----------|------|-------|
 | query-lib | 7 | ~200 lines | Small utility library |
-| platform-commons | 50 | I18nKey.java (370 lines) | Mostly interfaces + DTOs |
-| audit-spring-boot-starter | 7 | AuditReadService (unknown) | Compact, focused |
-| attachment-spring-boot-starter | 15 | AttachmentService (unknown) | Medium, handles S3 + DB |
-| user-spring-boot-starter | 11 | UserService (unknown) | Small, focused |
-| advertisement-spring-boot-starter | 7 | AdvertisementService (unknown) | Small, focused |
-| taxon-spring-boot-starter | 15 | TaxonService (unknown) | Medium |
-| **marketplace-app** | **152** | AdvertisementFormOverlayModeHandler (327 lines) | LARGEST MODULE |
+| platform-commons | ~49 | I18nKey is in marketplace-app | Mostly interfaces + DTOs |
+| audit-spring-boot-starter | 7 | AuditReadService | Compact, focused |
+| attachment-spring-boot-starter | 16 | AttachmentService | Medium, handles S3 + DB |
+| user-spring-boot-starter | 11 | UserService | Small, focused |
+| advertisement-spring-boot-starter | 7 | AdvertisementService | Small, focused |
+| taxon-spring-boot-starter | 12 | DefaultTaxonPort | Medium; new as of 2026-06 |
+| **marketplace-app** | **~170** | AdvertisementFormOverlayModeHandler | LARGEST MODULE — expected for UI monolith |
 
 **Finding:** marketplace-app is 9x larger than any starter. Most complexity is in UI layer (views, overlays, components), which is expected for a Vaadin application.
 
@@ -227,13 +202,12 @@ Most classes have 1-3 injected dependencies:
 | **Starter → Starter Imports** | ✓ PASS | Only SPI contracts used |
 | **UI → Repository Direct** | ✓ PASS | All through Ports |
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
-| **Marketplace → Starter Internal** | ✗ FAIL | AccessEvaluator imports user.security.* classes (HIGH) |
-| **Optional Deps Guarded** | ✗ FAIL | audit/attachment optional but not guarded with ObjectProvider (MEDIUM) |
+| **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15) |
+| **Optional Deps Guarded** | ✗ OPEN | audit/attachment optional but not guarded with ObjectProvider (MEDIUM) |
 | **User ↔ Advertisement Coupling** | ~ WARNING | Schema-level FK coupling; acceptable since both required |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |
 
-**Action Items:**
-1. **FIX AccessEvaluator:** Remove `org.ost.user.security.*` imports, use `UserPort` instead
-2. **DECIDE on Optional Deps:** Either remove `<optional>` or add ObjectProvider guards
-3. **MONITOR Advertisement → User:** If user becomes optional in future, extract UserReference SPI
+**Open Action Items:**
+1. **DECIDE on Optional Deps:** Either remove `<optional>` from advertisement pom.xml or add ObjectProvider guards
+2. **MONITOR Advertisement → User:** If user becomes optional in future, extract UserReference SPI
 

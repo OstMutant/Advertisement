@@ -8,12 +8,13 @@ Java package root: `org.ost.attachment`
 
 ## What it owns
 
-- `Attachment` entity + `AttachmentRepository` + `PhotoSnapshotRepository`
+- `Attachment` entity + `AttachmentRepository` + `AttachmentSnapshotRepository`
 - `AttachmentService` — business logic for upload, delete, restore from snapshot
-- `AttachmentPortImpl` — implements `AttachmentPort`; thin delegation to `AttachmentService`
-- `AttachmentMediaChangeHookImpl`, `AttachmentAuditHookImpl` — implement starter-side hooks
-- `AttachmentCleanupJob` — scheduled job for orphan cleanup (uses `CleanupProperties`)
-- `S3StorageService` — S3-compatible storage via AWS SDK
+- `AttachmentSnapshotService` — manages attachment snapshot records
+- `DefaultAttachmentPort` — implements `AttachmentPort`; thin delegation to `AttachmentService`
+- `AttachmentAuditHookImpl` — implements `AttachmentAuditHook`; thin delegation
+- `AttachmentCleanupService` — scheduled service for orphan cleanup (uses `CleanupProperties`)
+- `S3StorageService` / `StorageService` — S3-compatible storage via AWS SDK
 
 **Autoconfiguration entry point:** `AttachmentAutoConfiguration`
 
@@ -21,8 +22,8 @@ Java package root: `org.ost.attachment`
 
 ## Schema
 
-Liquibase changelog: `db/changelog/attachment-changelog.xml`  
-Tables: `attachment`, `photo_snapshot`
+Liquibase changelog: `db/attachment-changelog/changes/01-attachment-schema.xml`  
+Tables: `attachment`, `attachment_snapshot`
 
 Starters own their own Liquibase changelogs — never merge into a shared file.
 

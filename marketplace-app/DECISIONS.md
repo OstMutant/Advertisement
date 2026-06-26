@@ -277,9 +277,13 @@ components may reference each other freely. UI ports/hooks (`AuditUiPort`, `Atta
 
 ### Open violations
 
-→ [improvement-001-attachment-ui-boundary-violation](../features/issues/improvement-001-attachment-ui-boundary-violation.md)
+### ✅ Resolved — attachment UI boundary violations (2026-06-26)
 
-→ [improvement-004-accessevaluator-boundary-violation](../features/issues/improvement-004-accessevaluator-boundary-violation.md)
+`MediaContentTypeUtil` merged into `AttachmentMediaContentType` enum (platform-commons). All attachment UI components now import only from `platform-commons`. No `org.ost.attachment.*` imports remain in marketplace-app.
+
+→ [improvement-001-attachment-ui-boundary-violation](../features/completed/issues/improvement-001-attachment-ui-boundary-violation.md) (completed)
+
+→ [improvement-004-accessevaluator-boundary-violation](../features/completed/issues/improvement-004-accessevaluator-boundary-violation.md) (completed)
 
 ### ✅ Resolved — marketplace-app → org.ost.user.* internals (2026-06-15)
 
@@ -308,6 +312,54 @@ USER role: only own activity (actor filter forced server-side by `AccessEvaluato
 **Consequences:** Key lesson: `TimelineView` must override `setVisible(boolean)` to call
 `refreshFeed()` — tab switching uses `setVisible()`, not component detach/attach, so
 `@PostConstruct` alone produces stale data after mutations.
+
+---
+
+---
+
+## ADR-019: Taxon/Category domain extracted as standalone starter
+**Status:** Accepted (done 2026-06-26)
+
+**Context:** Advertisement categories (and future tags) are a classification taxonomy that:
+- spans multiple entity types (`ADVERTISEMENT`, potentially `USER`, etc.)
+- requires soft-delete + restore (same as advertisement/user)
+- needs multilingual translations (locale-keyed)
+- must be audited (category assignments recorded in audit_log)
+
+Embedding this inside `advertisement-spring-boot-starter` would couple two distinct domains and
+prevent reuse across other entity types.
+
+**Decision:** New `taxon-spring-boot-starter` module owns:
+- `taxon`, `taxon_translation`, `taxon_assignment` tables (Liquibase changelog at `db/taxon-changelog/`)
+- `Taxon`, `TaxonTranslation`, `TaxonAssignment` entities
+- `TaxonService`, `TaxonAssignmentService` — business logic
+- `DefaultTaxonPort` — coordination layer (not pure delegation: it resolves translations and builds DTOs)
+- `TaxonProperties` — configurable `defaultLocale` for translation fallback
+
+SPI contracts in `platform-commons`:
+- `TaxonPort` (marketplace → starter) — CRUD, assignment management, batched queries
+- `TaxonAuditHook` (starter → marketplace) — fires when assignments change
+
+Marketplace-app additions:
+- `TaxonAuditHookImpl` → delegates to `TaxonActivityService.recordAssignmentChange()`
+- `TaxonManagementView` + `TaxonOverlay` + `TaxonFormOverlayModeHandler` + `TaxonViewOverlayModeHandler`
+- `ReferenceDataView` — tab container for taxon management (nested sub-tabs)
+- `TaxonActivityService` in `services/audit/taxon/`
+
+`TaxonType` enum (in `platform-commons`) — closed set: currently `CATEGORY`. Adding a new type
+is a release-level change requiring UI, audit translations, and seed entries.
+
+Advertisement filtering by category: `AdvertisementRepository` calls
+`TaxonPort.findEntityIdsWithAnyTaxon()` to translate taxon ids into entity ids — no direct
+join to `taxon_assignment` table from advertisement code.
+
+**Consequences:**
+- `EntityType.TAXON` added to `platform-commons` for audit records of taxon entity changes.
+- `ReferenceDataView` added as a new top-level navigation tab with sub-tabs per taxon type.
+- Taxon CRUD triggers `TaxonAuditHook.onAssignmentChanged()` from `TaxonAssignmentService`.
+- `DefaultTaxonPort` is permitted to contain coordination logic (translation fallback chain,
+  DTO assembly) because the alternative would require exposing TaxonTranslation internals
+  to marketplace-app — that would be a worse boundary violation.
 
 ---
 

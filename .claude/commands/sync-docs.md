@@ -1,8 +1,8 @@
 Analyze what changed in the codebase and update only the affected architecture documentation.
 
 Usage:
-  /audit-diff          — compare current HEAD against origin/main
-  /audit-diff <ref>    — compare current HEAD against <ref> (branch, tag, or SHA)
+  /sync-docs          — compare current HEAD against origin/main
+  /sync-docs <ref>    — compare current HEAD against <ref> (branch, tag, or SHA)
 
 ---
 

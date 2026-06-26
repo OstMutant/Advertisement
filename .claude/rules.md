@@ -54,6 +54,12 @@ Always use project scripts — never raw docker/mvn commands:
 
 **Before running deploy.sh** — launch Monitor watching `/tmp/deploy.log` (10s interval, catch `ERROR|BUILD SUCCESS|Started Application`), then run: `bash scripts/deploy.sh [args] 2>&1 | tee /tmp/deploy.log`
 
+## Issue Lifecycle
+
+When an issue in `features/issues/` is resolved (fix is implemented and committed):
+- Move the file to `features/completed/issues/` — **immediately, in the same operation as the fix**
+- Do not leave resolved issues in `features/issues/`
+
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.
 Wait for the next explicit user message before doing anything.

@@ -22,8 +22,10 @@ fi
 TARGETS=()
 echo "$STAGED" | grep -qE 'pom\.xml' \
   && TARGETS+=("01-module-dependencies")
-echo "$STAGED" | grep -qE '(platform-commons.*spi|.*Port[A-Z]|.*Hook[A-Z]|.*Impl\.java)' \
+echo "$STAGED" | grep -qE '(platform-commons.*spi|.*Port(Impl)?\.java|.*Hook(Impl)?\.java|.*Impl\.java)' \
   && TARGETS+=("02-spi-map")
+echo "$STAGED" | grep -qE '(pom\.xml|platform-commons.*spi|.*AutoConfiguration\.java)' \
+  && TARGETS+=("03-bounded-contexts")
 echo "$STAGED" | grep -qE 'db/changelog' \
   && TARGETS+=("04-database-erd")
 echo "$STAGED" | grep -qE '(Service|Repository)\.java' \
@@ -37,27 +39,27 @@ echo "$STAGED" | grep -qE '\.java$' \
 STAGED_LIST="$(echo "$STAGED" | tr '\n' ' ')"
 TARGETS_LIST="${TARGETS[*]}"
 
-echo "→ [audit-diff] Staged: $STAGED_LIST"
-echo "→ [audit-diff] Targets: $TARGETS_LIST"
-echo "→ [audit-diff] Syncing documentation (may take 1-2 min)..."
+echo "→ [sync-docs] Staged: $STAGED_LIST"
+echo "→ [sync-docs] Targets: $TARGETS_LIST"
+echo "→ [sync-docs] Syncing documentation (may take 1-2 min)..."
 
 PROMPT="$(cat <<PROMPT
-Run /audit-diff with base ref HEAD~1.
+Run /sync-docs with base ref HEAD~1.
 
 Staged files: $STAGED_LIST
 Affected targets: $TARGETS_LIST
 
-Follow the instructions in $ROOT/.claude/commands/audit-diff.md exactly.
+Follow the instructions in $ROOT/.claude/commands/sync-docs.md exactly.
 Read actual source files before updating each target.
 PROMPT
 )"
 
 if command -v claude &>/dev/null; then
   timeout 240 claude -p "$PROMPT" --dangerously-skip-permissions 2>/dev/null \
-    && echo "→ [audit-diff] Done." \
-    || echo "→ [audit-diff] Warning: sync timed out or failed — commit proceeds without doc update."
+    && echo "→ [sync-docs] Done." \
+    || echo "→ [sync-docs] Warning: sync timed out or failed — commit proceeds without doc update."
 else
-  echo "→ [audit-diff] Warning: claude CLI not found — skipping doc sync. Install Claude Code to enable."
+  echo "→ [sync-docs] Warning: claude CLI not found — skipping doc sync. Install Claude Code to enable."
 fi
 
 # ── Stage updated docs ────────────────────────────────────────────────────────
@@ -65,6 +67,7 @@ _stage() { git add "$1" 2>/dev/null || true; }
 
 _stage "$ROOT/docs/architecture/"
 _stage "$ROOT/features/issues/"
+_stage "$ROOT/features/completed/issues/"
 _stage "$ROOT/README.md"
 _stage "$ROOT/CHANGELOG.md"
 

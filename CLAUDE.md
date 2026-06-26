@@ -25,6 +25,7 @@ advertisement-parent (root pom)
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
 ├── user-spring-boot-starter          — User domain: entity, service, security, UserPortImpl (auto-configured starter)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
+├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
@@ -36,6 +37,7 @@ advertisement-parent (root pom)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`)
+- `taxon.*` — `taxon.spi` (`TaxonPort`, `TaxonAuditHook`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`), `taxon.model` (`TaxonType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
@@ -46,6 +48,8 @@ advertisement-parent (root pom)
 → User domain (security, settings, owned classes): @user-spring-boot-starter/CLAUDE.md
 
 → Advertisement domain (owned classes): @advertisement-spring-boot-starter/CLAUDE.md
+
+→ Taxon/reference data domain (owned classes): @taxon-spring-boot-starter/CLAUDE.md
 
 ---
 
@@ -111,6 +115,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision
+- `/sync-docs [ref]` — sync architecture docs with code (default: origin/main)
 
 ---
 
@@ -125,7 +130,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
 
-Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` — their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and `platform-commons/DECISIONS.md` (port interfaces).
+Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and `taxon-spring-boot-starter` have no `DECISIONS.md` — their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and `platform-commons/DECISIONS.md` (port interfaces).
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.
