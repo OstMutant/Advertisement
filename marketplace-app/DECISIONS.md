@@ -275,9 +275,11 @@ only at the service ↔ UI boundary (starters vs marketplace-app). Within market
 components may reference each other freely. UI ports/hooks (`AuditUiPort`, `AttachmentGalleryPort`,
 `AuditActivityRowHook`) were removed as unnecessary indirection.
 
-### Open violation
+### Open violations
 
 → [improvement-001-attachment-ui-boundary-violation](../features/issues/improvement-001-attachment-ui-boundary-violation.md)
+
+→ [improvement-004-accessevaluator-boundary-violation](../features/issues/improvement-004-accessevaluator-boundary-violation.md)
 
 ### ✅ Resolved — marketplace-app → org.ost.user.* internals (2026-06-15)
 
