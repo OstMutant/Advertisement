@@ -1,11 +1,9 @@
 package org.ost.marketplace.ui.views.main.tabs.referencedata;
 
 import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Hr;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
-import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -33,7 +31,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-public class TaxonManagementView extends VerticalLayout {
+public class TaxonManagementView extends Div {
 
     private final ComponentFactory<TaxonPort>              taxonPortFactory;
     private final I18nService                              i18n;
@@ -44,45 +42,32 @@ public class TaxonManagementView extends VerticalLayout {
     private final UiComponentFactory<UiIconButton>         iconButtonFactory;
     private final UiComponentFactory<UiPrimaryButton>      primaryButtonFactory;
 
-    private VerticalLayout listContainer;
+    private Div listContainer;
 
     @PostConstruct
     protected void init() {
         addClassName("taxon-management-view");
-        setWidthFull();
-        setPadding(true);
 
-        listContainer = new VerticalLayout();
+        listContainer = new Div();
         listContainer.addClassName("taxon-list-container");
-        listContainer.setPadding(false);
-        listContainer.setSpacing(false);
-        listContainer.setWidthFull();
 
-        Div header = buildHeader();
-        add(header, listContainer, overlay);
+        add(listContainer, overlay);
         refresh();
-    }
-
-    private Div buildHeader() {
-        Span title = new Span(i18n.get(REFERENCE_DATA_TAB_CATEGORIES));
-        title.addClassName("taxon-section-title");
-
-        UiPrimaryButton addBtn = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder()
-                        .labelKey(REFERENCE_DATA_BUTTON_ADD)
-                        .icon(VaadinIcon.PLUS.create())
-                        .build());
-        addBtn.addClassName("taxon-add-button");
-        addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
-
-        Div header = new Div(title, addBtn);
-        header.addClassName("taxon-section-header");
-        return header;
     }
 
     private void refresh() {
         try {
             listContainer.removeAll();
+
+            UiPrimaryButton addBtn = primaryButtonFactory.build(
+                    UiPrimaryButton.Parameters.builder()
+                            .labelKey(REFERENCE_DATA_BUTTON_ADD)
+                            .icon(VaadinIcon.PLUS.create())
+                            .build());
+            addBtn.addClassName("taxon-add-button");
+            addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
+            listContainer.add(addBtn);
+
             taxonPortFactory.ifAvailable(port -> {
                 List<TaxonDto> all     = port.listAllByType(TaxonType.CATEGORY, java.util.Locale.ENGLISH, true);
                 Map<Long, Long> counts = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CATEGORY);
@@ -98,11 +83,7 @@ public class TaxonManagementView extends VerticalLayout {
                 }
 
                 active.forEach(t  -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), false)));
-
-                if (!deleted.isEmpty()) {
-                    listContainer.add(new Hr());
-                    deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
-                }
+                deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
             });
         } catch (Exception ex) {
             log.error("Failed to refresh taxon list", ex);
@@ -127,10 +108,7 @@ public class TaxonManagementView extends VerticalLayout {
 
         HorizontalLayout row = new HorizontalLayout(nameSpan, deletedBadge, countSpan, actions);
         row.addClassName("taxon-row");
-        row.setWidthFull();
-        row.setAlignItems(Alignment.CENTER);
-        row.setJustifyContentMode(JustifyContentMode.START);
-        row.expand(nameSpan);
+        row.setAlignItems(HorizontalLayout.Alignment.CENTER);
 
         if (!isDeleted) {
             nameSpan.addClickListener(_ -> overlay.openForView(taxon, this::refresh));
@@ -151,7 +129,7 @@ public class TaxonManagementView extends VerticalLayout {
                     .labelKey(TAXON_VIEW_TOOLTIP_RESTORE)
                     .icon(VaadinIcon.ARROW_BACKWARD.create())
                     .build());
-            restoreBtn.addClickListener(e -> { e.getSource().getParent().ifPresent(p -> {}); doRestore(taxon); });
+            restoreBtn.addClickListener(e -> doRestore(taxon));
             actions.add(restoreBtn);
         } else {
             UiIconButton editBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
