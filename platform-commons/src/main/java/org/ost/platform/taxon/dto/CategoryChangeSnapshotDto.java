@@ -37,4 +37,7 @@ public record CategoryChangeSnapshotDto(
     public List<ChangeEntry.FieldChange> allFields() {
         return List.of(new ChangeEntry.FieldChange(Fields.categoryName, null, assigned ? categoryName : null));
     }
+
+    @Override
+    public boolean isRestorable() { return false; }
 }

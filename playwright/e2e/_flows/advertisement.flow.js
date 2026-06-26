@@ -1,6 +1,7 @@
 const fs = require('fs');
 const { test, screenshot, downloadPng, closeNotification } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
+const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
@@ -127,7 +128,7 @@ async function openLightboxAndNavigate(page, card, screenshotPrefix) {
 
 // ── flows ─────────────────────────────────────────────────────────────────────
 
-async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix }) {
+async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [] }) {
   const imagePath = `/tmp/${screenshotPrefix}-image.png`;
   await downloadPng(avatar(screenshotPrefix), imagePath);
 
@@ -148,6 +149,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
 
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+  for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
 
   await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
@@ -173,20 +175,28 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
 
   const card = cardByTitle(page, title);
   await verifyCardInList(page, expect, card, description, 3, `${screenshotPrefix}-card`);
+  if (categories.length > 0) {
+    await test.step('card shows categories text', async () => {
+      await assertCardHasCategories(page, expect, cardByTitle(page, title), categories, `${screenshotPrefix}-categories`);
+    });
+  }
   await openLightboxAndNavigate(page, card, screenshotPrefix);
 
-  await test.step('single history entry has no restore button', async () => {
+  await test.step('history entries match expected count, no restore button', async () => {
     const freshCard = cardByTitle(page, title);
     const overlay = await openCardOverlay(page, freshCard, `${screenshotPrefix}-single-history`);
+    if (categories.length > 0) await assertViewOverlayHasCategories(page, expect, overlay, categories, `${screenshotPrefix}-view-chips`);
     await switchToEditMode(page, overlay, null);
     const activityList = await openActivityTab(overlay);
-    await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
+    // 1 base CREATED row + 1 UPDATED row per category assignment
+    const expectedRows = 1 + categories.length;
+    await expect(activityList.locator('.entity-activity-row')).toHaveCount(expectedRows, { timeout: 5000 });
     await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(0);
     await closeOverlayToList(page, overlay);
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, categoryToAdd = null, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const rowsAfterEdit     = editVersion;
@@ -285,6 +295,19 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     });
   }
 
+  if (categoryToAdd) {
+    await test.step(`add category ${categoryToAdd} — activity diff shows assigned`, async () => {
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await selectCategoryInAdForm(page, overlay, categoryToAdd);
+      await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-add`);
+      const catActivityList = await openActivityTab(overlay);
+      await expect(catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes'))
+        .toContainText(categoryToAdd, { timeout: 5000 });
+      await screenshot(page, `${screenshotPrefix}-cat-add-activity`);
+    });
+  }
+
   await test.step('view reflects saved state', async () => {
     await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
   });
@@ -296,16 +319,15 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   });
 }
 
-async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, screenshotPrefix }) {
+async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, rowsBeforeRestore = 3, screenshotPrefix }) {
   const overlay = await openCardOverlay(page, cardByTitle(page, currentTitle), screenshotPrefix);
 
   await switchToEditMode(page, overlay, null);
 
-  // Activity tab — 3 rows before restore (v3 text-only, v2 media+text, v1 created)
   const activityList = await openActivityTab(overlay);
-  await expect(activityList.locator('.entity-activity-row')).toHaveCount(3, { timeout: 5000 });
+  await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsBeforeRestore, { timeout: 5000 });
 
-  const v1Row = activityList.locator('.entity-activity-row').nth(2);
+  const v1Row = activityList.locator('.entity-activity-row').nth(rowsBeforeRestore - 1);
   await expect(v1Row.locator('.entity-activity-version')).toContainText('v1');
   await screenshot(page, `${screenshotPrefix}-before-restore`);
   await v1Row.locator('.entity-activity-restore-btn').click();
@@ -321,13 +343,13 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
 
   await saveAndWaitForIdle(page, expect, overlay, screenshotPrefix);
 
-  // Activity tab — 4 rows: v4 restored, v3 text-only, v2 media+text, v1 created
+  const restoredVersion = rowsBeforeRestore + 1;
   const activityListAfter = await openActivityTab(overlay);
-  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(4, { timeout: 5000 });
+  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(restoredVersion, { timeout: 5000 });
 
   const row0 = activityListAfter.locator('.entity-activity-row').nth(0);
   await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
-  await expect(row0.locator('.entity-activity-version')).toContainText('v4');
+  await expect(row0.locator('.entity-activity-version')).toContainText(`v${restoredVersion}`);
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(currentTitle);
   await expect(changes0).toContainText(restoredTitle);

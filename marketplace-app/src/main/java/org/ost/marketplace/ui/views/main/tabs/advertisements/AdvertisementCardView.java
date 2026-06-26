@@ -71,6 +71,11 @@ public class AdvertisementCardView extends HorizontalLayout
         return this;
     }
 
+    private static final String[] CATEGORY_COLORS = {
+        "#6366f1", "#f59e0b", "#10b981", "#ef4444",
+        "#3b82f6", "#ec4899", "#8b5cf6", "#14b8a6"
+    };
+
     @Override
     public AdvertisementCardView configure(Parameters p) {
         AdvertisementInfoDto ad        = p.getAd();
@@ -81,11 +86,26 @@ public class AdvertisementCardView extends HorizontalLayout
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
 
+        Div stripe = createCategoryStripe(ad);
+        if (stripe != null) add(stripe);
         Div thumbnail = createThumbnail(ad);
         if (thumbnail != null) add(thumbnail);
         add(createContent(ad, onChanged));
 
         return this;
+    }
+
+    private Div createCategoryStripe(AdvertisementInfoDto ad) {
+        if (ad.getCategoryIds() == null || ad.getCategoryIds().isEmpty()) return null;
+        Div stripe = new Div();
+        stripe.addClassName("advertisement-category-stripe");
+        ad.getCategoryIds().forEach(id -> {
+            Div segment = new Div();
+            segment.addClassName("advertisement-category-stripe-segment");
+            segment.getStyle().set("background-color", CATEGORY_COLORS[(int)(Math.abs(id) % CATEGORY_COLORS.length)]);
+            stripe.add(segment);
+        });
+        return stripe;
     }
 
     private Div createThumbnail(AdvertisementInfoDto ad) {

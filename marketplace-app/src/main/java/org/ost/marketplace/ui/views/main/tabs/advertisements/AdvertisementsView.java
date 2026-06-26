@@ -1,7 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements;
 
-import com.vaadin.flow.component.Key;
-import com.vaadin.flow.component.Shortcuts;
+import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -25,6 +24,7 @@ import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
@@ -43,6 +43,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
+    private final transient LocaleProvider                            localeProvider;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -77,14 +78,33 @@ public class AdvertisementsView extends VerticalLayout {
 
         paginationBar.setPageChangeListener(_ -> refresh());
 
-        Shortcuts.addShortcutListener(this, () -> {
-            if (access.isLoggedIn() && isVisible()) {
-                overlay.openForCreate(this::refresh);
-            }
-        }, Key.KEY_N);
+        // Vaadin's Shortcuts API uses event.target which is retargeted in shadow DOM —
+        // the host element replaces the inner <input>, bypassing the "don't fire in inputs" guard.
+        // composedPath() traverses into shadow roots and correctly detects focused input elements.
+        getElement().executeJs("""
+                this.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() !== 'n' || e.ctrlKey || e.metaKey || e.altKey) return;
+                    const path = e.composedPath ? e.composedPath() : [];
+                    const inInput = path.some(el => {
+                        const tag = el.localName;
+                        return tag === 'input' || tag === 'textarea' || el.isContentEditable === true;
+                    });
+                    if (!inInput) {
+                        e.preventDefault();
+                        this.$server.onNewAdvertisementShortcut();
+                    }
+                });
+                """);
 
         settingsPaginationBinding.register(paginationBar, UserSettingsDto::getAdsPageSize, this::refresh);
         refresh();
+    }
+
+    @ClientCallable
+    public void onNewAdvertisementShortcut() {
+        if (access.isLoggedIn() && isVisible()) {
+            overlay.openForCreate(this::refresh);
+        }
     }
 
     @PreDestroy
@@ -119,7 +139,7 @@ public class AdvertisementsView extends VerticalLayout {
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
         List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort))
+                .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
                 .orElse(List.of());
 
         int total = advertisementPortFactory.findIfAvailable()

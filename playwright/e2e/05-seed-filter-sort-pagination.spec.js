@@ -27,13 +27,14 @@ const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = r
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
-  fillText, fillNumber, fillRole,
+  fillText, fillNumber, fillRole, fillCategory,
   getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
 const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
+const { runCreateCategoryFlow } = require('./_flows/category.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -43,7 +44,16 @@ const ADV_ITEM   = '.advertisement-card';
 const USER_ITEM  = '.user-grid-name';
 
 const SEED_COUNT = 50;
-const CATEGORIES = ['Electronics', 'Clothing', 'Furniture', 'Books', 'Sports'];
+// Distinct from spec-03 categories (Electronics, Vehicles) to avoid duplicates in e2e suite mode.
+const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
+
+const SEED_CATEGORIES = [
+  { nameEn: 'Clothing',  descriptionEn: 'Clothes, fashion and apparel.',        nameUk: 'Одяг',    descriptionUk: 'Одяг, мода та аксесуари.' },
+  { nameEn: 'Books',     descriptionEn: 'Books, magazines and literature.',      nameUk: 'Книги',   descriptionUk: 'Книги, журнали та література.' },
+  { nameEn: 'Furniture', descriptionEn: 'Home and office furniture.',            nameUk: 'Меблі',   descriptionUk: 'Домашні та офісні меблі.' },
+  { nameEn: 'Sports',    descriptionEn: 'Sports equipment and accessories.',     nameUk: 'Спорт',   descriptionUk: 'Спортивне обладнання та аксесуари.' },
+  { nameEn: 'Toys',      descriptionEn: 'Toys, games and hobbies.',              nameUk: 'Іграшки', descriptionUk: 'Іграшки, ігри та хобі.' },
+];
 
 const seedUser = i => ({
   name: `Seed User ${String(i).padStart(2, '0')}`,
@@ -53,7 +63,7 @@ const seedUser = i => ({
 
 const seedAd = i => ({
   title: `Seed Advertisement ${String(i).padStart(2, '0')}`,
-  description: `Description for seed advertisement ${i}. Category: ${CATEGORIES[(i - 1) % CATEGORIES.length]}.`,
+  description: `Description for seed advertisement ${i}.`,
 });
 
 // Ensures adminEn exists and is ADMIN before seed tests run.
@@ -129,8 +139,11 @@ test.describe('Seed data and query validation', () => {
   test(`adminEn seeds ${SEED_COUNT} advertisements — five categories`, async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
+    for (const cat of SEED_CATEGORIES) await runCreateCategoryFlow(page, expect, cat);
+    await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
+    await page.locator('.add-advertisement-button').waitFor({ timeout: 8000 });
     for (let i = 1; i <= SEED_COUNT; i++) {
-      await createAdvertisementBulk(page, seedAd(i));
+      await createAdvertisementBulk(page, { ...seedAd(i), category: CATEGORIES[(i - 1) % CATEGORIES.length] });
     }
     await logoutBulk(page);
   });
@@ -158,6 +171,13 @@ test.describe('Seed data and query validation', () => {
     await applyFilter(page, ADV_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
     await screenshot(page, 'adv-filter-title-partial');
+    await clearFilter(page, ADV_BLOCK);
+
+    // ── category filter → SEED_COUNT / 5 results per category ────────────────
+    await fillCategory(page, ADV_BLOCK, CATEGORIES[0]);
+    await applyFilter(page, ADV_BLOCK);
+    await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT / CATEGORIES.length}`, { timeout: 8000 });
+    await screenshot(page, 'adv-filter-category');
     await clearFilter(page, ADV_BLOCK);
 
     // ── date range filters (created/updated today + boundary cases) ──────────

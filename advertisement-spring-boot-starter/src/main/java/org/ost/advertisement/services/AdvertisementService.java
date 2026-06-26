@@ -15,6 +15,7 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -23,8 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -32,17 +36,18 @@ import java.util.Set;
 @Validated
 public class AdvertisementService {
 
-    private final AdvertisementRepository              repository;
-    private final ComponentFactory<AuditPort>          auditPortFactory;
-    private final ComponentFactory<AttachmentPort>     attachmentPortFactory;
-    private final ComponentFactory<TaxonPort>          taxonPortFactory;
+    private final AdvertisementRepository          repository;
+    private final ComponentFactory<AuditPort>      auditPortFactory;
+    private final ComponentFactory<AttachmentPort> attachmentPortFactory;
+    private final ComponentFactory<TaxonPort>      taxonPortFactory;
 
-    public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
+    public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
         Set<Long> allowedIds = resolveCategoryFilter(filter);
         if (allowedIds != null && allowedIds.isEmpty()) {
             return List.of();
         }
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
+        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
+        return enrichWithCategories(ads, locale);
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
@@ -62,6 +67,24 @@ public class AdvertisementService {
                 .orElse(null);
     }
 
+    private List<AdvertisementInfoDto> enrichWithCategories(List<AdvertisementInfoDto> ads, Locale locale) {
+        if (ads.isEmpty()) return ads;
+        return taxonPortFactory.findIfAvailable()
+                .map(taxonPort -> {
+                    Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());
+                    Map<Long, List<TaxonDto>> categoryMap = taxonPort.getForEntities(EntityType.ADVERTISEMENT, ids, locale);
+                    return ads.stream()
+                            .map(ad -> {
+                                List<TaxonDto> cats = categoryMap.getOrDefault(ad.getId(), List.of());
+                                Set<Long> catIds = cats.stream().map(TaxonDto::getId).collect(Collectors.toSet());
+                                List<String> catNames = cats.stream().map(TaxonDto::getName).toList();
+                                return ad.toBuilder().categoryIds(catIds).categoryNames(catNames).build();
+                            })
+                            .toList();
+                })
+                .orElse(ads);
+    }
+
     @Transactional
     public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId) {
         boolean isNew = dto.id() == null;
@@ -78,11 +101,27 @@ public class AdvertisementService {
                     .orElse(new AdvertisementSnapshotDto(null, null));
             auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, savedSnapshot, actingUserId));
         }
+        if (dto.categoryIds() != null) {
+            saveCategoryChanges(saved.getId(), dto.categoryIds());
+        }
         return saved.getId();
     }
 
+    private void saveCategoryChanges(Long entityId, Set<Long> newCategoryIds) {
+        taxonPortFactory.ifAvailable(taxonPort ->
+                taxonPort.replaceAssignments(EntityType.ADVERTISEMENT, entityId, newCategoryIds));
+    }
+
     public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
-        return repository.findAdvertisementById(id);
+        return repository.findAdvertisementById(id).map(dto ->
+                taxonPortFactory.findIfAvailable()
+                        .map(taxonPort -> {
+                            Set<Long> catIds = taxonPort.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH)
+                                    .stream().map(TaxonDto::getId).collect(Collectors.toSet());
+                            return dto.toBuilder().categoryIds(catIds).build();
+                        })
+                        .orElse(dto)
+        );
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -102,6 +141,7 @@ public class AdvertisementService {
             auditPortFactory.ifAvailable(p -> p.captureDeletion(id,
                     new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), actingUserId));
             attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, id), actingUserId));
+            taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, id, Set.of()));
         });
         repository.softDelete(id, actingUserId);
     }

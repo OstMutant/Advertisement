@@ -60,9 +60,10 @@ public class AuditActivityPanel extends Div
             add(emptyState());
             return this;
         }
+        int restorableCount = (int) items.stream().filter(i -> i.snapshotData().isRestorable()).count();
         AuditActivityRowRenderer.RenderConfig cfg = new AuditActivityRowRenderer.RenderConfig(
                 p.getEntityRef(), currentSnapshot,
-                items.size(), p.isCanOperate(), p.getOnRestoreRequested());
+                restorableCount, p.isCanOperate(), p.getOnRestoreRequested());
         listRendererFactory.get()
                 .buildRows(items, cfg)
                 .forEach(this::add);

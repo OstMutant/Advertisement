@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes;
 
+import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
@@ -22,6 +23,7 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
 import org.ost.marketplace.ui.mappers.AdvertisementMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -40,8 +42,15 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.Ov
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.model.TaxonType;
+import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -61,32 +70,36 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private final ComponentFactory<AdvertisementPort>                          advertisementPortFactory;
-    private final AdvertisementMapper                                        mapper;
-    private final AccessEvaluator                                            access;
+    private final AdvertisementMapper                                          mapper;
+    private final AccessEvaluator                                              access;
     @Getter
-    private final I18nService                                                i18nService;
-    private final NotificationService                                        notificationService;
-    private final UiComponentFactory<AttachmentGalleryService>                    galleryServiceFactory;
-    private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>   formBinderFactory;
-    private final ComponentFactory<AuditPort>                                   auditPortFactory;
-    private final UiComponentFactory<AuditActivityPanel>                        auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                              cancelButtonFactory;
-    private final OverlayAdvertisementMetaPanel                              metaPanel;
-    private final UiTextField                                                titleField;
-    private final UiTextArea                                                 descriptionField;
-    private final UiPrimaryButton                                            saveButton;
-    private final UiTertiaryButton                                           discardButton;
+    private final I18nService                                                  i18nService;
+    private final NotificationService                                          notificationService;
+    private final UiComponentFactory<AttachmentGalleryService>                 galleryServiceFactory;
+    private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
+    private final ComponentFactory<AuditPort>                                  auditPortFactory;
+    private final UiComponentFactory<AuditActivityPanel>                       auditActivityPanelFactory;
+    private final UiComponentFactory<UiIconButton>                             cancelButtonFactory;
+    private final OverlayAdvertisementMetaPanel                                metaPanel;
+    private final UiTextField                                                  titleField;
+    private final UiTextArea                                                   descriptionField;
+    private final UiPrimaryButton                                              saveButton;
+    private final UiTertiaryButton                                             discardButton;
+    private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
+    private final LocaleProvider                                               localeProvider;
 
-    private Parameters params;
-    private boolean    isCreate;
+    private Parameters                        params;
+    private boolean                           isCreate;
     @Getter
-    private Long                 savedId;
+    private Long                              savedId;
     @Getter
-    private AdvertisementInfoDto savedInfoDto;
+    private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
-    private Tabs                             formTabs;
-    private Tab                              editTab;
-    private Div                              activityContent;
+    private Tabs                              formTabs;
+    private Tab                               editTab;
+    private Div                               activityContent;
+    private MultiSelectComboBox<TaxonDto>     categoryComboBox;
+    private List<TaxonDto>                    availableCategories = List.of();
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -113,19 +126,37 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .build());
         descriptionField.addClassName("overlay__description-text-area");
 
+        availableCategories = taxonPortFactory.findIfAvailable()
+                .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
+                .orElse(List.of());
+        if (!availableCategories.isEmpty()) {
+            categoryComboBox = new MultiSelectComboBox<>();
+            categoryComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
+            categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
+            categoryComboBox.setItems(availableCategories);
+            categoryComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-categories");
+        }
+
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto);
+
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
         descriptionField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         descriptionField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        if (categoryComboBox != null) {
+            categoryComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        }
 
         Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
         cardHeader.addClassName("overlay__form-card-header");
 
         Div fieldsCard = new Div(cardHeader, titleField, descriptionField);
+        if (categoryComboBox != null) {
+            fieldsCard.add(categoryComboBox);
+        }
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
@@ -167,7 +198,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     public boolean save() {
         return binder.save(dto -> {
             this.savedId = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.save(new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription()), access.getCurrentUserId()))
+                    .map(p -> p.save(new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getCategoryIds()), access.getCurrentUserId()))
                     .orElse(null);
             if (savedId != null) {
                 advertisementPortFactory.findIfAvailable()
@@ -190,6 +221,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         binder.loadRestored(restoredDto, (src, tgt) -> {
             tgt.setTitle(src.getTitle());
             tgt.setDescription(src.getDescription());
+            tgt.setCategoryIds(src.getCategoryIds());
         });
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
@@ -253,6 +285,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             binder.reload(new AdvertisementEditDto(), (src, tgt) -> {
                 tgt.setTitle(src.getTitle());
                 tgt.setDescription(src.getDescription());
+                tgt.setCategoryIds(src.getCategoryIds());
             });
             updateButtons(false);
             if (activeHandle != null) activeHandle.discard();
@@ -265,6 +298,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     binder.reload(fresh, (src, tgt) -> {
                         tgt.setTitle(src.getTitle());
                         tgt.setDescription(src.getDescription());
+                        tgt.setCategoryIds(src.getCategoryIds());
                     });
                     updateButtons(false);
                 });
@@ -301,6 +335,16 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         binder.getBinder().forField(descriptionField)
                 .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
+        if (categoryComboBox != null) {
+            binder.getBinder().forField(categoryComboBox)
+                    .withConverter(
+                            selected -> selected.stream().map(TaxonDto::getId).collect(Collectors.toSet()),
+                            ids -> ids == null ? Set.of() : availableCategories.stream()
+                                    .filter(t -> ids.contains(t.getId()))
+                                    .collect(Collectors.toSet())
+                    )
+                    .bind(AdvertisementEditDto::getCategoryIds, AdvertisementEditDto::setCategoryIds);
+        }
         binder.readInitialValues();
     }
 }

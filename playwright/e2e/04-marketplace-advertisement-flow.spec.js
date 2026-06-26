@@ -38,10 +38,10 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, single activity row', async () => {
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, two category rows, categories text and view chips', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
-    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create' });
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'] });
 
     await test.step('attachment lightbox — play icon visible, video src valid', async () => {
       await page.locator('.advertisement-card')
@@ -78,6 +78,7 @@ test.describe('Advertisement flow', () => {
     await runEditAdvertisementFlow(page, expect, {
       originalTitle: CREATE.enAd.title, originalDescription: CREATE.enAd.description,
       newTitle: UPDATE.enAd.title,      newDescription: UPDATE.enAd.description,
+      startingVersion: 3,
       screenshotPrefix: 'adv-useren-edit',
     });
     await runLogoutFlow(page, expect);
@@ -122,6 +123,7 @@ test.describe('Advertisement flow', () => {
     await runRestoreAdvertisementFlow(page, expect, {
       currentTitle: UPDATE.enAd.title,
       restoredTitle: CREATE.enAd.title, restoredDescription: CREATE.enAd.description,
+      rowsBeforeRestore: 5,
       screenshotPrefix: 'adv-useren-restore',
     });
     await runLogoutFlow(page, expect);
@@ -146,13 +148,13 @@ test.describe('Advertisement flow', () => {
       originalDescription: CREATE.enAd.description,
       newTitle:            CROSS_UPDATE.enAd.title,
       newDescription:      CROSS_UPDATE.enAd.description,
-      startingVersion:     4,
+      startingVersion:     6,
       checkCurrentBadge:   true,
       screenshotPrefix:    'adv-moderatoren-edit',
     });
     await runCrossUserMediaReplaceFlow(page, expect, {
       adTitle:          CROSS_UPDATE.enAd.title,
-      startingVersion:  6,
+      startingVersion:  8,
       screenshotPrefix: 'adv-moderatoren-media',
     });
     await openTimelineTab(page);
@@ -163,7 +165,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits UK advertisement — discard, two saves with activity diff, add and replace media, timeline check', async () => {
+  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added with diff, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runEditAdvertisementFlow(page, expect, {
@@ -173,11 +175,12 @@ test.describe('Advertisement flow', () => {
       newDescription:      CROSS_UPDATE.ukAd.description,
       startingVersion:     4,
       checkCurrentBadge:   true,
+      categoryToAdd:       'Vehicles',
       screenshotPrefix:    'adv-adminen-edit-uk',
     });
     await runCrossUserMediaReplaceFlow(page, expect, {
       adTitle:          CROSS_UPDATE.ukAd.title,
-      startingVersion:  6,
+      startingVersion:  8,
       screenshotPrefix: 'adv-adminen-media-uk',
     });
     await openTimelineTab(page);

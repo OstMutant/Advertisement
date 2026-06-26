@@ -16,7 +16,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Slf4j
@@ -32,7 +34,8 @@ public class AuditReadService {
     public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(EntityType entityType, Long entityId,
                                                       Long currentUserId, boolean showAll) {
         EntityRef ref = new EntityRef(entityType, entityId);
-        List<AuditLogProjection> rows = repository.findRows(entityType, entityId, showAll ? null : currentUserId, 100);
+        List<AuditLogProjection> rows = withSameTypePrevSnapshot(
+                repository.findRows(entityType, entityId, showAll ? null : currentUserId, 100));
         List<AuditActivityItemDto<? extends AuditableSnapshot>> result = new ArrayList<>(rows.size());
         for (AuditLogProjection row : rows) {
             result.add(enrichWithMedia(toActivityItem(row), ref));
@@ -95,6 +98,20 @@ public class AuditReadService {
         return new AuditTimelineItemDto<>(
                 row.id(), ref, row.actionType(), row.createdAt(),
                 row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
+    }
+
+    private List<AuditLogProjection> withSameTypePrevSnapshot(List<AuditLogProjection> rows) {
+        Map<Class<?>, AuditableSnapshot> lastByType = new HashMap<>();
+        List<AuditLogProjection> result = new ArrayList<>(rows.size());
+        for (int i = rows.size() - 1; i >= 0; i--) {
+            AuditLogProjection row = rows.get(i);
+            AuditableSnapshot snap = row.snapshot();
+            AuditableSnapshot prevSameType = snap != null ? lastByType.get(snap.getClass()) : null;
+            if (snap != null) lastByType.put(snap.getClass(), snap);
+            result.add(0, new AuditLogProjection(row.id(), row.entityType(), row.entityId(), row.actionType(),
+                    snap, row.actorId(), row.createdAt(), row.version(), row.prevId(), prevSameType));
+        }
+        return result;
     }
 
     private void warnNullSnapshot(AuditLogProjection row) {

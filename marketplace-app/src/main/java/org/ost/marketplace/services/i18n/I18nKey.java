@@ -76,6 +76,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
+    ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
