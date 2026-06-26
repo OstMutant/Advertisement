@@ -105,10 +105,10 @@ After cloning: bash scripts/install-hooks.sh
 
 ---
 
-## Step 6 — CHANGELOG.md auto-update in hook
+## Step 6 — CHANGELOG.md auto-update via commit-msg hook
 
-Extend `scripts/hooks/pre-commit` to prepend a new entry to `CHANGELOG.md`
-based on the conventional commit message (read from `COMMIT_EDITMSG` or first staged commit).
+Create `scripts/hooks/commit-msg` (separate from pre-commit — runs after pre-commit,
+receives the finalized message file as $1).
 
 Format:
 ```markdown
