@@ -145,4 +145,9 @@ mkdir -p /app/playwright/pw-report
 docker cp pw-runner:/tmp/pw-report/. /app/playwright/pw-report/ 2>/dev/null && \
   echo "HTML report: /app/playwright/pw-report/index.html"
 
+# ── Update test coverage ──────────────────────────────────────────────────────
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+docker cp pw-runner:/tmp/pw-live.log /tmp/pw-live.log 2>/dev/null || true
+bash "$ROOT/scripts/update-test-coverage.sh" /tmp/pw-live.log || true
+
 exit $EXIT_CODE
