@@ -193,13 +193,7 @@ Direct imports that violate the "marketplace-app UI accesses starters only via p
 
 ### 1. `org.ost.marketplace.ui.views.components.attachment.*` → attachment-starter internals (service ↔ UI boundary violation)
 
-`AttachmentGallery`, `AttachmentLightbox`, `AttachmentGalleryService`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox` import `Attachment` entity, `AttachmentService`, `AttachmentSnapshotService`, `MediaContentTypeUtil` directly from attachment-starter.
-
-**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
-
-**Why this is a violation:** UI (marketplace-app) is calling service-layer internals of a starter directly instead of going through the platform-commons `AttachmentPort` contract.
-
-**Fix:** expose needed read operations on `AttachmentPort` in platform-commons; replace direct `AttachmentService` injection with `AttachmentPort`; replace `Attachment` entity with DTOs from `attachment.dto`; move `MediaContentTypeUtil` to platform-commons.
+→ [improvement-001-attachment-ui-boundary-violation](../features/issues/improvement-001-attachment-ui-boundary-violation.md)
 
 ### ✅ 3. marketplace-app → `org.ost.user.*` internals — RESOLVED (2026-06-15)
 
@@ -237,14 +231,4 @@ The `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loa
 
 ## [OPEN GOAL] Activity field visibility: filter by viewer's role vs. actor's role at change time
 
-**Problem:** Settings activity rows show all changed fields (`adsPageSize`, `usersPageSize`, `timelinePageSize`). For USER role, only `adsPageSize` is configurable — the other two fields appear in their activity log but have no meaning in their UI context.
-
-**Current state:** no filtering; all fields shown to all roles.
-
-**Option A — filter by current viewer role (simple, acceptable edge case):**
-In settings activity rendering, hide change items for `usersPageSize`/`timelinePageSize` when `!access.canView()`. A user demoted MODERATOR → USER would see a truncated view of their own historical changes — accepted as a rare, low-impact case.
-
-**Option B — filter by actor's role at the time of the change (accurate, complex):**
-Store `role` in `SettingsSnapshotDto`; at render time filter by what was accessible to the actor then. Requires Liquibase migration + snapshot model change.
-
-**Recommendation:** Option A when implemented. The MOD→USER demotion edge case is rare and semantically acceptable (those fields are no longer configurable for that user anyway).
+→ [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

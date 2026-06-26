@@ -101,17 +101,7 @@ Key changes that completed decoupling: `AdvertisementHistoryProjection` → gene
 
 ## Deferred — Snapshot schema versioning (designed, not yet implemented)
 
-**Decision (designed 2026-05-26, implementation deferred):** Add `@SchemaVersion(int value default 1)` annotation to `platform-commons/audit.api`. Apply to all `AuditableSnapshot` implementations. Add `default int schemaVersion() { return 1; }` to `AuditableSnapshot` so Jackson serializes `"schemaVersion": 1` into every stored snapshot. `SnapshotCodec.decode()` reads `schemaVersion` from the JSON tree, compares with `@SchemaVersion` on the target class, and logs a warning on mismatch.
-
-**Why:** Field renames and type changes are silent data loss under the current model — `FAIL_ON_UNKNOWN_PROPERTIES = false` handles additions and removals but not renames or type changes. The version stamp makes staleness visible without adding migration infrastructure prematurely.
-
-**Implementation plan:**
-1. New `@SchemaVersion` annotation in `platform-commons/audit.api`
-2. `default int schemaVersion() { return 1; }` on `AuditableSnapshot`
-3. `SnapshotCodec.decode()`: parse via `readTree()`, extract `schemaVersion` (default 0 if absent = legacy), read annotation from `clazz`, log warning on mismatch, then decode normally
-4. Add `@SchemaVersion(1)` to `UserSnapshotDto`, `AdvertisementSnapshotDto`, `SettingsSnapshotDto`
-
-**Trigger:** implement before the first `AuditableSnapshot` field rename or type change.
+→ [improvement-002-snapshot-schema-versioning](../features/issues/improvement-002-snapshot-schema-versioning.md)
 
 ---
 
@@ -321,9 +311,4 @@ public record AuditLogProjection(
 
 ## Deferred backlog
 
-- EntityType: migrate from enum to string registry/descriptor when second consumer project appears
-- SnapshotCodec: centralize ObjectMapper.readValue calls; eliminates JSON parsing inside projections
-- ActivityProjection: JSON deserialization per row — negligible at 20 rows; revisit with cursor pagination
-- jsonEquals readTree: expensive for large history lists — add parsed snapshot cache in AuditHistoryPanel.configure()
-- EntityDisplayNameResolver.supports(): replace linear scan with map lookup when resolvers > 5
-- LIMIT 20/100: replace with cursor pagination when needed
+→ [improvement-003-deferred-performance](../features/issues/improvement-003-deferred-performance.md)

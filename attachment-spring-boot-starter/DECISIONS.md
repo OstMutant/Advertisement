@@ -46,8 +46,7 @@
 
 **Deferred:**
 - ✅ `EntityRef(EntityType, Long)` record — implemented in `platform-commons/core.model`; used throughout all starters and marketplace-app.
-- `EntityType.storageKey()` method — currently the S3 folder uses `name().toLowerCase()`; a typed method would let entities customize their storage segment if ever needed.
-- `AttachmentGalleryExtension`/`AdvertisementHistoryExtension` naming — the latter still carries "Advertisement" in its name but is generic over `EntityType`; rename deferred until a second consumer exists.
+- → [improvement-003-deferred-performance](../features/issues/improvement-003-deferred-performance.md) (items G, H)
 
 **Rejected:** Keeping the event-based flow alongside the SPI — splits the contract surface and forces consumers to choose. The starter speaks SPI and only SPI.
 
@@ -103,19 +102,7 @@
 
 ## 2026-06-15 — Open: marketplace-app attachment UI imports starter internals directly
 
-Six UI components in marketplace-app (`AttachmentGallery`, `AttachmentLightbox`, `AttachmentThumbnail`, `CardLightboxStrip`, `CardLightboxViewer`, `CardMediaLightbox`) directly import:
-- `org.ost.attachment.entities.Attachment` — entity
-- `org.ost.attachment.services.AttachmentService` / `AttachmentSnapshotService` — services
-- `org.ost.attachment.util.MediaContentTypeUtil` — util
-
-**Partially resolved:** `YoutubeUtil` moved to `platform-commons/attachment.util` (done). `MediaContentTypeUtil` still lives in the starter.
-
-**Remaining fix:**
-- Move `MediaContentTypeUtil` to `platform-commons` (`attachment.util`)
-- Replace direct `Attachment` entity usage at UI call sites with DTOs (`AttachmentMediaSummaryDto`) from `platform.attachment.dto`
-- Replace direct `AttachmentService` injection with calls through `AttachmentPort`
-
-**Note:** `AttachmentGalleryPort` was removed (2026-06-15) — do not re-introduce it. Route through `AttachmentPort` instead.
+→ [improvement-001-attachment-ui-boundary-violation](../features/issues/improvement-001-attachment-ui-boundary-violation.md)
 
 ---
 
