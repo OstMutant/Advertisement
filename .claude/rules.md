@@ -195,6 +195,30 @@ SortFieldMeta.of("updatedAt", ADVERTISEMENT_SORT_UPDATED)
 
 ---
 
+## DTO Field Name Constants
+
+When a DTO needs field name constants (e.g. for `*SortMeta` or `*FilterMeta`), always use
+the Lombok `@FieldNameConstants` annotation — never write a manual `Fields` inner class:
+
+```java
+// correct — Lombok generates Fields.id, Fields.name, etc.
+@FieldNameConstants
+public record UserDto(Long id, String name, ...) {}
+
+// wrong — manual boilerplate
+public record UserDto(Long id, String name, ...) {
+    public static final class Fields {
+        public static final String id = "id";
+        ...
+    }
+}
+```
+
+`@FieldNameConstants` works on records since Lombok 1.18.22 (project uses 1.18.34+).
+Import: `lombok.experimental.FieldNameConstants`.
+
+---
+
 ## Form Handler Pattern
 
 ### buildTabbedContent() — do not duplicate

@@ -29,7 +29,7 @@ import javax.sql.DataSource;
 
 @AutoConfiguration(afterName = "org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration")
 @ConditionalOnClass(DataSource.class)
-@ComponentScan({"org.ost.user.spi", "org.ost.user.services", "org.ost.user.repository"})
+@ComponentScan({"org.ost.user.spi", "org.ost.user.services", "org.ost.user.repository", "org.ost.user.security"})
 @EnableJdbcRepositories(basePackages = "org.ost.user.repository")
 public class UserAutoConfiguration {
 

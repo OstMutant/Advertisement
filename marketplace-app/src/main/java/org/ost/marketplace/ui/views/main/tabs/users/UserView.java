@@ -71,12 +71,22 @@ public class UserView extends VerticalLayout {
 
         add(contentWrapper, overlay);
 
-        initPagination();
-        initQueryBar();
-        initGrid();
+        paginationBar.setPageChangeListener(_ -> refresh());
+        queryStatusBar.getQueryBlock().addEventListener(() -> {
+            paginationBar.setTotalCount(0);
+            refresh();
+        });
+        gridConfiguratorFactory.build(
+                UserGridConfigurator.Parameters.builder()
+                        .grid(grid)
+                        .onView(u -> overlay.openForView(u, this::refresh))
+                        .onEdit(u -> overlay.openForEdit(u, this::refresh))
+                        .onDelete(this::confirmAndDelete)
+                        .build()
+        );
 
-        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getUsersPageSize, this::refreshGrid);
-        refreshGrid();
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getUsersPageSize, this::refresh);
+        refresh();
     }
 
     @PreDestroy
@@ -84,29 +94,7 @@ public class UserView extends VerticalLayout {
         settingsPaginationBinding.unregister();
     }
 
-    private void initPagination() {
-        paginationBar.setPageChangeListener(_ -> refreshGrid());
-    }
-
-    private void initQueryBar() {
-        queryStatusBar.getQueryBlock().addEventListener(() -> {
-            paginationBar.setTotalCount(0);
-            refreshGrid();
-        });
-    }
-
-    private void initGrid() {
-        gridConfiguratorFactory.build(
-                UserGridConfigurator.Parameters.builder()
-                        .grid(grid)
-                        .onView(u -> overlay.openForView(u, this::refreshGrid))
-                        .onEdit(u -> overlay.openForEdit(u, this::refreshGrid))
-                        .onDelete(this::confirmAndDelete)
-                        .build()
-        );
-    }
-
-    private void refreshGrid() {
+    private void refresh() {
         int page = paginationBar.getCurrentPage();
         int size = paginationBar.getPageSize();
 
@@ -146,7 +134,7 @@ public class UserView extends VerticalLayout {
                                 if (access.canNotDelete(user.id())) return;
                                 userPort.delete(user.id());
                                 notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
-                                refreshGrid();
+                                refresh();
                             } catch (Exception e) {
                                 log.error("Error deleting user id={}", user.id(), e);
                                 notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());

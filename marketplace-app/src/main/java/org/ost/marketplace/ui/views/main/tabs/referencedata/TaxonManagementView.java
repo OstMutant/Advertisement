@@ -81,28 +81,34 @@ public class TaxonManagementView extends VerticalLayout {
     }
 
     private void refresh() {
-        listContainer.removeAll();
-        taxonPortFactory.ifAvailable(port -> {
-            List<TaxonDto> all     = port.listAllByType(TaxonType.CATEGORY, java.util.Locale.ENGLISH, true);
-            Map<Long, Long> counts = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CATEGORY);
+        try {
+            listContainer.removeAll();
+            taxonPortFactory.ifAvailable(port -> {
+                List<TaxonDto> all     = port.listAllByType(TaxonType.CATEGORY, java.util.Locale.ENGLISH, true);
+                Map<Long, Long> counts = all.isEmpty() ? Map.of() : port.getUsageCounts(TaxonType.CATEGORY);
 
-            List<TaxonDto> active  = all.stream().filter(t -> !t.isDeleted()).toList();
-            List<TaxonDto> deleted = all.stream().filter(TaxonDto::isDeleted).toList();
+                List<TaxonDto> active  = all.stream().filter(t -> !t.isDeleted()).toList();
+                List<TaxonDto> deleted = all.stream().filter(TaxonDto::isDeleted).toList();
 
-            if (active.isEmpty() && deleted.isEmpty()) {
-                Span empty = new Span(i18n.get(TAXON_VIEW_EMPTY));
-                empty.addClassName("taxon-empty-state");
-                listContainer.add(empty);
-                return;
-            }
+                if (active.isEmpty() && deleted.isEmpty()) {
+                    Span empty = new Span(i18n.get(TAXON_VIEW_EMPTY));
+                    empty.addClassName("taxon-empty-state");
+                    listContainer.add(empty);
+                    return;
+                }
 
-            active.forEach(t  -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), false)));
+                active.forEach(t  -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), false)));
 
-            if (!deleted.isEmpty()) {
-                listContainer.add(new Hr());
-                deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
-            }
-        });
+                if (!deleted.isEmpty()) {
+                    listContainer.add(new Hr());
+                    deleted.forEach(t -> listContainer.add(buildRow(t, counts.getOrDefault(t.getId(), 0L), true)));
+                }
+            });
+        } catch (Exception ex) {
+            log.error("Failed to refresh taxon list", ex);
+            notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, ex.getMessage());
+            listContainer.removeAll();
+        }
     }
 
     private Div buildRow(TaxonDto taxon, long usageCount, boolean isDeleted) {

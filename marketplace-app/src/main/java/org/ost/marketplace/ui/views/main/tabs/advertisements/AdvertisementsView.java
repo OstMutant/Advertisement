@@ -9,6 +9,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
@@ -31,6 +32,7 @@ import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+@Slf4j
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
@@ -52,7 +54,7 @@ public class AdvertisementsView extends VerticalLayout {
     private FlexLayout advertisementContainer;
 
     @PostConstruct
-    public void init() {
+    protected void init() {
         advertisementContainer = buildAdvertisementContainer();
         UiPrimaryButton addButton = buildAddButton();
 
@@ -138,30 +140,33 @@ public class AdvertisementsView extends VerticalLayout {
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
-        List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
-                .orElse(List.of());
-
-        int total = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.count(filter))
-                .orElse(0);
-        paginationBar.setTotalCount(total);
-
-        advertisementContainer.removeAll();
-
-        if (ads.isEmpty()) {
-            advertisementContainer.add(buildEmptyState());
-        } else {
-            ads.stream()
-                    .map(ad -> cardViewFactory.build(
-                            AdvertisementCardView.Parameters.builder()
-                                    .ad(ad)
-                                    .onChanged(this::refresh)
-                                    .build()))
-                    .forEach(advertisementContainer::add);
+        try {
+            List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
+                    .orElse(List.of());
+            int total = advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.count(filter))
+                    .orElse(0);
+            paginationBar.setTotalCount(total);
+            advertisementContainer.removeAll();
+            if (ads.isEmpty()) {
+                advertisementContainer.add(buildEmptyState());
+            } else {
+                ads.stream()
+                        .map(ad -> cardViewFactory.build(
+                                AdvertisementCardView.Parameters.builder()
+                                        .ad(ad)
+                                        .onChanged(this::refresh)
+                                        .build()))
+                        .forEach(advertisementContainer::add);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to refresh advertisements", ex);
+            advertisementContainer.removeAll();
+            paginationBar.setTotalCount(0);
+        } finally {
+            queryStatusBar.update();
         }
-
-        queryStatusBar.update();
     }
 
     private EmptyStateView buildEmptyState() {

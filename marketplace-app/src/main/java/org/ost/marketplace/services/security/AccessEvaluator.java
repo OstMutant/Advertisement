@@ -2,6 +2,9 @@ package org.ost.marketplace.services.security;
 
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.security.UserIdMarker;
+import org.ost.user.security.OwnershipChecker;
+import org.ost.user.security.RoleChecker;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 

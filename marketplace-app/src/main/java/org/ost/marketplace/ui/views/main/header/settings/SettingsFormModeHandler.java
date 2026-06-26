@@ -68,7 +68,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private IntegerField timelinePageSizeField;
     private Tabs         formTabs;
     private Tab          settingsTab;
-    private Div          historyContent;
 
     @Override
     public SettingsFormModeHandler configure(Parameters p) {
@@ -117,24 +116,11 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
         Div content = auditActivityPanelFactory.findIfAvailable()
                 .map(_ -> {
-                    settingsTab       = new Tab(getValue(SETTINGS_SECTION_TITLE));
-                    Tab historyTab    = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
-                    formTabs          = new Tabs(settingsTab, historyTab);
+                    settingsTab = new Tab(getValue(SETTINGS_SECTION_TITLE));
+                    Tab historyTab = new Tab(getValue(SETTINGS_ACTIVITY_TAB));
+                    formTabs = new Tabs(settingsTab, historyTab);
                     formTabs.addClassName("user-view-tabs");
-
-                    historyContent  = new Div();
-                    historyContent.setVisible(false);
-
-                    formTabs.addSelectedChangeListener(event -> {
-                        boolean isSettings = event.getSelectedTab() == settingsTab;
-                        settingsContent.setVisible(isSettings);
-                        historyContent.setVisible(!isSettings);
-                        if (!isSettings && historyContent.getChildren().findFirst().isEmpty()) {
-                            historyContent.add(buildHistoryContent());
-                        }
-                    });
-
-                    return new Div(formTabs, settingsContent, historyContent);
+                    return buildTabbedContent(formTabs, settingsTab, settingsContent, this::buildHistoryContent);
                 })
                 .orElse(settingsContent);
 
@@ -154,8 +140,8 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     public void afterSave(boolean success) {
         if (success) {
-            if (historyContent != null) historyContent.removeAll();
-            if (formTabs       != null) formTabs.setSelectedTab(settingsTab);
+            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
+            if (formTabs               != null) formTabs.setSelectedTab(settingsTab);
             updateButtons(false);
         } else {
             updateButtons(true);

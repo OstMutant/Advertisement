@@ -97,7 +97,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private AttachmentGalleryService.FormHandle activeHandle;
     private Tabs                              formTabs;
     private Tab                               editTab;
-    private Div                               activityContent;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
     private List<TaxonDto>                    availableCategories = List.of();
 
@@ -192,7 +191,18 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         updateButtons(false);
 
-        Div tabbedContent = isCreate ? content : buildTabbedContent(content);
+        Div tabbedContent = isCreate ? content : auditActivityPanelFactory.findIfAvailable()
+                .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
+                .map(_ -> {
+                    editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
+                    Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
+                    formTabs = new Tabs(editTab, activityTab);
+                    formTabs.addClassName("adv-form-tabs");
+                    Div result = buildTabbedContent(formTabs, editTab, content, this::buildActivityContent);
+                    tabbedSecondaryContent.addClassName("entity-activity-content");
+                    return result;
+                })
+                .orElse(content);
         layout.setContent(tabbedContent);
     }
 
@@ -212,12 +222,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         });
     }
 
-    public void discard() {
-        if (this.activeHandle != null) {
-            this.activeHandle.discard();
-        }
-    }
-
     public void loadRestored(@NonNull AdvertisementEditDto restoredDto) {
         binder.loadRestored(restoredDto, (src, tgt) -> {
             tgt.setTitle(src.getTitle());
@@ -227,34 +231,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(editTab);
-    }
-
-    private Div buildTabbedContent(Div editContent) {
-        return auditActivityPanelFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
-                .map(_ -> {
-                    formTabs = new Tabs();
-                    formTabs.addClassName("adv-form-tabs");
-                    editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
-                    Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
-                    formTabs.add(editTab, activityTab);
-
-                    activityContent = new Div();
-                    activityContent.addClassName("entity-activity-content");
-                    activityContent.setVisible(false);
-
-                    formTabs.addSelectedChangeListener(event -> {
-                        boolean isEdit = event.getSelectedTab() == editTab;
-                        editContent.setVisible(isEdit);
-                        activityContent.setVisible(!isEdit);
-                        if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
-                            activityContent.add(buildActivityContent());
-                        }
-                    });
-
-                    return new Div(formTabs, editContent, activityContent);
-                })
-                .orElse(editContent);
     }
 
     private com.vaadin.flow.component.Component buildActivityContent() {
@@ -310,7 +286,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         if (success) {
             updateButtons(false);
             if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (activityContent != null) activityContent.removeAll();
+            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
         } else {
             updateButtons(true);
         }

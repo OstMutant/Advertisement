@@ -12,7 +12,11 @@ import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.views.components.overlay.OverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.spi.TaxonPort;
+
+import java.util.Locale;
 
 import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
 
@@ -30,13 +34,15 @@ public class TaxonOverlay extends AbstractEntityOverlay {
             @NonNull Runnable onSaved,
             boolean           enteredFromView
     ) {
-        OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, taxon, onSaved, true); }
-        OverlaySession toView() { return new OverlaySession(Mode.VIEW, taxon, onSaved, false); }
+        OverlaySession toEdit()                      { return new OverlaySession(Mode.EDIT, taxon, onSaved, true); }
+        OverlaySession toView()                      { return new OverlaySession(Mode.VIEW, taxon, onSaved, false); }
+        OverlaySession withTaxon(TaxonDto fresh)     { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
     private final UiComponentFactory<TaxonViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<TaxonFormOverlayModeHandler> formModeHandlerFactory;
+    private final ComponentFactory<TaxonPort>                     taxonPortFactory;
 
     private OverlaySession              session;
     private TaxonFormOverlayModeHandler currentFormHandler;
@@ -105,7 +111,7 @@ public class TaxonOverlay extends AbstractEntityOverlay {
     private void switchToEdit() {
         if (session.taxon() == null) return;
         session = session.toEdit();
-        launchSession(this::switchTo);
+        switchTo();
     }
 
     private void handleSave() {
@@ -114,6 +120,14 @@ public class TaxonOverlay extends AbstractEntityOverlay {
                 notification().success(I18nKey.TAXON_OVERLAY_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
                 currentFormHandler.afterSave(true);
+                if (session.mode() == Mode.EDIT) {
+                    Long savedId = currentFormHandler.getSavedTaxonId();
+                    if (savedId != null) {
+                        taxonPortFactory.findIfAvailable()
+                                .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
+                                .ifPresent(fresh -> session = session.withTaxon(fresh));
+                    }
+                }
             } else {
                 notification().error(I18nKey.TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
                 currentFormHandler.afterSave(false);
@@ -129,7 +143,7 @@ public class TaxonOverlay extends AbstractEntityOverlay {
         if (currentFormHandler != null) currentFormHandler.discardChanges();
         if (session.enteredFromView()) {
             session = session.toView();
-            launchSession(this::switchTo);
+            switchTo();
         } else {
             closeToList();
         }

@@ -63,6 +63,7 @@ public class UserOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void switchTo() {
+        currentFormHandler = null;
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     UserViewOverlayModeHandler.Parameters.builder()
@@ -112,6 +113,7 @@ public class UserOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void doCancel() {
+        if (currentFormHandler != null) currentFormHandler.discardChanges();
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
             switchTo();

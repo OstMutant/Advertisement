@@ -82,7 +82,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private Parameters params;
     private Tabs       topTabs;
     private Tab        editTab;
-    private Div        activityContent;
     @Getter private Long savedTaxonId;
 
     @Override
@@ -197,7 +196,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         if (success) {
             updateButtons(false);
             if (topTabs != null) topTabs.setSelectedTab(editTab);
-            if (activityContent != null) activityContent.removeAll();
+            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
         } else {
             updateButtons(true);
         }
@@ -209,26 +208,13 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         }
         return auditActivityPanelFactory.findIfAvailable()
                 .map(_ -> {
-                    topTabs = new Tabs();
-                    topTabs.addClassName("taxon-form-tabs");
                     editTab = new Tab(getValue(TAXON_OVERLAY_TAB_EDIT));
                     Tab activityTab = new Tab(getValue(TAXON_OVERLAY_TAB_ACTIVITY));
-                    topTabs.add(editTab, activityTab);
-
-                    activityContent = new Div();
-                    activityContent.addClassName("activity-feed-content");
-                    activityContent.setVisible(false);
-
-                    topTabs.addSelectedChangeListener(event -> {
-                        boolean isEdit = event.getSelectedTab() == editTab;
-                        editContent.setVisible(isEdit);
-                        activityContent.setVisible(!isEdit);
-                        if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
-                            activityContent.add(buildActivityContent());
-                        }
-                    });
-
-                    return (Div) new Div(topTabs, editContent, activityContent);
+                    topTabs = new Tabs(editTab, activityTab);
+                    topTabs.addClassName("taxon-form-tabs");
+                    Div result = buildTabbedContent(topTabs, editTab, editContent, this::buildActivityContent);
+                    tabbedSecondaryContent.addClassName("activity-feed-content");
+                    return result;
                 })
                 .orElse(editContent);
     }

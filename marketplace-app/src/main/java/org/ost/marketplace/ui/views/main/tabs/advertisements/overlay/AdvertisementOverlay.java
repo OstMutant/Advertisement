@@ -68,6 +68,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void switchTo() {
+        currentFormHandler = null;
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     AdvertisementViewOverlayModeHandler.Parameters.builder()
@@ -131,9 +132,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void doCancel() {
-        if (currentFormHandler != null) {
-            currentFormHandler.discard();
-        }
+        if (currentFormHandler != null) currentFormHandler.discardChanges();
         if (session.mode() == Mode.EDIT && session.enteredFromView()) {
             session = session.toView();
             switchTo();

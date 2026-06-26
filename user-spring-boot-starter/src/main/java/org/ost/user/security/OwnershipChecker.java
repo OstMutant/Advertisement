@@ -1,6 +1,7 @@
-package org.ost.marketplace.services.security;
+package org.ost.user.security;
 
 import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.security.UserIdMarker;
 import org.springframework.stereotype.Component;
 
 @Component
