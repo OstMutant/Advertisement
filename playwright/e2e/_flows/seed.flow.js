@@ -54,7 +54,7 @@ async function createAdvertisementBulk(page, { title, description, category = nu
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
   if (category) await selectCategoryInAdForm(page, overlay, category);
   await overlay.locator('vaadin-button').filter({ hasText: /save|зберегти/i }).click();
-  await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });
+  await overlay.waitFor({ state: 'hidden', timeout: 10000 });
 }
 
 async function signUpBulkParallel(browser, users, poolSize = 3) {

@@ -145,6 +145,11 @@ test.describe('Seed data and query validation', () => {
     for (let i = 1; i <= SEED_COUNT; i++) {
       await createAdvertisementBulk(page, { ...seedAd(i), category: CATEGORIES[(i - 1) % CATEGORIES.length] });
     }
+    // Force a full page reload to clear 50 stale advertisement overlay DOM elements before logout.
+    // Without this, SPA-style logout/login preserves the stale DOM, which causes Vaadin to
+    // re-activate a stale overlay when the category filter combo fires a server sync event.
+    await page.reload();
+    await page.locator('.header-logout-button').waitFor({ timeout: 15000 });
     await logoutBulk(page);
   });
 

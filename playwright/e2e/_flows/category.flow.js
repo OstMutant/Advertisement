@@ -45,29 +45,81 @@ async function waitForVaadinIdle(page) {
 
 async function selectCategoryInAdForm(page, overlay, categoryName) {
   const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
-  // Click input to open the dropdown — this loads items into el.items AND blurs any
-  // previously focused field (title/description) so Vaadin can sync those values to
-  // the server before we trigger combo box events.
+  // Click input to open the dropdown — blurs title/description so Vaadin syncs their values
+  // to the server before we interact with the combo box.
   await comboBox.locator('input').click();
   await waitForVaadinIdle(page);
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'visible', timeout: 5000 });
-  // Select via JS — avoids keyboard-based filter events that cause server round-trips
-  // resetting title/description to empty values.
-  const found = await page.evaluate((name) => {
-    const el = document.querySelector('[data-testid="advertisement-overlay-field-categories"] vaadin-multi-select-combo-box');
-    if (!el) return false;
-    const items = el.items || el.filteredItems || [];
-    const match = items.find(i => i.name === name);
-    if (!match) return false;
-    el.selectedItems = [...(el.selectedItems || []), match];
-    return true;
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  // The combo-box-overlay is a child overlay appended inside the parent advertisement overlay's
+  // shadow root, not in document.body — document.querySelector does not pierce shadow DOM.
+  // We traverse all shadow roots to find it, then click the item by its label property.
+  // Avoids keyboard typing (per-character filter events reset title/description on the server).
+  const result = await page.evaluate((name) => {
+    function shadowFind(root, selector) {
+      const el = root.querySelector(selector);
+      if (el) return el;
+      for (const child of root.querySelectorAll('*')) {
+        if (child.shadowRoot) {
+          const found = shadowFind(child.shadowRoot, selector);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    function findItem(root, label) {
+      if (!root) return null;
+      for (const tag of ['vaadin-multi-select-combo-box-item', 'vaadin-combo-box-item']) {
+        for (const el of root.querySelectorAll(tag)) {
+          if (el.label === label) return el;
+        }
+      }
+      for (const child of root.querySelectorAll('*')) {
+        if (child.shadowRoot) {
+          const found = findItem(child.shadowRoot, label);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    // Find ALL overlay instances (there may be multiple — pick the opened/visible one).
+    function shadowFindAll(root, selector, acc = []) {
+      acc.push(...root.querySelectorAll(selector));
+      for (const child of root.querySelectorAll('*')) {
+        if (child.shadowRoot) shadowFindAll(child.shadowRoot, selector, acc);
+      }
+      return acc;
+    }
+    const allOverlays = shadowFindAll(document, 'vaadin-multi-select-combo-box-overlay');
+    const overlayEl = allOverlays.find(o => o.hasAttribute('opened') || o.getBoundingClientRect().height > 0) || allOverlays[0];
+    if (!overlayEl) return { found: false, debug: `overlay not found; total=${allOverlays.length}` };
+
+    // Items may be in shadow root, light DOM, or in slot.assignedElements().
+    const sr = overlayEl.shadowRoot;
+    const slot = sr?.querySelector('slot');
+    const assigned = slot ? [...slot.assignedElements({ flatten: true })] : [];
+    const allRoots = [sr, overlayEl, ...assigned.map(e => e.shadowRoot).filter(Boolean), ...assigned];
+    let item = null;
+    for (const root of allRoots) {
+      item = findItem(root, name);
+      if (item) break;
+    }
+    if (!item) {
+      return { found: false, debug: JSON.stringify({
+        overlayCount: allOverlays.length,
+        opened: overlayEl.hasAttribute('opened'),
+        srTags: sr ? [...sr.querySelectorAll('*')].map(c => c.tagName).slice(0, 30) : [],
+        assignedTags: assigned.map(e => e.tagName),
+        assignedLabels: assigned.map(e => e.label || e.textContent?.trim().slice(0, 20)),
+      }) };
+    }
+    item.click();
+    return { found: true };
   }, categoryName);
-  if (!found) throw new Error(`Category "${categoryName}" not found in combo box items`);
-  await page.evaluate(() => {
-    const el = document.querySelector('[data-testid="advertisement-overlay-field-categories"] vaadin-multi-select-combo-box');
-    if (el) el.opened = false;
-  });
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+
+  if (!result.found) throw new Error(`Category "${categoryName}" not found. DOM: ${result.debug}`);
+  await waitForVaadinIdle(page);
+  await page.keyboard.press('Escape');
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
   await waitForVaadinIdle(page);
 }
 
@@ -75,30 +127,55 @@ async function deselectCategoryInAdForm(page, overlay, categoryName) {
   const comboBox = overlay.locator('[data-testid="advertisement-overlay-field-categories"]');
   await comboBox.locator('input').click();
   await waitForVaadinIdle(page);
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'visible', timeout: 5000 });
-  const found = await page.evaluate((name) => {
-    const el = document.querySelector('[data-testid="advertisement-overlay-field-categories"] vaadin-multi-select-combo-box');
-    if (!el) return false;
-    const items = el.items || el.filteredItems || [];
-    const match = items.find(i => i.name === name);
-    if (!match) return false;
-    el.selectedItems = (el.selectedItems || []).filter(i => i.name !== name);
-    return true;
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  const result = await page.evaluate((name) => {
+    function shadowFind(root, selector) {
+      const el = root.querySelector(selector);
+      if (el) return el;
+      for (const child of root.querySelectorAll('*')) {
+        if (child.shadowRoot) {
+          const found = shadowFind(child.shadowRoot, selector);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    function findItem(root, label) {
+      if (!root) return null;
+      for (const tag of ['vaadin-multi-select-combo-box-item', 'vaadin-combo-box-item']) {
+        for (const el of root.querySelectorAll(tag)) {
+          if (el.label === label) return el;
+        }
+      }
+      for (const child of root.querySelectorAll('*')) {
+        if (child.shadowRoot) {
+          const found = findItem(child.shadowRoot, label);
+          if (found) return found;
+        }
+      }
+      return null;
+    }
+    const overlayEl = shadowFind(document, 'vaadin-multi-select-combo-box-overlay');
+    if (!overlayEl) return { found: false, debug: 'overlay not found' };
+    const item = findItem(overlayEl.shadowRoot, name) || findItem(overlayEl, name);
+    if (!item) return { found: false, debug: 'item not found' };
+    item.click();
+    return { found: true };
   }, categoryName);
-  if (!found) throw new Error(`Category "${categoryName}" not found`);
-  await page.evaluate(() => {
-    const el = document.querySelector('[data-testid="advertisement-overlay-field-categories"] vaadin-multi-select-combo-box');
-    if (el) el.opened = false;
-  });
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+
+  if (!result.found) throw new Error(`Category "${categoryName}" not found in overlay`);
+  await waitForVaadinIdle(page);
+  await page.keyboard.press('Escape');
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
   await waitForVaadinIdle(page);
 }
 
-async function assertCardHasCategoryStripe(page, expect, card, segmentCount, screenshotName) {
-  const stripe = card.locator('.advertisement-category-stripe');
-  await expect(stripe).toBeVisible({ timeout: 5000 });
-  const segments = stripe.locator('.advertisement-category-stripe-segment');
-  await expect(segments).toHaveCount(segmentCount, { timeout: 5000 });
+async function assertCardHasCategories(page, expect, card, categoryNames, screenshotName) {
+  const line = card.locator('.advertisement-categories');
+  await expect(line).toBeVisible({ timeout: 5000 });
+  for (const name of categoryNames) {
+    await expect(line).toContainText(name, { timeout: 5000 });
+  }
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
@@ -116,6 +193,6 @@ module.exports = {
   runCreateCategoryFlow,
   selectCategoryInAdForm,
   deselectCategoryInAdForm,
-  assertCardHasCategoryStripe,
+  assertCardHasCategories,
   assertViewOverlayHasCategories,
 };

@@ -293,6 +293,32 @@ public record AuditLogProjection(
 
 ---
 
+## 2026-06-26 — `id` tiebreaker in SQL window functions for deterministic versioning
+
+**Decision:** All three window functions in `AuditLogRepository.findRows` use `ORDER BY created_at, id` (not `created_at` alone): `ROW_NUMBER()`, `LAG(id)`, `LAG(snapshot_data::text)`. Final `ORDER BY` also uses `created_at DESC, id DESC`.
+
+**Why:** Rows inserted in the same transaction (e.g. advertisement CREATED + two category UPDATED rows) share the same `created_at` millisecond. Without `id` as a tiebreaker, `ROW_NUMBER()` is non-deterministic — the same entity can have different version numbers on different runs. The `id` column is a monotonically increasing sequence, so it provides a stable, stable tie-breaking order within the same timestamp.
+
+---
+
+## 2026-06-26 — `withSameTypePrevSnapshot`: in-memory same-type diff post-processing
+
+**Decision:** `AuditReadService.getEntityActivity` passes the raw `findRows` result through `withSameTypePrevSnapshot` before building `AuditActivityItemDto` items. This method walks the list oldest-first and for each row substitutes `prevSnapshot` with the nearest previous row of the same Java class (tracked in a `Map<Class<?>, AuditableSnapshot>`).
+
+**Why:** When category-change rows (`CategoryChangeSnapshotDto`) appear between advertisement rows (`AdvertisementSnapshotDto`), SQL `LAG` returns the immediately preceding row regardless of type. `AdvertisementSnapshotDto.diff(CategoryChangeSnapshotDto)` receives an incompatible type — the diff method returns only new values (no "old" side), breaking the activity diff UI. In-memory correction is the right fix: SQL is kept clean and domain-agnostic; the type-aware pairing belongs in the service layer.
+
+**Rule:** Do NOT add type-filtering correlated subqueries to `AuditLogRepository` for this purpose — SQL must stay domain-free.
+
+---
+
+## 2026-06-26 — `restorableCount` replaces `items.size()` for restore button visibility
+
+**Decision:** `AuditActivityPanel.configure` computes `restorableCount = items.stream().filter(i -> i.snapshotData().isRestorable()).count()` and passes it as `historySize` to `AuditActivityRowRenderer.RenderConfig` instead of `items.size()`.
+
+**Why:** Category-change rows (`CategoryChangeSnapshotDto.isRestorable() == false`) inflate the total item count. When `historySize > 1`, the CREATED row shows a "Restore" button. With categories, a freshly created advertisement has 3 rows (1 CREATED + 2 category UPDATED) → `historySize = 3 > 1` → Restore button appears on the CREATED row, which is wrong. Counting only restorable items gives the semantically correct value.
+
+---
+
 ## Deferred backlog
 
 - EntityType: migrate from enum to string registry/descriptor when second consumer project appears

@@ -143,6 +143,16 @@ Current assignments: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPo
 
 ---
 
+## 2026-06-26 — `AuditableSnapshot.isRestorable()` default method
+
+**Decision:** `AuditableSnapshot` gained a default method `boolean isRestorable() { return true; }`. `CategoryChangeSnapshotDto` overrides it to return `false`.
+
+**Why:** Not all snapshot types represent a restorable entity state. Category-change snapshots (`CategoryChangeSnapshotDto`) record a taxonomy assignment event — restoring the advertisement to that "snapshot" makes no domain sense. The default `true` preserves backward compatibility for all existing snapshot types; individual types opt out by overriding. `AuditActivityRowRenderer` and `AuditActivityPanel` check `isRestorable()` before rendering restore buttons.
+
+**Rule:** Any new `AuditableSnapshot` implementation that represents a metadata/event record (not a full entity state) must override `isRestorable()` to return `false`.
+
+---
+
 ## Ongoing — Shared kernel: contracts, not implementations
 
 **Decision:** `platform-commons` contains only pure Java: DTOs, domain events, SPI interfaces, annotations, and conditional markers. No Spring Boot autoconfiguration, no Spring beans, no framework annotations beyond `@interface`.

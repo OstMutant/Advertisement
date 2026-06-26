@@ -134,6 +134,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             categoryComboBox.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
             categoryComboBox.setItemLabelGenerator(TaxonDto::getName);
             categoryComboBox.setItems(availableCategories);
+            categoryComboBox.getElement().setProperty("maxSelectedItemsCount", 10);
             categoryComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-categories");
         }
 
