@@ -3,8 +3,7 @@ package org.ost.marketplace.services.security;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.security.UserIdMarker;
-import org.ost.user.security.OwnershipChecker;
-import org.ost.user.security.RoleChecker;
+import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.auth.AuthContextService;
 import org.springframework.stereotype.Component;
 
@@ -14,8 +13,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AccessEvaluator {
 
-    private final RoleChecker roleChecker;
-    private final OwnershipChecker ownershipChecker;
+    private final UserPort           userPort;
     private final AuthContextService authContextService;
 
     public boolean isLoggedIn() {
@@ -23,7 +21,7 @@ public class AccessEvaluator {
     }
 
     public boolean isPrivileged() {
-        return currentUser().map(u -> roleChecker.isAdmin(u) || roleChecker.isModerator(u)).orElse(false);
+        return currentUser().map(u -> userPort.isAdmin(u) || userPort.isModerator(u)).orElse(false);
     }
 
     public Long getCurrentUserId() {
@@ -44,9 +42,7 @@ public class AccessEvaluator {
 
     public boolean canOperate(UserIdMarker target) {
         return currentUser()
-                .map(u -> roleChecker.isAdmin(u)
-                        || roleChecker.isModerator(u)
-                        || ownershipChecker.isOwner(u, target))
+                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, target))
                 .orElse(false);
     }
 
@@ -60,9 +56,7 @@ public class AccessEvaluator {
 
     public boolean canOperate(Long ownerUserId) {
         return currentUser()
-                .map(u -> roleChecker.isAdmin(u)
-                        || roleChecker.isModerator(u)
-                        || ownershipChecker.isOwner(u, ownerUserId))
+                .map(u -> userPort.isAdmin(u) || userPort.isModerator(u) || userPort.isOwner(u, ownerUserId))
                 .orElse(false);
     }
 

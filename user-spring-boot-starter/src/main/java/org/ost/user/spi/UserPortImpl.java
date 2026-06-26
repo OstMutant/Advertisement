@@ -10,8 +10,11 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.security.UserIdMarker;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.user.entity.User;
+import org.ost.user.security.OwnershipChecker;
+import org.ost.user.security.RoleChecker;
 import org.ost.user.services.UserService;
 import org.ost.user.services.UserSettingsService;
 import org.springframework.data.domain.Sort;
@@ -29,6 +32,8 @@ public class UserPortImpl implements UserPort {
 
     private final UserService         userService;
     private final UserSettingsService settingsService;
+    private final RoleChecker         roleChecker;
+    private final OwnershipChecker    ownershipChecker;
 
     @Override
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
@@ -103,6 +108,26 @@ public class UserPortImpl implements UserPort {
     @Override
     public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         settingsService.save(userId, settings);
+    }
+
+    @Override
+    public boolean isAdmin(@NonNull UserDto user) {
+        return roleChecker.isAdmin(user);
+    }
+
+    @Override
+    public boolean isModerator(@NonNull UserDto user) {
+        return roleChecker.isModerator(user);
+    }
+
+    @Override
+    public boolean isOwner(@NonNull UserDto user, @NonNull UserIdMarker target) {
+        return ownershipChecker.isOwner(user, target);
+    }
+
+    @Override
+    public boolean isOwner(@NonNull UserDto user, @NonNull Long ownerId) {
+        return ownershipChecker.isOwner(user, ownerId);
     }
 
     static UserDto toDto(User user) {

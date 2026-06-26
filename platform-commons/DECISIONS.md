@@ -281,3 +281,20 @@ are unnecessary indirection with no cross-module consumer. Marketplace UI compon
 **Decision:** Moved to `attachment.dto`, renamed `AttachmentMediaSummaryDto`.
 
 **Consequences:** `*.spi` is for interfaces and extension points; data records belong in `*.dto`.
+
+---
+
+## ADR-016: Role and ownership checks exposed via UserPort
+**Status:** Accepted
+
+**Context:** `AccessEvaluator` in marketplace-app imported `org.ost.user.security.RoleChecker`
+and `OwnershipChecker` directly — internal user-starter classes, violating module boundaries
+(tracked in improvement-004).
+
+**Decision:** Added `isAdmin`, `isModerator`, `isOwner` methods to `UserPort` (platform-commons).
+`UserPortImpl` delegates to the existing internal `RoleChecker` / `OwnershipChecker` beans.
+`AccessEvaluator` now depends only on `UserPort` — a platform-commons contract.
+
+**Consequences:** `RoleChecker` and `OwnershipChecker` remain internal to user-starter.
+No new SPI interfaces or suffixes introduced — role/ownership checks are user-domain queries,
+fitting naturally on the existing `UserPort`.
