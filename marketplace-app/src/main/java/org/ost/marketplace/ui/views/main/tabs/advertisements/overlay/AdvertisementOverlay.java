@@ -20,7 +20,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class AdvertisementOverlay extends AbstractEntityOverlay {
+public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFormOverlayModeHandler> {
 
     private enum Mode {VIEW, EDIT, CREATE}
 
@@ -39,12 +39,39 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
     private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
-    private OverlaySession                      session;
-    private AdvertisementFormOverlayModeHandler currentFormHandler;
+    private OverlaySession session;
 
-    @Override protected String  getOverlayCssClass()    { return "advertisement-overlay"; }
-    @Override protected I18nKey              getBreadcrumbLabelKey() { return MAIN_TAB_ADVERTISEMENTS; }
-    @Override protected boolean              hasUnsavedChanges()  { return currentFormHandler != null && currentFormHandler.hasChanges(); }
+    @Override protected String    getOverlayCssClass()    { return "advertisement-overlay"; }
+    @Override protected I18nKey   getBreadcrumbLabelKey() { return MAIN_TAB_ADVERTISEMENTS; }
+
+    @Override
+    protected SaveConfig saveConfig() {
+        return new SaveConfig(
+                ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS,
+                ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
+                ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
+    }
+
+    @Override
+    protected void proceed() {
+        session.onSaved().run();
+        if (session.mode() == Mode.EDIT) {
+            AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
+            if (fresh != null) session = session.withAd(fresh);
+        } else {
+            closeToList();
+        }
+    }
+
+    @Override
+    protected void afterDiscard() {
+        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
+            session = session.toView();
+            switchTo();
+        } else {
+            closeToList();
+        }
+    }
 
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
@@ -103,41 +130,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay {
         switchTo();
     }
 
-    private void handleSave() {
-        try {
-            if (currentFormHandler.save()) {
-                notification().success(ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS);
-                session.onSaved().run();
-                if (session.mode() == Mode.EDIT) {
-                    currentFormHandler.afterSave(true);
-                    AdvertisementInfoDto fresh = currentFormHandler.getSavedInfoDto();
-                    if (fresh != null) session = session.withAd(fresh);
-                } else {
-                    closeToList();
-                }
-            } else {
-                notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
-                currentFormHandler.afterSave(false);
-            }
-        } catch (Exception e) {
-            notification().error(ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
-            currentFormHandler.afterSave(false);
-        }
-    }
-
     private void closeAndRefresh() {
         session.onSaved().run();
         closeToList();
-    }
-
-    @Override
-    protected void doCancel() {
-        if (currentFormHandler != null) currentFormHandler.discardChanges();
-        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
-            session = session.toView();
-            switchTo();
-        } else {
-            closeToList();
-        }
     }
 }

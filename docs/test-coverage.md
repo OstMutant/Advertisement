@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-06-27 · 38 passed · 0 failed · 0 skipped · 38 total
+Last updated: 2026-06-27 · 32 passed · 0 failed · 6 skipped · 38 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -53,12 +53,12 @@ Last updated: 2026-06-27 · 38 passed · 0 failed · 0 skipped · 38 total
 ## e2e/05-seed-filter-sort-pagination.spec.js
 
 **› e2e/05-seed-filter-sort-pagination.spec.js**
-- [x] Seed data and query validation › seed 50 users — parallel signup
-- [x] Seed data and query validation › adminEn seeds 50 advertisements — five categories
-- [x] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
-- [x] Seed data and query validation › users — email, role and date filters, column sort, pagination
-- [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults
-- [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination
+- [-] Seed data and query validation › seed 50 users — parallel signup
+- [-] Seed data and query validation › adminEn seeds 50 advertisements — five categories
+- [-] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
+- [-] Seed data and query validation › users — email, role and date filters, column sort, pagination
+- [-] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults
+- [-] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination
 
 ## e2e/06-marketplace-delete-flow.spec.js
 

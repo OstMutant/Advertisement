@@ -18,6 +18,10 @@ public abstract class AbstractFormOverlayModeHandler<D extends EditDto> implemen
         return binder != null && binder.hasChanges();
     }
 
+    public abstract boolean save();
+    public abstract void afterSave(boolean success);
+    public abstract void discardChanges();
+
     protected static void wireSaveGuard(UiPrimaryButton saveBtn, Runnable onSave) {
         saveBtn.addClickListener(_ -> {
             saveBtn.setEnabled(false);

@@ -10,26 +10,37 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractEntityOverlay;
 import org.ost.marketplace.ui.views.components.overlay.EntityOverlaySupport;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
-import static org.ost.marketplace.services.i18n.I18nKey.HEADER_HOME;
-import static org.ost.marketplace.services.i18n.I18nKey.SETTINGS_SAVED_SUCCESS;
-import static org.ost.marketplace.services.i18n.I18nKey.SETTINGS_SECTION_TITLE;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class SettingsOverlay extends AbstractEntityOverlay {
+public class SettingsOverlay extends AbstractEntityOverlay<SettingsFormModeHandler> {
 
     @Getter private final transient EntityOverlaySupport support;
     private final transient AuthContextService           authContextService;
     private final transient UiComponentFactory<SettingsFormModeHandler> formHandlerFactory;
 
-    private Long                    currentUserId;
-    private transient SettingsFormModeHandler currentHandler;
+    private Long currentUserId;
 
     @Override protected String  getOverlayCssClass()   { return "settings-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return HEADER_HOME; }
-    @Override protected boolean hasUnsavedChanges()    { return currentHandler != null && currentHandler.hasChanges(); }
+
+    @Override
+    protected SaveConfig saveConfig() {
+        return new SaveConfig(SETTINGS_SAVED_SUCCESS, null, null);
+    }
+
+    @Override
+    protected void proceed() {
+        // settings overlay stays open after save — nothing to close or notify
+    }
+
+    @Override
+    protected void afterDiscard() {
+        closeToList();
+    }
 
     public void openSettings() {
         authContextService.getCurrentUser().ifPresent(user -> {
@@ -41,32 +52,13 @@ public class SettingsOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void switchTo() {
-        currentHandler = formHandlerFactory.build(
+        currentFormHandler = formHandlerFactory.build(
                 SettingsFormModeHandler.Parameters.builder()
                         .userId(currentUserId)
                         .onSave(this::handleSave)
                         .onCancel(this::closeToList)
                         .build());
-        currentHandler.activate(layout);
+        currentFormHandler.activate(layout);
         layout.getBreadcrumbCurrent().setText(i18n().get(SETTINGS_SECTION_TITLE));
-    }
-
-    @Override
-    protected void doCancel() {
-        closeToList();
-    }
-
-    private void handleSave() {
-        try {
-            if (currentHandler.save()) {
-                notification().success(SETTINGS_SAVED_SUCCESS);
-                currentHandler.afterSave(true);
-            } else {
-                currentHandler.afterSave(false);
-            }
-        } catch (Exception e) {
-            notification().error(e.getMessage());
-            currentHandler.afterSave(false);
-        }
     }
 }

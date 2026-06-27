@@ -18,13 +18,13 @@ import org.ost.platform.taxon.spi.TaxonPort;
 
 import java.util.Locale;
 
-import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_REFERENCE_DATA;
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class TaxonOverlay extends AbstractEntityOverlay {
+public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHandler> {
 
     private enum Mode { VIEW, CREATE, EDIT }
 
@@ -34,9 +34,9 @@ public class TaxonOverlay extends AbstractEntityOverlay {
             @NonNull Runnable onSaved,
             boolean           enteredFromView
     ) {
-        OverlaySession toEdit()                      { return new OverlaySession(Mode.EDIT, taxon, onSaved, true); }
-        OverlaySession toView()                      { return new OverlaySession(Mode.VIEW, taxon, onSaved, false); }
-        OverlaySession withTaxon(TaxonDto fresh)     { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
+        OverlaySession toEdit()                  { return new OverlaySession(Mode.EDIT, taxon, onSaved, true); }
+        OverlaySession toView()                  { return new OverlaySession(Mode.VIEW, taxon, onSaved, false); }
+        OverlaySession withTaxon(TaxonDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
@@ -44,12 +44,39 @@ public class TaxonOverlay extends AbstractEntityOverlay {
     private final UiComponentFactory<TaxonFormOverlayModeHandler> formModeHandlerFactory;
     private final ComponentFactory<TaxonPort>                     taxonPortFactory;
 
-    private OverlaySession              session;
-    private TaxonFormOverlayModeHandler currentFormHandler;
+    private OverlaySession session;
 
     @Override protected String  getOverlayCssClass()   { return "taxon-overlay"; }
     @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_REFERENCE_DATA; }
-    @Override protected boolean hasUnsavedChanges()     { return currentFormHandler != null && currentFormHandler.hasChanges(); }
+
+    @Override
+    protected SaveConfig saveConfig() {
+        return new SaveConfig(
+                TAXON_OVERLAY_NOTIFICATION_SUCCESS,
+                TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
+                TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR);
+    }
+
+    @Override
+    protected void proceed() {
+        session.onSaved().run();
+        Long savedId = currentFormHandler.getSavedTaxonId();
+        if (savedId != null) {
+            taxonPortFactory.findIfAvailable()
+                    .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
+                    .ifPresent(fresh -> session = session.withTaxon(fresh));
+        }
+    }
+
+    @Override
+    protected void afterDiscard() {
+        if (session.enteredFromView()) {
+            session = session.toView();
+            switchTo();
+        } else {
+            closeToList();
+        }
+    }
 
     public void openForView(@NonNull TaxonDto taxon, @NonNull Runnable onSaved) {
         ensureInitialized();
@@ -101,8 +128,8 @@ public class TaxonOverlay extends AbstractEntityOverlay {
 
         String breadcrumb = switch (session.mode()) {
             case VIEW   -> "";
-            case EDIT   -> i18n().get(I18nKey.TAXON_OVERLAY_TITLE_EDIT);
-            case CREATE -> i18n().get(I18nKey.TAXON_OVERLAY_TITLE_NEW);
+            case EDIT   -> i18n().get(TAXON_OVERLAY_TITLE_EDIT);
+            case CREATE -> i18n().get(TAXON_OVERLAY_TITLE_NEW);
         };
         layout.getBreadcrumbCurrent().setText(breadcrumb);
         layout.getBreadcrumbCurrent().setVisible(!breadcrumb.isEmpty());
@@ -112,38 +139,5 @@ public class TaxonOverlay extends AbstractEntityOverlay {
         if (session.taxon() == null) return;
         session = session.toEdit();
         switchTo();
-    }
-
-    private void handleSave() {
-        try {
-            if (currentFormHandler.save()) {
-                notification().success(I18nKey.TAXON_OVERLAY_NOTIFICATION_SUCCESS);
-                session.onSaved().run();
-                currentFormHandler.afterSave(true);
-                Long savedId = currentFormHandler.getSavedTaxonId();
-                if (savedId != null) {
-                    taxonPortFactory.findIfAvailable()
-                            .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
-                            .ifPresent(fresh -> session = session.withTaxon(fresh));
-                }
-            } else {
-                notification().error(I18nKey.TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED);
-                currentFormHandler.afterSave(false);
-            }
-        } catch (Exception e) {
-            notification().error(I18nKey.TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR, e.getMessage());
-            currentFormHandler.afterSave(false);
-        }
-    }
-
-    @Override
-    protected void doCancel() {
-        if (currentFormHandler != null) currentFormHandler.discardChanges();
-        if (session.enteredFromView()) {
-            session = session.toView();
-            switchTo();
-        } else {
-            closeToList();
-        }
     }
 }
