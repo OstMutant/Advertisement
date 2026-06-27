@@ -158,7 +158,7 @@ public class TaxonManagementView extends Div {
                         .cancelKey(TAXON_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId()));
+                                taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId(), access.getCurrentUserId()));
                                 notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
                                 refresh();
                             } catch (Exception e) {
@@ -172,7 +172,7 @@ public class TaxonManagementView extends Div {
 
     private void doRestore(TaxonDto taxon) {
         try {
-            taxonPortFactory.ifAvailable(p -> p.restore(taxon.getId()));
+            taxonPortFactory.ifAvailable(p -> p.restore(taxon.getId(), access.getCurrentUserId()));
             notificationService.success(TAXON_VIEW_NOTIFICATION_RESTORED);
             refresh();
         } catch (Exception e) {

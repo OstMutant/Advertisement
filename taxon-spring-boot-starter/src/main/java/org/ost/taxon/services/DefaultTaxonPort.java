@@ -161,13 +161,13 @@ public class DefaultTaxonPort implements TaxonPort {
     }
 
     @Override
-    public void softDelete(@NonNull Long id) {
-        taxonService.softDelete(id);
+    public void softDelete(@NonNull Long id, Long actorId) {
+        taxonService.softDelete(id, actorId);
     }
 
     @Override
-    public void restore(@NonNull Long id) {
-        taxonService.restore(id);
+    public void restore(@NonNull Long id, Long actorId) {
+        taxonService.restore(id, actorId);
     }
 
     @Override

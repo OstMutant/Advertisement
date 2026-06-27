@@ -242,7 +242,7 @@ erDiagram
 | `id` | BIGSERIAL | PK | Auto-increment |
 | `entity_type` | VARCHAR(50) | NOT NULL | Type of audited entity (from EntityType enum) |
 | `entity_id` | BIGINT | NOT NULL | ID of audited entity |
-| `action_type` | VARCHAR(50) | NOT NULL | Action (CREATE, UPDATE, DELETE, RESTORE) |
+| `action_type` | VARCHAR(50) | NOT NULL | Action (CREATED, UPDATED, DELETED, RESTORED) |
 | `snapshot_data` | JSONB | | Before/after snapshot: `{"before": {...}, "after": {...}}` or `{"snapshot": {...}}` |
 | `actor_id` | BIGINT | NOT NULL | User ID who made the change |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Timestamp of change |
@@ -256,11 +256,11 @@ erDiagram
 **Notes:**
 - Immutable write-only table (never updated, only inserted)
 - snapshot_data format varies by action type:
-  - CREATE/RESTORE: `{"snapshot": {...}}`
-  - UPDATE: `{"before": {...}, "after": {...}}`
-  - DELETE: `{"snapshot": {...}}`
+  - CREATED/RESTORED: `{"snapshot": {...}}`
+  - UPDATED: `{"before": {...}, "after": {...}}`
+  - DELETED: `{"snapshot": {...}}`
 - JSONB allows flexible schema for different entity types
-- Audit_snapshot table (not yet populated) will support point-in-time recovery
+- Point-in-time recovery is implemented via `AuditPort.getSnapshotContent(snapshotId, entityType)` which reads from `audit_log`
 
 ---
 

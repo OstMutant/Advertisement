@@ -188,7 +188,7 @@ Checked for classes with excessive constructor parameters (>5 fields):
 Most classes have 1-3 injected dependencies:
 - `DefaultAuditPort`: 4 fields (auditLogRepository, currentActorHook, auditDomainHook, auditReadService)
 - `AuditDomainHookImpl`: 4 fields (componentFactories for ports)
-- `AccessEvaluator`: 2 fields (roleChecker, ownershipChecker) — PROBLEMATIC (should come from UserPort)
+- `AccessEvaluator`: 2 fields (userPort, authContextService) — ✅ Fixed (ADR-016, 2026-06-15)
 
 **Finding:** No excessive constructor bloat. Dependency injection is reasonable.
 

@@ -32,10 +32,15 @@ user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
 advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
                      AdvertisementSaveDto, AdvertisementSnapshotDto
 advertisement.spi  — AdvertisementPort
+
+taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto, CategoryChangeSnapshotDto
+taxon.model    — TaxonType
+taxon.spi      — TaxonPort, TaxonAuditHook
 ```
 
 **Consequences:** `core.i18n`, `ui`, `attachment.event`, `attachment.storage` packages removed —
 all i18n and UI contracts live in `marketplace-app`; storage lives in `attachment-spring-boot-starter`.
+`taxon.*` packages added 2026-06-26 when `taxon-spring-boot-starter` was introduced (ADR-005 update).
 
 ---
 
@@ -72,9 +77,10 @@ strategy.
 | `*Port` | marketplace → starter | Service facade: marketplace issues commands/queries to the starter |
 | `*Hook` | starter → marketplace | Starter calls back for domain data, events, or UI contributions |
 
-Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`.
+Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort`.
 Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`,
-`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`.
+`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`,
+`TaxonAuditHook`.
 
 **Consequences:**
 - New suffixes require a DECISIONS.md entry. Existing suffixes must not be repurposed.
@@ -298,3 +304,43 @@ and `OwnershipChecker` directly — internal user-starter classes, violating mod
 **Consequences:** `RoleChecker` and `OwnershipChecker` remain internal to user-starter.
 No new SPI interfaces or suffixes introduced — role/ownership checks are user-domain queries,
 fitting naturally on the existing `UserPort`.
+
+---
+
+## ADR-017: Taxon SPI contracts added — TaxonPort and TaxonAuditHook
+**Status:** Accepted (done 2026-06-26)
+
+**Context:** Introduction of `taxon-spring-boot-starter` required new cross-module contracts. UI and
+services in marketplace-app must reach taxon functionality without importing starter internals.
+
+**Decision:** Two new SPI interfaces added to `platform-commons`:
+- `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
+- `TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change
+
+New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`.
+New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding a value is a release-level change).
+
+**Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
+audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
+updates — used by `AuditPort.captureRestore()` and written to `audit_log.action_type`.
+
+---
+
+## ADR-018: ActionType.RESTORED — explicit enum value for soft-delete restore
+**Status:** Accepted (done 2026-06-26)
+
+**Context:** Before this change, restoring a soft-deleted entity called `AuditPort.captureUpdate()`,
+which stored the action as `UPDATED` in `audit_log`. This made it impossible to distinguish between
+a genuine field edit and a restore from deletion by querying the action type alone.
+
+**Decision:** `ActionType.RESTORED` added as a fourth enum value (alongside `CREATED`, `UPDATED`,
+`DELETED`). `AuditPort.captureRestore()` method added to the port interface. `DefaultAuditPort`
+implements it by writing `ActionType.RESTORED` to `audit_log`. Services that restore entities
+(e.g. `TaxonService.restore()`) call `captureRestore`, not `captureUpdate`.
+
+**Consequences:**
+- `audit_log.action_type` column CHECK constraint must allow `'RESTORED'` — covered by the existing
+  VARCHAR column without an enum constraint in PostgreSQL.
+- CSS modifier classes in UI: `--restored` added alongside `--created`, `--updated`, `--deleted`
+  (see audit-spring-boot-starter ADR-007).
+- Any UI that renders action types must handle `RESTORED`.

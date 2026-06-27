@@ -62,6 +62,7 @@ graph TD
         UserSettingsActivityFieldsHookImpl["UserSettingsActivityFieldsHookImpl<br/>(spi)"]
         ActivityEnrichHookImpl["ActivityEnrichHookImpl<br/>(spi)"]
         TaxonAuditHookImpl["TaxonAuditHookImpl<br/>(spi)"]
+        SettingsPaginationService["SettingsPaginationService<br/>(pagination)"]
     end
     
     AuditPort -->|implemented by| DefaultAuditPort
@@ -76,7 +77,7 @@ graph TD
     AttachmentMediaChangeHook -->|implemented by| MediaChangeHookImpl
     
     UserPort -->|implemented by| UserPortImpl
-    UserSettingsChangedHook -->|no impl yet| APP
+    UserSettingsChangedHook -->|implemented by| SettingsPaginationService
     
     AdvertisementPort -->|implemented by| AdvertisementPortImpl
     
@@ -111,7 +112,7 @@ graph TD
 |-----------|----------|-----------|-----------------|---------|
 | **UserPort** | `org.ost.platform.user.spi` | marketplace → starter | `org.ost.user.spi.UserPortImpl` | CRUD users, query filters, get profile, update settings |
 | **AuthenticatedPrincipal** | `org.ost.platform.user.spi` | type contract | `org.ost.user.security.UserPrincipal` | Spring Security principal; holds user identity & roles |
-| **UserSettingsChangedHook** | `org.ost.platform.user.spi` | starter → marketplace | (no current implementations) | Callback: starters notified when user settings change |
+| **UserSettingsChangedHook** | `org.ost.platform.user.spi` | starter → marketplace | `org.ost.marketplace.ui.views.services.pagination.SettingsPaginationService` | Callback: marketplace notified when user settings change (pagination defaults reset) |
 
 ### Advertisement Subsystem
 
@@ -219,6 +220,7 @@ marketplace-app (viewing activity feed)
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserSettingsActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonAuditHookImpl.java`
+- `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 
 **Hook Implementations (starters):**
 - `/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/spi/MediaChangeHookImpl.java`

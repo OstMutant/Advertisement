@@ -35,7 +35,7 @@ Last updated: 2026-06-27 · 38 passed · 0 failed · 0 skipped · 38 total
 - [x] Promotion flow › moderatorUk — first login in English, switches to Ukrainian locale
 - [x] Promotion flow › adminEn edits userEn name — activity diff, grid updated, restore reverts name
 - [x] Promotion flow › adminEn creates categories Electronics and Vehicles — both in list, create discard clears form
-- [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, timeline shows taxon entries
+- [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity
 
 ## e2e/04-marketplace-advertisement-flow.spec.js
 

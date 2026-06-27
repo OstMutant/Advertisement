@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Architecture documentation sync — runs before every commit.
-# Updates docs/architecture/, DECISIONS.md, CLAUDE.md, README.md, and
-# features/issues/ based on what files are staged.
+# Pre-commit hook: stages updated docs and prompts for Playwright coverage.
+# Architecture doc sync (/sync-docs) is NOT run automatically —
+# run it manually after significant changes (new module, new SPI, schema changes).
 #
 # Bypass: SKIP_AUDIT=1 git commit
 # Install: bash scripts/install-hooks.sh
@@ -35,32 +35,7 @@ echo "$STAGED" | grep -qE '\.java$' \
 
 [ ${#TARGETS[@]} -eq 0 ] && exit 0
 
-# ── Run claude -p ─────────────────────────────────────────────────────────────
-STAGED_LIST="$(echo "$STAGED" | tr '\n' ' ')"
-TARGETS_LIST="${TARGETS[*]}"
-
-echo "→ [sync-docs] Staged: $STAGED_LIST"
-echo "→ [sync-docs] Targets: $TARGETS_LIST"
-echo "→ [sync-docs] Syncing documentation (may take 1-2 min)..."
-
-PROMPT="$(cat <<PROMPT
-Run /sync-docs with base ref HEAD~1.
-
-Staged files: $STAGED_LIST
-Affected targets: $TARGETS_LIST
-
-Follow the instructions in $ROOT/.claude/commands/sync-docs.md exactly.
-Read actual source files before updating each target.
-PROMPT
-)"
-
-if command -v claude &>/dev/null; then
-  timeout 240 claude -p "$PROMPT" --dangerously-skip-permissions 2>/dev/null \
-    && echo "→ [sync-docs] Done." \
-    || echo "→ [sync-docs] Warning: sync timed out or failed — commit proceeds without doc update."
-else
-  echo "→ [sync-docs] Warning: claude CLI not found — skipping doc sync. Install Claude Code to enable."
-fi
+# ── sync-docs skipped — run /sync-docs manually when needed ───────────────────
 
 # ── Stage updated docs ────────────────────────────────────────────────────────
 _stage() { git add "$1" 2>/dev/null || true; }

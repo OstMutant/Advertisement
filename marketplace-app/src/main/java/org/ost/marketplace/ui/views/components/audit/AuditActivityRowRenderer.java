@@ -67,6 +67,7 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
 
         boolean canShowAction = h.snapshotData().isRestorable()
                 && (h.actionType() == ActionType.UPDATED
+                    || h.actionType() == ActionType.RESTORED
                     || (h.actionType() == ActionType.CREATED && cfg.historySize() > 1));
         if (cfg.canOperate() && canShowAction) {
             boolean isCurrentState = Objects.equals(h.snapshotData(), cfg.currentSnapshot())

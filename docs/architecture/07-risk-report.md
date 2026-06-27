@@ -178,14 +178,14 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 
 ### 1. Role-Based Access Control (RBAC)
 
-**Risk:** MEDIUM — Authorization logic scattered
+**Risk:** LOW-MEDIUM — Authorization logic scattered across UI call sites
 
-**Location:** `org.ost.marketplace.services.security.AccessEvaluator` + `org.ost.user.security.RoleChecker`
+**Location:** `org.ost.marketplace.services.security.AccessEvaluator`
 
 **Issue:**
-- RoleChecker is in user.security.* (internal, imported directly from marketplace)
-- No centralized authorization gateway
-- UI layers call multiple security checks
+- `AccessEvaluator` calls `UserPort.isAdmin()`, `UserPort.isModerator()`, `UserPort.isOwner()` — all through the correct platform-commons SPI (✅ fixed ADR-016, 2026-06-15)
+- No centralized authorization gateway; UI components each call `AccessEvaluator`
+- Risk decreases as `AccessEvaluator` is the single point of security policy
 
 **Mitigation:** Currently acceptable for a small team. Monitor for missing checks as app grows. Consider extracting a centralized AuthorizationService.
 
@@ -292,5 +292,5 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 | **Security** | MEDIUM | RBAC scattered; UserPrincipal well-integrated |
 | **Coupling** | LOW-MEDIUM | AccessEvaluator fixed (ADR-016); optional deps still unguarded |
 
-**Critical Action:** Fix AccessEvaluator to use UserPort instead of importing user.security.* classes.
+**Open Action:** Resolve optional dependency guards — either remove `<optional>` from advertisement-starter pom.xml for audit/attachment, or add ObjectProvider guards in `AdvertisementService`.
 

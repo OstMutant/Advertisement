@@ -215,7 +215,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 ---
 
-## Critical Issues
+## Open Issues
 
 1. ~~**AccessEvaluator Coupling (HIGH)**~~ — ✅ Resolved (ADR-016, 2026-06-15)
 
@@ -260,9 +260,9 @@ This is a well-structured modular monolith with solid architectural foundations:
 - Good separation of concerns (UI, domain, data)
 - Flexible schema supporting extensibility
 
-**Primary concern:** AccessEvaluator violates the modular boundary by importing user.security.* classes. This is a high-priority fix to maintain the integrity of the modular architecture.
+**Primary concern:** AccessEvaluator boundary violation resolved (ADR-016, 2026-06-15) — now uses `UserPort` + `AuthContextService` exclusively.
 
-**Secondary concern:** Optional dependencies (audit, attachment) are not guarded in code; needs clarification (required or optional with guards).
+**Remaining concern:** Optional dependencies (audit, attachment) are not guarded in advertisement-starter pom.xml code; needs clarification (required or optional with guards).
 
-With these issues resolved, the architecture would score 8-8.5/10.
+With this remaining issue resolved, the architecture would score 8-8.5/10.
 

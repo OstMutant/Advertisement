@@ -76,11 +76,11 @@ public interface TaxonPort {
     /** Updates all translations for the given taxon entry. */
     void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId);
 
-    /** Soft-deletes the given taxon entry. */
-    void softDelete(@NonNull Long id);
+    /** Soft-deletes the given taxon entry and records the deletion in the audit log. */
+    void softDelete(@NonNull Long id, Long actorId);
 
-    /** Restores a soft-deleted taxon entry. */
-    void restore(@NonNull Long id);
+    /** Restores a soft-deleted taxon entry and records the restore in the audit log. */
+    void restore(@NonNull Long id, Long actorId);
 
     /** Returns the subset of the given ids that exist in the taxon table. Used by audit findExisting. */
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

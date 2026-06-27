@@ -18,7 +18,8 @@ public interface I18nParams {
         return switch (actionType) {
             case CREATED -> getValue(ACTIVITY_ACTION_CREATED);
             case UPDATED -> getValue(ACTIVITY_ACTION_UPDATED);
-            case DELETED -> getValue(ACTIVITY_ACTION_DELETED);
+            case DELETED  -> getValue(ACTIVITY_ACTION_DELETED);
+            case RESTORED -> getValue(ACTIVITY_ACTION_RESTORED);
         };
     }
 

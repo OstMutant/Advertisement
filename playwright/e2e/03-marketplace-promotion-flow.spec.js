@@ -234,7 +234,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, timeline shows taxon entries', async () => {
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -296,10 +296,77 @@ test.describe('Promotion flow', () => {
       await screenshot(page, 'taxon-05-restored-in-list');
     });
 
-    await test.step('timeline — taxon created and updated entries visible', async () => {
+    await test.step('timeline — taxon created and updated entries visible, single-field edit shows all 4 fields in diff', async () => {
       await openTimelineTab(page);
       await assertTimelineHasRows(page, expect, { entityType: 'taxon', action: 'created', minCount: 1, screenshotName: 'taxon-06-timeline-created' });
       await assertTimelineHasRows(page, expect, { entityType: 'taxon', action: 'updated', minCount: 1, screenshotName: 'taxon-06-timeline-updated' });
+
+      // TaxonActivityFieldsHookImpl must expand all 4 fields even when only one changed
+      const taxonUpdateRow = page.locator('.activity-feed .activity-feed-row')
+        .filter({ has: page.locator('.activity-feed-action--updated') })
+        .filter({ has: page.locator('.activity-feed-type--taxon') })
+        .first();
+      const changesDiv = taxonUpdateRow.locator('.activity-feed-changes');
+      await expect(changesDiv).toContainText('Name (EN)', { timeout: 5000 });
+      await expect(changesDiv).toContainText('Description (EN)');
+      await expect(changesDiv).toContainText('Name (UK)');
+      await expect(changesDiv).toContainText('Description (UK)');
+      await screenshot(page, 'taxon-06-timeline-all-fields-in-diff');
+    });
+
+    await test.step('delete Electronics and restore — deleted and restore events recorded in overlay activity', async () => {
+      await openRefDataTab(page);
+
+      // Delete
+      const activeRow = page.locator('.taxon-row-wrapper')
+        .filter({ has: page.locator('.taxon-row-name', { hasText: CAT1.nameEn }) })
+        .filter({ hasNot: page.locator('.taxon-deleted-badge:visible') });
+      await activeRow.locator('vaadin-button')
+        .filter({ has: page.locator('vaadin-icon[icon="vaadin:trash"]') })
+        .click();
+      await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+      await page.evaluate(() => {
+        const dialog = document.querySelector('vaadin-dialog[opened]');
+        [...dialog.querySelectorAll('vaadin-button')]
+          .find(b => /^delete$|^видалити$/i.test(b.textContent?.trim()))
+          ?.click();
+      });
+      await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await expect(page.locator('.taxon-row-wrapper').filter({ has: page.locator('.taxon-deleted-badge') })
+        .filter({ has: page.locator('.taxon-row-name', { hasText: CAT1.nameEn }) })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-07-electronics-deleted');
+
+      // Restore
+      const deletedRow = page.locator('.taxon-row-wrapper')
+        .filter({ has: page.locator('.taxon-row-name', { hasText: CAT1.nameEn }) });
+      await deletedRow.locator('vaadin-button')
+        .filter({ has: page.locator('vaadin-icon[icon="vaadin:arrow-backward"]') })
+        .click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-07-electronics-restored');
+
+      // Open edit overlay → Activity tab → verify deleted and restored events are present
+      await openTaxonEdit(page, CAT1.nameEn);
+      const overlay = page.locator('.taxon-overlay');
+      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
+      const activityList = overlay.locator('.entity-activity-list');
+      await activityList.waitFor({ timeout: 5000 });
+      await expect(
+        activityList.locator('.entity-activity-row')
+          .filter({ has: page.locator('.entity-activity-action--deleted') })
+          .first()
+      ).toBeVisible({ timeout: 5000 });
+      await expect(
+        activityList.locator('.entity-activity-row')
+          .filter({ has: page.locator('.entity-activity-action--restored') })
+          .first()
+      ).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'taxon-07-activity-shows-deleted-and-restored');
+      await closeTaxonOverlay(page);
     });
 
     await runLogoutFlow(page, expect);

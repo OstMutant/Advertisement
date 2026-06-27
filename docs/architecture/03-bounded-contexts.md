@@ -113,7 +113,7 @@ graph TB
 
 **Contract:**
 - `UserPort` — marketplace calls starter to manage users
-- `UserSettingsChangedHook` — starters can listen when settings change (no current implementations)
+- `UserSettingsChangedHook` — marketplace resets pagination defaults when settings change; implemented by `SettingsPaginationService`
 - `AuthenticatedPrincipal` — type contract for Spring Security principals
 
 **No Dependencies:** User domain does not depend on other starters (only platform-commons).
@@ -217,18 +217,27 @@ graph TB
 ### Taxon (Reference Data) Domain
 **Ownership:** `org.ost.taxon.*` (taxon-spring-boot-starter)
 
-**Purpose:** Generic taxonomy management for categories, tags, classifications. Can be reused across multiple entity types (not just advertisements).
+**Purpose:** Generic taxonomy management for categories, tags, classifications. Designed to span multiple entity types; currently used by the advertisement domain for category assignment.
+
+**Entities:**
+- `Taxon` entity (table: `taxon`) — soft-deletable; optional stable `code` per type
+- `TaxonTranslation` entity (table: `taxon_translation`) — locale-keyed name + description
+- `TaxonAssignment` entity (table: `taxon_assignment`) — (entity_type, entity_id, taxon_id) triple
 
 **Key Services:**
-- `TaxonService` — CRUD taxon types, manage translations, query assignments
-- `TaxonRepository` — queries by type, locale
+- `TaxonService` — CRUD taxon entries, soft-delete/restore, translation management
+- `TaxonAssignmentService` — assign/unassign taxons to entities, batched lookup, usage counts
+- `DefaultTaxonPort` — coordination layer: resolves translations, filters active records, builds DTOs (not pure delegation)
+- `TaxonFilter` — internal value object for repository filter conditions (active / all / deleted)
+- `TaxonProperties` — configurable `defaultLocale` for translation fallback
 
 **Contract:**
-- `TaxonPort` — marketplace calls starter for taxonomy operations
-- `TaxonAuditHook` — marketplace notifies audit of taxon changes
+- `TaxonPort` (`platform-commons`) — marketplace calls starter for CRUD, assignment management, and batched queries
+- `TaxonAuditHook` (`platform-commons`) — starter fires when assignments change; marketplace records to audit log via `TaxonActivityService`
 
 **Cross-Domain Dependencies:**
-- Calls `AuditPort` to capture taxon changes
+- `TaxonAuditHook` calls back to marketplace; `TaxonAuditHookImpl` delegates to `TaxonActivityService` which writes to audit log via `AuditPort`
+- Advertisement domain uses `TaxonPort.findEntityIdsWithAnyTaxon()` to filter by category without a direct SQL JOIN to `taxon_assignment`
 
 ---
 
@@ -244,7 +253,7 @@ graph TB
 
 **Key Classes:**
 - `EntityType` — enum of auditable entity types (ADVERTISEMENT, USER, TAXON, etc.)
-- `ActionType` — enum of audit actions (CREATE, UPDATE, DELETE, RESTORE)
+- `ActionType` — enum of audit actions (CREATED, UPDATED, DELETED, RESTORED)
 - `ChangeEntry` — records field-level changes with old/new values
 - `EntityRef` — identifies an entity (type + id)
 - `ComponentFactory<T>` — factory for optional singleton services (used in UI for ObjectProvider)
@@ -297,5 +306,5 @@ Each domain can be:
 
 2. **Audit + Attachment Optional:** Advertisement marks audit and attachment starters as `<optional>true/>` in pom.xml, but internal code does not guard calls with `ObjectProvider`. If either starter is missing, the app will fail at runtime. Consider: either make them required, or add ObjectProvider guards.
 
-3. **Taxon Cross-Cutting:** Taxon is not yet used by multiple domains. If it remains advertisement-only, consider merging it into marketplace-app as a feature, not a standalone starter.
+3. **Taxon Cross-Cutting:** Taxon is currently used by the advertisement domain (category assignment) and is designed generically for any entity type. The `taxon_assignment` table is keyed by `(entity_type, entity_id)` — no schema change is needed to add new entity types. The standalone starter design is justified.
 

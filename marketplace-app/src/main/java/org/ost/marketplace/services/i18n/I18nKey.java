@@ -196,6 +196,7 @@ public enum I18nKey {
     AUDIT_ACTIVITY_ACTION_CREATED("audit.activity.action.created"),
     AUDIT_ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
+    AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
     AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
@@ -277,6 +278,7 @@ public enum I18nKey {
     ACTIVITY_ACTION_CREATED("activity.action.created"),
     ACTIVITY_ACTION_UPDATED("activity.action.updated"),
     ACTIVITY_ACTION_DELETED("activity.action.deleted"),
+    ACTIVITY_ACTION_RESTORED("activity.action.restored"),
     ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
     // === Advertisement History ===
@@ -302,6 +304,10 @@ public enum I18nKey {
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_FIELD_CATEGORY("changes.field.category"),
+    CHANGES_FIELD_NAME_EN("changes.field.nameEn"),
+    CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
+    CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
+    CHANGES_FIELD_DESCRIPTION_UK("changes.field.descriptionUk"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
@@ -360,7 +366,8 @@ public enum I18nKey {
         return switch (actionType) {
             case CREATED -> AUDIT_ACTIVITY_ACTION_CREATED;
             case UPDATED -> AUDIT_ACTIVITY_ACTION_UPDATED;
-            case DELETED -> AUDIT_ACTIVITY_ACTION_DELETED;
+            case DELETED  -> AUDIT_ACTIVITY_ACTION_DELETED;
+            case RESTORED -> AUDIT_ACTIVITY_ACTION_RESTORED;
         };
     }
 

@@ -115,7 +115,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/playwright [scenario] [--ux]` — run Playwright tests
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision
-- `/sync-docs [ref]` — sync architecture docs with code (default: origin/main)
+- `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 
 ---
 

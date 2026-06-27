@@ -364,6 +364,26 @@ and pagination. Backend query via `AuditPort.getTimelinePage` / `countTimeline`.
 
 ---
 
+## ADR-024: captureRestore() — dedicated method for restore audit events
+**Status:** Accepted (done 2026-06-26)
+
+**Context:** `AuditPort.captureUpdate()` was reused for restore events. This stored
+`action_type = 'UPDATED'` for both genuine field edits and soft-delete restores, making
+them indistinguishable in the audit log without inspecting snapshot data.
+
+**Decision:** `AuditPort.captureRestore(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot,
+@NonNull Long actorId)` added to the port interface. `DefaultAuditPort.captureRestore()` writes
+`ActionType.RESTORED` to `audit_log`. `ActionType.RESTORED` added to `core.model.ActionType` enum.
+All restore-capable services (currently `TaxonService.restore()`) use `captureRestore`.
+
+**Consequences:**
+- `AuditActivityRowRenderer` CSS modifier `--restored` must be handled in all badge renderers.
+- New restore rows appear in audit activity panels with distinct visual treatment.
+- `isRestorable()` logic in `AuditActivityPanel` is unaffected — restorability is determined
+  by the snapshot type, not the action type.
+
+---
+
 ## Deferred backlog
 
 → [improvement-002-snapshot-schema-versioning](../features/issues/improvement-002-snapshot-schema-versioning.md)

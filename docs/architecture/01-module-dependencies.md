@@ -50,7 +50,7 @@ graph LR
 | **user-spring-boot-starter** | platform-commons, query-lib | compile |
 | **advertisement-spring-boot-starter** | platform-commons, query-lib, audit (optional), attachment (optional) | compile; optional for audit/attachment |
 | **taxon-spring-boot-starter** | platform-commons, query-lib | compile |
-| **marketplace-app** | All starters + query-lib; taxon as runtime | compile (starters), runtime (taxon) |
+| **marketplace-app** | All starters + query-lib; taxon as runtime scope | compile (all starters except taxon), runtime (taxon) |
 
 ## Key Observations
 

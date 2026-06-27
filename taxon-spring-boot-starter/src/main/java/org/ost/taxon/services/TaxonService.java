@@ -78,12 +78,24 @@ public class TaxonService {
         return updated;
     }
 
-    public void softDelete(@NonNull Long id) {
+    @Transactional
+    public void softDelete(@NonNull Long id, Long actorId) {
+        List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);
+        TaxonSnapshotDto snapshot = buildSnapshotFromTranslations(translations);
         taxonRepository.softDelete(id);
+        if (actorId != null) {
+            auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
+        }
     }
 
-    public void restore(@NonNull Long id) {
+    @Transactional
+    public void restore(@NonNull Long id, Long actorId) {
         taxonRepository.restore(id);
+        if (actorId != null) {
+            List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);
+            TaxonSnapshotDto snapshot = buildSnapshotFromTranslations(translations);
+            auditPortFactory.ifAvailable(p -> p.captureRestore(id, snapshot, actorId));
+        }
     }
 
     public List<Taxon> listByType(@NonNull TaxonType type, @NonNull TaxonFilter filter, @NonNull Sort sort) {
