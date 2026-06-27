@@ -259,10 +259,11 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     private TaxonEditDto buildDto() {
         TaxonEditDto dto = new TaxonEditDto();
-        if (params.getTaxon() != null) {
-            dto.setId(params.getTaxon().getId());
+        Long id = params.getTaxon() != null ? params.getTaxon().getId() : savedTaxonId;
+        if (id != null) {
+            dto.setId(id);
             List<TaxonTranslationDto> translations = taxonPortFactory.findIfAvailable()
-                    .map(p -> p.getTranslations(params.getTaxon().getId()))
+                    .map(p -> p.getTranslations(id))
                     .orElse(List.of());
             for (TaxonTranslationDto t : translations) {
                 if ("en".equals(t.getLocale())) {

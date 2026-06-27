@@ -120,13 +120,11 @@ public class TaxonOverlay extends AbstractEntityOverlay {
                 notification().success(I18nKey.TAXON_OVERLAY_NOTIFICATION_SUCCESS);
                 session.onSaved().run();
                 currentFormHandler.afterSave(true);
-                if (session.mode() == Mode.EDIT) {
-                    Long savedId = currentFormHandler.getSavedTaxonId();
-                    if (savedId != null) {
-                        taxonPortFactory.findIfAvailable()
-                                .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
-                                .ifPresent(fresh -> session = session.withTaxon(fresh));
-                    }
+                Long savedId = currentFormHandler.getSavedTaxonId();
+                if (savedId != null) {
+                    taxonPortFactory.findIfAvailable()
+                            .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
+                            .ifPresent(fresh -> session = session.withTaxon(fresh));
                 }
             } else {
                 notification().error(I18nKey.TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED);

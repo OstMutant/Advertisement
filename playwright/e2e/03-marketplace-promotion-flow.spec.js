@@ -195,6 +195,28 @@ test.describe('Promotion flow', () => {
       await closeTaxonOverlay(page);
     });
 
+    await test.step('discard after CREATE save — fields revert to saved values, not empty', async () => {
+      await page.locator('.taxon-add-button').click();
+      await waitForTaxonOverlay(page);
+      await fillTaxonLocale(page, 'EN', 'TempCat', 'Temporary category for discard test');
+      await fillTaxonLocale(page, 'UK', 'ТимчасCat', 'Тимчасова категорія для тесту');
+      const overlay    = page.locator('.taxon-overlay');
+      const saveBtn    = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      const discardBtn = overlay.locator('vaadin-button').filter({ hasText: 'Discard changes' });
+      await saveBtn.click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await expect(saveBtn).toBeDisabled({ timeout: 3000 });
+      // modify after save — then discard must revert to saved values, not empty
+      await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('TempCat MODIFIED');
+      await expect(saveBtn).toBeEnabled({ timeout: 3000 });
+      await discardBtn.click();
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input'))
+        .toHaveValue('TempCat', { timeout: 3000 });
+      await expect(saveBtn).toBeDisabled({ timeout: 3000 });
+      await closeTaxonOverlay(page);
+    });
+
     await test.step('create Electronics', async () => {
       await createCategory(page, CAT1);
       await expect(page.locator('.taxon-row-name', { hasText: CAT1.nameEn })).toBeVisible({ timeout: 5000 });
