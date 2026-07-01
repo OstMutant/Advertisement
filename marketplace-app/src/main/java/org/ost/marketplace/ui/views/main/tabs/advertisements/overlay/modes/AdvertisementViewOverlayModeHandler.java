@@ -67,8 +67,9 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         H2 title = new H2(params.getAd().getTitle());
         title.addClassName("overlay__view-title");
 
-        Span description = new Span(params.getAd().getDescription());
+        Div description = new Div();
         description.addClassName("overlay__view-description");
+        description.getElement().setProperty("innerHTML", params.getAd().getDescription() != null ? params.getAd().getDescription() : "");
 
         Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");

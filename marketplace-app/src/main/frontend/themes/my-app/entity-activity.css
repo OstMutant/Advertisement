@@ -88,10 +88,31 @@
     font-size: var(--lumo-font-size-xs);
     color: #64748b;
     font-style: italic;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .entity-activity-changes-item--unchanged {
     opacity: 0.6;
+}
+
+.entity-activity-changes-value--collapsible {
+    max-height: 3lh;
+    overflow: hidden;
+}
+
+.entity-activity-changes-value-toggle {
+    display: none;
+    margin-top: 1px;
+    font-size: var(--lumo-font-size-xs);
+    color: var(--lumo-primary-color);
+    cursor: pointer;
+    font-style: normal;
+    user-select: none;
+}
+
+.entity-activity-changes-value-toggle:hover {
+    text-decoration: underline;
 }
 
 .entity-activity-current-badge {
@@ -107,3 +128,6 @@
 .entity-activity-restore-btn {
     margin-top: 2px;
 }
+
+/* Hide trailing empty Quill paragraph (<p><br></p>) in activity diff values */
+.entity-activity-changes-value--collapsible p:last-child:has(> br:only-child) { display: none; }

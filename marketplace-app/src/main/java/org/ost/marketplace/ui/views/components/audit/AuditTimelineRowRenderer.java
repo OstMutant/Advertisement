@@ -129,7 +129,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange(var before, _)  -> before == null || before.isBlank();
             };
-            addSpan(container, changeFormatter.format(resolved), unchanged, CSS_CHANGES);
+            addEntry(container, resolved, unchanged, CSS_CHANGES);
         }
         return container;
     }
@@ -162,11 +162,11 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange _               -> false;
             };
-            addSpan(container, changeFormatter.format(entry), unchanged, cssBase);
+            addEntry(container, entry, unchanged, cssBase);
         }
 
         if (!mediaChanges.isEmpty()) {
-            mediaChanges.forEach(pc -> addSpan(container, changeFormatter.format(pc), false, cssBase));
+            mediaChanges.forEach(pc -> addEntry(container, pc, false, cssBase));
         } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
@@ -180,11 +180,16 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         return snapshot != null ? snapshot.expandWithChanges(changedFields) : changedFields;
     }
 
+    private void addEntry(@NonNull Div container, @NonNull ChangeEntry entry, boolean unchanged, @NonNull String cssBase) {
+        changeFormatter.buildEntryInto(container, entry, cssBase, unchanged);
+    }
+
     private void addSpan(Div container, String text, boolean unchanged, String cssBase) {
         if (text == null || text.isBlank()) return;
-        Span span = new Span(i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
-        span.addClassName(cssBase + "-item");
-        if (unchanged) span.addClassName(cssBase + "-item--unchanged");
-        container.add(span);
+        Div item = new Div();
+        item.addClassName(cssBase + "-item");
+        if (unchanged) item.addClassName(cssBase + "-item--unchanged");
+        item.getElement().setProperty("innerHTML", i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
+        container.add(item);
     }
 }

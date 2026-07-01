@@ -30,7 +30,7 @@ function cardByTitle(page, title) {
 }
 
 async function openCardOverlay(page, card, screenshotPrefix) {
-  await card.waitFor({ timeout: 5000 });
+  await card.first().waitFor({ timeout: 5000 });
   await card.first().click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
@@ -126,6 +126,48 @@ async function openLightboxAndNavigate(page, card, screenshotPrefix) {
   await page.locator('.card-lightbox__content').waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+// All HTML formatting tags produced by the Quill toolbar — verified in activity diff, view, card, timeline
+const RICH_TAGS = ['<strong>', '<em>', '<u>', '<s>', '<blockquote>', '<ol>', '<ul>', '<h1>', '<h2>', '<h3>', '<a '];
+
+async function typeAllFormats(page, overlay) {
+  const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+  await editor.click();
+  // Use setContents with explicit Delta — block-level toolbar pickers lose focus in Playwright
+  // headless, and dangerouslyPasteHTML has a Quill v2 bug converting <ul> → <ol>.
+  // setContents with a Delta is the canonical Quill API: one text-change fires with all formats.
+  await page.evaluate(() => {
+    const q = document.querySelector('quill-editor')?.__quill;
+    if (!q) throw new Error('Quill instance not found');
+    q.setContents({
+      ops: [
+        { insert: 'bold', attributes: { bold: true } },
+        { insert: '\n' },
+        { insert: 'italic', attributes: { italic: true } },
+        { insert: '\n' },
+        { insert: 'underline', attributes: { underline: true } },
+        { insert: '\n' },
+        { insert: 'strike', attributes: { strike: true } },
+        { insert: '\n' },
+        { insert: 'quote' },
+        { insert: '\n', attributes: { blockquote: true } },
+        { insert: 'ordered' },
+        { insert: '\n', attributes: { list: 'ordered' } },
+        { insert: 'bullet' },
+        { insert: '\n', attributes: { list: 'bullet' } },
+        { insert: 'h1' },
+        { insert: '\n', attributes: { header: 1 } },
+        { insert: 'h2' },
+        { insert: '\n', attributes: { header: 2 } },
+        { insert: 'h3' },
+        { insert: '\n', attributes: { header: 3 } },
+        { insert: 'link', attributes: { link: 'https://example.com' } },
+        { insert: '\n' },
+      ],
+    });
+  });
+  await editor.locator('strong').waitFor({ timeout: 3000 });
+}
+
 // ── flows ─────────────────────────────────────────────────────────────────────
 
 async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [] }) {
@@ -138,17 +180,17 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
 
   await test.step('create discard clears form', async () => {
     await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
     await screenshot(page, `${screenshotPrefix}-discard-before`);
 
     await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
     await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue('', { timeout: 5000 });
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue('', { timeout: 5000 });
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor')).toHaveText(/^\s*$/, { timeout: 5000 });
     await screenshot(page, `${screenshotPrefix}-discarded`);
   });
 
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
 
@@ -196,7 +238,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, categoryToAdd = null, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, richText = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const rowsAfterEdit     = editVersion;
@@ -213,7 +255,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await overlay.locator('vaadin-button').filter({ hasText: /скинути зміни|discard changes/i }).first().click();
     await closeNotification(page);
     await expect(overlay.locator('[data-testid="advertisement-overlay-field-title"] input')).toHaveValue(originalTitle, { timeout: 5000 });
-    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea')).toHaveValue(originalDescription, { timeout: 5000 });
+    await expect(overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor')).toContainText(originalDescription, { timeout: 5000 });
     await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(count, { timeout: 8000 });
     await screenshot(page, `${screenshotPrefix}-discarded`);
 
@@ -238,8 +280,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await titleInput.clear();
     await titleInput.fill(newTitle);
 
-    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
-    await descInput.clear();
+    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
     await descInput.fill(newDescription);
     await screenshot(page, `${screenshotPrefix}-form-updated`);
 
@@ -263,18 +304,23 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await expect(lastRow.locator('.entity-activity-action')).toContainText(/created|створено/i);
     await expect(lastRow.locator('.entity-activity-version')).toContainText('v1');
     await expect(lastRow.locator('.entity-activity-changes')).toContainText(originalTitle);
+    await expect(lastRow.locator('.entity-activity-changes')).toContainText(originalDescription.substring(0, 20));
     await screenshot(page, `${screenshotPrefix}-activity`);
   });
 
-  const textOnlyDescription = newDescription + ' (v3)';
+  // When richText, typeAllFormats writes 'bold' as the first word — used for view/card text assertion
+  const textOnlyDescription = richText ? 'bold' : newDescription + ' (v3)';
 
-  await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion`, async () => {
+  await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion${richText ? ', all Quill formats' : ''}`, async () => {
     await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
-    await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').waitFor({ timeout: 3000 });
+    await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').waitFor({ timeout: 3000 });
 
-    const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
-    await descInput.clear();
-    await descInput.fill(textOnlyDescription);
+    if (richText) {
+      await typeAllFormats(page, overlay);
+    } else {
+      const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+      await descInput.fill(textOnlyDescription);
+    }
     await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-v3`);
 
     const activityList = await openActivityTab(overlay);
@@ -287,7 +333,48 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     expect(mediaLine).toBeTruthy();
     expect(mediaLine).toContain('—');
     await screenshot(page, `${screenshotPrefix}-v3-activity`);
+
+    if (richText) {
+      const items = textEditRow.locator('.entity-activity-changes-item');
+      const count = await items.count();
+      let allHtml = '';
+      for (let i = 0; i < count; i++) allHtml += await items.nth(i).innerHTML();
+      for (const tag of RICH_TAGS) {
+        expect(allHtml, `activity diff should contain ${tag}`).toContain(tag);
+      }
+      await screenshot(page, `${screenshotPrefix}-v3-activity-rich`);
+
+      let richIdx = -1;
+      for (let i = 0; i < count; i++) {
+        const html = await items.nth(i).innerHTML();
+        if (RICH_TAGS.some(t => html.includes(t))) { richIdx = i; break; }
+      }
+      await screenshot(page, `${screenshotPrefix}-v3-activity-rich-formats`);
+    }
   });
+
+  if (richText) {
+    await test.step(`format-only edit v${textEditVersion + 1} — apply italic to first line, text unchanged`, async () => {
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+      await editor.click();
+      await page.keyboard.press('Control+Home');
+      await page.keyboard.press('Shift+End');
+      await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-toolbar .ql-italic').click();
+      await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-format-only`);
+
+      const fmtList = await openActivityTab(overlay);
+      await expect(fmtList.locator('.entity-activity-row')).toHaveCount(textEditVersion + 1, { timeout: 5000 });
+      await expect(fmtList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version'))
+        .toContainText(`v${textEditVersion + 1}`);
+      const fmtItems = fmtList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes-item');
+      const fmtItemCount = await fmtItems.count();
+      let fmtHtml = '';
+      for (let i = 0; i < fmtItemCount; i++) fmtHtml += await fmtItems.nth(i).innerHTML();
+      expect(fmtHtml, 'format-only edit should record description change with <em>').toContain('<em>');
+      await screenshot(page, `${screenshotPrefix}-format-only-activity`);
+    });
+  }
 
   if (checkCurrentBadge) {
     await test.step('activity shows exactly one current-state badge', async () => {
@@ -296,26 +383,61 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (categoryToAdd) {
-    await test.step(`add category ${categoryToAdd} — activity diff shows assigned`, async () => {
+    await test.step(`add category ${categoryToAdd} — activity diff shows all fields, category assigned`, async () => {
       await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectCategoryInAdForm(page, overlay, categoryToAdd);
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-add`);
       const catActivityList = await openActivityTab(overlay);
-      await expect(catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes'))
-        .toContainText(categoryToAdd, { timeout: 5000 });
+      const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
+      await expect(catChanges).toContainText(categoryToAdd);
+      await expect(catChanges).not.toContainText('"null"');
+      await expect(catChanges).not.toContainText(': null');
       await screenshot(page, `${screenshotPrefix}-cat-add-activity`);
+    });
+  }
+
+  if (categoryToRemove) {
+    await test.step(`remove category ${categoryToRemove} — activity diff shows all fields, category unassigned`, async () => {
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await selectCategoryInAdForm(page, overlay, categoryToRemove);
+      await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-cat-remove`);
+      const catActivityList = await openActivityTab(overlay);
+      const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
+      await expect(catChanges).toContainText(categoryToRemove);
+      await expect(catChanges).not.toContainText('"null"');
+      await expect(catChanges).not.toContainText(': null');
+      await screenshot(page, `${screenshotPrefix}-cat-remove-activity`);
     });
   }
 
   await test.step('view reflects saved state', async () => {
     await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
+    if (richText) {
+      const viewHtml = await overlay.locator('.overlay__view-description').innerHTML();
+      for (const tag of RICH_TAGS) {
+        expect(viewHtml, `view description should render ${tag}`).toContain(tag);
+      }
+      await screenshot(page, `${screenshotPrefix}-view-rich-html`);
+    }
   });
 
-  await test.step('card reflects saved state', async () => {
+  await test.step(`card reflects saved state${richText ? ' — all Quill formats rendered' : ''}`, async () => {
     await closeOverlayToList(page, overlay);
-    const updatedCard = cardByTitle(page, newTitle);
+    const updatedCard = cardByTitle(page, newTitle).first();
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
+    if (richText) {
+      const descHtml = await updatedCard.locator('.advertisement-description').innerHTML();
+      for (const tag of RICH_TAGS) {
+        expect(descHtml, `card description should render ${tag}`).toContain(tag);
+      }
+      await screenshot(page, `${screenshotPrefix}-card-rich-html`);
+      await expect(updatedCard.locator('.advertisement-description--truncated')).toBeVisible();
+      await screenshot(page, `${screenshotPrefix}-card-desc-expanded`);
+    }
   });
 }
 
@@ -336,8 +458,8 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   // After restore: auto-switches to "Basic information" tab, form populated with v1 values + 3 media items
   const titleInput = overlay.locator('[data-testid="advertisement-overlay-field-title"] input');
   await expect(titleInput).toHaveValue(restoredTitle, { timeout: 8000 });
-  const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea');
-  await expect(descInput).toHaveValue(restoredDescription, { timeout: 5000 });
+  const descInput = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
+  await expect(descInput).toContainText(restoredDescription, { timeout: 5000 });
   await expect(overlay.locator('.attachment-gallery__item')).toHaveCount(3, { timeout: 10000 });
   await screenshot(page, `${screenshotPrefix}-restored-in-form`);
 
@@ -353,6 +475,7 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(currentTitle);
   await expect(changes0).toContainText(restoredTitle);
+  await expect(changes0).toContainText(restoredDescription.substring(0, 20));
   await expect(changes0).toContainText('YouTube-dQw4w9WgXcQ');
   await expect(changes0).toContainText('→');
   await screenshot(page, `${screenshotPrefix}-activity-after-restore`);
@@ -408,4 +531,4 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   [img1, img2].forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
 }
 
-module.exports = { MINIMAL_WEBM, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow };
+module.exports = { MINIMAL_WEBM, RICH_TAGS, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList };

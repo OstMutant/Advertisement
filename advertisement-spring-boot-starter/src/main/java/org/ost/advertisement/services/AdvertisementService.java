@@ -17,6 +17,8 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.owasp.html.PolicyFactory;
+import org.owasp.html.Sanitizers;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Validated
 public class AdvertisementService {
+
+    private static final PolicyFactory HTML_SANITIZER = Sanitizers.FORMATTING
+            .and(Sanitizers.LINKS)
+            .and(Sanitizers.BLOCKS);
 
     private final AdvertisementRepository          repository;
     private final ComponentFactory<AuditPort>      auditPortFactory;
@@ -155,9 +161,14 @@ public class AdvertisementService {
         return Advertisement.builder()
                 .id(dto.id())
                 .title(dto.title())
-                .description(dto.description())
+                .description(sanitizeHtml(dto.description()))
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .createdByUserId(before != null ? before.getCreatedByUserId() : null)
                 .build();
+    }
+
+    private static String sanitizeHtml(String html) {
+        if (html == null || html.isBlank()) return html;
+        return HTML_SANITIZER.sanitize(html);
     }
 }

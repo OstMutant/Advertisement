@@ -158,10 +158,18 @@ public class AdvertisementCardView extends HorizontalLayout
         return title;
     }
 
-    private Span createDescription(AdvertisementInfoDto ad) {
-        Span description = new Span(ad.getDescription());
+    private Div createDescription(AdvertisementInfoDto ad) {
+        String html = ad.getDescription() != null ? ad.getDescription().replace("&nbsp;", " ") : "";
+        if (html.isBlank()) return new Div();
+
+        Div description = new Div();
         description.addClassName("advertisement-description");
-        return description;
+        description.addClassName("advertisement-description--truncated");
+        description.getElement().setProperty("innerHTML", html);
+
+        Div wrapper = new Div(description);
+        wrapper.addClassName("advertisement-description-wrapper");
+        return wrapper;
     }
 
     private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {

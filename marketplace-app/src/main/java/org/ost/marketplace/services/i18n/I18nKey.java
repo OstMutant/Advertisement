@@ -205,6 +205,8 @@ public enum I18nKey {
     AUDIT_CHANGES_FIELD_CHANGED("audit.changes.field.changed"),
     AUDIT_CHANGES_MEDIA_CHANGED("audit.changes.media.changed"),
     AUDIT_VALUE_TRUNCATED("audit.value.truncated"),
+    AUDIT_CHANGES_SHOW_MORE("audit.changes.show.more"),
+    AUDIT_CHANGES_SHOW_LESS("audit.changes.show.less"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),

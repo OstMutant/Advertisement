@@ -1,3 +1,8 @@
+## ⛔ RE-READ ALL RULES BEFORE EVERY ACTION
+Before executing any tool call — re-read this entire file. No exceptions.
+
+---
+
 > ## ⛔ NEVER commit without explicit user request
 > `git commit` is **forbidden** unless the user says "зроби коміт", "commit", or equivalent.
 > `git add` runs automatically after every file change — commit does NOT.

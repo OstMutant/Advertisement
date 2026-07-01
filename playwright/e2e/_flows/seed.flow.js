@@ -51,7 +51,7 @@ async function createAdvertisementBulk(page, { title, description, category = nu
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   if (category) await selectCategoryInAdForm(page, overlay, category);
   await overlay.locator('vaadin-button').filter({ hasText: /save|зберегти/i }).click();
   await overlay.waitFor({ state: 'hidden', timeout: 10000 });

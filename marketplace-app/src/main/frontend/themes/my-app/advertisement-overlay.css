@@ -148,13 +148,25 @@
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .overlay__view-description {
     font-size: 1rem;
     color: #475569;
     line-height: 1.75;
-    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    overflow-x: hidden;
+}
+
+.overlay__view-description p {
+    overflow-wrap: break-word;
+    margin: 0;
+}
+
+.overlay__view-description p + p {
+    margin-top: 0.75em;
 }
 
 /* ----------------------------------------------------------------- meta container */
@@ -196,9 +208,26 @@
     }
 }
 
-.overlay__description-text-area {
-    min-height: 12em;
+.overlay__description-rich-editor {
+    width: 100%;
 }
+
+.overlay__description-rich-editor .quill-editor-label {
+    display: block;
+    font-size: var(--lumo-font-size-s);
+    color: var(--lumo-secondary-text-color);
+    font-weight: 500;
+    margin-bottom: var(--lumo-space-xs);
+}
+
+.overlay__description-rich-editor .ql-container {
+    min-height: 10em;
+    font-size: 1rem;
+    font-family: var(--lumo-font-family);
+}
+
+/* Hide trailing empty Quill paragraph (<p><br></p>) in overlay view */
+.overlay__view-description p:last-child:has(> br:only-child) { display: none; }
 
 /* ----------------------------------------------------------------- adv tabs */
 

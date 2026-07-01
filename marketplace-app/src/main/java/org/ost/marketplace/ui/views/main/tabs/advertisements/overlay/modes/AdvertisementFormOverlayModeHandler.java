@@ -29,7 +29,7 @@ import org.ost.marketplace.ui.mappers.AdvertisementMapper;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.marketplace.ui.views.components.fields.UiTextArea;
+import org.ost.marketplace.ui.views.components.fields.QuillEditor;
 import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
@@ -82,11 +82,12 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final UiComponentFactory<UiIconButton>                             cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
     private final UiTextField                                                  titleField;
-    private final UiTextArea                                                   descriptionField;
     private final UiPrimaryButton                                              saveButton;
     private final UiTertiaryButton                                             discardButton;
     private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
     private final LocaleProvider                                               localeProvider;
+
+    private QuillEditor descriptionField;
 
     private Parameters                        params;
     private boolean                           isCreate;
@@ -117,13 +118,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .required(true)
                 .build());
 
-        descriptionField.configure(UiTextArea.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
-                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION)
-                .maxLength(1000)
-                .required(true)
-                .build());
-        descriptionField.addClassName("overlay__description-text-area");
+        descriptionField = new QuillEditor();
+        descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
+        descriptionField.addClassName("overlay__description-rich-editor");
+        descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
 
         availableCategories = taxonPortFactory.findIfAvailable()
                 .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
@@ -143,7 +141,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         buildBinder(dto);
 
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
-        descriptionField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         descriptionField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         if (categoryComboBox != null) {

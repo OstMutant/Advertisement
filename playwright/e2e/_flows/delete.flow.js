@@ -29,7 +29,7 @@ async function runCreateSimpleAdvertisementFlow(page, { title, description, scre
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
   await overlay.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
   await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });

@@ -14,7 +14,9 @@ import java.util.Optional;
 public record CategoryChangeSnapshotDto(
         EntityType entityType,
         String categoryName,
-        boolean assigned
+        boolean assigned,
+        String title,
+        String description
 ) implements AuditableSnapshot {
 
     @Override
@@ -28,14 +30,17 @@ public record CategoryChangeSnapshotDto(
         CategoryChangeSnapshotDto prev = previous instanceof CategoryChangeSnapshotDto p ? p : null;
         boolean wasAssigned = prev != null && prev.assigned();
         if (assigned == wasAssigned) return List.of();
-        String from = wasAssigned ? categoryName : null;
-        String to   = assigned   ? categoryName : null;
+        String from = wasAssigned ? categoryName : "";
+        String to   = assigned   ? categoryName : "";
         return List.of(new ChangeEntry.FieldChange(Fields.categoryName, from, to));
     }
 
     @Override
     public List<ChangeEntry.FieldChange> allFields() {
-        return List.of(new ChangeEntry.FieldChange(Fields.categoryName, null, assigned ? categoryName : null));
+        return List.of(
+                new ChangeEntry.FieldChange(Fields.title,        null, title),
+                new ChangeEntry.FieldChange(Fields.description,  null, description),
+                new ChangeEntry.FieldChange(Fields.categoryName, null, assigned ? categoryName : ""));
     }
 
     @Override
