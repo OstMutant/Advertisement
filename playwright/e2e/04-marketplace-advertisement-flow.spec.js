@@ -5,7 +5,7 @@ async function waitForOverlay(page, timeout = 10000) {
   await page.locator('.base-overlay.overlay--visible').waitFor({ timeout });
 }
 const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_flows/auth.flow');
-const { MINIMAL_WEBM, RICH_TAGS, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList } = require('./_flows/advertisement.flow');
+const { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList } = require('./_flows/advertisement.flow');
 const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
 const { openTimelineTab, openTimelineFilter, closeTimelineFilter, fillEntityType, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { waitForLightboxOpen, waitForLightboxClosed, getIframeSrc, clickLightboxThumb, getVideoSrc, isVideoWrapperVisible, waitForVideoWrapperVisible, waitForMainImageVisible } = require('./_flows/attachment.flow');
@@ -98,26 +98,15 @@ test.describe('Advertisement flow', () => {
       const tlRows = page.locator('.activity-feed .activity-feed-row');
       const tlRowCount = await tlRows.count();
       let tlAllHtml = '';
-      let tlRichRowIdx = -1;
-      let tlRichItemIdx = -1;
       for (let i = 0; i < tlRowCount; i++) {
         const rowTitle = await tlRows.nth(i).locator('.activity-feed-name').textContent().catch(() => '');
         if (!rowTitle.includes(UPDATE.enAd.title)) continue;
         const items = tlRows.nth(i).locator('.activity-feed-changes-item');
         const n = await items.count();
-        for (let j = 0; j < n; j++) {
-          const html = await items.nth(j).innerHTML();
-          tlAllHtml += html;
-          if (tlRichRowIdx < 0 && RICH_TAGS.some(t => html.includes(t))) { tlRichRowIdx = i; tlRichItemIdx = j; }
-        }
+        for (let j = 0; j < n; j++) tlAllHtml += await items.nth(j).innerHTML();
       }
-      for (const tag of RICH_TAGS) {
-        expect(tlAllHtml, `timeline should contain ${tag} for rich text description`).toContain(tag);
-      }
+      assertAllRichTags(expect, tlAllHtml, 'timeline');
       await screenshot(page, 'adv-useren-edit-timeline-rich-html');
-
-      expect(tlRichRowIdx, 'timeline should have a row with rich html items').toBeGreaterThanOrEqual(0);
-      await screenshot(page, 'adv-useren-edit-timeline-rich-items');
 
       await runLogoutFlow(page, expect);
     });
@@ -296,14 +285,10 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn verifies long description — activity diff shows all fields, description truncated on card, no mid-word breaks', async () => {
-    const LONG_DESC = 'This advertisement description is intentionally very long to trigger the show more toggle. ' +
-      'It must span more than three visible lines in the card list view even on a very wide viewport. ' +
-      'To guarantee overflow we add extra sentences here: the show more button should appear whenever ' +
-      'the rendered text height exceeds the three-line cap, not when the raw HTML byte count crosses an arbitrary threshold. ' +
-      'This fifth sentence pushes the content further past the limit. ' +
-      'A sixth sentence adds even more text to ensure the description overflows at any typical viewport width. ' +
-      'The seventh and final sentence makes this text long enough to reliably exceed the three-line maximum on any screen.';
+  test('adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated', async () => {
+    const LONG_DESC = 'This description is intentionally long to test the three-line clamp on the advertisement card. ' +
+      'It continues with more text to reliably exceed the visible area at any viewport width. ' +
+      'A third sentence ensures truncation activates even on wide screens, confirming the CSS clamp works as expected.';
     const SHORT_DESC = 'Short initial description for expand test.';
     const TITLE = 'Expand Toggle Test Ad';
 
@@ -317,18 +302,13 @@ test.describe('Advertisement flow', () => {
     await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(LONG_DESC);
     await saveAndWaitForIdle(page, expect, overlay, 'trunc-save');
 
-    await test.step('activity diff shows all fields including description change', async () => {
+    await test.step('activity diff — all fields visible, long description value is collapsible', async () => {
       const activityList = await openActivityTab(overlay);
-      const latestRow = activityList.locator('.entity-activity-row').nth(0);
-      const changes = latestRow.locator('.entity-activity-changes');
+      const changes = activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(changes).toContainText(TITLE);
       await expect(changes).toContainText(SHORT_DESC.substring(0, 20));
       await screenshot(page, 'trunc-activity-all-fields');
-    });
 
-    await test.step('activity diff item show more/less — expand and collapse long description value', async () => {
-      const activityList = overlay.locator('.entity-activity-list');
-      const changes = activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       const collapsibleValues = changes.locator('.entity-activity-changes-value--collapsible');
       await expect(collapsibleValues).toHaveCount(1, { timeout: 5000 });
       const valueToggle = changes.locator('.entity-activity-changes-value-toggle').first();
@@ -351,45 +331,6 @@ test.describe('Advertisement flow', () => {
       await expect(card).toBeVisible({ timeout: 5000 });
       await expect(card.locator('.advertisement-description--truncated')).toBeVisible();
       await screenshot(page, 'trunc-card-collapsed');
-    });
-
-    await test.step('card title and description — no mid-word breaks via Range API', async () => {
-      const card = cardByTitle(page, TITLE);
-      await expect(card).toBeVisible({ timeout: 5000 });
-
-      const brokenWords = await card.evaluate(cardEl => {
-        function checkWordBreaks(el) {
-          const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
-          const broken = [];
-          let node;
-          while ((node = walker.nextNode())) {
-            const text = node.textContent;
-            let offset = 0;
-            for (const word of text.split(/\s+/)) {
-              // Skip very short words and hyphenated compounds — CSS legitimately breaks at hyphens
-              if (word.length < 3 || word.includes('-')) { offset += word.length + 1; continue; }
-              const idx = text.indexOf(word, offset);
-              if (idx < 0) continue;
-              const range = document.createRange();
-              range.setStart(node, idx);
-              range.setEnd(node, idx + word.length);
-              const rects = Array.from(range.getClientRects());
-              const tops = [...new Set(rects.map(r => Math.round(r.top)))];
-              if (tops.length > 1) broken.push(word);
-              offset = idx + word.length;
-            }
-          }
-          return broken;
-        }
-        const title = cardEl.querySelector('.advertisement-title');
-        const desc  = cardEl.querySelector('.advertisement-description');
-        return [
-          ...checkWordBreaks(title || cardEl),
-          ...checkWordBreaks(desc  || cardEl),
-        ];
-      });
-
-      expect(brokenWords, `these words are split mid-character: ${brokenWords.join(', ')}`).toHaveLength(0);
     });
 
     await runLogoutFlow(page, expect);

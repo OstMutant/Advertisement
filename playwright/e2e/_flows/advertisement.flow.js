@@ -129,6 +129,15 @@ async function openLightboxAndNavigate(page, card, screenshotPrefix) {
 // All HTML formatting tags produced by the Quill toolbar — verified in activity diff, view, card, timeline
 const RICH_TAGS = ['<strong>', '<em>', '<u>', '<s>', '<blockquote>', '<ol>', '<ul>', '<h1>', '<h2>', '<h3>', '<a '];
 
+// First word set by typeAllFormats Delta — used to assert view/card text after a rich-text edit
+const RICH_TEXT_FIRST_WORD = 'bold';
+
+function assertAllRichTags(expect, html, context) {
+  for (const tag of RICH_TAGS) {
+    expect(html, `${context} should contain ${tag}`).toContain(tag);
+  }
+}
+
 async function typeAllFormats(page, overlay) {
   const editor = overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor');
   await editor.click();
@@ -308,8 +317,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await screenshot(page, `${screenshotPrefix}-activity`);
   });
 
-  // When richText, typeAllFormats writes 'bold' as the first word — used for view/card text assertion
-  const textOnlyDescription = richText ? 'bold' : newDescription + ' (v3)';
+  const textOnlyDescription = richText ? RICH_TEXT_FIRST_WORD : newDescription + ' (v3)';
 
   await test.step(`text-only edit v${textEditVersion} — media field shows — after deletion${richText ? ', all Quill formats' : ''}`, async () => {
     await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
@@ -336,20 +344,11 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     if (richText) {
       const items = textEditRow.locator('.entity-activity-changes-item');
-      const count = await items.count();
+      const n = await items.count();
       let allHtml = '';
-      for (let i = 0; i < count; i++) allHtml += await items.nth(i).innerHTML();
-      for (const tag of RICH_TAGS) {
-        expect(allHtml, `activity diff should contain ${tag}`).toContain(tag);
-      }
+      for (let i = 0; i < n; i++) allHtml += await items.nth(i).innerHTML();
+      assertAllRichTags(expect, allHtml, 'activity diff');
       await screenshot(page, `${screenshotPrefix}-v3-activity-rich`);
-
-      let richIdx = -1;
-      for (let i = 0; i < count; i++) {
-        const html = await items.nth(i).innerHTML();
-        if (RICH_TAGS.some(t => html.includes(t))) { richIdx = i; break; }
-      }
-      await screenshot(page, `${screenshotPrefix}-v3-activity-rich-formats`);
     }
   });
 
@@ -418,9 +417,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
     if (richText) {
       const viewHtml = await overlay.locator('.overlay__view-description').innerHTML();
-      for (const tag of RICH_TAGS) {
-        expect(viewHtml, `view description should render ${tag}`).toContain(tag);
-      }
+      assertAllRichTags(expect, viewHtml, 'view description');
       await screenshot(page, `${screenshotPrefix}-view-rich-html`);
     }
   });
@@ -431,12 +428,9 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
     if (richText) {
       const descHtml = await updatedCard.locator('.advertisement-description').innerHTML();
-      for (const tag of RICH_TAGS) {
-        expect(descHtml, `card description should render ${tag}`).toContain(tag);
-      }
-      await screenshot(page, `${screenshotPrefix}-card-rich-html`);
+      assertAllRichTags(expect, descHtml, 'card description');
       await expect(updatedCard.locator('.advertisement-description--truncated')).toBeVisible();
-      await screenshot(page, `${screenshotPrefix}-card-desc-expanded`);
+      await screenshot(page, `${screenshotPrefix}-card-rich-html`);
     }
   });
 }
@@ -531,4 +525,4 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   [img1, img2].forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
 }
 
-module.exports = { MINIMAL_WEBM, RICH_TAGS, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList };
+module.exports = { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList };
