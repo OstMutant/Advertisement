@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-06-27 · 35 passed · 4 failed · 10 skipped · 49 total
+Last updated: 2026-07-01 · 33 passed · 0 failed · 6 skipped · 39 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -42,22 +42,14 @@ Last updated: 2026-06-27 · 35 passed · 4 failed · 10 skipped · 49 total
 **› e2e/04-marketplace-advertisement-flow.spec.js**
 - [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, two category rows, categories text and view chips
 - [x] Advertisement flow › userUk creates advertisement — YouTube, image and video, single activity row
-- [x] Advertisement flow › userEn edits advertisement — discard, two saves with activity diff, admin timeline check
+- [x] Advertisement flow › userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, admin timeline check
 - [x] Advertisement flow › userUk edits advertisement — discard, two saves with activity diff, admin timeline check
 - [x] Advertisement flow › userEn restores advertisement — activity diff shows restored media and text, view and card updated
 - [x] Advertisement flow › userUk restores advertisement — activity diff shows restored media and text, view and card updated
 - [x] Advertisement flow › moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check
-- [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added with diff, add and replace media, timeline check
-- [!] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
-- [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, two category rows, categories text and view chips
-- [x] Advertisement flow › userUk creates advertisement — YouTube, image and video, single activity row
-- [x] Advertisement flow › userEn edits advertisement — discard, two saves with activity diff, admin timeline check
-- [x] Advertisement flow › userUk edits advertisement — discard, two saves with activity diff, admin timeline check
-- [x] Advertisement flow › userEn restores advertisement — activity diff shows restored media and text, view and card updated
-- [x] Advertisement flow › userUk restores advertisement — activity diff shows restored media and text, view and card updated
-- [!] Advertisement flow › moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check
-- [-] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
-- [-] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added with diff, add and replace media, timeline check
+- [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check
+- [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
+- [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated
 
 ## e2e/05-seed-filter-sort-pagination.spec.js
 
@@ -72,8 +64,6 @@ Last updated: 2026-06-27 · 35 passed · 4 failed · 10 skipped · 49 total
 ## e2e/06-marketplace-delete-flow.spec.js
 
 **› e2e/06-marketplace-delete-flow.spec.js**
-- [!] Delete flow › userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list
-- [-] Delete flow › adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid
-- [!] Delete flow › userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list
-- [-] Delete flow › adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid
+- [x] Delete flow › userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list
+- [x] Delete flow › adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid
 

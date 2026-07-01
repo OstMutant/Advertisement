@@ -13,6 +13,7 @@ import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
@@ -31,6 +32,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -46,8 +49,8 @@ public class UserService {
     private final PasswordEncoder             passwordEncoder;
     private final ComponentFactory<AuditPort> auditPortFactory;
 
-    public List<User> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return repository.findByFilter(filter, PageRequest.of(page, size, sort));
+    public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
+        return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {
@@ -95,16 +98,17 @@ public class UserService {
         });
     }
 
-    public Optional<User> findById(@NonNull Long id) {
-        return repository.findById(id);
+    public Optional<UserDto> findById(@NonNull Long id) {
+        return repository.findById(id).map(this::toDto);
     }
 
     @Transactional
-    public Optional<User> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
+    public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
         return auditPortFactory.findIfAvailable()
                 .flatMap(p -> p.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER))
                 .map(AuditSnapshotContentDto::snapshotData)
-                .flatMap(snap -> applyUserRestore(userId, snap, actingUserId));
+                .flatMap(snap -> applyUserRestore(userId, snap, actingUserId))
+                .map(this::toDto);
     }
 
     private Optional<User> applyUserRestore(@NonNull Long userId, @NonNull UserSnapshotDto snap, @NonNull Long actingUserId) {
@@ -138,18 +142,28 @@ public class UserService {
         return repository.findByEmail(email);
     }
 
+    public Optional<UserDto> findDtoByEmail(@NonNull String email) {
+        return repository.findByEmail(email).map(this::toDto);
+    }
+
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
     }
 
-    public Map<Long, String> findActorNames(@NonNull Set<Long> ids) {
-        return repository.findActorNames(ids.toArray(new Long[0]));
+    public Map<Long, String> findActorNames(@NonNull Collection<Long> ids) {
+        Set<Long> idSet = ids instanceof Set<Long> s ? s : new HashSet<>(ids);
+        return repository.findActorNames(idSet.toArray(new Long[0]));
     }
 
     public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
         return item.snapshotData() != null
                 ? item.snapshotData().expandWithChanges(item.changes())
                 : item.changes();
+    }
+
+    private UserDto toDto(User user) {
+        return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getRole(),
+                user.getCreatedAt(), user.getUpdatedAt(), user.getLocale());
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

@@ -12,7 +12,6 @@ import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.security.UserIdMarker;
 import org.ost.platform.user.spi.UserPort;
-import org.ost.user.entity.User;
 import org.ost.user.security.OwnershipChecker;
 import org.ost.user.security.RoleChecker;
 import org.ost.user.services.UserService;
@@ -26,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+
 @Service
 @RequiredArgsConstructor
 public class UserPortImpl implements UserPort {
@@ -37,7 +37,7 @@ public class UserPortImpl implements UserPort {
 
     @Override
     public List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return userService.getFiltered(filter, page, size, sort).stream().map(UserPortImpl::toDto).toList();
+        return userService.getFiltered(filter, page, size, sort);
     }
 
     @Override
@@ -72,17 +72,17 @@ public class UserPortImpl implements UserPort {
 
     @Override
     public Optional<UserDto> findById(@NonNull Long id) {
-        return userService.findById(id).map(UserPortImpl::toDto);
+        return userService.findById(id);
     }
 
     @Override
     public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
-        return userService.restoreToSnapshot(userId, snapshotId, actingUserId).map(UserPortImpl::toDto);
+        return userService.restoreToSnapshot(userId, snapshotId, actingUserId);
     }
 
     @Override
     public Optional<UserDto> findByEmail(@NonNull String email) {
-        return userService.findByEmail(email).map(UserPortImpl::toDto);
+        return userService.findDtoByEmail(email);
     }
 
     @Override
@@ -92,7 +92,7 @@ public class UserPortImpl implements UserPort {
 
     @Override
     public Map<Long, String> findActorNames(@NonNull Collection<Long> ids) {
-        return userService.findActorNames(ids instanceof java.util.Set<Long> s ? s : new java.util.HashSet<>(ids));
+        return userService.findActorNames(ids);
     }
 
     @Override
@@ -130,14 +130,4 @@ public class UserPortImpl implements UserPort {
         return ownershipChecker.isOwner(user, ownerId);
     }
 
-    static UserDto toDto(User user) {
-        return new UserDto(
-                user.getId(),
-                user.getName(),
-                user.getEmail(),
-                user.getRole(),
-                user.getCreatedAt(),
-                user.getUpdatedAt(),
-                user.getLocale());
-    }
 }
