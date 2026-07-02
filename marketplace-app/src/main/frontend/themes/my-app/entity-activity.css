@@ -96,6 +96,11 @@
     opacity: 0.6;
 }
 
+.entity-activity-changes-value {
+    font-style: normal;
+    color: #334155;
+}
+
 .entity-activity-changes-value--collapsible {
     max-height: 3lh;
     overflow: hidden;

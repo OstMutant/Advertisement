@@ -110,6 +110,11 @@
     opacity: 0.6;
 }
 
+.activity-feed-changes-value {
+    font-style: normal;
+    color: #334155;
+}
+
 .activity-feed-changes-value--collapsible {
     display: -webkit-box;
     -webkit-line-clamp: 3;

@@ -15,6 +15,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuditChangeFormatter {
 
+    private static final String BULLET      = "• ";
+    private static final String ARROW       = " → ";
+    private static final String EMPTY_VALUE = "—";
+
     private final I18nService i18n;
 
     static final int VALUE_COLLAPSE_THRESHOLD = 150;
@@ -45,15 +49,13 @@ public class AuditChangeFormatter {
                 item.addClassName(cssClass + "-item");
                 if (unchanged) item.addClassName(cssClass + "-item--unchanged");
                 if (from == null || from.isBlank()) {
-                    item.add(new Span("\u2022 " + field + ": \""));
+                    item.add(new Span(BULLET + field + ": "));
                     addValueSection(item, cssClass, to);
-                    item.add(new Span("\""));
                 } else {
-                    item.add(new Span("\u2022 " + field + ": \""));
+                    item.add(new Span(BULLET + field + ": "));
                     addValueSection(item, cssClass, from);
-                    item.add(new Span("\" \u2192 \""));
+                    item.add(new Span(ARROW));
                     addValueSection(item, cssClass, to);
-                    item.add(new Span("\""));
                 }
                 container.add(item);
             }
@@ -86,6 +88,7 @@ public class AuditChangeFormatter {
             );
         } else {
             Span valueSpan = new Span();
+            valueSpan.addClassName(cssClass + "-value");
             valueSpan.getElement().setProperty("innerHTML", rendered);
             parent.add(valueSpan);
         }
@@ -127,7 +130,7 @@ public class AuditChangeFormatter {
     }
 
     private String trunc(String s) {
-        if (s == null || s.isBlank()) return "\u2014";
+        if (s == null || s.isBlank()) return EMPTY_VALUE;
         if (s.length() <= 600) return s;
         return i18n.get(I18nKey.AUDIT_VALUE_TRUNCATED, s.substring(0, 600));
     }

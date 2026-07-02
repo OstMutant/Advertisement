@@ -391,7 +391,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(catChanges).toContainText(categoryToAdd);
-      await expect(catChanges).not.toContainText('"null"');
+      await expect(catChanges).not.toContainText('null');
       await expect(catChanges).not.toContainText(': null');
       await screenshot(page, `${screenshotPrefix}-cat-add-activity`);
     });
@@ -407,7 +407,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       const catChanges = catActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(catChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(catChanges).toContainText(categoryToRemove);
-      await expect(catChanges).not.toContainText('"null"');
+      await expect(catChanges).not.toContainText('null');
       await expect(catChanges).not.toContainText(': null');
       await screenshot(page, `${screenshotPrefix}-cat-remove-activity`);
     });
