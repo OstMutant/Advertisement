@@ -159,44 +159,48 @@ sequenceDiagram
 ## 4. Restore from Snapshot
 
 **Classes involved:**
-- UI view initiates restore
-- `org.ost.attachment.services.AttachmentService` (restore attachment snapshots)
+- UI view initiates restore (e.g., `AdvertisementViewOverlayModeHandler`)
+- `org.ost.audit.services.DefaultAuditPort` (retrieve snapshot + capture restore event)
 - `org.ost.audit.services.AuditReadService` (load snapshot data)
-- `org.ost.audit.services.DefaultAuditPort` (retrieve snapshot)
+- `org.ost.audit.repository.AuditLogRepository` (queries audit_log table)
+- `org.ost.advertisement.services.AdvertisementService` (applies entity restore)
 
 ```mermaid
 sequenceDiagram
     participant UI as UI
+    participant AdvPort as AdvertisementPort
+    participant AdvService as AdvertisementService
     participant AuditPort as DefaultAuditPort
     participant AuditRead as AuditReadService
     participant AuditRepo as AuditLogRepository
-    participant AttService as AttachmentService
     
-    UI->>UI: user clicks "restore to this point in time"
-    UI->>UI: gets timestamp from activity feed
+    UI->>UI: user clicks "restore to this snapshot"
+    UI->>UI: gets snapshotId from activity feed
     
-    UI->>AuditPort: getSnapshotContent(timestamp, ADVERTISEMENT)
+    UI->>AuditPort: getSnapshotContent(snapshotId, ADVERTISEMENT)
     
-    AuditPort->>AuditRead: getSnapshotAtTime(entityType, entityId, timestamp)
-    AuditRead->>AuditRepo: SELECT * FROM audit_log WHERE entity_id=id AND created_at <= timestamp
+    AuditPort->>AuditRead: getSnapshotContent(snapshotId, entityType)
+    AuditRead->>AuditRepo: SELECT * FROM audit_log WHERE id=snapshotId
     
-    Note over AuditRepo: Get all changes up to timestamp<br/>to reconstruct state
-    
-    AuditRepo-->>AuditRead: List<AuditLogProjection>
-    AuditRead->>AuditRead: replay changes, build final snapshot
+    AuditRepo-->>AuditRead: AuditLogProjection
     AuditRead-->>AuditPort: AuditSnapshotContentDto
+    AuditPort-->>UI: snapshot (advertisement fields)
     
-    AuditPort-->>UI: snapshot (advertisement fields, media state)
+    Note over UI: Apply restored fields to entity
     
-    Note over UI: Also restore attachments
+    UI->>AdvPort: save(restoreDto, actorId)
+    AdvPort->>AdvService: save(dto, actorId)
+    AdvService->>AdvService: UPDATE advertisement SET title=..., description=...
     
-    UI->>AttService: restoreAttachments(ADVERTISEMENT, id, snapshotUrls)
-    AttService->>AttService: recreate attachment records from snapshot
-    AttService->>AttService: INSERT INTO attachment (new records from snapshot)
-    AttService-->>UI: success
+    Note over AdvService: Capture RESTORED action (ActionType.RESTORED)
     
-    UI->>UI: display restored state (read-only)
-    UI->>UI: offer "create version" or "discard"
+    AdvService->>AuditPort: captureRestore(entityId, snapshot, actorId)
+    AuditPort->>AuditRepo: INSERT INTO audit_log (action_type='RESTORED', snapshot_data={...})
+    
+    AdvService-->>AdvPort: entityId
+    AdvPort-->>UI: success
+    
+    UI->>UI: reload entity, close restore dialog
 ```
 
 ---

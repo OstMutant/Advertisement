@@ -363,6 +363,52 @@ join to `taxon_assignment` table from advertisement code.
 
 ---
 
+---
+
+## ADR-020: AbstractEntityOverlay<H> — currentFormHandler and save/cancel lifecycle in base class
+**Status:** Accepted (done 2026-07-01)
+
+**Context:** Concrete overlay classes (`AdvertisementOverlay`, `UserOverlay`, `TaxonOverlay`,
+`SettingsOverlay`) each duplicated the same `currentFormHandler` field, `handleSave()` try/catch
+block, `doCancel()` dispatch, and `hasUnsavedChanges()` check. Any fix in one overlay had to be
+applied to all others.
+
+**Decision:** `AbstractEntityOverlay<H extends AbstractFormOverlayModeHandler<?>>` now owns:
+- `protected H currentFormHandler` — typed field for the active form handler
+- `protected final handleSave()` — shared save lifecycle (try/catch, `afterSave(bool)`, `proceed()`)
+- `protected final doCancel()` — calls `currentFormHandler.discardChanges()`, then `afterDiscard()`
+- `protected final hasUnsavedChanges()` — null-safe check via `currentFormHandler.hasChanges()`
+
+Concrete overlays implement abstract hooks: `saveConfig()`, `proceed()`, `afterDiscard()`.
+
+**Consequences:**
+- `switchTo()` must reset `currentFormHandler = null` before the switch expression — without this,
+  after `VIEW → EDIT → VIEW` the handler remains non-null and `hasUnsavedChanges()` returns `true`.
+- `SaveConfig` record `(I18nKey success, I18nKey validFailed, I18nKey saveError)` declares error
+  key mapping per overlay type.
+
+---
+
+## ADR-021: QuillEditor — custom Vaadin web component for rich-text editing
+**Status:** Accepted (done 2026-07-01)
+
+**Context:** Advertisement descriptions require rich-text formatting (bold, italic, links, paragraph
+blocks). Vaadin's built-in `TextArea` is plain-text only; embedding Quill as a web component
+gives native Vaadin field integration with value binding.
+
+**Decision:** `QuillEditor` extends `AbstractSinglePropertyField<QuillEditor, String>`, registered
+via `@Tag("quill-editor")`, `@NpmPackage(value="quill", version="2.0.3")`, and `@JsModule("./quill-editor.js")`.
+Implements `HasSize` and `HasLabel` for standard Vaadin field behavior. The custom element handles
+Quill initialization and bidirectional value sync.
+
+**Consequences:**
+- `quill-editor.js` lives in `marketplace-app/src/main/frontend/` (Vaadin Vite entry).
+- HTML output is sanitized server-side in `AdvertisementService` using OWASP HTML Sanitizer
+  (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`) — server never trusts raw HTML from the client.
+- Used in `AdvertisementFormOverlayModeHandler` and `TaxonFormOverlayModeHandler` for description fields.
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

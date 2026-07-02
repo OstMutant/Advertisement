@@ -45,6 +45,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ No Vaadin in starters (clean separation of concerns)
 - ✓ Repositories not imported by UI directly (all through Ports)
 - ✓ **AccessEvaluator fixed (ADR-016, 2026-06-15)** — now uses `UserPort` + `AuthContextService` only; no `org.ost.user.*` internal imports
+- ✓ **UserPortImpl mapping logic resolved (2026-07-01)** — `toDto()` and stream pipelines moved to `UserService`; port is pure delegation
 - ✗ Optional audit/attachment dependencies not guarded; runtime assumptions remain
 - ~ Advertisement has FK to user; tight schema coupling (acceptable but limits independence)
 
@@ -219,7 +220,9 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 1. ~~**AccessEvaluator Coupling (HIGH)**~~ — ✅ Resolved (ADR-016, 2026-06-15)
 
-2. **Optional Dependencies Not Guarded (MEDIUM):**
+2. ~~**UserPortImpl Mapping Logic (LOW)**~~ — ✅ Resolved (2026-07-01): mapping moved to `UserService`; port is pure delegation.
+
+3. **Optional Dependencies Not Guarded (MEDIUM):**
    - audit/attachment marked optional in advertisement-starter pom.xml but not protected with ObjectProvider
    - Runtime failure if excluded
    - Fix: Remove `<optional>` or add guards

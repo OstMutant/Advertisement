@@ -12,6 +12,18 @@
 
 ---
 
+### ✅ RESOLVED: UserPortImpl DTO Mapping Logic (2026-07-01)
+
+**Previously:** `UserPortImpl` contained `toDto(User)` mapping method and inline `.stream().map(UserPortImpl::toDto)` pipelines — business logic inside a port class.
+
+**Resolution:** DTO mapping moved into `UserService`. `UserPortImpl.findByEmail()` delegates to `userService.findDtoByEmail(email)`. Port methods are now pure single-line delegations.
+
+**File:** `/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java`
+
+→ [violation-004-userportimpl-mapping-logic](../../features/completed/issues/violation-004-userportimpl-mapping-logic.md) (completed)
+
+---
+
 ## No Cyclic Dependencies Detected
 
 All module dependencies form a DAG (Directed Acyclic Graph):
@@ -155,13 +167,13 @@ Option 1 (remove optional) is simplest. Audit and attachment are core to the mar
 | Module | Java Files | Largest File | Notes |
 |--------|-----------|------|-------|
 | query-lib | 7 | ~200 lines | Small utility library |
-| platform-commons | ~49 | I18nKey is in marketplace-app | Mostly interfaces + DTOs |
+| platform-commons | ~47 | `I18nKey` is in marketplace-app | Mostly interfaces + DTOs |
 | audit-spring-boot-starter | 7 | AuditReadService | Compact, focused |
-| attachment-spring-boot-starter | 16 | AttachmentService | Medium, handles S3 + DB |
+| attachment-spring-boot-starter | 14 | AttachmentService | Medium, handles S3 + DB |
 | user-spring-boot-starter | 11 | UserService | Small, focused |
-| advertisement-spring-boot-starter | 7 | AdvertisementService | Small, focused |
-| taxon-spring-boot-starter | 12 | DefaultTaxonPort | Medium; new as of 2026-06 |
-| **marketplace-app** | **~170** | AdvertisementFormOverlayModeHandler | LARGEST MODULE — expected for UI monolith |
+| advertisement-spring-boot-starter | 7 | AdvertisementService | Small, focused; now calls `TaxonPort` via `ComponentFactory` |
+| taxon-spring-boot-starter | 12 | DefaultTaxonPort | Medium; added 2026-06 |
+| **marketplace-app** | **~175** | AdvertisementFormOverlayModeHandler | LARGEST MODULE — expected for UI monolith |
 
 **Finding:** marketplace-app is 9x larger than any starter. Most complexity is in UI layer (views, overlays, components), which is expected for a Vaadin application.
 
@@ -202,7 +214,7 @@ Most classes have 1-3 injected dependencies:
 | **Starter → Starter Imports** | ✓ PASS | Only SPI contracts used |
 | **UI → Repository Direct** | ✓ PASS | All through Ports |
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
-| **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15) |
+| **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15); UserPortImpl mapping logic fixed (2026-07-01) |
 | **Optional Deps Guarded** | ✗ OPEN | audit/attachment optional but not guarded with ObjectProvider (MEDIUM) |
 | **User ↔ Advertisement Coupling** | ~ WARNING | Schema-level FK coupling; acceptable since both required |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |

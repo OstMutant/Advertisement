@@ -62,6 +62,7 @@ graph TD
         UserSettingsActivityFieldsHookImpl["UserSettingsActivityFieldsHookImpl<br/>(spi)"]
         ActivityEnrichHookImpl["ActivityEnrichHookImpl<br/>(spi)"]
         TaxonAuditHookImpl["TaxonAuditHookImpl<br/>(spi)"]
+        TaxonActivityFieldsHookImpl["TaxonActivityFieldsHookImpl<br/>(spi)"]
         SettingsPaginationService["SettingsPaginationService<br/>(pagination)"]
     end
     
@@ -70,6 +71,7 @@ graph TD
     AuditActivityFieldsHook -->|implemented by| AdvertisementActivityFieldsHookImpl
     AuditActivityFieldsHook -->|implemented by| UserActivityFieldsHookImpl
     AuditActivityFieldsHook -->|implemented by| UserSettingsActivityFieldsHookImpl
+    AuditActivityFieldsHook -->|implemented by| TaxonActivityFieldsHookImpl
     AuditActivityEnrichHook -->|implemented by| ActivityEnrichHookImpl
     
     AttachmentPort -->|implemented by| DefaultAttachmentPort
@@ -93,9 +95,9 @@ graph TD
 
 | Interface | Location | Direction | Implementation | Purpose |
 |-----------|----------|-----------|-----------------|---------|
-| **AuditPort** | `org.ost.platform.audit.spi` | marketplace → starter | `org.ost.audit.services.DefaultAuditPort` | Write/read audit entries; query snapshots; get entity activity & timeline |
+| **AuditPort** | `org.ost.platform.audit.spi` | marketplace → starter | `org.ost.audit.services.DefaultAuditPort` | Write/read audit entries; query snapshots; get entity activity & timeline. Methods: `captureCreation`, `captureUpdate`, `captureDeletion`, `captureRestore` (added for `ActionType.RESTORED`), `getSnapshotContent`, `getEntityActivity`, `getLastSnapshot`, `getTimelinePage`, `countTimeline` |
 | **AuditDomainHook** | `org.ost.platform.audit.spi` | starter → marketplace | `org.ost.marketplace.spi.AuditDomainHookImpl` | Callback: marketplace tells audit module about owned domain events |
-| **AuditActivityFieldsHook** | `org.ost.platform.audit.spi` | starter → marketplace | `AdvertisementActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl` | Callback: enrich audit activity with domain-specific field labels & descriptions |
+| **AuditActivityFieldsHook** | `org.ost.platform.audit.spi` | starter → marketplace | `AdvertisementActivityFieldsHookImpl`, `UserActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`, `TaxonActivityFieldsHookImpl` | Callback: enrich audit activity with domain-specific field labels & descriptions. Each impl declares `entityType()` to register for a specific domain. |
 | **AuditActivityEnrichHook** | `org.ost.platform.audit.spi` | starter → marketplace | `org.ost.marketplace.spi.ActivityEnrichHookImpl` | Callback: merge cross-cutting activity (e.g., media changes into advertisement activity) |
 
 ### Attachment Subsystem
@@ -220,6 +222,7 @@ marketplace-app (viewing activity feed)
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserSettingsActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonAuditHookImpl.java`
+- `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 
 **Hook Implementations (starters):**

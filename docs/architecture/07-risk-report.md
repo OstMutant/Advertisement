@@ -6,7 +6,7 @@
 
 | Module | Java Files | Risk |
 |--------|-----------|------|
-| marketplace-app | 152 | MEDIUM — UI complexity, but expected |
+| marketplace-app | 175 | MEDIUM — UI complexity, but expected |
 | platform-commons | 50 | LOW — Mostly interfaces & DTOs, no logic |
 | attachment-spring-boot-starter | 15 | LOW — Contains S3 storage service |
 | taxon-spring-boot-starter | 15 | LOW — Taxonomies module |
@@ -129,6 +129,10 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 ### 3. ✅ RESOLVED — Marketplace → User Internal Import Coupling (2026-06-15)
 
 `AccessEvaluator` previously bypassed the SPI by importing `org.ost.user.security.*` classes directly. Now resolved — see ADR-016.
+
+### 4. ✅ RESOLVED — UserPortImpl DTO Mapping Logic (2026-07-01)
+
+`UserPortImpl` contained `toDto(User)` entity→DTO mapping and inline stream pipelines — business logic that belongs in the service, not the port. Resolved: mapping moved to `UserService.findDtoByEmail()`; `UserPortImpl` is now pure single-line delegation.
 
 ---
 
@@ -271,6 +275,7 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 | Item | Priority | Effort | Notes |
 |------|----------|--------|-------|
 | ~~Fix AccessEvaluator internal imports~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-016, 2026-06-15) |
+| ~~Fix UserPortImpl mapping logic~~ | ~~LOW~~ | ~~SMALL~~ | ✅ Done (2026-07-01) — mapping in UserService |
 | Resolve optional dependencies | MEDIUM | SMALL | Remove `<optional>` or add ObjectProvider guards |
 | Centralize authorization checks | MEDIUM | MEDIUM | Extract AuthorizationService if auth logic grows |
 | Partition audit_log table | LOW | LARGE | Future scaling concern; not urgent |
