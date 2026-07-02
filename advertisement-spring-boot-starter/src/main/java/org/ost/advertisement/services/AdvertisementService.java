@@ -53,6 +53,7 @@ public class AdvertisementService {
             return List.of();
         }
         List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
+        if (ads.isEmpty()) return ads;
         return enrichWithCategories(ads, locale);
     }
 
@@ -74,7 +75,6 @@ public class AdvertisementService {
     }
 
     private List<AdvertisementInfoDto> enrichWithCategories(List<AdvertisementInfoDto> ads, Locale locale) {
-        if (ads.isEmpty()) return ads;
         return taxonPortFactory.findIfAvailable()
                 .map(taxonPort -> {
                     Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());

@@ -111,7 +111,7 @@ public class AdvertisementRepository {
         return " AND a.id IN (:allowedIds)";
     }
 
-    public void softDelete(@NonNull Long id, Long deletedByUserId) {
+    public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId) {
         jdbcClient.sql("UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
                   .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId))
                   .update();
