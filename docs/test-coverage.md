@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-03 · 42 passed · 1 failed · 3 skipped · 46 total
+Last updated: 2026-07-03 · 46 passed · 0 failed · 0 skipped · 46 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -53,10 +53,10 @@ Last updated: 2026-07-03 · 42 passed · 1 failed · 3 skipped · 46 total
 - [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check
 - [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
 - [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated
-- [!] Max-content advertisement boundary › maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
-- [-] Max-content advertisement boundary › maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
-- [-] Max-content advertisement boundary › maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v12, gallery in view and card
-- [-] Max-content advertisement boundary › maxUk edits UK max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v12, gallery in view and card
+- [x] Max-content advertisement boundary › maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
+- [x] Max-content advertisement boundary › maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
+- [x] Max-content advertisement boundary › maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
+- [x] Max-content advertisement boundary › maxUk edits UK max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
 
 ## e2e/05-seed-filter-sort-pagination.spec.js
 
