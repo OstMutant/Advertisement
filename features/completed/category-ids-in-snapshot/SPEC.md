@@ -66,3 +66,22 @@ to avoid N+1 queries when rendering the timeline.
 
 - Cache scope: per-request (simple) vs shared Caffeine cache (more efficient for high traffic)?
 - When a deleted category is shown with strikethrough — tooltip explaining it's deleted?
+
+---
+
+## Status
+
+Implemented differently than proposed here, but the goal is met: instead of renaming
+`CategoryChangeSnapshotDto` → `AdvertisementCategoriesChangeSnapshotDto`, the
+`advertisement-snapshot-redesign` feature deleted the old DTO entirely and folded
+`categoryIds` directly into `AdvertisementSnapshotDto` — one snapshot record per save, as
+intended here.
+
+- Name resolution at read time (including soft-deleted) — done, via
+  `AdvertisementEnrichService.resolveCategoryNames()` (bulk `listAllByType(..., includeDeleted=true)`,
+  filtered client-side — no separate cache needed, avoids N+1 without one).
+- Category picker excludes soft-deleted — done (`getAllByType()` filters to active only).
+- Deleted category strikethrough in advertisement view — **not done**, tracked in
+  `features/issues/improvement-008-deleted-category-strikethrough.md`.
+- `TaxonPort.findByIds` bulk method — **not done**, tracked in
+  `features/issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md`.

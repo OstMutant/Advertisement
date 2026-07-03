@@ -2,14 +2,39 @@
 setlocal
 cd /d "%~dp0.."
 
-:: Get login (email) from argument
+:: Get login (email) from first argument
 set LOGIN=%1
-
-:: Require login to be provided
 if "%LOGIN%"=="" (
     echo Error: Please provide your login.
-    echo Usage: claude.bat your.email@gmail.com
+    echo Usage: claude.bat your.email@gmail.com [--update] [claude args...]
     exit /b 1
+)
+
+:: Parse remaining args — strip --update, pass everything else through
+set DO_UPDATE=0
+set EXTRA_ARGS=
+shift
+:parse_args
+if "%1"=="" goto done_args
+if "%1"=="--update" (
+    set DO_UPDATE=1
+) else (
+    set "EXTRA_ARGS=%EXTRA_ARGS% %1"
+)
+shift
+goto parse_args
+:done_args
+
+:: Rebuild image if --update was requested
+if "%DO_UPDATE%"=="1" (
+    echo ===================================================
+    echo   Rebuilding claude-j25-dev image...
+    echo ===================================================
+    docker build -f Dockerfile.ai -t claude-j25-dev .
+    if errorlevel 1 (
+        echo Error: Docker build failed.
+        exit /b 1
+    )
 )
 
 echo ===================================================
@@ -32,4 +57,4 @@ docker run -it --rm --name claude-dev ^
   -v "%USERPROFILE%\.m2:/root/.m2" ^
   -v //var/run/docker.sock:/var/run/docker.sock ^
   --network host ^
-  claude-j25-dev
+  claude-j25-dev%EXTRA_ARGS%

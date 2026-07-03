@@ -108,13 +108,6 @@ any title length and empty description were accepted silently.
 
 ---
 
-### ⏳ P1 — `SettingsFormModeHandler` duplication fix (pending)
-
-Extract validator lambda into `private void bindPageSizeField(IntegerField, getter, setter)`.
-Currently the same `.withValidator(...)` lambda is copy-pasted three times.
-
----
-
 ## Test Coverage — Boundary Value Tests
 
 **Decision:** no new spec files. Tests added as new `describe` blocks (gated on `PW_FULL`)
@@ -147,19 +140,26 @@ Gated: `test.skip(!process.env.PW_FULL, ...)`
 
 ### P2 — QuillEditor character counter
 
-Before adding a max length to `advertisement.description`:
-1. Decide on the limit (50 000? 10 000?)
-2. Implement a character counter in `QuillEditor.java` that reads raw text length from Quill
+The limit is already decided and enforced: `AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH = 2000`,
+checked in the binder validator in `AdvertisementFormOverlayModeHandler.buildBinder()`. What's
+still missing is UI feedback:
+1. Implement a character counter in `QuillEditor.java` that reads raw text length from Quill
    (via JS interop: `quill.getText().length`)
-3. Show counter below editor, same style as Vaadin TextArea counter
-4. Only then add `StringLengthValidator` to the binder and `@Size(max=N)` to DTO
+2. Show counter below editor, same style as Vaadin TextArea counter
 
-**Blocked until the limit is decided.**
+Note: the current binder validator strips HTML tags via regex before counting, which has a
+known tag-spam vulnerability — see `features/issues/issue-description-length-tag-spam.md`.
+Fix that validator (Jsoup-based text extraction) before or alongside adding the counter, so the
+counter and the validator agree on what "length" means.
+
+Tracked as follow-up: `features/issues/improvement-006-quill-description-counter-and-db-limit.md`.
 
 ### P3 — `advertisement.description` DB schema
 
-Change `description TEXT` → `description VARCHAR(N)` in advertisement table once the limit
-from P2 is decided. Requires a Liquibase migration.
+Change `description TEXT` → `description VARCHAR(N)` in advertisement table, once the P2
+validator is fixed to measure visible text length consistently. Requires a Liquibase migration.
+
+Tracked as follow-up: `features/issues/improvement-006-quill-description-counter-and-db-limit.md`.
 
 ---
 

@@ -55,8 +55,7 @@ public class AuditActivityPanel extends Div
                 .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);
         List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditPort
-                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged())
-                .stream().filter(i -> i.snapshotData().isVisible()).toList();
+                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged());
         if (items.isEmpty()) {
             add(emptyState());
             return this;

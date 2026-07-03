@@ -159,6 +159,20 @@ New `AdvertisementTimelineEnrichService` (marketplace-app):
 
 ---
 
+## Status
+
+Core redesign is done: DTOs, ports/hooks contracts, save orchestration (`AdvertisementSaveService`),
+UI rendering, and restore flow all verified against this spec. Two items from the "Detailed
+Change List" were never added and are tracked separately, since nothing currently depends on
+them and both are prerequisites for the still-deferred `AdvertisementTimelineEnrichService`:
+
+- `TaxonPort.findByIds` bulk lookup
+- `AttachmentSnapshotService.captureAndGetId()`
+
+See `features/issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md`.
+
+---
+
 ## Verification
 
 1. `mvn clean test` — JUnit

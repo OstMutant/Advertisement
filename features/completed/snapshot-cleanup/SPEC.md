@@ -5,6 +5,15 @@
 Remove `visible` and `restorable` from snapshot JSON. Remove `isRestorable()` entirely
 from Java — it is dead code. Keep `isVisible()` in Java only (no serialization).
 
+## Update — isVisible() also removed
+
+After `advertisement-snapshot-redesign` deleted `CategoryChangeSnapshotDto` (the only class
+that ever overrode `isVisible()` to `false`), the method became dead code too — every
+remaining `AuditableSnapshot` implementation used the default `true`, making the filter in
+`AuditActivityPanel` a no-op. `isVisible()` was therefore removed from `AuditableSnapshot`
+entirely, along with the `.filter(i -> i.snapshotData().isVisible())` call in
+`AuditActivityPanel.configure()`.
+
 ---
 
 ## Problem
