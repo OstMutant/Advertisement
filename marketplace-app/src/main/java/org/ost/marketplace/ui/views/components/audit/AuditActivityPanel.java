@@ -55,15 +55,15 @@ public class AuditActivityPanel extends Div
                 .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);
         List<AuditActivityItemDto<? extends AuditableSnapshot>> items = auditPort
-                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged());
+                .getEntityActivity(p.getEntityRef().entityType(), p.getEntityRef().entityId(), p.getUserId(), p.isPrivileged())
+                .stream().filter(i -> i.snapshotData().isVisible()).toList();
         if (items.isEmpty()) {
             add(emptyState());
             return this;
         }
-        int restorableCount = (int) items.stream().filter(i -> i.snapshotData().isRestorable()).count();
         AuditActivityRowRenderer.RenderConfig cfg = new AuditActivityRowRenderer.RenderConfig(
                 p.getEntityRef(), currentSnapshot,
-                restorableCount, p.isCanOperate(), p.getOnRestoreRequested());
+                items.size(), p.isCanOperate(), p.getOnRestoreRequested());
         listRendererFactory.get()
                 .buildRows(items, cfg)
                 .forEach(this::add);

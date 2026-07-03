@@ -7,7 +7,6 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.taxon.dto.CategoryChangeSnapshotDto;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
@@ -36,7 +35,6 @@ public class JacksonConfig {
                 AdvertisementSnapshotDto.class,
                 UserSnapshotDto.class,
                 SettingsSnapshotDto.class,
-                CategoryChangeSnapshotDto.class,
                 TaxonSnapshotDto.class
         );
     }

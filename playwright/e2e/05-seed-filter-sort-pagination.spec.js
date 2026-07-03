@@ -348,7 +348,7 @@ test.describe('Seed data and query validation', () => {
     expect(usersDefault).toBe(20);
 
     // ── change both page sizes, verify change appears in activity ─────────────
-    await changePageSizes(page, 5, 3);
+    await changePageSizes(page, 5, 7);
     await screenshotThenClose(page, 'settings-changed');
 
     await openActivityTab(page);
@@ -368,8 +368,8 @@ test.describe('Seed data and query validation', () => {
 
     await switchToTab(page, 'Users', USER_ITEM);
     await expect(page.locator('.pagination-count:visible'))
-      .toContainText('1\u20133 of', { timeout: 5000 });
-    await screenshot(page, 'settings-users-page-size-3');
+      .toContainText('1\u20137 of', { timeout: 5000 });
+    await screenshot(page, 'settings-users-page-size-7');
 
     // ── restore defaults via activity, verify restore entry recorded ──────────
     await openSettings(page);

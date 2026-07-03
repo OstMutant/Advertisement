@@ -92,30 +92,11 @@ public class AdvertisementService {
     }
 
     @Transactional
-    public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId) {
-        boolean isNew = dto.id() == null;
-        log.info("Advertisement save: id={}, isNew={}", dto.id(), isNew);
-        Optional<Advertisement> before = isNew ? Optional.empty() : repository.findById(dto.id());
+    public Long save(@NonNull @Valid AdvertisementSaveDto dto, @NonNull Long actingUserId) {
+        log.info("Advertisement save: id={}, isNew={}", dto.id(), dto.id() == null);
+        Optional<Advertisement> before = dto.id() == null ? Optional.empty() : repository.findById(dto.id());
         Advertisement ad = buildEntity(dto, before.orElse(null));
-        Advertisement saved = repository.save(ad);
-        AdvertisementSnapshotDto savedSnapshot = new AdvertisementSnapshotDto(saved.getTitle(), saved.getDescription());
-        if (isNew) {
-            auditPortFactory.ifAvailable(p -> p.captureCreation(saved.getId(), savedSnapshot, actingUserId));
-        } else {
-            AdvertisementSnapshotDto beforeSnapshot = before
-                    .map(b -> new AdvertisementSnapshotDto(b.getTitle(), b.getDescription()))
-                    .orElse(new AdvertisementSnapshotDto(null, null));
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(saved.getId(), beforeSnapshot, savedSnapshot, actingUserId));
-        }
-        if (dto.categoryIds() != null) {
-            saveCategoryChanges(saved.getId(), dto.categoryIds());
-        }
-        return saved.getId();
-    }
-
-    private void saveCategoryChanges(Long entityId, Set<Long> newCategoryIds) {
-        taxonPortFactory.ifAvailable(taxonPort ->
-                taxonPort.replaceAssignments(EntityType.ADVERTISEMENT, entityId, newCategoryIds));
+        return repository.save(ad).getId();
     }
 
     public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
@@ -144,8 +125,15 @@ public class AdvertisementService {
     public void delete(@NonNull Long id, @NonNull Long actingUserId) {
         log.info("Advertisement delete: id={}", id);
         repository.findById(id).ifPresent(entity -> {
+            List<Long> catIds = taxonPortFactory.findIfAvailable()
+                    .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH)
+                            .stream().map(TaxonDto::getId).sorted().toList())
+                    .orElse(List.of());
+            Long attachmentSnapshotId = attachmentPortFactory.findIfAvailable()
+                    .map(p -> p.getLatestSnapshotId(EntityType.ADVERTISEMENT, id))
+                    .orElse(null);
             auditPortFactory.ifAvailable(p -> p.captureDeletion(id,
-                    new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription()), actingUserId));
+                    new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription(), catIds, attachmentSnapshotId), actingUserId));
             attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, id), actingUserId));
             taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, id, Set.of()));
         });

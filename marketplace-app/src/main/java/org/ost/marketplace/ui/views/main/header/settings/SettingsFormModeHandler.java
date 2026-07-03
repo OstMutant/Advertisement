@@ -6,7 +6,9 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.textfield.IntegerField;
+import com.vaadin.flow.data.binder.Setter;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.function.ValueProvider;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -211,7 +213,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .build());
 
         adsPageSizeField = new IntegerField(getValue(SETTINGS_ADS_PAGE_SIZE_LABEL));
-        adsPageSizeField.setMin(1);
+        adsPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
         adsPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
         adsPageSizeField.setStep(1);
         adsPageSizeField.setStepButtonsVisible(true);
@@ -219,7 +221,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         adsPageSizeField.setWidthFull();
 
         usersPageSizeField = new IntegerField(getValue(SETTINGS_USERS_PAGE_SIZE_LABEL));
-        usersPageSizeField.setMin(1);
+        usersPageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
         usersPageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
         usersPageSizeField.setStep(1);
         usersPageSizeField.setStepButtonsVisible(true);
@@ -227,23 +229,28 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
         usersPageSizeField.setWidthFull();
 
         timelinePageSizeField = new IntegerField(getValue(SETTINGS_TIMELINE_PAGE_SIZE_LABEL));
-        timelinePageSizeField.setMin(1);
+        timelinePageSizeField.setMin(PaginationDefaults.MIN_PAGE_SIZE);
         timelinePageSizeField.setMax(PaginationDefaults.MAX_PAGE_SIZE);
         timelinePageSizeField.setStep(1);
         timelinePageSizeField.setStepButtonsVisible(true);
         timelinePageSizeField.setValueChangeMode(ValueChangeMode.EAGER);
         timelinePageSizeField.setWidthFull();
 
-        binder.getBinder().forField(adsPageSizeField)
-                .asRequired()
-                .bind(SettingsEditDto::getAdsPageSize, SettingsEditDto::setAdsPageSize);
-        binder.getBinder().forField(usersPageSizeField)
-                .asRequired()
-                .bind(SettingsEditDto::getUsersPageSize, SettingsEditDto::setUsersPageSize);
-        binder.getBinder().forField(timelinePageSizeField)
-                .asRequired()
-                .bind(SettingsEditDto::getTimelinePageSize, SettingsEditDto::setTimelinePageSize);
+        bindPageSizeField(adsPageSizeField,      SettingsEditDto::getAdsPageSize,      SettingsEditDto::setAdsPageSize);
+        bindPageSizeField(usersPageSizeField,    SettingsEditDto::getUsersPageSize,    SettingsEditDto::setUsersPageSize);
+        bindPageSizeField(timelinePageSizeField, SettingsEditDto::getTimelinePageSize, SettingsEditDto::setTimelinePageSize);
         binder.readInitialValues();
+    }
+
+    private void bindPageSizeField(IntegerField field,
+            ValueProvider<SettingsEditDto, Integer> getter,
+            Setter<SettingsEditDto, Integer> setter) {
+        binder.getBinder().forField(field)
+                .asRequired()
+                .withValidator(
+                        v -> v >= PaginationDefaults.MIN_PAGE_SIZE && v <= PaginationDefaults.MAX_PAGE_SIZE,
+                        getValue(SETTINGS_PAGE_SIZE_RANGE))
+                .bind(getter, setter);
     }
 
     private void updateButtons(boolean hasChanges) {

@@ -239,19 +239,18 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
     if (categories.length > 0) await assertViewOverlayHasCategories(page, expect, overlay, categories, `${screenshotPrefix}-view-chips`);
     await switchToEditMode(page, overlay, null);
     const activityList = await openActivityTab(overlay);
-    // 1 base CREATED row + 1 UPDATED row per category assignment
-    const expectedRows = 1 + categories.length;
-    await expect(activityList.locator('.entity-activity-row')).toHaveCount(expectedRows, { timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
     await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(0);
     await closeOverlayToList(page, overlay);
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, richText = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, richText = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
-  const rowsAfterEdit     = editVersion;
-  const rowsAfterTextEdit = textEditVersion;
+  const visibleBase       = startingVisibleRows ?? startingVersion;
+  const rowsAfterEdit     = visibleBase + 1;
+  const rowsAfterTextEdit = visibleBase + 2;
 
   const overlay = await openCardOverlay(page, cardByTitle(page, originalTitle), screenshotPrefix);
   await switchToEditMode(page, overlay, screenshotPrefix);
@@ -297,6 +296,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     const activityList = await openActivityTab(overlay);
     await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsAfterEdit, { timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(rowsAfterEdit - 1, { timeout: 5000 });
 
     const row0 = activityList.locator('.entity-activity-row').nth(0);
     await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
@@ -333,6 +333,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
 
     const activityList = await openActivityTab(overlay);
     await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsAfterTextEdit, { timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(rowsAfterTextEdit - 1, { timeout: 5000 });
 
     const textEditRow = activityList.locator('.entity-activity-row').nth(0);
     await expect(textEditRow.locator('.entity-activity-version')).toContainText(`v${textEditVersion}`);
@@ -363,7 +364,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-format-only`);
 
       const fmtList = await openActivityTab(overlay);
-      await expect(fmtList.locator('.entity-activity-row')).toHaveCount(textEditVersion + 1, { timeout: 5000 });
+      await expect(fmtList.locator('.entity-activity-row')).toHaveCount(rowsAfterTextEdit + 1, { timeout: 5000 });
       await expect(fmtList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version'))
         .toContainText(`v${textEditVersion + 1}`);
       const fmtItems = fmtList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes-item');
@@ -435,13 +436,14 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   });
 }
 
-async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, rowsBeforeRestore = 3, screenshotPrefix }) {
+async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restoredTitle, restoredDescription, rowsBeforeRestore = 3, targetRestoredVersion = null, restoreCountAfterRestore = null, screenshotPrefix }) {
   const overlay = await openCardOverlay(page, cardByTitle(page, currentTitle), screenshotPrefix);
 
   await switchToEditMode(page, overlay, null);
 
   const activityList = await openActivityTab(overlay);
   await expect(activityList.locator('.entity-activity-row')).toHaveCount(rowsBeforeRestore, { timeout: 5000 });
+  await expect(activityList.locator('.entity-activity-restore-btn')).toHaveCount(rowsBeforeRestore - 1, { timeout: 5000 });
 
   const v1Row = activityList.locator('.entity-activity-row').nth(rowsBeforeRestore - 1);
   await expect(v1Row.locator('.entity-activity-version')).toContainText('v1');
@@ -459,13 +461,15 @@ async function runRestoreAdvertisementFlow(page, expect, { currentTitle, restore
 
   await saveAndWaitForIdle(page, expect, overlay, screenshotPrefix);
 
-  const restoredVersion = rowsBeforeRestore + 1;
+  const restoredRowCount    = rowsBeforeRestore + 1;
+  const restoredVersionNum  = targetRestoredVersion ?? restoredRowCount;
   const activityListAfter = await openActivityTab(overlay);
-  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(restoredVersion, { timeout: 5000 });
+  await expect(activityListAfter.locator('.entity-activity-row')).toHaveCount(restoredRowCount, { timeout: 5000 });
+  await expect(activityListAfter.locator('.entity-activity-restore-btn')).toHaveCount(restoreCountAfterRestore ?? (restoredRowCount - 1), { timeout: 5000 });
 
   const row0 = activityListAfter.locator('.entity-activity-row').nth(0);
   await expect(row0.locator('.entity-activity-action')).toContainText(/updated|оновлено/i);
-  await expect(row0.locator('.entity-activity-version')).toContainText(`v${restoredVersion}`);
+  await expect(row0.locator('.entity-activity-version')).toContainText(`v${restoredVersionNum}`);
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(currentTitle);
   await expect(changes0).toContainText(restoredTitle);
@@ -525,4 +529,4 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   [img1, img2].forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
 }
 
-module.exports = { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList };
+module.exports = { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems };

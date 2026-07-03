@@ -48,10 +48,10 @@ public class AttachmentGalleryService {
 
     public interface FormHandle {
         Component getComponent();
-        void commit(@NonNull EntityRef entity);
+        Long commit(@NonNull EntityRef entity);
         void discard();
         void setOnChangedListener(@NonNull Runnable onChanged);
-        void loadFromSnapshot(int version);
+        void loadFromSnapshotId(Long snapshotId);
     }
 
     private static final class Handle implements FormHandle {
@@ -60,13 +60,13 @@ public class AttachmentGalleryService {
         Handle(AttachmentGallery gallery) { this.gallery = gallery; }
 
         @Override public Component getComponent() { return gallery; }
-        @Override public void commit(@NonNull EntityRef entity) {
-            gallery.commitTempUploads(entity.entityType(), entity.entityId());
+        @Override public Long commit(@NonNull EntityRef entity) {
+            return gallery.commitTempUploads(entity.entityType(), entity.entityId());
         }
         @Override public void discard() { gallery.discardTempUploads(); }
         @Override public void setOnChangedListener(@NonNull Runnable onChanged) {
             gallery.setOnChangedListener(onChanged);
         }
-        @Override public void loadFromSnapshot(int version) { gallery.loadFromSnapshot(version); }
+        @Override public void loadFromSnapshotId(Long snapshotId) { gallery.loadFromSnapshotId(snapshotId); }
     }
 }

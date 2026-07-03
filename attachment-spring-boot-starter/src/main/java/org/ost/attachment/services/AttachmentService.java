@@ -183,6 +183,13 @@ public class AttachmentService {
     }
 
     @Transactional
+    public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                              @NonNull String[] targetUrls) {
+        Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
+        restoreToUrls(entityType, entityId, targetUrls, actorId);
+    }
+
+    @Transactional
     public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
                                         @NonNull String[] targetUrls) {
         Long actorId = currentActorHook.getCurrentActorId().orElseThrow();

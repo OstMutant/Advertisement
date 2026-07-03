@@ -142,15 +142,15 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 
 **Risk:** MEDIUM — Complex business logic
 
-**Location:** `org.ost.audit.services.AuditDiffService` (estimated, not inspected in detail)
+**Location:** `AuditableSnapshot.diff()` (per-snapshot-type method on each `AuditableSnapshot` implementor in marketplace-app); called from `AuditReadService` at read time.
 
 **Issue:** Computing field-level diffs between snapshots using `@AuditedField` markers requires:
 - Reflection to extract marked fields
-- JSON serialization/deserialization
-- Null-safe comparisons
-- Type coercion for different field types
+- JSON deserialization of snapshot_data JSONB pairs
+- Null-safe comparisons across snapshot versions
+- Same-type prev-snapshot post-processing (`withSameTypePrevSnapshot`) to skip cross-type LAG values
 
-**Mitigation:** Unit test all diff scenarios; keep logic isolated in service.
+**Mitigation:** Unit test all diff scenarios per snapshot type; same-type correction is done in-memory in `AuditReadService` (see ADR-021).
 
 ### 2. Overlay/Form State Machine
 

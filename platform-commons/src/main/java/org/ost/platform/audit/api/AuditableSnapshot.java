@@ -1,5 +1,6 @@
 package org.ost.platform.audit.api;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -28,7 +29,8 @@ public interface AuditableSnapshot {
                 .toList();
     }
 
-    default boolean isRestorable() { return true; }
+    @JsonIgnore
+    default boolean isVisible() { return true; }
 
     static <S extends AuditableSnapshot, T> T field(S snapshot, Function<S, T> getter) {
         return snapshot != null ? getter.apply(snapshot) : null;

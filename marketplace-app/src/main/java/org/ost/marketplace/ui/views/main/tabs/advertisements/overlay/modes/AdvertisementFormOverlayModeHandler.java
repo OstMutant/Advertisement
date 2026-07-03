@@ -45,6 +45,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -70,6 +71,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     }
 
     private final ComponentFactory<AdvertisementPort>                          advertisementPortFactory;
+    private final AdvertisementSaveService                                     advertisementSaveService;
     private final AdvertisementMapper                                          mapper;
     private final AccessEvaluator                                              access;
     @Getter
@@ -206,15 +208,15 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     public boolean save() {
         return binder.save(dto -> {
             this.savedId = advertisementPortFactory.findIfAvailable()
-                    .map(p -> p.save(new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getCategoryIds()), access.getCurrentUserId()))
+                    .map(_ -> advertisementSaveService.save(
+                            new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getCategoryIds()),
+                            access.getCurrentUserId(),
+                            entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null))
                     .orElse(null);
             if (savedId != null) {
                 advertisementPortFactory.findIfAvailable()
                         .flatMap(p -> p.findById(savedId))
                         .ifPresent(info -> this.savedInfoDto = info);
-                if (this.activeHandle != null) {
-                    this.activeHandle.commit(new EntityRef(EntityType.ADVERTISEMENT, savedId));
-                }
             }
         });
     }
@@ -248,8 +250,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                             AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
                             dto.setTitle(snapshot.title());
                             dto.setDescription(snapshot.description());
+                            dto.setCategoryIds(snapshot.categoryIds() != null
+                                    ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
                             loadRestored(dto);
-                            if (activeHandle != null) activeHandle.loadFromSnapshot(content.version());
+                            if (activeHandle != null) activeHandle.loadFromSnapshotId(snapshot.attachmentSnapshotId());
                         })
         );
     }
@@ -308,6 +312,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                 .bind(AdvertisementEditDto::getTitle, AdvertisementEditDto::setTitle);
         binder.getBinder().forField(descriptionField)
                 .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
+                .withValidator(
+                        html -> {
+                            if (html == null) return false;
+                            String text = html.replaceAll("<[^>]+>", "").replace("&nbsp;", " ").trim();
+                            return text.length() <= AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH;
+                        },
+                        getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH)
+                )
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
         if (categoryComboBox != null) {
             binder.getBinder().forField(categoryComboBox)

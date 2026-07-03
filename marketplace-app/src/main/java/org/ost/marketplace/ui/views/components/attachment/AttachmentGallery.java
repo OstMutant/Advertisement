@@ -26,7 +26,9 @@ import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -34,6 +36,8 @@ import java.util.UUID;
 @Scope("prototype")
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 public class AttachmentGallery extends Div {
+
+    private static final int MAX_GALLERY_ITEMS = AttachmentUploadButton.MAX_FILES;
 
     private final transient AttachmentPort attachmentPort;
     private final transient I18nService    i18n;
@@ -48,9 +52,11 @@ public class AttachmentGallery extends Div {
     private Long       entityId;
 
     private final List<TempAttachmentDto>   tempUploads            = new ArrayList<>();
+    private final Set<TempAttachmentDto>    tempFileSet            = new HashSet<>();
     private final List<AttachmentItemDto>   currentAttachments     = new ArrayList<>();
     private final List<Long>                pendingDeletions       = new ArrayList<>();
-    private       boolean                   pendingSnapshotRestore = false;
+    private       boolean                   pendingSnapshotRestore  = false;
+    private       Long                      pendingRestoreSnapshotId = null;
     private String   tempSessionId;
     private transient Runnable onChanged;
 
@@ -59,7 +65,18 @@ public class AttachmentGallery extends Div {
     }
 
     private void notifyChanged() {
+        updateUploadLimit();
         if (onChanged != null) onChanged.run();
+    }
+
+    private int totalItemCount() {
+        return currentAttachments.size() + tempUploads.size();
+    }
+
+    private void updateUploadLimit() {
+        if (uploadButton != null) {
+            uploadButton.setMaxFiles(Math.max(0, MAX_GALLERY_ITEMS - totalItemCount() + tempFileSet.size()));
+        }
     }
 
     @PostConstruct
@@ -92,12 +109,14 @@ public class AttachmentGallery extends Div {
         this.editMode      = true;
         this.tempSessionId = UUID.randomUUID().toString();
         tempUploads.clear();
+        tempFileSet.clear();
         pendingDeletions.clear();
         removeEditControlsIfPresent();
         refresh();
         uploadButton = new AttachmentUploadButton(buildUploadHandler());
         videoInput   = buildVideoInput();
         add(uploadButton, videoInput);
+        updateUploadLimit();
     }
 
     public void configureForCreate(@NonNull EntityType entityType, @NonNull String tempSessionId) {
@@ -106,18 +125,22 @@ public class AttachmentGallery extends Div {
         this.editMode      = true;
         this.tempSessionId = tempSessionId;
         tempUploads.clear();
+        tempFileSet.clear();
         removeEditControlsIfPresent();
         thumbnailsRow.removeAll();
         showEmpty();
         uploadButton = new AttachmentUploadButton(buildUploadHandler());
         videoInput   = buildVideoInput();
         add(uploadButton, videoInput);
+        updateUploadLimit();
     }
 
-    public void loadFromSnapshot(int version) {
-        String[] urls = attachmentPort.getSnapshotUrlsAtVersion(entityType, entityId, version);
+    public void loadFromSnapshotId(Long attachmentSnapshotId) {
+        if (attachmentSnapshotId == null) return;
+        String[] urls = attachmentPort.getUrlsBySnapshotId(attachmentSnapshotId);
         discardTempUploads();
         pendingSnapshotRestore = true;
+        pendingRestoreSnapshotId = attachmentSnapshotId;
         currentAttachments.clear();
         if (urls.length > 0) {
             currentAttachments.addAll(attachmentPort.getByEntityAndUrls(entityType, entityId, urls));
@@ -133,22 +156,26 @@ public class AttachmentGallery extends Div {
         notifyChanged();
     }
 
-    public void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId) {
+    public Long commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId) {
         if (pendingSnapshotRestore) {
+            Long snapshotId = pendingRestoreSnapshotId;
+            pendingRestoreSnapshotId = null;
             String[] targetUrls = currentAttachments.stream().map(AttachmentItemDto::url).toArray(String[]::new);
-            attachmentPort.restoreToUrlsAndCapture(entityType, entityId, targetUrls);
+            attachmentPort.restoreToUrls(entityType, entityId, targetUrls);
             pendingSnapshotRestore = false;
             if (!tempUploads.isEmpty()) {
                 attachmentPort.commitTempUploads(entityType, entityId, tempUploads);
+                snapshotId = attachmentPort.getLatestSnapshotId(entityType, entityId);
             }
             tempUploads.clear();
+            tempFileSet.clear();
             pendingDeletions.clear();
             this.entityId = entityId;
             refresh();
-            return;
+            return snapshotId;
         }
         boolean isCreate = (this.entityId == null);
-        if (tempUploads.isEmpty() && pendingDeletions.isEmpty()) return;
+        if (tempUploads.isEmpty() && pendingDeletions.isEmpty()) return null;
         pendingDeletions.forEach(attachmentPort::deleteSkipSnapshot);
         pendingDeletions.clear();
         if (!tempUploads.isEmpty()) {
@@ -157,8 +184,10 @@ public class AttachmentGallery extends Div {
             attachmentPort.captureSnapshot(entityType, entityId);
         }
         tempUploads.clear();
+        tempFileSet.clear();
         this.entityId = entityId;
         refresh();
+        return attachmentPort.getLatestSnapshotId(entityType, entityId);
     }
 
     public void discardTempUploads() {
@@ -167,6 +196,7 @@ public class AttachmentGallery extends Div {
             if (!tempUploads.isEmpty()) {
                 attachmentPort.discardTempUploads(tempUploads);
                 tempUploads.clear();
+                tempFileSet.clear();
             }
             pendingDeletions.clear();
             refresh();
@@ -175,6 +205,7 @@ public class AttachmentGallery extends Div {
         if (!tempUploads.isEmpty()) {
             attachmentPort.discardTempUploads(tempUploads);
             tempUploads.clear();
+            tempFileSet.clear();
         }
         pendingDeletions.clear();
         refresh();
@@ -210,6 +241,7 @@ public class AttachmentGallery extends Div {
         return AttachmentThumbnail.forTemp(temp, () -> {
             attachmentPort.discardTempUploads(List.of(temp));
             tempUploads.remove(temp);
+            tempFileSet.remove(temp);
             if (thumbnailsRow.getComponentCount() == 0) showEmpty();
             notifyChanged();
         });
@@ -231,7 +263,12 @@ public class AttachmentGallery extends Div {
                         TempAttachmentDto temp = attachmentPort.uploadTemp(
                                 tempSessionId, filename, event.getInputStream(), size, contentType);
                         ui.access(() -> {
+                            if (totalItemCount() >= MAX_GALLERY_ITEMS) {
+                                attachmentPort.discardTempUploads(List.of(temp));
+                                return;
+                            }
                             tempUploads.add(temp);
+                            tempFileSet.add(temp);
                             hideEmpty();
                             thumbnailsRow.add(buildTempThumbnail(temp));
                             notifyChanged();
@@ -262,6 +299,10 @@ public class AttachmentGallery extends Div {
         Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
             try {
                 String val = urlField.getValue();
+                if (totalItemCount() >= MAX_GALLERY_ITEMS) {
+                    showError(i18n.get(I18nKey.ATTACHMENT_GALLERY_MAX_ITEMS));
+                    return;
+                }
                 if (tempSessionId != null) {
                     TempAttachmentDto temp = attachmentPort.addVideoTemp(val);
                     tempUploads.add(temp);

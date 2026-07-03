@@ -53,8 +53,11 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
   // The combo-box-overlay is a child overlay appended inside the parent advertisement overlay's
   // shadow root, not in document.body — document.querySelector does not pierce shadow DOM.
   // We traverse all shadow roots to find it, then click the item by its label property.
-  // Avoids keyboard typing (per-character filter events reset title/description on the server).
-  const result = await page.evaluate((name) => {
+  // Avoids keyboard typing — per-character input events trigger binder validation that can
+  // mark the Set<Long> field invalid while the text "CategoryName" is still in the input.
+  // For large lists Vaadin's virtual scroller only renders visible items, so we scroll the
+  // dropdown to bring the target item into the DOM before searching.
+  const result = await page.evaluate(async (name) => {
     function shadowFind(root, selector) {
       const el = root.querySelector(selector);
       if (el) return el;
@@ -98,11 +101,31 @@ async function selectCategoryInAdForm(page, overlay, categoryName) {
     const slot = sr?.querySelector('slot');
     const assigned = slot ? [...slot.assignedElements({ flatten: true })] : [];
     const allRoots = [sr, overlayEl, ...assigned.map(e => e.shadowRoot).filter(Boolean), ...assigned];
+
+    // First attempt — item may already be visible in the current viewport.
     let item = null;
     for (const root of allRoots) {
       item = findItem(root, name);
       if (item) break;
     }
+
+    // If not found, scroll the virtual scroller to bring the item into the DOM.
+    if (!item) {
+      const scroller = assigned.find(e => e.tagName?.toLowerCase().includes('scroller'));
+      if (scroller) {
+        const itemHeight = 36;
+        const totalCount = scroller.items?.length ?? 50;
+        for (let step = 1; step <= totalCount && !item; step++) {
+          scroller.scrollTop = step * itemHeight;
+          await new Promise(r => requestAnimationFrame(r));
+          for (const root of allRoots) {
+            item = findItem(root, name);
+            if (item) break;
+          }
+        }
+      }
+    }
+
     if (!item) {
       return { found: false, debug: JSON.stringify({
         overlayCount: allOverlays.length,

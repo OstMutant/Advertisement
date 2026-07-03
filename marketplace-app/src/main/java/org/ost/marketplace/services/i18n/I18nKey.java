@@ -71,6 +71,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("advertisement.overlay.validation.description.length"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
@@ -183,6 +184,7 @@ public enum I18nKey {
     ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
     ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
     ATTACHMENT_GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),
+    ATTACHMENT_GALLERY_MAX_ITEMS("attachment.gallery.max.items"),
     ATTACHMENT_VIDEO_PLACEHOLDER("attachment.video.placeholder"),
     ATTACHMENT_VIDEO_INVALID("attachment.video.invalid"),
 
@@ -270,6 +272,7 @@ public enum I18nKey {
     SETTINGS_TIMELINE_PAGE_SIZE_LABEL("settings.timelinePageSize.label"),
     SETTINGS_SAVE_BUTTON("settings.save.button"),
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
+    SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
     ACTIVITY_PROFILE_TAB("activity.profile.tab"),

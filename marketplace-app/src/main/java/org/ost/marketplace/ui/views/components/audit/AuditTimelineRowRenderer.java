@@ -7,6 +7,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -107,8 +108,12 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     private Div buildActivityFieldsList(AuditTimelineItemDto<AuditableSnapshot> item) {
         AuditActivityEnrichHook enrichHook = enrichHooks.get(item.entityRef().entityType());
         if (enrichHook != null) {
+            Long attachmentSnapshotId = item.snapshotData() instanceof AdvertisementSnapshotDto s
+                    ? s.attachmentSnapshotId() : null;
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
-                    () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), item.snapshotId()));
+                    attachmentSnapshotId != null
+                            ? () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
+                            : null);
         }
         AuditActivityFieldsHook provider = fieldsProviders.get(item.entityRef().entityType());
         if (provider != null && item.snapshotData() != null) {
@@ -136,8 +141,10 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
     Div buildActivityFieldsList(AuditActivityItemDto<? extends AuditableSnapshot> h, EntityRef ref) {
         AuditActivityEnrichHook enrichHook = enrichHooks.get(ref.entityType());
-        Supplier<String> mediaLookup = enrichHook != null
-                ? () -> enrichHook.getMediaStateAtVersion(ref, h.version())
+        Long attachmentSnapshotId = h.snapshotData() instanceof AdvertisementSnapshotDto s
+                ? s.attachmentSnapshotId() : null;
+        Supplier<String> mediaLookup = (enrichHook != null && attachmentSnapshotId != null)
+                ? () -> enrichHook.getMediaStateForSnapshot(ref, attachmentSnapshotId)
                 : null;
         return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup);
     }

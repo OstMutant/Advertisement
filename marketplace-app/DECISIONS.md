@@ -409,6 +409,82 @@ Quill initialization and bidirectional value sync.
 
 ---
 
+## ADR-022: isCurrentState — criteria for "Current state" badge vs Restore button
+**Status:** Accepted
+
+**Context:** The audit activity panel shows a "Current state" badge on historical versions that
+match the current entity state, and a "Restore" button on versions that differ. The criteria for
+equality must cover all user-visible fields so that the badge only appears when restoring would
+have no effect.
+
+**Decision:** A historical snapshot is considered "current state" when ALL of the following match:
+- `title` — advertisement title
+- `description` — advertisement body (rich HTML)
+- `categories` — sorted, comma-separated names of assigned categories
+- `media` — attachment filenames at that version (via `AuditActivityEnrichHook.matchesCurrent`)
+
+If any of these differ, the "Restore" button is shown. If all are identical, the badge is shown.
+
+`AdvertisementSnapshotDto` stores `categories` as a sorted, comma-joined string of category names
+captured at save time (locale: English). `Objects.equals` on the full record covers title +
+description + categories; `mediaMatchCurrent` via `AuditActivityEnrichHook` covers media.
+
+`CategoryChangeSnapshotDto` rows (`isVisible() = false`) are hidden from the activity panel —
+category change information is now included in the main `AdvertisementSnapshotDto` diff.
+
+---
+
+## ADR-023: TransactionTemplate orchestrator — preferred pattern for multi-step backend operations
+**Status:** Accepted
+
+**Context:** Some save flows require calling multiple ports in a specific order within one
+transaction. The canonical example: `advertisementPort.save()` → `captureSnapshot` →
+`taxonPort.replaceAssignments()`. With `@Transactional` on service methods, the order is
+controlled by implementation details buried inside each starter's service — invisible to the
+caller. Self-invocation tricks (inner `@Component`, self-injection) work but obscure intent.
+
+**Decision:** Use `TransactionTemplate` in a dedicated `*SaveService` (or `*Orchestrator`) class
+in `marketplace-app` whenever a save flow requires:
+- calling two or more ports in a controlled order, AND/OR
+- mixing non-transactional work (S3, external calls) with transactional DB writes
+
+Pattern:
+```java
+@Service
+@RequiredArgsConstructor
+class FooSaveService {
+    private final TransactionTemplate tx;
+
+    public Long save(FooSaveDto dto, Long actorId,
+                     Runnable preCommitExternal,  // S3, external — outside TX
+                     Runnable captureSnapshot) {  // DB only — inside TX
+        preCommitExternal.run();                  // outside transaction
+
+        return tx.execute(status -> {
+            Long savedId = fooPort.get().save(dto, actorId);
+            captureSnapshot.run();                // before side-effects that shift audit window
+            barPort.ifAvailable(p -> p.doSideEffect(savedId, dto));
+            return savedId;
+        });
+    }
+}
+```
+
+`TransactionTemplate` is auto-configured by Spring Boot from `PlatformTransactionManager` —
+inject directly, no `@Bean` declaration needed. Inner port `@Transactional` methods join the
+existing TX via default `REQUIRED` propagation.
+
+**Consequences:**
+- Transaction boundary is explicit and visible in code — not hidden behind `@Transactional` on a
+  deeply nested service method.
+- Non-transactional work (S3) is clearly separated from DB work by position in the method.
+- Order of operations is enforced structurally, not by convention.
+- Rejected: inner `@Component` static class — workaround that obscures why the extra class exists.
+- Rejected: self-injection (`@Lazy @Autowired FooService self`) — same workaround category.
+- Rejected: two separate `@Transactional` service classes — atomicity not guaranteed across calls.
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

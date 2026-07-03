@@ -28,8 +28,10 @@ public class AttachmentSnapshotRepository {
     public void insert(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String[] urls, @NonNull List<AttachmentMediaChange> changes, @NonNull Long actorId) {
         jdbcClient.sql("""
                         INSERT INTO attachment_snapshot
-                            (entity_type, entity_id, attachment_urls, changes_summary, changed_by_actor_id, created_at)
-                        VALUES (:entityType, :entityId, :urls, :changes, :actorId, NOW())
+                            (entity_type, entity_id, attachment_urls, changes_summary, changed_by_actor_id, created_at, version)
+                        VALUES (:entityType, :entityId, :urls, :changes, :actorId, NOW(),
+                            COALESCE((SELECT MAX(version) FROM attachment_snapshot
+                                      WHERE entity_type = :entityType AND entity_id = :entityId), 0) + 1)
                         """)
                   .paramSource(new MapSqlParameterSource()
                           .addValue("entityType", entityType.name())
@@ -44,7 +46,7 @@ public class AttachmentSnapshotRepository {
         return jdbcClient.sql("""
                         SELECT attachment_urls FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
-                        ORDER BY created_at DESC LIMIT 1
+                        ORDER BY id DESC LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
@@ -53,104 +55,37 @@ public class AttachmentSnapshotRepository {
                          .optional();
     }
 
-    public String[] getUrlsAtVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {
-        return jdbcClient.sql("""
-                        SELECT attachment_urls FROM attachment_snapshot
-                        WHERE entity_type = :entityType AND entity_id = :entityId
-                          AND created_at < COALESCE((
-                              SELECT al.created_at FROM (
-                                  SELECT created_at,
-                                         ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn
-                                  FROM audit_log WHERE entity_type = :entityType AND entity_id = :entityId
-                              ) al WHERE al.rn = :version + 1
-                          ), 'infinity'::timestamptz)
-                        ORDER BY created_at DESC LIMIT 1
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType", entityType.name())
-                                 .addValue("entityId",   entityId)
-                                 .addValue("version",    version))
-                         .query((rs, _) -> extractUrls(rs))
-                         .optional()
-                         .map(l -> l.toArray(new String[0]))
-                         .orElse(new String[0]);
-    }
-
-    public Optional<List<String>> getUrlsForSnapshot(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
-        return jdbcClient.sql("""
-                        SELECT attachment_urls FROM attachment_snapshot
-                        WHERE entity_type = :entityType AND entity_id = :entityId
-                          AND created_at < COALESCE((
-                              SELECT created_at FROM audit_log
-                              WHERE entity_type = :entityType AND entity_id = :entityId
-                                AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapshotId)
-                              ORDER BY created_at ASC LIMIT 1
-                          ), 'infinity'::timestamptz)
-                        ORDER BY created_at DESC LIMIT 1
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType", entityType.name())
-                                 .addValue("entityId",   entityId)
-                                 .addValue("snapshotId", snapshotId))
+    public Optional<List<String>> getUrlsById(@NonNull Long id) {
+        return jdbcClient.sql("SELECT attachment_urls FROM attachment_snapshot WHERE id = :id")
+                         .param("id", id)
                          .query((rs, _) -> extractUrls(rs))
                          .optional();
     }
 
     @SneakyThrows
-    public Optional<List<AttachmentMediaChange>> findChangesBySnapshotId(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long snapshotId) {
+    public Optional<List<AttachmentMediaChange>> findChangesById(@NonNull Long id) {
         Optional<String> json = jdbcClient.sql("""
                         SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
-                        WHERE entity_type = :entityType AND entity_id = :entityId
-                          AND created_at >= (SELECT created_at FROM audit_log WHERE id = :snapshotId)
-                          AND created_at < COALESCE((
-                              SELECT created_at FROM audit_log
-                              WHERE entity_type = :entityType AND entity_id = :entityId
-                                AND created_at > (SELECT created_at FROM audit_log WHERE id = :snapshotId)
-                              ORDER BY created_at ASC LIMIT 1
-                          ), 'infinity'::timestamptz)
-                          AND changes_summary IS NOT NULL
-                        ORDER BY created_at ASC LIMIT 1
+                        WHERE id = :id AND changes_summary IS NOT NULL
                         """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("entityType", entityType.name())
-                                 .addValue("entityId",   entityId)
-                                 .addValue("snapshotId", snapshotId))
+                         .param("id", id)
                          .query(String.class)
                          .optional();
         return json.isEmpty() ? Optional.empty()
                 : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
-    @SneakyThrows
-    public Optional<List<AttachmentMediaChange>> findChangesByVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {
-        Optional<String> json = jdbcClient.sql("""
-                        SELECT changes_summary::text AS changes_summary FROM attachment_snapshot
+    public Optional<Long> findLatestId(@NonNull EntityType entityType, @NonNull Long entityId) {
+        return jdbcClient.sql("""
+                        SELECT id FROM attachment_snapshot
                         WHERE entity_type = :entityType AND entity_id = :entityId
-                          AND created_at >= (
-                              SELECT al.created_at FROM (
-                                  SELECT created_at,
-                                         ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn
-                                  FROM audit_log WHERE entity_type = :entityType AND entity_id = :entityId
-                              ) al WHERE al.rn = :version
-                          )
-                          AND created_at < COALESCE((
-                              SELECT al.created_at FROM (
-                                  SELECT created_at,
-                                         ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at) AS rn
-                                  FROM audit_log WHERE entity_type = :entityType AND entity_id = :entityId
-                              ) al WHERE al.rn = :version + 1
-                          ), 'infinity'::timestamptz)
-                          AND changes_summary IS NOT NULL
-                        ORDER BY created_at ASC LIMIT 1
+                        ORDER BY id DESC LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
-                                 .addValue("entityId",   entityId)
-                                 .addValue("version",    version))
-                         .query(String.class)
+                                 .addValue("entityId",   entityId))
+                         .query(Long.class)
                          .optional();
-        return json.isEmpty() ? Optional.empty()
-                : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
     private static List<String> extractUrls(ResultSet rs) {

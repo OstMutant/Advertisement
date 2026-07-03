@@ -9,7 +9,6 @@ import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.data.domain.Sort;
@@ -26,33 +25,25 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuditReadService {
 
-    private final AuditLogRepository            repository;
-    private final List<AuditActivityEnrichHook> activityEnrichHooks;
+    private final AuditLogRepository                   repository;
+    @SuppressWarnings("rawtypes")
+    private final List<AuditActivityEnrichHook>        activityEnrichHooks;
 
     // ── History ───────────────────────────────────────────────────────────────
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(EntityType entityType, Long entityId,
                                                       Long currentUserId, boolean showAll) {
-        EntityRef ref = new EntityRef(entityType, entityId);
         List<AuditLogProjection> rows = withSameTypePrevSnapshot(
                 repository.findRows(entityType, entityId, showAll ? null : currentUserId, 100));
-        List<AuditActivityItemDto<? extends AuditableSnapshot>> result = new ArrayList<>(rows.size());
-        for (AuditLogProjection row : rows) {
-            result.add(enrichWithMedia(toActivityItem(row), ref));
+        List items = rows.stream().map(this::toActivityItem).toList();
+        EntityRef entityRef = new EntityRef(entityType, entityId);
+        for (AuditActivityEnrichHook hook : activityEnrichHooks) {
+            if (hook.entityType() == entityType) {
+                items = hook.enrichActivity(entityRef, items);
+            }
         }
-        return result;
-    }
-
-    private <T extends AuditableSnapshot> AuditActivityItemDto<T> enrichWithMedia(AuditActivityItemDto<T> h, EntityRef ref) {
-        List<ChangeEntry> mediaChanges = activityEnrichHooks.stream()
-                .filter(hook -> hook.entityType() == ref.entityType())
-                .findFirst()
-                .map(hook -> hook.getAdditionalChanges(ref, h.version()))
-                .orElse(List.of());
-        if (mediaChanges.isEmpty()) return h;
-        List<ChangeEntry> combined = new ArrayList<>(mediaChanges);
-        combined.addAll(h.changes());
-        return h.withChanges(combined);
+        return items;
     }
 
     public Optional<AuditableSnapshot> getLastSnapshot(EntityType entityType, Long entityId) {
@@ -61,9 +52,9 @@ public class AuditReadService {
 
     // ── Activity ──────────────────────────────────────────────────────────────
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
-        List<AuditTimelineItemDto<AuditableSnapshot>> items = repository.findTimeline(filter, sort, page, size)
-                .stream().map(this::toTimelineItem).toList();
+        List items = repository.findTimeline(filter, sort, page, size).stream().map(this::toTimelineItem).toList();
         List<EntityRef> noSubjects = List.of();
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             items = hook.merge(noSubjects, items);

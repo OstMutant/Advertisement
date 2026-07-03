@@ -21,9 +21,9 @@ values is predictable and visible to the user.
 |--------|-------|----|-------------|----------------|--------|
 | User | name | VARCHAR(255) | 255 + `StringLengthValidator(1,255)` | `@Size(min=1,max=255)` | ✅ Aligned |
 | User | email | VARCHAR(255) | read-only in edit form | `@Email @NotBlank` in SignUpDto | ✅ OK (immutable) |
-| Advertisement | title | VARCHAR(255) NOT NULL | 255 + `StringLengthValidator(1,255)` | ❌ none | ⚠️ DTO gap |
-| Advertisement | description | TEXT (unlimited) | no maxLength, `asRequired()` only | ❌ none | ❌ Gap in all layers |
-| Advertisement | categoryIds | no DB limit | `maxSelectedItemsCount(10)` | ❌ none | ⚠️ DTO gap |
+| Advertisement | title | VARCHAR(255) NOT NULL | 255 + `StringLengthValidator(1,255)` | `@NotBlank @Size(min=1,max=255)` | ✅ Fixed |
+| Advertisement | description | TEXT (unlimited) | no maxLength, `asRequired()` only | `@NotBlank` | ✅ Fixed (max deferred — see P2) |
+| Advertisement | categoryIds | no DB limit | `maxSelectedItemsCount(10)` | `@Size(max=10)` | ✅ Fixed |
 | Taxon | name EN/UK | VARCHAR(255) NOT NULL | 255 + `StringLengthValidator(1,255)` | ❌ none in TaxonEditDto | ✅ binder enforces |
 | Taxon | description EN/UK | VARCHAR(2000) NOT NULL | 2000 + `StringLengthValidator(1,2000)` | ❌ none in TaxonEditDto | ✅ binder enforces |
 
@@ -31,11 +31,11 @@ values is predictable and visible to the user.
 
 | Domain | Field | DB | UI min/max | DTO constraint | Status |
 |--------|-------|----|-----------|----------------|--------|
-| Settings | adsPageSize | JSONB (no column limit) | `setMin(1)` / `setMax(100)` | `@Min(5) @Max(100)` | ❌ UI min wrong (1 vs 5) |
-| Settings | usersPageSize | JSONB | `setMin(1)` / `setMax(100)` | `@Min(5) @Max(100)` | ❌ UI min wrong (1 vs 5) |
-| Settings | timelinePageSize | JSONB | `setMin(1)` / `setMax(100)` | `@Min(5) @Max(100)` | ❌ UI min wrong (1 vs 5) |
+| Settings | adsPageSize | JSONB (no column limit) | `setMin(5)` / `setMax(100)` | `@Min(5) @Max(100)` | ✅ Fixed |
+| Settings | usersPageSize | JSONB | `setMin(5)` / `setMax(100)` | `@Min(5) @Max(100)` | ✅ Fixed |
+| Settings | timelinePageSize | JSONB | `setMin(5)` / `setMax(100)` | `@Min(5) @Max(100)` | ✅ Fixed |
 
-`PaginationDefaults.MIN_PAGE_SIZE = 5` already exists — the constant just isn't being used.
+`PaginationDefaults.MIN_PAGE_SIZE = 5` constant used consistently across UI + DTO.
 
 ---
 
@@ -52,7 +52,7 @@ Vaadin renders a built-in character counter bottom-right when `maxLength` is set
 ### QuillEditor (advertisement.description)
 
 - **No `maxLength` is set** — no character counter, no limit enforced
-- **No `StringLengthValidator`** — `asRequired()` only
+- **No `StringLengthValidator`** — `@NotBlank` only (DTO-level empty check)
 - DB column is `TEXT` — no limit at DB level either
 - If we add a max (e.g. 50 000 chars): QuillEditor has no built-in counter UI →
   **requires a custom character counter implementation** before enforcing a limit makes UX sense
@@ -69,21 +69,16 @@ Vaadin renders a built-in character counter bottom-right when `maxLength` is set
 
 ---
 
-## Fixes
+## Implemented Fixes
 
-### P1 — Fix Settings `setMin` + add binder range validator
+### ✅ P1 — Settings `setMin` aligned + binder range validator
 
-**Files:**
+**Files changed:**
 - `marketplace-app/.../settings/SettingsFormModeHandler.java`
   - All three fields: `setMin(1)` → `setMin(PaginationDefaults.MIN_PAGE_SIZE)` (5)
-  - Add to each binder chain:
-    ```java
-    .withValidator(
-        v -> v >= PaginationDefaults.MIN_PAGE_SIZE && v <= PaginationDefaults.MAX_PAGE_SIZE,
-        getValue(SETTINGS_PAGE_SIZE_RANGE)
-    )
-    ```
-- `marketplace-app/.../i18n/I18nKey.java` — add `SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range")`
+  - Extracted `bindPageSizeField(field, getter, setter)` — removes triple validator duplication
+  - Binder chain now includes `.withValidator(v -> v >= MIN && v <= MAX, i18n(SETTINGS_PAGE_SIZE_RANGE))`
+- `marketplace-app/.../i18n/I18nKey.java` — `SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range")`
 - `messages_en.properties` — `settings.page.size.range=Must be between 5 and 100`
 - `messages_uk.properties` — `settings.page.size.range=Має бути від 5 до 100`
 
@@ -93,9 +88,9 @@ without feedback — confusing UX.
 
 ---
 
-### P1 — Add DTO constraints to `AdvertisementSaveDto` + wire `@Valid`
+### ✅ P1 — DTO constraints on `AdvertisementSaveDto` + `@Valid` wired
 
-**Files:**
+**Files changed:**
 - `platform-commons/.../advertisement/dto/AdvertisementSaveDto.java`
   ```java
   public record AdvertisementSaveDto(
@@ -106,15 +101,51 @@ without feedback — confusing UX.
   ) {}
   ```
 - `advertisement-spring-boot-starter/.../AdvertisementService.java`
-  - `save(@NonNull AdvertisementSaveDto dto, ...)` → `save(@NonNull @Valid AdvertisementSaveDto dto, ...)`
-  - Without `@Valid` the JSR-380 annotations never fire even though the class is `@Validated`
+  - `save(@NonNull @Valid AdvertisementSaveDto dto, ...)` — triggers JSR-380 on the DTO
 
-**Why:** Currently constraints exist only in the UI binder. A raw API call bypasses all
-validation — any title length and empty description are accepted.
+**Why:** Constraints existed only in the UI binder. A raw API call bypassed all validation —
+any title length and empty description were accepted silently.
 
 ---
 
-### P2 — QuillEditor character counter (separate feature, UI decision required)
+### ⏳ P1 — `SettingsFormModeHandler` duplication fix (pending)
+
+Extract validator lambda into `private void bindPageSizeField(IntegerField, getter, setter)`.
+Currently the same `.withValidator(...)` lambda is copy-pasted three times.
+
+---
+
+## Test Coverage — Boundary Value Tests
+
+**Decision:** no new spec files. Tests added as new `describe` blocks (gated on `PW_FULL`)
+inside existing spec files, grouped by behaviour similarity.
+
+### `03-marketplace-promotion-flow.spec.js` — new `describe` block at end
+
+Gated: `test.skip(!process.env.PW_FULL, ...)`
+
+| Test | What it verifies |
+|------|-----------------|
+| `adminEn signs up maxEn — max name 255 chars, activity created` | Signup + admin renames user to 255-char name, activity diff recorded |
+| `adminEn signs up maxUk — max name 255 chars, activity created` | Same for UK user |
+| `adminEn seeds 10 boundary categories — for max category selection` | Creates `Boundary-01` … `Boundary-10` used in spec 04 max tests |
+
+### `04-marketplace-advertisement-flow.spec.js` — new `describe` block at end
+
+Gated: `test.skip(!process.env.PW_FULL, ...)`
+
+| Test | What it verifies |
+|------|-----------------|
+| `maxEn creates max-content EN advertisement — 255-char title, all Quill formats, 10 categories, YouTube + image + video, lightbox, activity` | All fields at boundary, gallery complete, lightbox navigable, v1 activity |
+| `maxUk creates max-content UK advertisement — 255-char title, all Quill formats, 10 categories, YouTube + image + video, lightbox, activity` | Same for UK user |
+| `maxEn edits EN max-content advertisement — discard, new 255-char title, replace all media, activity diff v2` | Edit flow at boundary: discard restores, save creates v2 diff with max-length fields |
+| `maxUk edits UK max-content advertisement — discard, new 255-char title, replace all media, activity diff v2` | Same for UK user |
+
+---
+
+## Deferred
+
+### P2 — QuillEditor character counter
 
 Before adding a max length to `advertisement.description`:
 1. Decide on the limit (50 000? 10 000?)
@@ -123,29 +154,12 @@ Before adding a max length to `advertisement.description`:
 3. Show counter below editor, same style as Vaadin TextArea counter
 4. Only then add `StringLengthValidator` to the binder and `@Size(max=N)` to DTO
 
-**This is blocked until the limit is decided.**
+**Blocked until the limit is decided.**
 
----
-
-### P3 — `advertisement.description` DB schema (deferred)
+### P3 — `advertisement.description` DB schema
 
 Change `description TEXT` → `description VARCHAR(N)` in advertisement table once the limit
 from P2 is decided. Requires a Liquibase migration.
-
----
-
-## Test Coverage Plan (not implemented yet)
-
-No new spec files needed. Steps can be added as `test.step()` blocks inside existing flows:
-
-| What to test | Where to add | Existing test |
-|-------------|-------------|---------------|
-| Empty title → save rejected, inline error | `advertisement.flow.js` `runCreateAdvertisementFlow` — before the real fill | `04-marketplace-advertisement-flow.spec.js:42` |
-| Settings min clamp — type `2`, blur → shows `5` | `05-seed-filter-sort-pagination.spec.js:341` before the main page-size changes | "adminEn changes page sizes" |
-| Settings max clamp — type `999`, blur → shows `100` | same test | same |
-| Category max 10 — 11th selection rejected | `advertisement.flow.js` — requires pre-seeding 10+ categories | needs 10 categories in DB first |
-
-**Constraint:** Only `test.step()` inside existing tests — no new spec files.
 
 ---
 
@@ -153,12 +167,12 @@ No new spec files needed. Steps can be added as `test.step()` blocks inside exis
 
 | File | Role |
 |------|------|
-| `platform-commons/.../advertisement/dto/AdvertisementSaveDto.java` | Add `@NotBlank @Size @Size` |
-| `advertisement-spring-boot-starter/.../AdvertisementService.java` | Add `@Valid` on `save()` param |
-| `marketplace-app/.../settings/SettingsFormModeHandler.java` | Fix min=5, add range validator |
-| `marketplace-app/.../i18n/I18nKey.java` | Add `SETTINGS_PAGE_SIZE_RANGE` |
-| `marketplace-app/src/main/resources/i18n/messages_en.properties` | Add range message |
-| `marketplace-app/src/main/resources/i18n/messages_uk.properties` | Add range message |
-| `marketplace-app/.../fields/QuillEditor.java` | Future: add character counter (P2) |
-| `playwright/e2e/_flows/advertisement.flow.js` | Future: add validation step.step() (P1 test) |
-| `playwright/e2e/05-seed-filter-sort-pagination.spec.js` | Future: add settings clamp step.step() |
+| `platform-commons/.../advertisement/dto/AdvertisementSaveDto.java` | `@NotBlank @Size @Size` — done |
+| `advertisement-spring-boot-starter/.../AdvertisementService.java` | `@Valid` on `save()` param — done |
+| `marketplace-app/.../settings/SettingsFormModeHandler.java` | min=5, range validator, extract bindPageSizeField |
+| `marketplace-app/.../i18n/I18nKey.java` | `SETTINGS_PAGE_SIZE_RANGE` — done |
+| `marketplace-app/src/main/resources/i18n/messages_en.properties` | range message — done |
+| `marketplace-app/src/main/resources/i18n/messages_uk.properties` | range message — done |
+| `marketplace-app/.../fields/QuillEditor.java` | Future: character counter (P2) |
+| `playwright/e2e/03-marketplace-promotion-flow.spec.js` | Add max-user + boundary-categories describe block |
+| `playwright/e2e/04-marketplace-advertisement-flow.spec.js` | Add max-content create + edit describe block |

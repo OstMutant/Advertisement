@@ -1,0 +1,74 @@
+package org.ost.marketplace.services.advertisement;
+
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.platform.attachment.spi.AttachmentPort;
+import org.ost.platform.audit.spi.AuditPort;
+import org.ost.platform.core.ComponentFactory;
+import org.ost.platform.core.model.EntityRef;
+import org.ost.platform.core.model.EntityType;
+import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.spi.TaxonPort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.function.Function;
+
+@Service
+@RequiredArgsConstructor
+public class AdvertisementSaveService {
+
+    private final TransactionTemplate                 tx;
+    private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
+    private final ComponentFactory<AttachmentPort>    attachmentPortFactory;
+    private final ComponentFactory<TaxonPort>         taxonPortFactory;
+    private final ComponentFactory<AuditPort>         auditPortFactory;
+
+    public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actorId,
+                     @NonNull Function<EntityRef, Long> commitGallery) {
+        return tx.execute(status -> {
+            boolean isNew = dto.id() == null;
+            AdvertisementSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
+
+            Long savedId = advertisementPortFactory.get().save(dto, actorId);
+            Long gallerySnapshotId = commitGallery.apply(new EntityRef(EntityType.ADVERTISEMENT, savedId));
+            Long attachmentSnapshotId = gallerySnapshotId != null ? gallerySnapshotId
+                    : (before != null ? before.attachmentSnapshotId() : null);
+
+            Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
+            taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, savedId, catIds));
+
+            AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
+            List<Long> sortedCatIds = catIds.stream().sorted().toList();
+            AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
+                    saved.getTitle(), saved.getDescription(), sortedCatIds, attachmentSnapshotId);
+
+            if (isNew) {
+                auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
+            } else {
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, before, after, actorId));
+            }
+            return savedId;
+        });
+    }
+
+    private AdvertisementSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {
+        AdvertisementInfoDto ad = advertisementPortFactory.get().findById(entityId).orElse(null);
+        if (ad == null) return null;
+        List<Long> catIds = taxonPortFactory.findIfAvailable()
+                .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, entityId, Locale.ENGLISH)
+                        .stream().map(TaxonDto::getId).sorted().toList())
+                .orElse(List.of());
+        Long attachmentSnapshotId = attachmentPortFactory.findIfAvailable()
+                .map(p -> p.getLatestSnapshotId(EntityType.ADVERTISEMENT, entityId))
+                .orElse(null);
+        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), catIds, attachmentSnapshotId);
+    }
+}

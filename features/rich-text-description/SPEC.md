@@ -68,3 +68,27 @@ Or a simple regex for stripped preview if Jsoup already on classpath.
   → Recommendation: service layer — guarantees clean data regardless of caller.
 - Existing plain-text descriptions after migration: display as-is (already safe, no tags).
 - Max length: keep current DB constraint or raise it?
+
+---
+
+## Known Problems
+
+### Problem 1 — isCurrentState badge missing on v1 after restore
+
+Test `userEn restores advertisement` fails: expects 3 restore buttons, receives 4.
+After restoring to v7, version v1 (CREATED) should show "Current state" badge because the
+restored state matches the original — but it doesn't.
+
+Root cause: `getUrlsAtVersion(1)` returns empty result.
+`AttachmentSnapshotRepository` uses `attachment_snapshot.created_at < audit_log[rn=2].created_at`
+as boundary. Inside a single PostgreSQL transaction `NOW()` returns the same timestamp for all
+INSERTs — so the condition `T == T` evaluates to false and no snapshot is found.
+
+### Problem 2 — cross-module SQL coupling between attachment and audit
+
+`AttachmentSnapshotRepository` (attachment-spring-boot-starter) contains SQL queries that
+read directly from the `audit_log` table (owned by audit-spring-boot-starter).
+
+This violates module independence: removing audit-spring-boot-starter would break
+attachment-spring-boot-starter at the SQL level even though they are supposed to be
+independent optional starters.

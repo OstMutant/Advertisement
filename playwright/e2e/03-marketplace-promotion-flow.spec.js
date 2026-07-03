@@ -3,6 +3,8 @@ const { runFillLoginFormFlow, runSubmitLoginFlow, runLogoutFlow } = require('./_
 const { runSwitchToUkrainianLoggedInFlow } = require('./_flows/language-switch.flow');
 const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlow, runOpenUserEditViaViewFlow, runFillUserRoleFlow, runSaveUserEditFlow, clearUserFilter, closeUserOverlay, closeUserOverlayFromEdit } = require('./_flows/user-management.flow');
 const { openTimelineTab, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
+const { runSignUpFlow } = require('./_flows/signup.flow');
+const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
 
 // Section 3 helpers — taxon management
 async function openRefDataTab(page) {
@@ -370,5 +372,79 @@ test.describe('Promotion flow', () => {
     });
 
     await runLogoutFlow(page, expect);
+  });
+});
+
+// ─── Boundary: max-content users + seed categories (PW_FULL only) ────────────
+
+const MAX_NAME_100   = 'MaxBoundaryUserNameForValidationTest'.repeat(3).substring(0, 100);
+const _emailLocal    = '0'.repeat(48);
+const _emailSeg1     = 'max-domain-seg1-' + '0'.repeat(47);
+const _emailSeg2     = 'max-domain-seg2-' + '0'.repeat(47);
+const _emailSeg3     = 'max-domain-seg3-' + '0'.repeat(45);
+const MAX_EMAIL_EN   = `max-boundary-en-${_emailLocal}@${_emailSeg1}.${_emailSeg2}.${_emailSeg3}`;
+const MAX_EMAIL_UK   = `max-boundary-uk-${_emailLocal}@${_emailSeg1}.${_emailSeg2}.${_emailSeg3}`;
+const MAX_EN         = { name: MAX_NAME_100, email: MAX_EMAIL_EN, password: 'password' };
+const MAX_UK         = { name: MAX_NAME_100, email: MAX_EMAIL_UK, password: 'password' };
+
+test.describe('Max-boundary users and categories', () => {
+  test.skip(!process.env.PW_FULL, 'Skipped by default — run with --full for boundary tests');
+
+  let page;
+
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
+    await page.goto('/');
+  });
+
+  test.afterAll(async () => {
+    await page.close();
+  });
+
+  test('maxEn signs up — 100-char name accepted, admin verifies user created', async () => {
+    await runSignUpFlow(page, expect, MAX_EN);
+    await loginBulk(page, TEST_USERS.adminEn);
+    await runNavigateToUsersTabFlow(page, expect);
+    await runOpenUserEditViaListFlow(page, MAX_EN.email);
+    const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
+    await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
+    await screenshot(page, 'max-01-en-user-name-100');
+    await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
+    const activityList = page.locator('.user-overlay .entity-activity-list');
+    await activityList.waitFor({ timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-action--created').first()).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'max-02-en-user-activity-created');
+    await closeUserOverlay(page);
+    await clearUserFilter(page);
+    await logoutBulk(page);
+  });
+
+  test('maxUk signs up — 100-char name accepted, admin verifies user created', async () => {
+    await runSignUpFlow(page, expect, MAX_UK);
+    await loginBulk(page, TEST_USERS.adminEn);
+    await runNavigateToUsersTabFlow(page, expect);
+    await runOpenUserEditViaListFlow(page, MAX_UK.email);
+    const nameInput = page.locator('.user-overlay vaadin-text-field input').first();
+    await expect(nameInput).toHaveValue(MAX_NAME_100, { timeout: 5000 });
+    await screenshot(page, 'max-03-uk-user-name-100');
+    await page.locator('.user-overlay vaadin-tab').filter({ hasText: /activity|активність/i }).click();
+    const activityList = page.locator('.user-overlay .entity-activity-list');
+    await activityList.waitFor({ timeout: 5000 });
+    await expect(activityList.locator('.entity-activity-action--created').first()).toBeVisible({ timeout: 5000 });
+    await screenshot(page, 'max-04-uk-user-activity-created');
+    await closeUserOverlay(page);
+    await clearUserFilter(page);
+    await logoutBulk(page);
+  });
+
+  test('adminEn seeds 10 boundary categories — for max category selection in spec 04', async () => {
+    await loginBulk(page, TEST_USERS.adminEn);
+    await openRefDataTab(page);
+    for (let i = 1; i <= 10; i++) {
+      const label = `Boundary-${String(i).padStart(2, '0')}`;
+      await createCategory(page, { nameEn: label, descEn: `Boundary category ${i}`, nameUk: label, descUk: `Гранична категорія ${i}` });
+    }
+    await screenshot(page, 'max-05-boundary-categories-seeded');
+    await logoutBulk(page);
   });
 });

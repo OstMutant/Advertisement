@@ -183,6 +183,8 @@
 .advertisement-categories {
   font-size: 0.78rem;
   color: #64748b;
+  display: block;
+  width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

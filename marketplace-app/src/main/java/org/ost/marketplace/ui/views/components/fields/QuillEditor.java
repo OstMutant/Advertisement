@@ -13,6 +13,8 @@ import com.vaadin.flow.component.dependency.NpmPackage;
 public class QuillEditor extends AbstractSinglePropertyField<QuillEditor, String>
         implements HasSize, HasLabel {
 
+    private boolean awaitingNormalization = false;
+
     public QuillEditor() {
         super("value", "", false);
     }
@@ -25,5 +27,22 @@ public class QuillEditor extends AbstractSinglePropertyField<QuillEditor, String
     @Override
     public String getLabel() {
         return getElement().getAttribute("label");
+    }
+
+    @Override
+    protected void setPresentationValue(String newPresentationValue) {
+        awaitingNormalization = newPresentationValue != null && !newPresentationValue.isBlank();
+        super.setPresentationValue(newPresentationValue);
+    }
+
+    @Override
+    protected void setModelValue(String newModelValue, boolean fromClient) {
+        if (fromClient && awaitingNormalization) {
+            awaitingNormalization = false;
+            super.setModelValue(newModelValue, false);
+            return;
+        }
+        awaitingNormalization = false;
+        super.setModelValue(newModelValue, fromClient);
     }
 }

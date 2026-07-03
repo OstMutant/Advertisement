@@ -57,7 +57,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
                 UiTextField.Parameters.builder()
                         .labelKey(SIGNUP_NAME_LABEL)
                         .placeholderKey(SIGNUP_NAME_LABEL)
-                        .maxLength(255)
+                        .maxLength(SignUpDto.NAME_MAX_LENGTH)
                         .required(true)
                         .build());
         emailField = emailFieldFactory.build(
@@ -66,6 +66,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
                         .placeholderKey(SIGNUP_EMAIL_LABEL)
                         .required(true)
                         .build());
+        emailField.setMaxLength(SignUpDto.EMAIL_MAX_LENGTH);
         passwordField = passwordFieldFactory.build(
                 UiPasswordField.Parameters.builder()
                         .labelKey(SIGNUP_PASSWORD_LABEL)

@@ -4,7 +4,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.taxon.dto.CategoryChangeSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
@@ -36,10 +35,10 @@ public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsH
     @Override
     public String labelFor(@NonNull String rawFieldKey) {
         return switch (rawFieldKey) {
-            case AdvertisementSnapshotDto.Fields.title           -> i18n.get(I18nKey.CHANGES_FIELD_TITLE);
-            case AdvertisementSnapshotDto.Fields.description     -> i18n.get(I18nKey.CHANGES_FIELD_DESCRIPTION);
-            case CategoryChangeSnapshotDto.Fields.categoryName   -> i18n.get(I18nKey.CHANGES_FIELD_CATEGORY);
-            default                                              -> rawFieldKey;
+            case AdvertisementSnapshotDto.Fields.title       -> i18n.get(I18nKey.CHANGES_FIELD_TITLE);
+            case AdvertisementSnapshotDto.Fields.description -> i18n.get(I18nKey.CHANGES_FIELD_DESCRIPTION);
+            case AdvertisementSnapshotDto.Fields.categoryIds -> i18n.get(I18nKey.CHANGES_FIELD_CATEGORY);
+            default                                          -> rawFieldKey;
         };
     }
 }

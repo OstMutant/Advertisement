@@ -2,8 +2,8 @@ package org.ost.platform.audit.spi;
 
 import lombok.NonNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
@@ -15,11 +15,9 @@ import java.util.List;
  * information and to provide media-state lookups for the audit renderer.
  * Implement one bean per entity type that has attachment support.
  */
-public interface AuditActivityEnrichHook {
+public interface AuditActivityEnrichHook<T extends AuditableSnapshot> {
     EntityType entityType();
-    List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> base);
-    List<ChangeEntry> getAdditionalChanges(@NonNull EntityRef entity, int version);
-    boolean matchesCurrent(@NonNull EntityRef entity, int version);
+    List<AuditTimelineItemDto<T>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<T>> base);
+    default List<AuditActivityItemDto<T>> enrichActivity(@NonNull EntityRef entityRef, @NonNull List<AuditActivityItemDto<T>> items) { return items; }
     default String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) { return null; }
-    default String getMediaStateAtVersion(@NonNull EntityRef ref, int version) { return null; }
 }
