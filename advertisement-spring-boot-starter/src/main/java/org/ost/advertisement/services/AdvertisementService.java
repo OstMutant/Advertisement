@@ -18,6 +18,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.jsoup.Jsoup;
+import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 import org.springframework.data.domain.PageRequest;
@@ -41,7 +42,8 @@ public class AdvertisementService {
 
     private static final PolicyFactory HTML_SANITIZER = Sanitizers.FORMATTING
             .and(Sanitizers.LINKS)
-            .and(Sanitizers.BLOCKS);
+            .and(Sanitizers.BLOCKS)
+            .and(new HtmlPolicyBuilder().allowElements("pre").toFactory());
 
     private final AdvertisementRepository          repository;
     private final ComponentFactory<AuditPort>      auditPortFactory;

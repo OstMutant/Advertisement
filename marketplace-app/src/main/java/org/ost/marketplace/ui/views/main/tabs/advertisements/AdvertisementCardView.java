@@ -12,6 +12,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
+import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
@@ -159,13 +160,15 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Div createDescription(AdvertisementInfoDto ad) {
-        String html = ad.getDescription() != null ? ad.getDescription().replace("&nbsp;", " ") : "";
-        if (html.isBlank()) return new Div();
+        String html = ad.getDescription();
+        if (html == null || html.isBlank()) return new Div();
+        String text = Jsoup.parse(html).text();
+        if (text.isBlank()) return new Div();
 
         Div description = new Div();
         description.addClassName("advertisement-description");
         description.addClassName("advertisement-description--truncated");
-        description.getElement().setProperty("innerHTML", html);
+        description.setText(text);
 
         Div wrapper = new Div(description);
         wrapper.addClassName("advertisement-description-wrapper");

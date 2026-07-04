@@ -30,17 +30,24 @@ and 3-layer description length validation (commit b7d64cc2 — closes
 |---|---|---|---|
 | buildx + cache mounts | Part 1/3 of process-improvements | ~1h | not started |
 
-**Week 0 is otherwise complete.** Next up: Wave 1, starting with improvement-005.
+**Week 0 is otherwise complete.**
 
 ## Wave 1 — prerequisites for public shareability
 
+✅ Done (2026-07-04): improvement-005 — plain-text card excerpt (Jsoup `.text()` instead of raw
+`innerHTML`) + sanitizer allowlist merge (`<pre>` added, `mailto:`/extra tags kept as accepted
+divergence). Moved to `completed/issues/`. Updated an outdated Playwright assertion
+(`e2e/_flows/advertisement.flow.js`, card step) that expected rich HTML tags in the card —
+full e2e 46/46 green.
+
+**Still open:**
+
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-005](issues/improvement-005-rich-text-excerpt-and-sanitizer-gaps.md) | Plain-text excerpt for cards | dual purpose: fixes card HTML leak AND feeds link-preview descriptions |
-| 2 | [improvement-017](issues/improvement-017-sync-s3-upload-in-request-thread.md) (step 1) | Upload size caps | alongside thumbnail work; step 2 (async) deferred |
-| 3 | [improvement-020](issues/improvement-020-security-baseline-before-public-endpoints.md) | Deny-by-default + rate limiting | **hard gate** — lands with the first public REST endpoints |
-| 4 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
-| 5 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #4, same PR |
+| 1 | [improvement-017](issues/improvement-017-sync-s3-upload-in-request-thread.md) (step 1) | Upload size caps | alongside thumbnail work; step 2 (async) deferred |
+| 2 | [improvement-020](issues/improvement-020-security-baseline-before-public-endpoints.md) | Deny-by-default + rate limiting | **hard gate** — lands with the first public REST endpoints |
+| 3 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
+| 4 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #3, same PR |
 
 ## Wave 2 — quality hardening before public traffic
 

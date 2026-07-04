@@ -429,7 +429,8 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
     if (richText) {
       const descHtml = await updatedCard.locator('.advertisement-description').innerHTML();
-      assertAllRichTags(expect, descHtml, 'card description');
+      expect(descHtml, 'card description should be plain text, no HTML tags').not.toContain('<');
+      expect(descHtml, 'card description should contain the rich-text content as plain text').toContain(RICH_TEXT_FIRST_WORD);
       await expect(updatedCard.locator('.advertisement-description--truncated')).toBeVisible();
       await screenshot(page, `${screenshotPrefix}-card-rich-html`);
     }
