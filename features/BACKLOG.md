@@ -12,14 +12,17 @@ corresponding domain work; **Deferred** = trigger-based, do not touch until the 
 
 ## Week 0 — quick wins (~1 day total)
 
-| Issue | What | Cost |
-|---|---|---|
-| [improvement-012](issues/improvement-012-notification-toast-overlaps-header.md) | Toast overlaps header buttons | 1 line |
-| [improvement-009](issues/improvement-009-header-signed-in-email-overflow.md) | Header email overflow breaks layout | few CSS lines |
-| [improvement-016](issues/improvement-016-unused-vaadin-dependency-platform-commons.md) | Unused vaadin-core in platform-commons pom | one pom block |
+✅ Done (2026-07-04, commit 0f02b91d): toast position (improvement-012), header email overflow
+(improvement-009), unused vaadin-core dependency (improvement-016), virtual threads,
+DelegatingPasswordEncoder — all verified with a full reactor build, `deploy-dev.sh`, and a
+green 46/46 e2e run. Moved to `completed/issues/`.
 
-Plus non-issue quick wins from `process-improvements.md` Part 1/3: virtual threads (1 line),
-buildx + cache mounts, owasp-sanitizer bump, DelegatingPasswordEncoder.
+**Still open:**
+
+| Item | What | Cost | Note |
+|---|---|---|---|
+| owasp-sanitizer bump | Part 1/3 of process-improvements | 1 pom line + full e2e | deliberately held back — investigate the edit-form dirty-state bug (Quill/HTML content triggers Save/Discard on open with no actual edit) before touching the sanitizer, in case they're related |
+| buildx + cache mounts | Part 1/3 of process-improvements | ~1h | not started |
 
 ## Wave 1 — prerequisites for public shareability
 

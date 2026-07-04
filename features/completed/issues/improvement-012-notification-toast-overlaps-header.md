@@ -4,6 +4,7 @@
 **Module:** marketplace-app
 **Priority:** low — cosmetic, self-resolves when the toast times out
 **When:** Week 0 — quick-wins batch (one line)
+**Status:** ✅ RESOLVED (2026-07-04) — `Notification.Position.BOTTOM_END` (commit 0f02b91d)
 
 ## Problem
 

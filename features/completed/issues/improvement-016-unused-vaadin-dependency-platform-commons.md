@@ -4,6 +4,9 @@
 **Module:** platform-commons
 **Priority:** low — no runtime impact today; contradicts documented architecture
 **When:** Week 0 — quick-wins batch (one pom block)
+**Status:** ✅ RESOLVED (2026-07-04) — dependency and stale description text removed, full
+reactor build verified green (commit 0f02b91d). The banned-dependency ArchUnit/Enforcer
+guard (item 4) remains open — tracked under process-improvements Part 2.
 
 ## Problem
 

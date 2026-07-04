@@ -4,6 +4,9 @@
 **Module:** marketplace-app
 **Priority:** low — cosmetic, edge case (very long email), no functional breakage
 **When:** Week 0 — quick-wins batch
+**Status:** ✅ RESOLVED (2026-07-04) — max-width + ellipsis added to `.header-auth-row span`
+(commit 0f02b91d). `title` attribute for full email on hover was not added — optional,
+left for a future pass.
 
 ## Problem
 
