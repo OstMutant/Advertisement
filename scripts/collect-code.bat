@@ -95,7 +95,7 @@ goto :EOF
 
 :FindFiles
 :: Recursively searches for files and filters out system/generated folders
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\" ') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF

@@ -183,7 +183,7 @@ in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubt
 ---
 
 ## ADR-009: AuditableSnapshot.isRestorable() default method
-**Status:** Accepted
+**Status:** Superseded (2026-07-03, snapshot-cleanup)
 
 **Context:** Not all snapshot types represent a restorable entity state. Category-change snapshots
 record a taxonomy assignment event — restoring to that "snapshot" makes no domain sense.
@@ -191,8 +191,11 @@ record a taxonomy assignment event — restoring to that "snapshot" makes no dom
 **Decision:** `AuditableSnapshot` gained `default boolean isRestorable() { return true; }`.
 `CategoryChangeSnapshotDto` overrides it to return `false`.
 
-**Consequences:** Any new `AuditableSnapshot` implementation that represents a metadata/event
-record (not a full entity state) must override `isRestorable()` to return `false`.
+**Superseded:** advertisement-snapshot-redesign deleted `CategoryChangeSnapshotDto` (the only
+overrider), leaving every implementation on the default `true`; snapshot-cleanup then removed
+`isRestorable()` (and the analogous `isVisible()`) from `AuditableSnapshot` entirely as dead
+code. If a metadata/event snapshot type ever reappears, reintroduce the flag with it — do not
+add it preemptively. See `features/completed/snapshot-cleanup/SPEC.md`.
 
 ---
 

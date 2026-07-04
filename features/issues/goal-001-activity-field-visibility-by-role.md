@@ -3,6 +3,7 @@
 **Type:** open-goal
 **Module:** marketplace-app (audit integration)
 **Priority:** low — acceptable edge case, no user complaints
+**When:** Deferred — no trigger; revisit on user feedback
 
 ## Problem
 

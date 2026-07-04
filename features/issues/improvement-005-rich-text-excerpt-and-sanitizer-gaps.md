@@ -3,6 +3,7 @@
 **Type:** improvement — follow-up from rich-text-description feature
 **Module:** marketplace-app + advertisement-spring-boot-starter
 **Priority:** medium
+**When:** Wave 1, first item — plain-text excerpt is a prerequisite for shareable-link previews AND fixes the card HTML leak
 
 ## Problem
 

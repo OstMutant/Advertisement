@@ -3,6 +3,7 @@
 **Type:** improvement — follow-up gap from category-ids-in-snapshot
 **Module:** marketplace-app
 **Priority:** low — cosmetic, no functional breakage
+**When:** Deferred — batch into any nearby UI-touching PR
 
 ## Problem
 

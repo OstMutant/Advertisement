@@ -21,8 +21,8 @@ Java package root: `org.ost.user`
 
 ## Schema
 
-Liquibase changelog: `db/changelog/user-changelog.xml`  
-Tables: `app_user`, `user_settings`
+Liquibase changelog: `db/user-changelog/user-changelog-master.xml`  
+Tables: `user_information` (single table; per-user settings live in its `settings` JSONB column — no separate settings table)
 
 Starters own their own Liquibase changelogs — never merge into a shared file.
 

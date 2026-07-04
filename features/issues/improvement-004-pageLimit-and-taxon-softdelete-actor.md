@@ -1,6 +1,7 @@
 # improvement-004: Extract pageLimit() to query-lib + add actorId to TaxonRepository.softDelete()
 
 **Type:** improvement — deduplication + audit consistency
+**When:** Wave 1 — bundle with the taxon repository touch (improvement-007, same PR)
 
 ---
 

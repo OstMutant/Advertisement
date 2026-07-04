@@ -429,8 +429,12 @@ If any of these differ, the "Restore" button is shown. If all are identical, the
 captured at save time (locale: English). `Objects.equals` on the full record covers title +
 description + categories; `mediaMatchCurrent` via `AuditActivityEnrichHook` covers media.
 
-`CategoryChangeSnapshotDto` rows (`isVisible() = false`) are hidden from the activity panel —
-category change information is now included in the main `AdvertisementSnapshotDto` diff.
+Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
+`AuditableSnapshot.isVisible()` mechanism were removed entirely — after
+advertisement-snapshot-redesign no snapshot type ever returned `false`, making the visibility
+filter in `AuditActivityPanel` a no-op. Category change information rides in the main
+`AdvertisementSnapshotDto` diff; no row-hiding machinery exists anymore
+(see `features/completed/snapshot-cleanup/SPEC.md`).
 
 ---
 

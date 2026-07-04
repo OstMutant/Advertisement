@@ -125,40 +125,38 @@ If user module must ever become truly optional, extract a lightweight "UserRefer
 
 ## Hidden Coupling: Optional Dependencies Without Guards
 
-**Severity:** MEDIUM — Runtime failure risk
+### ✅ RESOLVED at starter level (verified 2026-07-03)
 
-**Finding:**
-advertisement-spring-boot-starter pom.xml declares optional dependencies:
-```xml
-<dependency>
-    <groupId>org.ost</groupId>
-    <artifactId>audit-spring-boot-starter</artifactId>
-    <optional>true</optional>
-</dependency>
-<dependency>
-    <groupId>org.ost</groupId>
-    <artifactId>attachment-spring-boot-starter</artifactId>
-    <optional>true</optional>
-</dependency>
-```
+The originally presumed unguarded call (`auditPort.captureCreation(...)` directly in
+`AdvertisementService`) does not exist in current code. `AdvertisementService` injects
+`ComponentFactory<AuditPort>`, `ComponentFactory<AttachmentPort>`, `ComponentFactory<TaxonPort>`
+and resolves every call through `ifAvailable()` / `findIfAvailable()`. A grep for
+`import org.ost.audit.` / `import org.ost.attachment.` in advertisement-spring-boot-starter
+returns nothing — only platform-commons SPI types are referenced. The starter degrades
+gracefully as designed.
 
-But in code, these are called without ObjectProvider guards:
-```java
-// In AdvertisementService (presumed):
-auditPort.captureCreation(...);  // WILL FAIL if audit starter not on classpath
-```
+### ✗ OPEN — residual risk relocated to marketplace-app UI (found 2026-07-03)
 
-**Impact:**
-- If audit or attachment starters are excluded from classpath, the app fails at runtime
-- No graceful degradation
+**Severity:** MEDIUM — startup failure risk
 
-**Options:**
-1. Remove `<optional>true/>` — make them required dependencies
-2. Add `ObjectProvider<AuditPort>` guards in code
-3. Add autom configuration checks to fail early with clear message
+Three marketplace-app UI classes hard-inject starter ports instead of using
+`ComponentFactory`:
 
-**Recommendation:**
-Option 1 (remove optional) is simplest. Audit and attachment are core to the marketplace feature set. If true optionality is needed, guards must be added.
+| Class | Injection | Scope | Failure without the starter |
+|-------|-----------|-------|------------------------------|
+| `AttachmentGalleryService` | `AttachmentPort` | singleton | context fails **at startup** |
+| `AttachmentGallery` | `AttachmentPort` | prototype | exception on first build |
+| `AuditActivityPanel` | `AuditPort` | prototype | exception on first build |
+
+Call-site guards (`galleryServiceFactory.ifAvailable(...)`) do not help: the component bean
+definitions live in marketplace-app and always exist, so `getIfAvailable()` attempts
+instantiation and throws `UnsatisfiedDependencyException`. Attachment and audit starters are
+therefore effectively mandatory today, despite `<optional>true</optional>` in
+advertisement-spring-boot-starter's pom.xml.
+
+→ Tracked in [improvement-011](../../features/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+with two resolution options (make degradation real via `ComponentFactory` +
+`@ConditionalOnBean`, or drop `<optional>` and the degradation clause).
 
 ---
 
@@ -215,11 +213,11 @@ Most classes have 1-3 injected dependencies:
 | **UI → Repository Direct** | ✓ PASS | All through Ports |
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
 | **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15); UserPortImpl mapping logic fixed (2026-07-01) |
-| **Optional Deps Guarded** | ✗ OPEN | audit/attachment optional but not guarded with ObjectProvider (MEDIUM) |
+| **Optional Deps Guarded** | ~ PARTIAL | starter level RESOLVED (ComponentFactory guards everywhere); marketplace-app UI still hard-injects `AttachmentPort`/`AuditPort` in 3 classes → improvement-011 (MEDIUM) |
 | **User ↔ Advertisement Coupling** | ~ WARNING | Schema-level FK coupling; acceptable since both required |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |
 
 **Open Action Items:**
-1. **DECIDE on Optional Deps:** Either remove `<optional>` from advertisement pom.xml or add ObjectProvider guards
+1. **DECIDE on Optional Deps (improvement-011):** Either make marketplace-app UI degradation real (`ComponentFactory` + `@ConditionalOnBean` on `AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`) or remove `<optional>` from advertisement pom.xml and drop the degradation clause — record the decision in `marketplace-app/DECISIONS.md`
 2. **MONITOR Advertisement → User:** If user becomes optional in future, extract UserReference SPI
 

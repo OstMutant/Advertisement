@@ -3,6 +3,7 @@
 **Type:** improvement — found during general app walkthrough (Playwright `--ux` review)
 **Module:** marketplace-app
 **Priority:** low — cosmetic, edge case (very long email), no functional breakage
+**When:** Week 0 — quick-wins batch
 
 ## Problem
 

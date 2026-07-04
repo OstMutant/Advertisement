@@ -1,5 +1,7 @@
 # Issue: Description length validator is vulnerable to HTML tag spam
 
+**When:** Wave 2 — before public traffic (raised to medium; raw-size cap is step 1)
+
 ## Problem
 
 The current binder validator for the advertisement description field strips HTML tags and
@@ -26,18 +28,29 @@ value chosen. For this reason, `AdvertisementSaveDto.description` carries only `
 at the service layer — the OWASP HTML sanitizer in `AdvertisementService` is the actual
 defence against malicious or oversized payloads before persistence.
 
+## DoS angle (added 2026-07-04, external audit round 5)
+
+The abuse is worse than a validation bypass: `<b></b>` is a FORMATTING tag, and the OWASP
+policy (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`) **preserves** formatting tags — so
+100 KB of empty `<b></b>` pairs survives sanitization and is stored as-is (the column is
+`TEXT` with no DB limit — see improvement-006). Repeated large payloads load the sanitizer
+CPU-wise and bloat the table/audit snapshots. The earlier "sanitizer strips it anyway"
+impact note below was wrong for formatting tags.
+
 ## Proper fix (deferred)
 
-Two-layer protection:
-1. **Content limit (UI binder)** — replace the `replaceAll` regex with Jsoup (already on
+Three-layer protection:
+1. **Raw-size cap (cheapest, do first)** — reject raw HTML above a hard byte limit
+   (10-20 KB) before any parsing, in the binder AND as a service-level guard on
+   `AdvertisementSaveDto`. Legitimate 2000-char rich text never approaches this.
+2. **Content limit (UI binder)** — replace the `replaceAll` regex with Jsoup (already on
    classpath via OWASP sanitizer): `Jsoup.parse(html).text().length() <= 2000`. Jsoup
    correctly handles `&nbsp;` and returns 0 for empty tags like `<b></b>`.
-2. **Payload abuse limit (AdvertisementSaveDto)** — add a custom `@Constraint` or a
+3. **Payload abuse limit (AdvertisementSaveDto)** — add a custom `@Constraint` or a
    service-level guard that extracts text (via Jsoup) and validates length, rather than
    using `@Size` on the raw HTML string.
 
 ## Impact
 
-Low priority — the OWASP HTML sanitizer in `AdvertisementService` already processes all
-incoming HTML before persistence, limiting what can actually be stored. Tag spam would be
-stripped to empty content by the sanitizer anyway.
+Medium (raised from low, 2026-07-04): the sanitizer does NOT strip empty formatting tags,
+so the payload reaches the DB. Must land before public traffic (product roadmap Phase 1).

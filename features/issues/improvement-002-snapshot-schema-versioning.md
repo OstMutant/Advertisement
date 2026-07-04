@@ -3,6 +3,7 @@
 **Type:** improvement — deferred, design complete
 **Module:** audit-spring-boot-starter + platform-commons
 **Priority:** medium — implement before first AuditableSnapshot field rename in production
+**When:** Wave 3 — must land before the first new snapshot-bearing domain ships
 
 ## Problem
 

@@ -315,7 +315,9 @@ same timestamp.
 ---
 
 ## ADR-021: withSameTypePrevSnapshot — in-memory same-type diff post-processing
-**Status:** Accepted
+**Status:** Accepted (update 2026-07-03: the motivating type `CategoryChangeSnapshotDto` was
+removed by snapshot-cleanup, so today the method is a same-type pass-through; it stays as the
+guard for any future mixed-type entity history — `AuditReadService.java:37,94`)
 
 **Context:** When category-change rows (`CategoryChangeSnapshotDto`) appear between advertisement
 rows, SQL `LAG` returns the immediately preceding row regardless of type.
@@ -333,7 +335,9 @@ SQL must stay domain-free. In-memory correction is the right fix.
 ---
 
 ## ADR-022: restorableCount replaces items.size() for restore button visibility
-**Status:** Accepted
+**Status:** Superseded (2026-07-03, snapshot-cleanup — `isRestorable()` and
+`CategoryChangeSnapshotDto` were removed; every row is restorable now, so plain
+`items.size()` is correct again and `restorableCount` no longer exists in code)
 
 **Context:** Category-change rows (`CategoryChangeSnapshotDto.isRestorable() == false`) inflate
 the total item count. When `historySize > 1`, the CREATED row shows a "Restore" button. With

@@ -3,6 +3,7 @@
 **Type:** improvement — follow-up from feature-001 (field validation coverage)
 **Module:** marketplace-app + advertisement-spring-boot-starter
 **Priority:** low — depends on `issue-description-length-tag-spam.md` being fixed first
+**When:** Wave 2 — strictly after issue-description-length-tag-spam
 
 ## Problem
 

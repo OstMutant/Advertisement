@@ -24,8 +24,8 @@ Java package root: `org.ost.audit`
 
 ## Schema
 
-Liquibase changelog: `db/changelog/audit-changelog.xml`  
-Tables: `audit_log`, `audit_snapshot`
+Liquibase changelog: `db/audit-changelog/audit-changelog-master.xml`  
+Tables: `audit_log` (single table; snapshots stored in its `snapshot_data` column — no separate snapshot table)
 
 Starters own their own Liquibase changelogs — never merge into a shared file.
 
