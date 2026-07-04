@@ -4,6 +4,15 @@
 **Module:** attachment-spring-boot-starter
 **Priority:** medium — per-user freeze today, systemic risk largely mitigated by virtual threads
 **When:** Split: step 1 (size caps) Wave 1 alongside thumbnails; step 2 (async pipeline) deferred, bundled with the thumbnail refactor
+**Status:** ◐ PARTIALLY RESOLVED (2026-07-04) — step 1 done: `AttachmentUploadButton.MAX_FILE_SIZE`
+lowered `500 MB → 50 MB` (`AttachmentUploadButton.java:9`), sized for realistic ad photos/short
+demo videos rather than raw camera footage; bounds worst-case per-user freeze from
+15-25+ min down to ~2-3 min on a slow connection. Virtual threads already on (Week 0). No
+reverse proxy exists in this stack yet, so the original "Nginx `client_max_body_size`" half of
+step 1 doesn't apply until one is introduced — revisit then. Whether Vaadin's `UploadHandler`
+bypasses Spring's `multipart.max-file-size` entirely was not empirically confirmed — flag if
+relevant when touching this area again. **Step 2 (real async pipeline) remains open, deferred
+to the thumbnail refactor per the trigger below.**
 
 ## Problem
 

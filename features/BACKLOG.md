@@ -40,14 +40,18 @@ divergence). Moved to `completed/issues/`. Updated an outdated Playwright assert
 (`e2e/_flows/advertisement.flow.js`, card step) that expected rich HTML tags in the card —
 full e2e 46/46 green.
 
+✅ Also done: improvement-017 step 1 — upload size cap lowered `500 MB → 50 MB`
+(`AttachmentUploadButton.java:9`), sized for realistic ad photos/short demo videos. Issue file
+stays open (not moved) — step 2 (real async pipeline) remains deferred, see Deferred section.
+Full e2e 46/46 green.
+
 **Still open:**
 
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-017](issues/improvement-017-sync-s3-upload-in-request-thread.md) (step 1) | Upload size caps | alongside thumbnail work; step 2 (async) deferred |
-| 2 | [improvement-020](issues/improvement-020-security-baseline-before-public-endpoints.md) | Deny-by-default + rate limiting | **hard gate** — lands with the first public REST endpoints |
-| 3 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
-| 4 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #3, same PR |
+| 1 | [improvement-020](issues/improvement-020-security-baseline-before-public-endpoints.md) | Deny-by-default + rate limiting | **hard gate** — lands with the first public REST endpoints |
+| 2 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
+| 3 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #2, same PR |
 
 ## Wave 2 — quality hardening before public traffic
 
