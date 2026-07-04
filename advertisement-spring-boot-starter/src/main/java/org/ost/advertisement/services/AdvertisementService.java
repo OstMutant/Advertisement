@@ -17,6 +17,7 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.jsoup.Jsoup;
 import org.owasp.html.PolicyFactory;
 import org.owasp.html.Sanitizers;
 import org.springframework.data.domain.PageRequest;
@@ -157,6 +158,17 @@ public class AdvertisementService {
 
     private static String sanitizeHtml(String html) {
         if (html == null || html.isBlank()) return html;
-        return HTML_SANITIZER.sanitize(html);
+        String sanitized = HTML_SANITIZER.sanitize(html);
+        validateDescriptionLength(sanitized);
+        return sanitized;
+    }
+
+    private static void validateDescriptionLength(String html) {
+        int textLength = Jsoup.parse(html).text().length();
+        if (textLength > AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH) {
+            throw new IllegalArgumentException(
+                    "Description text exceeds maximum length of "
+                            + AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH + " characters");
+        }
     }
 }

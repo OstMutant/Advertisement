@@ -41,8 +41,18 @@ green 46/46 e2e run. Moved to `completed/issues/`.
 | 1 | [improvement-018](issues/improvement-018-settings-pagination-cross-session-bleed.md) | Cross-session settings bleed + UI-ref leak | **real multi-user bug**; needs 2-session Playwright test |
 | 2 | [improvement-015](issues/improvement-015-optimistic-locking.md) | Optimistic locking (@Version on all entities) | silent last-write-wins otherwise |
 | 3 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
-| 4 | [issue-description-length-tag-spam](issues/issue-description-length-tag-spam.md) | Tag-spam validator + raw-size cap | formatting tags survive the sanitizer |
-| 5 | [improvement-006](issues/improvement-006-quill-description-counter-and-db-limit.md) | Quill counter + DB limit | strictly after #4 |
+
+✅ Done (2026-07-04): tag-spam validator + 3-layer Jsoup-based length validation
+(`issue-description-length-tag-spam` → moved to `completed/issues/`), alongside a fix for a
+Quill false-dirty-state bug (edit form showed Save/Discard as active on open for rich-text
+descriptions — not separately tracked as an issue, fixed directly; see
+`marketplace-app/DECISIONS.md` ADR-021 update). Full e2e 46/46 green.
+
+**Still open, no longer blocked:**
+
+| Issue | What | Note |
+|---|---|---|
+| [improvement-006](issues/improvement-006-quill-description-counter-and-db-limit.md) | Quill char counter + DB VARCHAR(2000) migration | its blocker is resolved; can be picked up independently now |
 | 6 | [improvement-011](issues/improvement-011-unguarded-port-injection-in-ui-components.md) | Port-injection guards decision (Option A/C) | must precede creation of any new starter |
 
 Plus from `process-improvements.md`: ArchUnit module + minimal CI (before the codebase grows).

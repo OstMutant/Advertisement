@@ -45,9 +45,15 @@ class QuillEditorElement extends HTMLElement {
     });
 
     if (this.__value) {
-      this.__quill.root.innerHTML = this.__value;
+      const delta = this.__quill.clipboard.convert({ html: this.__value });
+      this.__quill.setContents(delta, 'silent');
     }
 
+    // Our own hydration writes use source 'silent' (see above / set value()), which never
+    // reaches this listener at all — so anything that does arrive here is a genuine change
+    // (real typing, toolbar clicks, or an external API call), not an echo. No source filter
+    // needed: filtering to 'user' only would incorrectly ignore legitimate 'api'-sourced
+    // content changes (e.g. Quill.setContents(delta) called without an explicit source).
     this.__quill.on('text-change', () => {
       const html = this.__quill.getSemanticHTML();
       this.__value = html === '<p><br></p>' ? '' : html;
@@ -68,7 +74,8 @@ class QuillEditorElement extends HTMLElement {
       const current = this.__quill.getSemanticHTML();
       const currentNormalized = current === '<p><br></p>' ? '' : current;
       if (currentNormalized !== this.__value) {
-        this.__quill.root.innerHTML = this.__value || '';
+        const delta = this.__quill.clipboard.convert({ html: this.__value || '' });
+        this.__quill.setContents(delta, 'silent');
       }
     }
   }

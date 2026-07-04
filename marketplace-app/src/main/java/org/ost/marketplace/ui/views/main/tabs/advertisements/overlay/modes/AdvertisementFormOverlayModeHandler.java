@@ -15,6 +15,7 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
@@ -313,11 +314,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         binder.getBinder().forField(descriptionField)
                 .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
                 .withValidator(
-                        html -> {
-                            if (html == null) return false;
-                            String text = html.replaceAll("<[^>]+>", "").replace("&nbsp;", " ").trim();
-                            return text.length() <= AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH;
-                        },
+                        html -> html != null
+                                && Jsoup.parse(html).text().length() <= AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH,
                         getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH)
                 )
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);

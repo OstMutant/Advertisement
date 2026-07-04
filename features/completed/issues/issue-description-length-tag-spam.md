@@ -1,6 +1,15 @@
 # Issue: Description length validator is vulnerable to HTML tag spam
 
 **When:** Wave 2 — before public traffic (raised to medium; raw-size cap is step 1)
+**Status:** ✅ RESOLVED (2026-07-04) — all three layers implemented: `@Size(max =
+DESCRIPTION_RAW_MAX_LENGTH = 20_000)` on `AdvertisementSaveDto.description`
+(platform-commons); Jsoup-based `Jsoup.parse(html).text().length()` check replacing the
+regex in `AdvertisementFormOverlayModeHandler`'s binder validator (marketplace-app); Jsoup-based
+`validateDescriptionLength()` guard in `AdvertisementService.sanitizeHtml()`
+(advertisement-spring-boot-starter), throwing on overflow — surfaced to the user via the
+existing generic `catch (Exception e)` in `AbstractEntityOverlay.handleSave()`, no new UI
+plumbing needed. `jsoup:1.22.1` added to both modules via a new `jsoup.version` root pom
+property. Full e2e suite green (46/46) after the fix. Unblocks `improvement-006`.
 
 ## Problem
 

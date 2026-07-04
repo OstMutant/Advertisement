@@ -407,6 +407,37 @@ Quill initialization and bidirectional value sync.
   (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`) — server never trusts raw HTML from the client.
 - Used in `AdvertisementFormOverlayModeHandler` and `TaxonFormOverlayModeHandler` for description fields.
 
+**Update (2026-07-04) — false-dirty-state bug and its proper fix:** editing an advertisement
+whose description contained rich HTML made Save/Discard appear active immediately on opening
+the form, with no actual edit. Root cause: `quill-editor.js` loaded/restored content via direct
+`this.__quill.root.innerHTML = ...` assignment, bypassing Quill's API entirely. Quill's own
+MutationObserver-based change detection treats any DOM mutation it didn't originate through its
+own API as an external, `'user'`-sourced change — so loading a value re-triggered Quill's HTML
+serializer (`getSemanticHTML()`), which normalizes rich HTML (quotes/attributes/tag structure)
+differently byte-for-byte from what was stored, and dispatched a spurious `value-changed` event
+that Vaadin's `Binder` picked up as a real edit (`Binder` has no `fromClient`-aware guard against
+this — confirmed against decompiled `flow-data` bytecode).
+
+An earlier, undocumented attempt to fix this (`awaitingNormalization` flag + `setPresentationValue`/
+`setModelValue` overrides in `QuillEditor.java`, added 2026-07-03 in commit `94647d9e` under an
+unrelated "docs sync" commit message) did not work, because it assumed `Binder` inspects
+`fromClient` on the changed binding — it doesn't.
+
+**Proper fix:** use Quill's own native `source` parameter instead of custom bookkeeping. All
+programmatic content loads (`connectedCallback()` initial load, `set value()`) now go through
+`quill.setContents(delta, 'silent')` — Quill's `'silent'` source never fires `text-change` at
+all, so there is no echo to filter. The `text-change` listener needs no source check: since our
+own writes never reach it, anything that does fire there is a genuine change (real typing,
+toolbar clicks, or an external API call like `quill.setContents(delta)` without an explicit
+source — which Quill tags `'api'`, not `'user'`; an earlier draft of this fix filtered on
+`source === 'user'` and broke Playwright's rich-text test helper, which calls `setContents`
+directly without a source argument). The dead `awaitingNormalization` mechanism in
+`QuillEditor.java` was removed as part of this fix — see the corresponding commit for both files.
+Confirmed this is also how Vaadin's own (commercial, CVALv3-licensed) `RichTextEditor` add-on
+solves the identical problem internally (its Quill-wrapping mixin uses the same `source`
+tagging), validating the approach against a production-proven precedent without needing the
+paid component itself.
+
 ---
 
 ## ADR-022: isCurrentState — criteria for "Current state" badge vs Restore button
@@ -486,6 +517,48 @@ existing TX via default `REQUIRED` propagation.
 - Rejected: inner `@Component` static class — workaround that obscures why the extra class exists.
 - Rejected: self-injection (`@Lazy @Autowired FooService self`) — same workaround category.
 - Rejected: two separate `@Transactional` service classes — atomicity not guaranteed across calls.
+
+---
+
+## ADR-024: Jsoup-based, defense-in-depth description length validation
+**Status:** Accepted (done 2026-07-04)
+
+**Context:** `AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH = 2000` existed as a constant but was
+enforced only by a client-reachable, regex-based binder validator
+(`html.replaceAll("<[^>]+>", "")` + length check) that tag-spam could bypass — formatting tags
+like `<b></b>` survive the OWASP sanitizer (it preserves allowed tags), so thousands of empty
+ones pass the stripped-text check while still bloating the stored HTML
+(`features/completed/issues/issue-description-length-tag-spam.md`). No server-side length
+guard existed at all — a direct port call bypassing the UI could persist an unbounded
+description.
+
+**Decision:** three-layer validation, none of them removable without reopening a gap:
+1. **Raw-size cap** — `@Size(max = DESCRIPTION_RAW_MAX_LENGTH = 20_000)` on
+   `AdvertisementSaveDto.description` (`platform-commons`) — plain Bean Validation, no new
+   dependency, bounds worst-case payload size before any parsing.
+2. **UI content check** — `AdvertisementFormOverlayModeHandler`'s binder validator replaced
+   the regex with `Jsoup.parse(html).text().length() <= DESCRIPTION_MAX_LENGTH`.
+3. **Service-level guard** — `AdvertisementService.sanitizeHtml()` calls a new
+   `validateDescriptionLength()` using the same Jsoup check on the *sanitized* HTML, throwing
+   `IllegalArgumentException` on overflow. No new exception-handling plumbing was needed:
+   `AbstractEntityOverlay.handleSave()` already has a generic `catch (Exception e)` that shows
+   `e.getMessage()` via `NotificationService`.
+
+`org.jsoup:jsoup:${jsoup.version}` (`1.22.1`, new root-pom property, same pattern as
+`aws-s3-sdk.version`) was added directly to `marketplace-app` and
+`advertisement-spring-boot-starter` — **not** to `platform-commons`, keeping the shared kernel
+dependency-free per its governance rules. The one-line Jsoup check is intentionally duplicated
+in both layers (UI for fast feedback, service for real enforcement) rather than factored into
+a shared utility — a single line of logic does not justify a cross-module abstraction, and the
+two layers have no natural common module to live in without violating the starter/UI
+boundary.
+
+**Consequences:**
+- `improvement-006` (Quill UI character counter + `advertisement.description` DB column limit)
+  remains open but is now unblocked — the counter and the validators agree on how "length" is
+  measured.
+- Any future field with the same "rich HTML but bounded visible text" shape should follow the
+  same three-layer pattern rather than reaching for `@Size` directly on the HTML string.
 
 ---
 
