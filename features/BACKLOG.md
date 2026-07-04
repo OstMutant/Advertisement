@@ -12,17 +12,25 @@ corresponding domain work; **Deferred** = trigger-based, do not touch until the 
 
 ## Week 0 — quick wins (~1 day total)
 
-✅ Done (2026-07-04, commit 0f02b91d): toast position (improvement-012), header email overflow
-(improvement-009), unused vaadin-core dependency (improvement-016), virtual threads,
-DelegatingPasswordEncoder — all verified with a full reactor build, `deploy-dev.sh`, and a
-green 46/46 e2e run. Moved to `completed/issues/`.
+✅ Done (2026-07-04): toast position (improvement-012, commit 0f02b91d), header email overflow
+(improvement-009, commit 0f02b91d), unused vaadin-core dependency (improvement-016, commit
+0f02b91d), virtual threads (commit 0f02b91d), DelegatingPasswordEncoder (commit 0f02b91d),
+owasp-sanitizer bump 20240325.1→20260313.1 (commit a9ed6d7e) — all verified with a full
+reactor build, `deploy-dev.sh`, and a green 46/46 e2e run each time. Resolved issues moved to
+`completed/issues/`.
+
+Also fixed this session, not originally tracked as Week-0 items: a Quill false-dirty-state bug
+and 3-layer description length validation (commit b7d64cc2 — closes
+`completed/issues/issue-description-length-tag-spam.md`, unblocks improvement-006; see
+`marketplace-app/DECISIONS.md` ADR-021 update and ADR-024).
 
 **Still open:**
 
 | Item | What | Cost | Note |
 |---|---|---|---|
-| owasp-sanitizer bump | Part 1/3 of process-improvements | 1 pom line + full e2e | deliberately held back — investigate the edit-form dirty-state bug (Quill/HTML content triggers Save/Discard on open with no actual edit) before touching the sanitizer, in case they're related |
 | buildx + cache mounts | Part 1/3 of process-improvements | ~1h | not started |
+
+**Week 0 is otherwise complete.** Next up: Wave 1, starting with improvement-005.
 
 ## Wave 1 — prerequisites for public shareability
 

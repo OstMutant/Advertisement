@@ -34,3 +34,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.
 - `AdvertisementService` depends on `ComponentFactory<TaxonPort>` — category assignment is optional (guard via `taxonPortFactory.ifAvailable(...)`).
 - HTML description is sanitized using OWASP HTML Sanitizer (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`). Never trust raw HTML from UI.
+- Description visible-text length is enforced server-side via a Jsoup-based check in
+  `AdvertisementService.sanitizeHtml()` (`Jsoup.parse(html).text().length()`), in addition to
+  the raw-size `@Size` cap on `AdvertisementSaveDto.description` — see
+  `marketplace-app/DECISIONS.md` ADR-024.

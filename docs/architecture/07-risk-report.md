@@ -203,9 +203,15 @@ audit and attachment starters are marked `<optional>true/>` in advertisement pom
 
 ### 3. Password Storage
 
-**Location:** user_information.password_hash (VARCHAR, stored as BCrypt)
+**Location:** user_information.password_hash (VARCHAR); encoded via
+`PasswordEncoderFactories.createDelegatingPasswordEncoder()` (`UserAutoConfiguration.java`,
+updated 2026-07-04 — previously a raw `BCryptPasswordEncoder`). Stored hashes now carry an
+`{bcrypt}` prefix identifying the algorithm, so a future migration to a stronger algorithm
+(e.g. Argon2id) can be rolled in without a data rewrite — new hashes just get encoded with the
+new default while old `{bcrypt}`-prefixed ones still verify correctly.
 
-**Risk:** LOW — Hashing handled by Spring Security; no plaintext leaks.
+**Risk:** LOW — Hashing handled by Spring Security; no plaintext leaks; algorithm migration
+path no longer requires a data rewrite.
 
 ---
 

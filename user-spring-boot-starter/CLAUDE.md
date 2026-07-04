@@ -35,3 +35,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `@EnableJdbcRepositories(basePackages = "org.ost.user")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
 - `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
+- `passwordEncoder()` bean in `UserAutoConfiguration` uses
+  `PasswordEncoderFactories.createDelegatingPasswordEncoder()` (not a raw `BCryptPasswordEncoder`)
+  so stored hashes carry an algorithm prefix (`{bcrypt}`) and future algorithm migration doesn't
+  require a data rewrite.
