@@ -57,6 +57,10 @@
   font-size: 0.78rem;
   color: #94a3b8;
   letter-spacing: 0.01em;
+  max-width: 260px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .header-login-button,

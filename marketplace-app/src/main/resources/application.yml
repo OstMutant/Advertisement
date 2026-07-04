@@ -7,6 +7,10 @@ spring:
   profiles:
     active: dev
 
+  threads:
+    virtual:
+      enabled: true
+
   # Database migration settings
   liquibase:
     enabled: true

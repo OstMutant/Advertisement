@@ -67,7 +67,7 @@ public class NotificationService {
         Notification notification = new Notification();
         notification.setDuration(type.getDuration());
         notification.addThemeVariants(type.getVariant());
-        notification.setPosition(Notification.Position.TOP_END);
+        notification.setPosition(Notification.Position.BOTTOM_END);
         notification.add(createLayout(type, message, notification));
         return notification;
     }
