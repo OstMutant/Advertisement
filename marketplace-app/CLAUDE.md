@@ -96,6 +96,13 @@ Translation keys — single consolidated enum:
 - Method-level `@PreAuthorize` is fine for future REST controller endpoints.
 - Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
 - `/health` is intentionally public (load balancer probe).
+- `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
+  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025). Any future
+  non-Vaadin REST controller must add its own explicit `requestMatchers(...)` rule ahead of the
+  catch-all.
+- Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
+  are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
+  failures — never successes (see `DECISIONS.md` ADR-026).
 
 ---
 

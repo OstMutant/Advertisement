@@ -23,6 +23,30 @@ Example: `moderatorEn edits EN advertisement — discard, two saves with activit
 
 ---
 
+## Flow helpers (`_flows/`)
+
+Shared step sequences used across spec files. Per `playwright/CLAUDE.md`: extract a helper here
+only when 2+ spec files need it — spec-only helpers stay local to the spec file.
+
+| File | Purpose |
+|---|---|
+| `signup.flow.js` | Full sign-up: fill form → submit → verify success → login → logout |
+| `auth.flow.js` | Login form fill/submit, logout confirm/cancel |
+| `language-switch.flow.js` | Locale combobox switching, logged-out and logged-in |
+| `audit.flow.js` | Entity/settings activity feed verification, user audit rows |
+| `timeline.flow.js` | Timeline tab: open, filter (entity/action/actor), row assertions |
+| `user-management.flow.js` | Users grid navigation, view/edit dialogs, role promotion |
+| `category.flow.js` | Category (taxon) CRUD, category multi-select in the advertisement form |
+| `advertisement.flow.js` | Advertisement create/edit/restore lifecycle, media, rich text, cross-user media replace — largest flow file, core of spec 04 |
+| `advertisement-filter.flow.js` | Advertisement filter panel: open/fill/apply/clear/verify status |
+| `attachment.flow.js` | Lightbox/gallery: iframe src, video src, thumbnail navigation |
+| `filter.flow.js` | Generic grid filter/sort/pagination helpers (users + advertisements grids) |
+| `settings.flow.js` | Page-size settings: change, restore from activity, read current values |
+| `seed.flow.js` | Bulk parallel signup/login/logout/ad creation for spec 05 seeding |
+| `delete.flow.js` | Delete confirm/cancel dialogs, simple ad creation for delete tests |
+
+---
+
 ## 01 — Empty state (no auth)
 
 Runs against an empty database. Verifies unauthenticated UI.

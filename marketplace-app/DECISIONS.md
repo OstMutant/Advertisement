@@ -562,6 +562,76 @@ boundary.
 
 ---
 
+## ADR-025: Deny-by-default at the Spring Security URL layer is incompatible with this app's Vaadin routing model
+
+**Status:** Accepted
+
+**Context:** `improvement-020` proposed hardening `SecurityConfig` from `anyRequest().permitAll()`
+to `anyRequest().denyAll()` (permitting only `vaadinInternalRequestMatcher` and `/health`), to
+guard against future public REST endpoints being accidentally exposed. Deployed and tested via
+the full Playwright e2e suite: **0/46 tests passed** — the root page itself never rendered.
+
+Root cause, confirmed via `HandlerHelper.isFrameworkInternalRequest`'s actual implementation:
+it matches only Vaadin's internal AJAX/RPC traffic (UIDL, heartbeat, push, upload, dynamic
+resource requests) — **not** the root page bootstrap (`GET /`) that serves the application shell.
+Since `MainView` is the sole `@Route("")` and the entire app is one Vaadin SPA behind that single
+route, `anyRequest().denyAll()` blocks the application shell itself, not just hypothetical future
+REST endpoints.
+
+This is consistent with ADR-007: access control for Vaadin views in this app is enforced *inside*
+the view (`AccessEvaluator`, hidden tabs), not via Spring Security URL matching — a direct
+consequence of Vaadin initializing view beans before authentication completes.
+
+**Decision:** Reverted to `anyRequest().permitAll()`. Deny-by-default at the URL layer does not
+apply to a monolithic Vaadin SPA; instead, each future non-Vaadin REST controller (webhooks,
+sitemap, etc.) must declare its own explicit `requestMatchers(...)` rule ahead of the Vaadin
+catch-all, as a discipline/process rule rather than a global switch.
+
+**Consequences:**
+- `SecurityConfig` keeps `anyRequest().permitAll()`; only `/health` and the Vaadin internal
+  matcher get explicit rules.
+- Any new REST controller added later must add its own security rule *before* the catch-all —
+  reviewers should treat a missing explicit rule on a new controller as a blocker.
+- → [improvement-020-security-baseline-before-public-endpoints](../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+
+---
+
+## ADR-026: Rate limiting counts only real failures, never successful attempts
+
+**Status:** Accepted
+
+**Context:** `improvement-020` also added Caffeine-based rate limiting to `AuthService.login()`
+and `UserService.register()` (`org.ost.user.services`). The first version incremented the
+attempt counter on *every* call regardless of outcome. This broke the Playwright e2e suite:
+all signups run from the same client IP (the test-runner container), and the 6th successful
+signup within the 15-minute window was rejected as "too many attempts" — the generic
+`catch (Exception ex)` in `SignUpDialog` then misreported it as "email already registered",
+masking the real cause.
+
+**Decision:** Both limiters now increment only on an actual failure:
+- `AuthService.login()` — increments on `BadCredentialsException`, invalidates the cache entry
+  on success (unchanged from the original design — this one was correct from the start).
+- `UserService.register()` — increments only on `DuplicateKeyException` from `repository.save()`
+  (a TOCTOU race past the client-side email-uniqueness check); the client-side binder validator
+  already rejects duplicate emails before `register()` is ever called, so this path is rare by
+  design. Successful registrations never count toward the limit.
+
+Both dialogs (`LoginDialog`, `SignUpDialog`) catch `IllegalStateException` (thrown when the
+limit is exceeded) separately from the generic exception handler, showing a dedicated
+"too many attempts, try again later" notification (`LOGIN_ERROR_TOO_MANY_ATTEMPTS`,
+`SIGNUP_ERROR_TOO_MANY_ATTEMPTS`) instead of a misleading generic error.
+
+**Consequences:**
+- e2e coverage: `02-marketplace-authentication-flow.spec.js` — `rateLimitUser exceeds login
+  attempts` test signs up a dedicated throwaway user and drives 5 wrong-password attempts + a
+  6th blocked attempt, to avoid locking out shared `TEST_USERS` accounts used by later specs.
+- No equivalent e2e test exists for the registration limiter's `DuplicateKeyException` path —
+  it is not reachable through the normal UI flow (client-side check intercepts first) and would
+  require bypassing that check to force a real race.
+- → [improvement-020-security-baseline-before-public-endpoints](../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

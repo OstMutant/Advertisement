@@ -32,8 +32,10 @@ COPY marketplace-app/src ./marketplace-app/src
 # Install parent POM and all dependency modules to local Maven repo before building marketplace-app
 RUN ./mvnw install -DskipTests -pl .,platform-commons,query-lib,audit-spring-boot-starter,attachment-spring-boot-starter,user-spring-boot-starter,advertisement-spring-boot-starter,taxon-spring-boot-starter -q
 
-# Build the application with Vaadin production mode
-RUN ./mvnw package -Pproduction -DskipTests -pl marketplace-app -q
+# Build the application (Vaadin production bundle is built automatically by
+# vaadin-maven-plugin on `package`; SPRING_PROFILES_ACTIVE=prod at runtime sets
+# vaadin.productionMode=true, see application-prod.yml)
+RUN ./mvnw package -DskipTests -pl marketplace-app -q
 
 FROM eclipse-temurin:25-jre
 WORKDIR /app

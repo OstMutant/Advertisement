@@ -27,6 +27,7 @@ public enum I18nKey {
     LOGIN_BUTTON_CANCEL("login.button.cancel"),
     LOGIN_SUCCESS("login.success"),
     LOGIN_ERROR("login.error"),
+    LOGIN_ERROR_TOO_MANY_ATTEMPTS("login.error.too.many.attempts"),
     LOGIN_WELCOME("login.welcome"),
 
     // === Signup ===
@@ -41,6 +42,7 @@ public enum I18nKey {
     SIGNUP_ERROR_EMAIL_INVALID("signup.error.email.invalid"),
     SIGNUP_ERROR_EMAIL_EXISTS("signup.error.email.exists"),
     SIGNUP_ERROR_PASSWORD_SHORT("signup.error.password.short"),
+    SIGNUP_ERROR_TOO_MANY_ATTEMPTS("signup.error.too.many.attempts"),
 
     // === User Dialog ===
     USER_DIALOG_TITLE("user.dialog.title"),

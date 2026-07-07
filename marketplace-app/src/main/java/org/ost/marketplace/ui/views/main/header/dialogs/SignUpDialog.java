@@ -3,6 +3,7 @@ package org.ost.marketplace.ui.views.main.header.dialogs;
 import com.vaadin.flow.data.binder.BeanValidationBinder;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     @Getter
     private final transient I18nService                             i18nService;
     private final transient NotificationService                     notificationService;
+    private final transient HttpServletRequest                      request;
     private final           DialogLayout                            layout;
     private final transient UiComponentFactory<UiTextField>           textFieldFactory;
     private final transient UiComponentFactory<UiEmailField>          emailFieldFactory;
@@ -125,9 +127,11 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         }
         try {
             binder.writeBean(dto);
-            userPort.register(dto);
+            userPort.register(dto, request.getRemoteAddr());
             notificationService.success(SIGNUP_SUCCESS);
             close();
+        } catch (IllegalStateException ex) {
+            notificationService.error(SIGNUP_ERROR_TOO_MANY_ATTEMPTS);
         } catch (Exception ex) {
             log.error("Registration failed unexpectedly", ex);
             notificationService.error(SIGNUP_ERROR_EMAIL_EXISTS);

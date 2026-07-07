@@ -45,13 +45,23 @@ full e2e 46/46 green.
 stays open (not moved) — step 2 (real async pipeline) remains deferred, see Deferred section.
 Full e2e 46/46 green.
 
+✅ Done (2026-07-07): improvement-020 — security baseline. Deny-by-default
+(`anyRequest().denyAll()`) was implemented, deployed, and broke the whole app (0/46 e2e — root
+Vaadin route never rendered under a real browser hit, only `curl` was tested first). Reverted
+to `anyRequest().permitAll()`; see `marketplace-app/DECISIONS.md` ADR-025 for why deny-by-default
+doesn't apply to this app's single-route Vaadin SPA model, and the resulting process rule for
+future REST controllers. Rate limiting (Caffeine, `AuthService.login()` /
+`UserService.register()`) implemented, then corrected to count only real failures — not
+successes — after it broke bulk e2e signups from a shared IP (see ADR-026). Moved to
+`completed/issues/`. Full e2e suite 47/47 green (47, not 46 — new `rateLimitUser` test added to
+spec 02).
+
 **Still open:**
 
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-020](issues/improvement-020-security-baseline-before-public-endpoints.md) | Deny-by-default + rate limiting | **hard gate** — lands with the first public REST endpoints |
-| 2 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
-| 3 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #2, same PR |
+| 1 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
+| 2 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #1, same PR |
 
 ## Wave 2 — quality hardening before public traffic
 

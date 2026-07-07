@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-04 · 46 passed · 0 failed · 0 skipped · 46 total
+Last updated: 2026-07-07 · 47 passed · 0 failed · 0 skipped · 47 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -24,6 +24,7 @@ Last updated: 2026-07-04 · 46 passed · 0 failed · 0 skipped · 46 total
 - [x] Authentication flow › userEn logs in — cancel logout keeps session, confirm logout works
 - [x] Authentication flow › userEn — locale persists across logout and re-login
 - [x] Authentication flow › wrong password — login rejected, user stays logged out
+- [x] Authentication flow › rateLimitUser exceeds login attempts — 5 wrong passwords rejected, 6th blocked with too-many-attempts message, correct password still blocked during lockout
 
 ## e2e/03-marketplace-promotion-flow.spec.js
 

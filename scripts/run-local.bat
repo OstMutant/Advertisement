@@ -27,7 +27,7 @@ set PATH=%JAVA_HOME%\bin;%PATH%
 
 if "%PROD%"=="1" (
   echo === Building (production profile) ===
-  call "%ROOT%\mvnw.cmd" clean package -Pproduction -DskipTests
+  call "%ROOT%\mvnw.cmd" clean package -DskipTests
   if errorlevel 1 exit /b 1
 
   echo.

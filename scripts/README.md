@@ -21,6 +21,7 @@ bash scripts/deploy.sh --file            # filtered output + full log to /tmp/de
 bash scripts/deploy.sh --no-cache        # force rebuild ignoring Docker layer cache (re-downloads all dependencies)
 bash scripts/deploy.sh --reset           # wipe all containers + volumes, start fresh
 bash scripts/deploy.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
+bash scripts/deploy.sh --reset-db        # truncate app tables (reset-clean.sql) before starting the app
 scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 ```
 
@@ -46,6 +47,7 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 | `--no-cache` | Force `docker build --no-cache` — ignores all cached layers, re-downloads all Maven dependencies |
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
+| `--reset-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
 
 Flags can be combined: `bash scripts/deploy.sh --no-cache --file`
 
@@ -61,6 +63,7 @@ Maven dependencies are cached in a named Docker volume (`maven-cache`) — persi
 bash scripts/deploy-dev.sh                 # Linux / WSL — full output to console
 bash scripts/deploy-dev.sh --file          # filtered output + full log to /tmp/deploy-dev.log
 bash scripts/deploy-dev.sh --reset-cache   # wipe Maven cache volume before building (re-downloads all dependencies)
+bash scripts/deploy-dev.sh --reset-db      # truncate app tables (reset-clean.sql) before the hot-swap restart
 scripts\deploy-dev.bat                     # Windows (calls deploy-dev.sh via WSL)
 ```
 
@@ -79,7 +82,7 @@ Use `--reset-cache` to wipe the volume and force a full re-download (e.g. after 
 | 1 | Build `advertisement-build-env` image if not present (JDK 25 + Docker CLI) |
 | 2 | If `marketplace-app` missing → run `deploy.sh`; if stopped → start it |
 | 3 | Pipe source files into `advertisement-build-env` via tar (excludes `target/`, `.git/`) |
-| 4 | Build JAR with `mvn -Pproduction -DskipTests` inside the container |
+| 4 | Build JAR with `mvn clean package -DskipTests` inside the container |
 | 5 | `docker cp` the JAR into the running `marketplace-app` container |
 | 6 | `docker restart marketplace-app` and wait for `"Started Application"` (timeout 180s) |
 
@@ -100,10 +103,12 @@ scripts\run-local.bat --prod    REM production Vaadin build, prod profile, port 
 
 ### Profiles
 
-| Flag | Maven profile | Spring profile | Vaadin mode | Connects to |
-|------|--------------|----------------|-------------|-------------|
-| _(none)_ | default | `dev` | development | `localhost:5432`, `localhost:9000` |
-| `--prod` | `production` | `prod` | production (minified JS) | `localhost:5432`, `localhost:9000` |
+Vaadin dev/production mode is controlled by the Spring profile (`vaadin.productionMode` in `application-{profile}.yml`), not by any Maven profile — there is no `production` Maven profile in this project.
+
+| Flag | Spring profile | Vaadin mode | Connects to |
+|------|----------------|-------------|-------------|
+| _(none)_ | `dev` | development (`productionMode: false`) | `localhost:5432`, `localhost:9000` |
+| `--prod` | `prod` | production (`productionMode: true`, minified JS) | `localhost:5432`, `localhost:9000` |
 
 In `--prod` mode the local infra credentials are passed as env vars — same values as the Docker deploy but pointing to `localhost` instead of container names.
 
@@ -115,9 +120,9 @@ Run Playwright tests. Delegates to `playwright/run.sh`.
 
 ```bash
 bash scripts/playwright.sh              # all tests
-bash scripts/playwright.sh smoke        # one scenario
-bash scripts/playwright.sh smoke --ux   # with screenshots
-scripts\playwright.bat smoke            # Windows
+bash scripts/playwright.sh e2e          # e2e suite (specs 01–06, skips spec 05 seed)
+bash scripts/playwright.sh e2e --full --ux  # full e2e suite with screenshots
+scripts\playwright.bat e2e --ux         # Windows
 ```
 
 ---

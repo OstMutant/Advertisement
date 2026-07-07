@@ -39,3 +39,8 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `PasswordEncoderFactories.createDelegatingPasswordEncoder()` (not a raw `BCryptPasswordEncoder`)
   so stored hashes carry an algorithm prefix (`{bcrypt}`) and future algorithm migration doesn't
   require a data rewrite.
+- `UserService.register(dto, clientIp)` takes the caller's IP as a plain `String` (never
+  `HttpServletRequest`) to stay transport-agnostic — marketplace-app extracts
+  `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
+  (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
+  registrations (see `marketplace-app/DECISIONS.md` ADR-026).

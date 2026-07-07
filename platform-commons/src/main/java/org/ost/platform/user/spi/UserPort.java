@@ -32,7 +32,7 @@ public interface UserPort {
 
     void delete(@NonNull Long userId);
 
-    void register(@NonNull SignUpDto dto);
+    void register(@NonNull SignUpDto dto, @NonNull String clientIp);
 
     Optional<UserDto> findById(@NonNull Long id);
 

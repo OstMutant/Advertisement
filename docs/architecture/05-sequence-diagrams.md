@@ -352,6 +352,79 @@ sequenceDiagram
 
 ---
 
+## 8. Login and Registration Rate Limiting
+
+**Classes involved:**
+- `org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog` / `SignUpDialog` (UI)
+- `org.ost.marketplace.services.auth.AuthService` (login — marketplace-app, transport-aware: injects `HttpServletRequest`)
+- `org.ost.platform.user.spi.UserPort` (interface) / `org.ost.user.spi.UserPortImpl` (implementation)
+- `org.ost.user.services.UserService` (registration — user-spring-boot-starter, transport-agnostic: takes `clientIp` as `String`)
+
+Both paths use an in-memory Caffeine cache (`expireAfterWrite(15 min)`, `maximumSize(10_000)`) keyed
+per client, and only increment the failure counter on an actual failure — never on success. This
+was a deliberate fix: an earlier version counted every attempt (including successful ones), which
+locked out legitimate bulk usage (e.g. the Playwright e2e suite signing up dozens of accounts from
+one IP within the 15-minute window).
+
+```mermaid
+sequenceDiagram
+    participant UI as LoginDialog
+    participant Auth as AuthService
+    participant Cache as loginAttempts (Caffeine)
+    participant AuthMgr as AuthenticationManager
+
+    UI->>Auth: login(email, password)
+    Auth->>Cache: get(remoteAddr + "|" + email)
+    alt attempts >= MAX_LOGIN_ATTEMPTS (5)
+        Auth-->>UI: throws IllegalStateException
+        UI->>UI: show "too many login attempts" notification
+    else under limit
+        Auth->>AuthMgr: authenticate(email, password)
+        alt BadCredentialsException
+            Auth->>Cache: increment attempts
+            Auth-->>UI: return false
+            UI->>UI: show "invalid email or password" notification
+        else success
+            Auth->>Cache: invalidate(key)
+            Auth-->>UI: return true
+        end
+    end
+```
+
+```mermaid
+sequenceDiagram
+    participant UI as SignUpDialog
+    participant Port as UserPort
+    participant Impl as UserPortImpl
+    participant Service as UserService
+    participant Cache as registerAttempts (Caffeine)
+    participant Repo as UserRepository
+
+    UI->>Port: register(dto, request.getRemoteAddr())
+    Port->>Impl: (delegation)
+    Impl->>Service: register(dto, clientIp)
+    Service->>Cache: get(clientIp)
+    alt failures >= MAX_REGISTER_ATTEMPTS (5)
+        Service-->>Impl: throws IllegalStateException
+        Impl-->>Port: (propagates)
+        Port-->>UI: (propagates)
+        UI->>UI: show "too many registration attempts" notification
+    else under limit
+        Service->>Repo: save(newUser)
+        alt DuplicateKeyException (race with client-side email-uniqueness check)
+            Service->>Cache: increment failures
+            Service-->>UI: (propagates exception)
+        else success
+            Service-->>Impl: void
+            Impl-->>Port: void
+            Port-->>UI: void
+            UI->>UI: show success notification
+        end
+    end
+```
+
+---
+
 ## Key Interaction Patterns
 
 ### Port Pattern (Marketplace → Starter)

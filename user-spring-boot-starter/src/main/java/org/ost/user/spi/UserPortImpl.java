@@ -66,8 +66,8 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
-    public void register(@NonNull SignUpDto dto) {
-        userService.register(dto);
+    public void register(@NonNull SignUpDto dto, @NonNull String clientIp) {
+        userService.register(dto, clientIp);
     }
 
     @Override

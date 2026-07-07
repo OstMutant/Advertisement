@@ -6,8 +6,22 @@ set -e
 
 ROOT=/app
 APP_CONTAINER="marketplace-app"
+DB_CONTAINER="advertisement-db"
 
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; exit $_rc' ERR
+
+# ── Step 0: Reset database (opt-in via RESET_DB=true) ────────────────────────
+if [ "$RESET_DB" = "true" ]; then
+  echo ""
+  echo "=== Resetting database ==="
+  if docker container inspect "$DB_CONTAINER" >/dev/null 2>&1; then
+    docker cp "$ROOT/scripts/database/reset-clean.sql" "$DB_CONTAINER:/tmp/reset-clean.sql"
+    docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments -f /tmp/reset-clean.sql -q \
+      && echo "Database reset."
+  else
+    echo "WARNING: DB container '$DB_CONTAINER' not found — skipping reset."
+  fi
+fi
 
 # ── Step 1: Check marketplace-app container ──────────────────────────────────
 if ! docker container inspect "$APP_CONTAINER" >/dev/null 2>&1; then
@@ -29,7 +43,7 @@ fi
 echo ""
 echo "=== Building JAR (production bundle) ==="
 cd "$ROOT"
-./mvnw clean package -Pproduction -DskipTests
+./mvnw clean package -DskipTests
 
 # ── Step 3: Hot-swap JAR ──────────────────────────────────────────────────────
 echo ""

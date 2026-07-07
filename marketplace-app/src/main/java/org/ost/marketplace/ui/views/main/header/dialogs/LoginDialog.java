@@ -86,14 +86,18 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     }
 
     private void handleLogin() {
-        boolean success = authService.login(emailField.getValue(), passwordField.getValue());
-        if (success) {
-            close();
-            notificationService.success(LOGIN_SUCCESS);
-            localeProvider.refreshCurrentLocale();
-            getUI().ifPresent(ui -> ui.getPage().reload());
-        } else {
-            notificationService.error(LOGIN_ERROR);
+        try {
+            boolean success = authService.login(emailField.getValue(), passwordField.getValue());
+            if (success) {
+                close();
+                notificationService.success(LOGIN_SUCCESS);
+                localeProvider.refreshCurrentLocale();
+                getUI().ifPresent(ui -> ui.getPage().reload());
+            } else {
+                notificationService.error(LOGIN_ERROR);
+            }
+        } catch (IllegalStateException ex) {
+            notificationService.error(LOGIN_ERROR_TOO_MANY_ATTEMPTS);
         }
     }
 }
