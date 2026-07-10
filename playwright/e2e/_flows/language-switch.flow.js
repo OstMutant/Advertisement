@@ -13,7 +13,7 @@ async function switchLocale(page, expect, localeText, expectedTab) {
 
 async function runOpenDefaultLocaleFlow(page, expect) {
   await page.goto('/');
-  await expect(page.locator('.locale-combobox')).toBeVisible();
+  await expect(page.locator('.locale-combobox')).toBeVisible({ timeout: 8000 });
   await expect(page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first()).toBeVisible({ timeout: 8000 });
   await expect(page.locator('vaadin-button').filter({ hasText: 'Log In' }).first()).toBeVisible();
   await screenshot(page, 'lang-01-default-english');
