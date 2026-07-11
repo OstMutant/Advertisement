@@ -632,6 +632,42 @@ limit is exceeded) separately from the generic exception handler, showing a dedi
 
 ---
 
+## ADR-027: forward-headers-strategy so registration rate limiting sees the real client IP
+
+**Status:** Accepted
+
+**Context:** An external audit pass (round 7) found that `UserService.register()`'s rate
+limiter (ADR-026) keys solely on `clientIp` (`request.getRemoteAddr()` from
+`SignUpDialog`), with no email component (unlike the login limiter, which keys on
+`remoteAddr + "|" + email` and stays scoped to one target account even if `remoteAddr`
+collapses). The project's README documents the deployed target as Render, which — like
+essentially all PaaS providers — terminates the connection at its own edge and forwards to the
+app instance over its internal network. `server.forward-headers-strategy` was not configured
+anywhere, so `request.getRemoteAddr()` returned Render's internal proxy address for every
+user, not the real client IP. This collapsed the registration limiter into one shared bucket
+for the entire platform: 5 failed registrations from anyone (even organic
+`DuplicateKeyException` races) would lock out registration for everyone for 15 minutes.
+
+**Decision:** `application-prod.yml` — added `server.forward-headers-strategy: framework`, so
+Spring's `ForwardedHeaderFilter` translates `X-Forwarded-For` into the request's apparent
+remote address before the app sees it. This assumes Render forwards this header (standard
+PaaS behavior) — not independently verifiable from this dev environment; needs confirming
+once actually deployed.
+
+A coarser global (IP-independent) backstop limiter was considered and rejected: registration
+failures don't have a natural key to count against the way login does (a login failure is
+always a guess against one specific existing account; a registration failure is a random
+collision with whatever email happened to already be taken, essentially never the same email
+retried), so a second counter added complexity without a clean justification for this
+codebase's actual threat model. Fixing the IP resolution itself is the real fix.
+
+**Consequences:**
+- The login limiter (`AuthService`) was not touched — its compound key already scopes lockout
+  to one target account even under a fully collapsed `remoteAddr`.
+- → [improvement-022-registration-rate-limit-shared-proxy-ip](../features/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

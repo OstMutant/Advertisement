@@ -57,14 +57,6 @@ successes — after it broke bulk e2e signups from a shared IP (see ADR-026). Mo
 `completed/issues/`. Full e2e suite 47/47 green (47, not 46 — new `rateLimitUser` test added to
 spec 02).
 
-✅ Found (2026-07-10), not yet fixed: improvement-022 — registration rate limiter
-(`UserService.register()`) keys on raw `request.getRemoteAddr()` only, no email component.
-README confirms the deployed target is Render, which proxies through its own edge — without
-`server.forward-headers-strategy` (not set anywhere in the codebase), every user collapses to
-the same `remoteAddr`, turning the limiter into one shared platform-wide bucket: 5 failed
-registrations from anyone locks out registration for everyone for 15 minutes. Login's limiter
-is unaffected (keys on `remoteAddr + "|" + email`, scoped to one target account regardless).
-
 ✅ Done (2026-07-11): improvement-007 — `TaxonPort.findByIds()` bulk lookup (kills the N+1 in
 `DefaultTaxonPort.resolveDtos()`/`buildDtoIndex()`) + `AttachmentSnapshotService
 .captureAndGetId()`. Bundled with improvement-004 — `PaginationSqlBuilder` extracted to
@@ -73,11 +65,17 @@ isn't in production yet, not a new migration). Both moved to `completed/issues/`
 already-applied changeset required a full `deploy.sh --reset` (Liquibase checksum mismatch
 otherwise). Full e2e suite 47/47 green.
 
-**Still open:**
+✅ Done (2026-07-11): improvement-022 — registration rate limiter shared-bucket risk (found
+2026-07-10 by external audit). `server.forward-headers-strategy: framework` added to
+`application-prod.yml` so `request.getRemoteAddr()` resolves the real client IP behind Render's
+proxy instead of Render's own edge address. See `marketplace-app/DECISIONS.md` ADR-027 (also
+records why a coarser global backstop limiter was considered and dropped — registration
+failures have no natural per-target key to count against, unlike login). Moved to
+`completed/issues/`. Full e2e suite 47/47 green. Note: whether Render actually forwards
+`X-Forwarded-For` isn't verifiable from this dev environment — worth confirming once actually
+deployed.
 
-| Order | Issue | What | Note |
-|---|---|---|---|
-| 1 | [improvement-022](issues/improvement-022-registration-rate-limit-shared-proxy-ip.md) | Registration limiter shared-bucket risk behind Render's proxy | high — real deployment target, not theoretical |
+**Wave 1 is now fully complete.**
 
 ## Wave 2 — quality hardening before public traffic
 

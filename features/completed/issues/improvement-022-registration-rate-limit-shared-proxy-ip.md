@@ -5,6 +5,14 @@
 **Priority:** high — real deployment target (Render) makes this directly exploitable, not
 theoretical
 **When:** before public launch — same gate as the rest of improvement-020's security baseline
+**Status:** ✅ RESOLVED (2026-07-11) — fixed the root cause: `server.forward-headers-strategy:
+framework` added to `application-prod.yml`, so `request.getRemoteAddr()` resolves the real
+client IP once Render forwards it. Not independently verifiable that Render actually sends
+`X-Forwarded-For` from this dev environment — standard PaaS behavior assumed, should be
+confirmed once deployed. A coarser global backstop limiter (suggested fix item 3) was
+considered and dropped — registration failures don't have a natural per-target key to count
+against the way login does (see `marketplace-app/DECISIONS.md` ADR-027 for the reasoning), so
+it added complexity without clean justification. Full e2e suite 47/47 green.
 
 ## Problem
 

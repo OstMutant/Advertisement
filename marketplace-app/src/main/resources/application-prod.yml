@@ -19,6 +19,12 @@ storage:
 vaadin:
   productionMode: true
 
+# Render (and most PaaS) terminate the connection at their own edge and forward to this
+# instance over their internal network — without this, request.getRemoteAddr() returns
+# Render's proxy address for every user, not the real client IP (see improvement-022).
+server:
+  forward-headers-strategy: framework
+
 # Expose only health endpoint in production (load balancer probe)
 management:
   endpoints:

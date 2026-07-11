@@ -103,6 +103,9 @@ Translation keys — single consolidated enum:
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
   are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
   failures — never successes (see `DECISIONS.md` ADR-026).
+- `application-prod.yml` sets `server.forward-headers-strategy: framework` — required for
+  `request.getRemoteAddr()` to resolve the real client IP behind Render's proxy, not Render's
+  own internal edge address (see `DECISIONS.md` ADR-027).
 
 ---
 
