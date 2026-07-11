@@ -9,6 +9,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlCondition;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
+import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
@@ -79,7 +80,7 @@ public class UserRepository {
                 "updated_at", "u.updated_at",
                 "locale",     "u.locale"));
         String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s%s%s"
-                .formatted(FILTER.build(params, filter, " WHERE "), orderBy, pageLimit(params, pageable));
+                .formatted(FILTER.build(params, filter, " WHERE "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
@@ -127,12 +128,5 @@ public class UserRepository {
                 .list()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-    }
-
-    private static String pageLimit(MapSqlParameterSource params, Pageable pageable) {
-        if (pageable == null || pageable.isUnpaged()) return "";
-        params.addValue("limit",  pageable.getPageSize());
-        params.addValue("offset", pageable.getOffset());
-        return " LIMIT :limit OFFSET :offset";
     }
 }

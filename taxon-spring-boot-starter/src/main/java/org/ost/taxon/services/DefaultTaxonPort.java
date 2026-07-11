@@ -96,6 +96,14 @@ public class DefaultTaxonPort implements TaxonPort {
     }
 
     @Override
+    public Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale) {
+        if (taxonIds.isEmpty()) {
+            return Map.of();
+        }
+        return buildDtoIndex(taxonIds.stream().toList(), locale, false);
+    }
+
+    @Override
     public Optional<TaxonDto> findByCode(@NonNull TaxonType type, @NonNull String code,
                                           @NonNull Locale locale) {
         return taxonService.findByCode(type, code)
@@ -178,27 +186,33 @@ public class DefaultTaxonPort implements TaxonPort {
     // ── internal helpers ───────────────────────────────────────────────────
 
     private List<TaxonDto> resolveDtos(List<Long> taxonIds, Locale locale, boolean activeOnly) {
+        Map<Long, Taxon> byId = indexById(taxonIds);
         Map<Long, List<TaxonTranslation>> byTaxon = taxonService.getTranslationsForMany(taxonIds)
                 .stream()
                 .collect(Collectors.groupingBy(TaxonTranslation::getTaxonId));
         return taxonIds.stream()
-                .map(id -> taxonService.findById(id).orElse(null))
+                .map(byId::get)
                 .filter(t -> t != null && (!activeOnly || t.getDeletedAt() == null))
                 .map(t -> toDto(t, byTaxon.getOrDefault(t.getId(), List.of()), locale))
                 .toList();
     }
 
     private Map<Long, TaxonDto> buildDtoIndex(List<Long> taxonIds, Locale locale, boolean activeOnly) {
+        Map<Long, Taxon> byId = indexById(taxonIds);
         Map<Long, List<TaxonTranslation>> byTaxon = taxonService.getTranslationsForMany(taxonIds)
                 .stream()
                 .collect(Collectors.groupingBy(TaxonTranslation::getTaxonId));
-        return taxonIds.stream()
-                .map(id -> taxonService.findById(id).orElse(null))
-                .filter(t -> t != null && (!activeOnly || t.getDeletedAt() == null))
+        return byId.values().stream()
+                .filter(t -> !activeOnly || t.getDeletedAt() == null)
                 .collect(Collectors.toMap(
                         Taxon::getId,
                         t -> toDto(t, byTaxon.getOrDefault(t.getId(), List.of()), locale)
                 ));
+    }
+
+    private Map<Long, Taxon> indexById(List<Long> taxonIds) {
+        return taxonService.findByIds(Set.copyOf(taxonIds)).stream()
+                .collect(Collectors.toMap(Taxon::getId, t -> t));
     }
 
     private TaxonDto toDto(Taxon taxon, Locale locale) {

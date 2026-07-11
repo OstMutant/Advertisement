@@ -24,18 +24,24 @@ public class AttachmentSnapshotService {
 
     @Transactional
     public void capture(EntityType entityType, Long entityId, Long actorId) {
+        captureAndGetId(entityType, entityId, actorId);
+    }
+
+    @Transactional
+    public Optional<Long> captureAndGetId(EntityType entityType, Long entityId, Long actorId) {
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         if (prevOpt.isEmpty()) {
-            if (currentUrls.isEmpty()) return;
+            if (currentUrls.isEmpty()) return Optional.empty();
             List<String> currNames = currentUrls.stream().map(AttachmentSnapshotService::filename).toList();
             attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]),
                     List.of(new AttachmentMediaChange(null, currNames)), actorId);
-            return;
+            return attachmentSnapshotRepository.findLatestId(entityType, entityId);
         }
         AttachmentMediaChange diff = buildDiff(prevOpt.get(), currentUrls);
-        if (diff == null) return;
+        if (diff == null) return Optional.empty();
         attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
+        return attachmentSnapshotRepository.findLatestId(entityType, entityId);
     }
 
     public String[] getUrlsBySnapshotId(Long snapshotId) {

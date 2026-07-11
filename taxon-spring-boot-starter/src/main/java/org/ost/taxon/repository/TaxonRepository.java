@@ -36,6 +36,7 @@ public class TaxonRepository {
                     .type(typeName == null ? null : TaxonType.valueOf(typeName))
                     .code(rs.getString("code"))
                     .deletedAt(deletedAt != null ? deletedAt.toInstant() : null)
+                    .deletedBy(rs.getObject("deleted_by", Long.class))
                     .createdAt(createdAt != null ? createdAt.toInstant() : null)
                     .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                     .createdBy(rs.getObject("created_by", Long.class))
@@ -70,7 +71,7 @@ public class TaxonRepository {
         String deleted = filter.showDeleted() ? "" : " AND t.deleted_at IS NULL";
         String orderBy = OrderByBuilder.build(sort, SORT_ALIASES);
         return jdbcClient.sql("""
-                        SELECT t.id, t.type, t.code, t.deleted_at, t.created_at, t.updated_at,
+                        SELECT t.id, t.type, t.code, t.deleted_at, t.deleted_by, t.created_at, t.updated_at,
                                t.created_by, t.updated_by
                         FROM taxon t
                         LEFT JOIN taxon_translation tt ON tt.taxon_id = t.id AND tt.locale = 'en'
@@ -81,9 +82,22 @@ public class TaxonRepository {
                          .list();
     }
 
-    public void softDelete(@NonNull Long id) {
-        jdbcClient.sql("UPDATE taxon SET deleted_at = NOW() WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource("id", id))
+    public List<Taxon> findByIds(@NonNull Set<Long> ids) {
+        return jdbcClient.sql("""
+                        SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by
+                        FROM taxon
+                        WHERE id IN (:ids)
+                        """)
+                         .paramSource(new MapSqlParameterSource("ids", ids))
+                         .query(ROW_MAPPER)
+                         .list();
+    }
+
+    public void softDelete(@NonNull Long id, Long actorId) {
+        jdbcClient.sql("UPDATE taxon SET deleted_at = NOW(), deleted_by = :deletedBy WHERE id = :id")
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("id", id)
+                          .addValue("deletedBy", actorId))
                   .update();
     }
 
@@ -111,7 +125,7 @@ public class TaxonRepository {
 
     public Optional<Taxon> findByTypeAndCode(@NonNull TaxonType type, @NonNull String code) {
         return jdbcClient.sql("""
-                        SELECT id, type, code, deleted_at, created_at, updated_at, created_by, updated_by
+                        SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by
                         FROM taxon
                         WHERE type = :type AND code = :code
                         """)

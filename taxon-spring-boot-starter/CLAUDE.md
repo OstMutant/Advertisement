@@ -27,7 +27,7 @@ Java package root: `org.ost.taxon`
 Liquibase changelog: `db/taxon-changelog/master.xml`  
 Tables: `taxon`, `taxon_translation`, `taxon_assignment`
 
-- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at for soft-delete
+- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete
 - `taxon_translation` — PK: (taxon_id, locale), stores name + description per locale
 - `taxon_assignment` — PK: (entity_type, entity_id, taxon_id), records which entities carry which taxons
 

@@ -4,6 +4,15 @@
 **Module:** platform-commons + taxon-spring-boot-starter + attachment-spring-boot-starter
 **Priority:** medium (raised from low) — part A is no longer only a future prerequisite: the
 missing bulk lookup causes a real N+1 on the advertisement list hot path (see part C)
+**Status:** ✅ RESOLVED (2026-07-11) — all three parts implemented as suggested:
+`TaxonPort.findByIds(Set<Long>, Locale)` added and implemented in `DefaultTaxonPort` via a new
+`TaxonRepository.findByIds()` bulk `IN (:ids)` query; `resolveDtos()`/`buildDtoIndex()` rewritten
+on top of it, removing the per-id `findById()` loop entirely (part C). `AttachmentSnapshotService
+.captureAndGetId()` added, reusing the existing `AttachmentSnapshotRepository.findLatestId()`
+lookup rather than introducing `GeneratedKeyHolder`; `capture()` is now a thin wrapper around it.
+Bundled with improvement-004 (same taxon-repo touch). Required a full `deploy.sh --reset`
+(DB volume wipe) since improvement-004's Liquibase edit changed an already-applied changeset's
+checksum. Full e2e suite 47/47 green.
 **When:** Wave 1 — bundle with the city/geo feature PR (taxon load grows exactly there)
 
 ## Problem

@@ -22,6 +22,7 @@ public class Taxon {
     TaxonType type;
     String    code;
     Instant   deletedAt;
+    Long      deletedBy;
     @CreatedDate
     Instant   createdAt;
     @LastModifiedDate

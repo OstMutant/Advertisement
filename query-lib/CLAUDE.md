@@ -14,6 +14,7 @@ Plain Java SQL helper library. No Spring Boot autoconfiguration, no domain knowl
 | `SqlFilterMapping` | Interface: `filterProperty()` + `sqlExpression()` |
 | `SqlFilterBinding<F, R>` | Functional interface: `getCondition(F filter) → SqlCondition<R>` |
 | `OrderByBuilder` | Converts `Spring Sort` into an `ORDER BY` clause via an alias→expression map |
+| `PaginationSqlBuilder` | Converts `Pageable` into a `LIMIT :limit OFFSET :offset` clause + named params |
 
 #### Defining a filter
 

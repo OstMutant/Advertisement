@@ -9,6 +9,7 @@ import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
+import org.ost.query.sort.PaginationSqlBuilder;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -94,7 +95,7 @@ public class AdvertisementRepository {
                                a.media_url, a.media_content_type, a.media_count
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
                         WHERE a.deleted_at IS NULL%s%s%s%s""")
-                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, pageLimit(params, pageable));
+                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
@@ -137,12 +138,5 @@ public class AdvertisementRepository {
                           .addValue("media_count",        summary.count())
                           .addValue("id",                 entityId))
                   .update();
-    }
-
-    private static String pageLimit(MapSqlParameterSource params, Pageable pageable) {
-        if (pageable == null || pageable.isUnpaged()) return "";
-        params.addValue("limit",  pageable.getPageSize());
-        params.addValue("offset", pageable.getOffset());
-        return " LIMIT :limit OFFSET :offset";
     }
 }

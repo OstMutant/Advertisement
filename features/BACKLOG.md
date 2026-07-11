@@ -24,13 +24,14 @@ and 3-layer description length validation (commit b7d64cc2 — closes
 `completed/issues/issue-description-length-tag-spam.md`, unblocks improvement-006; see
 `marketplace-app/DECISIONS.md` ADR-021 update and ADR-024).
 
-**Still open:**
+✅ Done (2026-07-10): buildx + BuildKit cache mounts (Part 1/3 of process-improvements, commit
+8f29a12f) — installed `docker buildx`, added `--progress=plain` streaming to `deploy.sh`, and
+`--mount=type=cache` for `/root/.m2` and `/root/.vaadin` in the Dockerfile build stage. Cuts
+the Maven/Vaadin build step from ~182s to ~145s on a `--no-cache` rebuild. A `node_modules`
+cache mount was tried and reverted — `vaadin-maven-plugin` rm-rf's and recreates that directory
+every build, incompatible with a fixed cache mountpoint.
 
-| Item | What | Cost | Note |
-|---|---|---|---|
-| buildx + cache mounts | Part 1/3 of process-improvements | ~1h | not started |
-
-**Week 0 is otherwise complete.**
+**Week 0 is now complete.**
 
 ## Wave 1 — prerequisites for public shareability
 
@@ -56,12 +57,27 @@ successes — after it broke bulk e2e signups from a shared IP (see ADR-026). Mo
 `completed/issues/`. Full e2e suite 47/47 green (47, not 46 — new `rateLimitUser` test added to
 spec 02).
 
+✅ Found (2026-07-10), not yet fixed: improvement-022 — registration rate limiter
+(`UserService.register()`) keys on raw `request.getRemoteAddr()` only, no email component.
+README confirms the deployed target is Render, which proxies through its own edge — without
+`server.forward-headers-strategy` (not set anywhere in the codebase), every user collapses to
+the same `remoteAddr`, turning the limiter into one shared platform-wide bucket: 5 failed
+registrations from anyone locks out registration for everyone for 15 minutes. Login's limiter
+is unaffected (keys on `remoteAddr + "|" + email`, scoped to one target account regardless).
+
+✅ Done (2026-07-11): improvement-007 — `TaxonPort.findByIds()` bulk lookup (kills the N+1 in
+`DefaultTaxonPort.resolveDtos()`/`buildDtoIndex()`) + `AttachmentSnapshotService
+.captureAndGetId()`. Bundled with improvement-004 — `PaginationSqlBuilder` extracted to
+query-lib, `deleted_by` added to `taxon` (edited directly into `001-taxon.xml` since the DB
+isn't in production yet, not a new migration). Both moved to `completed/issues/`. Editing an
+already-applied changeset required a full `deploy.sh --reset` (Liquibase checksum mismatch
+otherwise). Full e2e suite 47/47 green.
+
 **Still open:**
 
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-007](issues/improvement-007-taxon-findbyids-and-snapshot-captureandgetid.md) | Bulk taxon findByIds (kills list N+1) | bundle with the city/geo feature PR |
-| 2 | [improvement-004](issues/improvement-004-pageLimit-and-taxon-softdelete-actor.md) | pageLimit dedup + softDelete actorId | same taxon-repo touch as #1, same PR |
+| 1 | [improvement-022](issues/improvement-022-registration-rate-limit-shared-proxy-ip.md) | Registration limiter shared-bucket risk behind Render's proxy | high — real deployment target, not theoretical |
 
 ## Wave 2 — quality hardening before public traffic
 

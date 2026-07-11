@@ -47,6 +47,13 @@ public interface TaxonPort {
     /** Resolves a specific entry by id (even if soft-deleted — used by audit rendering). */
     Optional<TaxonDto> findById(@NonNull Long taxonId, @NonNull Locale locale);
 
+    /**
+     * Batched variant of {@link #findById}: resolves many entries by id in one call
+     * (even soft-deleted — used by audit rendering). Avoids N+1 when rendering card lists.
+     * Empty input set → empty result.
+     */
+    Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale);
+
     /** Resolves a well-known entry by its stable code. */
     Optional<TaxonDto> findByCode(@NonNull TaxonType type, @NonNull String code,
                                   @NonNull Locale locale);

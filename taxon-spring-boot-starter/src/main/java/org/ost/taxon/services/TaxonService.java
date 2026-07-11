@@ -82,7 +82,7 @@ public class TaxonService {
     public void softDelete(@NonNull Long id, Long actorId) {
         List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);
         TaxonSnapshotDto snapshot = buildSnapshotFromTranslations(translations);
-        taxonRepository.softDelete(id);
+        taxonRepository.softDelete(id, actorId);
         if (actorId != null) {
             auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
         }
@@ -104,6 +104,10 @@ public class TaxonService {
 
     public Optional<Taxon> findById(@NonNull Long id) {
         return taxonRepository.findById(id);
+    }
+
+    public List<Taxon> findByIds(@NonNull Set<Long> ids) {
+        return taxonRepository.findByIds(ids);
     }
 
     public Optional<Taxon> findByCode(@NonNull TaxonType type, @NonNull String code) {

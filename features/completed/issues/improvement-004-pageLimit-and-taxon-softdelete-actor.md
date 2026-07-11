@@ -2,6 +2,14 @@
 
 **Type:** improvement — deduplication + audit consistency
 **When:** Wave 1 — bundle with the taxon repository touch (improvement-007, same PR)
+**Status:** ✅ RESOLVED (2026-07-11) — both parts implemented as suggested. Part A:
+`PaginationSqlBuilder` added to `query-lib`, duplicate `pageLimit()` removed from
+`UserRepository`/`AdvertisementRepository`, `query-lib/CLAUDE.md` updated. Part B: `deleted_by`
+column added directly to the existing `001-taxon.xml` changeset (DB not yet in production, so
+no new migration file — see the file's own note), `Taxon.java`/`TaxonRepository`/`TaxonService`
+updated to carry `actorId` through `softDelete()`. Editing an already-applied changeset required
+a full `deploy.sh --reset` (Liquibase checksum mismatch otherwise). Bundled with improvement-007
+in the same PR as planned. Full e2e suite 47/47 green.
 
 ---
 
@@ -37,17 +45,15 @@
 `created_by` / `updated_by` but no `deleted_by`.
 
 **Fix:**
-1. New Liquibase file `taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/002-taxon-deleted-by.xml`:
-   ```xml
-   <addColumn tableName="taxon">
-       <column name="deleted_by" type="BIGINT"/>
-   </addColumn>
-   ```
-2. Include it in `master.xml`.
-3. Add `Long deletedBy` field to `Taxon.java`.
-4. Update `TaxonRepository` ROW_MAPPER — read `deleted_by`.
-5. Update `TaxonRepository.softDelete(@NonNull Long id)` →
+1. **DB is not in production yet — do not add a new `002` migration file.** Edit the existing
+   `taxon-spring-boot-starter/src/main/resources/db/taxon-changelog/changes/001-taxon.xml`
+   directly: add `<column name="deleted_by" type="BIGINT"/>` to the `taxon` table's
+   `createTable` block (next to `created_by`/`updated_by`, `001-taxon.xml:26-27`). No new
+   changeset, no `master.xml` include needed — same file, same changeset.
+2. Add `Long deletedBy` field to `Taxon.java`.
+3. Update `TaxonRepository` ROW_MAPPER — read `deleted_by`.
+4. Update `TaxonRepository.softDelete(@NonNull Long id)` →
    `softDelete(@NonNull Long id, Long actorId)` with SQL:
    `UPDATE taxon SET deleted_at = NOW(), deleted_by = :deletedBy WHERE id = :id`
-6. Update `TaxonService.softDelete()` line 85:
+5. Update `TaxonService.softDelete()` line 85:
    `taxonRepository.softDelete(id)` → `taxonRepository.softDelete(id, actorId)`

@@ -73,6 +73,7 @@ erDiagram
         varchar type
         varchar code
         timestamp deleted_at
+        bigint deleted_by
         timestamp created_at
         timestamp updated_at
         bigint created_by
@@ -275,6 +276,7 @@ erDiagram
 | `type` | VARCHAR(64) | NOT NULL | Classifier type (e.g., 'CATEGORY') |
 | `code` | VARCHAR(64) | | Optional stable code (unique per type when set) |
 | `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp (NULL = active) |
+| `deleted_by` | BIGINT | | User ID who soft-deleted the entry |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Last update timestamp |
 | `created_by` | BIGINT | | User ID who created the entry |
