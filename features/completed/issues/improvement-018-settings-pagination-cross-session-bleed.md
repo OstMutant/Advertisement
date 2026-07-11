@@ -1,5 +1,14 @@
 # improvement-018: SettingsPaginationService — cross-session settings bleed (bug) + UI-reference leak
 
+**Status:** ✅ RESOLVED (2026-07-11) — `BindingEntry` now carries the owning `userId`;
+`onSettingsChanged` filters entries by `entry.userId().equals(userId)` instead of gating on the
+current thread's user, killing the bleed regardless of which thread fires the hook. Added
+`bar.addDetachListener(_ -> unregister(bar))` in `register()` for the leak, so cleanup no
+longer depends solely on `@PreDestroy`. See `marketplace-app/DECISIONS.md` ADR-028. Playwright
+coverage: extended `05-seed-filter-sort-pagination.spec.js` — `adminEn changes page sizes...`
+test now opens a second browser context as `userEn` and asserts their grid is unaffected by
+`adminEn`'s change. Full e2e suite 47/47 green.
+
 **Type:** bug + improvement — found via external audit (round 5, leak) and internal verification (bleed — the worse half)
 **Module:** marketplace-app
 **Priority:** medium-high — real multi-user defect, invisible in single-user e2e

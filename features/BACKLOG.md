@@ -81,15 +81,22 @@ deployed.
 
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-018](issues/improvement-018-settings-pagination-cross-session-bleed.md) | Cross-session settings bleed + UI-ref leak | **real multi-user bug**; needs 2-session Playwright test |
-| 2 | [improvement-015](issues/improvement-015-optimistic-locking.md) | Optimistic locking (@Version on all entities) | silent last-write-wins otherwise |
-| 3 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
+| 1 | [improvement-015](issues/improvement-015-optimistic-locking.md) | Optimistic locking (@Version on all entities) | silent last-write-wins otherwise |
+| 2 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
 
 ✅ Done (2026-07-04): tag-spam validator + 3-layer Jsoup-based length validation
 (`issue-description-length-tag-spam` → moved to `completed/issues/`), alongside a fix for a
 Quill false-dirty-state bug (edit form showed Save/Discard as active on open for rich-text
 descriptions — not separately tracked as an issue, fixed directly; see
 `marketplace-app/DECISIONS.md` ADR-021 update). Full e2e 46/46 green.
+
+✅ Done (2026-07-11): improvement-018 — `SettingsPaginationService` cross-session settings
+bleed (real multi-user bug: user X's page size change was silently applied to every other
+logged-in user's live grid) + UI-reference leak risk (cleanup relied solely on `@PreDestroy`).
+Fixed by adding `userId` ownership to `BindingEntry` and a `bar.addDetachListener(...)` safety
+net; see `marketplace-app/DECISIONS.md` ADR-028. Moved to `completed/issues/`. Extended the
+existing page-size Playwright test with a second-session bleed check instead of a new spec
+file. Full e2e suite 47/47 green.
 
 **Still open, no longer blocked:**
 

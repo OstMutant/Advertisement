@@ -22,12 +22,14 @@ public class SettingsPaginationService implements UserSettingsChangedHook {
 
     private final List<BindingEntry> entries = new CopyOnWriteArrayList<>();
 
-    record BindingEntry(PaginationBar bar, ToIntFunction<UserSettingsDto> extractor, Runnable refresh) {}
+    record BindingEntry(Long userId, PaginationBar bar, ToIntFunction<UserSettingsDto> extractor, Runnable refresh) {}
 
     public void register(@NonNull PaginationBar bar, @NonNull ToIntFunction<UserSettingsDto> extractor, @NonNull Runnable refresh) {
-        authContextService.getCurrentUser().ifPresent(user ->
-                bar.setPageSize(extractor.applyAsInt(userPort.loadSettings(user.id()))));
-        entries.add(new BindingEntry(bar, extractor, refresh));
+        authContextService.getCurrentUser().ifPresent(user -> {
+            bar.setPageSize(extractor.applyAsInt(userPort.loadSettings(user.id())));
+            entries.add(new BindingEntry(user.id(), bar, extractor, refresh));
+            bar.addDetachListener(_ -> unregister(bar));
+        });
     }
 
     public void unregister(@NonNull PaginationBar bar) {
@@ -36,12 +38,11 @@ public class SettingsPaginationService implements UserSettingsChangedHook {
 
     @Override
     public void onSettingsChanged(@NonNull Long userId, @NonNull UserSettingsDto settings) {
-        authContextService.getCurrentUser()
-                .filter(u -> u.id().equals(userId))
-                .ifPresent(_ -> entries.forEach(e ->
-                        e.bar().getUI().ifPresent(ui -> ui.access(() -> {
-                            e.bar().setPageSize(e.extractor().applyAsInt(settings));
-                            e.refresh().run();
-                        }))));
+        entries.stream()
+                .filter(e -> e.userId().equals(userId))
+                .forEach(e -> e.bar().getUI().ifPresent(ui -> ui.access(() -> {
+                    e.bar().setPageSize(e.extractor().applyAsInt(settings));
+                    e.refresh().run();
+                })));
     }
 }

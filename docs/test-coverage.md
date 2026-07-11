@@ -66,7 +66,7 @@ Last updated: 2026-07-11 · 47 passed · 0 failed · 0 skipped · 47 total
 - [x] Seed data and query validation › adminEn seeds 50 advertisements — five categories
 - [x] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
 - [x] Seed data and query validation › users — email, role and date filters, column sort, pagination
-- [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults
+- [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
 - [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination
 
 ## e2e/06-marketplace-delete-flow.spec.js

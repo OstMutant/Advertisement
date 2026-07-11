@@ -344,7 +344,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 5: settings page sizes, activity verification, restore ───────────
 
-  test('adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults', async () => {
+  test('adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed', async ({ browser }) => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
@@ -356,6 +356,20 @@ test.describe('Seed data and query validation', () => {
     // ── change both page sizes, verify change appears in activity ─────────────
     await changePageSizes(page, 5, 7);
     await screenshotThenClose(page, 'settings-changed');
+
+    // ── cross-session bleed check: userEn's own session must stay unaffected ──
+    const userContext = await browser.newContext();
+    const userPage = await userContext.newPage();
+    await userPage.goto('/');
+    await userPage.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().waitFor({ timeout: 8000 });
+    await loginBulk(userPage, TEST_USERS.userEn);
+    await userPage.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
+    await userPage.locator(ADV_ITEM).first().waitFor({ timeout: 8000 });
+    await expect(userPage.locator('.pagination-count:visible'))
+      .toContainText('1\u201320 of', { timeout: 5000 });
+    await screenshot(userPage, 'settings-bleed-check-userEn-unaffected');
+    await logoutBulk(userPage);
+    await userContext.close();
 
     await openActivityTab(page);
     await expect(page.locator('.entity-activity-list .entity-activity-row').first())

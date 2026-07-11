@@ -668,6 +668,42 @@ codebase's actual threat model. Fixing the IP resolution itself is the real fix.
 
 ---
 
+## ADR-028: SettingsPaginationService — per-user ownership on bindings, detach-based cleanup
+
+**Status:** Accepted
+
+**Context:** `SettingsPaginationService` is a singleton `@Component` holding a
+`CopyOnWriteArrayList<BindingEntry>` shared across every user's UI session. Two problems found
+via external audit + internal verification:
+1. **Cross-session bleed (bug):** `onSettingsChanged(userId, settings)` only checked whether
+   the *current thread's* user matched `userId`, then pushed the new page size to **every**
+   registered `PaginationBar` across **all** sessions — so when user X changed their page size,
+   users Y and Z had their live grids silently resized to X's value until they next reloaded
+   the view. Invisible in single-user e2e (only one logged-in user drives each test).
+2. **UI-reference leak risk:** the singleton held strong references to `PaginationBar` (→ the
+   whole UI subtree) with cleanup relying entirely on views calling `unregister()` from
+   `@PreDestroy`; any path that skips that callback pins a dead UI tree in the service forever.
+
+**Decision:** `BindingEntry` now carries the owning `userId` (captured from
+`AuthContextService` at `register()` time). `onSettingsChanged` filters `entries` by
+`entry.userId().equals(userId)` instead of gating on the current thread's user — this fixes the
+bleed regardless of which thread fires the hook, and drops the now-redundant
+`authContextService.getCurrentUser()` pre-filter entirely. `register()` also adds
+`bar.addDetachListener(_ -> unregister(bar))`, so cleanup no longer depends solely on
+`@PreDestroy` being called correctly on every path; `unregister()` remains for the explicit
+call.
+
+**Consequences:**
+- `SettingsPaginationBinding` and the three call sites (`AdvertisementsView`, `TimelineView`,
+  `UserView`) are unchanged — same `register`/`unregister` signatures.
+- e2e coverage: extended `05-seed-filter-sort-pagination.spec.js` — `adminEn changes page
+  sizes...` test now opens a second browser context logged in as `userEn` right after `adminEn`
+  changes their own page size, and asserts `userEn`'s Advertisements grid still shows the
+  default page size (unaffected).
+- → [improvement-018-settings-pagination-cross-session-bleed](../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)
