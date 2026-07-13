@@ -79,9 +79,16 @@ deployed.
 
 ## Wave 2 — quality hardening before public traffic
 
-| Order | Issue | What | Note |
-|---|---|---|---|
-| 1 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
+✅ Done (2026-07-13): improvement-013 — raw camelCase field names in Activity diffs
+(`nameEn:`, `categoryIds:`, `adsPageSize:`) while Timeline showed humanized labels for USER
+rows. The `*ActivityFieldsHookImpl` label mappings were already complete — the gap was that
+`AuditTimelineRowRenderer.buildEntityChangesDiv()` never called `labelHook.labelFor()`. Fixed by
+threading the resolved `AuditActivityFieldsHook` through both call sites (Timeline enrich-hook
+branch, overlay Activity-tab overload); see `marketplace-app/DECISIONS.md` ADR-030. Moved to
+`completed/issues/`. Updated one Playwright assertion from a raw-field-tolerant regex to the
+actual humanized label. Full e2e suite 48/48 green.
+
+**Wave 2 is now fully complete except for independent, unblocked items (see below).**
 
 ✅ Done (2026-07-04): tag-spam validator + 3-layer Jsoup-based length validation
 (`issue-description-length-tag-spam` → moved to `completed/issues/`), alongside a fix for a

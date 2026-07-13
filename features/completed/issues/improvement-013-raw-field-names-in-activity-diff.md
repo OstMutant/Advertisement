@@ -1,5 +1,15 @@
 # improvement-013: Activity diffs show raw camelCase field names while Timeline shows localized labels
 
+**Status:** ✅ RESOLVED (2026-07-13) — the label mappings in `AdvertisementActivityFieldsHookImpl`/
+`TaxonActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` were already complete; the gap
+was purely in the wiring. `AuditTimelineRowRenderer.buildEntityChangesDiv()` (used by the
+ADVERTISEMENT enrich-hook Timeline branch and unconditionally by every overlay's Activity tab)
+never called `labelHook.labelFor()`. Fixed by threading the resolved `AuditActivityFieldsHook`
+through both call sites and applying it via a shared `applyLabel()` helper. See
+`marketplace-app/DECISIONS.md` ADR-030. Playwright assertion in
+`05-seed-filter-sort-pagination.spec.js` updated from a raw-field-tolerant regex to the actual
+humanized label, proving the fix. Full e2e suite 48/48 green.
+
 **Type:** improvement — UX consistency, found during screenshot review of full e2e run
 **Module:** marketplace-app
 **Priority:** medium — the i18n mapping infrastructure already exists, it is just not applied on one path

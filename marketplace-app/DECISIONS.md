@@ -776,6 +776,43 @@ retry — safer than a clever auto-merge for a first version of this feature.
 
 ---
 
+## ADR-030: Field labels applied uniformly across every Activity/Timeline rendering path
+
+**Status:** Accepted
+
+**Context:** `AuditTimelineRowRenderer` has two private helpers that both render a list of
+`ChangeEntry` into a `Div`: `buildActivityChangesDiv()` (used only when an entity type has an
+`AuditActivityFieldsHook` but no `AuditActivityEnrichHook`) and `buildEntityChangesDiv()` (used
+by the enrich-hook branch of the cross-entity Timeline, and unconditionally by the overlay
+Activity-tab overload `buildActivityFieldsList(AuditActivityItemDto, EntityRef)`). Only the
+former applied `labelHook.labelFor(field)` to each `ChangeEntry.FieldChange`; the latter never
+did. Since `ADVERTISEMENT` has both hooks registered (`ActivityEnrichHookImpl` for media state,
+`AdvertisementActivityFieldsHookImpl` for labels), its enrich-hook branch always won and always
+skipped labeling — and every overlay's own Activity tab (Advertisement, User, Taxon,
+UserSettings alike) went through `buildEntityChangesDiv()` unconditionally, so it never applied
+labels either. The label mappings themselves (`AdvertisementActivityFieldsHookImpl`,
+`TaxonActivityFieldsHookImpl`, `UserSettingsActivityFieldsHookImpl`) were already complete —
+only the wiring was missing (improvement-013).
+
+**Decision:** `buildEntityChangesDiv()` now takes the resolved `AuditActivityFieldsHook` for the
+entity type as a parameter and applies it via a shared `applyLabel(entry, labelHook)` helper
+(extracted from the logic `buildActivityChangesDiv()` already had) before rendering each
+`FieldChange`. Both call sites — the Timeline enrich-hook branch and the overlay Activity-tab
+overload — now resolve `fieldsProviders.get(entityType)` and pass it through. `labelHook` is
+nullable-safe (falls back to the raw field key) since `AuditActivityFieldsHook.labelFor()` has a
+default no-op implementation, so this doesn't require every entity type to register one.
+
+**Consequences:**
+- No changes needed to any `*ActivityFieldsHookImpl` — their `labelFor()` mappings were already
+  correct; only `AuditTimelineRowRenderer` needed the wiring fix.
+- e2e coverage: `05-seed-filter-sort-pagination.spec.js` — `adminEn changes page sizes...` test
+  assertions updated from the old raw-field-name-tolerant regex (`/adsPageSize|Оголошень/i`) to
+  the actual humanized label (`/Ads per page|Оголошень/i`), which now proves the fix rather than
+  merely tolerating the old bug.
+- → [improvement-013-raw-field-names-in-activity-diff](../features/completed/issues/improvement-013-raw-field-names-in-activity-diff.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

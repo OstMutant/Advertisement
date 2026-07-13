@@ -375,8 +375,8 @@ test.describe('Seed data and query validation', () => {
     await expect(page.locator('.entity-activity-list .entity-activity-row').first())
       .toBeVisible({ timeout: 5000 });
     const firstActivityRow = page.locator('.entity-activity-list .entity-activity-row').first();
-    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /adsPageSize|Оголошень/i }).first()).toBeVisible();
-    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /usersPageSize|Користувач/i }).first()).toBeVisible();
+    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Ads per page|Оголошень/i }).first()).toBeVisible();
+    await expect(firstActivityRow.locator('.entity-activity-changes-item').filter({ hasText: /Users per page|Користувач/i }).first()).toBeVisible();
     await screenshot(page, 'settings-activity-after-change');
     await closeOverlay(page);
 

@@ -113,7 +113,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
                     attachmentSnapshotId != null
                             ? () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
-                            : null);
+                            : null,
+                    fieldsProviders.get(item.entityRef().entityType()));
         }
         AuditActivityFieldsHook provider = fieldsProviders.get(item.entityRef().entityType());
         if (provider != null && item.snapshotData() != null) {
@@ -126,10 +127,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            ChangeEntry resolved = switch (entry) {
-                case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
-                case ChangeEntry.MediaChange _ -> entry;
-            };
+            ChangeEntry resolved = applyLabel(entry, labelHook);
             boolean unchanged = switch (resolved) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange(var before, _)  -> before == null || before.isBlank();
@@ -146,11 +144,21 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         Supplier<String> mediaLookup = (enrichHook != null && attachmentSnapshotId != null)
                 ? () -> enrichHook.getMediaStateForSnapshot(ref, attachmentSnapshotId)
                 : null;
-        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup);
+        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup,
+                fieldsProviders.get(ref.entityType()));
+    }
+
+    private static ChangeEntry applyLabel(ChangeEntry entry, AuditActivityFieldsHook labelHook) {
+        if (labelHook == null) return entry;
+        return switch (entry) {
+            case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
+            case ChangeEntry.MediaChange _ -> entry;
+        };
     }
 
     private Div buildEntityChangesDiv(List<ChangeEntry> changes, AuditableSnapshot snapshotData,
-                                      String cssBase, Supplier<String> mediaStateLookup) {
+                                      String cssBase, Supplier<String> mediaStateLookup,
+                                      AuditActivityFieldsHook labelHook) {
         Div container = new Div();
         container.addClassName(cssBase);
 
@@ -164,7 +172,8 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         }
 
         List<ChangeEntry> expanded = expandTextFields(snapshotData, textChanges);
-        for (ChangeEntry entry : expanded) {
+        for (ChangeEntry rawEntry : expanded) {
+            ChangeEntry entry = applyLabel(rawEntry, labelHook);
             boolean unchanged = switch (entry) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange _               -> false;
