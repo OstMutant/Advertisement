@@ -35,4 +35,4 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` live in `platform-commons`.
 - UI components in marketplace-app MUST degrade gracefully via `ObjectProvider.ifAvailable()` when this starter is absent.
 - `@EnableJdbcRepositories(basePackages = "org.ost.attachment")` declared in `AttachmentAutoConfiguration`.
-- Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.storage` — not in marketplace-app.
+- Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.services` — not in marketplace-app.

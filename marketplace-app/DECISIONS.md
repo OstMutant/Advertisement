@@ -153,22 +153,30 @@ confirmed broken at runtime via smoke tests.
 snapshot — inverting the UX expectation.
 
 **Decision:** Clicking a restore button restores the entity to the state captured in the clicked
-entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` is reserved for diff
-display only.
+entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` was reserved for diff
+display only, and has since been removed entirely (see `audit-spring-boot-starter/DECISIONS.md`
+ADR-008's amendment) — diff display now works directly from snapshot pairs.
 
-**Consequences:** All restore flows (`UserOverlay.handleRestoreUser`,
-`SettingsOverlay.loadAndShowSettingsRestore`, `AdvertisementService.restoreToSnapshot`) must
-call `AuditPort.getSnapshotContent(snapshotId, entityType)`.
+**Consequences (corrected 2026-07-13 — method names had drifted):** all restore flows call
+`AuditPort.getSnapshotContent(snapshotId, entityType)`. Current entry points:
+`AdvertisementFormOverlayModeHandler.handleRestoreFromActivity`,
+`UserFormOverlayModeHandler`'s equivalent, `SettingsFormModeHandler.handleRestoreFromActivity`,
+and `TaxonFormOverlayModeHandler`'s own restore flow (added when taxon-spring-boot-starter
+landed, not present when this ADR was originally written). The originally-cited method names
+(`UserOverlay.handleRestoreUser`, `AdvertisementService.restoreToSnapshot`) do not exist — only
+`UserService.restoreToSnapshot` (user-spring-boot-starter) matches that exact name today.
 
 ---
 
-## ADR-011: AuditSnapshotBinder used directly — no AuditUiPort
+## ADR-011: OverlayFormBinder used directly — no AuditUiPort
 **Status:** Accepted
 
 **Context:** `AuditUiPort` was removed 2026-06-15 as unnecessary indirection — all Vaadin UI
 lives in marketplace-app, so there is no second consumer that would require the SPI.
 
-**Decision:** `AuditSnapshotBinder` used directly in marketplace-app UI components.
+**Decision:** `OverlayFormBinder` (corrected 2026-07-13 — named `AuditSnapshotBinder` originally,
+which no longer exists anywhere in the codebase; `OverlayFormBinder` is the class performing this
+role today) used directly in marketplace-app UI components.
 
 **Consequences:** Do not re-introduce `AuditUiPort`.
 
@@ -199,12 +207,19 @@ Prerequisite for any component moved to commons: remove all marketplace-specific
 tab-switching and lazy-loading boilerplate (~15 lines each).
 
 **Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler`. The base
-class provides `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement
-five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`,
-`buildSecondaryTab()`, `buildHeaderActions()`.
+class provides `final activate(OverlayLayout)` that assembles the tab layout. Only two methods
+are truly `abstract` (corrected 2026-07-13 — not "five abstract methods" as originally written):
+`buildPrimaryContent()` and `buildHeaderActions()`. `tabsCssClass()` (default `""`),
+`buildSecondaryTab()`, and `buildTertiaryTab()` (both default `null`) have default bodies and are
+overridden only when needed.
 
 `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loader)` represents the
 optional second tab. Returning `null` from `buildSecondaryTab()` produces a single-tab layout.
+
+**Addition (2026-07-13, previously undocumented):** a `TertiaryTabDef` record of the same shape
+plus a `buildTertiaryTab()` hook were added since this ADR was written, supporting a third tab —
+used by `TaxonFormOverlayModeHandler`/`ReferenceDataView`'s sub-tabs (taxon-spring-boot-starter
+landed after this ADR). Same override-for-null-default pattern as `SecondaryTabDef`.
 
 **Consequences:** Rejected: `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean
 — passing live UI components as `Parameters` violates the convention that Parameters carry
@@ -268,14 +283,17 @@ literals (field names are stable). `UserMapper` maps `UserDto → UserEditDto`.
 
 ---
 
-## ADR-017: Known decoupling debt — open boundary violations
+## ADR-017: Decoupling debt at the time of writing — all items since resolved
+**Status:** Resolved (was undated/open at write time; every item below closed by 2026-06-26 —
+verified 2026-07-13: `org.ost.attachment.*`/`org.ost.user.*` internal imports in marketplace-app
+both return zero grep hits. This ADR previously had no `Status:` line at all despite every listed
+item already being marked resolved inline — the one structural inconsistency found across this
+file's 33 ADRs.)
 
 **Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required
 only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI
 components may reference each other freely. UI ports/hooks (`AuditUiPort`, `AttachmentGalleryPort`,
 `AuditActivityRowHook`) were removed as unnecessary indirection.
-
-### Open violations
 
 ### ✅ Resolved — attachment UI boundary violations (2026-06-26)
 
@@ -384,8 +402,9 @@ Concrete overlays implement abstract hooks: `saveConfig()`, `proceed()`, `afterD
 **Consequences:**
 - `switchTo()` must reset `currentFormHandler = null` before the switch expression — without this,
   after `VIEW → EDIT → VIEW` the handler remains non-null and `hasUnsavedChanges()` returns `true`.
-- `SaveConfig` record `(I18nKey success, I18nKey validFailed, I18nKey saveError)` declares error
-  key mapping per overlay type.
+- `SaveConfig` record `(I18nKey success, I18nKey validFailed, I18nKey saveError, I18nKey conflict)`
+  declares error key mapping per overlay type — `conflict` added by ADR-029 (optimistic-locking
+  UI) after this ADR was written; noted here 2026-07-13 since this ADR's body was never amended.
 
 ---
 
@@ -451,14 +470,19 @@ have no effect.
 **Decision:** A historical snapshot is considered "current state" when ALL of the following match:
 - `title` — advertisement title
 - `description` — advertisement body (rich HTML)
-- `categories` — sorted, comma-separated names of assigned categories
+- `categoryIds` — sorted list of assigned category ids
 - `media` — attachment filenames at that version (via `AuditActivityEnrichHook.matchesCurrent`)
 
 If any of these differ, the "Restore" button is shown. If all are identical, the badge is shown.
 
-`AdvertisementSnapshotDto` stores `categories` as a sorted, comma-joined string of category names
-captured at save time (locale: English). `Objects.equals` on the full record covers title +
-description + categories; `mediaMatchCurrent` via `AuditActivityEnrichHook` covers media.
+`AdvertisementSnapshotDto` stores `categoryIds` as a `List<Long>` of numeric category ids, sorted
+at construction time (corrected 2026-07-13 — originally written as "a sorted, comma-joined string
+of category names"; verified directly in `AdvertisementSnapshotDto.java`: the field is
+`List<Long> categoryIds`, compared and diffed via `Objects.equals`/`FieldChange`, never a
+name-based string — the diff display formats ids to a comma-separated string only for the UI
+diff view, the stored/compared value itself is numeric ids). `Objects.equals` on the full record
+covers title + description + categoryIds; `mediaMatchCurrent` via `AuditActivityEnrichHook`
+covers media.
 
 Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
 `AuditableSnapshot.isVisible()` mechanism were removed entirely — after
@@ -555,8 +579,8 @@ boundary.
 
 **Consequences:**
 - `improvement-006` (Quill UI character counter + `advertisement.description` DB column limit)
-  remains open but is now unblocked — the counter and the validators agree on how "length" is
-  measured.
+  was unblocked by this ADR and has since been **completed** (closed 2026-07-13 via ADR-031 —
+  updated here since this ADR still said "remains open" after that closure).
 - Any future field with the same "rich HTML but bounded visible text" shape should follow the
   same three-layer pattern rather than reaching for `@Size` directly on the HTML string.
 
@@ -601,8 +625,10 @@ catch-all, as a discipline/process rule rather than a global switch.
 **Status:** Accepted
 
 **Context:** `improvement-020` also added Caffeine-based rate limiting to `AuthService.login()`
-and `UserService.register()` (`org.ost.user.services`). The first version incremented the
-attempt counter on *every* call regardless of outcome. This broke the Playwright e2e suite:
+(`org.ost.marketplace.services.auth` — corrected 2026-07-13; `AuthService` lives in
+marketplace-app, not `org.ost.user.services`) and `UserService.register()` (`org.ost.user.services`,
+correct as originally written). The first version incremented the attempt counter on *every* call
+regardless of outcome. This broke the Playwright e2e suite:
 all signups run from the same client IP (the test-runner container), and the 6th successful
 signup within the 15-minute window was rejected as "too many attempts" — the generic
 `catch (Exception ex)` in `SignUpDialog` then misreported it as "email already registered",

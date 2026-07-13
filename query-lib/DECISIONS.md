@@ -23,7 +23,8 @@ No `META-INF/spring` registration, no `@AutoConfiguration`.
 (to allow pure JUnit testing without an application context).
 
 **Decision:** `query-lib` provides only `SqlFilterBuilder`, `SqlBoundFilter`, `SqlCondition`,
-`SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, and `OrderByBuilder`.
+`SqlFilterBinding`, `SqlFilterMapping`, `SqlOperator`, `OrderByBuilder`, and `PaginationSqlBuilder`
+(added later — see ADR-003's amendment).
 No `@AutoConfiguration`, no Spring beans, no `META-INF/spring` registration.
 
 **Consequences:**
@@ -39,11 +40,17 @@ No `@AutoConfiguration`, no Spring beans, no `META-INF/spring` registration.
 expression ASTs, or generic pagination abstractions would increase complexity without benefit.
 
 **Decision:** The API is frozen at its current abstraction level. Explicitly out of scope:
-JOIN DSL, expression AST, automatic query rewriting, generic pagination abstractions,
-conditional param helpers.
+JOIN DSL, expression AST, automatic query rewriting, conditional param helpers.
 
-**Consequences:** If you feel the urge to add a new abstraction to query-lib, write raw SQL
-in the repository instead.
+**Amendment (verified 2026-07-13):** `PaginationSqlBuilder.pageLimit(params, pageable)` was added
+to `org.ost.query.sort` since this ADR was written — a single-method `LIMIT`/`OFFSET` clause
+builder, not a general pagination abstraction (no page-count math, no response wrapping). It was
+a pragmatic exception to the "no generic pagination abstractions" line above: every repository
+needed the exact same `LIMIT :limit OFFSET :offset` snippet, so extracting it avoided copy-paste,
+not scope creep. The API is otherwise still frozen at this level.
+
+**Consequences:** If you feel the urge to add a new abstraction to query-lib beyond
+`PaginationSqlBuilder`'s narrow scope, write raw SQL in the repository instead.
 
 ---
 

@@ -1,67 +1,28 @@
 # query-lib
 
-A lightweight SQL filter/sort helper library. No Spring Boot autoconfiguration.
+A lightweight SQL filter/sort/pagination helper library. No Spring Boot autoconfiguration, no
+Vaadin dependency, no domain knowledge.
 
 ---
 
 ## Package structure
 
 ```
-org.ost.query
-
-filter/
+org.ost.query.filter
   SqlFilterBuilder<F>        — translates a filter DTO into a WHERE clause + named params
   SqlBoundFilter<F, R>       — binds a filter DTO field to a SQL expression and a condition factory
   SqlFilterBinding<F, R>     — @FunctionalInterface: getCondition(F filter) → SqlCondition<R>
-  SqlFilterMapping            — interface: filterProperty() + sqlExpression()
+  SqlFilterMapping           — interface: filterProperty() + sqlExpression()
   SqlCondition<R>            — a single resolved WHERE condition (expression, param, value, operator)
-  [SqlOperator]              — package-private: EQUALS, LIKE_IGNORE_CASE, IN, GREATER_OR_EQUAL, LESS_OR_EQUAL
+  SqlOperator                — EQUALS, LIKE_IGNORE_CASE, IN, GREATER_OR_EQUAL, LESS_OR_EQUAL
 
-sort/
+org.ost.query.sort
   OrderByBuilder             — converts Spring Sort into an ORDER BY clause via an alias→expression map
-
-org.ost.query.ui
-
-ui/
-  QueryBlock<T>              — abstract VerticalLayout base for filter+sort panels
-  QueryStatusBar<T>          — status bar showing active filters and sort, toggles QueryBlock visibility
-  QueryMessages              — TranslationKey enum for sort icon and action tooltips
-
-ui/filter/
-  FilterProcessor<F>         — manages filter state and field highlight lifecycle
-  FilterFieldMeta<I,F,R>     — metadata binding: getter, setter, validation, display name
-  FilterMapper<F>            — copy/update contract for filter DTOs
-  ValidationService<F>       — validates filter DTOs via jakarta.validation
-  ValidationPredicates       — common BiPredicate builders for FilterFieldMeta
-
-ui/sort/
-  SortProcessor              — manages sort state and SortIcon color lifecycle
-  SortFieldMeta              — metadata for a sort field: property + i18n key
-  CustomSort                 — mutable sort state wrapper (wraps Spring Sort)
-
-ui/elements/
-  SortIcon                   — clickable sort direction icon (cycles NEUTRAL → ASC → DESC)
-  SvgIcon                    — inline SVG icon component
-
-ui/elements/action/
-  QueryActionBlock           — Apply / Clear button row
-  QueryActionButton          — single action button with SVG icon and tooltip
-  QueryActionBlockHandler    — interface for dirty-state updates
-
-ui/elements/fields/
-  QueryTextField, QueryComboField, QueryDateTimeField,
-  QueryMultiSelectComboField, QueryNumberField — pre-styled query input fields
-
-ui/elements/rows/
-  QueryInlineRow             — horizontal row with label+sort icon on the left, fields on the right
-
-ui/utils/
-  HighlighterUtil            — CSS highlight class management for changed/dirty/invalid states
-  TimeZoneUtil               — client-side timezone detection and Instant formatting
-  SvgUtil                    — SVG resource loading from classpath
+  PaginationSqlBuilder       — converts a Pageable into a LIMIT :limit OFFSET :offset clause + named params
 ```
 
-Types in `[brackets]` are package-private — do not reference them from outside query-lib.
+That's the entire module — 8 classes, two packages. No UI code lives here; Vaadin query-bar
+components live in `marketplace-app`.
 
 ---
 
@@ -84,9 +45,9 @@ public List<AdvertisementInfoDto> findByFilter(AdvertisementFilterDto filter, Pa
     var params = new MapSqlParameterSource();
     String where   = FILTER.build(params, filter, "WHERE ");
     String orderBy = OrderByBuilder.build(pageable.getSort(), SORT_MAP);
-    return jdbcClient.sql("SELECT ... FROM advertisements a " + where + orderBy + " LIMIT :limit OFFSET :offset")
-                     .paramSource(params.addValue("limit", pageable.getPageSize())
-                                        .addValue("offset", pageable.getOffset()))
+    String limit   = PaginationSqlBuilder.pageLimit(params, pageable);
+    return jdbcClient.sql("SELECT ... FROM advertisement a " + where + orderBy + limit)
+                     .paramSource(params)
                      .query(ROW_MAPPER).list();
 }
 ```
@@ -122,3 +83,12 @@ OrderByBuilder.build(sort, SORT_MAP)
 ```
 
 Converts camelCase property names to snake_case before lookup. Unknown sort properties are silently skipped.
+
+---
+
+## PaginationSqlBuilder
+
+```java
+PaginationSqlBuilder.pageLimit(params, pageable)
+// → " LIMIT :limit OFFSET :offset"  (adds "limit"/"offset" named params), or "" if pageable is unpaged
+```

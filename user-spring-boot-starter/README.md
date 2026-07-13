@@ -16,7 +16,7 @@ Auto-configured User domain with Spring Security integration for the Advertiseme
 | `UserPortImpl` | Entry point — implements `UserPort`, delegates to services |
 | `UserService` | User creation, role promotion, profile updates |
 | `UserSettingsService` | Per-user settings (page sizes, locale preference) |
-| `UserRepository` | Persists and queries `app_user`; supports dynamic filter/sort |
+| `UserRepository` | Persists and queries `user_information`; supports dynamic filter/sort |
 | `UserPrincipal` | Spring Security `UserDetails` — loaded by `UserDetailsService` |
 
 ## Dependencies

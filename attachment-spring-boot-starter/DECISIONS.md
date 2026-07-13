@@ -119,7 +119,10 @@ Do not re-introduce `AttachmentGalleryPort`.
 **Context:** Without `sandbox`, the embedded iframe has unrestricted browser capabilities.
 
 **Decision:** All `IFrame` components for video embedding carry:
-`sandbox="allow-scripts allow-same-origin allow-presentation allow-forms"`.
+`sandbox="allow-scripts allow-same-origin allow-presentation"` (corrected 2026-07-13 — written as
+including `allow-forms` originally; verified in `AttachmentLightbox.java:65` and
+`CardLightboxViewer.java:31`, neither carries `allow-forms` — the minimum flag set needed turned
+out not to require it).
 
 **Consequences:** Minimum flags required for YouTube and generic embed playback.
 
@@ -131,8 +134,12 @@ Do not re-introduce `AttachmentGalleryPort`.
 **Context:** `IFrame.setSrc()` / `setProperty("src", ...)` is silently ignored by the client
 after initial render — the property diff is not propagated to the DOM.
 
-**Decision:** In `CardMediaLightbox`, iframe `src` is updated via
-`UI.getCurrent().getPage().executeJs(...)` in addition to `getElement().setAttribute(...)`.
+**Decision:** In `CardLightboxViewer` (corrected 2026-07-13 — written as `CardMediaLightbox`
+originally, which today is a dialog/navigation orchestrator with no `IFrame`/`executeJs` code at
+all; the actual iframe-patching class is `CardLightboxViewer.java`, confirmed lines 62-85: both
+`iframe.getElement().setAttribute("src", embedUrl)` and a matching `ui.getPage().executeJs(...
+f.src=$0 ...)` call), iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in
+addition to `getElement().setAttribute(...)`.
 
 **Consequences:** `setAttribute` is kept in sync so Vaadin's internal state stays consistent.
 Rejected: using only `setSrc()` or `setProperty()` — confirmed non-functional via diagnostic
@@ -140,7 +147,17 @@ Rejected: using only `setSrc()` or `setProperty()` — confirmed non-functional 
 
 ---
 
-## ADR-010: Open — marketplace-app attachment UI imports starter internals directly
-**Status:** Accepted (tracking open work)
+## ADR-010: marketplace-app attachment UI imports starter internals directly
+**Status:** Resolved (2026-06-26) — was tracked as open work, now closed
 
-→ [improvement-001-attachment-ui-boundary-violation](../features/issues/improvement-001-attachment-ui-boundary-violation.md)
+**Context (historical):** Six UI components in marketplace-app directly imported
+`attachment-spring-boot-starter` internals (`Attachment` entity, `AttachmentService`,
+`AttachmentSnapshotService`, `MediaContentTypeUtil`) instead of going through `AttachmentPort` /
+platform-commons DTOs.
+
+**Resolution (verified 2026-07-13):** all six violations fixed —
+`org.ost.attachment.services|repository|entities` imports in marketplace-app: zero matches.
+`MediaContentTypeUtil` merged into `AttachmentMediaContentType` (platform-commons). See
+`features/completed/issues/improvement-001-attachment-ui-boundary-violation.md` for the full
+resolution record; that issue file's own Status line already says RESOLVED — this ADR's Status
+line was the one place still describing it as open work.

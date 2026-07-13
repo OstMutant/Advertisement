@@ -1,8 +1,18 @@
 Analyze what changed in the codebase and update only the affected architecture documentation.
 
 Usage:
-  /sync-docs          — compare current HEAD against origin/main
-  /sync-docs <ref>    — compare current HEAD against <ref> (branch, tag, or SHA)
+  /sync-docs               — compare current HEAD against origin/main
+  /sync-docs <ref>         — compare current HEAD against <ref> (branch, tag, or SHA)
+  /sync-docs --full-audit  — ignore git diff entirely; verify every existing README.md/DECISIONS.md
+                             claim against current code (see "Full Audit Mode" below)
+
+**Known limitation of the default (diff-based) mode:** it only re-checks documentation for files
+that changed in the given diff. Staleness introduced by a rename/removal in commit A, where no
+later commit's diff ever touched the doc mentioning the old name, is invisible to this mode
+forever — the diff that would surface it never happens, since the doc file itself isn't part of
+any single commit's changed-file set. This is not a bug to fix in the diff logic; it's why
+`--full-audit` exists as a separate mode below, for periodic use (e.g. before a release, or every
+few weeks), not as a replacement for the fast day-to-day diff mode.
 
 ---
 
@@ -79,6 +89,68 @@ Print a summary:
 - Which issues were created / closed / updated
 - Which ADRs were added or status-changed
 - Any new violations found
+
+---
+
+## Full Audit Mode (`--full-audit`)
+
+Skip Steps 1-2 entirely (no `git diff`, no changed-file mapping) — every `README.md` and
+`DECISIONS.md` in the repo is in scope regardless of recent activity.
+
+### Step A1 — Enumerate targets
+
+`find . -maxdepth 2 -iname "DECISIONS.md" -o -maxdepth 2 -iname "README.md"` (excluding
+`target/`/`node_modules/`). Note which modules have no README.md or no DECISIONS.md — that alone
+is not necessarily a problem (e.g. a pure-contracts module may not need a README), but flag it in
+the report rather than silently skipping.
+
+### Step A2 — Verify every claim, not just changed ones
+
+For each `DECISIONS.md`, check every ADR entry:
+- If it names a specific class, method, field, config value, CSS class, or file path — grep/read
+  the current source directly and confirm the name still exists and still matches. Do not assume
+  from the ADR text.
+- Classify each entry: **VALID** (matches), **STALE** (named thing renamed/moved/removed since),
+  **SUPERSEDED** (a later ADR replaces this one's decision but the Status line doesn't say so),
+  **DONE-GOAL-NOT-MARKED** (an "open"/"future work" item that already shipped).
+- Check structural hygiene: ADR numbering has no gaps/duplicates, every entry has a `Status:` line,
+  Status vocabulary is consistent (`Accepted`/`Superseded`/`Deprecated`, with dates where useful).
+
+For each `README.md`, cross-check every concrete factual claim (class names, package paths,
+commands, table names, port numbers, config values, dependency versions) against current
+code/config directly — the same way ADRs are checked. A module's own `CLAUDE.md` is usually the
+more current source when the two disagree (verify which one is actually right by reading code,
+don't assume CLAUDE.md wins by default) — note any case where `CLAUDE.md` itself turns out to be
+the stale one, since it's the one place this skill otherwise treats as ground truth.
+
+### Step A3 — Parallelize for cost
+
+Given the volume (every ADR/README claim needs an independent code cross-check, not a batch
+grep), split the audit across parallel research agents — group by size, not just by module,
+so no single agent gets an oversized file. As a rule of thumb: one agent per ~500-1000 lines of
+combined DECISIONS.md content, one agent for all README.md files together. Each agent reports
+findings only (file, line, claim, verdict, evidence) — it does not edit anything; the calling
+context reviews and applies fixes afterward, the same way a normal code-review pass would.
+
+### Step A4 — Apply fixes
+
+Same rules as Step 4 above (ADR audit / CLAUDE.md factual corrections / README cross-reference),
+plus:
+- When a decision the ADR rejected turns out to be what the current code actually does (not just
+  a naming drift, but a reversed decision), do not silently "fix" the code to match the old ADR.
+  Annotate the ADR to document current reality and flag the discrepancy in the report — reverting
+  working code is a separate, deliberate call for whoever owns that script/service to make.
+  Scripts and test files are exactly where the temptation is highest to change code instead of
+  wording, and exactly where an unreviewed change is most likely to break something unrelated to
+  documentation. Never touch code in `--full-audit` mode. Documentation always changes to match
+  code, never the reverse.
+
+### Step A5 — Report
+
+Same shape as Step 5, plus: a per-file table of ADR verdicts (VALID count vs. each flagged entry
+with a one-line reason), and an explicit list of anything found stale in code itself (not just in
+docs) that was deliberately left unfixed per the rule above — so it doesn't silently disappear
+after the audit.
 
 ---
 

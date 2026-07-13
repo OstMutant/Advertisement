@@ -20,16 +20,22 @@ All Vaadin UI lives in `marketplace-app`.
 ---
 
 ## ADR-002: SQL coupling to domain tables removed via SPI batch pattern
-**Status:** Accepted
+**Status:** Accepted (mechanism renamed — see amendment)
 
 **Context:** The audit starter previously coupled directly to `user_information` and `advertisement`
 tables, making it unusable in any context that does not have those tables.
 
-**Decision:** Audit projections do not JOIN domain tables. Instead:
-- Raw `actor_id` returned from the query.
-- `AuditActorNameResolver` SPI performs a single bulk `SELECT id, name FROM user_information WHERE id = ANY(:ids)`.
-- `AuditEntityExistenceChecker` SPI performs a single bulk `SELECT id FROM <table> WHERE id = ANY(:ids)` per entity type.
-Both SPIs wired via `ObjectProvider` — absent → actor names stay `null`, existence defaults `false`.
+**Decision:** Audit projections do not JOIN domain tables. Instead, raw `actor_id`/entity ids are
+returned from the query and resolved via SPI, not SQL join.
+
+**Amendment (verified 2026-07-13):** the two single-purpose SPIs originally named here
+(`AuditActorNameResolver`, `AuditEntityExistenceChecker`) do not exist under those names in
+current code — the same bulk-resolution responsibility is delivered by
+`AuditDomainHook.resolveNames()`/`.findExisting()` (`platform-commons/.../audit/spi/
+AuditDomainHook.java`, implemented by `AuditDomainHookImpl` in marketplace-app). This ADR's
+underlying decision (no domain JOINs, bulk SPI resolution instead) is still the current design;
+only the specific interface names changed, consolidated when `AuditDomainHook` absorbed
+`EntityNameHook` (see ADR-011, item 2).
 
 **Consequences:** Rejected: per-row secondary queries — single bulk SELECT is one round-trip vs N.
 
@@ -45,7 +51,9 @@ making it non-reusable in other Spring Boot + Vaadin projects.
 - `AdvertisementHistoryProjection` → `EntityHistoryProjection`
 - `AdvertisementHistoryDto` → `AuditHistoryItemDto` with `SnapshotPayload`
 - Display name resolution delegated to `EntityDisplayNameResolver` SPI
-- CSS classes renamed to domain-neutral vocabulary (`entity-history-*`, `activity-feed-*`)
+- CSS classes renamed to domain-neutral vocabulary (verified 2026-07-13: current classes are
+  `entity-activity-*` and `activity-feed-*`, not `entity-history-*` as originally written here —
+  a later rename this ADR was never updated for)
 
 **Consequences:** The module is reusable in any Spring Boot + Vaadin project without modification.
 
@@ -74,7 +82,9 @@ property and `@ConditionalOnAuditEnabled` removed entirely.
 
 **Decision:** Audit subsystem speaks about actors and subjects, not users. Key renames:
 - `AuditUserProvider` → `CurrentActorProvider` → `CurrentActorHook`
-- `AuditPort.getUserStateBefore/getUserStateAt` → `getSnapshotContent/getPreviousSnapshotContent(Long, EntityType)`
+- `AuditPort.getUserStateBefore/getUserStateAt` → `getSnapshotContent(Long, EntityType)` (the
+  paired `getPreviousSnapshotContent` mentioned at the time this ADR was written was later removed
+  entirely — see ADR-008's amendment; `getSnapshotContent` is now the only method of this shape)
 - DB column `user_id` → `actor_id`
 
 **Consequences:** "Actor" applies to bots, workflows, or service accounts equally.
@@ -88,8 +98,11 @@ property and `@ConditionalOnAuditEnabled` removed entirely.
 be hardcoded in the starter.
 
 **Decision:** `AuditActivityFieldsHook` SPI lets consumers supply a merged `List<ChangeEntry>`
-(changed + unchanged fields) for their entity types. `AuditActivityRowRenderer.buildRow` calls it
-for non-settings items; falls back to raw `changes` when no provider registered.
+(changed + unchanged fields) for their entity types. Called from
+`AuditTimelineRowRenderer.buildActivityFieldsList()` (verified 2026-07-13 — not
+`AuditActivityRowRenderer.buildRow` as originally written here; `AuditActivityRowRenderer`
+delegates field-list rendering to that method instead of calling the hook itself) for non-settings
+items; falls back to raw `changes` when no provider registered.
 
 **Consequences:** Rejected: hardcoding field names in `AuditActivityRowRenderer` — introduces
 domain coupling into the starter.
@@ -102,9 +115,10 @@ domain coupling into the starter.
 **Context:** `AuditActivityRowRenderer` previously added only the base class, making all activity
 rows render with a hardcoded blue badge — no visual distinction between created/updated/deleted.
 
-**Decision:** Every action badge carries two CSS classes: base (`entity-history-action` or
-`activity-feed-action`) and modifier (`--created`, `--updated`, `--deleted`, `--restored`).
-Modifier derived from `ActionType.name().toLowerCase()`.
+**Decision:** Every action badge carries two CSS classes: base (`entity-activity-action` or
+`activity-feed-action` — corrected 2026-07-13, was written as `entity-history-action` here,
+matching the same stale rename as ADR-003) and modifier (`--created`, `--updated`, `--deleted`,
+`--restored`). Modifier derived from `ActionType.name().toLowerCase()`.
 
 **Consequences:** Any new UI component rendering action badges must follow this two-class pattern.
 Single-class with hardcoded color is forbidden.
@@ -118,10 +132,15 @@ Single-class with hardcoded color is forbidden.
 inverts the UX expectation "make the entity look like it did at this recorded moment".
 
 **Decision:** `AuditPort.getSnapshotContent(snapshotId, entityType)` is the only correct method
-for restore flows. `getPreviousSnapshotContent` is reserved for diff display only.
+for restore flows. `getPreviousSnapshotContent` was reserved for diff display only, and has since
+been **removed entirely** (verified 2026-07-13 — it no longer exists anywhere in `AuditPort`,
+`DefaultAuditPort`, or `AuditReadService`; diff display now works directly from snapshot pairs via
+`AuditableSnapshot.diff()`, see ADR-014). The restore-must-use-`getSnapshotContent` rule below is
+still correct and still the only restore-capable method.
 
-**Consequences:** Any consumer implementing a restore button via `AuditSnapshotBinder.onRestore`
-must call `getSnapshotContent`.
+**Consequences:** Any consumer implementing a restore button (via `OverlayFormBinder` — the class
+performing this role today; `AuditSnapshotBinder`, named here originally, no longer exists) must
+call `getSnapshotContent`.
 
 ---
 
@@ -140,6 +159,7 @@ in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubt
 | `AdvertisementSnapshotDto` | `"advertisement"` |
 | `UserSnapshotDto` | `"user"` |
 | `SettingsSnapshotDto` | `"user_settings"` |
+| `TaxonSnapshotDto` | `"taxon_state"` (added when taxon-spring-boot-starter landed; registered in `JacksonConfig`, table row added 2026-07-13) |
 
 **Consequences:**
 - When adding a new `AuditableSnapshot`: annotate with `@JsonTypeName("stable_name")` + register
@@ -183,7 +203,7 @@ the correct place for i18n (invoked from the UI thread in the renderer).
 ---
 
 ## ADR-012: Repository — findRows + findForActivity replace domain-coupled UNION
-**Status:** Accepted
+**Status:** Accepted (method later renamed/merged — see amendment)
 
 **Context:** `findActivityForProfile(Long userId)` contained `entity_type IN ('USER', 'USER_SETTINGS')`
 hardcoded — domain knowledge in the persistence layer.
@@ -195,13 +215,19 @@ hardcoded — domain knowledge in the persistence layer.
 Marketplace passes `[EntityRef(USER, id), EntityRef(USER_SETTINGS, id)]` — the starter has zero
 knowledge of which entity types constitute a "profile".
 
+**Amendment (verified 2026-07-13):** `findForActivity` no longer exists under that name —
+`AuditLogRepository` today has `findRows` and `findTimeline` (+ `countTimeline`). The unified,
+domain-free query this ADR describes is `findTimeline`; the underlying decision (no `EntityType`
+literals, no domain-coupled UNIONs in the repository) still holds, verified by reading the current
+repository directly.
+
 **Consequences:** `AuditLogRepository` must not contain any `EntityType` name literals or UNION
 queries combining domain-specific filters.
 
 ---
 
 ## ADR-013: findByActor — correlated subqueries replace window-function scan
-**Status:** Accepted
+**Status:** Accepted (method name superseded by ADR-015's consolidation — see amendment)
 
 **Context:** Old `findRowsByActor` ran window functions (`ROW_NUMBER`, `LAG`) over ALL rows of
 ALL entities for the actor — unbounded as the actor's entity count grows.
@@ -209,6 +235,13 @@ ALL entities for the actor — unbounded as the actor's entity count grows.
 **Decision:** `findByActor(Long actorId, int limit)` — CTE fetches actor's top N rows directly
 (indexed on `actor_id`, bounded by `LIMIT :limit`), then computes version/prev via correlated
 subqueries on only those N rows — 3 indexed point-lookups per row.
+
+**Amendment (verified 2026-07-13):** `findByActor` does not exist anywhere in current code. The
+correlated-subquery technique this ADR introduced survived, but under `AuditLogRepository
+.findTimeline()` (confirmed: computes `version`/`prev_id`/`prev_snapshot_data` via correlated
+subqueries, not window functions) — merged in when ADR-015 consolidated repository DTOs into
+`AuditLogProjection`. This ADR's decision (correlated subqueries over a bounded top-N set) is
+still the current mechanism; the method name is not.
 
 **Consequences:** Rejected: single UNION SQL — dynamic SQL assembly in the repository couples
 it to the "activity" concept and splits SQL across Java strings.
@@ -242,6 +275,9 @@ and `EntityNameHook` — service-layer concerns bleeding into the persistence la
 - `AuditLogRepository` must not import any service-layer DTO or hook.
 - `AuditLogProjection` fields map 1:1 to SQL columns — no deserialization in the mapper.
 - `ROW_NUMBER()` and `LAG()` stay in SQL — Java-side computation breaks future pagination.
+- This is the consolidation point where ADR-012's `findForActivity` and ADR-013's `findByActor`
+  were merged/renamed into the current `findRows`/`findTimeline` pair — see those ADRs' amendments
+  (2026-07-13).
 
 ---
 
@@ -259,14 +295,27 @@ the `audit.*` namespace prefix. The starter ships no properties files and no i18
 
 ---
 
-## ADR-017: GenericChange i18n key convention — audit.changes.* namespace
-**Status:** Accepted
+## ADR-017: `audit.changes.*` field-label namespace convention
+**Status:** Accepted (mechanism changed — see correction below)
 
-**Context:** `ChangeEntry.GenericChange.labelI18nKey` stores a raw i18n key string in the DB.
-Namespace ownership must be clear to avoid collision.
+**Context:** Field-level change labels shown in the Activity/Timeline UI need a clear i18n
+namespace to avoid collision between entity domains (e.g. Advertisement's `title` vs. User's
+`name`).
 
-**Decision:** Keys produced by the attachment starter follow `audit.changes.*` namespace
-(e.g. `audit.changes.media`). Translations live in `marketplace-app/i18n/messages*.properties`.
+**Correction (2026-07-13):** the original text of this ADR described a `ChangeEntry.GenericChange`
+record with a `labelI18nKey` field, stored per-entry in the DB. That type never matches current
+code: `ChangeEntry` (`platform-commons/.../core/model/ChangeEntry.java`) is a sealed interface
+with exactly two variants, `FieldChange` and `MediaChange` — neither carries an i18n key, and
+`GenericChange` does not exist. The actual mechanism (established by ADR-011, item 1, and used by
+`improvement-013`'s fix) resolves labels at **render time**, not at write time:
+`AuditActivityFieldsHook.labelFor(String rawFieldKey)` maps a raw field key (e.g. `"nameEn"`,
+`"categoryIds"`) to a human label, implemented per-domain in marketplace-app's
+`*ActivityFieldsHookImpl` classes, which look the label up in the single consolidated
+`I18nKey` enum. No i18n key is ever persisted in `audit_log`.
+
+**Decision:** Field-label i18n keys in `I18nKey` follow the `audit.changes.*` namespace convention
+(e.g. `audit.changes.media`) for cross-entity consistency, resolved via `labelFor()` at read time.
+Translations live in `marketplace-app/i18n/messages*.properties`.
 
 **Consequences:** `I18nKey` is a single consolidated enum in `org.ost.marketplace.services.i18n.I18nKey`.
 
