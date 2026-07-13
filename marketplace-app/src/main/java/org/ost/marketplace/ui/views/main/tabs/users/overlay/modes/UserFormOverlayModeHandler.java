@@ -129,7 +129,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = auditActivityPanelFactory.findIfAvailable()
+        Div content = auditPortFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getUser().id()))
                 .map(_ -> {
                     editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));

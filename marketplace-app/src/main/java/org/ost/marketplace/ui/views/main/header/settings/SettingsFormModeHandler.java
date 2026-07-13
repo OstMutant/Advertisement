@@ -116,7 +116,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
         Div settingsContent = new Div(fieldsCard);
 
-        Div content = auditActivityPanelFactory.findIfAvailable()
+        Div content = auditPortFactory.findIfAvailable()
                 .map(_ -> {
                     settingsTab = new Tab(getValue(SETTINGS_SECTION_TITLE));
                     Tab historyTab = new Tab(getValue(SETTINGS_ACTIVITY_TAB));

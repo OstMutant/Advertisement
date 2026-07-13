@@ -16,6 +16,7 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -39,7 +40,7 @@ public class AuditActivityPanel extends Div
     }
 
     private final transient I18nService                                i18n;
-    private final transient AuditPort                                  auditPort;
+    private final transient ComponentFactory<AuditPort>                auditPortFactory;
     private final transient UiComponentFactory<AuditActivityListRenderer> listRendererFactory;
 
     @Override
@@ -51,6 +52,7 @@ public class AuditActivityPanel extends Div
 
     @Override
     public AuditActivityPanel configure(@NonNull Parameters p) {
+        AuditPort auditPort = auditPortFactory.get();
         AuditableSnapshot currentSnapshot = auditPort
                 .getLastSnapshot(p.getEntityRef().entityType(), p.getEntityRef().entityId())
                 .orElse(null);

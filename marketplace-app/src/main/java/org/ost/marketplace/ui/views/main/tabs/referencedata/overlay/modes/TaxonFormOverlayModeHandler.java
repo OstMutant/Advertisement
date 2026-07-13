@@ -212,7 +212,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         if (params.getMode() == Mode.CREATE) {
             return editContent;
         }
-        return auditActivityPanelFactory.findIfAvailable()
+        return auditPortFactory.findIfAvailable()
                 .map(_ -> {
                     editTab = new Tab(getValue(TAXON_OVERLAY_TAB_EDIT));
                     Tab activityTab = new Tab(getValue(TAXON_OVERLAY_TAB_ACTIVITY));

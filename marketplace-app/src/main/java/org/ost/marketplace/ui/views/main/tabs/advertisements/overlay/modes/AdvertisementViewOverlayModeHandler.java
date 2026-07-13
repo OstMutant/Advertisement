@@ -22,6 +22,7 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.marketplace.ui.views.rules.I18nParams;
@@ -50,6 +51,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final OverlayAdvertisementMetaPanel                     metaPanel;
     private final UiPrimaryButton                                   editButton;
     private final UiIconButton                                      closeButton;
+    private final ComponentFactory<AttachmentPort>                  attachmentPortFactory;
     private final UiComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final ComponentFactory<TaxonPort>                       taxonPortFactory;
     private final LocaleProvider                                    localeProvider;
@@ -92,8 +94,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         });
 
         Div viewBody = new Div(textCard);
-        galleryServiceFactory.ifAvailable(ext -> viewBody.add(
-                ext.buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
+        attachmentPortFactory.ifAvailable(_ -> viewBody.add(
+                galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
 

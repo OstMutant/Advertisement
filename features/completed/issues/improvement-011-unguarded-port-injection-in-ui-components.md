@@ -1,5 +1,18 @@
 # improvement-011: UI components hard-inject starter ports, breaking graceful degradation
 
+**Status:** ✅ RESOLVED (2026-07-13) — Option A implemented: `AttachmentGalleryService`,
+`AttachmentGallery`, `AuditActivityPanel` now inject `ComponentFactory<AttachmentPort>` /
+`ComponentFactory<AuditPort>` instead of the raw port. The consolidated "Option C" variant (gating
+the three component classes themselves with `@ConditionalOnBean`) was tried first, deployed, and
+**empirically broke the app** (Playwright e2e went from 48/48 to 5 failed/35 skipped) due to a
+Spring Boot bean-registration-ordering issue: `@ConditionalOnBean` on a `@ComponentScan`-discovered
+class evaluates before the target starter's `@AutoConfiguration` class registers its bean, so the
+condition sees the port as absent even when it is genuinely present, and the component silently
+never registers. Reverted that approach entirely — see `marketplace-app/DECISIONS.md` ADR-033 for
+the full root-cause writeup and the corrected fix (plain `ComponentFactory<Port>` wrapping, with
+the availability gate moved to the port's own factory at every call site). Full e2e suite verified
+48/48 green.
+
 **Type:** improvement — architectural, found during coupling/SOLID review
 **Module:** marketplace-app
 **Priority:** medium — app startup crash if attachment starter is removed from classpath

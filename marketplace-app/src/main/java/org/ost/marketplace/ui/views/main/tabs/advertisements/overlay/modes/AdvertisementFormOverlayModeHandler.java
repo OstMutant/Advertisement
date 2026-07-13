@@ -21,6 +21,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
 import org.ost.marketplace.services.i18n.I18nService;
@@ -78,6 +79,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private final I18nService                                                  i18nService;
     private final NotificationService                                          notificationService;
+    private final ComponentFactory<AttachmentPort>                             attachmentPortFactory;
     private final UiComponentFactory<AttachmentGalleryService>                 galleryServiceFactory;
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
     private final ComponentFactory<AuditPort>                                  auditPortFactory;
@@ -161,7 +163,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
-        galleryServiceFactory.ifAvailable(ext -> {
+        attachmentPortFactory.ifAvailable(_ -> {
+            AttachmentGalleryService ext = galleryServiceFactory.get();
             this.activeHandle = isCreate
                     ? ext.buildGalleryForCreate(EntityType.ADVERTISEMENT, java.util.UUID.randomUUID().toString())
                     : ext.buildGalleryForEdit(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
@@ -192,7 +195,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         updateButtons(false);
 
-        Div tabbedContent = isCreate ? content : auditActivityPanelFactory.findIfAvailable()
+        Div tabbedContent = isCreate ? content : auditPortFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
                 .map(_ -> {
                     editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));

@@ -907,6 +907,78 @@ correlate.
 
 ---
 
+---
+
+## ADR-033: Optional-port UI components use `ComponentFactory<Port>`, never `@ConditionalOnBean` on the component class
+
+**Status:** Accepted
+
+**Context:** `AttachmentGalleryService`, `AttachmentGallery`, and `AuditActivityPanel` inject
+`AttachmentPort`/`AuditPort` directly as hard constructor parameters. In a genuinely optional
+future starter (payment-, telegram-, ai-spring-boot-starter per the roadmap), this would crash
+Spring bean construction the moment the starter is removed from the classpath. improvement-011
+proposed adding `@ConditionalOnBean(AttachmentPort.class)` / `@ConditionalOnBean(AuditPort.class)`
+directly on these three `@SpringComponent` classes so the bean definition itself would not exist
+when the port is unavailable ("Option A/C").
+
+This was implemented, deployed, and **empirically broke the app** even with every starter present
+and every port genuinely available: the full Playwright e2e suite went from 48/48 to 5 failed / 35
+skipped. Root cause, confirmed via container logs and source inspection: `@ConditionalOnBean` on a
+`@ComponentScan`-discovered class evaluates during regular bean-definition registration, which
+happens *before* `@AutoConfiguration` classes register their beans (`AuditPort`'s real
+implementation, `DefaultAuditPort`, is registered by `AuditAutoConfiguration`, an autoconfiguration
+class). At the point Spring evaluates the condition for `AuditActivityPanel`, `AuditPort`'s bean
+definition does not exist yet — the condition fails, `AuditActivityPanel` is silently never
+registered, and `SettingsFormModeHandler.activate()`'s `auditActivityPanelFactory.findIfAvailable()`
+guard (line 119) silently omits the Activity tab with no exception. The very first e2e test
+(admin sign-up, settings check) failed on that missing tab; because that spec file runs in serial
+mode, every later test in the file was skipped, and several e2e users were never created — causing
+a cascade of unrelated-looking "Invalid email or password" failures in later spec files that
+merely tried to log in as those never-created users. One bug looked like five.
+
+**Decision:** `@ConditionalOnBean` must never be used on a `@ComponentScan`-discovered UI component
+class (marketplace-app) that depends on a bean registered by a starter's `@AutoConfiguration`
+class — the ordering is not guaranteed and the failure mode is silent (no exception, just an
+absent tab/feature). Reverted all three `@ConditionalOnBean` additions. Instead, applied the
+already-established pattern from `marketplace-app/CLAUDE.md` ("Use `ComponentFactory<T>` for
+optional singleton services/ports"):
+- `AuditActivityPanel`: hard field `AuditPort auditPort` → `ComponentFactory<AuditPort>
+  auditPortFactory`, resolved via `.get()` inside `configure()`.
+- `AttachmentGalleryService` / `AttachmentGallery`: hard field `AttachmentPort attachmentPort` →
+  `ComponentFactory<AttachmentPort> attachmentPortFactory`; `AttachmentGallery` resolves it once in
+  `@PostConstruct init()` into a cached field (kept the rest of its ~15 call sites unchanged).
+  `ObjectProvider<T>` (which `ComponentFactory<T>` wraps) is always injectable regardless of
+  whether a `T` bean exists — Spring never fails constructor injection on it, deferring the
+  "is it actually there" check to whenever `.get()`/`.ifAvailable()`/`.findIfAvailable()` is
+  actually called.
+- The *availability gate* moved up one level, from checking the wrapping UI component's factory to
+  checking the **port's own** `ComponentFactory` — because once the component classes above no
+  longer carry `@ConditionalOnBean`, their own `UiComponentFactory<X>.findIfAvailable()` would
+  always resolve non-empty regardless of whether the port truly exists, silently defeating
+  graceful degradation. Fixed in every call site that previously gated on the wrapping factory:
+  `SettingsFormModeHandler`, `UserFormOverlayModeHandler`, `TaxonFormOverlayModeHandler` (gate
+  changed from `auditActivityPanelFactory.findIfAvailable()` to `auditPortFactory.findIfAvailable()`
+  — `auditPortFactory` already existed as a field in all three, just unused for this purpose), and
+  `AdvertisementFormOverlayModeHandler`, `AdvertisementViewOverlayModeHandler`,
+  `AdvertisementCardView` (gate changed from `galleryServiceFactory.ifAvailable(...)` to a new
+  `ComponentFactory<AttachmentPort> attachmentPortFactory` field's `.ifAvailable(...)`/
+  `.findIfAvailable()`).
+
+**Consequences:**
+- No `@ConditionalOnBean` remains on any marketplace-app UI component class targeting a
+  starter-provided port — establishes the pattern for future genuinely-optional starters.
+- Two pre-existing instances of the *same* wrong-level gate (`auditActivityPanelFactory
+  .findIfAvailable()` instead of `auditPortFactory.findIfAvailable()`) were found and fixed in
+  `TaxonFormOverlayModeHandler` and `UserFormOverlayModeHandler` during this pass — they had not
+  yet caused a visible failure only because `AuditActivityPanel` had never carried a conditional
+  annotation before improvement-011, so `findIfAvailable()` on it always happened to resolve
+  correctly by accident, not by design.
+- Full e2e suite verified 48/48 green after the corrected fix (was 8/48 with the
+  `@ConditionalOnBean` approach).
+- → [improvement-011-unguarded-port-injection-in-ui-components](../features/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

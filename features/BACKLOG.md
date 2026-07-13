@@ -117,8 +117,17 @@ suite green.
 
 | Issue | What | Note |
 |---|---|---|
-| 6 | [improvement-011](issues/improvement-011-unguarded-port-injection-in-ui-components.md) | Port-injection guards decision (Option A/C) | must precede creation of any new starter |
 | [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
+
+✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
+(`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated
+"Option C" (`@ConditionalOnBean` on the component classes) was tried first and **empirically
+broke the app** (48/48 → 8/48) due to a Spring Boot bean-registration-ordering issue — reverted.
+Fixed instead with plain `ComponentFactory<Port>` wrapping (Option A) plus moving the
+availability gate at six call sites from the wrapping UI factory to the port's own factory; two
+pre-existing instances of the same wrong-level gate were found and fixed in
+`TaxonFormOverlayModeHandler`/`UserFormOverlayModeHandler` along the way. See
+`marketplace-app/DECISIONS.md` ADR-033. Moved to `completed/issues/`. Full e2e suite 48/48 green.
 
 ✅ Done (2026-07-13): improvement-023 — `RequestCorrelationFilter` (MDC `requestId`, 8-char
 console pattern) + closed silent-logging gaps found during the review: `TaxonService`,

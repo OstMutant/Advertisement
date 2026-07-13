@@ -30,6 +30,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -56,6 +57,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
@@ -117,7 +119,8 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryServiceFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                attachmentPortFactory.ifAvailable(_ ->
+                        galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }

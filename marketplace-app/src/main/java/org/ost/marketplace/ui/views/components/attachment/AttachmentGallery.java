@@ -22,6 +22,7 @@ import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
 
@@ -39,8 +40,10 @@ public class AttachmentGallery extends Div {
 
     private static final int MAX_GALLERY_ITEMS = AttachmentUploadButton.MAX_FILES;
 
-    private final transient AttachmentPort attachmentPort;
-    private final transient I18nService    i18n;
+    private final transient ComponentFactory<AttachmentPort> attachmentPortFactory;
+    private final transient I18nService                      i18n;
+
+    private transient AttachmentPort attachmentPort;
 
     private Div              thumbnailsRow;
     private Span             emptyState;
@@ -81,6 +84,7 @@ public class AttachmentGallery extends Div {
 
     @PostConstruct
     private void init() {
+        attachmentPort = attachmentPortFactory.get();
         addClassName("attachment-gallery");
 
         Span title = new Span(i18n.get(I18nKey.ATTACHMENT_GALLERY_TITLE));

@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
@@ -18,7 +19,7 @@ public class AttachmentGalleryService {
 
     private final UiComponentFactory<AttachmentGallery> galleryFactory;
     private final UiComponentFactory<CardMediaLightbox> lightboxFactory;
-    private final AttachmentPort                      attachmentPort;
+    private final ComponentFactory<AttachmentPort>     attachmentPortFactory;
 
     public Component buildGalleryForView(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
@@ -40,7 +41,7 @@ public class AttachmentGalleryService {
 
     public void openMediaLightbox(@NonNull EntityRef entity) {
         List<AttachmentItemDto> attachments =
-                attachmentPort.getByEntityId(entity.entityType(), entity.entityId());
+                attachmentPortFactory.get().getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {
             lightboxFactory.get().open(attachments, 0);
         }
