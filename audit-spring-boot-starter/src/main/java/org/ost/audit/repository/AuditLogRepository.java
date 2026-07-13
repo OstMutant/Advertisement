@@ -90,8 +90,8 @@ public class AuditLogRepository {
                   .update();
     }
 
-    public void deleteOlderThan(int days) {
-        jdbcClient.sql("DELETE FROM audit_log WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql("DELETE FROM audit_log WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
                   .paramSource(new MapSqlParameterSource("days", days)).update();
     }
 

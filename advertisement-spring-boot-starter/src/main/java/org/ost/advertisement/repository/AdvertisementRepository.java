@@ -129,8 +129,8 @@ public class AdvertisementRepository {
         }
     }
 
-    public void deleteOlderThan(int days) {
-        jdbcClient.sql("DELETE FROM advertisement WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql("DELETE FROM advertisement WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
                   .paramSource(new MapSqlParameterSource("days", days)).update();
     }
 

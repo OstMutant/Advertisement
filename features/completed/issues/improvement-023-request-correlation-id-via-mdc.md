@@ -1,5 +1,14 @@
 # improvement-023: No request/trace correlation id in logs
 
+**Status:** ✅ RESOLVED (2026-07-13) — `RequestCorrelationFilter` added (`OncePerRequestFilter`,
+auto-registered), `%.8X{requestId}` added to the console logging pattern. Verified end-to-end:
+`docker logs` shows a distinct 8-char id per HTTP request during the e2e run. Also closed several
+completely-silent service classes found during the review (TaxonService, AuthService,
+AttachmentService, TaxonAssignmentService, AttachmentSnapshotService, UserSettingsService,
+AdvertisementSaveService, both cleanup services, LoginDialog's missing catch-all log) so the new
+correlation id has something meaningful to correlate. See `marketplace-app/DECISIONS.md`
+ADR-032. Full e2e suite 48/48 green.
+
 **Type:** improvement — observability, found during improvement-015 discussion (was `version`
 column a viable correlation id? no — see below)
 **Module:** marketplace-app

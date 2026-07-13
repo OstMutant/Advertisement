@@ -145,7 +145,9 @@ public class AdvertisementService {
 
     @Transactional
     public void cleanup(int retentionDays) {
-        repository.deleteOlderThan(retentionDays);
+        log.info("Advertisement cleanup started: retentionDays={}", retentionDays);
+        int deleted = repository.deleteOlderThan(retentionDays);
+        log.info("Advertisement cleanup finished: deletedRows={}", deleted);
     }
 
     private static Advertisement buildEntity(@NonNull AdvertisementSaveDto dto, Advertisement before) {

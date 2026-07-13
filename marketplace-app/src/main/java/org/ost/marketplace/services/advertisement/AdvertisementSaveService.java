@@ -2,6 +2,7 @@ package org.ost.marketplace.services.advertisement;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
@@ -21,6 +22,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdvertisementSaveService {
@@ -55,6 +57,8 @@ public class AdvertisementSaveService {
             } else {
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, before, after, actorId));
             }
+            log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
+                    savedId, isNew, catIds.size());
             return savedId;
         });
     }

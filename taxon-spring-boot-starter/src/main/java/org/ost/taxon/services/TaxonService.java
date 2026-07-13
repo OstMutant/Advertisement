@@ -2,6 +2,7 @@ package org.ost.taxon.services;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonSnapshotDto;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaxonService {
@@ -36,6 +38,7 @@ public class TaxonService {
     public Taxon create(@NonNull TaxonType type, String code,
                         @NonNull Map<Locale, TaxonTranslationData> translations,
                         Long actorId) {
+        log.info("Taxon create: type={}, code={}", type, code);
         validateTranslations(translations);
         Taxon taxon = taxonRepository.save(Taxon.builder()
                 .type(type)
@@ -54,6 +57,7 @@ public class TaxonService {
     @Transactional
     public Taxon update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationData> translations,
                         Long actorId, Long version) {
+        log.info("Taxon update: id={}", id);
         validateTranslations(translations);
         Taxon existing = taxonRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Taxon not found: " + id));
@@ -81,6 +85,7 @@ public class TaxonService {
 
     @Transactional
     public void softDelete(@NonNull Long id, Long actorId, Long version) {
+        log.info("Taxon delete: id={}", id);
         List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);
         TaxonSnapshotDto snapshot = buildSnapshotFromTranslations(translations);
         taxonRepository.softDelete(id, actorId, version);
@@ -91,6 +96,7 @@ public class TaxonService {
 
     @Transactional
     public void restore(@NonNull Long id, Long actorId) {
+        log.info("Taxon restore: id={}", id);
         taxonRepository.restore(id);
         if (actorId != null) {
             List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);

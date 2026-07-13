@@ -58,6 +58,8 @@ public class AttachmentService {
 
     public Attachment upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
                              @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
+        log.info("Attachment upload: entityType={}, entityId={}, filename={}, size={}",
+                entityType, entityId, filename, contentLength);
         String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
         try {
             Attachment saved = attachmentRepository.save(Attachment.builder()
@@ -79,6 +81,7 @@ public class AttachmentService {
 
     @Transactional
     public void delete(@NonNull Long attachmentId) {
+        log.info("Attachment delete: id={}", attachmentId);
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
             Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
             attachmentRepository.softDelete(attachmentId, actorId);
@@ -107,6 +110,7 @@ public class AttachmentService {
 
     @Transactional
     public Attachment addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
+        log.info("Attachment add video: entityType={}, entityId={}", entityType, entityId);
         String ytId = YoutubeUtil.extractId(url);
         if (url.isBlank() && ytId == null) throw new IllegalArgumentException("Invalid video URL");
         Attachment saved;
@@ -212,6 +216,7 @@ public class AttachmentService {
 
     @Transactional
     public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
+        log.info("Attachment delete all: entityType={}, entityId={}", entityType, entityId);
         attachmentRepository.softDeleteAll(entityType, entityId, actorId);
         notifyMediaChanged(entityType, entityId);
     }

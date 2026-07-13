@@ -118,8 +118,16 @@ suite green.
 | Issue | What | Note |
 |---|---|---|
 | 6 | [improvement-011](issues/improvement-011-unguarded-port-injection-in-ui-components.md) | Port-injection guards decision (Option A/C) | must precede creation of any new starter |
-| [improvement-023](issues/improvement-023-request-correlation-id-via-mdc.md) | Request/trace correlation id via SLF4J MDC | purely additive, no blockers; found while discussing improvement-015 |
 | [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
+
+✅ Done (2026-07-13): improvement-023 — `RequestCorrelationFilter` (MDC `requestId`, 8-char
+console pattern) + closed silent-logging gaps found during the review: `TaxonService`,
+`AuthService` (login/logout — a real security-observability gap), `AttachmentService`,
+`TaxonAssignmentService`, `AttachmentSnapshotService`, `UserSettingsService`,
+`AdvertisementSaveService`, both cleanup services (now log deleted-row counts, not just "ran"),
+and `LoginDialog`'s missing catch-all exception log. See `marketplace-app/DECISIONS.md`
+ADR-032. Moved to `completed/issues/`. Verified via `docker logs` — distinct requestId per
+request. Full e2e suite 48/48 green.
 
 ✅ Done (2026-07-13): improvement-006 — `QuillEditor` character counter ("N / 2000", reads
 `quill.getText()`) + `advertisement.description` DB column widened from unbounded `TEXT` to

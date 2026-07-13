@@ -1,6 +1,7 @@
 package org.ost.attachment.services;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.repository.AttachmentMediaChange;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
@@ -15,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AttachmentSnapshotService {
@@ -29,6 +31,7 @@ public class AttachmentSnapshotService {
 
     @Transactional
     public Optional<Long> captureAndGetId(EntityType entityType, Long entityId, Long actorId) {
+        log.info("Attachment snapshot capture: entityType={}, entityId={}", entityType, entityId);
         List<String> currentUrls = attachmentRepository.getActiveUrls(entityType, entityId);
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         if (prevOpt.isEmpty()) {

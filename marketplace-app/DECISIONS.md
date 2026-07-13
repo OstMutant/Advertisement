@@ -853,6 +853,60 @@ number, just the column matching a limit the application already enforces one la
 
 ---
 
+## ADR-032: Request correlation id via SLF4J MDC, plus closing silent-service logging gaps
+
+**Status:** Accepted
+
+**Context:** Log lines from a single HTTP request/UI action carried no shared identifier —
+reconstructing "everything that happened for one save click" across threads meant matching on
+timestamps and guessing. `Advertisement.version`/`User.version`/`Taxon.version`
+(improvement-015) were considered and rejected as a substitute: a version is unique only within
+one row, many requests touch zero or several entities, and a failed/conflicting request has no
+version to log against at all (improvement-023).
+
+Separately, a review of `log.` coverage across all services found several completely silent
+classes — mutating operations with no log line at all, which would leave the new correlation id
+with nothing to correlate: `TaxonService` (create/update/softDelete/restore), `AuthService`
+(login/logout — a security-relevant gap), `AttachmentService` (upload/delete/addVideo/
+softDeleteAll), `TaxonAssignmentService` (assign/unassign/replaceAssignments),
+`AttachmentSnapshotService` (captureAndGetId), `UserSettingsService` (save),
+`AdvertisementSaveService` (the marketplace-app-level save transaction, distinct from
+`AdvertisementService.save()` which already logged), and both cleanup services
+(`AuditCleanupService`/`AdvertisementService.cleanup()`, which discarded the deleted-row count).
+`LoginDialog` also lacked the generic catch-all exception log that `SignUpDialog` already had.
+
+**Decision:**
+1. `RequestCorrelationFilter` (`marketplace-app/config`, extends `OncePerRequestFilter`) puts a
+   fresh `UUID.randomUUID()` in MDC under key `requestId` at the start of every HTTP request,
+   removed in a `finally` block. Auto-registered by Spring Boot (any `Filter` bean); no
+   `SecurityConfig` changes needed.
+2. `application.yml`'s console logging pattern gained `%.8X{requestId}` (first 8 hex chars —
+   enough to eyeball-correlate without cluttering the console with a full UUID).
+3. Alternative considered: `micrometer-tracing` (auto-configured MDC insertion, full
+   distributed-tracing spans) — rejected as heavier than needed for a single-instance monolith
+   with no downstream services to trace across; revisit if the app ever splits into multiple
+   services.
+4. Added `log.info`/`log.warn` to every silent mutating method listed above, following the
+   existing convention (`"<Entity> <action>: id={}"`). `deleteOlderThan()` in both
+   `AuditLogRepository` and `AdvertisementRepository` changed from `void` to `int` (returns the
+   JDBC update count) so cleanup services can log how many rows were actually deleted, not just
+   that cleanup ran.
+
+**Vaadin-specific caveat:** a single Vaadin UI session spans many HTTP requests (one per server
+round-trip), so `requestId` correlates *one round-trip* (e.g. one save-click), not "the whole
+time the user had the form open" — that's expected and matches the actual unit anyone wants to
+correlate.
+
+**Consequences:**
+- Purely additive: no schema changes, no port/hook signature changes except the two
+  `deleteOlderThan()` return-type widenings (both had exactly one caller each, both updated).
+- Verified end-to-end: `docker logs` shows a distinct `requestId` per login request during the
+  e2e run (e.g. `[d96a341c]`, `[121b21da]`, one per HTTP round-trip).
+- Full e2e suite 48/48 green.
+- → [improvement-023-request-correlation-id-via-mdc](../features/completed/issues/improvement-023-request-correlation-id-via-mdc.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)
