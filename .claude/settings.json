@@ -1,13 +1,23 @@
 {
   "autoApprove": false,
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "prompt=$(cat | grep -o '\"prompt\":\"[^\"]*\"' | sed 's/\"prompt\":\"//;s/\"$//'); echo \"$prompt\" | grep -qiE 'зроби +коміт|закомі[тч]|\\bcommit\\b' && touch /tmp/commit-approved; exit 0"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.command // \"\"' | grep -q 'git commit' && jq -n '{hookSpecificOutput: {permissionDecision: \"deny\", permissionDecisionReason: \"git commit blocked — say зроби коміт first\"}}' && exit 0 || exit 0"
+            "command": "cmd=$(cat | grep -o '\"command\":\"[^\"]*\"' | sed 's/\"command\":\"//;s/\"$//'); echo \"$cmd\" | grep -q 'git commit' && { if [ -f /tmp/commit-approved ] && [ -z \"$(find /tmp/commit-approved -mmin +5 2>/dev/null)\" ]; then rm -f /tmp/commit-approved; exit 0; else echo 'git commit BLOCKED — say \"зроби коміт\" first' >&2; exit 2; fi; } || exit 0"
           }
         ]
       }
