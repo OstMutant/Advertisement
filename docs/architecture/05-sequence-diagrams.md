@@ -447,5 +447,15 @@ Marketplace UI classes never import from starter internal classes:
 ### Delegation Pattern
 All Port/Hook implementations are pure delegation with no business logic:
 - Example: `AdvertisementPortImpl.save()` calls `AdvertisementService.save()` and returns result
-- Example: `MediaChangeHookImpl.onChange()` calls `AdvertisementService.updateMediaMetadata()` and returns
+- Example: `MediaChangeHookImpl.onChange()` calls `AdvertisementService.updateMediaMetadata()` and returns result
+
+### Batch Resolution Pattern (avoiding N+1)
+Reads that need per-entity taxon data for a whole page of results resolve them in one batch
+instead of looping a single-id lookup per row:
+- `TaxonPort.findByIds(Set<Long> taxonIds, Locale locale)` — `DefaultTaxonPort` resolves all
+  requested ids via a single `TaxonService.findByIds()` call plus one batched translation
+  lookup (`buildDtoIndex()` / `indexById()`), instead of one `findById()` per row.
+- `AdvertisementService.enrichWithCategories()` (list rendering) is the caller: it collects all
+  advertisement ids on the current page, calls `TaxonPort.getForEntities(...)` once, and maps
+  the result back onto each row — not one `TaxonPort` call per advertisement.
 

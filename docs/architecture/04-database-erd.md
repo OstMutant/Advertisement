@@ -18,6 +18,7 @@ erDiagram
         jsonb settings
         timestamp created_at
         timestamp updated_at
+        bigint version
     }
     
     ADVERTISEMENT {
@@ -33,6 +34,7 @@ erDiagram
         varchar media_url
         varchar media_content_type
         int media_count
+        bigint version
     }
     
     ATTACHMENT {
@@ -78,6 +80,7 @@ erDiagram
         timestamp updated_at
         bigint created_by
         bigint updated_by
+        bigint version
     }
 
     TAXON_TRANSLATION {
@@ -123,6 +126,7 @@ erDiagram
 | `settings` | JSONB | NOT NULL, DEFAULT '{"adsPageSize":20,"usersPageSize":20}' | Pagination & UI preferences |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Account creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | | Last profile update |
+| `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (checked manually in `UserRepository.updateProfile()` — `User`'s edit path bypasses `CrudRepository`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
 **Constraints:**
 - `CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'))`
@@ -154,6 +158,7 @@ erDiagram
 | `media_url` | VARCHAR(1024) | | Featured image URL (from attachment module) |
 | `media_content_type` | VARCHAR(127) | | MIME type of featured image (e.g., 'image/jpeg') |
 | `media_count` | INT | NOT NULL, DEFAULT 0 | Count of attached images |
+| `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, checked natively via `CrudRepository.save()`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
 **Foreign Keys:**
 - `fk_advertisement_created_by`: created_by_user_id → user_information.id (ON DELETE RESTRICT)
@@ -281,6 +286,7 @@ erDiagram
 | `updated_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Last update timestamp |
 | `created_by` | BIGINT | | User ID who created the entry |
 | `updated_by` | BIGINT | | User ID who last updated |
+| `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, checked natively via `CrudRepository.save()`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
 **Indexes:**
 - `idx_taxon_type_deleted_at` (type, deleted_at) — for listing active/all entries by type
