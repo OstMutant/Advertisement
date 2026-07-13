@@ -27,6 +27,7 @@ public enum I18nKey {
     LOGIN_BUTTON_CANCEL("login.button.cancel"),
     LOGIN_SUCCESS("login.success"),
     LOGIN_ERROR("login.error"),
+    LOGIN_ERROR_TOO_MANY_ATTEMPTS("login.error.too.many.attempts"),
     LOGIN_WELCOME("login.welcome"),
 
     // === Signup ===
@@ -41,6 +42,7 @@ public enum I18nKey {
     SIGNUP_ERROR_EMAIL_INVALID("signup.error.email.invalid"),
     SIGNUP_ERROR_EMAIL_EXISTS("signup.error.email.exists"),
     SIGNUP_ERROR_PASSWORD_SHORT("signup.error.password.short"),
+    SIGNUP_ERROR_TOO_MANY_ATTEMPTS("signup.error.too.many.attempts"),
 
     // === User Dialog ===
     USER_DIALOG_TITLE("user.dialog.title"),
@@ -57,6 +59,7 @@ public enum I18nKey {
     USER_DIALOG_NOTIFICATION_SUCCESS("user.dialog.notification.success"),
     USER_DIALOG_NOTIFICATION_VALIDATION_FAILED("user.dialog.notification.validation.failed"),
     USER_DIALOG_NOTIFICATION_SAVE_ERROR("user.dialog.notification.save.error"),
+    USER_DIALOG_NOTIFICATION_CONFLICT("user.dialog.notification.conflict"),
     USER_DIALOG_SECTION_LABEL("user.dialog.section.label"),
     USER_DIALOG_SECTION_VIEW("user.dialog.section.view"),
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
@@ -71,11 +74,14 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("advertisement.overlay.validation.description.length"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
+    ADVERTISEMENT_OVERLAY_NOTIFICATION_CONFLICT("advertisement.overlay.notification.conflict"),
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
+    ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
@@ -161,11 +167,13 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_CREATED_END("advertisement.filter.time.created.end"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_START("advertisement.filter.time.updated.start"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
+    ADVERTISEMENT_FILTER_CATEGORIES("advertisement.filter.categories"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
     ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
+    ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
 
@@ -180,6 +188,7 @@ public enum I18nKey {
     ATTACHMENT_GALLERY_TITLE("attachment.gallery.title"),
     ATTACHMENT_GALLERY_EMPTY("attachment.gallery.empty"),
     ATTACHMENT_GALLERY_UPLOAD_ERROR("attachment.gallery.upload.error"),
+    ATTACHMENT_GALLERY_MAX_ITEMS("attachment.gallery.max.items"),
     ATTACHMENT_VIDEO_PLACEHOLDER("attachment.video.placeholder"),
     ATTACHMENT_VIDEO_INVALID("attachment.video.invalid"),
 
@@ -193,6 +202,7 @@ public enum I18nKey {
     AUDIT_ACTIVITY_ACTION_CREATED("audit.activity.action.created"),
     AUDIT_ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
+    AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
     AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
@@ -201,6 +211,8 @@ public enum I18nKey {
     AUDIT_CHANGES_FIELD_CHANGED("audit.changes.field.changed"),
     AUDIT_CHANGES_MEDIA_CHANGED("audit.changes.media.changed"),
     AUDIT_VALUE_TRUNCATED("audit.value.truncated"),
+    AUDIT_CHANGES_SHOW_MORE("audit.changes.show.more"),
+    AUDIT_CHANGES_SHOW_LESS("audit.changes.show.less"),
 
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
@@ -210,6 +222,7 @@ public enum I18nKey {
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),
     MAIN_TAB_TIMELINE("main.tab.timeline"),
+    MAIN_TAB_REFERENCE_DATA("main.tab.referenceData"),
 
     // === Timeline Filter ===
     TIMELINE_FILTER_ENTITY_TYPE("timeline.filter.entityType"),
@@ -263,6 +276,7 @@ public enum I18nKey {
     SETTINGS_TIMELINE_PAGE_SIZE_LABEL("settings.timelinePageSize.label"),
     SETTINGS_SAVE_BUTTON("settings.save.button"),
     SETTINGS_SAVED_SUCCESS("settings.saved.success"),
+    SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
     ACTIVITY_PROFILE_TAB("activity.profile.tab"),
@@ -273,6 +287,7 @@ public enum I18nKey {
     ACTIVITY_ACTION_CREATED("activity.action.created"),
     ACTIVITY_ACTION_UPDATED("activity.action.updated"),
     ACTIVITY_ACTION_DELETED("activity.action.deleted"),
+    ACTIVITY_ACTION_RESTORED("activity.action.restored"),
     ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
     // === Advertisement History ===
@@ -297,9 +312,61 @@ public enum I18nKey {
     CHANGES_FIELD_NAME("changes.field.name"),
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
+    CHANGES_FIELD_CATEGORY("changes.field.category"),
+    CHANGES_FIELD_NAME_EN("changes.field.nameEn"),
+    CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
+    CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
+    CHANGES_FIELD_DESCRIPTION_UK("changes.field.descriptionUk"),
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
-    CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize");
+    CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
+
+    // === Taxon / Category ===
+    TAXON_CATEGORY_ASSIGNED("taxon.category.assigned"),
+    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned"),
+
+    // === Reference Data tab ===
+    REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
+    REFERENCE_DATA_BUTTON_ADD("reference.data.button.add"),
+    REFERENCE_DATA_USAGE_COUNT("reference.data.usage.count"),
+
+    // === Taxon Overlay ===
+    TAXON_OVERLAY_TITLE_NEW("taxon.overlay.title.new"),
+    TAXON_OVERLAY_TITLE_EDIT("taxon.overlay.title.edit"),
+    TAXON_OVERLAY_TAB_EDIT("taxon.overlay.tab.edit"),
+    TAXON_OVERLAY_TAB_ACTIVITY("taxon.overlay.tab.activity"),
+    TAXON_OVERLAY_LOCALE_TAB_EN("taxon.overlay.locale.tab.en"),
+    TAXON_OVERLAY_LOCALE_TAB_UK("taxon.overlay.locale.tab.uk"),
+    TAXON_OVERLAY_FIELD_NAME("taxon.overlay.field.name"),
+    TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER("taxon.overlay.field.name.placeholder"),
+    TAXON_OVERLAY_FIELD_DESCRIPTION("taxon.overlay.field.description"),
+    TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER("taxon.overlay.field.description.placeholder"),
+    TAXON_OVERLAY_SECTION_LABEL("taxon.overlay.section.label"),
+    TAXON_OVERLAY_VALIDATION_NAME_REQUIRED("taxon.overlay.validation.name.required"),
+    TAXON_OVERLAY_VALIDATION_NAME_LENGTH("taxon.overlay.validation.name.length"),
+    TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("taxon.overlay.validation.description.required"),
+    TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("taxon.overlay.validation.description.length"),
+    TAXON_OVERLAY_NOTIFICATION_SUCCESS("taxon.overlay.notification.success"),
+    TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED("taxon.overlay.notification.validation.failed"),
+    TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR("taxon.overlay.notification.save.error"),
+    TAXON_OVERLAY_NOTIFICATION_CONFLICT("taxon.overlay.notification.conflict"),
+    TAXON_OVERLAY_BUTTON_SAVE("taxon.overlay.button.save"),
+    TAXON_OVERLAY_BUTTON_CANCEL("taxon.overlay.button.cancel"),
+
+    // === Taxon Management ===
+    TAXON_VIEW_CONFIRM_DELETE_TITLE("taxon.view.confirm.delete.title"),
+    TAXON_VIEW_CONFIRM_DELETE_TEXT("taxon.view.confirm.delete.text"),
+    TAXON_VIEW_CONFIRM_DELETE_BUTTON("taxon.view.confirm.delete.button"),
+    TAXON_VIEW_CONFIRM_CANCEL_BUTTON("taxon.view.confirm.cancel.button"),
+    TAXON_VIEW_NOTIFICATION_DELETED("taxon.view.notification.deleted"),
+    TAXON_VIEW_NOTIFICATION_DELETE_ERROR("taxon.view.notification.delete.error"),
+    TAXON_VIEW_NOTIFICATION_RESTORED("taxon.view.notification.restored"),
+    TAXON_VIEW_TOOLTIP_EDIT("taxon.view.tooltip.edit"),
+    TAXON_VIEW_TOOLTIP_DELETE("taxon.view.tooltip.delete"),
+    TAXON_VIEW_TOOLTIP_RESTORE("taxon.view.tooltip.restore"),
+    TAXON_VIEW_DELETED_LABEL("taxon.view.deleted.label"),
+    TAXON_VIEW_EMPTY("taxon.view.empty"),
+    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit");
 
     private final String key;
 
@@ -309,7 +376,8 @@ public enum I18nKey {
         return switch (actionType) {
             case CREATED -> AUDIT_ACTIVITY_ACTION_CREATED;
             case UPDATED -> AUDIT_ACTIVITY_ACTION_UPDATED;
-            case DELETED -> AUDIT_ACTIVITY_ACTION_DELETED;
+            case DELETED  -> AUDIT_ACTIVITY_ACTION_DELETED;
+            case RESTORED -> AUDIT_ACTIVITY_ACTION_RESTORED;
         };
     }
 

@@ -1,4 +1,4 @@
-package org.ost.marketplace.services.security;
+package org.ost.platform.user.security;
 
 public interface UserIdMarker {
 

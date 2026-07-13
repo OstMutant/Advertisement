@@ -15,7 +15,8 @@ public class AuditCleanupService {
     private final CleanupProperties  cleanupProperties;
 
     public void cleanup() {
-        auditLogRepository.deleteOlderThan(cleanupProperties.retentionDays());
-        log.info("Audit cleanup finished");
+        log.info("Audit cleanup started: retentionDays={}", cleanupProperties.retentionDays());
+        int deleted = auditLogRepository.deleteOlderThan(cleanupProperties.retentionDays());
+        log.info("Audit cleanup finished: deletedRows={}", deleted);
     }
 }

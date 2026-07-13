@@ -1,7 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements;
 
-import com.vaadin.flow.component.Key;
-import com.vaadin.flow.component.Shortcuts;
+import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -10,6 +9,7 @@ import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
@@ -25,12 +25,14 @@ import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
+@Slf4j
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
@@ -43,6 +45,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
+    private final transient LocaleProvider                            localeProvider;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -51,7 +54,7 @@ public class AdvertisementsView extends VerticalLayout {
     private FlexLayout advertisementContainer;
 
     @PostConstruct
-    public void init() {
+    protected void init() {
         advertisementContainer = buildAdvertisementContainer();
         UiPrimaryButton addButton = buildAddButton();
 
@@ -77,14 +80,33 @@ public class AdvertisementsView extends VerticalLayout {
 
         paginationBar.setPageChangeListener(_ -> refresh());
 
-        Shortcuts.addShortcutListener(this, () -> {
-            if (access.isLoggedIn() && isVisible()) {
-                overlay.openForCreate(this::refresh);
-            }
-        }, Key.KEY_N);
+        // Vaadin's Shortcuts API uses event.target which is retargeted in shadow DOM —
+        // the host element replaces the inner <input>, bypassing the "don't fire in inputs" guard.
+        // composedPath() traverses into shadow roots and correctly detects focused input elements.
+        getElement().executeJs("""
+                this.addEventListener('keydown', (e) => {
+                    if (e.key.toLowerCase() !== 'n' || e.ctrlKey || e.metaKey || e.altKey) return;
+                    const path = e.composedPath ? e.composedPath() : [];
+                    const inInput = path.some(el => {
+                        const tag = el.localName;
+                        return tag === 'input' || tag === 'textarea' || el.isContentEditable === true;
+                    });
+                    if (!inInput) {
+                        e.preventDefault();
+                        this.$server.onNewAdvertisementShortcut();
+                    }
+                });
+                """);
 
         settingsPaginationBinding.register(paginationBar, UserSettingsDto::getAdsPageSize, this::refresh);
         refresh();
+    }
+
+    @ClientCallable
+    public void onNewAdvertisementShortcut() {
+        if (access.isLoggedIn() && isVisible()) {
+            overlay.openForCreate(this::refresh);
+        }
     }
 
     @PreDestroy
@@ -118,30 +140,33 @@ public class AdvertisementsView extends VerticalLayout {
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
         Sort sort = queryBlock.getSortProcessor().getOriginalSort().getSort();
 
-        List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort))
-                .orElse(List.of());
-
-        int total = advertisementPortFactory.findIfAvailable()
-                .map(p -> p.count(filter))
-                .orElse(0);
-        paginationBar.setTotalCount(total);
-
-        advertisementContainer.removeAll();
-
-        if (ads.isEmpty()) {
-            advertisementContainer.add(buildEmptyState());
-        } else {
-            ads.stream()
-                    .map(ad -> cardViewFactory.build(
-                            AdvertisementCardView.Parameters.builder()
-                                    .ad(ad)
-                                    .onChanged(this::refresh)
-                                    .build()))
-                    .forEach(advertisementContainer::add);
+        try {
+            List<AdvertisementInfoDto> ads = advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.getFiltered(filter, paginationBar.getCurrentPage(), paginationBar.getPageSize(), sort, localeProvider.getCurrentLocale()))
+                    .orElse(List.of());
+            int total = advertisementPortFactory.findIfAvailable()
+                    .map(p -> p.count(filter))
+                    .orElse(0);
+            paginationBar.setTotalCount(total);
+            advertisementContainer.removeAll();
+            if (ads.isEmpty()) {
+                advertisementContainer.add(buildEmptyState());
+            } else {
+                ads.stream()
+                        .map(ad -> cardViewFactory.build(
+                                AdvertisementCardView.Parameters.builder()
+                                        .ad(ad)
+                                        .onChanged(this::refresh)
+                                        .build()))
+                        .forEach(advertisementContainer::add);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to refresh advertisements", ex);
+            advertisementContainer.removeAll();
+            paginationBar.setTotalCount(0);
+        } finally {
+            queryStatusBar.update();
         }
-
-        queryStatusBar.update();
     }
 
     private EmptyStateView buildEmptyState() {

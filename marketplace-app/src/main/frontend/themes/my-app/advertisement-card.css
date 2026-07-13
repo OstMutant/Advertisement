@@ -88,18 +88,31 @@
   letter-spacing: -0.01em;
 }
 
+.advertisement-description-wrapper {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+  align-self: stretch;
+}
+
 .advertisement-description {
-  display: -webkit-box;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  word-break: break-word;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  white-space: normal;
+  width: 100%;
   font-size: 0.9rem;
   color: #64748b;
   line-height: 1.6;
   flex-grow: 1;
+}
+
+.advertisement-description p {
+  margin: 0;
+}
+
+.advertisement-description--truncated {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .advertisement-meta {
@@ -165,3 +178,38 @@
     pointer-events: none;
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
 }
+
+/* Category text line on card */
+.advertisement-categories {
+  font-size: 0.78rem;
+  color: #64748b;
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Category chips in view overlay */
+.advertisement-categories-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.advertisement-category-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+/* Hide trailing empty Quill paragraph (<p><br></p>) in card display */
+.advertisement-description p:last-child:has(> br:only-child) { display: none; }

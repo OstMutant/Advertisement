@@ -102,10 +102,38 @@
     font-size:  0.75rem;
     color:      #64748b;
     font-style: italic;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 
 .activity-feed-changes-item--unchanged {
     opacity: 0.6;
+}
+
+.activity-feed-changes-value {
+    font-style: normal;
+    color: #334155;
+}
+
+.activity-feed-changes-value--collapsible {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.activity-feed-changes-value-toggle {
+    display: block;
+    margin-top: 1px;
+    font-size: 0.7rem;
+    color: var(--lumo-primary-color);
+    cursor: pointer;
+    font-style: normal;
+    user-select: none;
+}
+
+.activity-feed-changes-value-toggle:hover {
+    text-decoration: underline;
 }
 
 .activity-feed-current-badge {

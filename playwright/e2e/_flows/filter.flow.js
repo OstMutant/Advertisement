@@ -87,16 +87,31 @@ async function fillNumber(page, blockSelector, labelText, minVal, maxVal) {
 async function fillRole(page, blockSelector, role) {
   const combo = page.locator(`${blockSelector} vaadin-multi-select-combo-box`);
   await combo.locator('input').click();
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
   await page.keyboard.type(role);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
-  // Close by setting opened=false — overlay has popover="manual" so Escape/toggle-button are blocked
   await page.evaluate((sel) => {
     const combo = document.querySelector(sel + ' vaadin-multi-select-combo-box');
     if (combo) combo.opened = false;
   }, blockSelector);
-  await page.locator('vaadin-multi-select-combo-box-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+// Selects one category value from the multi-select combo in the advertisement query block.
+// Uses keyboard navigation — same approach as fillRole — because the combo overlay has popover="manual".
+async function fillCategory(page, blockSelector, categoryName) {
+  const combo = page.locator(`${blockSelector} vaadin-multi-select-combo-box`);
+  await combo.locator('input').click();
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.keyboard.type(categoryName);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel + ' vaadin-multi-select-combo-box');
+    if (el) el.opened = false;
+  }, blockSelector);
+  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
 }
 
 // Sets a date range using the Vaadin date-picker JS API.
@@ -270,7 +285,7 @@ module.exports = {
   openQueryPanel, closeQueryPanel,
   applyFilter, clearFilter,
   clickSort, resetDefaultSorts,
-  fillText, fillNumber, fillRole, setDateRange,
+  fillText, fillNumber, fillRole, fillCategory, setDateRange,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,

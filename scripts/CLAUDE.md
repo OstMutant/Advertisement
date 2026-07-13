@@ -5,10 +5,10 @@
 bash scripts/deploy.sh        # Linux / WSL
 scripts\deploy.bat            # Windows
 ```
-Builds a Docker image from scratch (`mvn -Pproduction` inside Docker), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
+Builds a Docker image from scratch (`mvn package` inside Docker — Vaadin's production bundle is built automatically by `vaadin-maven-plugin`, no Maven profile needed; `SPRING_PROFILES_ACTIVE=prod` at runtime sets `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
 After build, Docker garbage is pruned automatically (`image prune`, `container prune`, `volume prune`).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only.
+Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache.
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled (`"features": {"buildkit": true}` in Docker Engine JSON config) AND the `buildx` CLI plugin must be installed at `~/.docker/cli-plugins/docker-buildx`. Without the binary, Docker silently falls back to the legacy builder which buffers all output without a TTY — no streaming. Install once:
@@ -46,7 +46,9 @@ Windows-only (native Maven + Java — no WSL). Requires DB and MinIO already run
 bash scripts/deploy-dev.sh    # Linux / WSL
 scripts\deploy-dev.bat        # Windows
 ```
-Builds the JAR locally (`mvn -Pproduction -DskipTests`), copies it into the running container via `docker cp`, and restarts the container. **No Docker image rebuild** — typically ~3-4 min vs ~7-10 min for prod.
+Builds the JAR locally (`mvn clean package -DskipTests`), copies it into the running container via `docker cp`, and restarts the container. **No Docker image rebuild** — typically ~3-4 min vs ~7-10 min for prod.
+
+Use `--reset-cache` to clear the Maven cache volume before building. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before the hot-swap restart.
 
 **Requires:** infra (DB, MinIO) and the `marketplace-app` container already running. Run `deploy.sh` once first.
 

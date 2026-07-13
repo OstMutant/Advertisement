@@ -6,10 +6,13 @@ import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.marketplace.ui.query.filter.ValidationService;
 import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
 import org.ost.marketplace.ui.query.filter.ValidationPredicates;
+import org.ost.platform.taxon.dto.TaxonDto;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
 import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
@@ -43,4 +46,9 @@ public class AdvertisementFilterMeta {
     public static final FilterFieldMeta<LocalDateTime, AdvertisementFilterDto, Instant> UPDATED_AT_END =
             FilterFieldMeta.of(updatedAtEnd, AdvertisementFilterDto::getUpdatedAtEnd,
                     (dto, v) -> dto.setUpdatedAtEnd(toInstant(v)), updatedValid);
+
+    public static final FilterFieldMeta<Set<TaxonDto>, AdvertisementFilterDto, Set<Long>> CATEGORY_IDS =
+            FilterFieldMeta.of(categoryIds, AdvertisementFilterDto::getCategoryIds,
+                    (dto, v) -> dto.setCategoryIds(v == null || v.isEmpty() ? null
+                            : v.stream().map(TaxonDto::getId).collect(Collectors.toSet())));
 }

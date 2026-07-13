@@ -11,6 +11,7 @@
 /user-spring-boot-starter/target/
 /advertisement-spring-boot-starter/target/
 /query-lib/target/
+/taxon-spring-boot-starter/target/
 
 # Vaadin frontend generated files
 /marketplace-app/src/main/frontend/generated/
@@ -35,3 +36,10 @@
 /.claude/worktrees
 /user-spring-boot-starter/target
 /advertisement-spring-boot-starter/target
+
+# collect-code.bat output (external audit dump — may be large, never commit)
+/all-code.txt
+/temp_files_list.tmp
+
+# local-only strategy docs (also in .git/info/exclude — belt and suspenders)
+/private/

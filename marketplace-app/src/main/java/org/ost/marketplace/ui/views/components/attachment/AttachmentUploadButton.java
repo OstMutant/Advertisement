@@ -6,7 +6,7 @@ import com.vaadin.flow.server.streams.UploadHandler;
 class AttachmentUploadButton extends Upload {
 
     static final int  MAX_FILES     = 10;
-    static final long MAX_FILE_SIZE = 500L * 1024 * 1024;
+    static final long MAX_FILE_SIZE = 50L * 1024 * 1024;
 
     AttachmentUploadButton(UploadHandler handler) {
         super(handler);

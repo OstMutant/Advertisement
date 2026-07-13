@@ -1,4 +1,5 @@
 const { closeNotification } = require('../_helpers');
+const { selectCategoryInAdForm } = require('./category.flow');
 
 async function signUpBulk(page, { name, email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /sign up/i }).first().click();
@@ -43,16 +44,17 @@ async function logoutBulk(page) {
   await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
 }
 
-async function createAdvertisementBulk(page, { title, description }) {
+async function createAdvertisementBulk(page, { title, description, category = null }) {
   // Wait for button to be stable — Vaadin may reconnect after heavy prior load, temporarily detaching DOM
   await page.locator('.add-advertisement-button').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('.add-advertisement-button').click();
   const overlay = page.locator('.advertisement-overlay');
   await overlay.waitFor({ timeout: 5000 });
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
-  await overlay.locator('[data-testid="advertisement-overlay-field-description"] textarea').fill(description);
+  await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
+  if (category) await selectCategoryInAdForm(page, overlay, category);
   await overlay.locator('vaadin-button').filter({ hasText: /save|зберегти/i }).click();
-  await page.locator('.base-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 10000 });
+  await overlay.waitFor({ state: 'hidden', timeout: 10000 });
 }
 
 async function signUpBulkParallel(browser, users, poolSize = 3) {

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Prepend conventional commit entry to CHANGELOG.md under [Unreleased].
+# Runs after pre-commit, before the commit is finalized — CHANGELOG.md
+# lands in the same commit as the code change.
+#
+# Bypass: SKIP_AUDIT=1 git commit
+
+set -euo pipefail
+
+[ "${SKIP_AUDIT:-0}" = "1" ] && exit 0
+
+MSG_FILE="$1"
+FIRST_LINE="$(head -1 "$MSG_FILE" | sed 's/[[:space:]]*$//')"
+
+# Only process conventional commits (feat/fix/refactor/docs/chore/test/perf/build/ci)
+if ! echo "$FIRST_LINE" | grep -qE '^(feat|fix|refactor|docs|chore|test|style|perf|build|ci)(\(.+\))?!?:'; then
+  exit 0
+fi
+
+ROOT="$(git rev-parse --show-toplevel)"
+CHANGELOG="$ROOT/CHANGELOG.md"
+DATE="$(date +%Y-%m-%d)"
+
+# Parse type and description from conventional commit
+TYPE="$(echo "$FIRST_LINE" | grep -oE '^[a-z]+' || echo "chore")"
+DESCRIPTION="$(echo "$FIRST_LINE" | sed 's/^[^:]*:[[:space:]]*//')"
+
+# Create CHANGELOG.md if it does not exist
+if [ ! -f "$CHANGELOG" ]; then
+  cat > "$CHANGELOG" <<'EOF'
+# Changelog
+
+All notable changes are documented here.
+Format: [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
+
+## [Unreleased]
+
+EOF
+fi
+
+# Ensure [Unreleased] section exists
+if ! grep -q '^\#\# \[Unreleased\]' "$CHANGELOG"; then
+  sed -i '1a\\n## [Unreleased]\n' "$CHANGELOG"
+fi
+
+# Prepend entry on the line immediately after ## [Unreleased]
+ENTRY="- **${TYPE}**: ${DESCRIPTION} (${DATE})"
+
+awk -v entry="$ENTRY" '
+  /^## \[Unreleased\]/ { print; print entry; next }
+  { print }
+' "$CHANGELOG" > "$CHANGELOG.tmp" && mv "$CHANGELOG.tmp" "$CHANGELOG"
+
+git add "$CHANGELOG"
+
+exit 0

@@ -103,8 +103,8 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await expect(row0.locator('.entity-activity-version')).toContainText('v2');
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(/Role/i);
-  await expect(changes0).toContainText('"USER"');
-  await expect(changes0).toContainText(`"${role}"`);
+  await expect(changes0).toContainText('USER');
+  await expect(changes0).toContainText(role);
   await expect(changes0).toContainText(user.name);
   await expect(changes0).toContainText(user.email);
   await expect(row0.locator('.entity-activity-changes-item--unchanged').first()).toBeVisible();
@@ -113,7 +113,7 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   await expect(row1.locator('.entity-activity-action')).toContainText(/created/i);
   await expect(row1.locator('.entity-activity-version')).toContainText('v1');
   const changes1 = row1.locator('.entity-activity-changes');
-  await expect(changes1).toContainText('"USER"');
+  await expect(changes1).toContainText('USER');
   await expect(changes1).toContainText(user.name);
   await expect(changes1).toContainText(user.email);
 

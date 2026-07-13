@@ -37,6 +37,7 @@ public class AdvertisementActivityFieldsHookImpl implements AuditActivityFieldsH
         return switch (rawFieldKey) {
             case AdvertisementSnapshotDto.Fields.title       -> i18n.get(I18nKey.CHANGES_FIELD_TITLE);
             case AdvertisementSnapshotDto.Fields.description -> i18n.get(I18nKey.CHANGES_FIELD_DESCRIPTION);
+            case AdvertisementSnapshotDto.Fields.categoryIds -> i18n.get(I18nKey.CHANGES_FIELD_CATEGORY);
             default                                          -> rawFieldKey;
         };
     }

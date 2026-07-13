@@ -9,6 +9,8 @@ import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
+import org.ost.query.sort.PaginationSqlBuilder;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -19,6 +21,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.ost.platform.advertisement.dto.AdvertisementFilterDto.Fields.*;
 import static org.ost.query.filter.SqlCondition.*;
@@ -43,6 +46,7 @@ public class AdvertisementRepository {
                 .mediaUrl(rs.getString("media_url"))
                 .mediaContentType(rs.getString("media_content_type"))
                 .mediaCount(rs.getObject("media_count", Integer.class))
+                .version(rs.getObject("version", Long.class))
                 .build();
     };
 
@@ -64,7 +68,7 @@ public class AdvertisementRepository {
         return jdbcClient.sql("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
-                               a.media_url, a.media_content_type, a.media_count
+                               a.media_url, a.media_content_type, a.media_count, a.version
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
                         WHERE a.id = :id AND a.deleted_at IS NULL
                         """)
@@ -72,7 +76,8 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).optional();
     }
 
-    public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable) {
+    public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
+                                                    Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
                 Map.entry("id",                    "a.id"),
@@ -89,28 +94,43 @@ public class AdvertisementRepository {
         String sql = ("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
-                               a.media_url, a.media_content_type, a.media_count
+                               a.media_url, a.media_content_type, a.media_count, a.version
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
-                        WHERE a.deleted_at IS NULL%s%s%s""")
-                .formatted(FILTER.build(params, filter, " AND "), orderBy, pageLimit(params, pageable));
+                        WHERE a.deleted_at IS NULL%s%s%s%s""")
+                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
-    public Long countByFilter(@NonNull AdvertisementFilterDto filter) {
+    public Long countByFilter(@NonNull AdvertisementFilterDto filter, Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s"
-                .formatted(FILTER.build(params, filter, " AND "));
+        String sql = "SELECT COUNT(*) FROM advertisement a WHERE a.deleted_at IS NULL%s%s"
+                .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
-    public void softDelete(@NonNull Long id, Long deletedByUserId) {
-        jdbcClient.sql("UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId))
-                  .update();
+    private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
+        if (ids == null) return "";
+        params.addValue("allowedIds", ids);
+        return " AND a.id IN (:allowedIds)";
     }
 
-    public void deleteOlderThan(int days) {
-        jdbcClient.sql("DELETE FROM advertisement WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+    public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId, Long version) {
+        int updated = jdbcClient.sql("""
+                        UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy, version = version + 1
+                        WHERE id = :id AND version = :version
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("id",        id)
+                          .addValue("deletedBy", deletedByUserId)
+                          .addValue("version",   version))
+                  .update();
+        if (updated == 0) {
+            throw new OptimisticLockingFailureException("Advertisement " + id + " was modified by another session");
+        }
+    }
+
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql("DELETE FROM advertisement WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
                   .paramSource(new MapSqlParameterSource("days", days)).update();
     }
 
@@ -129,12 +149,5 @@ public class AdvertisementRepository {
                           .addValue("media_count",        summary.count())
                           .addValue("id",                 entityId))
                   .update();
-    }
-
-    private static String pageLimit(MapSqlParameterSource params, Pageable pageable) {
-        if (pageable == null || pageable.isUnpaged()) return "";
-        params.addValue("limit",  pageable.getPageSize());
-        params.addValue("offset", pageable.getOffset());
-        return " LIMIT :limit OFFSET :offset";
     }
 }

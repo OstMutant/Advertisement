@@ -10,13 +10,13 @@ Java package root: `org.ost.audit`
 
 **Write side** — recording audit events:
 - `DefaultAuditPort` — implements `AuditPort`; entry point for all audit writes
-- `AuditDiffService` — computes field-level diffs between snapshots using `@AuditedField`
 - `AuditLogRepository` — persists `audit_log` rows; supports dynamic filter/sort via query-lib
 
 **Read side** — querying audit data:
-- `AuditHistoryService` — loads snapshot history for a given entity
-- `AuditQueryService` — paged query of `audit_log` with filter + sort
-- `ActivityService` — builds the activity feed (merged timeline of domain events)
+- `AuditReadService` — entity activity rows, timeline pages, snapshot content, and entity history; diff computed at read time via `AuditableSnapshot.diff()` from snapshot pairs
+
+**Housekeeping:**
+- `AuditCleanupService` — scheduled cleanup for orphaned audit rows (uses `CleanupProperties`)
 
 **Autoconfiguration entry point:** `AuditAutoConfiguration`
 
@@ -24,8 +24,8 @@ Java package root: `org.ost.audit`
 
 ## Schema
 
-Liquibase changelog: `db/changelog/audit-changelog.xml`  
-Tables: `audit_log`, `audit_snapshot`
+Liquibase changelog: `db/audit-changelog/audit-changelog-master.xml`  
+Tables: `audit_log` (single table; snapshots stored in its `snapshot_data` column — no separate snapshot table)
 
 Starters own their own Liquibase changelogs — never merge into a shared file.
 

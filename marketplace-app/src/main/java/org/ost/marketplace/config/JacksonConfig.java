@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,7 +34,8 @@ public class JacksonConfig {
         auditObjectMapper.registerSubtypes(
                 AdvertisementSnapshotDto.class,
                 UserSnapshotDto.class,
-                SettingsSnapshotDto.class
+                SettingsSnapshotDto.class,
+                TaxonSnapshotDto.class
         );
     }
 }

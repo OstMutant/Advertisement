@@ -7,6 +7,7 @@
 #   bash scripts/deploy-dev.sh                -- full output to console (default)
 #   bash scripts/deploy-dev.sh --file         -- filtered output + full log to /tmp/deploy-dev.log
 #   bash scripts/deploy-dev.sh --reset-cache  -- clear Maven cache before building
+#   bash scripts/deploy-dev.sh --reset-db     -- truncate app tables (reset-clean.sql) before hot-swap restart
 #
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
@@ -18,9 +19,11 @@ LOG=/tmp/deploy-dev.log
 
 FILE_MODE=false
 RESET_CACHE=false
+RESET_DB=false
 for arg in "$@"; do
   [ "$arg" = "--file" ]         && FILE_MODE=true
   [ "$arg" = "--reset-cache" ]  && RESET_CACHE=true
+  [ "$arg" = "--reset-db" ]     && RESET_DB=true
 done
 
 # ── Ensure build image exists ─────────────────────────────────────────────────
@@ -45,6 +48,7 @@ if $FILE_MODE; then
         --name "$BUILD_IMAGE" \
         -v maven-cache:/root/.m2 \
         -v /var/run/docker.sock:/var/run/docker.sock \
+        -e RESET_DB="$RESET_DB" \
         "$BUILD_IMAGE" \
         bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh" \
     2>&1 | tee "$LOG" | grep --line-buffered -E "^\[ERROR\]|^=== |BUILD SUCCESS|BUILD FAILURE|Started Application"
@@ -54,6 +58,7 @@ else
         --name "$BUILD_IMAGE" \
         -v maven-cache:/root/.m2 \
         -v /var/run/docker.sock:/var/run/docker.sock \
+        -e RESET_DB="$RESET_DB" \
         "$BUILD_IMAGE" \
         bash -c "tar -xzf - -C /app && bash /app/scripts/build-env/build.sh"
 fi

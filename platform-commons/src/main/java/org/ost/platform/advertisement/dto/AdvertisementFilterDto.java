@@ -9,6 +9,7 @@ import lombok.experimental.FieldNameConstants;
 import org.ost.platform.core.validation.ValidRange;
 
 import java.time.Instant;
+import java.util.Set;
 
 @FieldNameConstants
 @Data
@@ -26,6 +27,8 @@ public class AdvertisementFilterDto {
     private Instant createdAtEnd;
     private Instant updatedAtStart;
     private Instant updatedAtEnd;
+
+    private Set<Long> categoryIds;
 
     public static AdvertisementFilterDto empty() {
         return new AdvertisementFilterDto();

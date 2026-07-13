@@ -20,7 +20,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @UIScope
 @RequiredArgsConstructor
 @SuppressWarnings("java:S110")
-public class UserOverlay extends AbstractEntityOverlay {
+public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandler> {
 
     private enum Mode {VIEW, EDIT}
 
@@ -39,12 +39,36 @@ public class UserOverlay extends AbstractEntityOverlay {
     private final UiComponentFactory<UserViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<UserFormOverlayModeHandler> formModeHandlerFactory;
 
-    private OverlaySession            session;
-    private UserFormOverlayModeHandler currentFormHandler;
+    private OverlaySession session;
 
     @Override protected String  getOverlayCssClass()   { return "user-overlay"; }
-    @Override protected I18nKey              getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
-    @Override protected boolean              hasUnsavedChanges()    { return currentFormHandler != null && currentFormHandler.hasChanges(); }
+    @Override protected I18nKey getBreadcrumbLabelKey() { return MAIN_TAB_USERS; }
+
+    @Override
+    protected SaveConfig saveConfig() {
+        return new SaveConfig(
+                USER_DIALOG_NOTIFICATION_SUCCESS,
+                USER_DIALOG_NOTIFICATION_VALIDATION_FAILED,
+                USER_DIALOG_NOTIFICATION_SAVE_ERROR,
+                USER_DIALOG_NOTIFICATION_CONFLICT);
+    }
+
+    @Override
+    protected void proceed() {
+        session.onSaved().run();
+        UserDto fresh = currentFormHandler.getSavedUser();
+        if (fresh != null) session = session.withUser(fresh);
+    }
+
+    @Override
+    protected void afterDiscard() {
+        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
+            session = session.toView();
+            switchTo();
+        } else {
+            closeToList();
+        }
+    }
 
     public void openForView(UserDto user, Runnable onChanged) {
         ensureInitialized();
@@ -63,6 +87,7 @@ public class UserOverlay extends AbstractEntityOverlay {
 
     @Override
     protected void switchTo() {
+        currentFormHandler = null;
         OverlayModeHandler handler = switch (session.mode()) {
             case VIEW -> viewModeHandlerFactory.build(
                     UserViewOverlayModeHandler.Parameters.builder()
@@ -90,33 +115,5 @@ public class UserOverlay extends AbstractEntityOverlay {
     private void switchToEdit() {
         session = session.toEdit();
         switchTo();
-    }
-
-    private void handleSave() {
-        try {
-            if (currentFormHandler.save()) {
-                notification().success(USER_DIALOG_NOTIFICATION_SUCCESS);
-                session.onSaved().run();
-                currentFormHandler.afterSave(true);
-                UserDto fresh = currentFormHandler.getSavedUser();
-                if (fresh != null) session = session.withUser(fresh);
-            } else {
-                notification().error(USER_DIALOG_NOTIFICATION_VALIDATION_FAILED);
-                currentFormHandler.afterSave(false);
-            }
-        } catch (Exception e) {
-            notification().error(USER_DIALOG_NOTIFICATION_SAVE_ERROR, e.getMessage());
-            currentFormHandler.afterSave(false);
-        }
-    }
-
-    @Override
-    protected void doCancel() {
-        if (session.mode() == Mode.EDIT && session.enteredFromView()) {
-            session = session.toView();
-            switchTo();
-        } else {
-            closeToList();
-        }
     }
 }

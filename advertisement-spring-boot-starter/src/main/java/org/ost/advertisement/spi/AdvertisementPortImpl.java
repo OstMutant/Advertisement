@@ -11,6 +11,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -21,8 +22,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     private final AdvertisementService service;
 
     @Override
-    public List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort) {
-        return service.getFiltered(filter, page, size, sort);
+    public List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
+        return service.getFiltered(filter, page, size, sort, locale);
     }
 
     @Override
@@ -41,8 +42,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public void delete(@NonNull Long id, @NonNull Long actingUserId) {
-        service.delete(id, actingUserId);
+    public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
+        service.delete(id, actingUserId, version);
     }
 
     @Override

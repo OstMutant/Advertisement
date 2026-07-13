@@ -9,6 +9,7 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.dto.UserSettingsDto;
+import org.ost.platform.user.security.UserIdMarker;
 import org.springframework.data.domain.Sort;
 
 import java.util.Collection;
@@ -31,7 +32,7 @@ public interface UserPort {
 
     void delete(@NonNull Long userId);
 
-    void register(@NonNull SignUpDto dto);
+    void register(@NonNull SignUpDto dto, @NonNull String clientIp);
 
     Optional<UserDto> findById(@NonNull Long id);
 
@@ -48,4 +49,12 @@ public interface UserPort {
     UserSettingsDto loadSettings(@NonNull Long userId);
 
     void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings);
+
+    boolean isAdmin(@NonNull UserDto user);
+
+    boolean isModerator(@NonNull UserDto user);
+
+    boolean isOwner(@NonNull UserDto user, @NonNull UserIdMarker target);
+
+    boolean isOwner(@NonNull UserDto user, @NonNull Long ownerId);
 }

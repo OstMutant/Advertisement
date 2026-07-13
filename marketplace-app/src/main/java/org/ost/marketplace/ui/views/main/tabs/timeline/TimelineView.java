@@ -58,14 +58,14 @@ public class TimelineView extends VerticalLayout {
 
         add(contentWrapper);
 
-        paginationBar.setPageChangeListener(_ -> refreshFeed());
+        paginationBar.setPageChangeListener(_ -> refresh());
         queryStatusBar.getQueryBlock().addEventListener(() -> {
             paginationBar.setTotalCount(0);
-            refreshFeed();
+            refresh();
         });
 
-        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getTimelinePageSize, this::refreshFeed);
-        refreshFeed();
+        settingsPaginationBinding.register(paginationBar, UserSettingsDto::getTimelinePageSize, this::refresh);
+        refresh();
     }
 
     @PreDestroy
@@ -76,10 +76,10 @@ public class TimelineView extends VerticalLayout {
     @Override
     public void setVisible(boolean visible) {
         super.setVisible(visible);
-        if (visible) refreshFeed();
+        if (visible) refresh();
     }
 
-    private void refreshFeed() {
+    private void refresh() {
         AuditPort auditPort = auditPortFactory.getIfAvailable();
         if (auditPort == null) {
             feed.removeAll();

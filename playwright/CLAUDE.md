@@ -4,7 +4,7 @@ After making UI changes, verify them by running the Playwright script inside Doc
 
 ### Prerequisites
 - DB and MinIO already running (started separately via scripts/infra/docker-compose.db.yml / scripts/infra/docker-compose.minio.yml)
-- App image built with: `docker build -f Dockerfile -t marketplace-app .` (uses `-Pproduction`, always run with `SPRING_PROFILES_ACTIVE=prod`)
+- App image built with: `docker build -f Dockerfile -t marketplace-app .` (always run with `SPRING_PROFILES_ACTIVE=prod`, which sets `vaadin.productionMode=true`)
 - App must be running:
 ```bash
 docker run -d --name marketplace-app --network host \
@@ -21,11 +21,10 @@ docker run -d --name marketplace-app --network host \
 All scenarios live in `/app/playwright/`. Run via `run.sh`:
 ```bash
 bash /app/playwright/run.sh                  # all tests
-bash /app/playwright/run.sh smoke            # one scenario
-bash /app/playwright/run.sh smoke --ux       # with local screenshots for AI analysis
 bash /app/playwright/run.sh --ux             # all tests with screenshots
 bash /app/playwright/run.sh e2e --ux         # e2e suite (specs 01–06, skips spec 05 seed)
 bash /app/playwright/run.sh e2e --full --ux  # e2e suite including spec 05 (seeds 50 users + 50 ads)
+bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, with screenshots
 ```
 
 **`--full` flag:** spec `05-seed-filter-sort-pagination` is skipped by default (it takes ~2 min to seed 100 entities). Pass `--full` to include it. Spec 06 (delete flow) works correctly in both modes — it creates its own ad to delete.

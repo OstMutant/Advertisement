@@ -2,23 +2,22 @@ package org.ost.marketplace.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.attachment.spi.AttachmentAuditHook;
-import org.ost.platform.audit.api.AuditableSnapshot;
+import org.ost.marketplace.services.advertisement.AdvertisementEnrichService;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityEnrichHook;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.core.ComponentFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
-public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
+public class ActivityEnrichHookImpl implements AuditActivityEnrichHook<AdvertisementSnapshotDto> {
 
-    private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
+    private final AdvertisementEnrichService advertisementEnrichService;
 
     @Override
     public EntityType entityType() {
@@ -26,37 +25,21 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook {
     }
 
     @Override
-    public List<AuditTimelineItemDto<AuditableSnapshot>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<AuditableSnapshot>> base) {
-        return attachmentAuditHookFactory.findIfAvailable()
-                .map(h -> h.merge(subjects, base))
-                .orElse(base);
+    public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> merge(
+            @NonNull List<EntityRef> subjects,
+            @NonNull List<AuditTimelineItemDto<AdvertisementSnapshotDto>> base) {
+        return advertisementEnrichService.mergeMediaChanges(subjects, base);
     }
 
     @Override
-    public List<ChangeEntry> getAdditionalChanges(@NonNull EntityRef entity, int version) {
-        return attachmentAuditHookFactory.findIfAvailable()
-                .map(h -> h.getMediaChanges(entity, version))
-                .orElse(List.of());
-    }
-
-    @Override
-    public boolean matchesCurrent(@NonNull EntityRef entity, int version) {
-        return attachmentAuditHookFactory.findIfAvailable()
-                .map(h -> h.mediaMatchCurrent(entity, version))
-                .orElse(true);
+    public List<AuditActivityItemDto<AdvertisementSnapshotDto>> enrichActivity(
+            @NonNull EntityRef entityRef,
+            @NonNull List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
+        return advertisementEnrichService.enrichActivityItems(entityRef, items);
     }
 
     @Override
     public String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) {
-        return attachmentAuditHookFactory.findIfAvailable()
-                .map(h -> h.getMediaStateForSnapshot(ref, snapshotId))
-                .orElse(null);
-    }
-
-    @Override
-    public String getMediaStateAtVersion(@NonNull EntityRef ref, int version) {
-        return attachmentAuditHookFactory.findIfAvailable()
-                .map(h -> h.getMediaStateAtVersion(ref, version))
-                .orElse(null);
+        return advertisementEnrichService.getMediaStateForSnapshot(ref, snapshotId);
     }
 }

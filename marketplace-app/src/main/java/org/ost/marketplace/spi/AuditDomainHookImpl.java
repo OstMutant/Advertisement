@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.platform.taxon.dto.TaxonSnapshotDto;
+import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
@@ -26,6 +28,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
 
     private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
     private final ComponentFactory<UserPort>          userPortFactory;
+    private final ComponentFactory<TaxonPort>         taxonPortFactory;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
@@ -43,6 +46,9 @@ public class AuditDomainHookImpl implements AuditDomainHook {
             case USER, USER_SETTINGS -> userPortFactory.findIfAvailable()
                     .map(p -> p.findExistingIds(entityIds))
                     .orElse(Set.of());
+            case TAXON               -> taxonPortFactory.findIfAvailable()
+                    .map(p -> p.findExistingIds(entityIds))
+                    .orElse(Set.of());
         };
     }
 
@@ -51,7 +57,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
         AuditableSnapshot data = content.snapshotData();
         return switch (data) {
-            case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
+            case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _, TaxonSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
             default -> {
                 log.error("Snapshot type mismatch for entityType={}", data.entityType());
                 yield Optional.empty();

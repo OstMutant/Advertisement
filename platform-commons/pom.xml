@@ -14,14 +14,9 @@
 
     <artifactId>platform-commons</artifactId>
     <name>Platform Commons</name>
-    <description>Shared Kernel — stable platform abstractions, SPI interfaces, cross-module DTOs, i18n primitives, generic UI contracts</description>
+    <description>Shared Kernel — stable platform abstractions, SPI interfaces, cross-module DTOs, i18n primitives</description>
 
     <dependencies>
-        <dependency>
-            <groupId>com.vaadin</groupId>
-            <artifactId>vaadin-core</artifactId>
-            <scope>provided</scope>
-        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>

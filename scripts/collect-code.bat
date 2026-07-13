@@ -31,6 +31,14 @@ for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat m
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
+:: 3b. Add .claude/ rules and commands (excluded from FindFiles by pattern)
+for %%F in (.claude\rules.md) do (
+    if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
+)
+for /f "delims=" %%A in ('dir /S /B ".claude\commands\*.md" 2^>nul') do (
+    echo %%A >> "%FILE_LIST%"
+)
+
 :: 4. Write the "Table of Contents" to the output file
 echo === TABLE OF CONTENTS === > "%OUT%"
 type "%FILE_LIST%" >> "%OUT%"
@@ -87,7 +95,7 @@ goto :EOF
 
 :FindFiles
 :: Recursively searches for files and filters out system/generated folders
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\" ') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF

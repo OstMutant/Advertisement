@@ -63,6 +63,14 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
+    @Transactional
+    public void captureRestore(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId) {
+        log.info("Audit capture: RESTORED {} id={}", snapshot.entityType(), entityId);
+        auditLogRepository.save(snapshot.entityType(), entityId, ActionType.RESTORED,
+                snapshot, resolveActor(actorId));
+    }
+
+    @Override
     public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType)
                 .flatMap(auditDomainHook::castIfKnown);

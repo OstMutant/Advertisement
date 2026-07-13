@@ -12,6 +12,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
+import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
@@ -29,6 +30,7 @@ import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
+import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -45,8 +47,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private static final String CLICK_EVENT      = "click";
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
-    @Value
-    @lombok.Builder
+    @Value @lombok.Builder
     public static class Parameters {
         @NonNull AdvertisementInfoDto ad;
         @NonNull Runnable             onChanged;
@@ -56,6 +57,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
@@ -117,7 +119,8 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                galleryServiceFactory.ifAvailable(ext -> ext.openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                attachmentPortFactory.ifAvailable(_ ->
+                        galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
@@ -133,17 +136,24 @@ public class AdvertisementCardView extends HorizontalLayout
         bottom.setAlignItems(Alignment.END);
         bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        VerticalLayout content = new VerticalLayout(
-                createTitle(ad),
-                createDescription(ad),
-                spacer,
-                bottom
-        );
+        VerticalLayout content = new VerticalLayout(createTitle(ad), createDescription(ad), spacer);
         content.addClassName("advertisement-content");
         content.setPadding(false);
         content.setSpacing(false);
         content.setFlexGrow(1, spacer);
+
+        Span categoriesLine = createCategoriesLine(ad);
+        if (categoriesLine != null) content.add(categoriesLine);
+        content.add(bottom);
         return content;
+    }
+
+    private Span createCategoriesLine(AdvertisementInfoDto ad) {
+        if (ad.getCategoryNames() == null || ad.getCategoryNames().isEmpty()) return null;
+        String names = String.join(", ", ad.getCategoryNames());
+        Span line = new Span(getValue(ADVERTISEMENT_CARD_CATEGORIES) + " " + names);
+        line.addClassName("advertisement-categories");
+        return line;
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -152,10 +162,20 @@ public class AdvertisementCardView extends HorizontalLayout
         return title;
     }
 
-    private Span createDescription(AdvertisementInfoDto ad) {
-        Span description = new Span(ad.getDescription());
+    private Div createDescription(AdvertisementInfoDto ad) {
+        String html = ad.getDescription();
+        if (html == null || html.isBlank()) return new Div();
+        String text = Jsoup.parse(html).text();
+        if (text.isBlank()) return new Div();
+
+        Div description = new Div();
         description.addClassName("advertisement-description");
-        return description;
+        description.addClassName("advertisement-description--truncated");
+        description.setText(text);
+
+        Div wrapper = new Div(description);
+        wrapper.addClassName("advertisement-description-wrapper");
+        return wrapper;
     }
 
     private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
@@ -220,7 +240,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId()));
+                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion()));
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
                             } catch (Exception _) {

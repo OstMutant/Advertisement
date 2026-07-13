@@ -9,7 +9,7 @@ module.exports = defineConfig({
   fullyParallel: false,
   workers: 1,
 
-  retries: process.env.CI ? 2 : 1,
+  retries: 0,
 
   // Vaadin hydration can be slow — give each action 10 s, each test 60 s.
   use: {

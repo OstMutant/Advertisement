@@ -25,6 +25,7 @@
         <module>attachment-spring-boot-starter</module>
         <module>user-spring-boot-starter</module>
         <module>advertisement-spring-boot-starter</module>
+        <module>taxon-spring-boot-starter</module>
         <module>marketplace-app</module>
     </modules>
 
@@ -35,6 +36,7 @@
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <aws-s3-sdk.version>2.44.4</aws-s3-sdk.version>
         <jetbrains-annotations.version>24.1.0</jetbrains-annotations.version>
+        <jsoup.version>1.22.1</jsoup.version>
     </properties>
 
     <dependencyManagement>
@@ -74,6 +76,11 @@
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>advertisement-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.ost</groupId>
+                <artifactId>taxon-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

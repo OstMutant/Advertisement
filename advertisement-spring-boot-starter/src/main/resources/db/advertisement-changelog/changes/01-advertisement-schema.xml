@@ -15,7 +15,7 @@
             <column name="title" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="description" type="TEXT"/>
+            <column name="description" type="VARCHAR(20000)"/>
             <column name="created_by_user_id" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
@@ -29,6 +29,9 @@
             <column name="media_url" type="VARCHAR(1024)"/>
             <column name="media_content_type" type="VARCHAR(127)"/>
             <column name="media_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
         </createTable>

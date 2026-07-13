@@ -13,5 +13,6 @@ public class UserEditDto implements EditDto {
     private Long id;
     private String name;
     private Role role;
+    private Long version;
 
 }

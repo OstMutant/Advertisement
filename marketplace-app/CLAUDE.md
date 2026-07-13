@@ -65,6 +65,15 @@ componentFactory.build(MyPanel.Parameters.builder().entityId(id).onSave(onSave).
 
 ---
 
+## Overlay, View, and Query Layer Rules
+
+Detailed cross-cutting rules for the Overlay pattern (OverlaySession, switchTo vs launchSession,
+currentFormHandler reset, afterSave update), View pattern (init() structure, refresh() guard),
+Query Layer (FilterMeta/SortMeta Fields.* constants), and Form Handler pattern (buildTabbedContent,
+buildBinder) are documented in: @../.claude/rules.md
+
+---
+
 ## I18n
 
 `I18nService`, `InstantFormatter`, `LocaleProvider` live in `org.ost.marketplace.services.i18n`. Starters have no i18n infrastructure of their own — all UI i18n lives here.
@@ -87,6 +96,16 @@ Translation keys — single consolidated enum:
 - Method-level `@PreAuthorize` is fine for future REST controller endpoints.
 - Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
 - `/health` is intentionally public (load balancer probe).
+- `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
+  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025). Any future
+  non-Vaadin REST controller must add its own explicit `requestMatchers(...)` rule ahead of the
+  catch-all.
+- Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
+  are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
+  failures — never successes (see `DECISIONS.md` ADR-026).
+- `application-prod.yml` sets `server.forward-headers-strategy: framework` — required for
+  `request.getRemoteAddr()` to resolve the real client IP behind Render's proxy, not Render's
+  own internal edge address (see `DECISIONS.md` ADR-027).
 
 ---
 
@@ -112,7 +131,7 @@ Translation keys — single consolidated enum:
 - `repository/activity/` — activity feed SQL repositories + projections
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs
-- `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/` subpackages)
+- `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/`, `fields/` subpackages). `fields/` contains `QuillEditor` (rich-text web component wrapping Quill v2) and standard field wrappers.
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support
 

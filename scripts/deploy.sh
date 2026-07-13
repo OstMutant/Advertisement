@@ -7,6 +7,7 @@
 #   bash scripts/deploy.sh --no-cache           — force rebuild ignoring Docker layer cache
 #   bash scripts/deploy.sh --reset              — wipe DB/MinIO volumes, then rebuild
 #   bash scripts/deploy.sh --restart-infra      — restart infra containers only (no rebuild)
+#   bash scripts/deploy.sh --reset-db           — truncate app tables (reset-clean.sql) before starting the app
 #
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
@@ -24,12 +25,14 @@ APP_CONTAINER="marketplace-app"
 MODE="default"
 FILE_MODE=false
 NO_CACHE=false
+RESET_DB=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
     --restart-infra) MODE="restart-infra" ;;
     --file)          FILE_MODE=true ;;
     --no-cache)      NO_CACHE=true ;;
+    --reset-db)      RESET_DB=true ;;
   esac
 done
 
@@ -142,6 +145,13 @@ wait_for_db
 wait_for_minio
 configure_minio
 
+if $RESET_DB; then
+  echo "Resetting database (reset-clean.sql)..."
+  docker cp "$ROOT/scripts/database/reset-clean.sql" "$DB_CONTAINER:/tmp/reset-clean.sql"
+  docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments -f /tmp/reset-clean.sql -q \
+    && echo "Database reset."
+fi
+
 # ── Step 2: Build ─────────────────────────────────────────────────────────────
 echo ""
 echo "=== Step 2: Build image ==="
@@ -151,7 +161,7 @@ BUILD_FLAGS=""
 $NO_CACHE && BUILD_FLAGS="--no-cache"
 
 if $FILE_MODE; then
-  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 \
+  docker build --progress=plain $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 \
     | tee "$LOG" \
     | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
 else

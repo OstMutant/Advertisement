@@ -30,13 +30,6 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public void restoreToSnapshot(@NonNull EntityRef entity, int snapshotVersion, @NonNull Long actorId) {
-        String[] targetUrls = attachmentSnapshotService.getUrlsAtVersion(entity.entityType(), entity.entityId(), snapshotVersion);
-        attachmentService.restoreToUrls(entity.entityType(), entity.entityId(), targetUrls, actorId);
-        attachmentSnapshotService.capture(entity.entityType(), entity.entityId(), actorId);
-    }
-
-    @Override
     public AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity) {
         return attachmentService.getMediaSummary(entity.entityType(), entity.entityId());
     }
@@ -55,8 +48,13 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public String[] getSnapshotUrlsAtVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version) {
-        return attachmentSnapshotService.getUrlsAtVersion(entityType, entityId, version);
+    public String[] getUrlsBySnapshotId(@NonNull Long snapshotId) {
+        return attachmentSnapshotService.getUrlsBySnapshotId(snapshotId);
+    }
+
+    @Override
+    public Long getLatestSnapshotId(@NonNull EntityType entityType, @NonNull Long entityId) {
+        return attachmentSnapshotService.getLatestSnapshotId(entityType, entityId);
     }
 
     // ── gallery upload commands ───────────────────────────────────────────────
@@ -110,9 +108,14 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
+    public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                              @NonNull String[] targetUrls) {
+        attachmentService.restoreToUrls(entityType, entityId, targetUrls);
+    }
+
+    @Override
     public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
                                         @NonNull String[] targetUrls) {
         attachmentService.restoreToUrlsAndCapture(entityType, entityId, targetUrls);
     }
-
 }

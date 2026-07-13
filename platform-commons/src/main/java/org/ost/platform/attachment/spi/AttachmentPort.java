@@ -16,8 +16,6 @@ public interface AttachmentPort {
 
     void softDeleteAll(@NonNull EntityRef entity, @NonNull Long actorId);
 
-    void restoreToSnapshot(@NonNull EntityRef entity, int snapshotVersion, @NonNull Long actorId);
-
     AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity);
 
     // ── gallery queries ───────────────────────────────────────────────────────
@@ -27,7 +25,9 @@ public interface AttachmentPort {
     List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                                                @NonNull String[] urls);
 
-    String[] getSnapshotUrlsAtVersion(@NonNull EntityType entityType, @NonNull Long entityId, int version);
+    String[] getUrlsBySnapshotId(@NonNull Long snapshotId);
+
+    Long getLatestSnapshotId(@NonNull EntityType entityType, @NonNull Long entityId);
 
     // ── gallery upload commands ───────────────────────────────────────────────
 
@@ -54,6 +54,9 @@ public interface AttachmentPort {
     void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId);
 
     void discardTempUploads(@NonNull List<TempAttachmentDto> temps);
+
+    void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                       @NonNull String[] targetUrls);
 
     void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
                                  @NonNull String[] targetUrls);

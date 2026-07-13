@@ -31,5 +31,8 @@ public class Advertisement {
     @LastModifiedBy
     Long lastModifiedByUserId;
 
+    @Version
+    Long version;
+
     public boolean isNew() { return id == null; }
 }

@@ -6,6 +6,7 @@ import org.ost.advertisement.services.AdvertisementService;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -57,6 +58,12 @@ public class AdvertisementAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     public ComponentFactory<AdvertisementPort> advertisementPortFactory(ObjectProvider<AdvertisementPort> p) {
+        return new ComponentFactory<>(p);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<TaxonPort> taxonPortFactory(ObjectProvider<TaxonPort> p) {
         return new ComponentFactory<>(p);
     }
 }

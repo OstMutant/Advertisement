@@ -21,8 +21,8 @@ Java package root: `org.ost.user`
 
 ## Schema
 
-Liquibase changelog: `db/changelog/user-changelog.xml`  
-Tables: `app_user`, `user_settings`
+Liquibase changelog: `db/user-changelog/user-changelog-master.xml`  
+Tables: `user_information` (single table; per-user settings live in its `settings` JSONB column — no separate settings table)
 
 Starters own their own Liquibase changelogs — never merge into a shared file.
 
@@ -35,3 +35,18 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `@EnableJdbcRepositories(basePackages = "org.ost.user")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
 - `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
+- `passwordEncoder()` bean in `UserAutoConfiguration` uses
+  `PasswordEncoderFactories.createDelegatingPasswordEncoder()` (not a raw `BCryptPasswordEncoder`)
+  so stored hashes carry an algorithm prefix (`{bcrypt}`) and future algorithm migration doesn't
+  require a data rewrite.
+- `UserService.register(dto, clientIp)` takes the caller's IP as a plain `String` (never
+  `HttpServletRequest`) to stay transport-agnostic — marketplace-app extracts
+  `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
+  (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
+  registrations (see `marketplace-app/DECISIONS.md` ADR-026).
+- `User.version` (`@Version`) is decorative for `UserRepository.save()` (registration only) —
+  the real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
+  `CrudRepository` via hand-written SQL, so `updateProfile()` implements the optimistic-lock
+  check manually (`SET version = version + 1 ... WHERE id = :id AND version = :version`, throws
+  `OptimisticLockingFailureException` when zero rows match). See `marketplace-app/DECISIONS.md`
+  ADR-029.

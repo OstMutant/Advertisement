@@ -5,9 +5,11 @@ import lombok.Value;
 import lombok.experimental.FieldNameConstants;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Set;
 
 @Value
-@Builder
+@Builder(toBuilder = true)
 @FieldNameConstants
 public class AdvertisementInfoDto {
 
@@ -22,6 +24,9 @@ public class AdvertisementInfoDto {
     String mediaUrl;
     String mediaContentType;
     Integer mediaCount;
+    Set<Long> categoryIds;
+    List<String> categoryNames;
+    Long version;
 
     public Long getOwnerUserId() {
         return createdByUserId;

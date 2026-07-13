@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
@@ -18,8 +19,14 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 @FieldNameConstants
 public record AdvertisementSnapshotDto(
         String title,
-        String description
+        String description,
+        List<Long> categoryIds,
+        Long attachmentSnapshotId
 ) implements AuditableSnapshot {
+
+    public AdvertisementSnapshotDto {
+        categoryIds = categoryIds != null ? List.copyOf(categoryIds.stream().sorted().toList()) : List.of();
+    }
 
     @Override
     public EntityType entityType() { return EntityType.ADVERTISEMENT; }
@@ -31,12 +38,15 @@ public record AdvertisementSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         AdvertisementSnapshotDto prev = previous instanceof AdvertisementSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        String prevTitle = field(prev, AdvertisementSnapshotDto::title);
-        String prevDesc  = field(prev, AdvertisementSnapshotDto::description);
+        String prevTitle   = field(prev, AdvertisementSnapshotDto::title);
+        String prevDesc    = field(prev, AdvertisementSnapshotDto::description);
+        List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
         if (!Objects.equals(prevTitle, title()))
             changes.add(new FieldChange(Fields.title, prevTitle, title()));
         if (!Objects.equals(prevDesc, description()))
             changes.add(new FieldChange(Fields.description, prevDesc, description()));
+        if (!Objects.equals(prevIds, categoryIds()))
+            changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
         return changes;
     }
 
@@ -44,6 +54,12 @@ public record AdvertisementSnapshotDto(
     public List<ChangeEntry.FieldChange> allFields() {
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
-                new FieldChange(Fields.description, null, description()));
+                new FieldChange(Fields.description, null, description()),
+                new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())));
+    }
+
+    private static String idsToString(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return "";
+        return ids.stream().map(String::valueOf).collect(Collectors.joining(", "));
     }
 }

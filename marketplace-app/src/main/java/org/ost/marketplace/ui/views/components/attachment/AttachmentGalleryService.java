@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 
@@ -18,7 +19,7 @@ public class AttachmentGalleryService {
 
     private final UiComponentFactory<AttachmentGallery> galleryFactory;
     private final UiComponentFactory<CardMediaLightbox> lightboxFactory;
-    private final AttachmentPort                      attachmentPort;
+    private final ComponentFactory<AttachmentPort>     attachmentPortFactory;
 
     public Component buildGalleryForView(@NonNull EntityRef entity) {
         AttachmentGallery gallery = galleryFactory.get();
@@ -40,7 +41,7 @@ public class AttachmentGalleryService {
 
     public void openMediaLightbox(@NonNull EntityRef entity) {
         List<AttachmentItemDto> attachments =
-                attachmentPort.getByEntityId(entity.entityType(), entity.entityId());
+                attachmentPortFactory.get().getByEntityId(entity.entityType(), entity.entityId());
         if (!attachments.isEmpty()) {
             lightboxFactory.get().open(attachments, 0);
         }
@@ -48,10 +49,10 @@ public class AttachmentGalleryService {
 
     public interface FormHandle {
         Component getComponent();
-        void commit(@NonNull EntityRef entity);
+        Long commit(@NonNull EntityRef entity);
         void discard();
         void setOnChangedListener(@NonNull Runnable onChanged);
-        void loadFromSnapshot(int version);
+        void loadFromSnapshotId(Long snapshotId);
     }
 
     private static final class Handle implements FormHandle {
@@ -60,13 +61,13 @@ public class AttachmentGalleryService {
         Handle(AttachmentGallery gallery) { this.gallery = gallery; }
 
         @Override public Component getComponent() { return gallery; }
-        @Override public void commit(@NonNull EntityRef entity) {
-            gallery.commitTempUploads(entity.entityType(), entity.entityId());
+        @Override public Long commit(@NonNull EntityRef entity) {
+            return gallery.commitTempUploads(entity.entityType(), entity.entityId());
         }
         @Override public void discard() { gallery.discardTempUploads(); }
         @Override public void setOnChangedListener(@NonNull Runnable onChanged) {
             gallery.setOnChangedListener(onChanged);
         }
-        @Override public void loadFromSnapshot(int version) { gallery.loadFromSnapshot(version); }
+        @Override public void loadFromSnapshotId(Long snapshotId) { gallery.loadFromSnapshotId(snapshotId); }
     }
 }

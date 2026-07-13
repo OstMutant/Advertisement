@@ -7,12 +7,13 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
 public interface AdvertisementPort {
 
-    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort);
+    List<AdvertisementInfoDto> getFiltered(@NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale);
 
     int count(@NonNull AdvertisementFilterDto filter);
 
@@ -20,7 +21,9 @@ public interface AdvertisementPort {
 
     Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId);
 
-    void delete(@NonNull Long id, @NonNull Long actingUserId);
+    /** {@code version} must be the value the caller last read; a stale value throws
+     *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
+    void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     void onMediaChanged(@NonNull Long entityId);
 

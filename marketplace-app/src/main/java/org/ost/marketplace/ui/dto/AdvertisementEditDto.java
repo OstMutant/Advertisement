@@ -3,6 +3,7 @@ package org.ost.marketplace.ui.dto;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.Set;
 
 @NoArgsConstructor
 @AllArgsConstructor
@@ -22,4 +23,8 @@ public class AdvertisementEditDto implements EditDto {
     private Long createdByUserId;
     private String createdByUserName;
     private Long lastModifiedByUserId;
+
+    private Set<Long> categoryIds;
+
+    private Long version;
 }

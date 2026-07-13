@@ -24,6 +24,7 @@
 @import url("./query-block.css");
 @import url("./query-status-bar.css");
 @import url("./sort-icon.css");
+@import url("./taxon-view.css");
 
 /* Global font + page background */
 html, body {

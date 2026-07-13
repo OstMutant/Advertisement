@@ -20,6 +20,8 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.Adver
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
@@ -139,6 +141,16 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<SettingsFormModeHandler> settingsFormModeHandlerFactory(ObjectProvider<SettingsFormModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<TaxonFormOverlayModeHandler> taxonFormOverlayModeHandlerFactory(ObjectProvider<TaxonFormOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<TaxonViewOverlayModeHandler> taxonViewOverlayModeHandlerFactory(ObjectProvider<TaxonViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 }

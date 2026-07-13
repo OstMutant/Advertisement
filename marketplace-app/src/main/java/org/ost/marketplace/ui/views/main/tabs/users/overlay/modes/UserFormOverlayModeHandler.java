@@ -78,7 +78,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private Parameters params;
     private Tabs       formTabs;
     private Tab        editTab;
-    private Div        activityContent;
     @Getter
     private UserDto    savedUser;
 
@@ -130,29 +129,16 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = auditActivityPanelFactory.findIfAvailable()
+        Div content = auditPortFactory.findIfAvailable()
                 .filter(_ -> access.canOperate(params.getUser().id()))
                 .map(_ -> {
-                    formTabs = new Tabs();
-                    formTabs.addClassName("user-form-tabs");
                     editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));
                     Tab activityTab = new Tab(getValue(USER_ACTIVITY_TAB));
-                    formTabs.add(editTab, activityTab);
-
-                    activityContent = new Div();
-                    activityContent.addClassName("activity-feed-content");
-                    activityContent.setVisible(false);
-
-                    formTabs.addSelectedChangeListener(event -> {
-                        boolean isEdit = event.getSelectedTab() == editTab;
-                        editContent.setVisible(isEdit);
-                        activityContent.setVisible(!isEdit);
-                        if (!isEdit && activityContent.getChildren().findFirst().isEmpty()) {
-                            activityContent.add(buildActivityContent());
-                        }
-                    });
-
-                    return new Div(formTabs, editContent, activityContent);
+                    formTabs = new Tabs(editTab, activityTab);
+                    formTabs.addClassName("user-form-tabs");
+                    Div result = buildTabbedContent(formTabs, editTab, editContent, this::buildActivityContent);
+                    tabbedSecondaryContent.addClassName("activity-feed-content");
+                    return result;
                 })
                 .orElse(editContent);
 
@@ -168,7 +154,10 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     public boolean save() {
         return binder.save(dto -> {
             userPort.save(mapper.copy(dto), access.getCurrentUserId());
-            userPort.findById(params.getUser().id()).ifPresent(u -> savedUser = u);
+            userPort.findById(params.getUser().id()).ifPresent(u -> {
+                savedUser = u;
+                dto.setVersion(u.version());
+            });
         });
     }
 
@@ -197,7 +186,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
                         .map(AuditSnapshotContentDto::snapshotData)
                         .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()));
+                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
                             loadRestored(dto);
                         })
         );
@@ -218,7 +207,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         if (success) {
             updateButtons(false);
             if (formTabs != null) formTabs.setSelectedTab(editTab);
-            if (activityContent != null) activityContent.removeAll();
+            if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
         } else {
             updateButtons(true);
         }

@@ -7,6 +7,7 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.marketplace.ui.core.Initialization;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -107,8 +108,13 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     private Div buildActivityFieldsList(AuditTimelineItemDto<AuditableSnapshot> item) {
         AuditActivityEnrichHook enrichHook = enrichHooks.get(item.entityRef().entityType());
         if (enrichHook != null) {
+            Long attachmentSnapshotId = item.snapshotData() instanceof AdvertisementSnapshotDto s
+                    ? s.attachmentSnapshotId() : null;
             return buildEntityChangesDiv(item.changes(), item.snapshotData(), CSS_CHANGES,
-                    () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), item.snapshotId()));
+                    attachmentSnapshotId != null
+                            ? () -> enrichHook.getMediaStateForSnapshot(item.entityRef(), attachmentSnapshotId)
+                            : null,
+                    fieldsProviders.get(item.entityRef().entityType()));
         }
         AuditActivityFieldsHook provider = fieldsProviders.get(item.entityRef().entityType());
         if (provider != null && item.snapshotData() != null) {
@@ -121,29 +127,38 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         Div container = new Div();
         container.addClassName(CSS_CHANGES);
         for (ChangeEntry entry : entries) {
-            ChangeEntry resolved = switch (entry) {
-                case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
-                case ChangeEntry.MediaChange _ -> entry;
-            };
+            ChangeEntry resolved = applyLabel(entry, labelHook);
             boolean unchanged = switch (resolved) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange(var before, _)  -> before == null || before.isBlank();
             };
-            addSpan(container, changeFormatter.format(resolved), unchanged, CSS_CHANGES);
+            addEntry(container, resolved, unchanged, CSS_CHANGES);
         }
         return container;
     }
 
     Div buildActivityFieldsList(AuditActivityItemDto<? extends AuditableSnapshot> h, EntityRef ref) {
         AuditActivityEnrichHook enrichHook = enrichHooks.get(ref.entityType());
-        Supplier<String> mediaLookup = enrichHook != null
-                ? () -> enrichHook.getMediaStateAtVersion(ref, h.version())
+        Long attachmentSnapshotId = h.snapshotData() instanceof AdvertisementSnapshotDto s
+                ? s.attachmentSnapshotId() : null;
+        Supplier<String> mediaLookup = (enrichHook != null && attachmentSnapshotId != null)
+                ? () -> enrichHook.getMediaStateForSnapshot(ref, attachmentSnapshotId)
                 : null;
-        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup);
+        return buildEntityChangesDiv(h.changes(), h.snapshotData(), CSS_HISTORY_CHANGES, mediaLookup,
+                fieldsProviders.get(ref.entityType()));
+    }
+
+    private static ChangeEntry applyLabel(ChangeEntry entry, AuditActivityFieldsHook labelHook) {
+        if (labelHook == null) return entry;
+        return switch (entry) {
+            case ChangeEntry.FieldChange(var field, var from, var to) -> new ChangeEntry.FieldChange(labelHook.labelFor(field), from, to);
+            case ChangeEntry.MediaChange _ -> entry;
+        };
     }
 
     private Div buildEntityChangesDiv(List<ChangeEntry> changes, AuditableSnapshot snapshotData,
-                                      String cssBase, Supplier<String> mediaStateLookup) {
+                                      String cssBase, Supplier<String> mediaStateLookup,
+                                      AuditActivityFieldsHook labelHook) {
         Div container = new Div();
         container.addClassName(cssBase);
 
@@ -157,16 +172,17 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         }
 
         List<ChangeEntry> expanded = expandTextFields(snapshotData, textChanges);
-        for (ChangeEntry entry : expanded) {
+        for (ChangeEntry rawEntry : expanded) {
+            ChangeEntry entry = applyLabel(rawEntry, labelHook);
             boolean unchanged = switch (entry) {
                 case ChangeEntry.FieldChange(_, var from, _) -> from == null || from.isBlank();
                 case ChangeEntry.MediaChange _               -> false;
             };
-            addSpan(container, changeFormatter.format(entry), unchanged, cssBase);
+            addEntry(container, entry, unchanged, cssBase);
         }
 
         if (!mediaChanges.isEmpty()) {
-            mediaChanges.forEach(pc -> addSpan(container, changeFormatter.format(pc), false, cssBase));
+            mediaChanges.forEach(pc -> addEntry(container, pc, false, cssBase));
         } else if (mediaStateLookup != null) {
             String state     = mediaStateLookup.get();
             String mediaText = (state != null && !state.isBlank()) ? state : "—";
@@ -180,11 +196,16 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         return snapshot != null ? snapshot.expandWithChanges(changedFields) : changedFields;
     }
 
+    private void addEntry(@NonNull Div container, @NonNull ChangeEntry entry, boolean unchanged, @NonNull String cssBase) {
+        changeFormatter.buildEntryInto(container, entry, cssBase, unchanged);
+    }
+
     private void addSpan(Div container, String text, boolean unchanged, String cssBase) {
         if (text == null || text.isBlank()) return;
-        Span span = new Span(i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
-        span.addClassName(cssBase + "-item");
-        if (unchanged) span.addClassName(cssBase + "-item--unchanged");
-        container.add(span);
+        Div item = new Div();
+        item.addClassName(cssBase + "-item");
+        if (unchanged) item.addClassName(cssBase + "-item--unchanged");
+        item.getElement().setProperty("innerHTML", i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
+        container.add(item);
     }
 }
