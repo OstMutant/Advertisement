@@ -59,6 +59,7 @@ public enum I18nKey {
     USER_DIALOG_NOTIFICATION_SUCCESS("user.dialog.notification.success"),
     USER_DIALOG_NOTIFICATION_VALIDATION_FAILED("user.dialog.notification.validation.failed"),
     USER_DIALOG_NOTIFICATION_SAVE_ERROR("user.dialog.notification.save.error"),
+    USER_DIALOG_NOTIFICATION_CONFLICT("user.dialog.notification.conflict"),
     USER_DIALOG_SECTION_LABEL("user.dialog.section.label"),
     USER_DIALOG_SECTION_VIEW("user.dialog.section.view"),
     USER_DIALOG_BUTTON_SAVE("user.dialog.button.save"),
@@ -77,6 +78,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
+    ADVERTISEMENT_OVERLAY_NOTIFICATION_CONFLICT("advertisement.overlay.notification.conflict"),
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
     ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
@@ -347,6 +349,7 @@ public enum I18nKey {
     TAXON_OVERLAY_NOTIFICATION_SUCCESS("taxon.overlay.notification.success"),
     TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED("taxon.overlay.notification.validation.failed"),
     TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR("taxon.overlay.notification.save.error"),
+    TAXON_OVERLAY_NOTIFICATION_CONFLICT("taxon.overlay.notification.conflict"),
     TAXON_OVERLAY_BUTTON_SAVE("taxon.overlay.button.save"),
     TAXON_OVERLAY_BUTTON_CANCEL("taxon.overlay.button.cancel"),
 

@@ -49,7 +49,8 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
         return new SaveConfig(
                 ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS,
                 ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
-                ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR);
+                ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR,
+                ADVERTISEMENT_OVERLAY_NOTIFICATION_CONFLICT);
     }
 
     @Override

@@ -38,3 +38,8 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `AdvertisementService.sanitizeHtml()` (`Jsoup.parse(html).text().length()`), in addition to
   the raw-size `@Size` cap on `AdvertisementSaveDto.description` — see
   `marketplace-app/DECISIONS.md` ADR-024.
+- `Advertisement.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
+  `AdvertisementService.buildEntity()` must always forward the incoming DTO's `version` when
+  rebuilding the entity for an update — never re-derive it from a fresh `findById()` in the same
+  method, or the check silently stops detecting conflicts. See `marketplace-app/DECISIONS.md`
+  ADR-029.

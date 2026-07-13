@@ -125,7 +125,7 @@ public class AdvertisementService {
     }
 
     @Transactional
-    public void delete(@NonNull Long id, @NonNull Long actingUserId) {
+    public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         log.info("Advertisement delete: id={}", id);
         repository.findById(id).ifPresent(entity -> {
             List<Long> catIds = taxonPortFactory.findIfAvailable()
@@ -140,7 +140,7 @@ public class AdvertisementService {
             attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, id), actingUserId));
             taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, id, Set.of()));
         });
-        repository.softDelete(id, actingUserId);
+        repository.softDelete(id, actingUserId, version);
     }
 
     @Transactional
@@ -155,6 +155,7 @@ public class AdvertisementService {
                 .description(sanitizeHtml(dto.description()))
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .createdByUserId(before != null ? before.getCreatedByUserId() : null)
+                .version(dto.version())
                 .build();
     }
 

@@ -26,6 +26,7 @@ public class AdvertisementInfoDto {
     Integer mediaCount;
     Set<Long> categoryIds;
     List<String> categoryNames;
+    Long version;
 
     public Long getOwnerUserId() {
         return createdByUserId;

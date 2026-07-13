@@ -11,6 +11,7 @@ import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -43,6 +44,7 @@ public class UserRepository {
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                 .locale(rs.getString("locale"))
+                .version(rs.getObject("version", Long.class))
                 .build();
     };
 
@@ -79,7 +81,7 @@ public class UserRepository {
                 "created_at", "u.created_at",
                 "updated_at", "u.updated_at",
                 "locale",     "u.locale"));
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s%s%s"
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s%s%s"
                 .formatted(FILTER.build(params, filter, " WHERE "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
@@ -92,18 +94,25 @@ public class UserRepository {
 
     public Optional<User> findByEmail(@NonNull String email) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale FROM user_information u%s"
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s"
                 .formatted(EMAIL_FILTER.build(params, email, " WHERE "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        jdbcClient.sql("UPDATE user_information SET name = :name, role = :role, updated_at = NOW() WHERE id = :id")
+        int updated = jdbcClient.sql("""
+                        UPDATE user_information SET name = :name, role = :role, updated_at = NOW(), version = version + 1
+                        WHERE id = :id AND version = :version
+                        """)
                   .paramSource(new MapSqlParameterSource()
-                          .addValue("name", dto.name())
-                          .addValue("role", dto.role().name())
-                          .addValue("id",   dto.id()))
+                          .addValue("name",    dto.name())
+                          .addValue("role",    dto.role().name())
+                          .addValue("id",      dto.id())
+                          .addValue("version", dto.version()))
                   .update();
+        if (updated == 0) {
+            throw new OptimisticLockingFailureException("User " + dto.id() + " was modified by another session");
+        }
     }
 
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {

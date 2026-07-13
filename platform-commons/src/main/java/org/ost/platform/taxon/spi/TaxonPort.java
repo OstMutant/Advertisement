@@ -80,11 +80,14 @@ public interface TaxonPort {
     /** Creates a new taxon entry with the given translations. Returns the new entry's id. */
     Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId);
 
-    /** Updates all translations for the given taxon entry. */
-    void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId);
+    /** Updates all translations for the given taxon entry. {@code version} must be the value the
+     *  caller last read; a stale value throws {@link org.springframework.dao.OptimisticLockingFailureException}. */
+    void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations, Long actorId, Long version);
 
-    /** Soft-deletes the given taxon entry and records the deletion in the audit log. */
-    void softDelete(@NonNull Long id, Long actorId);
+    /** Soft-deletes the given taxon entry and records the deletion in the audit log.
+     *  {@code version} must be the value the caller last read; a stale value throws
+     *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
+    void softDelete(@NonNull Long id, Long actorId, Long version);
 
     /** Restores a soft-deleted taxon entry and records the restore in the audit log. */
     void restore(@NonNull Long id, Long actorId);

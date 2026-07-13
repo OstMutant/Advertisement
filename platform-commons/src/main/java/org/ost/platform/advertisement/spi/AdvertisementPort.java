@@ -21,7 +21,9 @@ public interface AdvertisementPort {
 
     Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId);
 
-    void delete(@NonNull Long id, @NonNull Long actingUserId);
+    /** {@code version} must be the value the caller last read; a stale value throws
+     *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
+    void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     void onMediaChanged(@NonNull Long entityId);
 

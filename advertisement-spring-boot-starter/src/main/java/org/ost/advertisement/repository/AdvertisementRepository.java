@@ -10,6 +10,7 @@ import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -45,6 +46,7 @@ public class AdvertisementRepository {
                 .mediaUrl(rs.getString("media_url"))
                 .mediaContentType(rs.getString("media_content_type"))
                 .mediaCount(rs.getObject("media_count", Integer.class))
+                .version(rs.getObject("version", Long.class))
                 .build();
     };
 
@@ -66,7 +68,7 @@ public class AdvertisementRepository {
         return jdbcClient.sql("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
-                               a.media_url, a.media_content_type, a.media_count
+                               a.media_url, a.media_content_type, a.media_count, a.version
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
                         WHERE a.id = :id AND a.deleted_at IS NULL
                         """)
@@ -92,7 +94,7 @@ public class AdvertisementRepository {
         String sql = ("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
                                u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
-                               a.media_url, a.media_content_type, a.media_count
+                               a.media_url, a.media_content_type, a.media_count, a.version
                         FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
                         WHERE a.deleted_at IS NULL%s%s%s%s""")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
@@ -112,10 +114,19 @@ public class AdvertisementRepository {
         return " AND a.id IN (:allowedIds)";
     }
 
-    public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId) {
-        jdbcClient.sql("UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource().addValue("id", id).addValue("deletedBy", deletedByUserId))
+    public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId, Long version) {
+        int updated = jdbcClient.sql("""
+                        UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy, version = version + 1
+                        WHERE id = :id AND version = :version
+                        """)
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("id",        id)
+                          .addValue("deletedBy", deletedByUserId)
+                          .addValue("version",   version))
                   .update();
+        if (updated == 0) {
+            throw new OptimisticLockingFailureException("Advertisement " + id + " was modified by another session");
+        }
     }
 
     public void deleteOlderThan(int days) {

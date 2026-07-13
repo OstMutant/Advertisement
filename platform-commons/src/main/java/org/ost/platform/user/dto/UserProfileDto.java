@@ -7,5 +7,6 @@ import org.ost.platform.user.model.Role;
 public record UserProfileDto(
         Long id,
         String name,
-        Role role
+        Role role,
+        Long version
 ) {}

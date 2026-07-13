@@ -13,5 +13,6 @@ public record UserDto(
         Role role,
         Instant createdAt,
         Instant updatedAt,
-        String locale
+        String locale,
+        Long version
 ) {}

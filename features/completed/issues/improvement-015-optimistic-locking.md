@@ -1,5 +1,19 @@
 # improvement-015: No optimistic locking anywhere — silent last-write-wins on concurrent edits
 
+**Status:** ✅ RESOLVED (2026-07-13) — `version BIGINT NOT NULL DEFAULT 0` added to `advertisement`,
+`user_information`, `taxon` (edited directly into the existing changesets, DB not yet in
+production). `@Version` added to `Advertisement`/`User`/`Taxon`. Native Spring Data JDBC checking
+applies to `Advertisement`/`Taxon` (both save via `CrudRepository`); `User`'s real edit path
+bypasses `CrudRepository` via hand-written SQL, so `UserRepository.updateProfile()` implements
+the version check manually. `softDelete` on `Advertisement`/`Taxon` also guarded;
+`updateMedia`/`updateLocale`/`restore` left unguarded (not user-authored edits). UI shows a
+dedicated conflict notification (no auto-reload — deliberately, to avoid silently discarding
+in-progress form edits). See `marketplace-app/DECISIONS.md` ADR-029 and `platform-commons/
+DECISIONS.md` ADR-019 for the full design, including two alternatives considered and rejected
+(computed audit-log version, `updated_at`-based comparison). Playwright coverage: new test in
+`04-marketplace-advertisement-flow.spec.js` — two browser sessions edit the same advertisement,
+first save wins, second (stale) save shows the conflict notification. Full e2e suite green.
+
 **Type:** improvement — data integrity, found during strategic architecture review
 **Module:** advertisement-spring-boot-starter + user-spring-boot-starter + taxon-spring-boot-starter (all entities)
 **Priority:** medium — becomes high before public community traffic

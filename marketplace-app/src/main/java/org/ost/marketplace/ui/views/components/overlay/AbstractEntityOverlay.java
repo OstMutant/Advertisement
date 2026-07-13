@@ -4,11 +4,12 @@ import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.springframework.dao.OptimisticLockingFailureException;
 
 @SuppressWarnings("java:S110")
 public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHandler<?>> extends BaseOverlay {
 
-    public record SaveConfig(I18nKey success, I18nKey validFailed, I18nKey saveError) {}
+    public record SaveConfig(I18nKey success, I18nKey validFailed, I18nKey saveError, I18nKey conflict) {}
 
     protected OverlayLayout               layout;
     protected OverlayBreadcrumbBackButton breadcrumbButton;
@@ -39,6 +40,10 @@ public abstract class AbstractEntityOverlay<H extends AbstractFormOverlayModeHan
                 if (saveConfig().validFailed() != null) notification().error(saveConfig().validFailed());
                 currentFormHandler.afterSave(false);
             }
+        } catch (OptimisticLockingFailureException e) {
+            if (saveConfig().conflict() != null) notification().error(saveConfig().conflict());
+            else notification().error(e.getMessage());
+            currentFormHandler.afterSave(false);
         } catch (Exception e) {
             if (saveConfig().saveError() != null) notification().error(saveConfig().saveError(), e.getMessage());
             else notification().error(e.getMessage());

@@ -25,4 +25,6 @@ public class AdvertisementEditDto implements EditDto {
     private Long lastModifiedByUserId;
 
     private Set<Long> categoryIds;
+
+    private Long version;
 }

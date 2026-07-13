@@ -189,6 +189,45 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
+  test('userEn and moderatorEn edit the same advertisement in two sessions — stale save shows conflict, first save wins', async ({ browser }) => {
+    const title = 'Concurrent Edit Conflict Ad';
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Ad for optimistic locking conflict test.', screenshotPrefix: 'adv-conflict-create' });
+
+    const context2 = await browser.newContext();
+    const page2 = await context2.newPage();
+    await page2.goto('/');
+    await page2.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().waitFor({ timeout: 15000 });
+    await runFillLoginFormFlow(page2, TEST_USERS.moderatorEn);
+    await runSubmitLoginFlow(page2, expect, TEST_USERS.moderatorEn);
+
+    // Both sessions open the same ad for edit before either one saves — both load the same version.
+    const overlay1 = await openCardOverlay(page, cardByTitle(page, title), 'adv-conflict-session1');
+    await switchToEditMode(page, overlay1, 'adv-conflict-session1');
+
+    const overlay2 = await openCardOverlay(page2, cardByTitle(page2, title), 'adv-conflict-session2');
+    await switchToEditMode(page2, overlay2, 'adv-conflict-session2');
+
+    // Session 1 saves first — succeeds, bumps the version.
+    await overlay1.locator('[data-testid="advertisement-overlay-field-title"] input').fill(`${title} - saved first`);
+    await saveAndWaitForIdle(page, expect, overlay1, 'adv-conflict-session1-saved');
+
+    // Session 2 still holds the stale version loaded before session 1's save — its save must be rejected, not silently overwrite.
+    await overlay2.locator('[data-testid="advertisement-overlay-field-title"] input').fill(`${title} - saved second`);
+    await overlay2.locator('vaadin-button').filter({ hasText: /зберегти|save/i }).click();
+    await expect(page2.locator('vaadin-notification-card')).toContainText(/modified by another|змінено в іншій/i, { timeout: 8000 });
+    await screenshot(page2, 'adv-conflict-session2-conflict-notification');
+    await closeNotification(page2);
+
+    await closeOverlayToList(page, overlay1);
+    await expect(cardByTitle(page, `${title} - saved first`)).toBeVisible({ timeout: 5000 });
+    await expect(cardByTitle(page, `${title} - saved second`)).toHaveCount(0);
+
+    await context2.close();
+    await runLogoutFlow(page, expect);
+  });
+
   test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);

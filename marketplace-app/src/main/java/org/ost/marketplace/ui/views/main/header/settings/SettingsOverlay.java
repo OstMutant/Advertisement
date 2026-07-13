@@ -29,7 +29,7 @@ public class SettingsOverlay extends AbstractEntityOverlay<SettingsFormModeHandl
 
     @Override
     protected SaveConfig saveConfig() {
-        return new SaveConfig(SETTINGS_SAVED_SUCCESS, null, null);
+        return new SaveConfig(SETTINGS_SAVED_SUCCESS, null, null, null);
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.ost.platform.user.model.Role;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
@@ -34,6 +35,9 @@ public class User {
 
     @With
     String locale;
+
+    @Version
+    Long version;
 
     public Locale getLocaleAsObject() {
         return locale != null ? Locale.forLanguageTag(locale) : Locale.getDefault();

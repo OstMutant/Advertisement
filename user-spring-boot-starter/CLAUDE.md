@@ -44,3 +44,9 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
   (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
   registrations (see `marketplace-app/DECISIONS.md` ADR-026).
+- `User.version` (`@Version`) is decorative for `UserRepository.save()` (registration only) —
+  the real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
+  `CrudRepository` via hand-written SQL, so `updateProfile()` implements the optimistic-lock
+  check manually (`SET version = version + 1 ... WHERE id = :id AND version = :version`, throws
+  `OptimisticLockingFailureException` when zero rows match). See `marketplace-app/DECISIONS.md`
+  ADR-029.

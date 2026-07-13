@@ -704,6 +704,78 @@ call.
 
 ---
 
+## ADR-029: Optimistic locking via a stored version column — no auto-reload on conflict
+
+**Status:** Accepted
+
+**Context:** No entity carried a version field; two concurrent edits of the same advertisement,
+user, or taxon resulted in silent last-write-wins — the second save overwrote the first with no
+error, audit anomaly, or warning to either editor (improvement-015). With the planned community
+migration (24k members, moderators/owners editing shared listings) this stops being a rare
+accident. Several alternatives were discussed and rejected before settling on this design:
+- Computing a "version" on the fly from `audit_log` (the way the audit timeline already does via
+  a `ROW_NUMBER()`/`COUNT(*)` window function, see audit-spring-boot-starter ADR-020) — rejected:
+  audit is optional (`ComponentFactory<AuditPort>.ifAvailable()`), so core save correctness can't
+  depend on it, and not every bespoke UPDATE writes an audit row.
+- Comparing `updated_at` instead of adding a column — rejected: equality on a high-precision
+  timestamp across a DB → Java `Instant` → JSON/DTO round trip is fragile (rounding, truncation);
+  an integer counter never has that class of bug, which is why every mainstream ORM (Rails
+  `lock_version`, Hibernate/JPA `@Version`, EF Core `rowversion`) uses one.
+- A full-row compare (`WHERE title = :old AND description = :old ...`) — avoids a new column and
+  isn't precision-fragile, but flags a conflict on *any* field touched by someone else, even one
+  the current editor never looked at. Rejected in favor of the simpler, standard column.
+
+**Decision:** `version BIGINT NOT NULL DEFAULT 0` added directly to the existing
+`01-advertisement-schema.xml`, `01-user-schema.xml`, and `001-taxon.xml` changesets (DB not yet
+in production — no new migration file, per the same rationale as the `taxon.deleted_by` column;
+requires `deploy.sh --reset` locally). `@Version private Long version;` added to `Advertisement`,
+`User`, `Taxon`.
+
+For `Advertisement` and `Taxon`, saves go through `CrudRepository.save()`, so Spring Data JDBC's
+`@Version` handling applies natively — it appends `WHERE version = ?` and throws
+`OptimisticLockingFailureException` on a mismatch. Two places rebuild the entity via `Builder`
+before saving and were missed on the first pass because they don't automatically carry the field
+forward: `AdvertisementService.buildEntity()` and `TaxonService.update()` — both now explicitly
+forward the version from the incoming DTO / port parameter (the value the caller last read),
+**not** a version re-fetched inside the same save method (which would just match itself and
+detect nothing).
+
+`User`'s real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
+`CrudRepository` entirely via hand-written SQL, so `@Version` alone does nothing there.
+`updateProfile()` now does the check by hand: `SET ..., version = version + 1 WHERE id = :id AND
+version = :version`, throwing `OptimisticLockingFailureException` manually when zero rows match.
+
+`softDelete` on `Advertisement` and `Taxon` also got the same manual guard (an admin/owner
+deleting a listing while someone else is mid-edit should not silently win); `updateMedia`,
+`updateLocale`, and `TaxonRepository.restore()` were left unguarded — none of them represent a
+user-authored edit that competes with a live form.
+
+The version travels end-to-end: `AdvertisementInfoDto`/`UserDto`/`TaxonDto` (read side, RowMapper
++ SELECT column added where hand-rolled) → `AdvertisementEditDto`/`UserEditDto` (MapStruct maps
+the field by name automatically) → `AdvertisementSaveDto`/`UserProfileDto` (write side) →
+`TaxonPort.update()`/`softDelete()` and `AdvertisementPort.delete()` gained a trailing `version`
+parameter since they had no DTO to carry it (see platform-commons ADR-019).
+
+`AbstractEntityOverlay.handleSave()` gained a `catch (OptimisticLockingFailureException)` before
+the generic `catch (Exception)`, showing a dedicated conflict notification
+(`*_NOTIFICATION_CONFLICT` i18n keys, one per domain) instead of the generic save-error message.
+`SaveConfig` record gained a fourth `conflict` component; `SettingsOverlay` (which has no version
+field) passes `null` for it, same as its existing `null` validation/save-error keys.
+
+**Deliberately not done:** no automatic form reload on conflict. Silently replacing the editor's
+in-progress form with fresh server data would destroy their unsaved changes without them
+noticing — a different flavor of the same "silent data loss" bug this feature exists to fix. The
+user sees the conflict notification and must manually cancel/reopen to get a fresh version and
+retry — safer than a clever auto-merge for a first version of this feature.
+
+**Consequences:**
+- e2e coverage: new test in `04-marketplace-advertisement-flow.spec.js` — two browser contexts
+  (`userEn`, `moderatorEn`) open the same advertisement for edit before either saves; the first
+  save succeeds, the second (stale) save shows the conflict notification instead of overwriting.
+- → [improvement-015-optimistic-locking](../features/completed/issues/improvement-015-optimistic-locking.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

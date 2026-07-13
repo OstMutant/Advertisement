@@ -158,7 +158,7 @@ public class TaxonManagementView extends Div {
                         .cancelKey(TAXON_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId(), access.getCurrentUserId()));
+                                taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId(), access.getCurrentUserId(), taxon.getVersion()));
                                 notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
                                 refresh();
                             } catch (Exception e) {

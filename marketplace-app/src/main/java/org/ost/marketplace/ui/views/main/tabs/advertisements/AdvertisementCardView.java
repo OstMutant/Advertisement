@@ -237,7 +237,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId()));
+                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion()));
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
                             } catch (Exception _) {

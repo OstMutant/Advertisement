@@ -347,3 +347,30 @@ implements it by writing `ActionType.RESTORED` to `audit_log`. Services that res
 - CSS modifier classes in UI: `--restored` added alongside `--created`, `--updated`, `--deleted`
   (see audit-spring-boot-starter ADR-007).
 - Any UI that renders action types must handle `RESTORED`.
+
+---
+
+## ADR-019: version parameter added to AdvertisementPort.delete() and TaxonPort.update()/softDelete()
+
+**Status:** Accepted
+
+**Context:** improvement-015 adds optimistic locking (`@Version`) to `Advertisement`, `User`,
+`Taxon`. For `AdvertisementPort.save()` the version already travels through
+`AdvertisementSaveDto`, but `delete()` had no DTO to carry it. Same for `TaxonPort.update()` and
+`softDelete()` — translations are passed as a bare `Map`, with no carrier for the version the
+caller last read.
+
+**Decision:** Added a trailing `Long version` parameter to `AdvertisementPort.delete(id,
+actingUserId, version)`, `TaxonPort.update(id, translations, actorId, version)`, and
+`TaxonPort.softDelete(id, actorId, version)`. Callers pass the version from the DTO they already
+have in hand (`AdvertisementInfoDto.getVersion()` / `TaxonDto.getVersion()`) — the object
+displayed in the card/grid at the moment the action was triggered. A stale value causes the
+starter's repository to throw `OptimisticLockingFailureException`.
+
+**Consequences:**
+- `UserPort` was not touched the same way — `UserService.save()` already receives the full
+  `UserProfileDto` (which now carries `version`), so no signature change was needed there.
+- See `marketplace-app/DECISIONS.md` ADR-029 for the full cross-module design (why `@Version` on
+  the entity is not enough by itself, the manual guard needed for `User`, and the UI conflict
+  handling).
+- → [improvement-015-optimistic-locking](../features/completed/issues/improvement-015-optimistic-locking.md)

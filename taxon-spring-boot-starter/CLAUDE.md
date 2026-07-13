@@ -27,7 +27,7 @@ Java package root: `org.ost.taxon`
 Liquibase changelog: `db/taxon-changelog/master.xml`  
 Tables: `taxon`, `taxon_translation`, `taxon_assignment`
 
-- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete
+- `taxon` — core entry: type (VARCHAR), optional stable code, deleted_at/deleted_by for soft-delete, `version` (optimistic locking via `@Version`, see `marketplace-app/DECISIONS.md` ADR-029)
 - `taxon_translation` — PK: (taxon_id, locale), stores name + description per locale
 - `taxon_assignment` — PK: (entity_type, entity_id, taxon_id), records which entities carry which taxons
 
@@ -45,3 +45,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.
 - `DefaultTaxonPort` is a coordination layer, not pure delegation — it resolves translations, filters active records, and builds DTOs. Business logic stays in `TaxonService` and `TaxonAssignmentService`.
 - `TaxonAuditHook` is called by this starter when assignments change; `TaxonAuditHookImpl` in marketplace-app records it to the audit log via `TaxonActivityService`.
+- `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
+  `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
+  entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,
+  or the check silently stops detecting conflicts. See `marketplace-app/DECISIONS.md` ADR-029.

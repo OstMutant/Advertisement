@@ -54,7 +54,8 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
         return new SaveConfig(
                 TAXON_OVERLAY_NOTIFICATION_SUCCESS,
                 TAXON_OVERLAY_NOTIFICATION_VALIDATION_FAILED,
-                TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR);
+                TAXON_OVERLAY_NOTIFICATION_SAVE_ERROR,
+                TAXON_OVERLAY_NOTIFICATION_CONFLICT);
     }
 
     @Override

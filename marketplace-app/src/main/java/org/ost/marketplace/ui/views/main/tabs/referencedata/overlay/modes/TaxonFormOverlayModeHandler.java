@@ -175,9 +175,15 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
             if (params.getMode() == Mode.CREATE) {
                 savedTaxonId = port.create(org.ost.platform.taxon.model.TaxonType.CATEGORY, translations, access.getCurrentUserId());
             } else {
-                port.update(params.getTaxon().getId(), translations, access.getCurrentUserId());
+                port.update(params.getTaxon().getId(), translations, access.getCurrentUserId(), params.getTaxon().getVersion());
                 savedTaxonId = params.getTaxon().getId();
             }
+            port.findById(savedTaxonId, Locale.ENGLISH).ifPresent(fresh -> params = Parameters.builder()
+                    .taxon(fresh)
+                    .mode(params.getMode())
+                    .onSave(params.getOnSave())
+                    .onCancel(params.getOnCancel())
+                    .build());
         }));
     }
 

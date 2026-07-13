@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-11 · 47 passed · 0 failed · 0 skipped · 47 total
+Last updated: 2026-07-13 · 48 passed · 0 failed · 0 skipped · 48 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -51,6 +51,7 @@ Last updated: 2026-07-11 · 47 passed · 0 failed · 0 skipped · 47 total
 - [x] Advertisement flow › userEn restores advertisement — activity diff shows restored media and text, view and card updated
 - [x] Advertisement flow › userUk restores advertisement — activity diff shows restored media and text, view and card updated
 - [x] Advertisement flow › moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check
+- [x] Advertisement flow › userEn and moderatorEn edit the same advertisement in two sessions — stale save shows conflict, first save wins
 - [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check
 - [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
 - [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated

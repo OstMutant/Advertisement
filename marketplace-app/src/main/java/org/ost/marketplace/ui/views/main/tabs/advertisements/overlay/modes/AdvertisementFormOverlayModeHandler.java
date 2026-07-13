@@ -210,14 +210,17 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         return binder.save(dto -> {
             this.savedId = advertisementPortFactory.findIfAvailable()
                     .map(_ -> advertisementSaveService.save(
-                            new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getCategoryIds()),
+                            new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getCategoryIds(), dto.getVersion()),
                             access.getCurrentUserId(),
                             entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null))
                     .orElse(null);
             if (savedId != null) {
                 advertisementPortFactory.findIfAvailable()
                         .flatMap(p -> p.findById(savedId))
-                        .ifPresent(info -> this.savedInfoDto = info);
+                        .ifPresent(info -> {
+                            this.savedInfoDto = info;
+                            dto.setVersion(info.getVersion());
+                        });
             }
         });
     }

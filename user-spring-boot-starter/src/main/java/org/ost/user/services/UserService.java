@@ -135,7 +135,7 @@ public class UserService {
 
     private Optional<User> applyUserRestore(@NonNull Long userId, @NonNull UserSnapshotDto snap, @NonNull Long actingUserId) {
         User before = repository.findById(userId).orElseThrow();
-        repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role())));
+        repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role()), before.getVersion()));
         return repository.findById(userId).map(updated -> {
             auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
                     toSnapshot(before),
@@ -185,7 +185,7 @@ public class UserService {
 
     private UserDto toDto(User user) {
         return new UserDto(user.getId(), user.getName(), user.getEmail(), user.getRole(),
-                user.getCreatedAt(), user.getUpdatedAt(), user.getLocale());
+                user.getCreatedAt(), user.getUpdatedAt(), user.getLocale(), user.getVersion());
     }
 
     private static UserSnapshotDto toSnapshot(User user) {

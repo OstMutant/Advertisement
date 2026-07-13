@@ -42,8 +42,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public void delete(@NonNull Long id, @NonNull Long actingUserId) {
-        service.delete(id, actingUserId);
+    public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
+        service.delete(id, actingUserId, version);
     }
 
     @Override

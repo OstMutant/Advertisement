@@ -81,8 +81,7 @@ deployed.
 
 | Order | Issue | What | Note |
 |---|---|---|---|
-| 1 | [improvement-015](issues/improvement-015-optimistic-locking.md) | Optimistic locking (@Version on all entities) | silent last-write-wins otherwise |
-| 2 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
+| 1 | [improvement-013](issues/improvement-013-raw-field-names-in-activity-diff.md) | Localized field labels in Activity diffs | infrastructure (labelFor) already exists |
 
 ✅ Done (2026-07-04): tag-spam validator + 3-layer Jsoup-based length validation
 (`issue-description-length-tag-spam` → moved to `completed/issues/`), alongside a fix for a
@@ -98,12 +97,23 @@ net; see `marketplace-app/DECISIONS.md` ADR-028. Moved to `completed/issues/`. E
 existing page-size Playwright test with a second-session bleed check instead of a new spec
 file. Full e2e suite 47/47 green.
 
+✅ Done (2026-07-13): improvement-015 — optimistic locking. `version BIGINT` added to
+`advertisement`, `user_information`, `taxon` (edited directly into existing changesets, DB not
+yet in production); `@Version` on all three entities, with a manual guard for `User` (its real
+edit path bypasses `CrudRepository`) and for `softDelete` on `Advertisement`/`Taxon`. UI shows a
+dedicated conflict notification, no auto-reload (see `marketplace-app/DECISIONS.md` ADR-029,
+`platform-commons/DECISIONS.md` ADR-019). Moved to `completed/issues/`. New Playwright test:
+two-session concurrent edit, stale save shows conflict instead of silently overwriting. Full e2e
+suite green.
+
 **Still open, no longer blocked:**
 
 | Issue | What | Note |
 |---|---|---|
 | [improvement-006](issues/improvement-006-quill-description-counter-and-db-limit.md) | Quill char counter + DB VARCHAR(2000) migration | its blocker is resolved; can be picked up independently now |
 | 6 | [improvement-011](issues/improvement-011-unguarded-port-injection-in-ui-components.md) | Port-injection guards decision (Option A/C) | must precede creation of any new starter |
+| [improvement-023](issues/improvement-023-request-correlation-id-via-mdc.md) | Request/trace correlation id via SLF4J MDC | purely additive, no blockers; found while discussing improvement-015 |
+| [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
 
 Plus from `process-improvements.md`: ArchUnit module + minimal CI (before the codebase grows).
 

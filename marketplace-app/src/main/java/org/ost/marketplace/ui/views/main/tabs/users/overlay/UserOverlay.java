@@ -49,7 +49,8 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
         return new SaveConfig(
                 USER_DIALOG_NOTIFICATION_SUCCESS,
                 USER_DIALOG_NOTIFICATION_VALIDATION_FAILED,
-                USER_DIALOG_NOTIFICATION_SAVE_ERROR);
+                USER_DIALOG_NOTIFICATION_SAVE_ERROR,
+                USER_DIALOG_NOTIFICATION_CONFLICT);
     }
 
     @Override

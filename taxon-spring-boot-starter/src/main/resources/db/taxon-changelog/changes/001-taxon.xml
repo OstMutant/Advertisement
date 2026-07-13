@@ -26,6 +26,9 @@
             </column>
             <column name="created_by" type="BIGINT"/>
             <column name="updated_by" type="BIGINT"/>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
         </createTable>
 
         <createIndex indexName="idx_taxon_type_deleted_at" tableName="taxon">

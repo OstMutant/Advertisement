@@ -31,6 +31,9 @@
             <column name="media_count" type="INT" defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
         </createTable>
 
         <addForeignKeyConstraint

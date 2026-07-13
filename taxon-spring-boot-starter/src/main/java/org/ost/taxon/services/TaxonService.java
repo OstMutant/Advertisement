@@ -53,7 +53,7 @@ public class TaxonService {
 
     @Transactional
     public Taxon update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationData> translations,
-                        Long actorId) {
+                        Long actorId, Long version) {
         validateTranslations(translations);
         Taxon existing = taxonRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Taxon not found: " + id));
@@ -68,6 +68,7 @@ public class TaxonService {
                 .createdBy(existing.getCreatedBy())
                 .updatedAt(Instant.now())
                 .updatedBy(actorId)
+                .version(version)
                 .build();
         taxonRepository.save(updated);
         translationRepository.saveAll(id, toEntities(id, translations));
@@ -79,10 +80,10 @@ public class TaxonService {
     }
 
     @Transactional
-    public void softDelete(@NonNull Long id, Long actorId) {
+    public void softDelete(@NonNull Long id, Long actorId, Long version) {
         List<TaxonTranslation> translations = translationRepository.findAllByTaxonId(id);
         TaxonSnapshotDto snapshot = buildSnapshotFromTranslations(translations);
-        taxonRepository.softDelete(id, actorId);
+        taxonRepository.softDelete(id, actorId, version);
         if (actorId != null) {
             auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
         }

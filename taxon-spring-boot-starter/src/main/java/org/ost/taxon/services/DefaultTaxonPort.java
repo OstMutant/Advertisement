@@ -163,14 +163,14 @@ public class DefaultTaxonPort implements TaxonPort {
 
     @Override
     public void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations,
-                       Long actorId) {
+                       Long actorId, Long version) {
         Map<Locale, TaxonTranslationData> data = toTranslationData(translations);
-        taxonService.update(id, data, actorId);
+        taxonService.update(id, data, actorId, version);
     }
 
     @Override
-    public void softDelete(@NonNull Long id, Long actorId) {
-        taxonService.softDelete(id, actorId);
+    public void softDelete(@NonNull Long id, Long actorId, Long version) {
+        taxonService.softDelete(id, actorId, version);
     }
 
     @Override
@@ -231,6 +231,7 @@ public class DefaultTaxonPort implements TaxonPort {
                 .name(name)
                 .description(description)
                 .deleted(taxon.getDeletedAt() != null)
+                .version(taxon.getVersion())
                 .build();
     }
 

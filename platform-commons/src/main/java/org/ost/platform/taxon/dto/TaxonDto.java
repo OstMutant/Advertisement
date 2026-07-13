@@ -14,4 +14,5 @@ public class TaxonDto {
     @NonNull String    name;
     @NonNull String    description;
     boolean            deleted;
+    Long               version;
 }

@@ -154,7 +154,10 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     public boolean save() {
         return binder.save(dto -> {
             userPort.save(mapper.copy(dto), access.getCurrentUserId());
-            userPort.findById(params.getUser().id()).ifPresent(u -> savedUser = u);
+            userPort.findById(params.getUser().id()).ifPresent(u -> {
+                savedUser = u;
+                dto.setVersion(u.version());
+            });
         });
     }
 
@@ -183,7 +186,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
                         .map(AuditSnapshotContentDto::snapshotData)
                         .ifPresent(snapshot -> {
-                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()));
+                            UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());
                             loadRestored(dto);
                         })
         );
