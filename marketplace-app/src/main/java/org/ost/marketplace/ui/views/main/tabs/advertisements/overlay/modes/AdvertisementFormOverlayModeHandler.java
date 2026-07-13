@@ -123,6 +123,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         descriptionField = new QuillEditor();
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
+        descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
 

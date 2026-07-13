@@ -226,6 +226,14 @@
     font-family: var(--lumo-font-family);
 }
 
+.overlay__description-rich-editor .quill-editor-counter {
+    display: block;
+    text-align: right;
+    font-size: var(--lumo-font-size-xs);
+    color: var(--lumo-secondary-text-color);
+    margin-top: var(--lumo-space-xs);
+}
+
 /* Hide trailing empty Quill paragraph (<p><br></p>) in overlay view */
 .overlay__view-description p:last-child:has(> br:only-child) { display: none; }
 

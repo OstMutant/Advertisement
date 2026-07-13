@@ -117,10 +117,18 @@ suite green.
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-006](issues/improvement-006-quill-description-counter-and-db-limit.md) | Quill char counter + DB VARCHAR(2000) migration | its blocker is resolved; can be picked up independently now |
 | 6 | [improvement-011](issues/improvement-011-unguarded-port-injection-in-ui-components.md) | Port-injection guards decision (Option A/C) | must precede creation of any new starter |
 | [improvement-023](issues/improvement-023-request-correlation-id-via-mdc.md) | Request/trace correlation id via SLF4J MDC | purely additive, no blockers; found while discussing improvement-015 |
 | [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
+
+✅ Done (2026-07-13): improvement-006 — `QuillEditor` character counter ("N / 2000", reads
+`quill.getText()`) + `advertisement.description` DB column widened from unbounded `TEXT` to
+`VARCHAR(20000)` — **not** `VARCHAR(2000)` as the issue originally suggested; the column stores
+raw HTML including formatting tags, and 20000 is the already-established raw-size cap
+(`DESCRIPTION_RAW_MAX_LENGTH`, ADR-024), not the 2000 visible-text limit. Capping at 2000 would
+have rejected legitimately-formatted descriptions. See `marketplace-app/DECISIONS.md` ADR-031.
+Moved to `completed/issues/`. Counter visually confirmed via Playwright screenshot. Full e2e
+suite 48/48 green.
 
 Plus from `process-improvements.md`: ArchUnit module + minimal CI (before the codebase grows).
 

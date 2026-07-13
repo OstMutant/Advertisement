@@ -26,4 +26,8 @@ public class QuillEditor extends AbstractSinglePropertyField<QuillEditor, String
     public String getLabel() {
         return getElement().getAttribute("label");
     }
+
+    public void setMaxLength(int maxLength) {
+        getElement().setAttribute("maxlength", String.valueOf(maxLength));
+    }
 }

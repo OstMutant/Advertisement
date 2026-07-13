@@ -1,5 +1,15 @@
 # improvement-006: QuillEditor character counter + advertisement.description DB limit
 
+**Status:** ✅ RESOLVED (2026-07-13) — counter added to `QuillEditor` (reads `quill.getText()`,
+displays "N / 2000", visually confirmed via Playwright screenshot). DB column changed to
+`VARCHAR(20000)`, **not** `VARCHAR(2000)` as originally suggested below — the column stores raw
+HTML (with formatting tags), and the already-established raw-size cap is 20000
+(`DESCRIPTION_RAW_MAX_LENGTH`, ADR-024), not 2000 (`DESCRIPTION_MAX_LENGTH`, the visible-text
+limit). Capping the column at 2000 would have rejected legitimately-formatted descriptions that
+already pass every other validation layer. See `marketplace-app/DECISIONS.md` ADR-031. Edited
+directly into the existing `01-advertisement-schema.xml` changeset (DB not yet in production).
+Full e2e suite 48/48 green.
+
 **Type:** improvement — follow-up from feature-001 (field validation coverage)
 **Module:** marketplace-app + advertisement-spring-boot-starter
 **Priority:** low — cosmetic (counter) + defense-in-depth (DB limit); no longer blocked

@@ -7,16 +7,33 @@ class QuillEditorElement extends HTMLElement {
     this.__value = '';
     this.__quill = null;
     this.__labelEl = null;
+    this.__counterEl = null;
+    this.__maxLength = null;
   }
 
   static get observedAttributes() {
-    return ['label'];
+    return ['label', 'maxlength'];
   }
 
   attributeChangedCallback(name, _oldVal, newVal) {
     if (name === 'label' && this.__labelEl) {
       this.__labelEl.textContent = newVal || '';
     }
+    if (name === 'maxlength') {
+      this.__maxLength = newVal ? parseInt(newVal, 10) : null;
+      this.__updateCounter();
+    }
+  }
+
+  __updateCounter() {
+    if (!this.__counterEl) return;
+    if (this.__maxLength == null) {
+      this.__counterEl.textContent = '';
+      return;
+    }
+    const text = this.__quill ? this.__quill.getText() : '\n';
+    const length = Math.max(0, text.length - 1);
+    this.__counterEl.textContent = `${length} / ${this.__maxLength}`;
   }
 
   connectedCallback() {
@@ -49,6 +66,12 @@ class QuillEditorElement extends HTMLElement {
       this.__quill.setContents(delta, 'silent');
     }
 
+    this.__counterEl = document.createElement('div');
+    this.__counterEl.className = 'quill-editor-counter';
+    this.appendChild(this.__counterEl);
+    this.__maxLength = this.hasAttribute('maxlength') ? parseInt(this.getAttribute('maxlength'), 10) : null;
+    this.__updateCounter();
+
     // Our own hydration writes use source 'silent' (see above / set value()), which never
     // reaches this listener at all — so anything that does arrive here is a genuine change
     // (real typing, toolbar clicks, or an external API call), not an echo. No source filter
@@ -57,6 +80,7 @@ class QuillEditorElement extends HTMLElement {
     this.__quill.on('text-change', () => {
       const html = this.__quill.getSemanticHTML();
       this.__value = html === '<p><br></p>' ? '' : html;
+      this.__updateCounter();
       this.dispatchEvent(new CustomEvent('value-changed', {
         detail: { value: this.__value },
         bubbles: true,

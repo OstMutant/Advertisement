@@ -813,6 +813,46 @@ default no-op implementation, so this doesn't require every entity type to regis
 
 ---
 
+## ADR-031: QuillEditor character counter measures visible text; DB column sized to the raw-HTML cap, not the visible-text cap
+
+**Status:** Accepted
+
+**Context:** `QuillEditor` had no visible character counter, unlike Vaadin's `TextArea`/`TextField`
+which show one automatically when `maxLength` is set (improvement-006). Separately,
+`advertisement.description` was still `TEXT` (unbounded) in the schema, with no DB-level cap
+matching the two limits already established in ADR-024: `DESCRIPTION_MAX_LENGTH = 2000`
+(visible text, Jsoup-measured) and `DESCRIPTION_RAW_MAX_LENGTH = 20_000` (raw HTML, Bean
+Validation `@Size`).
+
+**Decision:**
+1. `QuillEditor` gained a `setMaxLength(int)` method (sets a `maxlength` attribute, mirrored in
+   `quill-editor.js` via `observedAttributes`). The counter reads `quill.getText().length - 1`
+   (Quill's `getText()` always ends in `\n`) on every `text-change`, displaying `"N / max"` —
+   this measures the same thing the server does (visible text), not raw HTML size.
+   `AdvertisementFormOverlayModeHandler` wires it with
+   `descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH)` (2000).
+2. `advertisement.description` changed from `TEXT` to `VARCHAR(20000)` — edited directly into
+   the existing `01-advertisement-schema.xml` changeset (DB not yet in production, same
+   rationale as prior direct-edit changes this cycle).
+
+**Why the DB column is 20000, not 2000:** the column stores raw HTML (with formatting tags),
+not visible text. A description at exactly the 2000-visible-character limit that uses bold,
+lists, or headers can easily produce well over 2000 raw characters — legitimate content that
+already passes both the UI counter and the server-side Jsoup check. Capping the column at 2000
+(matching only the visible-text limit) would reject that already-valid content at the DB layer
+for no reason connected to any actual limit anyone agreed to. `20000` reuses the raw-size
+ceiling already established and enforced in ADR-024 (`DESCRIPTION_RAW_MAX_LENGTH`) — not a new
+number, just the column matching a limit the application already enforces one layer up.
+
+**Consequences:**
+- No change to `DESCRIPTION_MAX_LENGTH` (2000) — the visible-text limit users actually see and
+  are validated against is unchanged.
+- Full e2e suite 48/48 green; counter visually confirmed via Playwright screenshot
+  (`adv-useren-create-form-filled`, showing "85 / 2000").
+- → [improvement-006-quill-description-counter-and-db-limit](../features/completed/issues/improvement-006-quill-description-counter-and-db-limit.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)
