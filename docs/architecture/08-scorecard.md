@@ -46,6 +46,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ Repositories not imported by UI directly (all through Ports)
 - ✓ **AccessEvaluator fixed (ADR-016, 2026-06-15)** — now uses `UserPort` + `AuthContextService` only; no `org.ost.user.*` internal imports
 - ✓ **UserPortImpl mapping logic resolved (2026-07-01)** — `toDto()` and stream pipelines moved to `UserService`; port is pure delegation
+- ✓ **SettingsPaginationService cross-session bleed resolved (ADR-028, improvement-018)** — singleton binding entries now carry an owning `userId`; a settings change no longer leaks into other users' live sessions
 - ✗ Optional audit/attachment dependencies not guarded; runtime assumptions remain
 - ~ Advertisement has FK to user; tight schema coupling (acceptable but limits independence)
 

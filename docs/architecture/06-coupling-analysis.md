@@ -123,6 +123,28 @@ If user module must ever become truly optional, extract a lightweight "UserRefer
 
 ---
 
+## Hidden Coupling: Singleton State Shared Across UI Sessions
+
+### ✅ RESOLVED — SettingsPaginationService Cross-Session Bleed (2026-07-11)
+
+**Previously:** `SettingsPaginationService` is a singleton `@Component` holding a
+`CopyOnWriteArrayList<BindingEntry>` accumulated from **every user's** UI session, with no owner
+association per entry. `onSettingsChanged(userId, settings)` filtered only on whether the
+*current thread's* user matched `userId`, then pushed the new page size to every registered
+`PaginationBar` regardless of which session it belonged to — one user's settings change silently
+resized every other logged-in user's live grid.
+
+**Resolution (ADR-028):** `BindingEntry` now carries the owning `userId` (captured from
+`AuthContextService` at `register()` time); `onSettingsChanged` filters by
+`entry.userId().equals(userId)` instead of gating on the current thread's user. Also added
+`bar.addDetachListener(...)` so cleanup no longer depends solely on `@PreDestroy`.
+
+**File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
+
+→ [improvement-018](../../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md) (completed)
+
+---
+
 ## Hidden Coupling: Optional Dependencies Without Guards
 
 ### ✅ RESOLVED at starter level (verified 2026-07-03)
@@ -213,6 +235,7 @@ Most classes have 1-3 injected dependencies:
 | **UI → Repository Direct** | ✓ PASS | All through Ports |
 | **Vaadin in Starters** | ✓ PASS | Vaadin only in marketplace-app |
 | **Marketplace → Starter Internal** | ✓ RESOLVED | AccessEvaluator fixed (ADR-016, 2026-06-15); UserPortImpl mapping logic fixed (2026-07-01) |
+| **Singleton State Isolation** | ✓ RESOLVED | SettingsPaginationService cross-session bleed fixed (ADR-028, improvement-018) |
 | **Optional Deps Guarded** | ~ PARTIAL | starter level RESOLVED (ComponentFactory guards everywhere); marketplace-app UI still hard-injects `AttachmentPort`/`AuditPort` in 3 classes → improvement-011 (MEDIUM) |
 | **User ↔ Advertisement Coupling** | ~ WARNING | Schema-level FK coupling; acceptable since both required |
 | **Module Sizes** | ✓ PASS | No unjustified size outliers |

@@ -213,6 +213,84 @@ new default while old `{bcrypt}`-prefixed ones still verify correctly.
 **Risk:** LOW — Hashing handled by Spring Security; no plaintext leaks; algorithm migration
 path no longer requires a data rewrite.
 
+### 4. Rate Limiting / Brute-Force Protection
+
+**Location:** `AuthService.login()` and `UserService.register()` (`org.ost.user.services`),
+both backed by an in-memory Caffeine cache (5 attempts / 15 min window).
+
+**Design:** Both limiters increment their counter only on an actual failure — `login()` on
+`BadCredentialsException`, `register()` on `DuplicateKeyException` — never on success. An
+earlier version counted every attempt regardless of outcome, which broke bulk e2e signups from
+a shared IP; corrected (`marketplace-app/DECISIONS.md` ADR-026).
+
+**Keying:** `login()` keys on `remoteAddr + "|" + email` (a lockout scopes to one target
+account even if `remoteAddr` collapses behind a proxy). `register()` originally keyed on
+`clientIp` alone; behind Render's proxy `request.getRemoteAddr()` returned the platform's own
+edge address for every user, collapsing the registration limiter into one shared bucket for the
+whole app. Fixed by `server.forward-headers-strategy: framework` in `application-prod.yml`,
+which makes `request.getRemoteAddr()` resolve the real client IP (ADR-027). A coarser
+IP-independent backstop counter was considered and rejected — registration failures have no
+natural per-target key the way login failures do.
+
+**Risk:** LOW — both paths now correctly scoped; whether Render actually forwards
+`X-Forwarded-For` is not verifiable from this dev environment and is worth confirming once
+deployed.
+
+→ [improvement-020](../../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md), [improvement-022](../../features/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
+
+### 5. URL-Level Access Control
+
+**Location:** `org.ost.marketplace.config.SecurityConfig`
+
+**Design:** `anyRequest().permitAll()` at the Spring Security filter-chain level — deliberate,
+not an oversight. A deny-by-default (`anyRequest().denyAll()`) baseline was implemented and
+deployed, and broke the entire app: Vaadin's root route bootstrap request is not covered by
+`HandlerHelper.isFrameworkInternalRequest()` (which only recognizes Vaadin's own internal
+AJAX/RPC calls), so the very first page load was denied for every user. Reverted; see
+`marketplace-app/DECISIONS.md` ADR-025 for why deny-by-default does not fit this app's
+single-route Vaadin SPA model, and the process rule this created for any future non-Vaadin REST
+controller (must add its own explicit `requestMatchers(...)` ahead of the catch-all).
+
+**Risk:** LOW-MEDIUM — acceptable for a single-route Vaadin SPA with no REST endpoints yet;
+becomes a real gap the moment a REST controller is added without its own explicit matcher.
+
+→ [improvement-020](../../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+
+---
+
+## Concurrency Risks
+
+### 1. ✅ RESOLVED — SettingsPaginationService Cross-Session Settings Bleed
+
+**Location:** `org.ost.marketplace.ui.views.services.pagination.SettingsPaginationService`
+
+**Previously:** A singleton held `BindingEntry(PaginationBar, extractor, refresh)` with no
+owner association; `onSettingsChanged(userId, settings)` filtered only on whether the *current
+thread's* user matched, then pushed the new page size to every registered bar across every
+session. User X changing their page size silently resized user Y's live grid.
+
+**Resolution:** `BindingEntry` now carries the owning `userId`, and `onSettingsChanged` filters
+by `entry.userId().equals(userId)` — see `marketplace-app/DECISIONS.md` ADR-028. Also added
+`bar.addDetachListener(...)` so cleanup no longer depends solely on `@PreDestroy`.
+
+→ [improvement-018](../../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
+
+### 2. ✅ RESOLVED — No Optimistic Locking on Concurrent Entity Edits
+
+**Location:** `Advertisement`, `User`, `Taxon` entities (all three starters)
+
+**Previously:** No entity carried a version field; two concurrent edits of the same row
+resulted in silent last-write-wins with no error, warning, or audit anomaly.
+
+**Resolution:** `version BIGINT` added to all three tables; `@Version` added to all three
+entities. `Advertisement`/`Taxon` get native Spring Data JDBC checking via
+`CrudRepository.save()`; `User`'s real edit path bypasses `CrudRepository` via hand-written SQL,
+so `UserRepository.updateProfile()` implements the check manually. UI shows a dedicated conflict
+notification (no auto-reload, to avoid silently discarding in-progress form edits) — see
+`marketplace-app/DECISIONS.md` ADR-029.
+
+→ [improvement-015](../../features/completed/issues/improvement-015-optimistic-locking.md)
+
 ---
 
 ## Performance Risks
@@ -282,6 +360,9 @@ path no longer requires a data rewrite.
 |------|----------|--------|-------|
 | ~~Fix AccessEvaluator internal imports~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-016, 2026-06-15) |
 | ~~Fix UserPortImpl mapping logic~~ | ~~LOW~~ | ~~SMALL~~ | ✅ Done (2026-07-01) — mapping in UserService |
+| ~~Fix registration rate-limiter shared-IP bucket~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-027, improvement-022) |
+| ~~Fix SettingsPaginationService cross-session bleed~~ | ~~HIGH~~ | ~~SMALL~~ | ✅ Done (ADR-028, improvement-018) |
+| ~~Add optimistic locking~~ | ~~MEDIUM~~ | ~~MEDIUM~~ | ✅ Done (ADR-029, improvement-015) |
 | Resolve optional dependencies | MEDIUM | SMALL | Remove `<optional>` or add ObjectProvider guards |
 | Centralize authorization checks | MEDIUM | MEDIUM | Extract AuthorizationService if auth logic grows |
 | Partition audit_log table | LOW | LARGE | Future scaling concern; not urgent |
@@ -300,7 +381,8 @@ path no longer requires a data rewrite.
 | **Database Schema** | LOW-MEDIUM | JSONB schemas, soft-delete queries require discipline |
 | **SPI Contract Safety** | MEDIUM | Hook implementations not compile-checked |
 | **Performance** | MEDIUM | Audit log growth unbounded; indexes adequate for now |
-| **Security** | MEDIUM | RBAC scattered; UserPrincipal well-integrated |
+| **Security** | LOW-MEDIUM | RBAC scattered; rate limiting and URL access control resolved (ADR-026/027/025) |
+| **Concurrency** | LOW | Settings bleed and optimistic locking gaps both resolved (ADR-028/029) |
 | **Coupling** | LOW-MEDIUM | AccessEvaluator fixed (ADR-016); optional deps still unguarded |
 
 **Open Action:** Resolve optional dependency guards — either remove `<optional>` from advertisement-starter pom.xml for audit/attachment, or add ObjectProvider guards in `AdvertisementService`.
