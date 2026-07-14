@@ -1,4 +1,4 @@
-# improvement-045: Eight critical, non-UI-observable code paths have zero test coverage — one is a likely real bug found in the audit
+# improvement-045: Eight critical, non-UI-observable code paths have zero test coverage
 
 **Type:** improvement — testing infrastructure/process. Follow-up to
 [improvement-027](improvement-027-unit-testcontainers-test-layer.md) Batch 1: a targeted audit of
@@ -7,8 +7,10 @@ review wouldn't catch and Playwright's happy-path e2e flows never exercise.
 **Module:** cross-cutting — `marketplace-app` (security, auth), `user-spring-boot-starter`,
 `taxon-spring-boot-starter`, `platform-commons` — all via the `integration-tests` module
 (no domain starter gets its own test code, per improvement-027's architecture).
-**Priority:** high for items 1, 3, 4 (security / likely real bug); medium for the rest — none are
-observed production incidents, all are silent-failure-mode risks identified by code inspection.
+**Priority:** high for items 1, 3 (security); medium for the rest — none are observed production
+incidents, all are silent-failure-mode risks identified by code inspection. Items 4/5 were
+initially suspected live bugs but a full caller trace (2026-07-14) confirmed both code paths are
+currently unreachable from production — see "Batch resolution" below.
 **When:** independent, no blockers — natural continuation of improvement-027 Batch 2/3, but scoped
 narrower (these 8 items specifically, not "every untested class").
 
@@ -58,26 +60,36 @@ enough to notice quickly, and no existing test (Playwright's rate-limit test in 
 covers the happy path of the *current* correct behavior, not regressions in the counting logic
 itself).
 
-### 4. `TaxonRepository.findByIds()` missing `deleted_at IS NULL` filter — SILENT-CORRUPTION, likely real bug
+### 4. `TaxonRepository.findByIds()` missing `deleted_at IS NULL` filter — ✅ FIXED (2026-07-14)
 `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonRepository.java:87-96`
 
-Verified directly: `findByIds()` has no soft-delete filter, unlike `findByType`/`countByType` in
-the same class. Called by `TaxonService.findByIds()` → `DefaultTaxonPort.indexById()`
-(`DefaultTaxonPort.java:213-216`), which backs category-badge enrichment for advertisements.
-**Concrete scenario, not hypothetical:** an admin soft-deletes a category ("Electronics") that is
-still assigned (via `taxon_assignment`) to an existing advertisement. The advertisement's category
-badge continues to render "Electronics" as if it were still active — the admin has no way to tell
-the deletion "didn't work" from the UI, because nothing errors; the taxon just silently keeps
-showing up wherever it was already assigned before deletion.
+Verified directly: `findByIds()` had no soft-delete filter, unlike `findByType`/`countByType` in
+the same class. **Full caller trace done before fixing** (per this issue's own "decision point"
+rule below) — the initial hypothesis ("advertisement category badges show deleted categories") was
+**wrong**: the actual production path for category-badge enrichment is
+`AdvertisementService.enrichWithCategories()` → `TaxonPort.getForEntities()`/`getForEntity()` →
+`DefaultTaxonPort.buildDtoIndex(..., activeOnly=true)` (`DefaultTaxonPort.java:72`), which already
+filters soft-deleted taxons **in Java** (`!activeOnly || t.getDeletedAt() == null`) independently
+of the SQL. `TaxonPort.findByIds(ids, locale)` — the one port method whose implementation actually
+goes through the unfiltered SQL (`activeOnly=false`) — has **zero callers anywhere in
+`marketplace-app` or any starter** (confirmed via `grep -rn "\.findByIds("` across the whole repo).
+**Corrected classification:** not a live bug — a latent contract violation on the public `TaxonPort`
+SPI (every other method is active-only; this one silently wasn't) that was unreachable today only
+by accident of current wiring. Fixed anyway since the fix is zero-risk (no caller to break) and
+closes the footgun before anyone adds one. SQL now reads `WHERE id IN (:ids) AND deleted_at IS
+NULL`. Regression test: `TaxonRepositoryTest.findByIds_excludesSoftDeletedRows` /
+`findByIds_returnsActiveRows` in `integration-tests` (proven red against the old SQL, then green
+after the fix — see commit history).
 
-### 5. `TaxonRepository.findByTypeAndCode()` — same gap, needs verification of callers
+### 5. `TaxonRepository.findByTypeAndCode()` — ✅ FIXED (2026-07-14), same resolution as item 4
 `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/repository/TaxonRepository.java:135-144`
 
-Also verified to have no `deleted_at IS NULL` filter — asymmetric with the rest of the class.
-Callers not fully traced in this audit; if used anywhere to gate "does this `(type, code)` already
-exist" (the partial unique index `uidx_taxon_type_code` only enforces uniqueness for non-null
-`code`, itself excluding nothing based on `deleted_at`), a soft-deleted taxon with the same code
-could produce a confusing false-positive/false-negative in whatever uses this lookup.
+Also verified to have no `deleted_at IS NULL` filter. Caller trace: `TaxonService.findByCode()` →
+`DefaultTaxonPort.findByCode()` (implements `TaxonPort.findByCode()`) — also **zero callers**
+anywhere in `marketplace-app` or any starter (confirmed via `grep -rn "\.findByCode("`). Same
+corrected classification and same fix as item 4: `WHERE type = :type AND code = :code AND
+deleted_at IS NULL`. Regression test: `TaxonRepositoryTest.findByTypeAndCode_excludesSoftDeletedRow`
+/ `findByTypeAndCode_returnsActiveRow`.
 
 ### 6. `DefaultTaxonPort.resolveTranslation()` — SILENT-CORRUPTION
 `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/DefaultTaxonPort.java:246-255`
@@ -121,13 +133,10 @@ item.
 All as new test classes inside `integration-tests` (per improvement-027's established
 architecture — no domain starter gets test code of its own):
 
-1. **Items 4 and 5 are a decision point, not just a test gap.** Before writing a regression test
-   that locks in the *current* (likely buggy) behavior, decide: is the missing `deleted_at IS NULL`
-   filter intentional (e.g. `findByIds()` is also used somewhere that legitimately needs deleted
-   rows, like a restore-preview screen) or a real bug? Trace all callers of both methods first. If
-   it's confirmed a bug, fix the SQL (add the filter, or add a second `findByIds(ids, includeDeleted)`
-   overload if both use cases turn out to be real) as part of the same PR that adds the regression
-   test — do not add a test that encodes broken behavior as "correct."
+1. ✅ **Items 4 and 5 — done 2026-07-14.** See the "Batch resolution" notes on each item above:
+   caller trace done first, confirmed both methods are dead code in production today (no behavior
+   change for any live path), fixed the SQL, added `TaxonRepositoryTest` (4 tests) proven red
+   before the fix and green after.
 2. **Item 1 (`AccessEvaluator`)** — plain unit test, no Spring context: construct `AccessEvaluator`
    with mocked `UserPort`/`AuthContextService`, assert `canOperate()`/`canView()` for every
    combination of {admin, moderator, owner, non-owner-non-privileged, logged-out} × {target
@@ -160,13 +169,15 @@ architecture — no domain starter gets test code of its own):
 
 ## Required verification
 
-- Each new test must actually fail against the *current* code before any fix (for items 4/5) to
-  prove it's testing real behavior, then pass after — standard TDD discipline, not just "add a
-  green test."
+- Each new test must actually fail against the *current* code before any fix (for items 4/5,
+  already done — see above) to prove it's testing real behavior, then pass after — standard TDD
+  discipline, not just "add a green test."
 - Full `bash scripts/integration-tests.sh --sandbox` run stays green after all additions.
-- If items 4/5 turn out to require an actual SQL fix, that fix needs its own Playwright regression
-  check too (soft-delete a category still assigned to an advertisement, confirm the badge
-  disappears) per `.claude/rules.md` "Test Coverage After Bug Fixes."
+- Items 4/5 did **not** need a Playwright regression check per `.claude/rules.md` "Test Coverage
+  After Bug Fixes" — that rule applies to user-observable behavior changes, and the caller trace
+  confirmed neither fixed method has a caller today, so no UI-visible behavior changed. If either
+  method later gets its first caller, that PR should add the Playwright coverage appropriate to
+  whatever feature is calling it, not retroactively here.
 
 ## Related
 
