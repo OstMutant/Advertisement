@@ -2,6 +2,7 @@ package org.ost.user.repository;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.model.Role;
@@ -75,13 +76,13 @@ public class UserRepository {
     public List<User> findByFilter(@NonNull UserFilterDto filter, @NonNull Pageable pageable) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
-                "id",         "u.id",
-                "name",       "u.name",
-                "email",      "u.email",
-                "role",       "u.role",
-                "created_at", "u.created_at",
-                "updated_at", "u.updated_at",
-                "locale",     "u.locale"));
+                UserDto.Fields.id,        "u.id",
+                UserDto.Fields.name,      "u.name",
+                UserDto.Fields.email,     "u.email",
+                UserDto.Fields.role,      "u.role",
+                UserDto.Fields.createdAt, "u.created_at",
+                UserDto.Fields.updatedAt, "u.updated_at",
+                UserDto.Fields.locale,    "u.locale"));
         String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s%s%s"
                 .formatted(FILTER.build(params, filter, " WHERE "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();

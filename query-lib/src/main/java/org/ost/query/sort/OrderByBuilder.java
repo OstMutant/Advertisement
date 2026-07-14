@@ -15,15 +15,11 @@ public final class OrderByBuilder {
         if (sort == null || sort.isEmpty()) return "";
         String clause = sort.stream()
                 .map(order -> {
-                    String expr = aliasToExpression.get(toSnakeCase(order.getProperty()));
+                    String expr = aliasToExpression.get(order.getProperty());
                     return expr == null ? null : expr + " " + order.getDirection().name() + " NULLS LAST";
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.joining(", "));
         return clause.isBlank() ? "" : " ORDER BY " + clause;
-    }
-
-    private static String toSnakeCase(String name) {
-        return name.replaceAll("([A-Z])", "_$1").toLowerCase();
     }
 }

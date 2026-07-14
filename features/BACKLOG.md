@@ -146,11 +146,21 @@ entirely, not just emptied: `MediaChangeHookImpl`, `AdvertisementService.onMedia
 valid gracefully-degraded state. Three dead media sort-aliases removed alongside the columns. See
 `marketplace-app/DECISIONS.md` ADR-035. Moved to `completed/issues/`.
 
+✅ Done (2026-07-14): improvement-043 — `OrderByBuilder.build()` no longer snake-cases the
+incoming `Sort.Order` property before lookup; every repository's alias map is now keyed by the
+relevant DTO/entity's `Fields.*` constants (`AdvertisementInfoDto`, `UserDto`, `Taxon`,
+`AuditTimelineItemDto` — a fourth repository, `AuditLogRepository`, was found during
+implementation and missed by the original scope check). Found and fixed a real, pre-existing
+instance of the exact bug this issue
+warns about while re-keying: `TaxonRepository.SORT_ALIASES` had `"createdAt"`/`"updatedAt"` keys
+in camelCase (not snake_case like Advertisement/User), which never matched the snake-cased lookup
+— silently dead, harmless only because `DefaultTaxonPort` always hardcodes `Sort.by("id")` and
+never lets a caller choose. No SQL/behavior change elsewhere. Moved to `completed/issues/`.
+
 **Still open, no longer blocked:**
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-043](issues/improvement-043-orderbybuilder-typed-field-constants.md) | `OrderByBuilder` sort-alias maps (Advertisement/User/Taxon repositories) use raw string keys instead of `Fields.*` constants — a DTO field rename silently drops a sort option instead of failing the build | low-medium — pure compile-time-safety refactor, no SQL/behavior change; found while discussing improvement-041's dead-alias cleanup |
 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Convert ~17 stateless leaf UI widgets (buttons/fields/dialogs/layout) from `@SpringComponent` prototype beans to plain Java classes | brings code in line with existing `marketplace-app/CLAUDE.md` "no Configurable for 1-2 setters" rule; execute in 4 phased batches with a full e2e run after each, not one PR |
 | [improvement-026](issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md) | Replace ~10 hand-built `new Button(...)` spots (HeaderBar, PaginationBar, attachment lightboxes/gallery, audit restore button, UserPickerField) with existing `Ui*Button` wrappers | medium priority — HeaderBar's 4 auth buttons and 5 other spots are visibly unstyled (real UX bug, not just duplication); HeaderBar batch touches CSS classes nearly every e2e test selects on, run full e2e immediately after that batch |
 | [improvement-027](issues/improvement-027-unit-testcontainers-test-layer.md) | Add Testcontainers repository tests + plain unit tests for pure logic (snapshot `diff()`, sanitizer, `resolveTranslation()`) — only 2 JUnit files exist project-wide, both in query-lib | medium-high — already a recorded hard gate for F-08 (payments) in the private roadmap; do now so Phase 1-3 work and the new F-06 review-starter benefit, not just payments |

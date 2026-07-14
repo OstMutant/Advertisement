@@ -72,11 +72,11 @@ public class AdvertisementRepository {
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry("id",          "a.id"),
-                Map.entry("title",       "a.title"),
-                Map.entry("description", "a.description"),
-                Map.entry("created_at",  "a.created_at"),
-                Map.entry("updated_at",  "a.updated_at")));
+                Map.entry(AdvertisementInfoDto.Fields.id,          "a.id"),
+                Map.entry(AdvertisementInfoDto.Fields.title,       "a.title"),
+                Map.entry(AdvertisementInfoDto.Fields.description, "a.description"),
+                Map.entry(AdvertisementInfoDto.Fields.createdAt,   "a.created_at"),
+                Map.entry(AdvertisementInfoDto.Fields.updatedAt,   "a.updated_at")));
         String sql = ("""
                         SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a

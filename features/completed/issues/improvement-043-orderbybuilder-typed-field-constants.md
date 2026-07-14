@@ -76,6 +76,21 @@ reachable and someone renamed the underlying field without updating the map.
    that still references the old field name in its sort-alias map, instead of silently dropping a
    sort option at runtime.
 
+## Resolution notes (2026-07-14)
+
+A fourth call site was found during implementation, missed by the original scope check:
+`AuditLogRepository.SORT_ALIASES` (`audit-spring-boot-starter`) — `Map.of("created_at",
+"al.created_at")`, re-keyed to `AuditTimelineItemDto.Fields.createdAt`. All four repositories
+(`Advertisement`, `User`, `Taxon`, `Audit`) now share the same `Fields.*`-keyed pattern.
+
+A real, pre-existing instance of the exact bug this issue describes was also found and fixed
+while re-keying: `TaxonRepository.SORT_ALIASES` had `"createdAt"`/`"updatedAt"` keys already in
+camelCase — inconsistent with Advertisement/User's snake_case keys, and never actually matched by
+`OrderByBuilder`'s (now-removed) `toSnakeCase()` conversion, which always produced `"created_at"`/
+`"updated_at"`. This was silently dead code, harmless only because `DefaultTaxonPort` always
+hardcodes `Sort.by("id")` and never exposes `createdAt`/`updatedAt` as a user-selectable Taxon
+sort option.
+
 ## Required test coverage
 
 None new — this is a refactor with no behavior change. Existing e2e sort tests (spec 05:

@@ -51,9 +51,9 @@ public class TaxonRepository {
     ));
 
     private static final Map<String, String> SORT_ALIASES = Map.of(
-            "id",        "t.id",
-            "createdAt", "t.created_at",
-            "updatedAt", "t.updated_at"
+            Taxon.Fields.id,        "t.id",
+            Taxon.Fields.createdAt, "t.created_at",
+            Taxon.Fields.updatedAt, "t.updated_at"
     );
 
     private final TaxonCrudRepository crud;

@@ -35,3 +35,25 @@ private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFi
 | `after(mapping, instant/long)` | `>= :param` |
 | `before(mapping, instant/long)` | `<= :param` |
 | `inSet(mapping, enumSet)` | `IN (:param)` |
+
+#### Defining a sort-alias map
+
+`OrderByBuilder.build(sort, aliasToExpression)` looks up each `Sort.Order`'s property directly
+in `aliasToExpression` — no case conversion happens inside `OrderByBuilder` itself. Map keys must
+therefore be the exact camelCase DTO field name (i.e. what `Sort.Order.getProperty()` actually
+carries, populated via `SortFieldMeta.of(SomeDto.Fields.xyz, ...)` upstream), sourced from the
+DTO's own Lombok `@FieldNameConstants` — never a raw string literal, and never a hand-converted
+snake_case string:
+
+```java
+// correct — compiler catches renames, matches Sort.Order.getProperty() exactly
+Map.entry(AdvertisementInfoDto.Fields.createdAt, "a.created_at")
+
+// wrong — a typo or a DTO field rename silently drops this sort option, no compile error
+Map.entry("created_at", "a.created_at")
+```
+
+Use the DTO's `Fields.*` fully qualified (not statically imported) if the same file already
+statically imports another `Fields.*` set with overlapping member names (e.g. a repository that
+defines both `SqlFilterBuilder` bindings off a `*FilterDto` and an `OrderByBuilder` alias map off
+the corresponding `*InfoDto`/entity — both commonly share names like `title`/`createdAt`).
