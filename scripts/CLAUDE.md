@@ -101,10 +101,42 @@ The script starts SonarQube automatically if not running, copies source files in
 
 ---
 
+## Plain Unit Tests (no Docker)
+
+Fast JUnit 5 (+ Mockito where needed) unit tests with no Testcontainers, no real database, and
+usually no Spring context — e.g. `query-lib`'s `SqlConditionTest`/`SqlOperatorTest`,
+`marketplace-app`'s `AccessEvaluatorTest`/`AuthServiceTest`. Run via `scripts/unit-tests.sh`, never
+raw `mvn`:
+
+```bash
+bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
+bash scripts/unit-tests.sh marketplace-app        # one module only
+bash scripts/unit-tests.sh query-lib              # one module only
+bash scripts/unit-tests.sh AccessEvaluatorTest    # one test class by name
+scripts\unit-tests.bat                            # Windows
+```
+
+Delegates to `scripts/unit-tests/run.sh`. Streams full Maven output live via `tee`. After the run:
+- `scripts/unit-tests/reports/run.log` — full streamed output
+- `scripts/unit-tests/reports/surefire/<module>/` — one `.txt`/`.xml` report per test class, split
+  by module
+
+No Docker, no `--sandbox` flag — these tests never touch a container. If a test needs a real
+Postgres, it belongs in `integration-tests` (see below), not here.
+
+**How to run it (Monitor + tee pattern, same as everything else):** launch a `Monitor` watching
+`scripts/unit-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
+synchronously: `bash scripts/unit-tests.sh [scenario] 2>&1 | tee /tmp/unit-tests.log` with
+`timeout: 600000`.
+
+---
+
 ## Unit / Testcontainers Tests
 
 All Testcontainers-based tests and their fixtures live in the `integration-tests` module (see
-`integration-tests/CLAUDE.md` for why domain starters carry none of this themselves).
+`integration-tests/CLAUDE.md` for why domain starters carry none of this themselves). For
+Docker-free plain unit tests (`query-lib`, `marketplace-app`'s non-UI service layer), see "Plain
+Unit Tests (no Docker)" above instead.
 
 ### Via script (preferred — streaming, reports folder, scenario selection)
 
@@ -115,6 +147,7 @@ scripts\integration-tests.bat                               # Windows
 bash scripts/integration-tests.sh smoke                     # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
 bash scripts/integration-tests.sh --sandbox smoke            # + this sandbox's Docker workarounds
+bash scripts/integration-tests.sh --fast TaxonRepositoryTest   # skip -am reactor rebuild
 ```
 
 Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/playwright.sh` →
@@ -126,6 +159,14 @@ Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/pla
 `--sandbox` applies `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`
 — **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
 why). Omit it there; Testcontainers' defaults just work.
+
+`--fast` drops Maven's `-am` ("also-make") reactor rebuild, resolving `platform-commons`/
+`advertisement`/`user`/`taxon-spring-boot-starter` from already-installed `~/.m2` JARs instead of
+rebuilding all 7 (measured ~1:47 total vs. 3-7 min with `-am`, dominated by ~100s of "nothing to
+compile" Maven overhead across those modules in this sandbox). **Requires** a prior `./mvnw
+install -DskipTests`. **Never** use it right after editing a domain starter's own source — it
+would silently test against the stale `~/.m2` JAR. See `integration-tests/CLAUDE.md` "--fast" for
+the full rule.
 
 **How to run it (Monitor + tee pattern, same as deploy/Playwright):** launch a `Monitor` watching
 `integration-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run

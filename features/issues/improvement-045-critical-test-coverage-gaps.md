@@ -20,7 +20,7 @@ A targeted audit (not exhaustive) of authorization, concurrency, audit-diff, and
 found 8 concrete gaps, each verified directly against current source (not inferred from names).
 Ranked by what's actually at stake if the code silently breaks:
 
-### 1. `AccessEvaluator.canOperate()` — SECURITY
+### 1. `AccessEvaluator.canOperate()` — SECURITY — ✅ COVERED (2026-07-14)
 `/app/marketplace-app/src/main/java/org/ost/marketplace/services/security/AccessEvaluator.java:43-61`
 
 Single chokepoint for every edit/delete authorization decision app-wide (`admin OR moderator OR
@@ -31,7 +31,7 @@ argument order in an `isOwner()` call, or changes the `||` to `&&`, lets any log
 edit/delete another user's data — nothing else in the stack blocks it, and no Playwright test
 asserts the *negative* case (non-owner blocked) for every entity type.
 
-### 2. `UserRepository.updateProfile()` / `UserService.save()` two-entity `@Version` split — DATA-INTEGRITY
+### 2. `UserRepository.updateProfile()` / `UserService.save()` two-entity `@Version` split — DATA-INTEGRITY — ✅ COVERED (2026-07-14)
 `/app/user-spring-boot-starter/src/main/java/org/ost/user/repository/UserRepository.java:104-111`,
 `UserService.java:73-83`
 
@@ -45,7 +45,7 @@ two entities back together, or forwards the wrong `version` (already flagged in
 profile edits silently overwrite each other, or a stale role assignment clobbers a fresher one,
 with no error and no test catching it.
 
-### 3. `AuthService.login()` vs `UserService.register()` rate-limit asymmetry — SECURITY
+### 3. `AuthService.login()` vs `UserService.register()` rate-limit asymmetry — SECURITY — ✅ COVERED (2026-07-14)
 `/app/marketplace-app/src/main/java/org/ost/marketplace/services/auth/AuthService.java:40-65`,
 `/app/user-spring-boot-starter/src/main/java/org/ost/user/services/UserService.java:97-116`
 
@@ -137,21 +137,35 @@ architecture — no domain starter gets test code of its own):
    caller trace done first, confirmed both methods are dead code in production today (no behavior
    change for any live path), fixed the SQL, added `TaxonRepositoryTest` (4 tests) proven red
    before the fix and green after.
-2. **Item 1 (`AccessEvaluator`)** — plain unit test, no Spring context: construct `AccessEvaluator`
-   with mocked `UserPort`/`AuthContextService`, assert `canOperate()`/`canView()` for every
-   combination of {admin, moderator, owner, non-owner-non-privileged, logged-out} × {target
-   provided, target null}. This is the highest-value single test in this issue — one class, full
-   coverage of the app's only server-side authorization chokepoint.
-3. **Item 2 (User `@Version` split)** — Testcontainers repository test, `UserRepositoryTest` in
-   `integration-tests`, mirroring `AdvertisementRepositoryTest`'s two optimistic-locking test
-   methods (stale version throws, current version succeeds) but against `UserRepository
-   .updateProfile()` — plus one test asserting the generated `UPDATE` genuinely cannot alter
-   `email`/`passwordHash` (e.g. save via `updateProfile()` with a `UserProfileUpdate` populated
-   only with name/role changes, then assert email/password hash are byte-identical to before).
-4. **Item 3 (rate-limit asymmetry)** — plain unit test for the counting logic in isolation, not
-   full `AuthService`/`UserService`: extract or directly test the Caffeine-cache-based counter
-   behavior (threshold, key composition, invalidation-on-success for login, non-invalidation for
-   register) with a fake clock or Caffeine's own testing ticker, not real 15-minute waits.
+2. ✅ **Item 1 (`AccessEvaluator`) — done 2026-07-14.** `marketplace-app/src/test/java/org/ost
+   /marketplace/services/security/AccessEvaluatorTest.java` — plain JUnit 5 + Mockito, no Spring
+   context, no Testcontainers (lives in `marketplace-app`'s own `src/test/java`, not
+   `integration-tests` — `integration-tests` exists to test domain *starters* without them ever
+   depending on `marketplace-app`; the reverse dependency would be backwards). 17 tests: `isLoggedIn`,
+   `isPrivileged`/`canView`, `getCurrentUserId`, and the full {admin, moderator, owner,
+   non-owner-non-privileged, logged-out} matrix across both `canOperate()` overloads
+   (`UserIdMarker` and `Long`) plus their `canNotEdit`/`canNotDelete` inverses. `mvn -pl
+   marketplace-app -am test -Dtest=AccessEvaluatorTest`: 17/17, `BUILD SUCCESS`.
+3. ✅ **Item 2 (User `@Version` split) — done 2026-07-14.**
+   `integration-tests/src/test/java/org/ost/integrationtests/user/UserRepositoryTest.java` — 3
+   tests: stale-version `updateProfile()` throws `OptimisticLockingFailureException`,
+   current-version `updateProfile()` succeeds and updates name/role, and a dedicated test asserting
+   `updateProfile()` genuinely cannot alter `email`/`passwordHash` (reloads the row after an
+   unrelated name/role update, asserts both fields byte-identical to their original values). Reuses
+   `RepositoryTestSupport` (same shape as `AdvertisementRepositoryTest`/`TaxonRepositoryTest`) —
+   `UserService` needs `ComponentFactory<AuditPort>`, already provided there. `mvn -pl
+   integration-tests -am test -Dtest=UserRepositoryTest`: 3/3, `BUILD SUCCESS`.
+4. ✅ **Item 3 (rate-limit asymmetry) — done 2026-07-14.**
+   `marketplace-app/src/test/java/org/ost/marketplace/services/auth/AuthServiceTest.java` (5
+   tests: success, bad credentials, threshold blocks before attempting auth, success resets the
+   counter, different emails on the same IP tracked separately) and
+   `integration-tests/src/test/java/org/ost/integrationtests/user/UserServiceTest.java` (5 tests:
+   same shape for `register()`, plus the asymmetry itself — a successful registration does **not**
+   reset the IP's counter, unlike login). Both scoped to the threshold/key/reset logic itself, not
+   Caffeine's real time-based expiry (would need either a real 15-minute wait or refactoring
+   production code to accept an injectable `Ticker` — out of scope for a test-only change; see
+   each class's javadoc). `bash scripts/unit-tests.sh AuthServiceTest` /
+   `bash scripts/integration-tests.sh --sandbox UserServiceTest`: 5/5 each, `BUILD SUCCESS`.
 5. **Item 6 (`resolveTranslation()`)** — plain unit test, all three fallback tiers plus the
    all-missing (`null` result) case — package-private method, already accessible to a test in the
    same package if placed under `org.ost.taxon.services` inside `integration-tests`... actually

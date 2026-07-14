@@ -86,11 +86,19 @@ helper, keep spec/test-specific logic local otherwise.
   starters aren't installed — not a stub). A test that needs a *different* optional port (e.g.
   `TaxonPort`) declares its own extra `ComponentFactory` bean locally — this class only covers the
   ports every repository test has hit so far.
-- `org.ost.integrationtests.support.TestDataCleaner.cleanTables(jdbcClient, "table1", "table2",
-  ...)` — deletes all rows from each given table, in FK-safe order (dependent tables first). Every
+- `org.ost.integrationtests.support.TestDataCleaner.cleanAll(jdbcClient)` — deletes every row from
+  every table this module currently knows about, across every domain, in one FK-safe order. Every
   `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in
   the class, so without this, later tests see earlier tests' leftover rows — call it from
-  `@BeforeEach` before creating fixture data.
+  `@BeforeEach` before creating fixture data. **Always use `cleanAll`, not the lower-level
+  `cleanTables(jdbcClient, "table1", ...)` overload, in `*RepositoryTest` classes** — every
+  `*RepositoryTest` shares one physical singleton container for the whole `mvn test` run (ADR-002),
+  so a class that only cleans its own domain's tables can fail on a foreign-key violation left
+  behind by a *different* domain's test class that ran earlier (confirmed directly:
+  `AdvertisementRepositoryTest`'s last test method leaves an `advertisement` row referencing
+  `user_information`, which broke `UserRepositoryTest`'s narrower cleanup before `cleanAll`
+  existed). Add new tables to `cleanAll` (in FK-safe position) whenever a new domain's
+  `*RepositoryTest` is added.
 - Both live under `src/main/java` (not `src/test/java`) so `*RepositoryTest` classes in
   `src/test/java` can import them without a test-jar dependency — same placement rationale as
   `AbstractPostgresIntegrationTest`/`UserTestFixtures`.
@@ -109,7 +117,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @BeforeEach
     void cleanDatabaseAndCreateActor() {
-        TestDataCleaner.cleanTables(jdbcClient, "advertisement", "user_information");
+        TestDataCleaner.cleanAll(jdbcClient);
         User actor = UserTestFixtures.createTestUser(userRepository, "Test Actor", "actor-" + UUID.randomUUID() + "@example.com");
         auditorAware.setCurrentUserId(actor.getId());
     }
@@ -140,3 +148,15 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   workarounds for this specific claude-dev environment's Docker networking limitations (dynamic
   Testcontainers ports aren't reachable here, only statically-published ones). Unset on a normal
   developer machine — Testcontainers' defaults just work there. See `scripts/CLAUDE.md`.
+- **`run.sh --fast` skips Maven's `-am` ("also-make") reactor rebuild.** By default `run.sh` uses
+  `-am`, which rebuilds every module `integration-tests` depends on (`platform-commons`,
+  `advertisement`/`user`/`taxon-spring-boot-starter`) on every run — safe, but pays a real,
+  measured cost even when nothing changed (~100s of "nothing to compile" Maven plugin overhead
+  walking through 7 no-op modules in this sandbox). `--fast` drops `-am` and resolves those
+  modules from already-installed `~/.m2` JARs instead — measured ~1:47 total for a single test
+  class vs. 3-7 min with `-am`, when the daemon/Docker state is otherwise unchanged. **Requires** a
+  prior `./mvnw install -DskipTests` (or a non-`--fast` run) to have populated `~/.m2`. **Never**
+  use `--fast` right after editing a domain starter's own source — it would silently test against
+  the stale `~/.m2` JAR, not the edit; run `./mvnw install -pl <module> -am -DskipTests` (or one
+  run without `--fast`) first. Safe again afterward for iterating purely on `integration-tests`'
+  own test files (the common case: fixing/extending a test, not the starter it tests).

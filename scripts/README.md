@@ -127,6 +127,25 @@ scripts\playwright.bat e2e --ux         # Windows
 
 ---
 
+## unit-tests.sh / unit-tests.bat
+
+Run plain JUnit 5 unit tests — no Docker, no Testcontainers, no real database (`query-lib`,
+`marketplace-app`'s non-UI service layer). Delegates to `scripts/unit-tests/run.sh`.
+
+```bash
+bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
+bash scripts/unit-tests.sh marketplace-app       # one module only
+bash scripts/unit-tests.sh AccessEvaluatorTest   # one test class by name
+scripts\unit-tests.bat                           # Windows
+```
+
+Reports after each run: `scripts/unit-tests/reports/run.log` (full output) and
+`scripts/unit-tests/reports/surefire/<module>/` (pass/fail per test class, split by module). For
+Testcontainers-based repository tests against a real Postgres, use `integration-tests.sh` below
+instead.
+
+---
+
 ## integration-tests.sh / integration-tests.bat
 
 Run Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every
@@ -138,13 +157,17 @@ bash scripts/integration-tests.sh                          # all integration tes
 bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
 bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
+bash scripts/integration-tests.sh --fast TaxonRepositoryTest   # skip -am reactor rebuild
 scripts\integration-tests.bat --sandbox                    # Windows
 ```
 
 Reports after each run: `integration-tests/reports/run.log` (full output) and
 `integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
 the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
-developer machine.
+developer machine. `--fast` skips Maven's `-am` reactor rebuild for a much quicker run (~1:47 vs
+3-7 min) when iterating on `integration-tests`' own test files — requires a prior `mvn install`
+and must not be used right after editing a starter's own source; see `integration-tests/CLAUDE.md`
+"--fast" for the full rule.
 
 ---
 

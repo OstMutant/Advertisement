@@ -26,6 +26,13 @@ bash scripts/integration-tests.sh                             # all tests
 bash scripts/integration-tests.sh smoke                       # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest # one class by name
 bash scripts/integration-tests.sh --sandbox smoke             # + this sandbox's Docker workarounds
+bash scripts/integration-tests.sh --fast TaxonRepositoryTest  # skip -am reactor rebuild — fast
+                                                                # iteration on this module's own
+                                                                # test files (~1:47 vs 3-7 min);
+                                                                # requires a prior `mvn install`,
+                                                                # and must NOT be used right after
+                                                                # editing a starter's own source —
+                                                                # see CLAUDE.md "--fast" for why
 ```
 
 ### Windows

@@ -42,7 +42,7 @@ class TaxonRepositoryTest extends AbstractPostgresIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
-        TestDataCleaner.cleanTables(jdbcClient, "taxon_assignment", "taxon_translation", "taxon");
+        TestDataCleaner.cleanAll(jdbcClient);
     }
 
     private Taxon save(String code) {

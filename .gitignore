@@ -34,6 +34,9 @@
 # Integration test artifacts
 /integration-tests/reports/
 
+# Unit test artifacts
+/scripts/unit-tests/reports/
+
 # SonarQube
 /target/sonar
 /scripts/sonar/report

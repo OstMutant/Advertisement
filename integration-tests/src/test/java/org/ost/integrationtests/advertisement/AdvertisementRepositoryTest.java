@@ -64,7 +64,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
      *  user_information to respect the FK. */
     @BeforeEach
     void cleanDatabaseAndCreateActor() {
-        TestDataCleaner.cleanTables(jdbcClient, "advertisement", "user_information");
+        TestDataCleaner.cleanAll(jdbcClient);
 
         User actor = UserTestFixtures.createTestUser(userRepository, "Test Actor",
                 "actor-" + UUID.randomUUID() + "@example.com");

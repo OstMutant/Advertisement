@@ -175,3 +175,50 @@ once two or more consumers need it):
   `RepositoryTestSupport` only covers the ports every repository test has hit so far
   (`AuditPort`, `AttachmentPort`); it is not meant to grow into a bean bag for every possible port.
 - Full usage example: `integration-tests/CLAUDE.md` "Reusable test support (steps/blocks)".
+
+---
+
+## ADR-007: `run.sh --fast` — opt-in skip of Maven's `-am` reactor rebuild
+**Status:** Accepted
+
+**Context:** `run.sh` always ran `./mvnw -pl integration-tests -am test` — `-am` ("also-make")
+rebuilds every module `integration-tests` depends on (`platform-commons`, `advertisement`/`user`/
+`taxon-spring-boot-starter`) on every single invocation, even when none of them changed. Measured
+directly in this sandbox: ~100s of pure "nothing to compile" Maven plugin overhead walking through
+those 7 reactor modules, on top of the actual test run — meaning re-running a test after only
+editing a test file inside `integration-tests` itself (the common case while writing/fixing tests)
+paid the same cost as a full rebuild. Root cause: `mvn test` (unlike `mvn install`) never publishes
+built artifacts to `~/.m2/repository` — confirmed empirically (`find ~/.m2/repository/org/ost
+-name "*.jar"` returned nothing before this session's first `mvn install`) — so without `-am`,
+Maven has no JAR to resolve `integration-tests`' starter dependencies from at all.
+
+**Decision:** Keep `-am` as the **default** (safe, always correct, matches prior behavior — works
+on a fresh clone with an empty `~/.m2`). Add an explicit, opt-in `--fast` flag to `run.sh` that
+drops `-am`, resolving starter dependencies from whatever JARs are already installed in `~/.m2`
+instead. Measured: ~1:47 total for a single test class with `--fast` vs. 3-7 min with `-am`, once
+`~/.m2` is populated (`./mvnw install -DskipTests`, one-time).
+
+**Rejected alternative — making `--fast` (no `-am`) the default:** considered and rejected. A
+fresh clone or CI runner with an empty `~/.m2` would fail outright on the very first run with a
+confusing dependency-resolution error, not a clear "you need to run X first" message. Defaulting
+to the always-safe `-am` and requiring an explicit opt-in for the faster-but-conditional path is
+the same shape as `--sandbox` (opt-in for a machine-specific override) — never silently changes
+behavior for someone who didn't ask for it.
+
+**Consequences:**
+- `--fast` **requires** a prior `./mvnw install -DskipTests` (or any earlier non-`--fast` run) to
+  have populated `~/.m2` with the starter JARs.
+- `--fast` **must never** be used immediately after editing a domain starter's own source
+  (`advertisement-spring-boot-starter/src/main/java/...`, etc.) — it would silently test against
+  the stale JAR still in `~/.m2`, not the edit. Run `./mvnw install -pl <module> -am -DskipTests`
+  (or one run without `--fast`) first; `--fast` is safe again afterward for iterating purely on
+  `integration-tests`' own test files, which is the overwhelmingly common case once a starter's
+  behavior is already covered and you're just fixing/extending the test itself.
+- Same rationale applies to the separate, complementary idea of unifying all `*RepositoryTest`
+  classes under one shared `@SpringBootTest(classes = {...})` combination so Spring's own
+  ApplicationContext cache can be reused across classes within a single `mvn test` run — not
+  implemented as part of this ADR (evaluated as roughly break-even for today's 3 repository test
+  classes, with a real test-isolation cost — a broken bean/changelog in any one starter would then
+  fail every repository test together, not just its own domain's), but revisit once Batch 2/3
+  (`AuditLogRepositoryTest`, `AttachmentRepositoryTest`, `TaxonAssignmentRepositoryTest`) land and
+  the per-class bootstrap cost starts dominating total suite time more clearly.
