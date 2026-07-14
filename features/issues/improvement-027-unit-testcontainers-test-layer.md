@@ -218,6 +218,52 @@ Verified end-to-end in this sandbox with
 `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mvn -pl integration-tests test`
 — container starts, changelog applies, verification query passes.
 
+## Batch 1 resolution — Testcontainers exemplar (2026-07-14)
+
+`AdvertisementRepositoryTest` (7 test methods: find-by-id, title filter, empty filter, sort,
+pagination, both optimistic-locking paths on `softDelete`) passes end-to-end against a real
+Postgres via Testcontainers — `mvn -pl integration-tests -am test -Dtest=AdvertisementRepositoryTest`,
+`Tests run: 7, Failures: 0, Errors: 0`. Two things found while getting the Spring context to boot,
+beyond the sandbox-specific issues already covered in "Batch 0 resolution":
+
+1. **`@SpringBootTest(classes = {...explicit @AutoConfiguration classes...})` does not itself
+   trigger Spring Boot's autoconfiguration cascade.** Passing `AdvertisementAutoConfiguration` and
+   `UserAutoConfiguration` directly as "primary sources" does not import `JdbcClientAutoConfiguration`,
+   `DataSourceAutoConfiguration`, etc. — those only activate once `@EnableAutoConfiguration` is
+   itself among the loaded classes. Fixed by adding `@EnableAutoConfiguration` to the test's own
+   support config (see `RepositoryTestSupport` below).
+2. **`UserAutoConfiguration.securityContextRepository()` requires `jakarta.servlet.http
+   .HttpServletResponse` on the classpath** (`HttpSessionSecurityContextRepository`'s constructor
+   references it directly) — `NoClassDefFoundError` at bean-instantiation time, since
+   `integration-tests` has no web/servlet dependency. Fixed by adding `jakarta.servlet:jakarta
+   .servlet-api` as a `provided`-scope dependency in `integration-tests/pom.xml` (version managed by
+   the inherited `spring-boot-starter-parent` BOM) — this satisfies class loading without pulling in
+   an actual servlet container; the bean is never invoked in a repository test, only constructed.
+
+**Reusable "steps" extracted, by analogy with Playwright's `_flows/*.flow.js`** (explicitly
+requested so Batch 3's `AuditLogRepositoryTest`/`TaxonAssignmentRepositoryTest`/
+`AttachmentRepositoryTest` don't redo this from scratch): `org.ost.integrationtests.support
+.RepositoryTestSupport` (the `@TestConfiguration` bean bag — `@EnableAutoConfiguration` +
+`@EnableJdbcAuditing`, `MutableAuditorAware`, empty `ComponentFactory<AuditPort>`/
+`ComponentFactory<AttachmentPort>` beans) and `org.ost.integrationtests.support.TestDataCleaner
+.cleanTables(jdbcClient, "table1", "table2", ...)` (FK-ordered row cleanup between test methods
+sharing one cached `@SpringBootTest` context). Full usage example and rationale in
+`integration-tests/CLAUDE.md` "Reusable test support (steps/blocks)".
+
+**Plain-unit-test exemplar done too (2026-07-14).** `AdvertisementSnapshotDtoTest` (9 test methods:
+no-previous diff, identical snapshots, single-field changes for each of the three fields,
+multi-field diff, category-id sort-order normalization in the record's compact constructor) — no
+Spring context, no DB, `org.ost.integrationtests.advertisement.AdvertisementSnapshotDtoTest`.
+Caught one real assumption bug while writing it: `diff(null)` does **not** return an empty list —
+it returns a `FieldChange` per set field with `from=null` (the "everything just got created" shape,
+used for the initial creation diff), not "no previous means no changes". The first test draft
+assumed the latter and failed against the real implementation; fixed the test's expectation, not
+the code.
+
+Batch 1 is now fully complete. Full `integration-tests` module run (`bash scripts/integration-tests.sh
+--sandbox`, no scenario filter): **17/17 passing** across `AdvertisementRepositoryTest` (7),
+`AdvertisementSnapshotDtoTest` (9), `PostgresContainerSmokeTest` (1), `BUILD SUCCESS`.
+
 ## Suggested fix
 
 Exactly the two-layer split `process-improvements.md` already specified, now with concrete scope:
@@ -290,6 +336,10 @@ scaffolding classes) owns:
    and one plain unit test (`AdvertisementSnapshotDto.diff()`), all inside `integration-tests` —
    to prove the pattern end-to-end and measure actual local run time before committing to the
    "~30s" estimate.
+   - ✅ `AdvertisementRepository` Testcontainers exemplar — done 2026-07-14, see "Batch 1
+     resolution" above (7/7 tests passing, reusable `support` helpers extracted).
+   - ✅ `AdvertisementSnapshotDto.diff()` plain unit test — done 2026-07-14 (9/9 tests passing).
+   - **Batch 1 complete.**
 3. **Batch 2 — remaining plain unit tests:** the other three `diff()` implementations,
    `resolveTranslation()`, `sanitizeHtml()` — all as test classes inside `integration-tests`,
    adding `taxon-spring-boot-starter` as a dependency of `integration-tests` when

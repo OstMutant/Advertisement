@@ -2,7 +2,7 @@
 
 ## Overview
 
-Maven dependency graph for all 8 modules in the marketplace monolith. Each node represents a module; arrows show `<dependency>` directives in pom.xml.
+Maven dependency graph for all 9 modules in the marketplace monolith. Each node represents a module; arrows show `<dependency>` directives in pom.xml.
 
 ## Dependency Graph
 
@@ -16,6 +16,7 @@ graph LR
     ADV["advertisement-spring-boot-starter"]
     TAX["taxon-spring-boot-starter"]
     APP["marketplace-app"]
+    IT["integration-tests<br/>(test-only, never shipped)"]
 
     PC --> QL
     AUD --> PC
@@ -37,6 +38,9 @@ graph LR
     APP --> ADV
     APP --> TAX
     APP --> QL
+    IT --> PC
+    IT --> ADV
+    IT --> USR
 ```
 
 ## Dependency Table
@@ -51,6 +55,7 @@ graph LR
 | **advertisement-spring-boot-starter** | platform-commons, query-lib, audit (optional), attachment (optional) | compile; optional for audit/attachment |
 | **taxon-spring-boot-starter** | platform-commons, query-lib | compile |
 | **marketplace-app** | All starters + query-lib; taxon as runtime scope | compile (all starters except taxon), runtime (taxon) |
+| **integration-tests** | platform-commons, advertisement-spring-boot-starter, user-spring-boot-starter (grows as Batches 2-3 add starters); Testcontainers/Spring Boot test deps | compile — but the module itself is never shipped or deployed (see `integration-tests/CLAUDE.md`), so this does not count as a starter-to-starter dependency under the "no sibling imports" rule |
 
 ## Key Observations
 
@@ -65,6 +70,8 @@ graph LR
 5. **No Circular Dependencies:** All edges are acyclic — the dependency graph forms a DAG.
 
 6. **Marketplace App Dependency:** The main application depends on all starters, composing the full feature set.
+
+7. **Test-Only Reactor Member:** `integration-tests` is the sole module allowed to depend on more than one domain starter at once (`advertisement-spring-boot-starter` + `user-spring-boot-starter` today) — a real, `compile`-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see `integration-tests/CLAUDE.md` for the full rationale and why this doesn't violate "starters must not depend on each other."
 
 ## Module Versions
 

@@ -63,6 +63,58 @@ regressions that a test against the real `user-spring-boot-starter` schema would
   plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
   `platform-commons` snapshot DTOs) — organized into sub-packages per domain
   (`org.ost.integrationtests.advertisement`, etc.) to keep the module navigable as it grows.
+- `support/RepositoryTestSupport` and `support/TestDataCleaner` — reusable "steps", by analogy
+  with Playwright's `_flows/*.flow.js` (see below).
+
+---
+
+## Reusable test support (steps/blocks) (2026-07-14)
+
+Extracted after `AdvertisementRepositoryTest` (Batch 1) proved the pattern — the same boilerplate
+was about to be re-typed verbatim in every future `*RepositoryTest` (Batch 3:
+`AuditLogRepositoryTest`, `TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest`). Mirrors the
+Playwright convention: extract to a shared file only once two or more consumers need the same
+helper, keep spec/test-specific logic local otherwise.
+
+- `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
+  `@EnableAutoConfiguration` + `@EnableJdbcAuditing` (needed because `@SpringBootTest(classes =
+  {...@AutoConfiguration classes...})` does not itself trigger Spring Boot's autoconfiguration
+  cascade — `JdbcClient`, `DataSource`, etc. only appear once `@EnableAutoConfiguration` is present
+  among the loaded classes), the `MutableAuditorAware` bean, and empty `ComponentFactory<AuditPort>`
+  / `ComponentFactory<AttachmentPort>` beans (representing "audit/attachment starter absent from
+  the test classpath", the same shape `AdvertisementService` sees in production when those optional
+  starters aren't installed — not a stub). A test that needs a *different* optional port (e.g.
+  `TaxonPort`) declares its own extra `ComponentFactory` bean locally — this class only covers the
+  ports every repository test has hit so far.
+- `org.ost.integrationtests.support.TestDataCleaner.cleanTables(jdbcClient, "table1", "table2",
+  ...)` — deletes all rows from each given table, in FK-safe order (dependent tables first). Every
+  `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in
+  the class, so without this, later tests see earlier tests' leftover rows — call it from
+  `@BeforeEach` before creating fixture data.
+- Both live under `src/main/java` (not `src/test/java`) so `*RepositoryTest` classes in
+  `src/test/java` can import them without a test-jar dependency — same placement rationale as
+  `AbstractPostgresIntegrationTest`/`UserTestFixtures`.
+
+Usage in `AdvertisementRepositoryTest`:
+```java
+@SpringBootTest(classes = {
+        AdvertisementAutoConfiguration.class,
+        UserAutoConfiguration.class,
+        RepositoryTestSupport.class
+})
+class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
+
+    @Autowired private RepositoryTestSupport.MutableAuditorAware auditorAware;
+    @Autowired private JdbcClient jdbcClient;
+
+    @BeforeEach
+    void cleanDatabaseAndCreateActor() {
+        TestDataCleaner.cleanTables(jdbcClient, "advertisement", "user_information");
+        User actor = UserTestFixtures.createTestUser(userRepository, "Test Actor", "actor-" + UUID.randomUUID() + "@example.com");
+        auditorAware.setCurrentUserId(actor.getId());
+    }
+}
+```
 
 ---
 

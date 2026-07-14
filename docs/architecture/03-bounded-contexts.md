@@ -298,6 +298,12 @@ Each domain can be:
 
 **Exception:** marketplace-app depends on all starters and orchestrates UI/views.
 
+**Test-only exception:** `integration-tests` (not a business domain — see `integration-tests/CLAUDE.md`)
+is the one module allowed a real `compile`-scope dependency on more than one starter at a time
+(`advertisement-spring-boot-starter` + `user-spring-boot-starter` today), because it verifies real
+SQL against a real Postgres (via Testcontainers) rather than mocking the Port interface. Safe only
+because the module itself is never shipped, deployed, or depended upon by anything else.
+
 ---
 
 ## Risks & Future Considerations

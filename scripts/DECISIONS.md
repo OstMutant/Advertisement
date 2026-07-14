@@ -18,6 +18,7 @@ and `playwright/`.
 | Run all Playwright tests | `bash scripts/playwright.sh` |
 | Run one scenario | `bash scripts/playwright.sh <scenario>` |
 | SonarQube analysis | `bash scripts/sonar.sh` |
+| Run Testcontainers repository tests + plain unit tests | `bash scripts/integration-tests.sh` |
 
 **Consequences:** If a new recurring operation is needed, add a script — do not document raw
 commands as the canonical way to run it.

@@ -73,6 +73,16 @@
             <artifactId>postgresql</artifactId>
         </dependency>
 
+        <!-- UserAutoConfiguration declares a securityContextRepository() bean
+             (HttpSessionSecurityContextRepository) whose constructor references
+             jakarta.servlet.http.HttpServletResponse. This module has no servlet container and
+             never needs one — the API jar alone satisfies class loading. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

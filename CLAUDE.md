@@ -134,6 +134,7 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/query-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
+- `/app/integration-tests/DECISIONS.md`
 
 Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and `taxon-spring-boot-starter` have no `DECISIONS.md` — their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and `platform-commons/DECISIONS.md` (port interfaces).
 

@@ -7,7 +7,7 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 ### 01-module-dependencies.md
 **Maven dependency graph.** Shows which modules depend on which others. Key finding: clean DAG topology with no cycles. platform-commons is the foundation; all starters depend on it; marketplace-app depends on all starters.
 
-**Key diagram:** `graph LR` showing 8 modules and their dependencies.
+**Key diagram:** `graph LR` showing 9 modules and their dependencies (8 shipped + `integration-tests`, test-only, never shipped).
 
 ### 02-spi-map.md
 **Extension points and implementations.** Maps all Ports and Hooks to their implementations. Explains the Port/Hook pattern (marketplace → Port, Hook ← starter). Lists all 7 SPI interfaces in platform-commons and their implementations in starters/marketplace-app.
@@ -77,7 +77,7 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 
 | Metric | Value |
 |--------|-------|
-| Total Modules | 8 (query-lib, platform-commons, 5 starters, marketplace-app) |
+| Total Modules | 9 (query-lib, platform-commons, 5 starters, marketplace-app, integration-tests test-only) |
 | Total Java Files | 264 |
 | Total Tables | 5 (user_information, advertisement, attachment, attachment_snapshot, audit_log) |
 | SPI Interfaces | 11 (AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook, AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook, UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, AdvertisementPort, TaxonPort, TaxonAuditHook, CurrentActorHook) |
@@ -124,7 +124,8 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
   - `/app/marketplace-app/src/main/java`
 - Analyzed schemas:
   - All Liquibase migrations in `/app/*/src/main/resources/db/*/changes/`
-- pom.xml files for all 8 modules
+- pom.xml files for all 9 modules (`integration-tests`'s own `smoke_test` table is test-only
+  scaffolding, not part of the domain schema — deliberately excluded from 04-database-erd.md)
 
 ---
 
