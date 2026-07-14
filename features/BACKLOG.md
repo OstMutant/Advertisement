@@ -113,13 +113,54 @@ dedicated conflict notification, no auto-reload (see `marketplace-app/DECISIONS.
 two-session concurrent edit, stale save shows conflict instead of silently overwriting. Full e2e
 suite green.
 
+✅ Done (2026-07-14): improvement-024 — `User` profile edits moved onto native
+`CrudRepository.save()`, matching Advertisement/Taxon. Instead of mirroring
+`AdvertisementService.buildEntity()`'s "rebuild via Builder, forward every unedited field from
+`before`" pattern, introduced a second, narrower entity `UserProfileUpdate`
+(`id`/`name`/`role`/`updatedAt`/`version`, no `email`/`passwordHash`) mapped to the same
+`user_information` table via its own `UserProfileCrudRepository` — the sensitive-field-overwrite
+risk this refactor would otherwise carry is closed at the type level (those fields aren't mapped
+properties, so the generated `UPDATE` can't reference them), not by builder discipline. See
+`marketplace-app/DECISIONS.md` ADR-029 update. Moved to `completed/issues/`.
+
+✅ Done (2026-07-14): improvement-041 — `AdvertisementRepository`'s raw SQL
+`LEFT JOIN user_information` removed (both `findAdvertisementById()` and `findByFilter()`),
+replaced with `UserPort.findByIds()` bulk lookup + `AdvertisementService.enrichWithActorInfo()`
+(mirrors `enrichWithCategories()`). Three dead `ORDER BY` sort-alias entries
+(`created_by_user_id`/`_name`/`_email`) removed alongside the join — confirmed dead,
+`AdvertisementSortMeta` never exposed sort-by-author. Actor-reference columns renamed to match
+Taxon's convention: `created_by_user_id`→`created_by`, `last_modified_by_user_id`→`updated_by`,
+`deleted_by_user_id`→`deleted_by` (`01-advertisement-schema.xml` edited directly, `deploy.sh
+--reset` required). See `marketplace-app/DECISIONS.md` ADR-034 (also records the sort-by-author
+escape hatch for the future: denormalize via a hook, like `media_url`, never rejoin or sort
+in-memory post-pagination). Moved to `completed/issues/`.
+
+✅ Done (2026-07-14): improvement-042 — `advertisement.media_url`/`media_content_type`/
+`media_count` denormalized columns removed. New `AttachmentPort.getMediaSummaries()` bulk lookup
+(`AttachmentRepository.loadMediaStats(EntityType, Set<Long>)`, Postgres `ROW_NUMBER() OVER
+(PARTITION BY entity_id ...)`) + `AdvertisementService.enrichWithMediaSummary()` (mirrors
+`enrichWithCategories()`/`enrichWithActorInfo()`). The write-triggered sync path was deleted
+entirely, not just emptied: `MediaChangeHookImpl`, `AdvertisementService.onMediaChanged()`, and
+`AdvertisementPort.onMediaChanged()` (confirmed unused by marketplace-app) are all gone —
+`AttachmentMediaChangeHook` still fires from `AttachmentService` but now has zero listeners, a
+valid gracefully-degraded state. Three dead media sort-aliases removed alongside the columns. See
+`marketplace-app/DECISIONS.md` ADR-035. Moved to `completed/issues/`.
+
+✅ Done (2026-07-14): improvement-043 — `OrderByBuilder.build()` no longer snake-cases the
+incoming `Sort.Order` property before lookup; every repository's alias map is now keyed by the
+relevant DTO/entity's `Fields.*` constants (`AdvertisementInfoDto`, `UserDto`, `Taxon`,
+`AuditTimelineItemDto` — a fourth repository, `AuditLogRepository`, was found during
+implementation and missed by the original scope check). Found and fixed a real, pre-existing
+instance of the exact bug this issue
+warns about while re-keying: `TaxonRepository.SORT_ALIASES` had `"createdAt"`/`"updatedAt"` keys
+in camelCase (not snake_case like Advertisement/User), which never matched the snake-cased lookup
+— silently dead, harmless only because `DefaultTaxonPort` always hardcodes `Sort.by("id")` and
+never lets a caller choose. No SQL/behavior change elsewhere. Moved to `completed/issues/`.
+
 **Still open, no longer blocked:**
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
-| [improvement-041](issues/improvement-041-advertisement-user-sql-join-and-column-naming.md) | Remove `AdvertisementRepository`'s raw SQL `JOIN user_information` (hardcoded cross-starter table/column names) via `UserPort.findByIds()` bulk lookup + rename `*_user_id` columns to match Taxon's `created_by`/`updated_by`/`deleted_by` convention | medium-high — worse than a Java-level violation, ArchUnit (improvement-030) can't catch raw SQL coupling; mirrors improvement-007's already-completed pattern |
-| [improvement-042](issues/improvement-042-advertisement-media-denormalized-columns.md) | Remove `advertisement.media_url`/`media_content_type`/`media_count` denormalized columns via a new `AttachmentPort.getMediaSummaries()` bulk lookup, enriched at read time in `AdvertisementService` (same pattern as 041) | medium — real schema-level coupling to attachment's domain vocabulary, confirmed after an earlier wrong dismissal in this same review; JSONB genericization was considered and rejected (repackages the same coupling, no functional gain — media sort columns are confirmed dead/unused) |
 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Convert ~17 stateless leaf UI widgets (buttons/fields/dialogs/layout) from `@SpringComponent` prototype beans to plain Java classes | brings code in line with existing `marketplace-app/CLAUDE.md` "no Configurable for 1-2 setters" rule; execute in 4 phased batches with a full e2e run after each, not one PR |
 | [improvement-026](issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md) | Replace ~10 hand-built `new Button(...)` spots (HeaderBar, PaginationBar, attachment lightboxes/gallery, audit restore button, UserPickerField) with existing `Ui*Button` wrappers | medium priority — HeaderBar's 4 auth buttons and 5 other spots are visibly unstyled (real UX bug, not just duplication); HeaderBar batch touches CSS classes nearly every e2e test selects on, run full e2e immediately after that batch |
 | [improvement-027](issues/improvement-027-unit-testcontainers-test-layer.md) | Add Testcontainers repository tests + plain unit tests for pure logic (snapshot `diff()`, sanitizer, `resolveTranslation()`) — only 2 JUnit files exist project-wide, both in query-lib | medium-high — already a recorded hard gate for F-08 (payments) in the private roadmap; do now so Phase 1-3 work and the new F-06 review-starter benefit, not just payments |

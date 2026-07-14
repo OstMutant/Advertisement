@@ -44,6 +44,8 @@ public interface UserPort {
 
     Map<Long, String> findActorNames(@NonNull Collection<Long> ids);
 
+    Map<Long, UserDto> findByIds(@NonNull Set<Long> ids);
+
     List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item);
 
     UserSettingsDto loadSettings(@NonNull Long userId);

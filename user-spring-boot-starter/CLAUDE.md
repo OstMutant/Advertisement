@@ -8,7 +8,7 @@ Java package root: `org.ost.user`
 
 ## What it owns
 
-- `User` entity + `UserRepository` — CRUD and bespoke queries
+- `User` entity + `UserProfileUpdate` entity + `UserRepository` — CRUD and bespoke queries
 - `UserService` — user creation, role management, profile updates
 - `UserSettingsService` — per-user settings (page sizes, locale)
 - `UserPrincipal` — Spring Security `UserDetails` implementation
@@ -44,9 +44,15 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `request.getRemoteAddr()` and passes it down. Rate-limited via an in-memory Caffeine cache
   (5 failures / 15 min), counting only `DuplicateKeyException` failures — never successful
   registrations (see `marketplace-app/DECISIONS.md` ADR-026).
-- `User.version` (`@Version`) is decorative for `UserRepository.save()` (registration only) —
-  the real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
-  `CrudRepository` via hand-written SQL, so `updateProfile()` implements the optimistic-lock
-  check manually (`SET version = version + 1 ... WHERE id = :id AND version = :version`, throws
-  `OptimisticLockingFailureException` when zero rows match). See `marketplace-app/DECISIONS.md`
-  ADR-029.
+- `User.version` (`@Version`) is used by `UserRepository.save()` (registration, via
+  `UserCrudRepository`). The real profile-edit path (`UserService.save()` →
+  `UserRepository.updateProfile()`) goes through a second, narrower entity —
+  `UserProfileUpdate` (`id`, `name`, `role`, `updatedAt`, `version` — no `email`/`passwordHash`)
+  — mapped to the same `user_information` table via its own `UserProfileCrudRepository`. Spring
+  Data JDBC's native `@Version` handling applies (throws `OptimisticLockingFailureException` on a
+  version mismatch, same as `Advertisement`/`Taxon`), and because `passwordHash`/`email` are not
+  mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot touch them — this
+  eliminates the class of bug where a profile edit accidentally forwards the wrong (or missing)
+  value for a sensitive field, without relying on builder discipline. `UserService.applyUserRestore()`
+  (name/role restore from a snapshot) reuses the same `updateProfile()` method. See
+  `marketplace-app/DECISIONS.md` ADR-029.

@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-13 · 48 passed · 0 failed · 0 skipped · 48 total
+Last updated: 2026-07-14 · 48 passed · 0 failed · 0 skipped · 48 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -34,7 +34,7 @@ Last updated: 2026-07-13 · 48 passed · 0 failed · 0 skipped · 48 total
 - [x] Promotion flow › adminEn promotes adminUk to ADMIN — activity shows updated role, role badge in view and grid
 - [x] Promotion flow › userUk — first login in English, switches to Ukrainian locale
 - [x] Promotion flow › moderatorUk — first login in English, switches to Ukrainian locale
-- [x] Promotion flow › adminEn edits userEn name — activity diff, grid updated, restore reverts name
+- [x] Promotion flow › adminEn edits userEn name — activity diff, grid updated, restore reverts name, userEn relogin after edit
 - [x] Promotion flow › adminEn creates categories Electronics and Vehicles — both in list, create discard clears form
 - [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity
 - [x] Max-boundary users and categories › maxEn signs up — 100-char name accepted, admin verifies user created

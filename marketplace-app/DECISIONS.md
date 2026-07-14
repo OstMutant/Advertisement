@@ -153,22 +153,30 @@ confirmed broken at runtime via smoke tests.
 snapshot — inverting the UX expectation.
 
 **Decision:** Clicking a restore button restores the entity to the state captured in the clicked
-entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` is reserved for diff
-display only.
+entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` was reserved for diff
+display only, and has since been removed entirely (see `audit-spring-boot-starter/DECISIONS.md`
+ADR-008's amendment) — diff display now works directly from snapshot pairs.
 
-**Consequences:** All restore flows (`UserOverlay.handleRestoreUser`,
-`SettingsOverlay.loadAndShowSettingsRestore`, `AdvertisementService.restoreToSnapshot`) must
-call `AuditPort.getSnapshotContent(snapshotId, entityType)`.
+**Consequences (corrected 2026-07-13 — method names had drifted):** all restore flows call
+`AuditPort.getSnapshotContent(snapshotId, entityType)`. Current entry points:
+`AdvertisementFormOverlayModeHandler.handleRestoreFromActivity`,
+`UserFormOverlayModeHandler`'s equivalent, `SettingsFormModeHandler.handleRestoreFromActivity`,
+and `TaxonFormOverlayModeHandler`'s own restore flow (added when taxon-spring-boot-starter
+landed, not present when this ADR was originally written). The originally-cited method names
+(`UserOverlay.handleRestoreUser`, `AdvertisementService.restoreToSnapshot`) do not exist — only
+`UserService.restoreToSnapshot` (user-spring-boot-starter) matches that exact name today.
 
 ---
 
-## ADR-011: AuditSnapshotBinder used directly — no AuditUiPort
+## ADR-011: OverlayFormBinder used directly — no AuditUiPort
 **Status:** Accepted
 
 **Context:** `AuditUiPort` was removed 2026-06-15 as unnecessary indirection — all Vaadin UI
 lives in marketplace-app, so there is no second consumer that would require the SPI.
 
-**Decision:** `AuditSnapshotBinder` used directly in marketplace-app UI components.
+**Decision:** `OverlayFormBinder` (corrected 2026-07-13 — named `AuditSnapshotBinder` originally,
+which no longer exists anywhere in the codebase; `OverlayFormBinder` is the class performing this
+role today) used directly in marketplace-app UI components.
 
 **Consequences:** Do not re-introduce `AuditUiPort`.
 
@@ -199,12 +207,19 @@ Prerequisite for any component moved to commons: remove all marketplace-specific
 tab-switching and lazy-loading boilerplate (~15 lines each).
 
 **Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler`. The base
-class provides `final activate(OverlayLayout)` that assembles the tab layout; subclasses implement
-five abstract methods: `tabsCssClass()`, `buildPrimaryTab()`, `buildPrimaryContent()`,
-`buildSecondaryTab()`, `buildHeaderActions()`.
+class provides `final activate(OverlayLayout)` that assembles the tab layout. Only two methods
+are truly `abstract` (corrected 2026-07-13 — not "five abstract methods" as originally written):
+`buildPrimaryContent()` and `buildHeaderActions()`. `tabsCssClass()` (default `""`),
+`buildSecondaryTab()`, and `buildTertiaryTab()` (both default `null`) have default bodies and are
+overridden only when needed.
 
 `SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loader)` represents the
 optional second tab. Returning `null` from `buildSecondaryTab()` produces a single-tab layout.
+
+**Addition (2026-07-13, previously undocumented):** a `TertiaryTabDef` record of the same shape
+plus a `buildTertiaryTab()` hook were added since this ADR was written, supporting a third tab —
+used by `TaxonFormOverlayModeHandler`/`ReferenceDataView`'s sub-tabs (taxon-spring-boot-starter
+landed after this ADR). Same override-for-null-default pattern as `SecondaryTabDef`.
 
 **Consequences:** Rejected: `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean
 — passing live UI components as `Parameters` violates the convention that Parameters carry
@@ -268,14 +283,17 @@ literals (field names are stable). `UserMapper` maps `UserDto → UserEditDto`.
 
 ---
 
-## ADR-017: Known decoupling debt — open boundary violations
+## ADR-017: Decoupling debt at the time of writing — all items since resolved
+**Status:** Resolved (was undated/open at write time; every item below closed by 2026-06-26 —
+verified 2026-07-13: `org.ost.attachment.*`/`org.ost.user.*` internal imports in marketplace-app
+both return zero grep hits. This ADR previously had no `Status:` line at all despite every listed
+item already being marked resolved inline — the one structural inconsistency found across this
+file's 33 ADRs.)
 
 **Architecture rule (2026-06-15):** marketplace-app UI is a monolith — decoupling is required
 only at the service ↔ UI boundary (starters vs marketplace-app). Within marketplace-app, UI
 components may reference each other freely. UI ports/hooks (`AuditUiPort`, `AttachmentGalleryPort`,
 `AuditActivityRowHook`) were removed as unnecessary indirection.
-
-### Open violations
 
 ### ✅ Resolved — attachment UI boundary violations (2026-06-26)
 
@@ -384,8 +402,9 @@ Concrete overlays implement abstract hooks: `saveConfig()`, `proceed()`, `afterD
 **Consequences:**
 - `switchTo()` must reset `currentFormHandler = null` before the switch expression — without this,
   after `VIEW → EDIT → VIEW` the handler remains non-null and `hasUnsavedChanges()` returns `true`.
-- `SaveConfig` record `(I18nKey success, I18nKey validFailed, I18nKey saveError)` declares error
-  key mapping per overlay type.
+- `SaveConfig` record `(I18nKey success, I18nKey validFailed, I18nKey saveError, I18nKey conflict)`
+  declares error key mapping per overlay type — `conflict` added by ADR-029 (optimistic-locking
+  UI) after this ADR was written; noted here 2026-07-13 since this ADR's body was never amended.
 
 ---
 
@@ -451,14 +470,19 @@ have no effect.
 **Decision:** A historical snapshot is considered "current state" when ALL of the following match:
 - `title` — advertisement title
 - `description` — advertisement body (rich HTML)
-- `categories` — sorted, comma-separated names of assigned categories
+- `categoryIds` — sorted list of assigned category ids
 - `media` — attachment filenames at that version (via `AuditActivityEnrichHook.matchesCurrent`)
 
 If any of these differ, the "Restore" button is shown. If all are identical, the badge is shown.
 
-`AdvertisementSnapshotDto` stores `categories` as a sorted, comma-joined string of category names
-captured at save time (locale: English). `Objects.equals` on the full record covers title +
-description + categories; `mediaMatchCurrent` via `AuditActivityEnrichHook` covers media.
+`AdvertisementSnapshotDto` stores `categoryIds` as a `List<Long>` of numeric category ids, sorted
+at construction time (corrected 2026-07-13 — originally written as "a sorted, comma-joined string
+of category names"; verified directly in `AdvertisementSnapshotDto.java`: the field is
+`List<Long> categoryIds`, compared and diffed via `Objects.equals`/`FieldChange`, never a
+name-based string — the diff display formats ids to a comma-separated string only for the UI
+diff view, the stored/compared value itself is numeric ids). `Objects.equals` on the full record
+covers title + description + categoryIds; `mediaMatchCurrent` via `AuditActivityEnrichHook`
+covers media.
 
 Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
 `AuditableSnapshot.isVisible()` mechanism were removed entirely — after
@@ -555,8 +579,8 @@ boundary.
 
 **Consequences:**
 - `improvement-006` (Quill UI character counter + `advertisement.description` DB column limit)
-  remains open but is now unblocked — the counter and the validators agree on how "length" is
-  measured.
+  was unblocked by this ADR and has since been **completed** (closed 2026-07-13 via ADR-031 —
+  updated here since this ADR still said "remains open" after that closure).
 - Any future field with the same "rich HTML but bounded visible text" shape should follow the
   same three-layer pattern rather than reaching for `@Size` directly on the HTML string.
 
@@ -601,8 +625,10 @@ catch-all, as a discipline/process rule rather than a global switch.
 **Status:** Accepted
 
 **Context:** `improvement-020` also added Caffeine-based rate limiting to `AuthService.login()`
-and `UserService.register()` (`org.ost.user.services`). The first version incremented the
-attempt counter on *every* call regardless of outcome. This broke the Playwright e2e suite:
+(`org.ost.marketplace.services.auth` — corrected 2026-07-13; `AuthService` lives in
+marketplace-app, not `org.ost.user.services`) and `UserService.register()` (`org.ost.user.services`,
+correct as originally written). The first version incremented the attempt counter on *every* call
+regardless of outcome. This broke the Playwright e2e suite:
 all signups run from the same client IP (the test-runner container), and the 6th successful
 signup within the 15-minute window was rejected as "too many attempts" — the generic
 `catch (Exception ex)` in `SignUpDialog` then misreported it as "email already registered",
@@ -740,10 +766,24 @@ forward the version from the incoming DTO / port parameter (the value the caller
 **not** a version re-fetched inside the same save method (which would just match itself and
 detect nothing).
 
-`User`'s real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
-`CrudRepository` entirely via hand-written SQL, so `@Version` alone does nothing there.
-`updateProfile()` now does the check by hand: `SET ..., version = version + 1 WHERE id = :id AND
+`User`'s real edit path (`UserService.save()` → `UserRepository.updateProfile()`) originally
+bypassed `CrudRepository` entirely via hand-written SQL, so `@Version` alone did nothing there.
+`updateProfile()` did the check by hand: `SET ..., version = version + 1 WHERE id = :id AND
 version = :version`, throwing `OptimisticLockingFailureException` manually when zero rows match.
+
+**Update (2026-07-14) — `User` moved onto native `CrudRepository.save()` too:** a second, narrower
+entity, `UserProfileUpdate` (`id`, `name`, `role`, `updatedAt`, `version` — deliberately excludes
+`email`/`passwordHash`), mapped to the same `user_information` table via its own
+`UserProfileCrudRepository`, replaces the hand-written SQL in `UserRepository.updateProfile()`.
+This was chosen over mirroring `AdvertisementService.buildEntity()`/`TaxonService.update()`
+(rebuild the full entity via `Builder`, forwarding every unedited field from `before`) precisely
+because that pattern's known failure mode — forgetting to forward a field — is far more dangerous
+for `User` than for `Advertisement`/`Taxon`: dropping `passwordHash` or `email` silently breaks
+login or notifications, not just a lock-check regression. Since `passwordHash`/`email` are not
+mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot reference them regardless
+of builder mistakes — the risk is closed at the type level, not by discipline. See
+`user-spring-boot-starter/CLAUDE.md` and
+[improvement-024](../features/completed/issues/improvement-024-user-save-via-crudrepository.md).
 
 `softDelete` on `Advertisement` and `Taxon` also got the same manual guard (an admin/owner
 deleting a listing while someone else is mid-edit should not silently win); `updateMedia`,
@@ -976,6 +1016,130 @@ optional singleton services/ports"):
 - Full e2e suite verified 48/48 green after the corrected fix (was 8/48 with the
   `@ConditionalOnBean` approach).
 - → [improvement-011-unguarded-port-injection-in-ui-components](../features/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+
+---
+
+## ADR-034: No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention
+
+**Status:** Accepted
+
+**Context:** `AdvertisementRepository.findAdvertisementById()`/`findByFilter()` did
+`FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id`, hardcoding
+`user-spring-boot-starter`'s table and column names (`user_information`, `u.name`, `u.email`)
+inside `advertisement-spring-boot-starter`. This is a stronger violation of "starters must not
+depend on each other" (`.claude/rules.md`) than a Java import: there is no class-level
+dependency for ArchUnit (improvement-030) to detect, only a raw SQL string — a rename in
+`user-spring-boot-starter` would break `advertisement-spring-boot-starter` at runtime with zero
+compile-time warning. Separately, `advertisement`'s actor-reference columns
+(`created_by_user_id`/`last_modified_by_user_id`/`deleted_by_user_id`) embedded the word "user"
+for no functional reason, unlike `taxon`'s already-established `created_by`/`updated_by`/
+`deleted_by` convention (same kind of value — an opaque `User.id` populated via
+`AuditorAware<Long>`).
+
+**Decision:** Mirrors the already-completed `TaxonPort.findByIds()` pattern
+(improvement-007/015), applied to `UserPort`:
+- `UserPort.findByIds(Set<Long>) -> Map<Long, UserDto>` added to `platform-commons`;
+  `UserPortImpl.findByIds()` is pure delegation to `UserService.findByIds()`, which calls a new
+  `UserRepository.findByIds(Long[])` (`SELECT ... WHERE id = ANY(:ids)`, same shape as the
+  existing `findActorNames()`/`findExistingIds()` bulk lookups).
+- `AdvertisementRepository` no longer joins `user_information` at all — `findAdvertisementById()`
+  and `findByFilter()` select only `advertisement.created_by` (the FK id, still present as a
+  plain column). The three dead `ORDER BY` alias entries for `u.id`/`u.name`/`u.email` were
+  removed together with the join — verified dead: `AdvertisementSortMeta` only exposes
+  `TITLE`/`CREATED_AT`/`UPDATED_AT`, so no UI path ever built a `Sort` reaching those aliases.
+- `AdvertisementService.enrichWithActorInfo(ads)` (new, mirrors `enrichWithCategories()` exactly,
+  same `ComponentFactory<UserPort>` optional-dependency shape as `ComponentFactory<TaxonPort>`)
+  merges `createdByUserName`/`createdByUserEmail` into `AdvertisementInfoDto` after the repository
+  call, in `getFiltered()` and `findById()`. `UserPortImpl`/`AdvertisementPortImpl` stay pure
+  delegation — the merge logic lives only in the service, per `platform-commons/CLAUDE.md`'s
+  `*PortImpl` rule.
+- Renamed `advertisement`'s actor-reference columns to match `taxon`: `created_by_user_id` →
+  `created_by`, `last_modified_by_user_id` → `updated_by`, `deleted_by_user_id` → `deleted_by`
+  (direct edit of `01-advertisement-schema.xml` — DB not yet in production, same practice as
+  every prior schema edit — requires `deploy.sh --reset` for the Liquibase checksum). Matching
+  Java field renames: `Advertisement.createdByUserId`→`createdBy` (`@CreatedBy`),
+  `.lastModifiedByUserId`→`updatedBy` (`@LastModifiedBy`); `AdvertisementInfoDto.createdByUserId`
+  (platform-commons) and `AdvertisementEditDto.createdByUserId`/`.lastModifiedByUserId`
+  (marketplace-app) renamed to match — `createdByUserName`/`createdByUserEmail` keep their names
+  since they describe enrichment output, not a `_user_id`-suffixed column.
+
+**Sort-by-author, if ever requested:** do not reintroduce a JOIN (recreates this exact violation)
+and do not sort in memory after `enrichWithActorInfo()` (pagination `LIMIT`/`OFFSET` runs in SQL
+*before* enrichment, so an in-memory sort would only order the current page, silently wrong for
+any page beyond the first). The correct fix is the same pattern already used for
+`media_url`/`media_content_type`: denormalize `created_by_user_name` onto `advertisement`, synced
+via a typed hook fired on user name changes — not a query-time join.
+
+**Explicitly not touched:** the FK constraints in `01-advertisement-schema.xml`
+(`referencedTableName="user_information"`) still reference the other starter's table by name —
+this is a deeper, separate schema-level coupling (referential integrity inherently requires
+knowing the referenced table) that this ADR does not attempt to resolve.
+
+**Consequences:**
+- Full e2e suite must stay green — the advertisement card's author-email display
+  (`AdvertisementCardView.java:187`, `ad.getCreatedByUserEmail()`) and the owner-only edit/delete
+  button visibility (`getOwnerUserId()`, used in `AdvertisementCardView`,
+  `AdvertisementFormOverlayModeHandler`, `AdvertisementViewOverlayModeHandler`) are the concrete
+  regression detectors.
+- → [improvement-041-advertisement-user-sql-join-and-column-naming](../features/completed/issues/improvement-041-advertisement-user-sql-join-and-column-naming.md)
+
+---
+
+## ADR-035: `advertisement` stores no denormalized attachment columns — media summary enriched at read time via a bulk `AttachmentPort` lookup
+
+**Status:** Accepted
+
+**Context:** `advertisement` had three columns — `media_url`, `media_content_type`, `media_count`
+— caching a summary of the entity's attachments, written by
+`AdvertisementRepository.updateMedia()`, triggered by `MediaChangeHookImpl.onMediaChanged()`
+whenever `AttachmentService` fired `AttachmentMediaChangeHook`. An earlier pass on this review
+dismissed these columns as "fine as-is" because the sync mechanism (a hook) was clean — that
+answered "is the sync mechanism clean?" (yes) instead of "does the coupling exist?" (also yes,
+independently of the mechanism): three columns named with attachment-domain vocabulary, living on
+`advertisement`'s own row, in a different starter's schema. `features/entity-extensions/SPEC.md`
+(deleted 2026-07-13) had already named this exact coupling as a motivating problem; its proposed
+fix (genericize into a `media JSONB` column) was rejected — re-encoding the same data on the same
+row removes type safety without removing the coupling itself.
+
+**Decision:** Same shape as ADR-034 (User) and the completed improvement-007 (Taxon): a bulk
+lookup replaces the denormalized cache.
+- `AttachmentPort.getMediaSummaries(EntityType, Set<Long>) -> Map<Long, AttachmentMediaSummaryDto>`
+  added to `platform-commons`, alongside the existing single-entity `getMediaSummary(EntityRef)`.
+  `DefaultAttachmentPort` stays pure delegation to a new `AttachmentService.getMediaSummaries()`,
+  which calls a new `AttachmentRepository.loadMediaStats(EntityType, Set<Long>)` — one SQL query
+  using `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC)` to pick each entity's
+  earliest attachment as its "main" one, plus `COUNT(*) OVER (PARTITION BY entity_id)`, matching
+  the existing single-entity method's semantics exactly (`loadMediaStats(EntityType, Long)`,
+  unchanged, still used by the single-entity path).
+- `AdvertisementService.enrichWithMediaSummary(ads)` (new, same shape as `enrichWithCategories()`/
+  `enrichWithActorInfo()`) merges `mediaUrl`/`mediaContentType`/`mediaCount` into
+  `AdvertisementInfoDto` at read time in `getFiltered()`/`findById()`, using the already-existing
+  `ComponentFactory<AttachmentPort> attachmentPortFactory` field. Entities with zero attachments
+  fall back to `AttachmentMediaSummaryDto.empty()`.
+- The three columns were removed from `advertisement` (`01-advertisement-schema.xml`, direct
+  edit — DB not yet in production, `deploy.sh --reset` required), along with
+  `AdvertisementRepository.updateMedia()` and the three dead `ORDER BY` sort-alias entries for
+  them (confirmed unreachable — `AdvertisementSortMeta` never exposed a media-related sort).
+- **The write-triggered sync path was deleted entirely, not just emptied**: `MediaChangeHookImpl`
+  (the only implementation of `AttachmentMediaChangeHook`), `AdvertisementService
+  .onMediaChanged(Long)`, and `AdvertisementPort.onMediaChanged(Long)` (confirmed unused by any
+  marketplace-app call site) are all gone — there is nothing left to update once no column caches
+  the data. `AttachmentService` still fires `AttachmentMediaChangeHook` on every media change (the
+  interface itself stays in `platform-commons` as a generic, still-meaningful extension point for
+  any future starter that wants to react to media changes) — it now simply has zero listeners,
+  which is the same valid, gracefully-degraded state every other optional SPI in this codebase
+  already tolerates.
+
+**Tradeoff accepted explicitly:** one more bulk `AttachmentPort` query per advertisement list
+render — the same cost class already accepted twice (Taxon categories, User author info) for the
+same real decoupling benefit.
+
+**Consequences:**
+- Full e2e suite must stay green — `AdvertisementCardView.java`'s media thumbnail/badge rendering
+  (reads `ad.getMediaUrl()`/`getMediaContentType()`/`getMediaCount()`) is the concrete regression
+  detector; behavior is unchanged since `AdvertisementInfoDto` still carries these fields, just
+  populated by enrichment instead of a stored column.
+- → [improvement-042-advertisement-media-denormalized-columns](../features/completed/issues/improvement-042-advertisement-media-denormalized-columns.md)
 
 ---
 

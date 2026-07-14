@@ -126,27 +126,37 @@ correct pattern. Direct starter-to-starter imports remain forbidden.
 
 ---
 
-## ADR-006: ComponentFactory<T> — InjectionPoint-resolved prototype factory
-**Status:** Accepted
+## ADR-006: ComponentFactory<T> — typed wrapper over ObjectProvider<T>
+**Status:** Accepted (mechanism changed since original write-up — see correction)
 
 **Context:** Optional starter dependencies in marketplace-app need typed, ergonomic access
 without unchecked casts. Raw `ObjectProvider<T>` doesn't know about the `Configurable<T, P>`
 protocol.
 
-**Decision:** `ComponentFactory<T>` wraps `ObjectProvider<T>` and resolves the concrete type `T`
-by inspecting `InjectionPoint` at wiring time:
-```java
-@Bean @Scope("prototype")
-public ComponentFactory<?> componentFactory(InjectionPoint ip, ConfigurableListableBeanFactory bf) { ... }
-```
-Exposes: `get()`, `build(P params)` (for `Configurable<T,P>` prototypes), `getIfAvailable()`,
-`ifAvailable(Consumer<T>)`.
+**Correction (verified 2026-07-13):** the original text described `ComponentFactory<T>` resolving
+its concrete type `T` by inspecting Spring's `InjectionPoint` at wiring time via a single generic
+`@Bean ComponentFactory<?> componentFactory(InjectionPoint ip, ...)` method. That design is not
+what exists in code — `grep -rn "InjectionPoint"` across the whole reactor returns zero hits.
+`ComponentFactory<T>` (`platform-commons/.../core/ComponentFactory.java`) is instead a plain
+class taking a constructor-injected `ObjectProvider<T>`, with **one explicit `@Bean` method per
+concrete type**, hand-written in each consuming config class (`marketplace-app/config/
+ComponentFactoryConfig.java` has 20+ such methods, one per optional port/component type). `build(P
+params)` lives on the marketplace-app subclass `UiComponentFactory<T>`, not on the base
+`ComponentFactory<T>` itself — the base class only exposes `get()`, `getIfAvailable()`,
+`findIfAvailable()`, `ifAvailable(Consumer<T>)`.
+
+**Decision:** `ComponentFactory<T>` wraps `ObjectProvider<T>` for typed, ergonomic access to
+optional starter-provided beans, declared per-type as an explicit `@Bean` (not resolved
+generically via reflection/`InjectionPoint`).
 
 **Consequences:**
 - All optional starter components in marketplace-app use `ComponentFactory<T>` injection.
 - Direct `ObjectProvider<T>` fields are not used for this purpose.
 - Rejected: singleton factory with `<T> T get(Class<T> type)` — pushes type token to every call site,
   requires unchecked cast, unsound at compile time.
+- Also effectively rejected in practice (though not originally planned that way): a single generic
+  `InjectionPoint`-resolved factory bean — replaced by one explicit `@Bean` per type, which is more
+  boilerplate but fully type-safe and requires no reflection.
 
 ---
 
@@ -156,9 +166,12 @@ Exposes: `get()`, `build(P params)` (for `Configurable<T,P>` prototypes), `getIf
 **Context:** `StorageService` lived in `attachment.storage` (contracts) but had no cross-module
 consumer — only `attachment-spring-boot-starter` referenced it.
 
-**Decision:** `StorageService` and `@ConditionalOnStorageEnabled` moved to
-`attachment-spring-boot-starter` (`org.ost.attachment.storage`). The `attachment.storage` package
-no longer exists in platform-commons.
+**Decision:** `StorageService` moved to `attachment-spring-boot-starter`, at
+`org.ost.attachment.services` (verified 2026-07-13 — not `org.ost.attachment.storage` as
+originally written here; that package does not exist, the module's actual top-level packages are
+`config, entities, repository, services, spi, util`). `@ConditionalOnStorageEnabled` was dropped
+entirely rather than relocated — zero references anywhere in the current codebase. The
+`attachment.storage` package no longer exists in platform-commons, which remains accurate.
 
 **Consequences:** platform-commons is reserved for types crossed by ≥2 modules.
 Rejected: keeping SPI in contracts "in case" — speculative.
@@ -207,8 +220,15 @@ derived fields into the event payload and the domain to listen and translate.
 
 **Decision:** Dropped `AdvertisementDeletedEvent`, `AdvertisementRestoredEvent`,
 `AdvertisementMediaUpdatedEvent`. Cross-module attachment lifecycle now carried by SPIs:
-- **`AttachmentPort`** (domain → starter): `softDeleteAll`, `restoreToSnapshot`, `getMediaSummary`.
-- **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityType, Long)`.
+- **`AttachmentPort`** (domain → starter): `softDeleteAll(EntityRef, Long actorId)`,
+  `getMediaSummary(EntityRef)`, and restore via `restoreToUrls(EntityType, Long, String[])`/
+  `restoreToUrlsAndCapture(...)` (corrected 2026-07-13 — originally written as a single
+  `restoreToSnapshot` method, which does not exist on `AttachmentPort`; that name exists only on
+  the unrelated `UserPort`).
+- **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityRef entity)` (corrected
+  2026-07-13 — signature was `(EntityType, Long)` when this ADR was written, superseded by a later
+  refactor introducing `EntityRef` to collapse `(EntityType, Long)` pairs across attachment SPIs;
+  the ADR was never updated for it).
 - **`AttachmentMediaSummaryDto`** (`attachment.dto`) — display-ready record from `getMediaSummary`.
 
 **Consequences:** Rejected: keeping events alongside the SPI — splits the contract surface.

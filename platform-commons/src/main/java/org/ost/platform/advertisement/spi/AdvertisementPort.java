@@ -25,7 +25,5 @@ public interface AdvertisementPort {
      *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
     void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
-    void onMediaChanged(@NonNull Long entityId);
-
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
 }

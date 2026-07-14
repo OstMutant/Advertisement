@@ -2,6 +2,7 @@ package org.ost.user.repository;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.model.Role;
@@ -11,7 +12,7 @@ import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.user.entity.UserProfileUpdate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -66,6 +67,7 @@ public class UserRepository {
 
     private final JdbcClient jdbcClient;
     private final UserCrudRepository crud;
+    private final UserProfileCrudRepository profileCrud;
 
     public User save(@NonNull User user)                { return crud.save(user); }
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
@@ -74,13 +76,13 @@ public class UserRepository {
     public List<User> findByFilter(@NonNull UserFilterDto filter, @NonNull Pageable pageable) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.of(
-                "id",         "u.id",
-                "name",       "u.name",
-                "email",      "u.email",
-                "role",       "u.role",
-                "created_at", "u.created_at",
-                "updated_at", "u.updated_at",
-                "locale",     "u.locale"));
+                UserDto.Fields.id,        "u.id",
+                UserDto.Fields.name,      "u.name",
+                UserDto.Fields.email,     "u.email",
+                UserDto.Fields.role,      "u.role",
+                UserDto.Fields.createdAt, "u.created_at",
+                UserDto.Fields.updatedAt, "u.updated_at",
+                UserDto.Fields.locale,    "u.locale"));
         String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s%s%s"
                 .formatted(FILTER.build(params, filter, " WHERE "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
@@ -100,19 +102,12 @@ public class UserRepository {
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        int updated = jdbcClient.sql("""
-                        UPDATE user_information SET name = :name, role = :role, updated_at = NOW(), version = version + 1
-                        WHERE id = :id AND version = :version
-                        """)
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("name",    dto.name())
-                          .addValue("role",    dto.role().name())
-                          .addValue("id",      dto.id())
-                          .addValue("version", dto.version()))
-                  .update();
-        if (updated == 0) {
-            throw new OptimisticLockingFailureException("User " + dto.id() + " was modified by another session");
-        }
+        profileCrud.save(UserProfileUpdate.builder()
+                .id(dto.id())
+                .name(dto.name())
+                .role(dto.role())
+                .version(dto.version())
+                .build());
     }
 
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
@@ -137,5 +132,12 @@ public class UserRepository {
                 .list()
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    public List<User> findByIds(@NonNull Long[] ids) {
+        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource("ids", ids))
+                .query(ROW_MAPPER)
+                .list();
     }
 }

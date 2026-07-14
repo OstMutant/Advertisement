@@ -4,21 +4,23 @@ Auto-configured photo/attachment module with S3-compatible storage for the Adver
 
 ## What it provides
 
-- Upload, delete, and restore attachments linked to advertisements
+- Upload, delete, and restore attachments linked to any entity
 - S3-compatible storage via AWS SDK (`S3StorageService`)
-- Scheduled cleanup of orphaned attachments (`AttachmentCleanupJob`)
-- **SPI implementations:** `AttachmentPort` (called by marketplace-app for attachment operations)
+- Scheduled cleanup of orphaned attachments (`AttachmentCleanupService`)
+- **SPI implementations:** `AttachmentPort`, `AttachmentAuditHook` (called by marketplace-app)
 
 ## Key classes
 
 | Class | Role |
 |---|---|
-| `AttachmentPortImpl` | Entry point — implements `AttachmentPort`, delegates to `AttachmentService` |
+| `DefaultAttachmentPort` | Entry point — implements `AttachmentPort`, thin delegation to `AttachmentService` |
 | `AttachmentService` | Business logic: upload, delete, restore from snapshot |
+| `AttachmentSnapshotService` | Manages attachment snapshot records |
 | `AttachmentRepository` | Persists and queries `attachment` table |
-| `PhotoSnapshotRepository` | Stores attachment snapshots for audit/restore |
-| `S3StorageService` | S3-compatible file upload/delete |
-| `AttachmentCleanupJob` | Scheduled orphan cleanup |
+| `AttachmentSnapshotRepository` | Stores attachment snapshots for audit/restore |
+| `S3StorageService` / `StorageService` | S3-compatible file upload/delete (`org.ost.attachment.services`) |
+| `AttachmentCleanupService` | Scheduled orphan cleanup |
+| `AttachmentAuditHookImpl` | Implements `AttachmentAuditHook`; thin delegation |
 
 ## Dependencies
 

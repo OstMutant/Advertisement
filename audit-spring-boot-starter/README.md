@@ -13,11 +13,10 @@ Auto-configured audit subsystem for the Advertisement Platform.
 | Class | Role |
 |---|---|
 | `DefaultAuditPort` | Entry point — implements `AuditPort`, delegates to services |
-| `AuditDiffService` | Computes field-level diffs between snapshots via `@AuditedField` |
-| `AuditLogRepository` | Persists and queries `audit_log`; supports dynamic filter/sort |
-| `AuditHistoryService` | Loads snapshot history for a single entity |
-| `AuditQueryService` | Paged query of `audit_log` with filter and sort |
-| `ActivityService` | Builds the merged activity feed timeline |
+| `AuditLogRepository` | Persists and queries `audit_log`; supports dynamic filter/sort via query-lib |
+| `AuditLogProjection` | Generic repository-row DTO shared by both the activity and timeline queries |
+| `AuditReadService` | Entity activity rows, timeline pages, snapshot content, entity history — diff computed at read time via `AuditableSnapshot.diff()` |
+| `AuditCleanupService` | Scheduled cleanup of orphaned audit rows (`CleanupProperties`) |
 
 ## Dependencies
 

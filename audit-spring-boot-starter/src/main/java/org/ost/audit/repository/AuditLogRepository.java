@@ -7,6 +7,7 @@ import org.jetbrains.annotations.NotNull;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
+import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityType;
 import org.ost.query.filter.SqlBoundFilter;
@@ -59,7 +60,7 @@ import static org.ost.query.filter.SqlCondition.inSet;
 @SuppressWarnings("java:S1192")
 public class AuditLogRepository {
 
-    private static final Map<String, String> SORT_ALIASES = Map.of("created_at", "al.created_at");
+    private static final Map<String, String> SORT_ALIASES = Map.of(AuditTimelineItemDto.Fields.createdAt, "al.created_at");
 
     private static final SqlFilterBuilder<AuditTimelineFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
             SqlBoundFilter.of(actorId,     "al.actor_id",    (m, v) -> equalsTo(m, v.getActorId())),

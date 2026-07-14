@@ -26,10 +26,10 @@ public class Advertisement {
     Instant updatedAt;
 
     @CreatedBy
-    Long createdByUserId;
+    Long createdBy;
 
     @LastModifiedBy
-    Long lastModifiedByUserId;
+    Long updatedBy;
 
     @Version
     Long version;

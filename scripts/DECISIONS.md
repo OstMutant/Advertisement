@@ -38,17 +38,34 @@ to be ergonomic elsewhere.
 
 ---
 
-## ADR-003: deploy.sh startup detection via docker logs + grep
-**Status:** Accepted
+## ADR-003: deploy.sh startup detection
+**Status:** Accepted — **code has since reverted to the originally-rejected approach** (see
+correction below); documenting current reality rather than the original design
 
 **Context:** Polling `docker logs` repeatedly wastes cycles and adds arbitrary sleep delays.
 
-**Decision:** `deploy.sh` waits for `"Started Application"` via:
-```bash
-timeout 180 bash -c 'docker logs -f marketplace-app 2>&1 | grep -qm1 "Started Application"'
-```
+**Original decision (no longer what the code does):** wait for `"Started Application"` via a
+single streaming `docker logs -f | grep -qm1` call with an external `timeout`.
 
-**Consequences:**
-- `docker logs -f` streams stdout continuously; `grep -qm1` exits immediately on first match.
-- `timeout 180` prevents hanging indefinitely if startup fails.
-- Rejected: polling loop with `sleep` — unreliable timing, wastes cycles.
+**Correction (verified 2026-07-13):** current `scripts/deploy.sh` (lines ~191-201) does not do
+this — it uses exactly the pattern this ADR originally rejected:
+```bash
+end=$((SECONDS + 180))
+while true; do
+  if docker logs "$APP_CONTAINER" 2>&1 | grep -q "Started Application"; then break; fi
+  if [ $SECONDS -ge $end ]; then echo "=== FAILED: startup timed out ==="; exit 1; fi
+  sleep 2
+done
+```
+A `while`/`sleep 2` polling loop, non-streaming `docker logs` (re-reads the full log each
+iteration rather than `-f` following it), timeout tracked via `$SECONDS` rather than the `timeout`
+command. `git log -p` on this file shows the loop was introduced in a later commit than this ADR,
+with no corresponding ADR update. In practice this has run reliably across many deploys this
+session with no observed flakiness — the "wastes cycles" concern in the original Context does not
+appear to have materialized as an actual problem at this polling interval (2s) and timeout (180s).
+Documenting current behavior as-is rather than reverting working deploy code to match a
+stale ADR; if the original streaming approach is preferred, that's a separate, deliberate change
+to make to `deploy.sh` itself, not a docs fix.
+
+**Consequences:** `deploy.sh`'s current startup-detection mechanism is the polling loop shown
+above, not the streaming `grep -qm1` originally decided here.

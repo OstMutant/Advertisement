@@ -51,6 +51,7 @@ advertisement-parent
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
 ├── user-spring-boot-starter          — User domain + Spring Security integration
 ├── advertisement-spring-boot-starter — Advertisement domain
+├── taxon-spring-boot-starter         — Taxonomy domain: categories, tags, classifiers
 └── marketplace-app                   — Vaadin application (all UI)
 ```
 
@@ -64,6 +65,7 @@ Per-module documentation:
 | attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
 | user-spring-boot-starter | [README](user-spring-boot-starter/README.md) | — |
 | advertisement-spring-boot-starter | [README](advertisement-spring-boot-starter/README.md) | — |
+| taxon-spring-boot-starter | — | [DECISIONS](taxon-spring-boot-starter/DECISIONS.md) |
 | marketplace-app | [README](marketplace-app/README.md) | [DECISIONS](marketplace-app/DECISIONS.md) |
 | playwright | [README](playwright/README.md) | [DECISIONS](playwright/DECISIONS.md) |
 | scripts | [README](scripts/README.md) | [DECISIONS](scripts/DECISIONS.md) |
@@ -144,7 +146,15 @@ Open the app: http://localhost:8080
 
 ### Option 2 — Full Docker (local production simulation)
 
-Builds and runs everything in containers — useful for verifying the production build before deploying to Render.
+**Recommended path:** `bash scripts/deploy.sh` — the canonical, actively-maintained way to run
+the full production build locally (BuildKit caching, automatic Docker garbage pruning, startup
+detection, `--reset`/`--restart-infra`/`--reset-db`/`--no-cache` flags). See
+[`scripts/README.md`](scripts/README.md) and [`scripts/CLAUDE.md`](scripts/CLAUDE.md) for details.
+**This starts the app on port 8081**, not 8080 (8080 is reserved for Option 1's IDE dev mode).
+
+The raw `docker-compose.app.yml` file below also exists and works, but publishes on **port 8080**
+(a different port than `deploy.sh`) and has none of `deploy.sh`'s caching/pruning/flag support —
+prefer `deploy.sh` unless you specifically need the bare compose file:
 
 ```bash
 docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build

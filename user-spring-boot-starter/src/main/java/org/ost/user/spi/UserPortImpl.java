@@ -96,6 +96,11 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
+        return userService.findByIds(ids);
+    }
+
+    @Override
     public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
         return userService.expandActivityFields(item);
     }

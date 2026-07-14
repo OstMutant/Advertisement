@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -175,6 +176,11 @@ public class UserService {
     public Map<Long, String> findActorNames(@NonNull Collection<Long> ids) {
         Set<Long> idSet = ids instanceof Set<Long> s ? s : new HashSet<>(ids);
         return repository.findActorNames(idSet.toArray(new Long[0]));
+    }
+
+    public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
+        return repository.findByIds(ids.toArray(new Long[0])).stream()
+                .collect(Collectors.toMap(User::getId, this::toDto));
     }
 
     public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {

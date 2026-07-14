@@ -10,17 +10,20 @@
 table — a starter-owned table that the marketplace module must not reference directly.
 
 **Decision:** `TaxonPort.findEntityIdsWithAnyTaxon(entityType, taxonIds)` returns a `Set<Long>`
-of matching entity ids. `AdvertisementRepository` pushes this set into its existing `advertisementIds`
-filter clause — no SQL JOIN between marketplace tables and starter tables.
+of matching entity ids. `AdvertisementRepository.findByFilter()`/`.countByFilter()` accept this
+set as the `allowedIds` parameter (corrected 2026-07-13 — written as `advertisementIds` originally;
+verified the actual parameter name in `AdvertisementRepository.java`) — no SQL JOIN between
+marketplace tables and starter tables.
 
 **Consequences:** Any new filtering that involves taxon data must follow the same pattern —
 resolve to a `Set<Long>` of entity ids first, then hand off to the caller's existing id-restriction clause.
 `AdvertisementRepository` SQL remains valid even if the taxon starter is absent from the classpath.
 
 **Trigger to revisit:** If a single category routinely resolves to >10k advertisement ids in
-production (log a `WARN` in `AdvertisementService` when `resolvedIds.size() > 10_000`), or if
-multi-category AND-semantics is requested, consider a starter-owned JOIN helper or a pre-computed
-materialised mapping.
+production, consider a starter-owned JOIN helper or a pre-computed materialised mapping (note,
+2026-07-13: no `WARN` log for this threshold currently exists in `AdvertisementService` — this
+trigger is not yet instrumented; add the log if/when this is actually revisited, don't assume it's
+already firing).
 
 ---
 
