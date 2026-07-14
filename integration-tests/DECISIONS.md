@@ -178,8 +178,9 @@ once two or more consumers need it):
 
 ---
 
-## ADR-007: `run.sh --fast` — opt-in skip of Maven's `-am` reactor rebuild
-**Status:** Accepted
+## ADR-007: `run.sh` auto-detects starter staleness instead of a manual skip-`-am` flag
+**Status:** Accepted (revised same day — see "Revision" below; original manual-flag design is not
+current)
 
 **Context:** `run.sh` always ran `./mvnw -pl integration-tests -am test` — `-am` ("also-make")
 rebuilds every module `integration-tests` depends on (`platform-commons`, `advertisement`/`user`/
@@ -192,28 +193,33 @@ built artifacts to `~/.m2/repository` — confirmed empirically (`find ~/.m2/rep
 -name "*.jar"` returned nothing before this session's first `mvn install`) — so without `-am`,
 Maven has no JAR to resolve `integration-tests`' starter dependencies from at all.
 
-**Decision:** Keep `-am` as the **default** (safe, always correct, matches prior behavior — works
-on a fresh clone with an empty `~/.m2`). Add an explicit, opt-in `--fast` flag to `run.sh` that
-drops `-am`, resolving starter dependencies from whatever JARs are already installed in `~/.m2`
-instead. Measured: ~1:47 total for a single test class with `--fast` vs. 3-7 min with `-am`, once
-`~/.m2` is populated (`./mvnw install -DskipTests`, one-time).
+**Original decision (superseded same day):** keep `-am` as the default, add an opt-in `--fast`
+flag to drop it. Rejected on reflection — `--fast` was a manual opt-in the developer had to
+remember to use *and* had to remember to stop using right after editing a starter's own source, or
+it would silently test against a stale `~/.m2` JAR. A flag whose safety depends on the developer's
+memory is exactly the kind of footgun this project avoids elsewhere (e.g. the reason
+`UserProfileUpdate` exists as a narrower entity instead of relying on builder discipline — see
+`user-spring-boot-starter/CLAUDE.md`).
 
-**Rejected alternative — making `--fast` (no `-am`) the default:** considered and rejected. A
-fresh clone or CI runner with an empty `~/.m2` would fail outright on the very first run with a
-confusing dependency-resolution error, not a clear "you need to run X first" message. Defaulting
-to the always-safe `-am` and requiring an explicit opt-in for the faster-but-conditional path is
-the same shape as `--sandbox` (opt-in for a machine-specific override) — never silently changes
-behavior for someone who didn't ask for it.
+**Revision — automatic staleness detection, no flag required for the common case:** `run.sh` now
+compares each of the four starter modules' newest `.java` file (`find <module>/src/main -name
+'*.java' -newer <installed-jar>`) against its installed `~/.m2` JAR's mtime before every run. If
+any source is newer than its JAR (or the JAR doesn't exist yet), it runs a targeted `mvn install
+-DskipTests` for just those modules first; otherwise it skips straight to `mvn -pl
+integration-tests test` (no `-am`). Confirmed directly, both directions: (a) an unmodified checkout
+correctly skips the reinstall and runs fast, (b) `touch`-ing a starter `.java` file is correctly
+detected and triggers a targeted reinstall before the test runs. A `--no-check` flag remains for
+deliberately bypassing the check (e.g. reproducing behavior against a specific already-built JAR)
+— never for normal edit/test iteration, since it reintroduces the exact stale-JAR risk the
+auto-detection exists to close.
 
 **Consequences:**
-- `--fast` **requires** a prior `./mvnw install -DskipTests` (or any earlier non-`--fast` run) to
-  have populated `~/.m2` with the starter JARs.
-- `--fast` **must never** be used immediately after editing a domain starter's own source
-  (`advertisement-spring-boot-starter/src/main/java/...`, etc.) — it would silently test against
-  the stale JAR still in `~/.m2`, not the edit. Run `./mvnw install -pl <module> -am -DskipTests`
-  (or one run without `--fast`) first; `--fast` is safe again afterward for iterating purely on
-  `integration-tests`' own test files, which is the overwhelmingly common case once a starter's
-  behavior is already covered and you're just fixing/extending the test itself.
+- No developer memory required for the default path — the check runs every time, correctness is
+  automatic, not opt-in.
+- The `find -newer` check itself costs a fraction of a second per module — negligible next to the
+  ~100s of Maven reactor-walk overhead it replaces.
+- `--no-check` inherits the old `--fast` flag's risk profile explicitly, by name, only when
+  intentionally invoked — never the default.
 - Same rationale applies to the separate, complementary idea of unifying all `*RepositoryTest`
   classes under one shared `@SpringBootTest(classes = {...})` combination so Spring's own
   ApplicationContext cache can be reused across classes within a single `mvn test` run — not
@@ -222,3 +228,52 @@ behavior for someone who didn't ask for it.
   fail every repository test together, not just its own domain's), but revisit once Batch 2/3
   (`AuditLogRepositoryTest`, `AttachmentRepositoryTest`, `TaxonAssignmentRepositoryTest`) land and
   the per-class bootstrap cost starts dominating total suite time more clearly.
+
+---
+
+## ADR-008: Test package-private/private internal logic through its public entry point, never through a same-package trick or a widened production visibility
+**Status:** Accepted
+
+**Context:** `DefaultTaxonPort.resolveTranslation()` (improvement-045 item 6) is package-private —
+it has no direct external impact of its own; it only matters through the public
+`TaxonPort.findById()`/`getAllByType()` contract that calls it internally via `toDto()`. Two ways
+to unit-test it directly were considered and rejected:
+1. A test class placed in the exact same package name (`org.ost.taxon.services`) inside
+   `integration-tests/src/test/java` — Java's package-private access works across separate JARs/
+   modules as long as there's no `module-info.java` (confirmed none exists in this project), so
+   this technically compiles. Rejected: breaks `integration-tests`' own established package
+   convention (`org.ost.integrationtests.<domain>`) purely to route around a visibility a starter
+   deliberately chose, for a method with no meaning outside its one caller.
+2. Widening `resolveTranslation()` to `public` on `DefaultTaxonPort` so a normal
+   `org.ost.integrationtests.taxon` test could call it directly. Rejected: weakens encapsulation of
+   a genuine internal implementation detail purely for test convenience — nothing outside
+   `DefaultTaxonPort` has ever needed to call it, and widening visibility is a production-code
+   change made *for* a test, not a real requirement.
+
+**Decision:** Test the *behavior* through the public contract that actually exercises the internal
+method, using repository-level fixture setup (bypassing service-layer validation) when needed to
+reach a state the public API itself can't produce. Concretely, `TaxonPortTranslationFallbackTest`
+(`org.ost.integrationtests.taxon`) calls the real `TaxonPort.findById()` and asserts on the
+returned `TaxonDto.name` for each fallback tier — never references `resolveTranslation()` or
+`DefaultTaxonPort` by name at all. Fixture setup goes through `TaxonRepository`/
+`TaxonTranslationRepository` directly (not `TaxonPort.create()`), because `TaxonService.create()`'s
+own validation requires a translation for every `TaxonProperties.supportedLocales()` entry — the
+public creation path can never produce the incomplete-translation state this fallback logic exists
+to handle in the first place (e.g. a taxon created before a new locale was added to
+`supportedLocales`). That's a real, if rare, production state, not a test-only fiction — the same
+reasoning `TaxonRepositoryTest`/`AdvertisementRepositoryTest` already use for building entities
+directly via repositories instead of through the service layer.
+
+**Consequences:**
+- No production visibility was widened; no test lives outside `integration-tests`' own package
+  convention.
+- The test is slightly heavier (real Testcontainers + Liquibase + Spring context, not a bare
+  Mockito unit test) than a hypothetical isolated `resolveTranslation()` test would have been —
+  accepted, since it also proves the full `toDto()`/repository wiring path works, not just the
+  fallback algorithm in isolation.
+- **Applies directly to improvement-045 item 7** (`UserService.applyUserRestore()`) — that method
+  is `private` (stricter than `resolveTranslation()`'s package-private), called only from the
+  public `UserService.restoreToSnapshot()`; the same shape of test (call `restoreToSnapshot()`,
+  assert on the result, use repository-level fixture setup for any state the public API can't
+  reach) applies when that item is implemented — do not reach for `private`-access workarounds
+  there either.

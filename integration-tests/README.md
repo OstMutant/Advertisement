@@ -26,14 +26,14 @@ bash scripts/integration-tests.sh                             # all tests
 bash scripts/integration-tests.sh smoke                       # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest # one class by name
 bash scripts/integration-tests.sh --sandbox smoke             # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --fast TaxonRepositoryTest  # skip -am reactor rebuild — fast
-                                                                # iteration on this module's own
-                                                                # test files (~1:47 vs 3-7 min);
-                                                                # requires a prior `mvn install`,
-                                                                # and must NOT be used right after
-                                                                # editing a starter's own source —
-                                                                # see CLAUDE.md "--fast" for why
+bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check below
 ```
+
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon-spring-boot-starter`
+changed since their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min
+walking the full reactor every time) — no manual flag needed for the common case. `--no-check`
+skips that detection entirely, testing against whatever is already in `~/.m2` even if stale — only
+for deliberately reproducing behavior against an older build. See `CLAUDE.md` for the full rule.
 
 ### Windows
 

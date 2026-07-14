@@ -157,17 +157,17 @@ bash scripts/integration-tests.sh                          # all integration tes
 bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
 bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --fast TaxonRepositoryTest   # skip -am reactor rebuild
+bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
 scripts\integration-tests.bat --sandbox                    # Windows
 ```
 
 Reports after each run: `integration-tests/reports/run.log` (full output) and
 `integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
 the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
-developer machine. `--fast` skips Maven's `-am` reactor rebuild for a much quicker run (~1:47 vs
-3-7 min) when iterating on `integration-tests`' own test files — requires a prior `mvn install`
-and must not be used right after editing a starter's own source; see `integration-tests/CLAUDE.md`
-"--fast" for the full rule.
+developer machine. `run.sh` auto-detects whether the starter modules it depends on changed since
+their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min walking the full
+reactor every time) — no manual flag needed. `--no-check` skips that detection entirely, testing
+against whatever's already in `~/.m2`; see `integration-tests/CLAUDE.md` for the full rule.
 
 ---
 

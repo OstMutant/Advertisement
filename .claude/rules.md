@@ -37,6 +37,15 @@ Wait for explicit confirmation before making any change.
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
 
+## `.bat` files — ASCII only, no em-dashes or other Unicode punctuation
+`cmd.exe` reads `.bat` files in a legacy codepage, not UTF-8. A multi-byte UTF-8 character (em-dash
+`—`, smart quotes, etc.) anywhere in the file — even inside a `::`/`REM` comment — can corrupt
+`cmd.exe`'s own batch-label parsing, producing `The system cannot find the batch label specified`
+errors on real Windows for labels that objectively exist in the file (confirmed directly: an
+em-dash added to a comment in `scripts/collect-code.bat` broke `call :FindFiles`/`call :CountFiles`
+elsewhere in the same file). Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
+including comments. Not an issue in `.sh` files (bash reads UTF-8 natively).
+
 ## Test Coverage After Bug Fixes
 After fixing a bug, cover all affected flows with Playwright tests before marking the task complete.
 

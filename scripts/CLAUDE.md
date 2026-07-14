@@ -147,7 +147,7 @@ scripts\integration-tests.bat                               # Windows
 bash scripts/integration-tests.sh smoke                     # just PostgresContainerSmokeTest
 bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
 bash scripts/integration-tests.sh --sandbox smoke            # + this sandbox's Docker workarounds
-bash scripts/integration-tests.sh --fast TaxonRepositoryTest   # skip -am reactor rebuild
+bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
 ```
 
 Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/playwright.sh` →
@@ -160,13 +160,16 @@ Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/pla
 — **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
 why). Omit it there; Testcontainers' defaults just work.
 
-`--fast` drops Maven's `-am` ("also-make") reactor rebuild, resolving `platform-commons`/
-`advertisement`/`user`/`taxon-spring-boot-starter` from already-installed `~/.m2` JARs instead of
-rebuilding all 7 (measured ~1:47 total vs. 3-7 min with `-am`, dominated by ~100s of "nothing to
-compile" Maven overhead across those modules in this sandbox). **Requires** a prior `./mvnw
-install -DskipTests`. **Never** use it right after editing a domain starter's own source — it
-would silently test against the stale `~/.m2` JAR. See `integration-tests/CLAUDE.md` "--fast" for
-the full rule.
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon-spring-boot-starter`
+changed since their last `~/.m2` install (comparing each module's newest `.java` file's mtime
+against its installed JAR) and only reinstalls those before testing, instead of rebuilding all 7
+non-`integration-tests` reactor modules every run (measured ~1:47-3:35 total when nothing needed
+reinstalling vs. 3-7 min walking the full reactor, dominated by ~100s of "nothing to compile"
+Maven overhead across those modules in this sandbox). No manual flag needed — confirmed the
+detection correctly triggers a reinstall when a starter file actually changes, not just when
+nothing changed. `--no-check` bypasses the detection entirely (test against whatever's in `~/.m2`
+right now) — only for deliberately reproducing behavior against an older build. See
+`integration-tests/CLAUDE.md` and `DECISIONS.md` ADR-007 for the full rule.
 
 **How to run it (Monitor + tee pattern, same as deploy/Playwright):** launch a `Monitor` watching
 `integration-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run

@@ -91,7 +91,7 @@ corrected classification and same fix as item 4: `WHERE type = :type AND code = 
 deleted_at IS NULL`. Regression test: `TaxonRepositoryTest.findByTypeAndCode_excludesSoftDeletedRow`
 / `findByTypeAndCode_returnsActiveRow`.
 
-### 6. `DefaultTaxonPort.resolveTranslation()` — SILENT-CORRUPTION
+### 6. `DefaultTaxonPort.resolveTranslation()` — SILENT-CORRUPTION — ✅ COVERED (2026-07-14)
 `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/DefaultTaxonPort.java:246-255`
 
 Three-tier fallback (requested locale → configured default locale → first available → `null`),
@@ -99,6 +99,11 @@ entirely untested. **Failure scenario:** a regression in the fallback order (e.g
 branch silently drops) shows blank category names/descriptions for any taxon missing a translation
 in the requester's locale — no exception, easy to miss in manual QA since most seeded taxons have
 both EN/UK populated already.
+
+Also found while covering this: `TaxonService.create()`'s own validation requires a translation
+for every `TaxonProperties.supportedLocales()` entry, meaning the fallback's tier 2/3 branches can
+never be reached through the normal creation UI — only via legacy data or a `supportedLocales`
+config change after the fact. Real, if rare — not a reason to skip the test.
 
 ### 7. `UserService.applyUserRestore()` — DATA-INTEGRITY
 `/app/user-spring-boot-starter/src/main/java/org/ost/user/services/UserService.java:137-147`
@@ -166,13 +171,20 @@ architecture — no domain starter gets test code of its own):
    production code to accept an injectable `Ticker` — out of scope for a test-only change; see
    each class's javadoc). `bash scripts/unit-tests.sh AuthServiceTest` /
    `bash scripts/integration-tests.sh --sandbox UserServiceTest`: 5/5 each, `BUILD SUCCESS`.
-5. **Item 6 (`resolveTranslation()`)** — plain unit test, all three fallback tiers plus the
-   all-missing (`null` result) case — package-private method, already accessible to a test in the
-   same package if placed under `org.ost.taxon.services` inside `integration-tests`... actually
-   package-private means the test must live in the exact same package (`org.ost.taxon.services`)
-   in a source root that has that package visible; confirm this compiles inside `integration-tests`
-   before assuming it "just works," since the method visibility was designed for same-package
-   testing within the starter itself, not cross-module access.
+5. ✅ **Item 6 (`resolveTranslation()`) — done 2026-07-14, tested through the public contract, not
+   the package-private method directly.** `integration-tests/src/test/java/org/ost/
+   integrationtests/taxon/TaxonPortTranslationFallbackTest.java` (4 tests: requested locale
+   available, requested missing → falls back to configured default, both missing → falls back to
+   first available, no translations at all → blank name not an error) calls the real
+   `TaxonPort.findById()` and asserts on the returned `TaxonDto.name` — never references
+   `resolveTranslation()`/`DefaultTaxonPort` by name. Fixture setup uses `TaxonRepository`/
+   `TaxonTranslationRepository` directly (bypassing `TaxonService.create()`'s validation, which
+   requires every `supportedLocales` entry present and so can never itself produce the
+   incomplete-translation state this fallback exists to handle). Rationale for testing via the
+   public entry point instead of a same-package trick or widened visibility:
+   `integration-tests/DECISIONS.md` ADR-008 — also the pattern to follow for item 7 below
+   (`applyUserRestore()` is `private`, same shape of problem). `bash scripts/integration-tests.sh
+   --sandbox TaxonPortTranslationFallbackTest`: 4/4, `BUILD SUCCESS`.
 6. **Item 7 (`applyUserRestore()`)** — Testcontainers repository/service test: create a user,
    change role, snapshot, change role again, restore, assert final role matches the snapshot and
    `version` was forwarded correctly (not re-derived) — same shape as
