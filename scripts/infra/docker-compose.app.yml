@@ -3,9 +3,10 @@ version: '3.8'
 # Application service — production build verification.
 # Use together with docker-compose.db.yml and docker-compose.minio.yml before deploying to Render.
 #
-# Local DB + MinIO:
-# Start: docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build
-# Stop:  docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml down -v
+# Local DB + MinIO (run from repo root — --project-directory required so docker-compose.db.yml's
+# ${POSTGRES_IMAGE} finds the repo-root .env; see docker-compose.db.yml's own header comment):
+# Start: docker compose --project-directory . -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml up --build
+# Stop:  docker compose --project-directory . -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-compose.minio.yml -f scripts/infra/docker-compose.app.yml down -v
 #
 # Neon DB + Supabase Storage (no local DB/MinIO needed):
 # docker-compose -f scripts/infra/docker-compose.app.yml up --build (set env vars below)

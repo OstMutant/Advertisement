@@ -127,6 +127,95 @@ spins up its own separate, ephemeral Postgres instance per test run (or per shar
 container within one `mvn test` invocation, see Batch 0), deliberately not reusing the persistent
 dev container, to keep tests isolated from whatever data happens to be sitting in dev at the time.
 
+**Dynamic-port network reachability — a real sandbox-specific limitation, discovered building
+Batch 0.** In this claude-dev sandbox, Testcontainers can create a container via the Docker socket
+successfully (confirmed via logs — container starts, JDBC URL computed), but the test JVM cannot
+reach the container's *dynamically assigned* published port (`Connection refused`, tried both the
+auto-detected Docker host IP and `TESTCONTAINERS_HOST_OVERRIDE=localhost`). A direct TCP probe
+confirmed the *static* port already published by `advertisement-db` (`5432`, from
+`docker-compose.db.yml`) **is** reachable from this same shell — so the sandbox's networking isn't
+universally broken, only dynamic/random high ports specifically aren't forwarded. This is the same
+underlying class of problem as the already-documented `playwright/CLAUDE.md` note ("Volume mounts
+don't work from inside the claude container") — a Docker Desktop / socket-proxy mismatch between
+this sandbox and the actual container network, not a bug in our code or in Testcontainers.
+
+Root cause not fixable from within this repo (it's sandbox infrastructure, not application code).
+Workaround: `AbstractPostgresIntegrationTest` reads an optional `TEST_SUPPORT_POSTGRES_FIXED_PORT`
+environment variable; when set, it forces a fixed host-port binding via
+`PostgreSQLContainer.setPortBindings()` instead of Testcontainers' normal random-port assignment.
+Unset (the default, e.g. on a real developer machine with normal Docker networking), behavior is
+unchanged — Testcontainers picks a random port as designed. This is an env-gated accommodation for
+a confirmed external constraint, not a hidden workaround for a code defect — same shape as `docker
+cp` replacing `-v` volume mounts elsewhere in this project for the identical class of sandbox
+limitation.
+
+**Does a fixed port conflict with parallel test execution?** No, for the case that actually
+matters here. The singleton-container pattern means there is exactly **one** container per
+`mvn test` reactor run regardless of how many test classes/methods use it — concurrent test
+methods within that one JVM all hit the same container over the same port, which is normal
+concurrent Postgres access (the same pattern Playwright's own `signUpBulkParallel(browser, users,
+poolSize)` already relies on: multiple browser sessions concurrently hitting the one
+`advertisement-db`, not one database per session). The real conflict risk is **cross-process**: two
+separate `mvn test` invocations racing to bind the identical fixed host port simultaneously — not
+a concern today (everything in this project runs one script/process at a time), but worth
+revisiting when improvement-028 (CI pipeline) introduces parallel CI jobs. A real CI runner
+(GitHub Actions, not this sandbox) likely has normal Docker networking and wouldn't need this
+workaround at all; if it somehow does, the fix at that point is a CI-job-index-derived port, not a
+single hardcoded one.
+
+## Batch 0 resolution (2026-07-14)
+
+Batch 0 landed with the design discussed above, plus two things found while building it:
+
+1. **`SharedEnvConfig` — no hardcoded `postgres:15-alpine` duplication.** The initial
+   `AbstractPostgresIntegrationTest` draft hardcoded `"postgres:15-alpine"` as a Java string
+   literal, independently of the identical hardcoded value in
+   `scripts/infra/docker-compose.db.yml` — exactly the kind of two-places-to-update-in-sync risk
+   this whole issue is about avoiding for SQL/logic bugs, just applied to config instead. Fixed by
+   adding a repo-root `.env` (`POSTGRES_IMAGE=postgres:15-alpine`) that both consumers read: Docker
+   Compose natively, and a new `SharedEnvConfig.require(key)` helper in `test-support` that walks
+   up from the JVM's working directory (bounded, 5 parent levels) to find `.env` — resolves
+   correctly whether `mvn test` is launched from the repo root, a module subdirectory, or an IDE
+   test runner (IntelliJ commonly sets the working directory to the module, not the reactor root,
+   when running a single test via the gutter icon). Fails fast with a clear message if `.env` or
+   the key isn't found — no silent default. Neither Docker Compose's `.env` auto-load nor this
+   upward-search is AI-specific tooling; both work identically for a human running the same
+   commands from a terminal or IDE. `deploy.sh`'s own separate `docker pull`/`docker run`
+   references to `postgres:15-alpine` were **not** touched here — see
+   [improvement-044](improvement-044-shared-env-config-consolidation.md), filed to cover that plus
+   the much larger DB/MinIO credential duplication found while investigating this.
+2. **Fixed a real bug in `PostgresContainerSmokeTest` itself**, unrelated to the environment: the
+   original draft wrapped the `Liquibase` instance in `try-with-resources`, whose `close()` closes
+   the underlying `Database` — and with it, the same JDBC `Connection` the test reused afterward
+   for its verification query (`PSQLException: This connection has been closed`). Fixed by not
+   closing the `Liquibase` instance at all; the outer `Connection`'s own try-with-resources closes
+   everything at the end.
+3. **`docker compose`'s `.env` auto-load does NOT use the repo root by default when `-f` points
+   elsewhere — a real bug the `.env` change introduced, caught by empirical testing, not
+   assumption.** Compose's default "project directory" (where it looks for `.env`) is the
+   directory containing the first `-f` file, not the invoking shell's working directory. Since
+   `scripts/infra/docker-compose.db.yml` lives in `scripts/infra/`, not the repo root,
+   `docker compose -f scripts/infra/docker-compose.db.yml ...` — exactly the form both this file's
+   own header comment and `scripts/database/reset.sh` used — silently resolved
+   `${POSTGRES_IMAGE}` to an empty string ("the POSTGRES_IMAGE variable is not set. Defaulting to
+   a blank string", then a hard "service db has neither an image nor a build context specified"
+   error). Confirmed by installing the `docker-compose` CLI plugin in this sandbox (it was missing
+   entirely — only `docker-buildx` had been installed previously — same official-binary-to-
+   `~/.docker/cli-plugins/` install pattern documented in `scripts/CLAUDE.md` for buildx) and
+   running `docker compose -f scripts/infra/docker-compose.db.yml config` directly: reproduced the
+   blank-image error, then confirmed `docker compose --project-directory . -f
+   scripts/infra/docker-compose.db.yml config` resolves `image: postgres:15-alpine` correctly.
+   This isn't a sandbox quirk — it's documented, version-independent Compose behavior, so the fix
+   (always pass `--project-directory .`/`--project-directory "$ROOT"` when the `-f` file isn't at
+   the repo root) is correct on any machine, including a real Windows/Docker Desktop dev machine,
+   not just this sandbox. Fixed in `scripts/database/reset.sh` (the one script that actually
+   invokes this compose file) and the header-comment example commands in both
+   `docker-compose.db.yml` and `docker-compose.app.yml`.
+
+Verified end-to-end in this sandbox with
+`TESTCONTAINERS_RYUK_DISABLED=true TEST_SUPPORT_POSTGRES_FIXED_PORT=25432 mvn -pl test-support test`
+— container starts, changelog applies, verification query passes.
+
 ## Suggested fix
 
 Exactly the two-layer split `process-improvements.md` already specified, now with concrete scope:
@@ -186,11 +275,13 @@ same as before.
 
 ## Suggested phased execution
 
-1. **Batch 0 — `test-support` module:** create the new module (pom, reactor registration,
-   Testcontainers BOM + deps, the shared `AbstractPostgresIntegrationTest` singleton-container base
-   class), settle the per-starter data-isolation approach (separate DB/schema per starter against
-   the one shared container). No actual repository tests yet — this batch proves the scaffolding
-   boots a container and applies a trivial changelog successfully.
+1. ✅ **Batch 0 — `test-support` module (done 2026-07-14):** module created (pom, reactor
+   registration, Testcontainers deps, the shared `AbstractPostgresIntegrationTest`
+   singleton-container base class + `SharedEnvConfig`), `PostgresContainerSmokeTest` proves the
+   scaffolding boots a container and applies a trivial changelog successfully — see "Batch 0
+   resolution" above. Per-starter data-isolation approach (separate DB/schema per starter against
+   the one shared container) is still open, deferred to Batch 1 when a real starter first consumes
+   this base class.
 2. **Batch 1 — one exemplar of each kind:** add `test-support` as a test dependency to
    `advertisement-spring-boot-starter`, `spring-boot-starter-test` to `platform-commons`; write one
    Testcontainers repository test (`AdvertisementRepository`, the most filter/sort-heavy one) and

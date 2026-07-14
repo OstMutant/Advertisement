@@ -20,6 +20,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 advertisement-parent (root pom)
 ├── query-lib                         — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
+├── test-support                      — shared Testcontainers scaffolding for repository tests (test-scope only)
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write + read side (auto-configured starter)
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
@@ -30,6 +31,8 @@ advertisement-parent (root pom)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
+
+**test-support** is a plain testing library (no Spring Boot autoconfiguration), same shape as `query-lib`. Provides `AbstractPostgresIntegrationTest` — a shared singleton Testcontainers Postgres instance for repository tests, consumed as a `test`-scope dependency by starters that need a real Postgres. Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `scripts/CLAUDE.md`).
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
@@ -87,6 +90,8 @@ advertisement-parent (root pom)
 Reference implementations: `UserRepository` in user-spring-boot-starter, `AdvertisementRepository` in advertisement-spring-boot-starter, `AttachmentRepository` in attachment-spring-boot-starter.
 
 → query-lib SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @query-lib/CLAUDE.md
+
+→ test-support (Testcontainers scaffolding for repository tests): @test-support/CLAUDE.md
 
 ---
 

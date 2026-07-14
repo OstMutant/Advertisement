@@ -20,6 +20,7 @@
 
     <modules>
         <module>query-lib</module>
+        <module>test-support</module>
         <module>platform-commons</module>
         <module>audit-spring-boot-starter</module>
         <module>attachment-spring-boot-starter</module>

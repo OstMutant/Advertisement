@@ -24,7 +24,7 @@ if [ -n "$_db_container" ]; then
   fi
 else
   echo "No DB container found — starting via docker compose..."
-  docker compose -f "$ROOT/scripts/infra/docker-compose.db.yml" up -d
+  docker compose --project-directory "$ROOT" -f "$ROOT/scripts/infra/docker-compose.db.yml" up -d
   until docker exec "$(docker ps --filter "publish=5432" --format "{{.Names}}" | head -1)" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do sleep 1; done
 fi
 

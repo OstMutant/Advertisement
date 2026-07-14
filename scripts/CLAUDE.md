@@ -20,6 +20,32 @@ chmod +x ~/.docker/cli-plugins/docker-buildx
 ```
 Verify: `docker buildx version`. The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming.
 
+**`docker compose` CLI plugin — install once, same pattern as buildx:**
+Not present by default in this sandbox either. Install:
+```bash
+mkdir -p ~/.docker/cli-plugins
+curl -Lo ~/.docker/cli-plugins/docker-compose \
+  https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64
+chmod +x ~/.docker/cli-plugins/docker-compose
+```
+Verify: `docker compose version`.
+
+**`--project-directory` is required whenever `-f` points outside the repo root.**
+`scripts/infra/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
+`scripts/infra/`, not the repo root, but read `${POSTGRES_IMAGE}` (and, per
+[improvement-044](../features/issues/improvement-044-shared-env-config-consolidation.md), more
+values to come) from the repo-root `.env`. Compose's default project directory — where it looks
+for `.env` — is the directory containing the first `-f` file, **not** the invoking shell's working
+directory. Always pass `--project-directory .` (run from the repo root) or
+`--project-directory "$ROOT"` (absolute path), e.g.:
+```bash
+docker compose --project-directory . -f scripts/infra/docker-compose.db.yml up -d
+```
+Omitting it silently resolves `${POSTGRES_IMAGE}` to an empty string and fails with "service db
+has neither an image nor a build context specified" — confirmed by direct testing, not assumption.
+This is documented, version-independent Compose behavior — the same fix applies on any machine,
+not just this sandbox.
+
 **How to run deploy.sh:**
 1. First launch Monitor with `persistent: true` watching `/tmp/deploy.log`:
    - Every 10s check if file size changed
@@ -88,6 +114,18 @@ mount configured for the `builder` stage). Testcontainers-based tests (`improvem
 real reachable Docker daemon, which only exists when `mvn test` is run directly in this
 environment, never inside the image build. Confirmed reachable here: `/var/run/docker.sock`
 mounted, `docker version` responds, `mvn`/`./mvnw` both present.
+
+**This sandbox also needs `TEST_SUPPORT_POSTGRES_FIXED_PORT` and `TESTCONTAINERS_RYUK_DISABLED`.**
+Confirmed: Testcontainers can create a container here, but the test JVM cannot reach a
+dynamically-assigned published port (only statically-published ones, e.g. `advertisement-db`'s
+`5432`, are reachable) — a Docker Desktop / socket-proxy quirk specific to this sandbox, not a
+code bug (same class of issue as the volume-mount limitation noted under Playwright below). Ryuk
+(the container reaper) also can't connect back to the test JVM here. Run:
+```bash
+TESTCONTAINERS_RYUK_DISABLED=true TEST_SUPPORT_POSTGRES_FIXED_PORT=25432 mvn clean test 2>&1 | tee /tmp/test.log
+```
+Neither variable is needed on a normal developer machine — leave unset there; Testcontainers'
+default random-port assignment and Ryuk cleanup both just work outside this sandbox.
 
 ---
 
