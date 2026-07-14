@@ -20,19 +20,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 advertisement-parent (root pom)
 ├── query-lib                         — SQL filter/sort helper library (SqlFilterBuilder, OrderByBuilder)
-├── test-support                      — shared Testcontainers scaffolding for repository tests (test-scope only)
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write + read side (auto-configured starter)
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage (auto-configured starter)
 ├── user-spring-boot-starter          — User domain: entity, service, security, UserPortImpl (auto-configured starter)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
+├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
 
-**test-support** is a plain testing library (no Spring Boot autoconfiguration), same shape as `query-lib`. Provides `AbstractPostgresIntegrationTest` — a shared singleton Testcontainers Postgres instance for repository tests, consumed as a `test`-scope dependency by starters that need a real Postgres. Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `scripts/CLAUDE.md`).
+**integration-tests** is the sole home for Testcontainers-based repository tests and their fixtures (`AbstractPostgresIntegrationTest` — shared singleton Testcontainers Postgres instance). Domain starters never carry test code for this purpose themselves — it depends on whichever starters it needs to test (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, `platform-commons`, ...), which is safe only because this module is never shipped or deployed (see `integration-tests/CLAUDE.md` for the full rationale). Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `scripts/CLAUDE.md`).
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
@@ -91,7 +91,7 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 
 → query-lib SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @query-lib/CLAUDE.md
 
-→ test-support (Testcontainers scaffolding for repository tests): @test-support/CLAUDE.md
+→ integration-tests (Testcontainers repository tests + fixtures, why domain starters stay test-code-free): @integration-tests/CLAUDE.md
 
 ---
 

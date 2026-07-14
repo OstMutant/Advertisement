@@ -12,16 +12,36 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>test-support</artifactId>
+    <artifactId>integration-tests</artifactId>
     <packaging>jar</packaging>
-    <name>Test Support</name>
+    <name>Integration Tests</name>
     <description>
-        Shared Testcontainers scaffolding for repository tests across starters.
-        Owns the singleton Postgres container pattern. No Spring Boot autoconfiguration —
-        a plain testing library, consumed as a test-scope dependency.
+        Sole home for every Testcontainers-based repository test and its supporting fixtures,
+        across every domain starter. Domain starters (advertisement/audit/attachment/user/taxon
+        -spring-boot-starter) never carry test code for this purpose themselves — this module
+        depends on whichever starters it needs to test (compile scope; it is never shipped or
+        deployed, so this does not violate the "starters must not depend on each other" rule,
+        which governs production runtime composability, not test-time verification). One
+        canonical fixture (e.g. UserTestFixtures) is reused by every repository test that needs
+        it, instead of duplicating fixture logic per starter.
     </description>
 
     <dependencies>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>platform-commons</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>advertisement-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>user-spring-boot-starter</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

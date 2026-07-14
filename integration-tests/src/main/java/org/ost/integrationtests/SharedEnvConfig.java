@@ -1,4 +1,4 @@
-package org.ost.testsupport;
+package org.ost.integrationtests;
 
 import java.io.File;
 import java.io.FileInputStream;

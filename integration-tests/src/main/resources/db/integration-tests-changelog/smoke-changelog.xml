@@ -7,7 +7,7 @@
 
     <!-- Trivial changeset proving container + changelog application mechanics work.
          Not tied to any real starter's schema. -->
-    <changeSet id="test-support-smoke" author="ostap">
+    <changeSet id="integration-tests-smoke" author="ostap">
         <createTable tableName="smoke_test">
             <column name="id" type="BIGSERIAL">
                 <constraints primaryKey="true" nullable="false"/>

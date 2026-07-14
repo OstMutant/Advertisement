@@ -127,6 +127,27 @@ scripts\playwright.bat e2e --ux         # Windows
 
 ---
 
+## integration-tests.sh / integration-tests.bat
+
+Run Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every
+such test for every starter, so starters carry none themselves). Delegates to
+`integration-tests/run.sh`.
+
+```bash
+bash scripts/integration-tests.sh                          # all integration tests
+bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
+bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
+bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
+scripts\integration-tests.bat --sandbox                    # Windows
+```
+
+Reports after each run: `integration-tests/reports/run.log` (full output) and
+`integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
+the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
+developer machine.
+
+---
+
 ## sonar.sh / sonar.bat
 
 Run SonarQube analysis. Starts SonarQube automatically if not running. Delegates to `scripts/sonar/run.sh`.

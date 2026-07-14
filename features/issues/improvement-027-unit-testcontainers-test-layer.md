@@ -3,9 +3,11 @@
 **Type:** improvement — testing infrastructure/process. Expands
 `features/process-improvements.md` Part 1 item 3 ("Add a unit/integration test layer") with a
 concrete, verified current-state audit and a scoping decision tied to the private roadmap.
-**Module:** cross-cutting — `platform-commons`, `advertisement-spring-boot-starter`,
-`audit-spring-boot-starter`, `attachment-spring-boot-starter`, `user-spring-boot-starter`,
-`taxon-spring-boot-starter`, `query-lib`, plus a new `test-support` module (see Batch 0 below)
+**Module:** `integration-tests` only — the new module (see Batch 0 below) that owns every test and
+fixture this issue adds, depending on whichever domain starters (`advertisement-spring-boot-
+starter`, `user-spring-boot-starter`, ..., `platform-commons`) it needs to test. No domain
+starter's own `pom.xml`/`src/test/java` changes — see "Batch 1 resolution" and
+`integration-tests/CLAUDE.md` for why.
 **Priority:** medium-high — already recorded as a **hard gate** for `F-08` (payments) in the
 private roadmap; currently the pure-logic code most worth testing (snapshot diffs, sanitizer,
 translation resolution) has zero coverage, and every SQL correctness signal comes only from the
@@ -140,7 +142,7 @@ don't work from inside the claude container") — a Docker Desktop / socket-prox
 this sandbox and the actual container network, not a bug in our code or in Testcontainers.
 
 Root cause not fixable from within this repo (it's sandbox infrastructure, not application code).
-Workaround: `AbstractPostgresIntegrationTest` reads an optional `TEST_SUPPORT_POSTGRES_FIXED_PORT`
+Workaround: `AbstractPostgresIntegrationTest` reads an optional `INTEGRATION_TESTS_POSTGRES_FIXED_PORT`
 environment variable; when set, it forces a fixed host-port binding via
 `PostgreSQLContainer.setPortBindings()` instead of Testcontainers' normal random-port assignment.
 Unset (the default, e.g. on a real developer machine with normal Docker networking), behavior is
@@ -173,7 +175,7 @@ Batch 0 landed with the design discussed above, plus two things found while buil
    `scripts/infra/docker-compose.db.yml` — exactly the kind of two-places-to-update-in-sync risk
    this whole issue is about avoiding for SQL/logic bugs, just applied to config instead. Fixed by
    adding a repo-root `.env` (`POSTGRES_IMAGE=postgres:15-alpine`) that both consumers read: Docker
-   Compose natively, and a new `SharedEnvConfig.require(key)` helper in `test-support` that walks
+   Compose natively, and a new `SharedEnvConfig.require(key)` helper in `integration-tests` that walks
    up from the JVM's working directory (bounded, 5 parent levels) to find `.env` — resolves
    correctly whether `mvn test` is launched from the repo root, a module subdirectory, or an IDE
    test runner (IntelliJ commonly sets the working directory to the module, not the reactor root,
@@ -213,7 +215,7 @@ Batch 0 landed with the design discussed above, plus two things found while buil
    `docker-compose.db.yml` and `docker-compose.app.yml`.
 
 Verified end-to-end in this sandbox with
-`TESTCONTAINERS_RYUK_DISABLED=true TEST_SUPPORT_POSTGRES_FIXED_PORT=25432 mvn -pl test-support test`
+`TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mvn -pl integration-tests test`
 — container starts, changelog applies, verification query passes.
 
 ## Suggested fix
@@ -234,67 +236,71 @@ Exactly the two-layer split `process-improvements.md` already specified, now wit
 3. Keep Playwright e2e as the outer loop (unchanged); the new layer becomes the inner loop,
    target ~30s per `process-improvements.md`'s own estimate.
 
-### A shared `test-support` module, not per-starter Testcontainers setup
+### A single `integration-tests` module owns every test — domain starters carry none (superseded design, see Batch 1 resolution below)
 
-Rather than each of the four repository-test-bearing starters (`advertisement`, `audit`,
-`attachment`, `taxon`) independently declaring Testcontainers dependencies and independently
-starting its own Postgres container, add one new plain-Java module — `test-support`, sibling to
-`query-lib` (same shape: no Spring Boot autoconfiguration, just a shared library, consumed by
-multiple modules — the precedent `platform-commons/CLAUDE.md`'s "used by ≥2 modules" rule already
-sanctions). It owns:
-- The Testcontainers BOM (`org.testcontainers:testcontainers-bom`) + `org.testcontainers:postgresql`
-  + `org.testcontainers:junit-jupiter`, plus `spring-boot-starter-test` — all `compile` scope here,
-  since being a testing library *is* this module's whole purpose.
-- One shared base class (e.g. `AbstractPostgresIntegrationTest`) holding a **singleton** `@Container`
-  Postgres instance — Testcontainers' documented pattern for sharing one running container across
-  every test class in a single `mvn test` reactor run, instead of paying container-startup cost
-  once per starter. Container startup, not test execution, is the slow part of this pattern; a
-  shared container is the difference between "~30s total" (the estimate this issue is built
-  around) and "~30s × 4 starters."
-- Each of the four repository-test-bearing starters adds `test-support` as a `test`-scope
-  dependency (transitively pulls in JUnit/AssertJ/Testcontainers) instead of declaring the
-  Testcontainers deps individually.
-- Data isolation across starters sharing one physical container is an open design detail to settle
-  during Batch 0 — most likely a separate database name (or schema) per starter's test suite
-  against the one shared Postgres instance, so `advertisement`'s tests can't collide with
-  `taxon`'s.
+**Superseded (2026-07-14) — see "Batch 1 resolution" for the design actually implemented.**
+Originally planned as "each repository-test-bearing starter adds `integration-tests` as a
+`test`-scope dependency, and hosts its own `*RepositoryTest` in its own `src/test/java`." Revised
+during Batch 1 planning: **no domain starter carries any test code for this purpose at all** — the
+actual `*RepositoryTest` classes themselves, not just the shared scaffolding, live inside
+`integration-tests`. `integration-tests` depends on whichever starters it needs to test (`compile`
+scope, since its own sources reference those classes directly) — safe only because this module is
+never shipped or deployed, so it never violates "starters must not depend on each other" (that
+rule governs production runtime composability). See `integration-tests/CLAUDE.md` for the full
+rationale, including why a per-starter stub schema was considered and rejected in favor of this.
 
-`platform-commons` and any starter only adding **plain unit tests** (no DB, e.g. `diff()` tests)
-does not need `test-support` — it only needs `spring-boot-starter-test` (test scope) directly,
-same as before.
+`integration-tests` (sibling to `query-lib`, no Spring Boot autoconfiguration of its own for its
+scaffolding classes) owns:
+- The Testcontainers deps (`org.testcontainers:testcontainers-postgresql`,
+  `org.testcontainers:testcontainers-junit-jupiter`, `spring-boot-testcontainers`) +
+  `spring-boot-starter-test` — `compile` scope, since being a testing library/suite *is* this
+  module's whole purpose.
+- `AbstractPostgresIntegrationTest` — a **singleton** Postgres container shared across every test
+  class in one `mvn test` reactor run, instead of paying container-startup cost per starter.
+  Container startup, not test execution, is the slow part of this pattern; a shared container is
+  the difference between "~30s total" (this issue's own estimate) and "~30s × N starters."
+- Every `*RepositoryTest` class and shared fixture (e.g. `UserTestFixtures`), organized into
+  sub-packages per domain (`org.ost.integrationtests.advertisement`, etc.).
+- Data isolation across starters' schemas sharing one physical container: each test applies its
+  own starter's real Liquibase changelog against the shared database — distinct table names,
+  no collision expected (to be confirmed once Batch 1's `advertisement`/`user_information` pair
+  actually lands).
 
 ### Dependency changes required first
 
-- Add the new `test-support` module (Batch 0, see below) to the root reactor `pom.xml`.
-- Add `spring-boot-starter-test` (test scope) to `platform-commons`, `user-spring-boot-starter`
-  (plain unit tests only, no DB — already present in `query-lib`, `marketplace-app`,
-  `taxon-spring-boot-starter`).
-- Add `test-support` (test scope) to `advertisement-spring-boot-starter`,
-  `audit-spring-boot-starter`, `attachment-spring-boot-starter`, `taxon-spring-boot-starter`
-  (repository/Testcontainers tests).
+- Add the new `integration-tests` module (Batch 0, done) to the root reactor `pom.xml`.
+- `integration-tests/pom.xml` depends on `platform-commons` and whichever starters its tests need
+  (`advertisement-spring-boot-starter`, `user-spring-boot-starter` for Batch 1; more added as
+  Batches 2-3 land), plus the Testcontainers/Spring Boot test deps.
+- **No other module's `pom.xml` changes** — domain starters and `platform-commons` stay untouched.
 
 ## Suggested phased execution
 
-1. ✅ **Batch 0 — `test-support` module (done 2026-07-14):** module created (pom, reactor
+1. ✅ **Batch 0 — `integration-tests` module (done 2026-07-14):** module created (pom, reactor
    registration, Testcontainers deps, the shared `AbstractPostgresIntegrationTest`
    singleton-container base class + `SharedEnvConfig`), `PostgresContainerSmokeTest` proves the
    scaffolding boots a container and applies a trivial changelog successfully — see "Batch 0
-   resolution" above. Per-starter data-isolation approach (separate DB/schema per starter against
-   the one shared container) is still open, deferred to Batch 1 when a real starter first consumes
-   this base class.
-2. **Batch 1 — one exemplar of each kind:** add `test-support` as a test dependency to
-   `advertisement-spring-boot-starter`, `spring-boot-starter-test` to `platform-commons`; write one
-   Testcontainers repository test (`AdvertisementRepository`, the most filter/sort-heavy one) and
-   one plain unit test (`AdvertisementSnapshotDto.diff()`) to prove the pattern end-to-end and
-   measure actual local run time before committing to the "~30s" estimate.
+   resolution" above.
+2. **Batch 1 — one exemplar of each kind (design finalized 2026-07-14, see
+   `integration-tests/CLAUDE.md`):** add `advertisement-spring-boot-starter` and
+   `user-spring-boot-starter` as `compile`-scope dependencies of `integration-tests` itself (no
+   change to either starter's own pom); write `UserTestFixtures` (shared, reusable by later
+   batches), one Testcontainers repository test (`AdvertisementRepository`, the most
+   filter/sort-heavy one — its FK to `user_information` is exactly why `UserTestFixtures` exists)
+   and one plain unit test (`AdvertisementSnapshotDto.diff()`), all inside `integration-tests` —
+   to prove the pattern end-to-end and measure actual local run time before committing to the
+   "~30s" estimate.
 3. **Batch 2 — remaining plain unit tests:** the other three `diff()` implementations,
-   `resolveTranslation()`, `sanitizeHtml()`.
+   `resolveTranslation()`, `sanitizeHtml()` — all as test classes inside `integration-tests`,
+   adding `taxon-spring-boot-starter` as a dependency of `integration-tests` when
+   `resolveTranslation()`'s test needs it.
 4. **Batch 3 — remaining Testcontainers repository tests:** `AuditLogRepository`,
-   `TaxonAssignmentRepository`, `AttachmentRepository`, each starter adding `test-support` as its
-   test dependency.
+   `TaxonAssignmentRepository`, `AttachmentRepository` — same pattern, adding
+   `audit-spring-boot-starter`/`attachment-spring-boot-starter` to `integration-tests`' own pom as
+   needed, never to the starters themselves.
 5. **Ongoing:** require the next new starter (`review-spring-boot-starter`, F-06) to ship its
-   repository and pure-logic tests (using `test-support`) in the same PR as the feature, not as a
-   follow-up.
+   repository and pure-logic tests (as new classes inside `integration-tests`, plus a new
+   `compile`-scope dependency there) in the same PR as the feature, not as a follow-up.
 
 ## Required verification
 

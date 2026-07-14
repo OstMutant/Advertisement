@@ -1,4 +1,4 @@
-package org.ost.testsupport;
+package org.ost.integrationtests;
 
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -24,7 +24,7 @@ public abstract class AbstractPostgresIntegrationTest {
      * developer machine, where Testcontainers' default random-port assignment just works. See
      * features/issues/improvement-027-unit-testcontainers-test-layer.md.
      */
-    private static final String FIXED_PORT_ENV = "TEST_SUPPORT_POSTGRES_FIXED_PORT";
+    private static final String FIXED_PORT_ENV = "INTEGRATION_TESTS_POSTGRES_FIXED_PORT";
 
     @ServiceConnection
     protected static final PostgreSQLContainer<?> POSTGRES = createContainer();

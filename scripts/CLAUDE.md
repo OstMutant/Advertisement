@@ -103,29 +103,62 @@ The script starts SonarQube automatically if not running, copies source files in
 
 ## Unit / Testcontainers Tests
 
+All Testcontainers-based tests and their fixtures live in the `integration-tests` module (see
+`integration-tests/CLAUDE.md` for why domain starters carry none of this themselves).
+
+### Via script (preferred — streaming, reports folder, scenario selection)
+
 ```bash
-mvn clean test 2>&1 | tee /tmp/test.log
+bash scripts/integration-tests.sh                          # Linux / WSL — every test
+scripts\integration-tests.bat                               # Windows
+
+bash scripts/integration-tests.sh smoke                     # just PostgresContainerSmokeTest
+bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
+bash scripts/integration-tests.sh --sandbox smoke            # + this sandbox's Docker workarounds
 ```
 
-**Never run via `deploy.sh`/`deploy-dev.sh`.** Both build Maven inside a `docker build` stage
-(multi-stage `Dockerfile`) that already skips tests (`./mvnw install -DskipTests`) and, even if it
-didn't, has no access to the outer Docker socket (standard Docker-in-Docker isolation — no socket
-mount configured for the `builder` stage). Testcontainers-based tests (`improvement-027`) need a
-real reachable Docker daemon, which only exists when `mvn test` is run directly in this
-environment, never inside the image build. Confirmed reachable here: `/var/run/docker.sock`
-mounted, `docker version` responds, `mvn`/`./mvnw` both present.
+Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/playwright.sh` →
+`playwright/run.sh`). Streams full Maven/Testcontainers output live via `tee`. After the run:
+- `integration-tests/reports/run.log` — full streamed output
+- `integration-tests/reports/surefire/` — one `.txt`/`.xml` pass/fail report per test class
+  (copied from Maven's own `target/surefire-reports/`)
 
-**This sandbox also needs `TEST_SUPPORT_POSTGRES_FIXED_PORT` and `TESTCONTAINERS_RYUK_DISABLED`.**
+`--sandbox` applies `TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432`
+— **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
+why). Omit it there; Testcontainers' defaults just work.
+
+**How to run it (Monitor + tee pattern, same as deploy/Playwright):** launch a `Monitor` watching
+`integration-tests/reports/run.log` (10s interval, catch `PASSED|FAILED|ERROR`), then run
+synchronously: `bash scripts/integration-tests.sh --sandbox [scenario] 2>&1 | tee /tmp/integration-tests.log`
+with `timeout: 600000`.
+
+### Via direct command (no script, no reports folder)
+
+```bash
+mvn -pl integration-tests -am test
+# or, in this sandbox only:
+TESTCONTAINERS_RYUK_DISABLED=true INTEGRATION_TESTS_POSTGRES_FIXED_PORT=25432 mvn -pl integration-tests -am test
+```
+`-am` also builds whichever starters `integration-tests` currently depends on (required — they
+are not otherwise built by a scoped `-pl integration-tests` alone).
+
+### Never run via `deploy.sh`/`deploy-dev.sh`
+
+Both build Maven inside a `docker build` stage (multi-stage `Dockerfile`) that already skips tests
+(`./mvnw install -DskipTests`) and, even if it didn't, has no access to the outer Docker socket
+(standard Docker-in-Docker isolation — no socket mount configured for the `builder` stage).
+Testcontainers-based tests need a real reachable Docker daemon, which only exists when `mvn test`
+is run directly, never inside the image build.
+
+### Why this sandbox needs `INTEGRATION_TESTS_POSTGRES_FIXED_PORT` / `TESTCONTAINERS_RYUK_DISABLED`
+
 Confirmed: Testcontainers can create a container here, but the test JVM cannot reach a
 dynamically-assigned published port (only statically-published ones, e.g. `advertisement-db`'s
 `5432`, are reachable) — a Docker Desktop / socket-proxy quirk specific to this sandbox, not a
 code bug (same class of issue as the volume-mount limitation noted under Playwright below). Ryuk
-(the container reaper) also can't connect back to the test JVM here. Run:
-```bash
-TESTCONTAINERS_RYUK_DISABLED=true TEST_SUPPORT_POSTGRES_FIXED_PORT=25432 mvn clean test 2>&1 | tee /tmp/test.log
-```
-Neither variable is needed on a normal developer machine — leave unset there; Testcontainers'
-default random-port assignment and Ryuk cleanup both just work outside this sandbox.
+(the container reaper) also can't connect back to the test JVM here. Neither variable is needed on
+a normal developer machine — leave unset there; Testcontainers' default random-port assignment and
+Ryuk cleanup both just work outside this sandbox.
 
 ---
 
