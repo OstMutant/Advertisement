@@ -1,13 +1,14 @@
-# improvement-049: Taxon update() silently drops deletedBy; two AttachmentService paths leave orphaned state on partial failure
+# improvement-049: Taxon update() silently drops deletedBy; three AttachmentService/CleanupService paths leave orphaned state on partial failure
 
 **Type:** bug fix. Found via targeted code review of `taxon-spring-boot-starter` and
 `attachment-spring-boot-starter` — modules not previously audited in this session's earlier passes
 (improvement-045/047/048 covered `marketplace-app`/`user-spring-boot-starter`/`advertisement`/
-partially `taxon`). All three findings verified directly against current source, not inferred.
+partially `taxon`). All four findings verified directly against current source, not inferred.
 **Module:** `taxon-spring-boot-starter` (`TaxonService.update()`),
-`attachment-spring-boot-starter` (`AttachmentService.upload()`, `.commitTempUploadsQuiet()`).
+`attachment-spring-boot-starter` (`AttachmentService.upload()`, `.commitTempUploadsQuiet()`,
+`AttachmentCleanupService.deleteAttachments()`).
 **Priority:** medium — none are live-traffic incidents today (see reachability notes per item), but
-all three are real, silent data-corruption/orphan-state risks, not test-coverage gaps; items 2/3
+all four are real, silent data-corruption/orphan-state risks, not test-coverage gaps; items 2/3/4
 (Attachment) are the more concrete ones since their trigger paths are live in production.
 **When:** independent, no blockers.
 
@@ -109,6 +110,36 @@ stays in the DB, now pointing at a file that no longer exists. This is **worse t
 instead of a clean rollback, the system ends up with a DB record referencing a nonexistent file,
 which would surface later as a broken image/video wherever that attachment is rendered.
 
+### 4. `AttachmentCleanupService.deleteAttachments()` deletes from S3 before the DB, wrong way round — INCONSISTENT STATE ON CRASH
+`/app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/services/AttachmentCleanupService.java:52-76`
+
+```java
+private void deleteAttachments() {
+    List<String> urls = attachmentRepository.findUrlsDeletedOlderThan(cleanupProperties.retentionDays());
+    ...
+    urls.forEach(url -> {
+        try { storageService.delete(url); } catch (Exception e) { ... failedUrls.add(url); }
+    });
+    List<String> toDelete = failedUrls.isEmpty() ? urls : urls.stream().filter(u -> !failedUrls.contains(u)).toList();
+    int deleted = attachmentRepository.deleteByUrls(toDelete);   // DB delete happens AFTER S3 delete
+    ...
+}
+```
+
+Same root shape as items 2/3 above, same fix direction: storage and DB are mutated in the wrong
+order relative to each other. Here S3 objects are deleted first, DB rows second. **Failure
+scenario:** if the process crashes or loses its DB connection between the `storageService.delete()`
+loop finishing and `attachmentRepository.deleteByUrls()` executing (pod eviction, OOM kill, network
+partition — this method is `@Transactional` at the Spring level, but that only protects the DB
+statement itself, not the gap between the S3 calls and the DB call), the S3 objects are already
+gone but their DB rows survive, now pointing at deleted files — the client hits a 404 on next view.
+Already partially defensive for S3-delete *failures* (tracks `failedUrls`, retries them next run)
+but that doesn't cover a crash between the two phases. Reversing the order (delete DB rows first,
+inside the transaction; delete S3 objects after commit) makes the failure mode safe either way: if
+the process dies after the DB commit but before S3 cleanup, the objects are merely orphaned
+storage "trash" that a future cleanup pass can still sweep by prefix/age, not DB rows pointing at
+nothing.
+
 ## Suggested fix
 
 1. **Item 1 (`TaxonService.update()`):** add `.deletedBy(existing.getDeletedBy())` to the builder
@@ -134,6 +165,11 @@ which would surface later as a broken image/video wherever that attachment is re
    oversight). If `@Transactional` doesn't cover the `storageService.upload()` call itself (file
    writes aren't part of a DB transaction anyway), the fix is really about making the **DB save**
    atomic with the **subsequent DB-touching steps** (`captureMediaChanges()`), not the file upload.
+4. **Item 4 (`AttachmentCleanupService.deleteAttachments()`):** swap the order — delete
+   `attachmentRepository.deleteByUrls()` first (inside the existing `@Transactional`), then delete
+   from S3 after the DB commit. Update the `failedUrls` retry bookkeeping accordingly (now tracks
+   S3 deletes that failed *after* the DB row is already gone — fine, since a dangling S3 object
+   with no DB reference is a safe, sweepable state, unlike the reverse).
 
 ## Required verification
 
