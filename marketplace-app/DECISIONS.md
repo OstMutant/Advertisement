@@ -1019,6 +1019,72 @@ optional singleton services/ports"):
 
 ---
 
+## ADR-034: No raw cross-starter SQL joins — bulk-lookup port + service-level enrichment; actor-reference columns follow Taxon's naming convention
+
+**Status:** Accepted
+
+**Context:** `AdvertisementRepository.findAdvertisementById()`/`findByFilter()` did
+`FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id`, hardcoding
+`user-spring-boot-starter`'s table and column names (`user_information`, `u.name`, `u.email`)
+inside `advertisement-spring-boot-starter`. This is a stronger violation of "starters must not
+depend on each other" (`.claude/rules.md`) than a Java import: there is no class-level
+dependency for ArchUnit (improvement-030) to detect, only a raw SQL string — a rename in
+`user-spring-boot-starter` would break `advertisement-spring-boot-starter` at runtime with zero
+compile-time warning. Separately, `advertisement`'s actor-reference columns
+(`created_by_user_id`/`last_modified_by_user_id`/`deleted_by_user_id`) embedded the word "user"
+for no functional reason, unlike `taxon`'s already-established `created_by`/`updated_by`/
+`deleted_by` convention (same kind of value — an opaque `User.id` populated via
+`AuditorAware<Long>`).
+
+**Decision:** Mirrors the already-completed `TaxonPort.findByIds()` pattern
+(improvement-007/015), applied to `UserPort`:
+- `UserPort.findByIds(Set<Long>) -> Map<Long, UserDto>` added to `platform-commons`;
+  `UserPortImpl.findByIds()` is pure delegation to `UserService.findByIds()`, which calls a new
+  `UserRepository.findByIds(Long[])` (`SELECT ... WHERE id = ANY(:ids)`, same shape as the
+  existing `findActorNames()`/`findExistingIds()` bulk lookups).
+- `AdvertisementRepository` no longer joins `user_information` at all — `findAdvertisementById()`
+  and `findByFilter()` select only `advertisement.created_by` (the FK id, still present as a
+  plain column). The three dead `ORDER BY` alias entries for `u.id`/`u.name`/`u.email` were
+  removed together with the join — verified dead: `AdvertisementSortMeta` only exposes
+  `TITLE`/`CREATED_AT`/`UPDATED_AT`, so no UI path ever built a `Sort` reaching those aliases.
+- `AdvertisementService.enrichWithActorInfo(ads)` (new, mirrors `enrichWithCategories()` exactly,
+  same `ComponentFactory<UserPort>` optional-dependency shape as `ComponentFactory<TaxonPort>`)
+  merges `createdByUserName`/`createdByUserEmail` into `AdvertisementInfoDto` after the repository
+  call, in `getFiltered()` and `findById()`. `UserPortImpl`/`AdvertisementPortImpl` stay pure
+  delegation — the merge logic lives only in the service, per `platform-commons/CLAUDE.md`'s
+  `*PortImpl` rule.
+- Renamed `advertisement`'s actor-reference columns to match `taxon`: `created_by_user_id` →
+  `created_by`, `last_modified_by_user_id` → `updated_by`, `deleted_by_user_id` → `deleted_by`
+  (direct edit of `01-advertisement-schema.xml` — DB not yet in production, same practice as
+  every prior schema edit — requires `deploy.sh --reset` for the Liquibase checksum). Matching
+  Java field renames: `Advertisement.createdByUserId`→`createdBy` (`@CreatedBy`),
+  `.lastModifiedByUserId`→`updatedBy` (`@LastModifiedBy`); `AdvertisementInfoDto.createdByUserId`
+  (platform-commons) and `AdvertisementEditDto.createdByUserId`/`.lastModifiedByUserId`
+  (marketplace-app) renamed to match — `createdByUserName`/`createdByUserEmail` keep their names
+  since they describe enrichment output, not a `_user_id`-suffixed column.
+
+**Sort-by-author, if ever requested:** do not reintroduce a JOIN (recreates this exact violation)
+and do not sort in memory after `enrichWithActorInfo()` (pagination `LIMIT`/`OFFSET` runs in SQL
+*before* enrichment, so an in-memory sort would only order the current page, silently wrong for
+any page beyond the first). The correct fix is the same pattern already used for
+`media_url`/`media_content_type`: denormalize `created_by_user_name` onto `advertisement`, synced
+via a typed hook fired on user name changes — not a query-time join.
+
+**Explicitly not touched:** the FK constraints in `01-advertisement-schema.xml`
+(`referencedTableName="user_information"`) still reference the other starter's table by name —
+this is a deeper, separate schema-level coupling (referential integrity inherently requires
+knowing the referenced table) that this ADR does not attempt to resolve.
+
+**Consequences:**
+- Full e2e suite must stay green — the advertisement card's author-email display
+  (`AdvertisementCardView.java:187`, `ad.getCreatedByUserEmail()`) and the owner-only edit/delete
+  button visibility (`getOwnerUserId()`, used in `AdvertisementCardView`,
+  `AdvertisementFormOverlayModeHandler`, `AdvertisementViewOverlayModeHandler`) are the concrete
+  regression detectors.
+- → [improvement-041-advertisement-user-sql-join-and-column-naming](../features/completed/issues/improvement-041-advertisement-user-sql-join-and-column-naming.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

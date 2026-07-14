@@ -132,4 +132,11 @@ public class UserRepository {
                 .stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
+
+    public List<User> findByIds(@NonNull Long[] ids) {
+        return jdbcClient.sql("SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information WHERE id = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource("ids", ids))
+                .query(ROW_MAPPER)
+                .list();
+    }
 }

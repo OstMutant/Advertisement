@@ -123,11 +123,22 @@ risk this refactor would otherwise carry is closed at the type level (those fiel
 properties, so the generated `UPDATE` can't reference them), not by builder discipline. See
 `marketplace-app/DECISIONS.md` ADR-029 update. Moved to `completed/issues/`.
 
+✅ Done (2026-07-14): improvement-041 — `AdvertisementRepository`'s raw SQL
+`LEFT JOIN user_information` removed (both `findAdvertisementById()` and `findByFilter()`),
+replaced with `UserPort.findByIds()` bulk lookup + `AdvertisementService.enrichWithActorInfo()`
+(mirrors `enrichWithCategories()`). Three dead `ORDER BY` sort-alias entries
+(`created_by_user_id`/`_name`/`_email`) removed alongside the join — confirmed dead,
+`AdvertisementSortMeta` never exposed sort-by-author. Actor-reference columns renamed to match
+Taxon's convention: `created_by_user_id`→`created_by`, `last_modified_by_user_id`→`updated_by`,
+`deleted_by_user_id`→`deleted_by` (`01-advertisement-schema.xml` edited directly, `deploy.sh
+--reset` required). See `marketplace-app/DECISIONS.md` ADR-034 (also records the sort-by-author
+escape hatch for the future: denormalize via a hook, like `media_url`, never rejoin or sort
+in-memory post-pagination). Moved to `completed/issues/`.
+
 **Still open, no longer blocked:**
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-041](issues/improvement-041-advertisement-user-sql-join-and-column-naming.md) | Remove `AdvertisementRepository`'s raw SQL `JOIN user_information` (hardcoded cross-starter table/column names) via `UserPort.findByIds()` bulk lookup + rename `*_user_id` columns to match Taxon's `created_by`/`updated_by`/`deleted_by` convention | medium-high — worse than a Java-level violation, ArchUnit (improvement-030) can't catch raw SQL coupling; mirrors improvement-007's already-completed pattern |
 | [improvement-042](issues/improvement-042-advertisement-media-denormalized-columns.md) | Remove `advertisement.media_url`/`media_content_type`/`media_count` denormalized columns via a new `AttachmentPort.getMediaSummaries()` bulk lookup, enriched at read time in `AdvertisementService` (same pattern as 041) | medium — real schema-level coupling to attachment's domain vocabulary, confirmed after an earlier wrong dismissal in this same review; JSONB genericization was considered and rejected (repackages the same coupling, no functional gain — media sort columns are confirmed dead/unused) |
 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Convert ~17 stateless leaf UI widgets (buttons/fields/dialogs/layout) from `@SpringComponent` prototype beans to plain Java classes | brings code in line with existing `marketplace-app/CLAUDE.md` "no Configurable for 1-2 setters" rule; execute in 4 phased batches with a full e2e run after each, not one PR |
 | [improvement-026](issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md) | Replace ~10 hand-built `new Button(...)` spots (HeaderBar, PaginationBar, attachment lightboxes/gallery, audit restore button, UserPickerField) with existing `Ui*Button` wrappers | medium priority — HeaderBar's 4 auth buttons and 5 other spots are visibly unstyled (real UX bug, not just duplication); HeaderBar batch touches CSS classes nearly every e2e test selects on, run full e2e immediately after that batch |

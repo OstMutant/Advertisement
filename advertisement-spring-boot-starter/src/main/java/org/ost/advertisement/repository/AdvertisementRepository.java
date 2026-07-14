@@ -40,9 +40,7 @@ public class AdvertisementRepository {
                 .description(rs.getString("description"))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
-                .createdByUserId(rs.getObject("created_by_user_id", Long.class))
-                .createdByUserName(rs.getString("created_by_user_name"))
-                .createdByUserEmail(rs.getString("created_by_user_email"))
+                .createdBy(rs.getObject("created_by", Long.class))
                 .mediaUrl(rs.getString("media_url"))
                 .mediaContentType(rs.getString("media_content_type"))
                 .mediaCount(rs.getObject("media_count", Integer.class))
@@ -66,10 +64,9 @@ public class AdvertisementRepository {
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
         return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
-                               u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by,
                                a.media_url, a.media_content_type, a.media_count, a.version
-                        FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
+                        FROM advertisement a
                         WHERE a.id = :id AND a.deleted_at IS NULL
                         """)
                 .paramSource(new MapSqlParameterSource("id", id))
@@ -80,22 +77,18 @@ public class AdvertisementRepository {
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry("id",                    "a.id"),
-                Map.entry("title",                 "a.title"),
-                Map.entry("description",           "a.description"),
-                Map.entry("created_at",            "a.created_at"),
-                Map.entry("updated_at",            "a.updated_at"),
-                Map.entry("media_url",             "a.media_url"),
-                Map.entry("media_content_type",    "a.media_content_type"),
-                Map.entry("media_count",           "a.media_count"),
-                Map.entry("created_by_user_id",    "u.id"),
-                Map.entry("created_by_user_name",  "u.name"),
-                Map.entry("created_by_user_email", "u.email")));
+                Map.entry("id",                 "a.id"),
+                Map.entry("title",              "a.title"),
+                Map.entry("description",        "a.description"),
+                Map.entry("created_at",         "a.created_at"),
+                Map.entry("updated_at",         "a.updated_at"),
+                Map.entry("media_url",          "a.media_url"),
+                Map.entry("media_content_type", "a.media_content_type"),
+                Map.entry("media_count",        "a.media_count")));
         String sql = ("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at,
-                               u.id AS created_by_user_id, u.name AS created_by_user_name, u.email AS created_by_user_email,
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by,
                                a.media_url, a.media_content_type, a.media_count, a.version
-                        FROM advertisement a LEFT JOIN user_information u ON a.created_by_user_id = u.id
+                        FROM advertisement a
                         WHERE a.deleted_at IS NULL%s%s%s%s""")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
@@ -116,7 +109,7 @@ public class AdvertisementRepository {
 
     public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId, Long version) {
         int updated = jdbcClient.sql("""
-                        UPDATE advertisement SET deleted_at = NOW(), deleted_by_user_id = :deletedBy, version = version + 1
+                        UPDATE advertisement SET deleted_at = NOW(), deleted_by = :deletedBy, version = version + 1
                         WHERE id = :id AND version = :version
                         """)
                   .paramSource(new MapSqlParameterSource()

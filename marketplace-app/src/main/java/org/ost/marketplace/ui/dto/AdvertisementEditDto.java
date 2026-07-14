@@ -20,9 +20,9 @@ public class AdvertisementEditDto implements EditDto {
     private Instant createdAt;
     private Instant updatedAt;
 
-    private Long createdByUserId;
+    private Long createdBy;
     private String createdByUserName;
-    private Long lastModifiedByUserId;
+    private Long updatedBy;
 
     private Set<Long> categoryIds;
 

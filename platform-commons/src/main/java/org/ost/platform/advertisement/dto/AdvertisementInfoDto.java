@@ -18,7 +18,7 @@ public class AdvertisementInfoDto {
     String description;
     Instant createdAt;
     Instant updatedAt;
-    Long createdByUserId;
+    Long createdBy;
     String createdByUserName;
     String createdByUserEmail;
     String mediaUrl;
@@ -29,6 +29,6 @@ public class AdvertisementInfoDto {
     Long version;
 
     public Long getOwnerUserId() {
-        return createdByUserId;
+        return createdBy;
     }
 }

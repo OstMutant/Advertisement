@@ -33,6 +33,19 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `@EnableJdbcRepositories(basePackages = "org.ost.advertisement")` declared in `AdvertisementAutoConfiguration`.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.
 - `AdvertisementService` depends on `ComponentFactory<TaxonPort>` — category assignment is optional (guard via `taxonPortFactory.ifAvailable(...)`).
+- `AdvertisementService` also depends on `ComponentFactory<UserPort>` for author name/email
+  enrichment (`enrichWithActorInfo()`, called in `getFiltered()`/`findById()`), mirroring
+  `enrichWithCategories()`'s shape exactly. `AdvertisementRepository` never joins
+  `user_information` directly — it only ever selects `advertisement.created_by` (a plain
+  `BIGINT`, populated via `@CreatedBy`/`JdbcAuditingConfig`'s `AuditorAware<Long>`); the
+  name/email lookup goes through `UserPort.findByIds()`, a bulk lookup, so no raw SQL in this
+  starter ever references another starter's table/column names. See `marketplace-app/DECISIONS.md`
+  ADR-034.
+- Actor-reference columns on `advertisement` are named `created_by`/`updated_by`/`deleted_by` —
+  no `_user_id` suffix — matching `taxon`'s convention (see ADR-034). Sort-by-author is not an
+  exposed feature (`AdvertisementSortMeta` has no such option); if it's ever added, do not
+  re-introduce a JOIN or sort in memory after pagination — denormalize `created_by_user_name`
+  onto `advertisement`, synced via a hook, the same pattern already used for `media_url`.
 - HTML description is sanitized using OWASP HTML Sanitizer (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`). Never trust raw HTML from UI.
 - Description visible-text length is enforced server-side via a Jsoup-based check in
   `AdvertisementService.sanitizeHtml()` (`Jsoup.parse(html).text().length()`), in addition to

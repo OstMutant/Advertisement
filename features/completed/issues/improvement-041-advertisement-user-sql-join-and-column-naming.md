@@ -69,11 +69,23 @@ that ports are pure delegation only — the actual enrichment logic belongs in a
    `UserService`/`UserRepository` bulk method, no merging/business logic inside the port itself
    (the merging happens one layer up, in step 3).
 2. **Remove the `LEFT JOIN user_information` from `AdvertisementRepository`** — both
-   `findAdvertisementById()` and `findByFilter()` (and their `ORDER BY` alias map, which currently
-   includes `u.id`/`u.name`/`u.email` sort options — decide whether sort-by-author-name is still
-   needed; if so it now requires sorting after enrichment in the service layer, in memory, not in
-   SQL, since the join is gone). Return only `created_by_user_id` (or `created_by`, see naming fix
-   below) from the raw SQL — no cross-starter table reference at all.
+   `findAdvertisementById()` and `findByFilter()` and their `ORDER BY` alias map, which currently
+   includes `u.id`/`u.name`/`u.email` sort options. Verified (2026-07-14) these three are dead:
+   `AdvertisementSortMeta` (`marketplace-app`) exposes only `TITLE`/`CREATED_AT`/`UPDATED_AT` — no
+   UI path ever builds a `Sort` containing `created_by_user_id`/`_name`/`_email`, so
+   `OrderByBuilder.build()` never reaches those alias entries. Delete all three alongside the
+   `JOIN`, no replacement sort logic needed. Return only `created_by_user_id` (or `created_by`,
+   see naming fix below) from the raw SQL — no cross-starter table reference at all.
+
+   **If sort-by-author is ever requested in the future:** do not "just sort in memory after
+   enrichment" — pagination (`LIMIT`/`OFFSET`) runs in SQL *before* enrichment, so an in-memory
+   sort only orders the current page, not the full result set, which is silently wrong. The
+   correct fix at that point is the same pattern already sanctioned for
+   `media_url`/`media_content_type` (see "Explicitly not the problem" above): denormalize
+   `created_by_user_name` onto `advertisement`, kept in sync via a typed hook (mirroring
+   `AttachmentMediaChangeHook`/`MediaChangeHookImpl`) fired whenever a user's name changes — not
+   a reintroduced JOIN, which would recreate the exact violation this issue removes. Not needed
+   now; recorded here so a future reader doesn't have to re-derive it.
 3. **Add actor-info enrichment to `AdvertisementService`**, mirroring the existing
    `enrichWithCategories()` method exactly (same file, same class, already using
    `ComponentFactory<TaxonPort> taxonPortFactory` for the identical shape of problem): add a

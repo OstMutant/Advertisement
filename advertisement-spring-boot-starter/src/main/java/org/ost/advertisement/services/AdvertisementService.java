@@ -17,6 +17,8 @@ import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.platform.user.dto.UserDto;
+import org.ost.platform.user.spi.UserPort;
 import org.jsoup.Jsoup;
 import org.owasp.html.HtmlPolicyBuilder;
 import org.owasp.html.PolicyFactory;
@@ -49,6 +51,7 @@ public class AdvertisementService {
     private final ComponentFactory<AuditPort>      auditPortFactory;
     private final ComponentFactory<AttachmentPort> attachmentPortFactory;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
+    private final ComponentFactory<UserPort>       userPortFactory;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
         Set<Long> allowedIds = resolveCategoryFilter(filter);
@@ -57,7 +60,7 @@ public class AdvertisementService {
         }
         List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
         if (ads.isEmpty()) return ads;
-        return enrichWithCategories(ads, locale);
+        return enrichWithActorInfo(enrichWithCategories(ads, locale));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
@@ -94,6 +97,24 @@ public class AdvertisementService {
                 .orElse(ads);
     }
 
+    private List<AdvertisementInfoDto> enrichWithActorInfo(List<AdvertisementInfoDto> ads) {
+        return userPortFactory.findIfAvailable()
+                .map(userPort -> {
+                    Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getCreatedBy).collect(Collectors.toSet());
+                    Map<Long, UserDto> userMap = userPort.findByIds(ids);
+                    return ads.stream()
+                            .map(ad -> {
+                                UserDto user = userMap.get(ad.getCreatedBy());
+                                return ad.toBuilder()
+                                        .createdByUserName(user != null ? user.name() : null)
+                                        .createdByUserEmail(user != null ? user.email() : null)
+                                        .build();
+                            })
+                            .toList();
+                })
+                .orElse(ads);
+    }
+
     @Transactional
     public Long save(@NonNull @Valid AdvertisementSaveDto dto, @NonNull Long actingUserId) {
         log.info("Advertisement save: id={}, isNew={}", dto.id(), dto.id() == null);
@@ -103,15 +124,15 @@ public class AdvertisementService {
     }
 
     public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
-        return repository.findAdvertisementById(id).map(dto ->
-                taxonPortFactory.findIfAvailable()
+        return repository.findAdvertisementById(id)
+                .map(dto -> taxonPortFactory.findIfAvailable()
                         .map(taxonPort -> {
                             Set<Long> catIds = taxonPort.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH)
                                     .stream().map(TaxonDto::getId).collect(Collectors.toSet());
                             return dto.toBuilder().categoryIds(catIds).build();
                         })
-                        .orElse(dto)
-        );
+                        .orElse(dto))
+                .map(dto -> enrichWithActorInfo(List.of(dto)).get(0));
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -156,7 +177,7 @@ public class AdvertisementService {
                 .title(dto.title())
                 .description(sanitizeHtml(dto.description()))
                 .createdAt(before != null ? before.getCreatedAt() : null)
-                .createdByUserId(before != null ? before.getCreatedByUserId() : null)
+                .createdBy(before != null ? before.getCreatedBy() : null)
                 .version(dto.version())
                 .build();
     }
