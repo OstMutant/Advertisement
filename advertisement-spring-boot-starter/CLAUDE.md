@@ -11,7 +11,6 @@ Java package root: `org.ost.advertisement`
 - `Advertisement` entity + `AdvertisementRepository` — CRUD and filter/sort queries
 - `AdvertisementService` — create, update, delete, ownership checks; sanitizes HTML description via OWASP HTML Sanitizer; wires category assignments through `TaxonPort` via `ComponentFactory`
 - `AdvertisementPortImpl` — implements `AdvertisementPort`; thin delegation to `AdvertisementService`
-- `MediaChangeHookImpl` — implements `AttachmentMediaChangeHook`; notifies service when media changes
 
 **Autoconfiguration entry point:** `AdvertisementAutoConfiguration`
 
@@ -45,7 +44,19 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   no `_user_id` suffix — matching `taxon`'s convention (see ADR-034). Sort-by-author is not an
   exposed feature (`AdvertisementSortMeta` has no such option); if it's ever added, do not
   re-introduce a JOIN or sort in memory after pagination — denormalize `created_by_user_name`
-  onto `advertisement`, synced via a hook, the same pattern already used for `media_url`.
+  onto `advertisement`, synced via a hook (same shape hooks already take elsewhere, e.g.
+  `UserSettingsChangedHook`), never a query-time join.
+- `advertisement` does **not** store `media_url`/`media_content_type`/`media_count` — no
+  denormalized attachment columns on this table at all. `AdvertisementService` depends on
+  `ComponentFactory<AttachmentPort>` for media-summary enrichment (`enrichWithMediaSummary()`,
+  called in `getFiltered()`/`findById()`, same shape as `enrichWithCategories()`/
+  `enrichWithActorInfo()`) via `AttachmentPort.getMediaSummaries()`, a bulk lookup computed at
+  read time from the `attachment` table — never cached on the `advertisement` row. There is no
+  write-triggered sync path (the old `MediaChangeHookImpl` → `AdvertisementService
+  .onMediaChanged()` → `AdvertisementRepository.updateMedia()` chain was removed entirely — see
+  `marketplace-app/DECISIONS.md` ADR-035); `AttachmentMediaChangeHook` still fires from
+  `AttachmentService` on every media change, but currently has no implementation to receive it,
+  which is a valid, gracefully-degraded state for this optional SPI.
 - HTML description is sanitized using OWASP HTML Sanitizer (`Sanitizers.FORMATTING.and(LINKS).and(BLOCKS)`). Never trust raw HTML from UI.
 - Description visible-text length is enforced server-side via a Jsoup-based check in
   `AdvertisementService.sanitizeHtml()` (`Jsoup.parse(html).text().length()`), in addition to

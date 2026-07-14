@@ -13,11 +13,15 @@ import org.ost.platform.attachment.util.YoutubeUtil;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -31,7 +35,7 @@ public class AttachmentService {
     private final AttachmentRepository        attachmentRepository;
     private final AttachmentSnapshotService   attachmentSnapshotService;
     private final CurrentActorHook            currentActorHook;
-    private final AttachmentMediaChangeHook   mediaChangeHook;
+    private final ObjectProvider<AttachmentMediaChangeHook> mediaChangeHook;
 
     public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId);
@@ -47,6 +51,17 @@ public class AttachmentService {
                 resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
                 stats.mainContentType(),
                 stats.count());
+    }
+
+    public Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
+        return attachmentRepository.loadMediaStats(entityType, entityIds).entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> {
+                    AttachmentRepository.MediaStats stats = e.getValue();
+                    return new AttachmentMediaSummaryDto(
+                            resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
+                            stats.mainContentType(),
+                            stats.count());
+                }));
     }
 
     private static String resolveDisplayUrl(String url, String contentType) {
@@ -255,7 +270,7 @@ public class AttachmentService {
     }
 
     private void notifyMediaChanged(EntityType entityType, Long entityId) {
-        mediaChangeHook.onMediaChanged(new EntityRef(entityType, entityId));
+        mediaChangeHook.ifAvailable(hook -> hook.onMediaChanged(new EntityRef(entityType, entityId)));
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {

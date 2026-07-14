@@ -10,6 +10,7 @@ import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
@@ -60,7 +61,7 @@ public class AdvertisementService {
         }
         List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
         if (ads.isEmpty()) return ads;
-        return enrichWithActorInfo(enrichWithCategories(ads, locale));
+        return enrichWithMediaSummary(enrichWithActorInfo(enrichWithCategories(ads, locale)));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
@@ -115,6 +116,25 @@ public class AdvertisementService {
                 .orElse(ads);
     }
 
+    private List<AdvertisementInfoDto> enrichWithMediaSummary(List<AdvertisementInfoDto> ads) {
+        return attachmentPortFactory.findIfAvailable()
+                .map(attachmentPort -> {
+                    Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());
+                    Map<Long, AttachmentMediaSummaryDto> summaries = attachmentPort.getMediaSummaries(EntityType.ADVERTISEMENT, ids);
+                    return ads.stream()
+                            .map(ad -> {
+                                AttachmentMediaSummaryDto summary = summaries.getOrDefault(ad.getId(), AttachmentMediaSummaryDto.empty());
+                                return ad.toBuilder()
+                                        .mediaUrl(summary.displayUrl())
+                                        .mediaContentType(summary.contentType())
+                                        .mediaCount(summary.count())
+                                        .build();
+                            })
+                            .toList();
+                })
+                .orElse(ads);
+    }
+
     @Transactional
     public Long save(@NonNull @Valid AdvertisementSaveDto dto, @NonNull Long actingUserId) {
         log.info("Advertisement save: id={}, isNew={}", dto.id(), dto.id() == null);
@@ -132,17 +152,12 @@ public class AdvertisementService {
                             return dto.toBuilder().categoryIds(catIds).build();
                         })
                         .orElse(dto))
-                .map(dto -> enrichWithActorInfo(List.of(dto)).get(0));
+                .map(dto -> enrichWithActorInfo(List.of(dto)).get(0))
+                .map(dto -> enrichWithMediaSummary(List.of(dto)).get(0));
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
-    }
-
-    public void onMediaChanged(@NonNull Long entityId) {
-        attachmentPortFactory.ifAvailable(port ->
-                repository.updateMedia(entityId, port.getMediaSummary(new EntityRef(EntityType.ADVERTISEMENT, entityId)))
-        );
     }
 
     @Transactional

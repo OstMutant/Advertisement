@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entity.Advertisement;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
@@ -41,9 +40,6 @@ public class AdvertisementRepository {
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                 .createdBy(rs.getObject("created_by", Long.class))
-                .mediaUrl(rs.getString("media_url"))
-                .mediaContentType(rs.getString("media_content_type"))
-                .mediaCount(rs.getObject("media_count", Integer.class))
                 .version(rs.getObject("version", Long.class))
                 .build();
     };
@@ -64,8 +60,7 @@ public class AdvertisementRepository {
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
         return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by,
-                               a.media_url, a.media_content_type, a.media_count, a.version
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
                         WHERE a.id = :id AND a.deleted_at IS NULL
                         """)
@@ -77,17 +72,13 @@ public class AdvertisementRepository {
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
         String orderBy = OrderByBuilder.build(pageable.getSort(), Map.ofEntries(
-                Map.entry("id",                 "a.id"),
-                Map.entry("title",              "a.title"),
-                Map.entry("description",        "a.description"),
-                Map.entry("created_at",         "a.created_at"),
-                Map.entry("updated_at",         "a.updated_at"),
-                Map.entry("media_url",          "a.media_url"),
-                Map.entry("media_content_type", "a.media_content_type"),
-                Map.entry("media_count",        "a.media_count")));
+                Map.entry("id",          "a.id"),
+                Map.entry("title",       "a.title"),
+                Map.entry("description", "a.description"),
+                Map.entry("created_at",  "a.created_at"),
+                Map.entry("updated_at",  "a.updated_at")));
         String sql = ("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by,
-                               a.media_url, a.media_content_type, a.media_count, a.version
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
                         WHERE a.deleted_at IS NULL%s%s%s%s""")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
@@ -134,13 +125,4 @@ public class AdvertisementRepository {
                 .list();
     }
 
-    public void updateMedia(@NonNull Long entityId, @NonNull AttachmentMediaSummaryDto summary) {
-        jdbcClient.sql("UPDATE advertisement SET media_url = :media_url, media_content_type = :media_content_type, media_count = :media_count WHERE id = :id")
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("media_url",          summary.displayUrl())
-                          .addValue("media_content_type", summary.contentType())
-                          .addValue("media_count",        summary.count())
-                          .addValue("id",                 entityId))
-                  .update();
-    }
 }

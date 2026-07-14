@@ -47,11 +47,6 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
-    public void onMediaChanged(@NonNull Long entityId) {
-        service.onMediaChanged(entityId);
-    }
-
-    @Override
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return service.findExistingIds(ids);
     }

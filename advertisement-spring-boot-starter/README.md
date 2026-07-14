@@ -7,17 +7,18 @@ Auto-configured Advertisement domain for the Advertisement Platform.
 - Advertisement CRUD with ownership checks and dynamic filter/sort
 - HTML description sanitization (OWASP HTML Sanitizer) with a defense-in-depth length check
 - Category assignment via `TaxonPort` — optional, degrades gracefully if the taxon starter is absent
-- **SPI implementations:** `AdvertisementPort` (called by marketplace-app), `AttachmentMediaChangeHook`
-  (called back by the attachment starter when media changes)
+- Author name/email and media summary enriched at read time via `UserPort.findByIds()` /
+  `AttachmentPort.getMediaSummaries()` bulk lookups — optional, degrade gracefully if those
+  starters are absent
+- **SPI implementation:** `AdvertisementPort` (called by marketplace-app)
 
 ## Key classes
 
 | Class | Role |
 |---|---|
 | `AdvertisementPortImpl` | Entry point — implements `AdvertisementPort`, thin delegation to `AdvertisementService` |
-| `AdvertisementService` | Create, update, delete, ownership validation, HTML sanitization; wires category assignments through `ComponentFactory<TaxonPort>` |
+| `AdvertisementService` | Create, update, delete, ownership validation, HTML sanitization; wires category, author, and media enrichment through `ComponentFactory<TaxonPort>`/`ComponentFactory<UserPort>`/`ComponentFactory<AttachmentPort>` |
 | `AdvertisementRepository` | Persists and queries `advertisement`; supports dynamic filter/sort |
-| `MediaChangeHookImpl` | Implements `AttachmentMediaChangeHook`; notifies `AdvertisementService` when media changes for an advertisement |
 
 ## Dependencies
 

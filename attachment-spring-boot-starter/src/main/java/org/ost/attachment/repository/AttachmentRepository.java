@@ -11,7 +11,10 @@ import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -169,5 +172,26 @@ public class AttachmentRepository {
                          .query((rs, _) -> new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("total_count")))
                          .optional()
                          .orElse(new MediaStats(null, null, 0));
+    }
+
+    public Map<Long, MediaStats> loadMediaStats(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
+        return jdbcClient.sql("""
+                        SELECT entity_id, url, content_type, cnt FROM (
+                            SELECT entity_id, url, content_type,
+                                   COUNT(*) OVER (PARTITION BY entity_id) AS cnt,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC) AS rn
+                            FROM attachment
+                            WHERE entity_type = :entityType AND entity_id = ANY(:entityIds) AND deleted_at IS NULL
+                        ) ranked
+                        WHERE rn = 1
+                        """)
+                         .paramSource(new MapSqlParameterSource()
+                                 .addValue("entityType", entityType.name())
+                                 .addValue("entityIds", entityIds.toArray(new Long[0])))
+                         .query((rs, _) -> Map.entry(rs.getObject("entity_id", Long.class),
+                                 new MediaStats(rs.getString("url"), rs.getString("content_type"), rs.getInt("cnt"))))
+                         .list()
+                         .stream()
+                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 }

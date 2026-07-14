@@ -9,6 +9,8 @@ import org.ost.platform.core.model.EntityType;
 
 import java.io.InputStream;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public interface AttachmentPort {
 
@@ -17,6 +19,8 @@ public interface AttachmentPort {
     void softDeleteAll(@NonNull EntityRef entity, @NonNull Long actorId);
 
     AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity);
+
+    Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
 
     // ── gallery queries ───────────────────────────────────────────────────────
 

@@ -1085,6 +1085,64 @@ knowing the referenced table) that this ADR does not attempt to resolve.
 
 ---
 
+## ADR-035: `advertisement` stores no denormalized attachment columns — media summary enriched at read time via a bulk `AttachmentPort` lookup
+
+**Status:** Accepted
+
+**Context:** `advertisement` had three columns — `media_url`, `media_content_type`, `media_count`
+— caching a summary of the entity's attachments, written by
+`AdvertisementRepository.updateMedia()`, triggered by `MediaChangeHookImpl.onMediaChanged()`
+whenever `AttachmentService` fired `AttachmentMediaChangeHook`. An earlier pass on this review
+dismissed these columns as "fine as-is" because the sync mechanism (a hook) was clean — that
+answered "is the sync mechanism clean?" (yes) instead of "does the coupling exist?" (also yes,
+independently of the mechanism): three columns named with attachment-domain vocabulary, living on
+`advertisement`'s own row, in a different starter's schema. `features/entity-extensions/SPEC.md`
+(deleted 2026-07-13) had already named this exact coupling as a motivating problem; its proposed
+fix (genericize into a `media JSONB` column) was rejected — re-encoding the same data on the same
+row removes type safety without removing the coupling itself.
+
+**Decision:** Same shape as ADR-034 (User) and the completed improvement-007 (Taxon): a bulk
+lookup replaces the denormalized cache.
+- `AttachmentPort.getMediaSummaries(EntityType, Set<Long>) -> Map<Long, AttachmentMediaSummaryDto>`
+  added to `platform-commons`, alongside the existing single-entity `getMediaSummary(EntityRef)`.
+  `DefaultAttachmentPort` stays pure delegation to a new `AttachmentService.getMediaSummaries()`,
+  which calls a new `AttachmentRepository.loadMediaStats(EntityType, Set<Long>)` — one SQL query
+  using `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC)` to pick each entity's
+  earliest attachment as its "main" one, plus `COUNT(*) OVER (PARTITION BY entity_id)`, matching
+  the existing single-entity method's semantics exactly (`loadMediaStats(EntityType, Long)`,
+  unchanged, still used by the single-entity path).
+- `AdvertisementService.enrichWithMediaSummary(ads)` (new, same shape as `enrichWithCategories()`/
+  `enrichWithActorInfo()`) merges `mediaUrl`/`mediaContentType`/`mediaCount` into
+  `AdvertisementInfoDto` at read time in `getFiltered()`/`findById()`, using the already-existing
+  `ComponentFactory<AttachmentPort> attachmentPortFactory` field. Entities with zero attachments
+  fall back to `AttachmentMediaSummaryDto.empty()`.
+- The three columns were removed from `advertisement` (`01-advertisement-schema.xml`, direct
+  edit — DB not yet in production, `deploy.sh --reset` required), along with
+  `AdvertisementRepository.updateMedia()` and the three dead `ORDER BY` sort-alias entries for
+  them (confirmed unreachable — `AdvertisementSortMeta` never exposed a media-related sort).
+- **The write-triggered sync path was deleted entirely, not just emptied**: `MediaChangeHookImpl`
+  (the only implementation of `AttachmentMediaChangeHook`), `AdvertisementService
+  .onMediaChanged(Long)`, and `AdvertisementPort.onMediaChanged(Long)` (confirmed unused by any
+  marketplace-app call site) are all gone — there is nothing left to update once no column caches
+  the data. `AttachmentService` still fires `AttachmentMediaChangeHook` on every media change (the
+  interface itself stays in `platform-commons` as a generic, still-meaningful extension point for
+  any future starter that wants to react to media changes) — it now simply has zero listeners,
+  which is the same valid, gracefully-degraded state every other optional SPI in this codebase
+  already tolerates.
+
+**Tradeoff accepted explicitly:** one more bulk `AttachmentPort` query per advertisement list
+render — the same cost class already accepted twice (Taxon categories, User author info) for the
+same real decoupling benefit.
+
+**Consequences:**
+- Full e2e suite must stay green — `AdvertisementCardView.java`'s media thumbnail/badge rendering
+  (reads `ad.getMediaUrl()`/`getMediaContentType()`/`getMediaCount()`) is the concrete regression
+  detector; behavior is unchanged since `AdvertisementInfoDto` still carries these fields, just
+  populated by enrichment instead of a stored column.
+- → [improvement-042-advertisement-media-denormalized-columns](../features/completed/issues/improvement-042-advertisement-media-denormalized-columns.md)
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)

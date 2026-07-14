@@ -14,13 +14,14 @@ MAX and insert duplicate versions.
 **Fix:** `UNIQUE(entity_type, entity_id, version)` constraint (Liquibase changeset in this
 starter) + catch `DuplicateKeyException` and retry once. Cheap and definitive.
 
-### B — media summary last-write-wins in `AdvertisementService.onMediaChanged()`
-Two concurrent uploads to the same advertisement both read media state and both write the
-denormalized summary — the later write may reflect the earlier state. Self-healing (any next
-media change recomputes), so severity is low.
-**Fix (when A is done):** recompute the summary inside a single atomic
-`UPDATE ... FROM (SELECT ...)` statement instead of read-then-write, or accept as
-self-healing and document.
+### B — ~~media summary last-write-wins in `AdvertisementService.onMediaChanged()`~~ — resolved as a byproduct of improvement-042 (2026-07-14)
+Was: two concurrent uploads to the same advertisement both read media state and both write the
+denormalized summary — the later write may reflect the earlier state. `onMediaChanged()`,
+`AdvertisementRepository.updateMedia()`, and the denormalized `media_url`/`media_content_type`/
+`media_count` columns it raced over no longer exist — `AdvertisementService.enrichWithMediaSummary()`
+now computes the media summary fresh at read time via `AttachmentPort.getMediaSummaries()`, on
+every list/detail fetch. There is no stored summary left to race on a write, so this item is
+moot, not fixed by a concurrency control — see `marketplace-app/DECISIONS.md` ADR-035.
 
 ### C — `saveAll()` issues row-by-row inserts
 `AttachmentService.commitTempUploadsQuiet()` uses `CrudRepository.saveAll()`, which in
