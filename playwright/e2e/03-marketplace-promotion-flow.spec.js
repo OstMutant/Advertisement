@@ -116,7 +116,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits userEn name — activity diff, grid updated, restore reverts name', async () => {
+  test('adminEn edits userEn name — activity diff, grid updated, restore reverts name, userEn relogin after edit', async () => {
     const editedName = `AdminCrossEdit-${Date.now()}`;
     let originalName;
 
@@ -170,6 +170,12 @@ test.describe('Promotion flow', () => {
     await openTimelineTab(page);
     await assertFeedHasRow(page, expect, { action: 'updated', entityType: 'user', screenshotName: 'timeline-cross-actor-restore' });
     await runLogoutFlow(page, expect);
+
+    await test.step('userEn logs in with original password — profile edit and restore did not touch password hash', async () => {
+      await runFillLoginFormFlow(page, TEST_USERS.userEn);
+      await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+      await runLogoutFlow(page, expect);
+    });
   });
 
   // === Section 3: Reference Data — Category management ===

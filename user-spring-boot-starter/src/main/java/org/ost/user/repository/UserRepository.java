@@ -11,7 +11,7 @@ import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
 import org.ost.query.sort.PaginationSqlBuilder;
 import org.ost.user.entity.User;
-import org.springframework.dao.OptimisticLockingFailureException;
+import org.ost.user.entity.UserProfileUpdate;
 import org.springframework.data.domain.Pageable;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -66,6 +66,7 @@ public class UserRepository {
 
     private final JdbcClient jdbcClient;
     private final UserCrudRepository crud;
+    private final UserProfileCrudRepository profileCrud;
 
     public User save(@NonNull User user)                { return crud.save(user); }
     public Optional<User> findById(@NonNull Long id)    { return crud.findById(id); }
@@ -100,19 +101,12 @@ public class UserRepository {
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {
-        int updated = jdbcClient.sql("""
-                        UPDATE user_information SET name = :name, role = :role, updated_at = NOW(), version = version + 1
-                        WHERE id = :id AND version = :version
-                        """)
-                  .paramSource(new MapSqlParameterSource()
-                          .addValue("name",    dto.name())
-                          .addValue("role",    dto.role().name())
-                          .addValue("id",      dto.id())
-                          .addValue("version", dto.version()))
-                  .update();
-        if (updated == 0) {
-            throw new OptimisticLockingFailureException("User " + dto.id() + " was modified by another session");
-        }
+        profileCrud.save(UserProfileUpdate.builder()
+                .id(dto.id())
+                .name(dto.name())
+                .role(dto.role())
+                .version(dto.version())
+                .build());
     }
 
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {

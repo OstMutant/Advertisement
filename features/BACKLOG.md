@@ -113,11 +113,20 @@ dedicated conflict notification, no auto-reload (see `marketplace-app/DECISIONS.
 two-session concurrent edit, stale save shows conflict instead of silently overwriting. Full e2e
 suite green.
 
+✅ Done (2026-07-14): improvement-024 — `User` profile edits moved onto native
+`CrudRepository.save()`, matching Advertisement/Taxon. Instead of mirroring
+`AdvertisementService.buildEntity()`'s "rebuild via Builder, forward every unedited field from
+`before`" pattern, introduced a second, narrower entity `UserProfileUpdate`
+(`id`/`name`/`role`/`updatedAt`/`version`, no `email`/`passwordHash`) mapped to the same
+`user_information` table via its own `UserProfileCrudRepository` — the sensitive-field-overwrite
+risk this refactor would otherwise carry is closed at the type level (those fields aren't mapped
+properties, so the generated `UPDATE` can't reference them), not by builder discipline. See
+`marketplace-app/DECISIONS.md` ADR-029 update. Moved to `completed/issues/`.
+
 **Still open, no longer blocked:**
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-024](issues/improvement-024-user-save-via-crudrepository.md) | Route User profile edits through CrudRepository (symmetry with Advertisement/Taxon) | low priority — current manual guard already works; handle `passwordHash`/`email` forwarding carefully, needs a login-after-edit test |
 | [improvement-041](issues/improvement-041-advertisement-user-sql-join-and-column-naming.md) | Remove `AdvertisementRepository`'s raw SQL `JOIN user_information` (hardcoded cross-starter table/column names) via `UserPort.findByIds()` bulk lookup + rename `*_user_id` columns to match Taxon's `created_by`/`updated_by`/`deleted_by` convention | medium-high — worse than a Java-level violation, ArchUnit (improvement-030) can't catch raw SQL coupling; mirrors improvement-007's already-completed pattern |
 | [improvement-042](issues/improvement-042-advertisement-media-denormalized-columns.md) | Remove `advertisement.media_url`/`media_content_type`/`media_count` denormalized columns via a new `AttachmentPort.getMediaSummaries()` bulk lookup, enriched at read time in `AdvertisementService` (same pattern as 041) | medium — real schema-level coupling to attachment's domain vocabulary, confirmed after an earlier wrong dismissal in this same review; JSONB genericization was considered and rejected (repackages the same coupling, no functional gain — media sort columns are confirmed dead/unused) |
 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Convert ~17 stateless leaf UI widgets (buttons/fields/dialogs/layout) from `@SpringComponent` prototype beans to plain Java classes | brings code in line with existing `marketplace-app/CLAUDE.md` "no Configurable for 1-2 setters" rule; execute in 4 phased batches with a full e2e run after each, not one PR |

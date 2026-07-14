@@ -766,10 +766,24 @@ forward the version from the incoming DTO / port parameter (the value the caller
 **not** a version re-fetched inside the same save method (which would just match itself and
 detect nothing).
 
-`User`'s real edit path (`UserService.save()` → `UserRepository.updateProfile()`) bypasses
-`CrudRepository` entirely via hand-written SQL, so `@Version` alone does nothing there.
-`updateProfile()` now does the check by hand: `SET ..., version = version + 1 WHERE id = :id AND
+`User`'s real edit path (`UserService.save()` → `UserRepository.updateProfile()`) originally
+bypassed `CrudRepository` entirely via hand-written SQL, so `@Version` alone did nothing there.
+`updateProfile()` did the check by hand: `SET ..., version = version + 1 WHERE id = :id AND
 version = :version`, throwing `OptimisticLockingFailureException` manually when zero rows match.
+
+**Update (2026-07-14) — `User` moved onto native `CrudRepository.save()` too:** a second, narrower
+entity, `UserProfileUpdate` (`id`, `name`, `role`, `updatedAt`, `version` — deliberately excludes
+`email`/`passwordHash`), mapped to the same `user_information` table via its own
+`UserProfileCrudRepository`, replaces the hand-written SQL in `UserRepository.updateProfile()`.
+This was chosen over mirroring `AdvertisementService.buildEntity()`/`TaxonService.update()`
+(rebuild the full entity via `Builder`, forwarding every unedited field from `before`) precisely
+because that pattern's known failure mode — forgetting to forward a field — is far more dangerous
+for `User` than for `Advertisement`/`Taxon`: dropping `passwordHash` or `email` silently breaks
+login or notifications, not just a lock-check regression. Since `passwordHash`/`email` are not
+mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot reference them regardless
+of builder mistakes — the risk is closed at the type level, not by discipline. See
+`user-spring-boot-starter/CLAUDE.md` and
+[improvement-024](../features/completed/issues/improvement-024-user-save-via-crudrepository.md).
 
 `softDelete` on `Advertisement` and `Taxon` also got the same manual guard (an admin/owner
 deleting a listing while someone else is mid-edit should not silently win); `updateMedia`,
