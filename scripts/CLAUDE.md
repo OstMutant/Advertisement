@@ -75,6 +75,22 @@ The script starts SonarQube automatically if not running, copies source files in
 
 ---
 
+## Unit / Testcontainers Tests
+
+```bash
+mvn clean test 2>&1 | tee /tmp/test.log
+```
+
+**Never run via `deploy.sh`/`deploy-dev.sh`.** Both build Maven inside a `docker build` stage
+(multi-stage `Dockerfile`) that already skips tests (`./mvnw install -DskipTests`) and, even if it
+didn't, has no access to the outer Docker socket (standard Docker-in-Docker isolation — no socket
+mount configured for the `builder` stage). Testcontainers-based tests (`improvement-027`) need a
+real reachable Docker daemon, which only exists when `mvn test` is run directly in this
+environment, never inside the image build. Confirmed reachable here: `/var/run/docker.sock`
+mounted, `docker version` responds, `mvn`/`./mvnw` both present.
+
+---
+
 ## Running Playwright Tests
 
 **How to run playwright.sh:**
