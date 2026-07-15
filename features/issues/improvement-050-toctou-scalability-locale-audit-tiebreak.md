@@ -135,35 +135,56 @@ config sources.
    as a JOIN to `taxon_assignment`" (the JOIN option would need its own ADR, since `advertisement
    -spring-boot-starter/CLAUDE.md` currently documents a deliberate no-raw-cross-starter-SQL-join
    policy — ADR-034 — that this would need to explicitly revisit, not quietly violate).
-3. **Item 3:** use `locale.getLanguage()` instead of `locale.toLanguageTag()` for the comparison
-   (matches `LocaleSelectorComponent`'s own already-correct pattern at line 68:
-   `wrapper.locale().getLanguage().equals(current.getLanguage())`) — low-risk, one-line change.
-   Regression test: extend `TaxonPortTranslationFallbackTest` (improvement-045 item 6) with a case
-   using a region-qualified `Locale` (e.g. `Locale.forLanguageTag("en-US")`) requesting a taxon that
-   only has an `"en"` translation, asserting it matches on tier 1, not falling through to tier 2/3.
-4. **Item 4:** add an `id` tiebreaker to both `version`-numbering subqueries:
-   `WHERE (b.created_at, b.id) <= (f.created_at, f.id)` (or the row's own equivalent alias).
-   Regression test belongs in a future `AuditLogRepositoryTest` (improvement-027 Batch 3, not yet
-   built) — create two audit rows for the same entity with an identical `created_at` (forced via
-   direct SQL insert, bypassing the normal `NOW()`-based write path), assert they get distinct
-   version numbers.
-5. **Item 5:** update the Liquibase default to `{"adsPageSize":20,"usersPageSize":20,
-   "timelinePageSize":20}` for consistency — cheap, no migration needed since it only affects the
-   column's default expression, not existing rows. Before/instead of editing SQL, first do the
-   "Required verification" check below to know whether this is purely cosmetic drift or an actual
-   live gap.
+3. ✅ **Item 3 — done 2026-07-15.** `DefaultTaxonPort.resolveTranslation()` now compares via
+   `locale.getLanguage()` (both the requested locale and `properties.defaultLocale()`, for
+   consistency — the latter is always a plain config value with no region today, but costs nothing
+   to make consistent), matching `LocaleSelectorComponent`'s already-correct pattern.
+   `TaxonPortTranslationFallbackTest` extended with
+   `findById_regionQualifiedRequestedLocale_stillMatchesExactLanguageOnTier1` — deliberately
+   requests `uk-UA` (not `en-US`) against a taxon with *both* an `en` and a `uk` translation, since
+   a same-language request (matching the `en` default locale) can't actually distinguish "tier 1
+   matched" from "coincidentally fell through to tier 2" (confirmed directly: an earlier draft of
+   this test using `en-US` against an `en`-defaulted taxon passed even with the bug still present).
+   TDD-verified against the pre-fix code. `bash scripts/integration-tests.sh --sandbox
+   TaxonPortTranslationFallbackTest`: 5/5, `BUILD SUCCESS`.
+4. ✅ **Item 4 — done 2026-07-15.** Added an `id` tiebreaker — `(b.created_at, b.id) <= (f.created_at,
+   f.id)` / `(a.created_at, a.id)` — to both `version`-numbering subqueries (`findTimeline()` and
+   `getSnapshotContent()`). New `integration-tests/src/test/java/org/ost/integrationtests/audit/
+   AuditLogRepositoryTest.java` (2 tests, first `AuditLogRepositoryTest` — improvement-027 Batch 3
+   starts here): two rows inserted directly via `jdbcClient` with an identical `created_at`
+   (bypassing `AuditLogRepository.save()`'s `NOW()`-based write path, which can never reliably tie),
+   asserting both `findTimeline()` and `getSnapshotContent()` return distinct version numbers (1
+   and 2, not both 1 or both 2). Needed its own `TestConfig` (same `@ImportAutoConfiguration`
+   allow-list as `UserServiceRestoreTest`, see `integration-tests/DECISIONS.md` ADR-009) — no
+   `UserAutoConfiguration` needed, `audit_log.actor_id` has no FK. TDD-verified: both tests failed
+   against the pre-fix code (`expected: 2 not to be equal to: 2` — literally the same tied version
+   number on both sides). `bash scripts/integration-tests.sh --sandbox AuditLogRepositoryTest`:
+   2/2, `BUILD SUCCESS`.
+5. ✅ **Item 5 — done 2026-07-15.** Verified first (see "Required verification" below, now
+   resolved): Jackson's builder-based deserialization does correctly apply
+   `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key — confirmed by a
+   direct test, not assumed. Not a live bug. Updated the Liquibase default anyway (cheap, no
+   migration, closes the drift risk for good) to
+   `{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20}`.
+   `integration-tests/src/test/java/org/ost/integrationtests/user/UserSettingsDtoTest.java` (2
+   tests: missing-key falls back to the builder default; all-keys-present uses the provided
+   values). `bash scripts/integration-tests.sh --sandbox UserSettingsDtoTest`: 2/2, `BUILD SUCCESS`.
+
+**Items 3/4/5 done (2026-07-15).** Items 1/2 explicitly need a decision (product/UX call for item
+1, real data volume for item 2) rather than a pure engineering fix — left open, see "Suggested
+fix" above for the options; not closing this issue until those are resolved or deliberately
+deferred elsewhere.
 
 ## Required verification
 
-- Item 5: write a quick, throwaway deserialization test (or verify manually) — does Jackson
-  actually apply `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` when deserializing a
-  JSON payload that has `adsPageSize`/`usersPageSize` but no `timelinePageSize` key at all? This
-  determines whether item 5 is a real live-data gap or purely a config-drift cleanup.
-- Item 2: get a real count — what's the largest number of advertisements currently (or plausibly
-  soon) assigned to a single category? Changes the urgency assessment entirely.
-- After any fix, run `bash scripts/integration-tests.sh --sandbox` plus the relevant Playwright
-  specs (registration flow for item 1, category filter for item 2, locale switch for item 3,
-  timeline for item 4).
+- ✅ Item 5: resolved above — Jackson correctly applies the builder default; not a live bug.
+- Item 2: still open — get a real count of the largest number of advertisements currently (or
+  plausibly soon) assigned to a single category. Changes the urgency assessment entirely.
+- Full `integration-tests` suite run twice consecutively after items 3/4/5: 54/54 green both
+  times. Playwright specs (registration flow for item 1, category filter for item 2, locale switch
+  for item 3, timeline for item 4) not run as part of this pass — items 1/2 aren't implemented yet,
+  and items 3/4 were verified at the integration-tests level (real Postgres); a Playwright pass is
+  still worth doing once items 1/2 land, not blocking this partial close.
 
 ## Related
 

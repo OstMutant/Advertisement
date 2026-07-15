@@ -245,10 +245,10 @@ public class DefaultTaxonPort implements TaxonPort {
 
     TaxonTranslation resolveTranslation(List<TaxonTranslation> translations, Locale locale) {
         return translations.stream()
-                .filter(t -> t.getLocale().equals(locale.toLanguageTag()))
+                .filter(t -> t.getLocale().equals(locale.getLanguage()))
                 .findFirst()
                 .or(() -> translations.stream()
-                        .filter(t -> t.getLocale().equals(properties.defaultLocale().toLanguageTag()))
+                        .filter(t -> t.getLocale().equals(properties.defaultLocale().getLanguage()))
                         .findFirst())
                 .or(() -> translations.stream().findFirst())
                 .orElse(null);

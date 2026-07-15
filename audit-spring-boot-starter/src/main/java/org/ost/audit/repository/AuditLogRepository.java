@@ -142,7 +142,7 @@ public class AuditLogRepository {
                         SELECT f.*,
                                (SELECT COUNT(*) FROM audit_log b
                                 WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at <= f.created_at)::int AS version,
+                                  AND (b.created_at, b.id) <= (f.created_at, f.id))::int AS version,
                                (SELECT id FROM audit_log b
                                 WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
                                   AND b.created_at < f.created_at
@@ -186,7 +186,7 @@ public class AuditLogRepository {
                                (SELECT COUNT(*) FROM audit_log b
                                 WHERE b.entity_type = a.entity_type
                                   AND b.entity_id   = a.entity_id
-                                  AND b.created_at <= a.created_at)::int AS version
+                                  AND (b.created_at, b.id) <= (a.created_at, a.id))::int AS version
                         FROM audit_log a
                         WHERE a.id = :id AND a.entity_type = :entityType
                         """)

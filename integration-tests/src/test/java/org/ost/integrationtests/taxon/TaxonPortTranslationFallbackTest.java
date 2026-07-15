@@ -116,4 +116,35 @@ class TaxonPortTranslationFallbackTest extends AbstractPostgresIntegrationTest {
         assertThat(result).isPresent();
         assertThat(result.get().getName()).isEmpty();
     }
+
+    /**
+     * Covers improvement-050 item 3: anonymous visitors' browser locale can carry a region
+     * (e.g. {@code uk-UA}, via Vaadin's {@code ui.getSession().getLocale()}), unlike a logged-in
+     * user's saved locale which is always a plain language code. Before the fix,
+     * {@code resolveTranslation()} compared via {@code Locale.toLanguageTag()} ({@code "uk-UA"}),
+     * which never matches a stored {@code "uk"} translation on tier 1 even though one exists.
+     * Fixed by comparing via {@code Locale.getLanguage()} instead, matching
+     * {@code LocaleSelectorComponent}'s already-correct pattern.
+     *
+     * <p>Deliberately requests {@code uk-UA} (not {@code en-US}) against a taxon that has
+     * <em>both</em> a {@code uk} and an {@code en} translation, with {@code
+     * TaxonProperties.defaultLocale()} defaulting to {@code en}: this is the only shape that
+     * actually distinguishes "tier 1 matched" from "fell through to tier 2" — tier 2's own
+     * comparison (against the configured default locale, never region-qualified) was never buggy,
+     * so a same-language request (e.g. {@code en-US} against an {@code en} default) would return
+     * the same translation via tier 2 even with the bug present, silently passing either way. A
+     * mismatched-language request makes tier 1 and tier 2 resolve to different translations, so
+     * only the correct tier produces {@code "Електроніка"}.</p>
+     */
+    @Test
+    void findById_regionQualifiedRequestedLocale_stillMatchesExactLanguageOnTier1() {
+        Long id = createTaxonWithTranslations(
+                translation("en", "Electronics"),
+                translation("uk", "Електроніка"));
+
+        Optional<TaxonDto> result = taxonPort.findById(id, Locale.forLanguageTag("uk-UA"));
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getName()).isEqualTo("Електроніка");
+    }
 }

@@ -72,6 +72,7 @@ public final class TestDataCleaner {
         cleanTables(jdbcClient,
                 "taxon_assignment", "taxon_translation", "taxon",
                 "attachment_snapshot", "attachment",
+                "audit_log",
                 "advertisement",
                 "user_information");
     }
