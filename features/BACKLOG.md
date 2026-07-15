@@ -167,7 +167,6 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | DB and MinIO/S3 credentials duplicated across 4-5 files each (compose YAML, `application-dev.yml`, `deploy.sh`, `playwright/run.sh`) — consolidate into the shared root `.env` established by improvement-027's Batch 0 | medium — no current bug (copies still agree), pure drift-risk reduction; found while investigating improvement-027's `postgres:15-alpine` duplication |
 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Keep `integration-tests` out of a plain `mvn install`/`mvn test` (Maven profile vs. `@Tag` decision), Docker precheck in `run.sh`, `SharedEnvConfig` unit test, `.env` doc note, CI-guard for sandbox env vars | medium — corrected/de-duplicated version of an external PR #20 review; original review's test-coverage items were already improvement-045 (partially done), its `.env.example` suggestion didn't fit this repo's committed-no-secrets `.env` model |
 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Cover `marketplace-app`'s non-UI service layer (`AdvertisementSaveService`, `AdvertisementEnrichService`, `AuthContextService`) with unit tests in `marketplace-app/src/test/java`, mirroring `src/main`'s package layout — one consistent home for this layer's tests | medium — follow-up to improvement-045 item 1 (`AccessEvaluatorTest`), which proved the pattern; verified this UI-free `services/*` layer already exists (zero `com.vaadin.*` imports across all 10 files) |
-| [improvement-050](issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md) | 5 findings from an external review pass, each independently re-verified: `UserService.register()` first-admin TOCTOU race; unbounded `IN (:allowedIds)` category filter; anonymous-visitor locale fallback skips exact-match tier; `AuditLogRepository.findTimeline()` version has no `id` tiebreaker; `settings` JSONB Liquibase default missing `timelinePageSize` | **items 3/4/5 done (2026-07-15)**: locale comparison fixed (`TaxonPortTranslationFallbackTest` 5/5) + audit `id` tiebreaker fixed (new `AuditLogRepositoryTest` 2/2, first Batch-3 test) + Liquibase default updated after confirming via `UserSettingsDtoTest` (2/2) that it wasn't a live bug; items 1/2 still open — need a product/UX decision (item 1) and real data volume (item 2), not pure engineering calls |
 | [improvement-051](issues/improvement-051-parallel-test-suite-orchestration.md) | New `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven reactor overlap); `/run-all-tests` slash command added | **VERIFIED (2026-07-15)** — end-to-end run confirmed both the sequencing and failure-detection paths |
 
 ✅ Done (2026-07-15): [improvement-045](completed/issues/improvement-045-critical-test-coverage-gaps.md)
@@ -188,6 +187,19 @@ now deletes DB rows before S3 objects, with `@Transactional` removed from `clean
 delete actually commits before the S3 loop runs, not just textually reordered
 (`AttachmentCleanupServiceTest` 2/2, `InOrder`-verified). Full `integration-tests` suite: 49/49,
 twice consecutively.
+
+✅ Done (2026-07-15): [improvement-050](completed/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
+— all 5 findings resolved: item 1 extracted to
+[improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) (deliberately
+deferred, accepted risk); item 2 fixed via `= ANY()` array binding instead of `IN (:set)` —
+removes the parameter-count risk without the real-data-volume answer or a JOIN-based rewrite that
+would have reversed ADR-034 (`AdvertisementRepositoryTest` 9/9, see `marketplace-app/DECISIONS.md`
+ADR-036); item 3 fixed via `Locale.getLanguage()` instead of `.toLanguageTag()`
+(`TaxonPortTranslationFallbackTest` 5/5); item 4 fixed via an `id` tiebreaker on both
+`AuditLogRepository` version-numbering subqueries (new `AuditLogRepositoryTest` 2/2, first
+improvement-027 Batch-3 test); item 5's Liquibase default updated after confirming via
+`UserSettingsDtoTest` (2/2) it wasn't a live bug. Full `integration-tests` suite: 56/56, twice
+consecutively.
 
 ✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
 (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated
@@ -266,6 +278,7 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 | [improvement-008](issues/improvement-008-deleted-category-strikethrough.md), [improvement-010](issues/improvement-010-advertisements-view-refresh-error-notification.md), [improvement-014](issues/improvement-014-uuid-filenames-in-media-diff.md) | cosmetic — batch into any nearby UI-touching PR |
 | [goal-001](issues/goal-001-activity-field-visibility-by-role.md) | user feedback |
 | [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md) | product decision on which option (A-E) to pursue — offset pagination over the activity-sorted advertisement list has no stable-view guarantee under concurrent edits; captures a design discussion, not an agreed fix |
+| [improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) | project nearing production readiness — `UserService.register()` first-admin TOCTOU race, accepted risk for now (narrow window, only the instant of a fresh instance's very first registration); extracted from improvement-050 item 1 |
 
 ---
 

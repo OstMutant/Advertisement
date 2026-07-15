@@ -23,6 +23,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,6 +116,39 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
                 AdvertisementFilterDto.empty(), PageRequest.of(0, 10), null);
 
         assertThat(results).hasSize(2);
+    }
+
+    /**
+     * Covers improvement-050 item 2: {@code buildIdClause()} used to bind {@code allowedIds} as a
+     * {@code Set}, which Spring expands into one {@code ?} placeholder per element for
+     * {@code IN (:allowedIds)} — unbounded for a popular category's advertisement count. Fixed by
+     * binding a plain array instead ({@code = ANY(:allowedIds)}, matching {@code
+     * findExistingIds()}'s already-proven pattern in this class), so Spring passes it through as a
+     * single JDBC parameter regardless of size.
+     */
+    @Test
+    void findByFilter_allowedIdsRestrictsToMatchingRows() {
+        Advertisement first = save("First", "d1");
+        Advertisement second = save("Second", "d2");
+        save("Third", "d3");
+
+        List<AdvertisementInfoDto> results = advertisementRepository.findByFilter(
+                AdvertisementFilterDto.empty(), PageRequest.of(0, 10),
+                Set.of(first.getId(), second.getId()));
+
+        assertThat(results).extracting(AdvertisementInfoDto::getId)
+                .containsExactlyInAnyOrder(first.getId(), second.getId());
+    }
+
+    @Test
+    void countByFilter_allowedIdsRestrictsCount() {
+        Advertisement first = save("First", "d1");
+        save("Second", "d2");
+        save("Third", "d3");
+
+        Long count = advertisementRepository.countByFilter(AdvertisementFilterDto.empty(), Set.of(first.getId()));
+
+        assertThat(count).isEqualTo(1L);
     }
 
     @Test

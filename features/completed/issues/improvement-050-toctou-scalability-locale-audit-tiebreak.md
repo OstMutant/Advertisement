@@ -16,20 +16,12 @@ impact today (see reachability notes per item); none are observed production inc
 ## Problem
 
 ### 1. `UserService.register()` — TOCTOU race on first-user ADMIN promotion — SECURITY
-`/app/user-spring-boot-starter/src/main/java/org/ost/user/services/UserService.java:97-103`
 
-```java
-boolean isFirstUser = repository.countByFilter(UserFilterDto.empty()).equals(0L);
-User newUser = User.builder()...role(isFirstUser ? Role.ADMIN : Role.USER)...build();
-```
-
-`@Transactional` at PostgreSQL's default `READ COMMITTED` isolation does **not** prevent two
-concurrent transactions from both observing `count() == 0` before either commits its `INSERT`.
-**Failure scenario:** two people register within the same instant on a freshly-deployed, empty
-instance — both could be promoted to `ADMIN`. **Reachability:** narrow — only matters in the exact
-window of an instance's very first-ever registration (once that window passes, `isFirstUser` is
-permanently `false` for everyone else), so this is a real but low-frequency risk, not a standing
-one.
+**Extracted to [improvement-052](improvement-052-first-admin-registration-toctou-race.md)
+(2026-07-15)** — decided separately since it needs a product/security-posture call (accept the
+risk vs. change onboarding UX), not a pure engineering fix like items 3/4/5 below. Decision:
+accept the risk for now, deferred until the project nears production readiness. See that issue
+for the full option writeup.
 
 ### 2. `AdvertisementRepository.buildIdClause()` — unbounded `IN (:allowedIds)` for category filters — PERFORMANCE
 `/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/repository/AdvertisementRepository.java:95-98`
@@ -46,10 +38,21 @@ filter.getCategoryIds())` (`AdvertisementService.resolveCategoryFilter()`) — t
 advertisement IDs matching the selected categories, bound as one JDBC parameter list with no
 batching or size cap. A sufficiently popular category (tens of thousands of matching
 advertisements) would produce a very large `IN` clause — real performance risk, and PostgreSQL/JDBC
-driver parameter-count limits become a practical concern at scale. **Reachability:** depends
-entirely on how large a single category's advertisement count can realistically get in this
-marketplace's actual data volume today — not verified as part of this issue; low urgency unless a
-category is already approaching that scale.
+driver parameter-count limits become a practical concern at scale.
+
+✅ **Done 2026-07-15.** Real data volume was never established (still unknown), but a fix was
+found that removes the actual risk (parameter-count limits, query-plan-cache thrashing) without
+needing that data and without the JOIN-based rewrite's architectural cost: `buildIdClause()` now
+binds a plain `Long[]` array (`= ANY(:allowedIds)`) instead of a `Set<Long>` (`IN (:allowedIds)`)
+— Spring only expands `Collection`-typed bind values into one placeholder per element, so a native
+array is passed through as a single JDBC parameter regardless of size, reusing
+`findExistingIds()`'s already-proven pattern in the same class. See `marketplace-app/DECISIONS.md`
+ADR-036 for the full writeup, including why `unnest()` (an equally valid alternative) wasn't
+chosen, the Postgres-coupling tradeoff, and the array size ceiling that replaces the removed
+parameter-count ceiling. New tests:
+`AdvertisementRepositoryTest.findByFilter_allowedIdsRestrictsToMatchingRows` /
+`.countByFilter_allowedIdsRestrictsCount` (the non-null `allowedIds` path had zero prior coverage).
+`bash scripts/integration-tests.sh --sandbox AdvertisementRepositoryTest`: 9/9, `BUILD SUCCESS`.
 
 ### 3. `DefaultTaxonPort.resolveTranslation()` — exact-match locale comparison fails for anonymous visitors with region-qualified browser locales — SILENT-CORRUPTION (narrow)
 `/app/taxon-spring-boot-starter/src/main/java/org/ost/taxon/services/DefaultTaxonPort.java:246-255`
@@ -123,18 +126,11 @@ config sources.
 
 ## Suggested fix
 
-1. **Item 1:** either accept the narrow-window risk as-is (documented, not silently ignored), or
-   close it with a DB-level unique partial index / advisory lock around the first-registration
-   check, or simply always assign `Role.USER` at registration and require an explicit, out-of-band
-   admin-promotion step (config flag, CLI, or manual DB update) instead of automatic first-user
-   promotion — a decision for whoever owns the onboarding UX, not a pure engineering call.
-2. **Item 2:** no fix without first establishing real data volume — if a category realistically
-   never exceeds a few hundred/thousand advertisements in this marketplace's growth trajectory,
-   this may not be worth the complexity of batching or a JOIN-based rewrite. Revisit with real
-   numbers before choosing between "leave as-is," "cap `allowedIds` size defensively," or "rewrite
-   as a JOIN to `taxon_assignment`" (the JOIN option would need its own ADR, since `advertisement
-   -spring-boot-starter/CLAUDE.md` currently documents a deliberate no-raw-cross-starter-SQL-join
-   policy — ADR-034 — that this would need to explicitly revisit, not quietly violate).
+1. **Item 1 — see [improvement-052](improvement-052-first-admin-registration-toctou-race.md).**
+2. ✅ **Item 2 — done 2026-07-15, resolved without needing the real-data-volume answer.** See the
+   problem section above and `marketplace-app/DECISIONS.md` ADR-036 — a lower-risk fix (array bind
+   via `= ANY()`) removed the actual risk without either "cap defensively" (a band-aid) or the
+   JOIN-based rewrite (which would have reversed ADR-034).
 3. ✅ **Item 3 — done 2026-07-15.** `DefaultTaxonPort.resolveTranslation()` now compares via
    `locale.getLanguage()` (both the requested locale and `properties.defaultLocale()`, for
    consistency — the latter is always a plain config value with no region today, but costs nothing
@@ -170,21 +166,23 @@ config sources.
    tests: missing-key falls back to the builder default; all-keys-present uses the provided
    values). `bash scripts/integration-tests.sh --sandbox UserSettingsDtoTest`: 2/2, `BUILD SUCCESS`.
 
-**Items 3/4/5 done (2026-07-15).** Items 1/2 explicitly need a decision (product/UX call for item
-1, real data volume for item 2) rather than a pure engineering fix — left open, see "Suggested
-fix" above for the options; not closing this issue until those are resolved or deliberately
-deferred elsewhere.
+**All items resolved (2026-07-15).** Item 1 extracted to
+[improvement-052](improvement-052-first-admin-registration-toctou-race.md) (accepted risk,
+deferred to pre-production — a deliberate deferral, not an open loose end of this issue). Items
+2/3/4/5 all done. Closing this issue.
 
 ## Required verification
 
 - ✅ Item 5: resolved above — Jackson correctly applies the builder default; not a live bug.
-- Item 2: still open — get a real count of the largest number of advertisements currently (or
-  plausibly soon) assigned to a single category. Changes the urgency assessment entirely.
-- Full `integration-tests` suite run twice consecutively after items 3/4/5: 54/54 green both
-  times. Playwright specs (registration flow for item 1, category filter for item 2, locale switch
-  for item 3, timeline for item 4) not run as part of this pass — items 1/2 aren't implemented yet,
-  and items 3/4 were verified at the integration-tests level (real Postgres); a Playwright pass is
-  still worth doing once items 1/2 land, not blocking this partial close.
+- ✅ Item 2: resolved without needing this — the chosen fix (array bind) removes the actual risk
+  regardless of real category size, so the data point is no longer load-bearing for this issue
+  (still generically useful to know for capacity planning, just not a blocker here anymore).
+- Full `integration-tests` suite run after item 2's fix: `AdvertisementRepositoryTest` 9/9. Full
+  suite (items 2/3/4/5 together) not re-run as one pass — recommended before the next commit, not
+  a re-open of this issue. Playwright specs (category filter for item 2, locale switch for item 3,
+  timeline for item 4) not run as part of this issue — items 2/3/4 were verified at the
+  integration-tests level (real Postgres); a Playwright pass is still worth doing as a follow-up,
+  not blocking this close.
 
 ## Related
 

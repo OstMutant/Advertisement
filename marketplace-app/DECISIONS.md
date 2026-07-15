@@ -1143,6 +1143,73 @@ same real decoupling benefit.
 
 ---
 
+## ADR-036: `AdvertisementRepository.buildIdClause()` binds a plain array, not a `Set`, for the category-filter id list
+
+**Status:** Accepted
+
+**Context:** `AdvertisementService.resolveCategoryFilter()` calls `TaxonPort
+.findEntityIdsWithAnyTaxon()` to get the set of advertisement ids matching the selected
+categories — the bulk-lookup pattern ADR-034 already established, kept exactly as-is here (not
+revisited). The gap was one level down: `AdvertisementRepository.buildIdClause()` bound that
+`Set<Long>` directly to `WHERE a.id IN (:allowedIds)`. Spring's `NamedParameterJdbcTemplate`
+expands a `Collection`-typed bind value into one `?` placeholder per element for an `IN` clause —
+unbounded for a popular category's advertisement count, and the SQL text itself changes shape
+(different placeholder count) for every differently-sized result, defeating Postgres's query-plan
+cache on top of the parameter-count risk. Filed as improvement-050 item 2.
+
+Three fixes were considered:
+1. **Leave as-is** — rejected for a fresh review, but was the standing default for a while: no
+   evidence this app's real category sizes are anywhere near the risk zone (current seed/test data
+   is ~10 ads/category), and the project avoids designing for hypothetical future load. Revisit
+   trigger: a real category size approaching the thousands.
+2. **Defensively cap `allowedIds` size** — rejected: silently wrong results (arbitrarily dropping
+   matches) or an opaque failure, neither actually fixes the scaling problem, just delays it.
+3. **JOIN to `taxon_assignment` directly** — rejected: reverses ADR-034's own decision (no raw
+   cross-starter SQL joins) without a compelling reason to, since a much smaller fix closes the
+   actual problem without touching that boundary at all (see Decision below).
+
+**Decision:** Bind a plain `Long[]` array instead of the `Set<Long>`, and compare with
+`= ANY(:allowedIds)` instead of `IN (:allowedIds)`:
+```java
+params.addValue("allowedIds", ids.toArray(new Long[0]));
+return " AND a.id = ANY(:allowedIds)";
+```
+Spring only expands `Collection`-typed values into multiple placeholders — a native array is
+passed through as a single bind parameter, and the PostgreSQL JDBC driver binds it natively as one
+`bigint[]` value. This is not a new pattern: `AdvertisementRepository.findExistingIds(Long[] ids)`
+already does exactly this (`WHERE id = ANY(:ids)`) a few lines below `buildIdClause()` — the fix
+is applying the class's own existing, already-proven convention consistently, not introducing a
+new one.
+
+**Why not `unnest()`:** `WHERE a.id IN (SELECT unnest(:allowedIds))` is a documented, equally valid
+alternative for the same underlying reason (a single array bind instead of N placeholders) — not
+chosen here only because `= ANY()` was already an established, tested pattern in this exact class,
+so it carries less risk than introducing new SQL syntax the codebase hasn't used before.
+
+**On Postgres coupling:** `= ANY()` is Postgres-specific syntax (not ANSI SQL), same as `unnest()`
+would have been. Not treated as a new category of risk — this codebase already commits to
+Postgres-specific features throughout (`JSONB` columns with `::jsonb` casts, `ROW_NUMBER() OVER
+(PARTITION BY ...)`, `(created_at, id) <=` tuple comparisons — see ADR-020 and the audit tiebreak
+fix in improvement-050 item 4), and portability to another RDBMS has never been a stated goal.
+
+**On the array-size limit:** binding a native array removes the *parameter-count* limit entirely
+(always exactly one bind parameter, regardless of how many ids). A different limit still exists —
+PostgreSQL's per-value TOAST size cap (~1 GB) — but for a `bigint[]`, that allows tens of millions
+of elements before it would ever matter, several orders of magnitude past any realistic category
+size for this app.
+
+**Consequences:**
+- `AdvertisementRepository.findByFilter()`/`countByFilter()` — the only two callers of
+  `buildIdClause()` — are otherwise unchanged.
+- New regression coverage: `AdvertisementRepositoryTest
+  .findByFilter_allowedIdsRestrictsToMatchingRows` /
+  `.countByFilter_allowedIdsRestrictsCount` — the existing test class had zero coverage of the
+  non-null `allowedIds` path before this (every prior test passed `null`).
+- → [improvement-050-toctou-scalability-locale-audit-tiebreak](../features/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
+  item 2.
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)
