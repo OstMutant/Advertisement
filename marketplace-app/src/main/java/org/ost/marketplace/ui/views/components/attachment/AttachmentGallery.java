@@ -1,7 +1,6 @@
 package org.ost.marketplace.ui.views.components.attachment;
 import org.ost.marketplace.services.i18n.I18nKey;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -18,6 +17,8 @@ import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
@@ -40,8 +41,11 @@ public class AttachmentGallery extends Div {
 
     private static final int MAX_GALLERY_ITEMS = AttachmentUploadButton.MAX_FILES;
 
-    private final transient ComponentFactory<AttachmentPort> attachmentPortFactory;
-    private final transient I18nService                      i18n;
+    private final transient ComponentFactory<AttachmentPort>          attachmentPortFactory;
+    private final transient I18nService                               i18n;
+    private final transient UiComponentFactory<UiIconButton>          iconButtonFactory;
+    private final transient UiComponentFactory<AttachmentThumbnail>   thumbnailFactory;
+    private final transient UiComponentFactory<AttachmentLightbox>    lightboxFactory;
 
     private transient AttachmentPort attachmentPort;
 
@@ -231,18 +235,25 @@ public class AttachmentGallery extends Div {
 
     private AttachmentThumbnail buildThumbnail(AttachmentItemDto a) {
         if (editMode) {
-            return AttachmentThumbnail.forEdit(a, () -> {
+            return thumbnailFactory.get().configureForEdit(a, () -> {
                 pendingDeletions.add(a.id());
                 currentAttachments.remove(a);
                 if (thumbnailsRow.getComponentCount() == 0) showEmpty();
                 notifyChanged();
             });
         }
-        return AttachmentThumbnail.forView(a, () -> getUI().ifPresent(ui -> AttachmentLightbox.open(a, ui)));
+        return thumbnailFactory.get().configureForView(a, () -> openLightbox(a));
+    }
+
+    private void openLightbox(AttachmentItemDto a) {
+        getUI().ifPresent(ui -> {
+            AttachmentLightbox lightbox = lightboxFactory.build(new AttachmentLightbox.Parameters(a));
+            ui.getElement().appendChild(lightbox.getElement());
+        });
     }
 
     private AttachmentThumbnail buildTempThumbnail(TempAttachmentDto temp) {
-        return AttachmentThumbnail.forTemp(temp, () -> {
+        return thumbnailFactory.get().configureForTemp(temp, () -> {
             attachmentPort.discardTempUploads(List.of(temp));
             tempUploads.remove(temp);
             tempFileSet.remove(temp);
@@ -300,7 +311,9 @@ public class AttachmentGallery extends Div {
         urlField.setPlaceholder(i18n.get(I18nKey.ATTACHMENT_VIDEO_PLACEHOLDER));
         urlField.setWidthFull();
 
-        Button addBtn = new Button(VaadinIcon.PLUS.create(), _ -> {
+        UiIconButton addBtn = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(I18nKey.ATTACHMENT_VIDEO_ADD_TOOLTIP).icon(VaadinIcon.PLUS.create()).build());
+        addBtn.addClickListener(_ -> {
             try {
                 String val = urlField.getValue();
                 if (totalItemCount() >= MAX_GALLERY_ITEMS) {

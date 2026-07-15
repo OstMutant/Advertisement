@@ -191,6 +191,11 @@ public enum I18nKey {
     ATTACHMENT_GALLERY_MAX_ITEMS("attachment.gallery.max.items"),
     ATTACHMENT_VIDEO_PLACEHOLDER("attachment.video.placeholder"),
     ATTACHMENT_VIDEO_INVALID("attachment.video.invalid"),
+    ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP("attachment.lightbox.close.tooltip"),
+    ATTACHMENT_LIGHTBOX_PREV_TOOLTIP("attachment.lightbox.prev.tooltip"),
+    ATTACHMENT_LIGHTBOX_NEXT_TOOLTIP("attachment.lightbox.next.tooltip"),
+    ATTACHMENT_VIDEO_ADD_TOOLTIP("attachment.video.add.tooltip"),
+    ATTACHMENT_GALLERY_REMOVE_TOOLTIP("attachment.gallery.remove.tooltip"),
 
     // === Audit ===
     AUDIT_HISTORY_EMPTY("audit.history.empty"),

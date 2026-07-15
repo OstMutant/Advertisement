@@ -1,6 +1,5 @@
 package org.ost.marketplace.ui.views.components.attachment;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
@@ -8,20 +7,34 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.dom.Element;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.util.YoutubeUtil;
+import org.springframework.context.annotation.Scope;
 
-class CardLightboxViewer extends HorizontalLayout {
+import static org.ost.marketplace.services.i18n.I18nKey.*;
+
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor
+public class CardLightboxViewer extends HorizontalLayout {
 
     private final Image   mainImg  = new Image();
     private final IFrame  iframe   = new IFrame();
     private final Element videoEl  = new Element("video");
     private final Div     mainVideo = new Div();
-    private final Button  prevBtn;
-    private final Button  nextBtn;
+    private UiIconButton  prevBtn;
+    private UiIconButton  nextBtn;
 
-    CardLightboxViewer() {
+    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
+
+    @PostConstruct
+    void init() {
         mainImg.addClassName("card-lightbox__main-image");
 
         iframe.addClassName("card-lightbox__iframe");
@@ -37,8 +50,10 @@ class CardLightboxViewer extends HorizontalLayout {
         mainVideo.getElement().appendChild(videoEl);
         mainVideo.setVisible(false);
 
-        prevBtn = new Button(VaadinIcon.ANGLE_LEFT.create());
-        nextBtn = new Button(VaadinIcon.ANGLE_RIGHT.create());
+        prevBtn = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_PREV_TOOLTIP).icon(VaadinIcon.ANGLE_LEFT.create()).build());
+        nextBtn = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_NEXT_TOOLTIP).icon(VaadinIcon.ANGLE_RIGHT.create()).build());
         prevBtn.addClassName("card-lightbox__nav");
         nextBtn.addClassName("card-lightbox__nav");
 

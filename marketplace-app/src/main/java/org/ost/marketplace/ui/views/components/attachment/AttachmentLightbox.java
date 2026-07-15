@@ -1,25 +1,46 @@
 package org.ost.marketplace.ui.views.components.attachment;
 
-import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.dom.Element;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import lombok.RequiredArgsConstructor;
+import lombok.Value;
+import org.ost.marketplace.ui.core.Configurable;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.util.YoutubeUtil;
+import org.springframework.context.annotation.Scope;
 
-class AttachmentLightbox extends Div {
+import static org.ost.marketplace.services.i18n.I18nKey.*;
+
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor
+public class AttachmentLightbox extends Div implements Configurable<AttachmentLightbox, AttachmentLightbox.Parameters> {
 
     private static final String CLICK_EVENT      = "click";
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
-    private AttachmentLightbox(AttachmentItemDto attachment) {
-        addClassName("attachment-lightbox");
+    @Value
+    public static class Parameters {
+        AttachmentItemDto attachment;
+    }
 
-        Button closeBtn = new Button(VaadinIcon.CLOSE.create(), _ -> close(null));
+    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
+
+    @Override
+    public AttachmentLightbox configure(Parameters p) {
+        addClassName("attachment-lightbox");
+        AttachmentItemDto attachment = p.getAttachment();
+
+        UiIconButton closeBtn = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE.create()).build());
+        closeBtn.addClickListener(_ -> close(null));
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
@@ -45,10 +66,7 @@ class AttachmentLightbox extends Div {
             addClickListener(_ -> removeFromParent());
             add(closeBtn, img);
         }
-    }
-
-    static void open(AttachmentItemDto attachment, UI ui) {
-        ui.getElement().appendChild(new AttachmentLightbox(attachment).getElement());
+        return this;
     }
 
     private void close(IFrame iframe) {

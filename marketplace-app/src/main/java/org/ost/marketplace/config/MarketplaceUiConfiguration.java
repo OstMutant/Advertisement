@@ -2,6 +2,9 @@ package org.ost.marketplace.config;
 
 import jakarta.validation.Validator;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGallery;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentLightbox;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentThumbnail;
+import org.ost.marketplace.ui.views.components.attachment.CardLightboxViewer;
 import org.ost.marketplace.ui.views.components.attachment.CardMediaLightbox;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityListRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
@@ -77,6 +80,21 @@ public class MarketplaceUiConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<CardLightboxViewer> cardLightboxViewerFactory(ObjectProvider<CardLightboxViewer> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<AttachmentThumbnail> attachmentThumbnailFactory(ObjectProvider<AttachmentThumbnail> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<AttachmentLightbox> attachmentLightboxFactory(ObjectProvider<AttachmentLightbox> p) {
         return new UiComponentFactory<>(p);
     }
 
