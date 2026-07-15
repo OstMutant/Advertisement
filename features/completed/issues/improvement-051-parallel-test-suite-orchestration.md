@@ -1,16 +1,16 @@
-# improvement-051: `run-all-tests.sh` — sequential Maven suites, parallel Playwright
+# improvement-051: `run-all-tests.sh` — sequential Maven suites, parallel Playwright — ✅ DONE (2026-07-15)
 
 **Type:** improvement — developer workflow / iteration speed.
 **Module:** `scripts/` (new `scripts/run-all-tests.sh`), `scripts/DECISIONS.md` (ADR-004).
 **Priority:** medium — daily-iteration convenience, not correctness-critical.
-**Status:** VERIFIED (2026-07-15) — `scripts/run-all-tests.sh` and `scripts/DECISIONS.md` ADR-004
+**Status:** ✅ DONE (2026-07-15) — `scripts/run-all-tests.sh` and `scripts/DECISIONS.md` ADR-004
 written and confirmed end-to-end: `--unit "AccessEvaluatorTest" --integration "--sandbox smoke"
 --playwright "01-marketplace-empty-flow --ux"` ran unit-tests (17/17 passed) then integration-tests
 (smoke passed) sequentially while Playwright ran in parallel from the start; Playwright happened to
 fail for an unrelated environmental reason (dev Postgres on port 5432 wasn't running in this
 sandbox at the time — `ERR_CONNECTION_REFUSED` against the app), which incidentally proved the
 failure-detection path too: the summary correctly reported `SOME FAILED` with a non-zero exit code.
-Still uncommitted — commit only on explicit request per project rule.
+Committed in `a699a990`.
 
 ## Problem
 
@@ -66,18 +66,15 @@ documented in `scripts/CLAUDE.md`).
   summary combining both exit codes.
 - `scripts/DECISIONS.md` ADR-004 — records the above reasoning.
 
-## Remaining work
+## Resolution
 
-1. Run `bash scripts/run-all-tests.sh --unit "<fast test>" --integration "--sandbox smoke"
-   --playwright "<fast spec>"` end-to-end at least once, confirm: both log files populate
-   correctly, the summary line reflects real exit codes (test a deliberate failure in one suite to
-   confirm it's actually detected, not just the happy path), and Playwright's background run
-   doesn't get silently swallowed if it finishes before or after the sequential pair.
-2. Commit once verified (per project rule: only on explicit "зроби коміт").
+Both remaining-work items done: the end-to-end run above (log files populated correctly, summary
+line reflected real exit codes including the deliberate Playwright failure, background run wasn't
+swallowed) and the commit (`a699a990`).
 
 ## Related
 
-- [improvement-047](improvement-047-integration-tests-ci-safety.md) — `integration-tests/run.sh`
+- [improvement-047](../../issues/improvement-047-integration-tests-ci-safety.md) — `integration-tests/run.sh`
   build/CI safety, same script this orchestrator wraps.
 - `integration-tests/DECISIONS.md` ADR-007 — the staleness-check/install logic this issue's "side
   benefit" section depends on understanding correctly.

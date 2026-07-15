@@ -166,9 +166,14 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | DB and MinIO/S3 credentials duplicated across 4-5 files each (compose YAML, `application-dev.yml`, `deploy.sh`, `playwright/run.sh`) — consolidate into the shared root `.env` established by improvement-027's Batch 0 | medium — no current bug (copies still agree), pure drift-risk reduction; found while investigating improvement-027's `postgres:15-alpine` duplication |
 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Keep `integration-tests` out of a plain `mvn install`/`mvn test` (Maven profile vs. `@Tag` decision), Docker precheck in `run.sh`, `SharedEnvConfig` unit test, `.env` doc note, CI-guard for sandbox env vars | medium — corrected/de-duplicated version of an external PR #20 review; original review's test-coverage items were already improvement-045 (partially done), its `.env.example` suggestion didn't fit this repo's committed-no-secrets `.env` model |
 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Cover `marketplace-app`'s non-UI service layer (`AdvertisementSaveService`, `AdvertisementEnrichService`, `AuthContextService`) with unit tests in `marketplace-app/src/test/java`, mirroring `src/main`'s package layout — one consistent home for this layer's tests | medium — follow-up to improvement-045 item 1 (`AccessEvaluatorTest`), which proved the pattern; verified this UI-free `services/*` layer already exists (zero `com.vaadin.*` imports across all 10 files) |
-| [improvement-051](issues/improvement-051-parallel-test-suite-orchestration.md) | New `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven reactor overlap); `/run-all-tests` slash command added | **VERIFIED (2026-07-15)** — end-to-end run confirmed both the sequencing and failure-detection paths |
+✅ Done (2026-07-15): [improvement-051](completed/issues/improvement-051-parallel-test-suite-orchestration.md)
+— `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on
+the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven
+reactor overlap); `/run-all-tests` slash command added. End-to-end run confirmed both the
+sequencing and failure-detection paths. Committed in `a699a990`; issue file moved to
+`completed/issues/` afterward (bookkeeping only, no code change).
 
-✅ Done (2026-07-15): [improvement-054](issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md)
+✅ Done (2026-07-15): [improvement-054](completed/issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md)
 — `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` both
 switched from `IN (:set)` to `= ANY(:array)`, reusing the array-bind fix improvement-050 item 2
 already proved (ADR-036) — no caller-side changes needed. `TaxonAssignmentRepositoryTest` 8/8,
