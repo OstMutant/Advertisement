@@ -1,7 +1,7 @@
 # improvement-048: Cover `marketplace-app`'s non-UI service layer with unit tests, mirroring `src/main`'s package layout under `src/test`
 
 **Type:** improvement — testing infrastructure/process. Follow-up to
-[improvement-045](improvement-045-critical-test-coverage-gaps.md) item 1
+[improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) item 1
 (`AccessEvaluatorTest`), which proved the pattern: `marketplace-app` already has a real,
 UI-free service layer (`org.ost.marketplace.services.*` — verified zero `com.vaadin.*` imports
 across all 10 files in that package) that orchestrates domain-starter Ports/Hooks, and it can be
@@ -85,8 +85,9 @@ Security test pattern, no mocking of the holder itself needed) rather than only 
 `AccessEvaluatorTest`'s mocked `AuthContextService`.
 
 ### Explicitly not included here (already tracked elsewhere)
-`AuthService` (login/register rate limiting) is [improvement-045](
-improvement-045-critical-test-coverage-gaps.md) item 3 — do not duplicate tracking.
+`AuthService` (login/register rate limiting) is
+[improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) item 3 — do
+not duplicate tracking.
 
 ## Suggested fix — one consistent home for this layer's tests
 
@@ -126,7 +127,7 @@ any of these three classes.
 
 ## Related
 
-- [improvement-045](improvement-045-critical-test-coverage-gaps.md) item 1 —
+- [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) item 1 —
   `AccessEvaluatorTest`, the precedent this issue's placement/pattern follows.
 - `integration-tests/CLAUDE.md` ADR-001 — why `integration-tests` never hosts `marketplace-app`
   tests.

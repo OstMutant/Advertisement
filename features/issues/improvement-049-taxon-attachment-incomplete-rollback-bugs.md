@@ -183,7 +183,7 @@ nothing.
 
 ## Related
 
-- [improvement-045](improvement-045-critical-test-coverage-gaps.md) items 4/5 — the same
+- [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) items 4/5 — the same
   "protected by UI discipline, not code" shape already found and fixed once for
   `TaxonRepository.findByIds()`/`findByTypeAndCode()`.
 - `marketplace-app/DECISIONS.md` ADR-029 — the `version`-forwarding discipline for

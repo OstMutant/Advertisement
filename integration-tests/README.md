@@ -80,6 +80,12 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `PostgresContainerSmokeTest` | Testcontainers, no Spring context | Proves the scaffolding itself: container starts, Liquibase applies a trivial changelog, a verification query succeeds |
 | `advertisement/AdvertisementRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `AdvertisementRepository` — the highest-risk dynamic-SQL paths (filter, sort, pagination, optimistic locking), against real `advertisement-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
 | `advertisement/AdvertisementSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `AdvertisementSnapshotDto.diff()` — pure field-comparison logic, zero side effects |
+| `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()`/`findByTypeAndCode()` correctly exclude soft-deleted rows (`deleted_at IS NULL`) — improvement-045 item 4/5 fix |
+| `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `DECISIONS.md` ADR-008 |
+| `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
+| `user/UserServiceTest` | Testcontainers + `@SpringBootTest` | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
+| `user/UserServiceRestoreTest` | Testcontainers + `@SpringBootTest` | `UserService.restoreToSnapshot()` (the public entry point to private `applyUserRestore()`) — role/name reverted, `version` forwarded from the row's current state not re-derived, unknown snapshot id returns empty — see `DECISIONS.md` ADR-008 |
+| `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 
 ### `PostgresContainerSmokeTest`
 
@@ -121,6 +127,72 @@ comparison building `ChangeEntry.FieldChange` records.
 | `diff_categoryIdsAddedFromEmpty_fromIsEmptyString` | Going from no categories to some categories renders `from=""`, not `from=null` |
 | `constructor_categoryIdsAlwaysSorted_regardlessOfInputOrder` | The record's compact constructor normalizes `categoryIds` ordering regardless of insertion order |
 | `constructor_nullCategoryIds_defaultsToEmptyList` | A `null` `categoryIds` argument never leaks a `null` into the record — defaults to `List.of()` |
+
+### `taxon/TaxonRepositoryTest`
+
+| Test | Verifies |
+|---|---|
+| `findByIds_excludesSoftDeletedRows` | A soft-deleted taxon id is silently dropped from the bulk lookup, not returned |
+| `findByIds_returnsActiveRows` | Non-deleted rows still come back correctly |
+| `findByTypeAndCode_excludesSoftDeletedRow` | Same `deleted_at IS NULL` fix applied to the type+code lookup |
+| `findByTypeAndCode_returnsActiveRow` | Non-deleted rows still come back correctly |
+
+### `taxon/TaxonPortTranslationFallbackTest`
+
+Fixture setup uses `TaxonRepository`/`TaxonTranslationRepository` directly (bypassing
+`TaxonService.create()`'s validation) to reach incomplete-translation states the public API alone
+can't produce.
+
+| Test | Verifies |
+|---|---|
+| `findById_requestedLocaleAvailable_returnsRequestedTranslation` | Exact-match tier: requested locale's own translation wins |
+| `findById_requestedLocaleMissing_fallsBackToConfiguredDefaultLocale` | Missing requested locale falls back to `TaxonProperties.defaultLocale` |
+| `findById_requestedAndDefaultLocaleMissing_fallsBackToFirstAvailableTranslation` | Both missing falls back to whichever translation exists |
+| `findById_noTranslationsAtAll_returnsBlankNameNotError` | Zero translations is a blank name, not an exception |
+
+### `user/UserRepositoryTest`
+
+| Test | Verifies |
+|---|---|
+| `updateProfile_staleVersion_throwsOptimisticLockingFailureException` | Optimistic locking rejects a stale-`version` profile update |
+| `updateProfile_currentVersion_succeedsAndUpdatesNameAndRole` | Correct-version update succeeds |
+| `updateProfile_cannotAlterEmailOrPasswordHash` | `UserProfileUpdate`'s narrower entity (no `email`/`passwordHash` mapped properties) structurally cannot touch those columns, even if attempted — see `user-spring-boot-starter/CLAUDE.md` |
+
+### `user/UserServiceTest`
+
+| Test | Verifies |
+|---|---|
+| `register_success_savesUser` | Baseline: a normal registration succeeds |
+| `register_duplicateEmail_incrementsAttemptsAndPropagatesException` | A duplicate-key failure counts toward the rate-limit bucket and still propagates |
+| `register_thresholdReached_throwsIllegalStateException_beforeAttemptingSave` | Once the threshold is hit, the save is never attempted — fails fast |
+| `register_successAfterDuplicateKeyFailures_doesNotResetAttempts` | The register/login rate-limit asymmetry: unlike login, a successful registration does **not** reset the IP's attempt counter |
+| `register_differentIpsTrackedSeparately` | Two different IPs never share a rate-limit bucket |
+
+### `user/UserServiceRestoreTest`
+
+Needed its own `TestConfig` rather than reusing `RepositoryTestSupport` (bean-name collision when
+both the stub `ComponentFactory<AuditPort>` and the real `AuditAutoConfiguration` are present) and
+registers `UserSnapshotDto` on the `auditObjectMapper` bean itself — `AuditAutoConfiguration`'s
+default mapper has no `AuditableSnapshot` subtypes registered outside `marketplace-app`'s own
+`JacksonConfig`. See the class's own javadoc for the full rationale.
+
+| Test | Verifies |
+|---|---|
+| `restoreToSnapshot_revertsNameAndRole_andForwardsCurrentVersionNotStale` | Name/role reverted to the snapshot's values; `version` forwarded from the row's current state post-change, not re-derived from a stale fetch |
+| `restoreToSnapshot_unknownSnapshotId_returnsEmpty` | An unresolvable snapshot id returns `Optional.empty()`, not an exception |
+
+### `user/SettingsSnapshotDtoTest`
+
+No Spring context, no DB — direct analogy with `AdvertisementSnapshotDtoTest`.
+
+| Test | Verifies |
+|---|---|
+| `diff_noPrevious_returnsChangesForAllFields` | `diff(null)` reports all 3 page-size fields as changed |
+| `diff_identicalSnapshots_returnsNoChanges` | No spurious changes when nothing actually changed |
+| `diff_adsPageSizeChanged_returnsSingleFieldChange` | Only `adsPageSize` changing produces exactly one `FieldChange` |
+| `diff_usersPageSizeChanged_returnsSingleFieldChange` | Only `usersPageSize` changing produces exactly one `FieldChange` |
+| `diff_timelinePageSizeChanged_returnsSingleFieldChange` | Only `timelinePageSize` changing produces exactly one `FieldChange` |
+| `diff_allFieldsChanged_returnsAllChangedFields` | All 3 fields changing surface in one `diff()` call |
 
 ---
 

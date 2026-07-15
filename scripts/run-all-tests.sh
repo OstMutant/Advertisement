@@ -14,7 +14,7 @@
 # shared target/ dirs -- running them concurrently risks a build race if a starter changed since
 # the last run. playwright runs in parallel with that pair from the start: it never touches the
 # Maven reactor, only an already-built, already-running Docker container, so it has nothing to
-# race with the Maven-based suites. See DECISIONS.md ADR-001.
+# race with the Maven-based suites. See DECISIONS.md ADR-004.
 #
 # Side benefit of the unit-tests -> integration-tests order: unit-tests.sh's `-am` reactor build
 # already compiles the shared starter modules (though it never installs them to ~/.m2 -- `test`

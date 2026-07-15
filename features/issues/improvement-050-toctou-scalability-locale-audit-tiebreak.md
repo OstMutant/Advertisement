@@ -169,7 +169,7 @@ config sources.
 
 - [improvement-049](improvement-049-taxon-attachment-incomplete-rollback-bugs.md) — same review
   pass's other findings (Taxon/Attachment), filed separately since they're a different module pair.
-- [improvement-045](improvement-045-critical-test-coverage-gaps.md) item 6 —
+- [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) item 6 —
   `TaxonPortTranslationFallbackTest`, the test class item 3's regression coverage extends.
 - [improvement-044](improvement-044-shared-env-config-consolidation.md) — the same
   two-places-must-stay-in-sync risk class as item 5.

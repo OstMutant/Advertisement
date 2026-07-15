@@ -53,7 +53,7 @@ three issues, checked against current code before writing this issue:
    different name. The actual gap worth closing is a one-line doc note (in `integration-tests
    /CLAUDE.md` or root `CLAUDE.md`), not a new file — see item 4.
 4. **Item "add tests for AccessEvaluator/TaxonRepository" fully duplicates
-   [improvement-045](improvement-045-critical-test-coverage-gaps.md), and is already partially
+   [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md), and is already partially
    done.** `TaxonRepository.findByIds()`/`findByTypeAndCode()` were fixed and covered by
    `TaxonRepositoryTest` on 2026-07-14 (commit `631644d2`) — the original review's premise (missing
    `deleted_at IS NULL` filter) is already resolved. `AccessEvaluator`'s unit test is
@@ -108,14 +108,14 @@ three issues, checked against current code before writing this issue:
   `scripts/deploy.sh`), not a drive-by addition bundled into a test-tagging cleanup. File a separate
   issue if/when CI is actually decided on.
 - **AccessEvaluator / TaxonRepository / rate-limit test coverage.** Fully owned by
-  [improvement-045](improvement-045-critical-test-coverage-gaps.md) — do not duplicate tracking
+  [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) — do not duplicate tracking
   here.
 
 ## Related
 
 - [improvement-027](improvement-027-unit-testcontainers-test-layer.md) — the `integration-tests`
   module this issue hardens.
-- [improvement-045](improvement-045-critical-test-coverage-gaps.md) — owns the actual new test
+- [improvement-045](../completed/issues/improvement-045-critical-test-coverage-gaps.md) — owns the actual new test
   content for AccessEvaluator/rate-limiting/etc.; this issue is build/CI plumbing only.
 - [improvement-044](improvement-044-shared-env-config-consolidation.md) — the `.env` consolidation
   effort item 4's doc note should stay consistent with, if more values get added to `.env` later.

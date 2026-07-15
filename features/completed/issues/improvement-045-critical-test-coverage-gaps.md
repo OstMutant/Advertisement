@@ -199,9 +199,15 @@ architecture — no domain starter gets test code of its own):
    happens in `marketplace-app/JacksonConfig`, never loaded here), so `TestConfig` registers
    `UserSnapshotDto` itself via the same `@PostConstruct` pattern. `bash scripts/integration-tests.sh
    --sandbox UserServiceRestoreTest`: 2/2, `BUILD SUCCESS`.
-7. **Item 8 (`SettingsSnapshotDto.diff()`)** — plain unit test, by direct analogy with the just-
-   completed `AdvertisementSnapshotDtoTest`: no-previous case, identical-snapshots case, single-
-   field change, all-fields change.
+7. ✅ **Item 8 (`SettingsSnapshotDto.diff()`) — done 2026-07-15.** Plain unit test, direct analogy
+   with `AdvertisementSnapshotDtoTest`, no Spring context/DB.
+   `integration-tests/src/test/java/org/ost/integrationtests/user/SettingsSnapshotDtoTest.java` (6
+   tests: no-previous → changes for all 3 fields, identical snapshots → no changes, each of
+   `adsPageSize`/`usersPageSize`/`timelinePageSize` changed individually → single-field change,
+   all three changed → all three reported). `bash scripts/integration-tests.sh --sandbox
+   SettingsSnapshotDtoTest`: 6/6, `BUILD SUCCESS`.
+
+**All 8 items done — improvement-045 complete (2026-07-15).**
 
 ## Required verification
 

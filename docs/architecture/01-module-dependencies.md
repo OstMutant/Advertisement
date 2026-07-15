@@ -41,6 +41,8 @@ graph LR
     IT --> PC
     IT --> ADV
     IT --> USR
+    IT --> TAX
+    IT --> AUD
 ```
 
 ## Dependency Table
@@ -55,7 +57,7 @@ graph LR
 | **advertisement-spring-boot-starter** | platform-commons, query-lib, audit (optional), attachment (optional) | compile; optional for audit/attachment |
 | **taxon-spring-boot-starter** | platform-commons, query-lib | compile |
 | **marketplace-app** | All starters + query-lib; taxon as runtime scope | compile (all starters except taxon), runtime (taxon) |
-| **integration-tests** | platform-commons, advertisement-spring-boot-starter, user-spring-boot-starter (grows as Batches 2-3 add starters); Testcontainers/Spring Boot test deps | compile — but the module itself is never shipped or deployed (see `integration-tests/CLAUDE.md`), so this does not count as a starter-to-starter dependency under the "no sibling imports" rule |
+| **integration-tests** | platform-commons, advertisement-spring-boot-starter, user-spring-boot-starter, taxon-spring-boot-starter, audit-spring-boot-starter; Testcontainers/Spring Boot test deps | compile — but the module itself is never shipped or deployed (see `integration-tests/CLAUDE.md`), so this does not count as a starter-to-starter dependency under the "no sibling imports" rule |
 
 ## Key Observations
 
@@ -71,7 +73,7 @@ graph LR
 
 6. **Marketplace App Dependency:** The main application depends on all starters, composing the full feature set.
 
-7. **Test-Only Reactor Member:** `integration-tests` is the sole module allowed to depend on more than one domain starter at once (`advertisement-spring-boot-starter` + `user-spring-boot-starter` today) — a real, `compile`-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see `integration-tests/CLAUDE.md` for the full rationale and why this doesn't violate "starters must not depend on each other."
+7. **Test-Only Reactor Member:** `integration-tests` is the sole module allowed to depend on more than one domain starter at once (`advertisement-`, `user-`, `taxon-`, `audit-spring-boot-starter` today) — a real, `compile`-scope Maven dependency, not SPI-mediated. This is safe only because the module is never shipped, deployed, or depended upon by anything else (a leaf with zero inbound edges) — see `integration-tests/CLAUDE.md` for the full rationale and why this doesn't violate "starters must not depend on each other."
 
 ## Module Versions
 
