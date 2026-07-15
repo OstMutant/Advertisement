@@ -182,6 +182,17 @@ ui/views/components/overlay/fields/OverlayBreadcrumbBackButton.java
    will be touched multiple times across a phased rollout. Track by consumer file, not just by
    widget type, when scoping each phase.
 
+6. **New since this issue was filed**: `improvement-026` Batch 3 (2026-07-15) promoted
+   `AttachmentLightbox`, `CardLightboxViewer`, and `AttachmentThumbnail` from plain classes to
+   `@SpringComponent` prototype beans implementing `Configurable`, specifically to inject
+   `UiComponentFactory<UiIconButton>` (per the "constructors take beans, not pre-built widgets"
+   rule established during that work). None of the three appear in this issue's file lists. Once
+   `UiIconButton` converts to a plain class per this issue, the reason these three needed to be
+   beans evaporates — check each for remaining real dependencies (beyond `I18nService`) before
+   assuming they revert to plain classes; add them to whichever batch's audit step turns up
+   nothing else. See [improvement-055](improvement-055-ui-vaadin-template-consistency-audit.md)
+   Finding 1 for the full cross-reference.
+
 ## Suggested phased execution (not one PR)
 
 Given the wide, cross-cutting consumer footprint and this session's track record of two
