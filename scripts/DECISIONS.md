@@ -70,3 +70,43 @@ to make to `deploy.sh` itself, not a docs fix.
 
 **Consequences:** `deploy.sh`'s current startup-detection mechanism is the polling loop shown
 above, not the streaming `grep -qm1` originally decided here.
+
+---
+
+## ADR-004: run-all-tests.sh — sequential Maven suites, parallel Playwright
+**Status:** Accepted
+
+**Context:** Running `unit-tests.sh`, `integration-tests.sh`, and `playwright.sh` one at a time
+during daily iteration is slow. Naive full 3-way parallelism was considered and rejected:
+`unit-tests.sh` (`./mvnw -pl query-lib,marketplace-app -am test`) and `integration-tests.sh`
+(conditional `./mvnw install -pl platform-commons,advertisement-/user-/taxon-spring-boot-starter
+-am -DskipTests`) can both compile the *same* starter modules into their shared `target/`
+directories. Running them concurrently right after editing one of those starters risks a genuine
+Maven build race (one process reading/writing `target/classes` while the other recompiles it), not
+just a performance hit. `playwright.sh`, by contrast, never touches the Maven reactor — it only
+drives an already-built, already-running `marketplace-app` Docker container via `docker cp`/`docker
+exec`, so it has nothing to race with the Maven-based suites.
+
+**Decision:** `scripts/run-all-tests.sh` runs `unit-tests.sh` → `integration-tests.sh`
+sequentially in one stream, while `playwright.sh` starts in parallel with that pair from the very
+beginning (backgrounded, own log file) and is `wait`-ed on at the end. Each suite's own
+flags/scenario args are grouped behind `--unit "..."` / `--integration "..."` / `--playwright
+"..."` and forwarded unchanged — no new flag vocabulary, no duplication of each script's own
+argument parsing.
+
+Side effect worth noting (not a design requirement, just an observed consequence of the ordering):
+since `unit-tests.sh` already compiles the shared starter modules via its own `-am` reactor build
+moments earlier, `integration-tests.sh`'s subsequent staleness-check/install step (see
+`integration-tests/DECISIONS.md` ADR-007) typically finds a warm compile cache ("Nothing to
+compile") and completes faster than a cold invocation would — even though `unit-tests.sh` never
+installs anything to `~/.m2` itself (`test` goal, not `install`), so the install step still always
+actually runs, just faster.
+
+**Consequences:** True 3-way parallelism (including unit-tests and integration-tests running
+concurrently) was explicitly out of scope for this decision — it would require isolating one of
+the two Maven-based suites into a separate git worktree (or equivalent) so their `target/`
+directories never overlap. Not pursued because the sequential-plus-parallel-Playwright shape
+already captures most of the available time savings without new infrastructure. The individual
+scripts (`unit-tests.sh`, `integration-tests.sh`, `playwright.sh`) remain the default, single-suite
+entry points for day-to-day iteration — `run-all-tests.sh` is an additional, opt-in grouping, not a
+replacement.

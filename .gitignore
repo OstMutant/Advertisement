@@ -37,6 +37,9 @@
 # Unit test artifacts
 /scripts/unit-tests/reports/
 
+# run-all-tests artifacts
+/scripts/run-all-tests/reports/
+
 # SonarQube
 /target/sonar
 /scripts/sonar/report

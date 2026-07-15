@@ -121,6 +121,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
+- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
 
 ---
 
