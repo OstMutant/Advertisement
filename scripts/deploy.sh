@@ -155,6 +155,8 @@ fi
 # ── Step 2: Build ─────────────────────────────────────────────────────────────
 echo ""
 echo "=== Step 2: Build image ==="
+source "$ROOT/scripts/ensure-docker-plugins.sh"
+ensure_buildx
 docker rm -f "$APP_CONTAINER" 2>/dev/null || true
 
 BUILD_FLAGS=""

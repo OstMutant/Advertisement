@@ -15,14 +15,8 @@ SCANNER_CONTAINER="sonar-scanner"
 PROPS_FILE="/app/scripts/sonar/sonar-project.properties"
 
 # ── Ensure docker compose plugin is available ────────────────────────────────
-if ! docker compose version &>/dev/null; then
-  echo "docker compose plugin not found — installing..."
-  mkdir -p ~/.docker/cli-plugins
-  curl -Lo ~/.docker/cli-plugins/docker-compose \
-    https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64
-  chmod +x ~/.docker/cli-plugins/docker-compose
-  echo "docker compose installed."
-fi
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/ensure-docker-plugins.sh"
+ensure_docker_compose
 
 # ── Ensure SonarQube server is running ───────────────────────────────────────
 if ! curl -s -o /dev/null "$SONAR_URL/api/system/status"; then

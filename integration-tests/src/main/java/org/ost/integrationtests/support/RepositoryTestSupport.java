@@ -2,6 +2,7 @@ package org.ost.integrationtests.support;
 
 import java.util.Optional;
 import lombok.NonNull;
+import org.ost.audit.config.AuditAutoConfiguration;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
@@ -25,9 +26,25 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
  * ports (e.g. {@code TaxonPort}) must add their own empty {@code ComponentFactory} bean in the
  * consuming test, not here — this class only covers the ports every repository test has hit so
  * far.</p>
+ *
+ * <p>{@code @EnableAutoConfiguration} explicitly excludes {@link AuditAutoConfiguration}: once
+ * {@code audit-spring-boot-starter} became a real {@code integration-tests} dependency (for
+ * {@code UserServiceRestoreTest}), the classpath-wide autoconfiguration cascade started pulling
+ * in the real {@code AuditAutoConfiguration} for every test using this class too — its
+ * {@code defaultAuditPort} bean then fails to construct (needs a {@link
+ * org.ost.platform.core.spi.CurrentActorHook} this class never provides), breaking every
+ * {@code *RepositoryTest} that doesn't actually want audit wired in. Confirmed directly: a full
+ * {@code mvn -pl integration-tests test} run (all classes together, not a single
+ * {@code -Dtest=X}) failed {@code AdvertisementRepositoryTest}/{@code TaxonRepositoryTest}/
+ * {@code TaxonPortTranslationFallbackTest}/{@code UserRepositoryTest} with "Parameter 1 of method
+ * defaultAuditPort ... required a bean of type CurrentActorHook that could not be found" — a
+ * single-class run never surfaces this since it doesn't depend on {@code -Dtest} filtering, only
+ * on whether the audit-starter JAR is on the classpath at all, which it always is once added to
+ * {@code pom.xml}. The exclude restores this class's original "audit starter absent" premise
+ * regardless of what other tests in the same reactor need.</p>
  */
 @TestConfiguration
-@EnableAutoConfiguration
+@EnableAutoConfiguration(exclude = AuditAutoConfiguration.class)
 @EnableJdbcAuditing
 public class RepositoryTestSupport {
 

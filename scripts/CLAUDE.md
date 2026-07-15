@@ -11,24 +11,39 @@ After build, Docker garbage is pruned automatically (`image prune`, `container p
 Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache.
 
 **Streaming output requirement — BuildKit + buildx:**
-Docker Engine must have BuildKit enabled (`"features": {"buildkit": true}` in Docker Engine JSON config) AND the `buildx` CLI plugin must be installed at `~/.docker/cli-plugins/docker-buildx`. Without the binary, Docker silently falls back to the legacy builder which buffers all output without a TTY — no streaming. Install once:
+Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
+`~/.docker/cli-plugins/docker-buildx` — without it, plain `docker build` fails outright on this
+sandbox's Docker version whenever the Dockerfile uses `--mount=type=cache` (confirmed directly:
+`ERROR: BuildKit is enabled but the buildx component is missing`, not just a silent legacy-builder
+fallback). The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming once
+BuildKit is active.
+
+**`docker compose` CLI plugin** — needed by `scripts/database/reset.sh` (starting dev DB when no
+container exists yet) and `scripts/sonar/run.sh` (starting the SonarQube stack). Not present by
+default in this sandbox.
+
+**Both plugins are installed automatically, not manually — `scripts/ensure-docker-plugins.sh`.**
+`deploy.sh` (`ensure_buildx`, before its build step), `scripts/database/reset.sh` and
+`scripts/sonar/run.sh` (`ensure_docker_compose`, before their respective `docker compose` calls)
+all source this shared script and call the relevant function; each function checks `docker buildx
+version` / `docker compose version` first and only downloads+installs if missing, so it's a no-op
+on a normal developer machine where these already ship with Docker Desktop. Manual install (e.g.
+to pre-warm a fresh sandbox, or troubleshoot outside any script) is still possible by running the
+file directly — it installs both when not sourced:
+```bash
+bash scripts/ensure-docker-plugins.sh
+```
+Or individually, mirroring what each function does:
 ```bash
 mkdir -p ~/.docker/cli-plugins
 curl -Lo ~/.docker/cli-plugins/docker-buildx \
   https://github.com/docker/buildx/releases/download/v0.21.0/buildx-v0.21.0.linux-amd64
 chmod +x ~/.docker/cli-plugins/docker-buildx
-```
-Verify: `docker buildx version`. The `--progress=plain` flag in `deploy.sh` then enables line-by-line streaming.
-
-**`docker compose` CLI plugin — install once, same pattern as buildx:**
-Not present by default in this sandbox either. Install:
-```bash
-mkdir -p ~/.docker/cli-plugins
 curl -Lo ~/.docker/cli-plugins/docker-compose \
   https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64
 chmod +x ~/.docker/cli-plugins/docker-compose
 ```
-Verify: `docker compose version`.
+Verify: `docker buildx version` / `docker compose version`.
 
 **`--project-directory` is required whenever `-f` points outside the repo root.**
 `scripts/infra/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
