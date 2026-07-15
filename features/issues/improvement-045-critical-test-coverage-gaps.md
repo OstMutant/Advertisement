@@ -185,10 +185,20 @@ architecture — no domain starter gets test code of its own):
    `integration-tests/DECISIONS.md` ADR-008 — also the pattern to follow for item 7 below
    (`applyUserRestore()` is `private`, same shape of problem). `bash scripts/integration-tests.sh
    --sandbox TaxonPortTranslationFallbackTest`: 4/4, `BUILD SUCCESS`.
-6. **Item 7 (`applyUserRestore()`)** — Testcontainers repository/service test: create a user,
-   change role, snapshot, change role again, restore, assert final role matches the snapshot and
-   `version` was forwarded correctly (not re-derived) — same shape as
-   `softDelete_currentVersion_succeedsAndExcludesRowFromFilter` in `AdvertisementRepositoryTest`.
+6. ✅ **Item 7 (`applyUserRestore()`) — done 2026-07-15, tested through the public
+   `UserService.restoreToSnapshot()` entry point, not the private method directly** (same rationale
+   as item 6, per `integration-tests/DECISIONS.md` ADR-008).
+   `integration-tests/src/test/java/org/ost/integrationtests/user/UserServiceRestoreTest.java` (2
+   tests: name/role reverted after a role change + snapshot + restore, with `version` asserted as
+   forwarded from the row's current version post-change rather than re-derived from a stale fetch;
+   unknown snapshot id → `Optional.empty()`). Needed its own `TestConfig` rather than reusing
+   `RepositoryTestSupport` — see the class's own javadoc for why (`ComponentFactory<AuditPort>`
+   bean-name collision when both the stub and the real `AuditAutoConfiguration` are present) and
+   for a Jackson gotcha specific to this module: `AuditAutoConfiguration`'s default
+   `auditObjectMapper` has no `AuditableSnapshot` subtypes registered (that registration only
+   happens in `marketplace-app/JacksonConfig`, never loaded here), so `TestConfig` registers
+   `UserSnapshotDto` itself via the same `@PostConstruct` pattern. `bash scripts/integration-tests.sh
+   --sandbox UserServiceRestoreTest`: 2/2, `BUILD SUCCESS`.
 7. **Item 8 (`SettingsSnapshotDto.diff()`)** — plain unit test, by direct analogy with the just-
    completed `AdvertisementSnapshotDtoTest`: no-previous case, identical-snapshots case, single-
    field change, all-fields change.
