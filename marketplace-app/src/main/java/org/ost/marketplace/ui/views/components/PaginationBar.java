@@ -1,7 +1,5 @@
 package org.ost.marketplace.ui.views.components;
 
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
@@ -9,6 +7,8 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -22,18 +22,16 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @Scope("prototype")
 public class PaginationBar extends HorizontalLayout implements I18nParams {
 
-    private static final String TITLE_ATTR = "title";
-
     @Getter
     private int pageSize = PaginationDefaults.DEFAULT_PAGE_SIZE;
 
     @Getter
     private final transient I18nService i18nService;
 
-    private final Button firstButton;
-    private final Button prevButton;
-    private final Button nextButton;
-    private final Button lastButton;
+    private final UiIconButton firstButton;
+    private final UiIconButton prevButton;
+    private final UiIconButton nextButton;
+    private final UiIconButton lastButton;
     private final Span pageIndicator = new Span();
     private final Span resultCount   = new Span();
 
@@ -44,20 +42,19 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
     @Setter
     private transient Consumer<PaginationEvent> pageChangeListener;
 
-    public PaginationBar(I18nService i18nService) {
+    public PaginationBar(I18nService i18nService, UiComponentFactory<UiIconButton> iconButtonFactory) {
         this.i18nService = i18nService;
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
 
-        firstButton = new Button(VaadinIcon.ANGLE_DOUBLE_LEFT.create());
-        prevButton  = new Button(VaadinIcon.ANGLE_LEFT.create());
-        nextButton  = new Button(VaadinIcon.ANGLE_RIGHT.create());
-        lastButton  = new Button(VaadinIcon.ANGLE_DOUBLE_RIGHT.create());
-
-        firstButton.getElement().setAttribute(TITLE_ATTR, getValue(PAGINATION_FIRST));
-        prevButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_PREV));
-        nextButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_NEXT));
-        lastButton.getElement().setAttribute(TITLE_ATTR,  getValue(PAGINATION_LAST));
+        firstButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(PAGINATION_FIRST).icon(VaadinIcon.ANGLE_DOUBLE_LEFT.create()).build());
+        prevButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(PAGINATION_PREV).icon(VaadinIcon.ANGLE_LEFT.create()).build());
+        nextButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(PAGINATION_NEXT).icon(VaadinIcon.ANGLE_RIGHT.create()).build());
+        lastButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(PAGINATION_LAST).icon(VaadinIcon.ANGLE_DOUBLE_RIGHT.create()).build());
 
         firstButton.addClickListener(_ -> {
             currentPage = 0;
@@ -79,11 +76,6 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
             currentPage = getTotalPages() - 1;
             triggerCallback();
         });
-
-        firstButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
-        prevButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
-        nextButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
-        lastButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY,  ButtonVariant.LUMO_ICON);
 
         resultCount.addClassName("pagination-count");
         add(firstButton, prevButton, pageIndicator, nextButton, lastButton, resultCount);
