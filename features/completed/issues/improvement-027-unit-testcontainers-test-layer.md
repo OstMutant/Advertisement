@@ -340,14 +340,41 @@ scaffolding classes) owns:
      resolution" above (7/7 tests passing, reusable `support` helpers extracted).
    - ✅ `AdvertisementSnapshotDto.diff()` plain unit test — done 2026-07-14 (9/9 tests passing).
    - **Batch 1 complete.**
-3. **Batch 2 — remaining plain unit tests:** the other three `diff()` implementations,
-   `resolveTranslation()`, `sanitizeHtml()` — all as test classes inside `integration-tests`,
-   adding `taxon-spring-boot-starter` as a dependency of `integration-tests` when
-   `resolveTranslation()`'s test needs it.
-4. **Batch 3 — remaining Testcontainers repository tests:** `AuditLogRepository`,
-   `TaxonAssignmentRepository`, `AttachmentRepository` — same pattern, adding
-   `audit-spring-boot-starter`/`attachment-spring-boot-starter` to `integration-tests`' own pom as
-   needed, never to the starters themselves.
+3. ✅ **Batch 2 — done 2026-07-15.** All four `diff()` implementations now covered
+   (`AdvertisementSnapshotDto` — Batch 1, `UserSnapshotDto`/`SettingsSnapshotDto` —
+   improvement-045 items 7/8, `TaxonSnapshotDto` — `TaxonSnapshotDtoTest`, 7/7). `resolveTranslation()`
+   covered via `TaxonPortTranslationFallbackTest` (improvement-045 item 6, extended for
+   improvement-050 item 3 — 5/5). `sanitizeHtml()` covered via
+   `AdvertisementServiceHtmlSanitizationTest` (4/4) — tested through the real public
+   `AdvertisementService.save()` entry point, not the `private static` method directly (per
+   `integration-tests/DECISIONS.md` ADR-008): strips disallowed tags while keeping allowed
+   formatting, rejects a description whose Jsoup-parsed visible text exceeds
+   `DESCRIPTION_MAX_LENGTH`, accepts exactly at the limit, and confirms HTML markup itself doesn't
+   count toward that limit (only the parsed visible text does).
+4. ✅ **Batch 3 — done 2026-07-15.** `AuditLogRepository` covered via `AuditLogRepositoryTest`
+   (improvement-050 item 4, 2/2). `TaxonAssignmentRepositoryTest` (8/8): `assign()`'s `ON CONFLICT
+   DO NOTHING` idempotency, `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk
+   lookup (`findAllByEntities()`, `findEntityIdsByTaxonIds()`), both count variants.
+   `AttachmentRepositoryTest` (8/8): soft-delete visibility, the two-step restore-to-urls flow
+   (`restoreUndelete()` + `restoreMarkDeleted()`), retention-based cleanup selection
+   (`findUrlsDeletedOlderThan()`), `deleteByUrls()`, and both `loadMediaStats()` overloads
+   (including the bulk one's `ROW_NUMBER() OVER (PARTITION BY entity_id ...)` window function —
+   the most complex query in that repository). Needed its own `TestConfig` rather than
+   `RepositoryTestSupport` for the same `attachmentPortFactory` bean-name-collision reason
+   documented in `UserServiceRestoreTest`'s javadoc (see ADR-009), plus `@MockitoBean` overrides
+   for `S3Client`/`StorageService` (`AttachmentAutoConfiguration` unconditionally constructs a
+   real `S3Client` with no config in this module).
+
+   **New finding while writing these tests, not yet fixed:** two more instances of the same class
+   of bug improvement-050 item 2 already fixed once (`AdvertisementRepository.buildIdClause()`) —
+   `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` both
+   still bind a `Set`/`List` directly to `IN (:param)`, unbounded the same way. Not fixed as part
+   of this batch (out of scope — this batch's job was test coverage, not a second performance
+   pass) — flagged here so it isn't lost; worth its own small follow-up applying the same
+   `= ANY(:array)` fix ADR-036 already established.
+
+**improvement-027 fully complete (2026-07-15) — Batches 0 through 3 all done.** Full
+`integration-tests` suite: 83/83, twice consecutively.
 5. **Ongoing:** require the next new starter (`review-spring-boot-starter`, F-06) to ship its
    repository and pure-logic tests (as new classes inside `integration-tests`, plus a new
    `compile`-scope dependency there) in the same PR as the feature, not as a follow-up.

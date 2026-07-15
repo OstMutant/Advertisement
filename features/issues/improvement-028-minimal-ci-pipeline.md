@@ -40,7 +40,7 @@ GitHub Actions (or equivalent), staged by cost:
 ## Related
 
 - `features/process-improvements.md` Part 1, item 4 — source item, now superseded by this issue.
-- `features/issues/improvement-027-unit-testcontainers-test-layer.md` — the test layer this
+- `features/completed/issues/improvement-027-unit-testcontainers-test-layer.md` — the test layer this
   pipeline should actually exercise.
 - `features/issues/improvement-030-archunit-test-module.md` — architecture rules that become
   build-breaking tests once both land.

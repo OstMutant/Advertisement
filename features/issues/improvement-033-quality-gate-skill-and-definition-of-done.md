@@ -33,7 +33,7 @@ this project already follows informally into one written checklist.
 ## Related
 
 - `features/process-improvements.md` Part 2, item 10 — source item, now superseded by this issue.
-- `features/issues/improvement-027-unit-testcontainers-test-layer.md`,
+- `features/completed/issues/improvement-027-unit-testcontainers-test-layer.md`,
   `improvement-030-archunit-test-module.md`,
   `improvement-032-sonarqube-quality-gate-blocking.md` — the three hard prerequisites.
 - `.claude/rules.md` — where the Definition of Done gets recorded once this lands.

@@ -163,7 +163,6 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 |---|---|---|
 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Convert ~17 stateless leaf UI widgets (buttons/fields/dialogs/layout) from `@SpringComponent` prototype beans to plain Java classes | brings code in line with existing `marketplace-app/CLAUDE.md` "no Configurable for 1-2 setters" rule; execute in 4 phased batches with a full e2e run after each, not one PR |
 | [improvement-026](issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md) | Replace ~10 hand-built `new Button(...)` spots (HeaderBar, PaginationBar, attachment lightboxes/gallery, audit restore button, UserPickerField) with existing `Ui*Button` wrappers | medium priority — HeaderBar's 4 auth buttons and 5 other spots are visibly unstyled (real UX bug, not just duplication); HeaderBar batch touches CSS classes nearly every e2e test selects on, run full e2e immediately after that batch |
-| [improvement-027](issues/improvement-027-unit-testcontainers-test-layer.md) | Add Testcontainers repository tests + plain unit tests for pure logic (snapshot `diff()`, sanitizer, `resolveTranslation()`) — only 2 JUnit files exist project-wide, both in query-lib | medium-high — already a recorded hard gate for F-08 (payments) in the private roadmap; **Batch 0 done (2026-07-14)**: new `integration-tests` module with singleton Testcontainers Postgres + `SharedEnvConfig`, smoke test green; design finalized — this module owns every test/fixture, domain starters never carry test code for this purpose; **Batch 1 complete (2026-07-14)**: `AdvertisementRepositoryTest` 7/7 + `AdvertisementSnapshotDtoTest` 9/9, reusable `support/RepositoryTestSupport` + `TestDataCleaner` extracted, full module run 17/17 green; **Batch 2 mostly done**: `resolveTranslation()` (improvement-045 item 6) + `UserSnapshotDto`/`SettingsSnapshotDto.diff()` covered, `TaxonSnapshotDto.diff()`/`sanitizeHtml()` still open; **Batch 3 started (2026-07-15)**: `AuditLogRepositoryTest` 2/2 (improvement-050 item 4); `TaxonAssignmentRepositoryTest`/`AttachmentRepositoryTest` still open (though `AttachmentService`/`AttachmentCleanupService` unit-level coverage already landed via improvement-049) |
 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | DB and MinIO/S3 credentials duplicated across 4-5 files each (compose YAML, `application-dev.yml`, `deploy.sh`, `playwright/run.sh`) — consolidate into the shared root `.env` established by improvement-027's Batch 0 | medium — no current bug (copies still agree), pure drift-risk reduction; found while investigating improvement-027's `postgres:15-alpine` duplication |
 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Keep `integration-tests` out of a plain `mvn install`/`mvn test` (Maven profile vs. `@Tag` decision), Docker precheck in `run.sh`, `SharedEnvConfig` unit test, `.env` doc note, CI-guard for sandbox env vars | medium — corrected/de-duplicated version of an external PR #20 review; original review's test-coverage items were already improvement-045 (partially done), its `.env.example` suggestion didn't fit this repo's committed-no-secrets `.env` model |
 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Cover `marketplace-app`'s non-UI service layer (`AdvertisementSaveService`, `AdvertisementEnrichService`, `AuthContextService`) with unit tests in `marketplace-app/src/test/java`, mirroring `src/main`'s package layout — one consistent home for this layer's tests | medium — follow-up to improvement-045 item 1 (`AccessEvaluatorTest`), which proved the pattern; verified this UI-free `services/*` layer already exists (zero `com.vaadin.*` imports across all 10 files) |
@@ -200,6 +199,21 @@ ADR-036); item 3 fixed via `Locale.getLanguage()` instead of `.toLanguageTag()`
 improvement-027 Batch-3 test); item 5's Liquibase default updated after confirming via
 `UserSettingsDtoTest` (2/2) it wasn't a live bug. Full `integration-tests` suite: 56/56, twice
 consecutively.
+
+✅ Done (2026-07-15): [improvement-027](completed/issues/improvement-027-unit-testcontainers-test-layer.md)
+— Batches 0-3 all complete, the `integration-tests` module's original scope fully delivered.
+Batch 2 (plain unit tests): `TaxonSnapshotDto.diff()` (7/7) and `AdvertisementService
+.sanitizeHtml()` (`AdvertisementServiceHtmlSanitizationTest` 4/4, tested through the real public
+`save()` entry point per ADR-008) were the last two pure-logic candidates. Batch 3 (Testcontainers
+repository tests): `TaxonAssignmentRepositoryTest` (8/8 — idempotent `assign()`, both directions
+of bulk lookup, both count variants) and `AttachmentRepositoryTest` (8/8 — soft-delete visibility,
+the two-step restore-to-urls flow, retention-based cleanup selection, both `loadMediaStats()`
+overloads including the `ROW_NUMBER()` bulk one) were the last two repositories.
+`AuditLogRepository` had already landed via improvement-050 item 4. **New finding, not yet
+fixed:** `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()`
+both still have the same unbounded `IN (:set)` shape improvement-050 item 2 already fixed once for
+`AdvertisementRepository` — flagged in the issue, not fixed as part of this batch (test-coverage
+scope, not a second performance pass). Full `integration-tests` suite: 83/83, twice consecutively.
 
 ✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
 (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated
@@ -238,7 +252,6 @@ preserved across the issues above and this note, not lost) so there is exactly o
 
 | Issue | What | Note |
 |---|---|---|
-| [improvement-027](issues/improvement-027-unit-testcontainers-test-layer.md) | Testcontainers repository tests + plain unit tests (diff/sanitizer/resolveTranslation) | hard gate for F-08 (payments) per private roadmap; do before F-06 (new review-starter) too |
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Minimal CI pipeline (GitHub Actions: push/PR/nightly) | most valuable once 027 and 030 exist |
 | [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) | Docs-drift guard + incremental-compile Claude Code hooks | merges two source items that duplicated each other |
 | [improvement-030](issues/improvement-030-archunit-test-module.md) | ArchUnit module — prose architecture rules become build-breaking tests | highest ROI per the original audit; would have caught improvement-011/010 |
