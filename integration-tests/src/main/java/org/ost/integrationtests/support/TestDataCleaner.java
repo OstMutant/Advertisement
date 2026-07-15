@@ -1,6 +1,7 @@
 package org.ost.integrationtests.support;
 
 import lombok.NonNull;
+import org.springframework.jdbc.BadSqlGrammarException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
 /**
@@ -23,6 +24,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
  */
 public final class TestDataCleaner {
 
+    private static final String UNDEFINED_TABLE_SQLSTATE = "42P01";
+
     private TestDataCleaner() {
     }
 
@@ -30,11 +33,32 @@ public final class TestDataCleaner {
      * Deletes all rows from each given table, in the given order — pass tables in FK-safe order
      * (dependent tables first, referenced tables last). Prefer {@link #cleanAll} in
      * {@code *RepositoryTest} classes unless there is a specific reason to clean only a subset.
+     *
+     * <p>Silently skips a table that doesn't exist yet (Postgres SQLSTATE {@code 42P01}, undefined
+     * table) rather than failing. Which domain schemas exist at any point depends on which
+     * {@code *RepositoryTest} classes have already run in this reactor's shared singleton
+     * container — each domain's Liquibase changelog is applied by whichever test class's own
+     * {@code @SpringBootTest(classes = {...})} actually imports that domain's
+     * {@code *AutoConfiguration}, not by {@link RepositoryTestSupport} (which deliberately imports
+     * only Spring Boot JDBC/Liquibase/Transaction infrastructure, never any domain starter's
+     * autoconfiguration — see its own javadoc). A class with a narrower Spring context legitimately
+     * running before the class that owns a given table is expected, not an error: there is simply
+     * nothing to clean yet for a domain whose schema hasn't been created.</p>
      */
     public static void cleanTables(@NonNull JdbcClient jdbcClient, @NonNull String... tablesInFkOrder) {
         for (String table : tablesInFkOrder) {
-            jdbcClient.sql("DELETE FROM " + table).update();
+            try {
+                jdbcClient.sql("DELETE FROM " + table).update();
+            } catch (BadSqlGrammarException e) {
+                if (!isUndefinedTable(e)) {
+                    throw e;
+                }
+            }
         }
+    }
+
+    private static boolean isUndefinedTable(BadSqlGrammarException e) {
+        return e.getSQLException() != null && UNDEFINED_TABLE_SQLSTATE.equals(e.getSQLException().getSQLState());
     }
 
     /**

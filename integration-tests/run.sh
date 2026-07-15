@@ -30,8 +30,8 @@
 # integration-tests/CLAUDE.md.
 #
 # Automatic staleness check (default, no flag needed — see DECISIONS.md ADR-007):
-# integration-tests depends on platform-commons/advertisement-/user-/taxon-spring-boot-starter as
-# real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
+# integration-tests depends on platform-commons/advertisement-/user-/taxon-/audit-spring-boot-starter
+# as real compiled JARs from ~/.m2, not source. Before testing, this script compares each of those
 # modules' newest .java file against its installed JAR's mtime; if any source is newer (or the JAR
 # is missing entirely), it runs a targeted `mvn install -DskipTests` for just those modules first.
 # Otherwise it skips straight to `mvn -pl integration-tests test` — no full 9-module reactor walk,
@@ -75,7 +75,7 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter"
+  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter"
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"

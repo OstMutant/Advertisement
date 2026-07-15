@@ -154,11 +154,12 @@ constructed during context startup.
 **Status:** Accepted
 
 **Context:** `AdvertisementRepositoryTest` (Batch 1) needed a `@TestConfiguration` bean bag
-(`@EnableAutoConfiguration` + `@EnableJdbcAuditing`, a `MutableAuditorAware`, empty
-`ComponentFactory<AuditPort>`/`ComponentFactory<AttachmentPort>` beans) and a per-test DB-cleanup
-routine. Written inline the first time, this boilerplate was about to be re-typed verbatim in every
-future `*RepositoryTest` (Batch 3: `AuditLogRepositoryTest`, `TaxonAssignmentRepositoryTest`,
-`AttachmentRepositoryTest`).
+(originally `@EnableAutoConfiguration` — see ADR-009 for why this later changed to
+`@ImportAutoConfiguration` with an explicit class list — plus `@EnableJdbcAuditing`, a
+`MutableAuditorAware`, empty `ComponentFactory<AuditPort>`/`ComponentFactory<AttachmentPort>`
+beans) and a per-test DB-cleanup routine. Written inline the first time, this boilerplate was about
+to be re-typed verbatim in every future `*RepositoryTest` (Batch 3: `AuditLogRepositoryTest`,
+`TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest`).
 
 **Decision:** Extract to `org.ost.integrationtests.support` (in `src/main`, not `src/test`, so
 `*RepositoryTest` classes can import without a test-jar dependency), by direct analogy with
@@ -184,7 +185,8 @@ current)
 
 **Context:** `run.sh` always ran `./mvnw -pl integration-tests -am test` — `-am` ("also-make")
 rebuilds every module `integration-tests` depends on (`platform-commons`, `advertisement`/`user`/
-`taxon-spring-boot-starter`) on every single invocation, even when none of them changed. Measured
+`taxon`/`audit-spring-boot-starter` — `audit` added later, see ADR-009) on every single invocation,
+even when none of them changed. Measured
 directly in this sandbox: ~100s of pure "nothing to compile" Maven plugin overhead walking through
 those 7 reactor modules, on top of the actual test run — meaning re-running a test after only
 editing a test file inside `integration-tests` itself (the common case while writing/fixing tests)
@@ -202,7 +204,7 @@ memory is exactly the kind of footgun this project avoids elsewhere (e.g. the re
 `user-spring-boot-starter/CLAUDE.md`).
 
 **Revision — automatic staleness detection, no flag required for the common case:** `run.sh` now
-compares each of the four starter modules' newest `.java` file (`find <module>/src/main -name
+compares each starter module's newest `.java` file (`find <module>/src/main -name
 '*.java' -newer <installed-jar>`) against its installed `~/.m2` JAR's mtime before every run. If
 any source is newer than its JAR (or the JAR doesn't exist yet), it runs a targeted `mvn install
 -DskipTests` for just those modules first; otherwise it skips straight to `mvn -pl
@@ -277,3 +279,106 @@ directly via repositories instead of through the service layer.
   assert on the result, use repository-level fixture setup for any state the public API can't
   reach) applies when that item is implemented — do not reach for `private`-access workarounds
   there either.
+
+---
+
+## ADR-009: `@ImportAutoConfiguration` explicit allow-list instead of `@EnableAutoConfiguration` in shared test config
+**Status:** Accepted
+
+**Context:** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig` both originally used
+`@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also carrying a hand-written
+`ComponentFactory<AttachmentPort>` stub bean to compensate for one side effect of it). This
+annotation pulls in every `@AutoConfiguration` class found anywhere on the classpath, not just what
+a given test actually declares — a real problem specifically for `integration-tests`, whose own
+design (ADR-001) means its classpath keeps growing over time as Batches 2/3 add more starter
+dependencies. Confirmed directly, twice, in the same session: adding `audit-spring-boot-starter` as
+a dependency (for `UserServiceRestoreTest`, improvement-045 item 7) silently broke
+`AdvertisementRepositoryTest`/`TaxonRepositoryTest`/`TaxonPortTranslationFallbackTest`/
+`UserRepositoryTest` in a full-suite run — the classpath-wide cascade pulled in the real
+`AuditAutoConfiguration` for every test using `RepositoryTestSupport`, whose `defaultAuditPort` bean
+then failed to construct (missing `CurrentActorHook`, which `RepositoryTestSupport` never
+provisions, by design — see its own javadoc). A single-class `-Dtest=X` run never surfaces this,
+since the break depends only on what's on the classpath, not on which test is selected.
+
+An `exclude = AuditAutoConfiguration.class` deny-list fixed that one occurrence, but was explicitly
+rejected as the long-term direction: it's a reactive fix that has to be remembered and repeated for
+every future starter dependency (Batch 3 alone adds three more candidates), with no compiler or
+test enforcement that anyone actually does it — the exact same silent-break shape recurring on a
+schedule tied to how often `integration-tests`' `pom.xml` grows.
+
+**Decision:** Replace `@EnableAutoConfiguration` with `@ImportAutoConfiguration({...})` and an
+explicit class list, in both `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`. The
+list covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure every
+`@SpringBootTest` in this module needs — nothing from any domain starter:
+```java
+@ImportAutoConfiguration({
+        DataSourceAutoConfiguration.class,               // org.springframework.boot.jdbc.autoconfigure
+        DataSourceTransactionManagerAutoConfiguration.class,
+        JdbcClientAutoConfiguration.class,
+        JdbcTemplateAutoConfiguration.class,
+        DataJdbcRepositoriesAutoConfiguration.class,      // org.springframework.boot.data.jdbc.autoconfigure
+        LiquibaseAutoConfiguration.class,                 // org.springframework.boot.liquibase.autoconfigure
+        TransactionAutoConfiguration.class,               // org.springframework.boot.transaction.autoconfigure
+        ConfigurationPropertiesAutoConfiguration.class    // org.springframework.boot.autoconfigure.context —
+                                                           // UserServiceRestoreTest.TestConfig only, needed
+                                                           // once AuditAutoConfiguration's own @ConfigurationProperties
+                                                           // consumer is genuinely wired in (see below)
+})
+```
+Domain-starter autoconfiguration (`AdvertisementAutoConfiguration`, `TaxonAutoConfiguration`, ...)
+is never in this list — those are always passed explicitly via each test's own
+`@SpringBootTest(classes = {...})`, which is the entire point: nothing is ever pulled in by
+implication again, so a new starter dependency in `pom.xml` can no longer silently affect any
+existing test's Spring context.
+
+**Spring Boot 4.0.6 packaging note (worth recording — easy to get wrong without checking):** what
+used to be one monolithic `spring-boot-autoconfigure` jar in Boot 3.x is now split into several
+per-feature modules — `spring-boot-jdbc`, `spring-boot-data-jdbc`, `spring-boot-liquibase`,
+`spring-boot-transaction` each contribute a handful of `*AutoConfiguration` classes under their own
+new package roots (`org.springframework.boot.jdbc.autoconfigure`, etc.), not
+`org.springframework.boot.autoconfigure.jdbc` like in Boot 3.x. `@ImportAutoConfiguration` itself
+did not move — still `org.springframework.boot.autoconfigure.ImportAutoConfiguration`. Verified
+directly against the actual jars in `~/.m2` (`jar tf ... | grep AutoConfiguration.class`), not
+assumed from prior Boot 3.x knowledge.
+
+**Second bug this surfaced — `TestDataCleaner.cleanTables()` assumed every domain's schema always
+exists:** switching away from `@EnableAutoConfiguration` exposed a second, independent latent bug.
+`TestDataCleaner.cleanAll()` unconditionally `DELETE FROM`s every table across every domain (by
+design, ADR-006 — the singleton container means any test class can run after any other). Before
+this ADR, `RepositoryTestSupport`'s old classpath-wide cascade happened to also apply *every*
+starter's Liquibase changelog for *every* test's context as a side effect, so every domain's tables
+always existed by the time any test's `@BeforeEach` ran, regardless of execution order. With the
+explicit allow-list, only the specific domain starters a test actually lists in its own
+`@SpringBootTest(classes = {...})` get their Liquibase changelog applied to the shared database —
+meaning `cleanAll()` could legitimately run before some other, later-running test class has created
+a given domain's tables. Fixed in `TestDataCleaner.cleanTables()`: catch `BadSqlGrammarException`
+and swallow only the Postgres "undefined table" case (SQLSTATE `42P01`) — nothing to clean if the
+schema doesn't exist yet is an expected state under the singleton-container design, not an error.
+
+**Third bug this surfaced — `AuditAutoConfiguration` never self-registered `CleanupProperties`:**
+`AuditCleanupService` (owned by `audit-spring-boot-starter`) directly injects `CleanupProperties`,
+but unlike `AdvertisementAutoConfiguration`/`AttachmentAutoConfiguration` (which each correctly
+self-declare `@EnableConfigurationProperties(CleanupProperties.class)` because they too directly
+consume it) or `TaxonAutoConfiguration` (same pattern, for `TaxonProperties`), `AuditAutoConfiguration`
+never did. It silently worked in every context that happened to also load Advertisement or
+Attachment's autoconfiguration (true in production — `marketplace-app/Application.java` also
+declares it, redundantly but harmlessly) — a real, if previously invisible, production risk: any
+hypothetical minimal deployment running audit-spring-boot-starter without advertisement/attachment
+present would have failed to start. Fixed directly in `AuditAutoConfiguration` (not worked around in
+test config) — see `audit-spring-boot-starter/DECISIONS.md`.
+
+**Consequences:**
+- Adding a new starter dependency to `integration-tests/pom.xml` can never again silently break an
+  unrelated test's Spring context — the failure mode this ADR exists to close is now structurally
+  impossible, not just less likely.
+- `integration-tests/run.sh`'s `STARTER_MODULES` staleness-check list (ADR-007) must include
+  `audit-spring-boot-starter` now that it's a real dependency — added in the same change (was
+  missing, which meant the `AuditAutoConfiguration` fix below wasn't picked up by the staleness
+  check until installed manually once).
+- Any *new* `@SpringBootTest`-based test class in this module that needs Boot infrastructure beyond
+  what's in the list above (e.g. a future `@EnableCaching`-dependent test) must extend the list
+  explicitly, not reach for `@EnableAutoConfiguration` as a shortcut — that would silently
+  reintroduce the exact fragility this ADR removes.
+- Full verification: two consecutive full `bash scripts/integration-tests.sh --sandbox` runs
+  (`mvn -pl integration-tests test`, all classes together, no `-Dtest` filter), 41/41 green both
+  times.

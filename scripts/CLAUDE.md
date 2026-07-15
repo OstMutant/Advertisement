@@ -175,7 +175,7 @@ Delegates to `integration-tests/run.sh` (same thin-wrapper shape as `scripts/pla
 — **only needed in this claude-dev sandbox**, never on a normal developer machine (see below for
 why). Omit it there; Testcontainers' defaults just work.
 
-`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon-spring-boot-starter`
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit-spring-boot-starter`
 changed since their last `~/.m2` install (comparing each module's newest `.java` file's mtime
 against its installed JAR) and only reinstalls those before testing, instead of rebuilding all 7
 non-`integration-tests` reactor modules every run (measured ~1:47-3:35 total when nothing needed

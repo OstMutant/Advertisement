@@ -14,6 +14,7 @@ import org.ost.audit.repository.AuditLogRepository;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +30,7 @@ import java.util.TimeZone;
 @ConditionalOnClass(DataSource.class)
 @ComponentScan({"org.ost.audit.services", "org.ost.audit.repository"})
 @EnableJdbcRepositories(basePackages = "org.ost.audit.repository")
+@EnableConfigurationProperties(CleanupProperties.class)
 public class AuditAutoConfiguration {
 
     @Bean("auditObjectMapper")

@@ -149,7 +149,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   Testcontainers ports aren't reachable here, only statically-published ones). Unset on a normal
   developer machine — Testcontainers' defaults just work there. See `scripts/CLAUDE.md`.
 - **`run.sh` auto-detects starter staleness — no manual flag needed.** `integration-tests`
-  depends on `platform-commons`/`advertisement`/`user`/`taxon-spring-boot-starter` as real compiled
+  depends on `platform-commons`/`advertisement`/`user`/`taxon`/`audit-spring-boot-starter` as real compiled
   JARs from `~/.m2`, not source, so Maven's `-am` ("also-make") reactor rebuild is only actually
   needed when one of those changed. By default `run.sh` compares each of those modules' newest
   `.java` file against its installed `~/.m2` JAR's mtime; if any source is newer (or the JAR is

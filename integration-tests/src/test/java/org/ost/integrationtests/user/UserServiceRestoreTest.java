@@ -12,8 +12,6 @@ import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.ost.platform.user.dto.UserDto;
@@ -24,12 +22,19 @@ import org.ost.user.config.UserAutoConfiguration;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.services.UserService;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
+import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
+import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -60,7 +65,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code @ConditionalOnMissingBean} skip — {@code RepositoryTestSupport} isn't itself
  * auto-configuration-ordered, so its bean registers before the conditional check on
  * {@code AuditAutoConfiguration}'s own bean can suppress it). This class supplies its own minimal
- * {@code @EnableAutoConfiguration}/{@code @EnableJdbcAuditing} instead — see
+ * {@code @ImportAutoConfiguration}/{@code @EnableJdbcAuditing} instead — see
  * {@code integration-tests/CLAUDE.md} "Reusable test support" for the resulting rule: only combine
  * {@code RepositoryTestSupport} with a starter when the port(s) it stubs out are meant to be
  * absent, never alongside the real starter that provides them.</p>
@@ -72,8 +77,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 class UserServiceRestoreTest extends AbstractPostgresIntegrationTest {
 
+    /**
+     * Explicit allow-list, not {@code @EnableAutoConfiguration} — same rationale as {@link
+     * org.ost.integrationtests.support.RepositoryTestSupport}'s own javadoc: an implicit
+     * classpath-wide cascade would pull in every domain starter's {@code *AutoConfiguration} found
+     * on {@code integration-tests}' classpath (e.g. {@code AdvertisementAutoConfiguration}, purely
+     * because {@code advertisement-spring-boot-starter} is a dependency for an unrelated test),
+     * not just the Boot JDBC/Liquibase/Transaction infrastructure this class actually needs.
+     */
     @TestConfiguration
-    @EnableAutoConfiguration
+    @ImportAutoConfiguration({
+            DataSourceAutoConfiguration.class,
+            DataSourceTransactionManagerAutoConfiguration.class,
+            JdbcClientAutoConfiguration.class,
+            JdbcTemplateAutoConfiguration.class,
+            DataJdbcRepositoriesAutoConfiguration.class,
+            LiquibaseAutoConfiguration.class,
+            TransactionAutoConfiguration.class,
+            ConfigurationPropertiesAutoConfiguration.class
+    })
     @EnableJdbcAuditing
     static class TestConfig {
 
@@ -91,18 +113,6 @@ class UserServiceRestoreTest extends AbstractPostgresIntegrationTest {
         @PostConstruct
         void registerAuditSnapshotSubtypes() {
             auditObjectMapper.registerSubtypes(UserSnapshotDto.class);
-        }
-
-        // @EnableAutoConfiguration pulls in every @AutoConfiguration on the classpath, not just
-        // UserAutoConfiguration/AuditAutoConfiguration explicitly listed above — integration-tests
-        // also depends on advertisement-spring-boot-starter (for AdvertisementRepositoryTest), so
-        // AdvertisementAutoConfiguration gets cascaded in here too, instantiating
-        // AdvertisementService, which hard-requires ComponentFactory<AttachmentPort> in its
-        // constructor even though this test has nothing to do with Advertisement. Same reasoning
-        // RepositoryTestSupport already documents for its own equivalent bean.
-        @Bean
-        ComponentFactory<AttachmentPort> attachmentPortFactory(ObjectProvider<AttachmentPort> provider) {
-            return new ComponentFactory<>(provider);
         }
 
         @Bean

@@ -2,13 +2,19 @@ package org.ost.integrationtests.support;
 
 import java.util.Optional;
 import lombok.NonNull;
-import org.ost.audit.config.AuditAutoConfiguration;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcClientAutoConfiguration;
+import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration;
+import org.springframework.boot.liquibase.autoconfigure.LiquibaseAutoConfiguration;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
@@ -27,24 +33,43 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
  * consuming test, not here — this class only covers the ports every repository test has hit so
  * far.</p>
  *
- * <p>{@code @EnableAutoConfiguration} explicitly excludes {@link AuditAutoConfiguration}: once
- * {@code audit-spring-boot-starter} became a real {@code integration-tests} dependency (for
- * {@code UserServiceRestoreTest}), the classpath-wide autoconfiguration cascade started pulling
- * in the real {@code AuditAutoConfiguration} for every test using this class too — its
- * {@code defaultAuditPort} bean then fails to construct (needs a {@link
- * org.ost.platform.core.spi.CurrentActorHook} this class never provides), breaking every
- * {@code *RepositoryTest} that doesn't actually want audit wired in. Confirmed directly: a full
- * {@code mvn -pl integration-tests test} run (all classes together, not a single
- * {@code -Dtest=X}) failed {@code AdvertisementRepositoryTest}/{@code TaxonRepositoryTest}/
- * {@code TaxonPortTranslationFallbackTest}/{@code UserRepositoryTest} with "Parameter 1 of method
- * defaultAuditPort ... required a bean of type CurrentActorHook that could not be found" — a
- * single-class run never surfaces this since it doesn't depend on {@code -Dtest} filtering, only
- * on whether the audit-starter JAR is on the classpath at all, which it always is once added to
- * {@code pom.xml}. The exclude restores this class's original "audit starter absent" premise
- * regardless of what other tests in the same reactor need.</p>
+ * <p>{@code @ImportAutoConfiguration} with an explicit class list, instead of
+ * {@code @EnableAutoConfiguration}: the latter pulls in every {@code @AutoConfiguration} found on
+ * the whole classpath, not just what this class actually needs. {@code integration-tests}
+ * deliberately keeps adding new starter dependencies over time (Batches 2/3 — see
+ * {@code integration-tests/CLAUDE.md}), and each one bundles its own {@code *AutoConfiguration}
+ * that {@code @EnableAutoConfiguration} would silently cascade into every test using this class,
+ * regardless of whether that test wants it. Confirmed directly: adding
+ * {@code audit-spring-boot-starter} as a dependency (for {@code UserServiceRestoreTest}) broke
+ * {@code AdvertisementRepositoryTest}/{@code TaxonRepositoryTest}/
+ * {@code TaxonPortTranslationFallbackTest}/{@code UserRepositoryTest} in a full-suite run — the
+ * cascaded-in {@code AuditAutoConfiguration}'s {@code defaultAuditPort} bean failed to construct
+ * (missing {@code CurrentActorHook}), and a single-class {@code -Dtest=X} run never surfaces this
+ * since it depends only on what's on the classpath, not on which test is selected. An
+ * {@code exclude = AuditAutoConfiguration.class} deny-list fixed that one occurrence, but the same
+ * class of break will recur for every future starter dependency unless someone remembers to add
+ * another exclude each time — a silent, easy-to-forget maintenance tax. The explicit allow-list
+ * below is immune to this by construction: adding a new starter to {@code pom.xml} can never
+ * again affect this class's own Spring context, because nothing is pulled in implicitly. The list
+ * covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure every
+ * {@code *RepositoryTest} needs (Spring Boot 4.0.6 split what used to be one
+ * {@code spring-boot-autoconfigure} jar into per-feature modules —
+ * {@code spring-boot-jdbc}/{@code spring-boot-data-jdbc}/{@code spring-boot-liquibase}/
+ * {@code spring-boot-transaction} — so this list spans four different packages, not one).
+ * Domain-starter autoconfiguration (e.g. {@code AdvertisementAutoConfiguration}) is never in this
+ * list — those are always passed explicitly via each test's own
+ * {@code @SpringBootTest(classes = {...})}, which is the whole point.</p>
  */
 @TestConfiguration
-@EnableAutoConfiguration(exclude = AuditAutoConfiguration.class)
+@ImportAutoConfiguration({
+        DataSourceAutoConfiguration.class,
+        DataSourceTransactionManagerAutoConfiguration.class,
+        JdbcClientAutoConfiguration.class,
+        JdbcTemplateAutoConfiguration.class,
+        DataJdbcRepositoriesAutoConfiguration.class,
+        LiquibaseAutoConfiguration.class,
+        TransactionAutoConfiguration.class
+})
 @EnableJdbcAuditing
 public class RepositoryTestSupport {
 
