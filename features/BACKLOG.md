@@ -167,7 +167,12 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Keep `integration-tests` out of a plain `mvn install`/`mvn test` (Maven profile vs. `@Tag` decision), Docker precheck in `run.sh`, `SharedEnvConfig` unit test, `.env` doc note, CI-guard for sandbox env vars | medium — corrected/de-duplicated version of an external PR #20 review; original review's test-coverage items were already improvement-045 (partially done), its `.env.example` suggestion didn't fit this repo's committed-no-secrets `.env` model |
 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Cover `marketplace-app`'s non-UI service layer (`AdvertisementSaveService`, `AdvertisementEnrichService`, `AuthContextService`) with unit tests in `marketplace-app/src/test/java`, mirroring `src/main`'s package layout — one consistent home for this layer's tests | medium — follow-up to improvement-045 item 1 (`AccessEvaluatorTest`), which proved the pattern; verified this UI-free `services/*` layer already exists (zero `com.vaadin.*` imports across all 10 files) |
 | [improvement-051](issues/improvement-051-parallel-test-suite-orchestration.md) | New `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven reactor overlap); `/run-all-tests` slash command added | **VERIFIED (2026-07-15)** — end-to-end run confirmed both the sequencing and failure-detection paths |
-| [improvement-054](issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md) | `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` both still bind an unbounded `IN (:set)` — reuse the `= ANY()` array-bind fix improvement-050 item 2 already proved (ADR-036) | found while writing improvement-027 Batch 3's repository tests, flagged there, fixed here as a separate follow-up |
+
+✅ Done (2026-07-15): [improvement-054](issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md)
+— `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` both
+switched from `IN (:set)` to `= ANY(:array)`, reusing the array-bind fix improvement-050 item 2
+already proved (ADR-036) — no caller-side changes needed. `TaxonAssignmentRepositoryTest` 8/8,
+`AttachmentRepositoryTest` 8/8, full `integration-tests` suite 83/83.
 
 ✅ Done (2026-07-15): [improvement-045](completed/issues/improvement-045-critical-test-coverage-gaps.md)
 — all 8 critical untested code paths covered: `AccessEvaluatorTest` (17/17) +
@@ -215,6 +220,7 @@ fixed:** `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentReposito
 both still have the same unbounded `IN (:set)` shape improvement-050 item 2 already fixed once for
 `AdvertisementRepository` — flagged in the issue, not fixed as part of this batch (test-coverage
 scope, not a second performance pass). Full `integration-tests` suite: 83/83, twice consecutively.
+(Fixed the same day — see [improvement-054](completed/issues/improvement-054-unbounded-in-clause-taxon-assignment-attachment.md).)
 
 ✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
 (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated

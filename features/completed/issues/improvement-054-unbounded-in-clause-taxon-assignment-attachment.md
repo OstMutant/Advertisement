@@ -1,4 +1,4 @@
-# improvement-054: Unbounded `IN (:set)` in `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()`
+# improvement-054: Unbounded `IN (:set)` in `TaxonAssignmentRepository.findAllByEntities()` and `AttachmentRepository.deleteByUrls()` — ✅ DONE (2026-07-15)
 
 **Type:** bug fix (performance / scalability), same bug class already fixed once.
 **Module:** `taxon-spring-boot-starter` (`TaxonAssignmentRepository.findAllByEntities()`),
@@ -85,11 +85,18 @@ boundary, same as the existing fix).
 - `bash scripts/integration-tests.sh --sandbox TaxonAssignmentRepositoryTest` and
   `... AttachmentRepositoryTest` — both must stay green.
 
+## Resolution (2026-07-15)
+
+Both fixed exactly as suggested above — `entity_id = ANY(:entityIds)` /
+`url = ANY(:urls)`, array-bound instead of `Collection`-bound. No caller-side changes needed.
+`TaxonAssignmentRepositoryTest` 8/8, `AttachmentRepositoryTest` 8/8, full `integration-tests`
+suite 83/83.
+
 ## Related
 
-- [improvement-050](../completed/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
+- [improvement-050](improvement-050-toctou-scalability-locale-audit-tiebreak.md)
   item 2 — the original fix this duplicates, plus `marketplace-app/DECISIONS.md` ADR-036 (full
   writeup: why `= ANY()` over `unnest()`, the Postgres-coupling tradeoff, the array size ceiling
   that replaces the removed parameter-count ceiling).
-- [improvement-027](../completed/issues/improvement-027-unit-testcontainers-test-layer.md) — where
+- [improvement-027](improvement-027-unit-testcontainers-test-layer.md) — where
   this was found, while writing Batch 3's repository tests.

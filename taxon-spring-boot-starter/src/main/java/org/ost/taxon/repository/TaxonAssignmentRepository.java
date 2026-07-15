@@ -84,14 +84,15 @@ public class TaxonAssignmentRepository {
     }
 
     public List<TaxonAssignment> findAllByEntities(@NonNull String entityType, @NonNull Set<Long> entityIds) {
+        // Array bind, not a Set -- avoids IN(:set)'s unbounded placeholder expansion (improvement-054).
         return jdbcClient.sql("""
                         SELECT entity_type, entity_id, taxon_id, assigned_at, assigned_by
                         FROM taxon_assignment
-                        WHERE entity_type = :entityType AND entity_id IN (:entityIds)
+                        WHERE entity_type = :entityType AND entity_id = ANY(:entityIds)
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType)
-                                 .addValue("entityIds",  entityIds))
+                                 .addValue("entityIds",  entityIds.toArray(new Long[0])))
                          .query(ROW_MAPPER)
                          .list();
     }

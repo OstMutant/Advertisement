@@ -153,8 +153,9 @@ public class AttachmentRepository {
     }
 
     public int deleteByUrls(@NonNull List<String> urls) {
-        return jdbcClient.sql("DELETE FROM attachment WHERE url IN (:urls)")
-                         .paramSource(new MapSqlParameterSource("urls", urls))
+        // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion (improvement-054).
+        return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls)")
+                         .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
                          .update();
     }
 
