@@ -71,6 +71,7 @@ public final class TestDataCleaner {
     public static void cleanAll(@NonNull JdbcClient jdbcClient) {
         cleanTables(jdbcClient,
                 "taxon_assignment", "taxon_translation", "taxon",
+                "attachment_snapshot", "attachment",
                 "advertisement",
                 "user_information");
     }

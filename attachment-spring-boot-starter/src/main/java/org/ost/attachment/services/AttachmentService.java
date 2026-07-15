@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,6 +72,7 @@ public class AttachmentService {
         return url;
     }
 
+    @Transactional
     public Attachment upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
                              @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
         log.info("Attachment upload: entityType={}, entityId={}, filename={}, size={}",
@@ -166,22 +168,21 @@ public class AttachmentService {
     public void commitTempUploadsQuiet(@NonNull EntityType entityType, @NonNull Long entityId,
                                        @NonNull List<TempAttachmentDto> temps) {
         String folder = folder(entityType, entityId);
-        List<Attachment> toSave = temps.stream()
-                .map(t -> {
-                    String finalUrl = isVideo(t.contentType())
-                            ? t.tempUrl()
-                            : storageService.move(t.tempUrl(), folder, t.filename());
-                    return Attachment.builder()
-                            .entityType(entityType)
-                            .entityId(entityId)
-                            .url(finalUrl)
-                            .filename(t.filename())
-                            .contentType(t.contentType())
-                            .size(t.size())
-                            .build();
-                })
-                .toList();
+        List<Attachment> toSave = new ArrayList<>();
         try {
+            for (TempAttachmentDto t : temps) {
+                String finalUrl = isVideo(t.contentType())
+                        ? t.tempUrl()
+                        : storageService.move(t.tempUrl(), folder, t.filename());
+                toSave.add(Attachment.builder()
+                        .entityType(entityType)
+                        .entityId(entityId)
+                        .url(finalUrl)
+                        .filename(t.filename())
+                        .contentType(t.contentType())
+                        .size(t.size())
+                        .build());
+            }
             attachmentRepository.saveAll(toSave);
         } catch (Exception e) {
             toSave.stream()

@@ -167,7 +167,6 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | DB and MinIO/S3 credentials duplicated across 4-5 files each (compose YAML, `application-dev.yml`, `deploy.sh`, `playwright/run.sh`) — consolidate into the shared root `.env` established by improvement-027's Batch 0 | medium — no current bug (copies still agree), pure drift-risk reduction; found while investigating improvement-027's `postgres:15-alpine` duplication |
 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Keep `integration-tests` out of a plain `mvn install`/`mvn test` (Maven profile vs. `@Tag` decision), Docker precheck in `run.sh`, `SharedEnvConfig` unit test, `.env` doc note, CI-guard for sandbox env vars | medium — corrected/de-duplicated version of an external PR #20 review; original review's test-coverage items were already improvement-045 (partially done), its `.env.example` suggestion didn't fit this repo's committed-no-secrets `.env` model |
 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Cover `marketplace-app`'s non-UI service layer (`AdvertisementSaveService`, `AdvertisementEnrichService`, `AuthContextService`) with unit tests in `marketplace-app/src/test/java`, mirroring `src/main`'s package layout — one consistent home for this layer's tests | medium — follow-up to improvement-045 item 1 (`AccessEvaluatorTest`), which proved the pattern; verified this UI-free `services/*` layer already exists (zero `com.vaadin.*` imports across all 10 files) |
-| [improvement-049](issues/improvement-049-taxon-attachment-incomplete-rollback-bugs.md) | 4 real bugs found via targeted code review of `taxon`/`attachment-spring-boot-starter`: `TaxonService.update()` silently drops `deletedBy`; `AttachmentService.commitTempUploadsQuiet()` + `.upload()` + `AttachmentCleanupService.deleteAttachments()` all get storage-vs-DB ordering wrong on partial failure | medium — items 2/3/4 (Attachment) have live, reachable trigger paths; item 1 (Taxon) currently masked by UI discipline only, same shape as improvement-045 items 4/5 |
 | [improvement-050](issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md) | 5 findings from an external review pass, each independently re-verified: `UserService.register()` first-admin TOCTOU race; unbounded `IN (:allowedIds)` category filter; anonymous-visitor locale fallback skips exact-match tier; `AuditLogRepository.findTimeline()` version has no `id` tiebreaker; `settings` JSONB Liquibase default missing `timelinePageSize` | low-medium — narrow trigger windows per item; 2 other claims from the same review (`SettingsPaginationService`, `reset.sh`) were checked and found false/already-fixed, deliberately excluded |
 | [improvement-051](issues/improvement-051-parallel-test-suite-orchestration.md) | New `scripts/run-all-tests.sh`: `unit-tests.sh` → `integration-tests.sh` sequential (both can race on the same starter modules' `target/` dirs), `playwright.sh` parallel from the start (no Maven reactor overlap); `/run-all-tests` slash command added | **VERIFIED (2026-07-15)** — end-to-end run confirmed both the sequencing and failure-detection paths |
 
@@ -177,6 +176,18 @@ never lets a caller choose. No SQL/behavior change elsewhere. Moved to `complete
 soft-delete SQL fix + `TaxonPortTranslationFallbackTest` (4/4) + `UserServiceRestoreTest` (2/2 —
 tested via public `UserService.restoreToSnapshot()`, see `integration-tests/DECISIONS.md` ADR-008,
 not the private `applyUserRestore()`) + `SettingsSnapshotDtoTest` (6/6).
+
+✅ Done (2026-07-15): [improvement-049](completed/issues/improvement-049-taxon-attachment-incomplete-rollback-bugs.md)
+— all 4 real bugs fixed and TDD-verified: `TaxonService.update()` now forwards `deletedBy`
+(`TaxonServiceTest` 2/2); `AttachmentService.commitTempUploadsQuiet()`'s `storageService.move()`
+moved inside the `try` so mid-batch failures clean up already-moved files (`AttachmentServiceTest`
+2/2, plain Mockito, no Spring); `AttachmentService.upload()` made `@Transactional` so a
+post-commit audit-capture failure rolls back the DB row too (`AttachmentServiceTransactionTest`
+2/2, real Testcontainers + `@MockitoBean` for S3/audit); `AttachmentCleanupService.deleteAttachments()`
+now deletes DB rows before S3 objects, with `@Transactional` removed from `cleanup()` so the DB
+delete actually commits before the S3 loop runs, not just textually reordered
+(`AttachmentCleanupServiceTest` 2/2, `InOrder`-verified). Full `integration-tests` suite: 49/49,
+twice consecutively.
 
 ✅ Done (2026-07-13): improvement-011 — UI components hard-injecting starter ports
 (`AttachmentGalleryService`, `AttachmentGallery`, `AuditActivityPanel`). The consolidated

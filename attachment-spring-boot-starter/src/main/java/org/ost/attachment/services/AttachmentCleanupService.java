@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.core.config.CleanupProperties;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -22,7 +21,13 @@ public class AttachmentCleanupService {
     private final StorageService        storageService;
     private final CleanupProperties     cleanupProperties;
 
-    @Transactional
+    /**
+     * Deliberately not {@code @Transactional}: {@link #deleteAttachments} depends on its single
+     * {@code deleteByUrls()} DELETE statement (already atomic on its own — one SQL statement) auto
+     * -committing immediately, before the S3 delete loop that follows it. Wrapping this method in
+     * a transaction would defer that commit until the whole method returns, recreating the exact
+     * crash-window bug this ordering exists to close — see improvement-049 item 4.
+     */
     public void cleanup() {
         log.info("Attachment cleanup started, retention = {} days", cleanupProperties.retentionDays());
         deleteStaleTempUploads();
@@ -56,6 +61,13 @@ public class AttachmentCleanupService {
             return;
         }
 
+        // DB rows deleted first, and committed immediately (see cleanup()'s javadoc for why this
+        // method carries no @Transactional) -- a crash at any point after this line leaves only
+        // orphaned S3 objects (safe, sweepable by prefix/age later), never a DB row pointing at a
+        // file that no longer exists.
+        int deleted = attachmentRepository.deleteByUrls(urls);
+        log.info("Deleted {} attachments", deleted);
+
         Set<String> failedUrls = new HashSet<>();
         urls.forEach(url -> {
             try { storageService.delete(url); } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
@@ -63,15 +75,8 @@ public class AttachmentCleanupService {
                 failedUrls.add(url);
             }
         });
-
-        List<String> toDelete = failedUrls.isEmpty()
-                ? urls
-                : urls.stream().filter(u -> !failedUrls.contains(u)).toList();
-
-        int deleted = attachmentRepository.deleteByUrls(toDelete);
-        log.info("Deleted {} attachments", deleted);
         if (!failedUrls.isEmpty()) {
-            log.warn("{} attachments skipped — S3 deletion failed, will retry on next run", failedUrls.size());
+            log.warn("{} S3 objects failed to delete after their DB rows were already removed — orphaned storage, safe to sweep later", failedUrls.size());
         }
     }
 }

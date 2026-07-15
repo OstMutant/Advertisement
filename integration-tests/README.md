@@ -82,10 +82,14 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `advertisement/AdvertisementSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `AdvertisementSnapshotDto.diff()` — pure field-comparison logic, zero side effects |
 | `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()`/`findByTypeAndCode()` correctly exclude soft-deleted rows (`deleted_at IS NULL`) — improvement-045 item 4/5 fix |
 | `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `DECISIONS.md` ADR-008 |
+| `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) — improvement-049 item 1 |
 | `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
-| `user/UserServiceTest` | Testcontainers + `@SpringBootTest` | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
+| `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
 | `user/UserServiceRestoreTest` | Testcontainers + `@SpringBootTest` | `UserService.restoreToSnapshot()` (the public entry point to private `applyUserRestore()`) — role/name reverted, `version` forwarded from the row's current state not re-derived, unknown snapshot id returns empty — see `DECISIONS.md` ADR-008 |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
+| `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them — improvement-049 item 2 |
+| `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws — improvement-049 item 3 |
+| `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete — improvement-049 item 4 |
 
 ### `PostgresContainerSmokeTest`
 

@@ -68,6 +68,7 @@ public class TaxonService {
                 .type(existing.getType())
                 .code(existing.getCode())
                 .deletedAt(existing.getDeletedAt())
+                .deletedBy(existing.getDeletedBy())
                 .createdAt(existing.getCreatedAt())
                 .createdBy(existing.getCreatedBy())
                 .updatedAt(Instant.now())

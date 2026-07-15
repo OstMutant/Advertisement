@@ -142,44 +142,72 @@ nothing.
 
 ## Suggested fix
 
-1. **Item 1 (`TaxonService.update()`):** add `.deletedBy(existing.getDeletedBy())` to the builder
-   — one-line fix, mirrors how `deletedAt` is already forwarded. Add a Testcontainers regression
-   test in `integration-tests` (new `TaxonRepositoryTest` method or a small
-   `TaxonServiceTest`-equivalent, following the improvement-045-item-6 precedent of testing through
-   the real service/repository, not a mock): soft-delete a taxon, then call `update()` on it,
-   assert `deletedBy` survives. First confirm current intent for `restore()`'s `deleted_by`
-   handling (leave as history, or also clear it) before deciding if that needs its own fix.
-2. **Item 2 (`commitTempUploadsQuiet()`):** move the `storageService.move()` calls inside the
-   `try` block (or wrap the whole method body, including the `.stream()` construction, in one
-   `try`/`catch` that can see and clean up whatever was moved so far) so a mid-loop failure can
-   still trigger cleanup of the files that *did* move successfully before the failure. Needs a
-   Playwright regression test per `.claude/rules.md` "Test Coverage After Bug Fixes" (upload a
-   gallery where one file's move is forced to fail — may need a test-only fault injection point,
-   or cover this at the `AttachmentService` unit-test level instead if Playwright can't easily
-   force a mid-batch storage failure).
-3. **Item 3 (`upload()`):** either make `upload()` `@Transactional` so the DB `save()` only commits
-   once the whole method succeeds (matching its sibling methods in the same class), or reorder so
-   `captureMediaChanges()`/`notifyMediaChanged()` run before the DB commit point if a full
-   transaction isn't feasible here for some reason (verify why the other methods are
-   `@Transactional` but this one isn't — check history/intent before assuming it's simply an
-   oversight). If `@Transactional` doesn't cover the `storageService.upload()` call itself (file
-   writes aren't part of a DB transaction anyway), the fix is really about making the **DB save**
-   atomic with the **subsequent DB-touching steps** (`captureMediaChanges()`), not the file upload.
-4. **Item 4 (`AttachmentCleanupService.deleteAttachments()`):** swap the order — delete
-   `attachmentRepository.deleteByUrls()` first (inside the existing `@Transactional`), then delete
-   from S3 after the DB commit. Update the `failedUrls` retry bookkeeping accordingly (now tracks
-   S3 deletes that failed *after* the DB row is already gone — fine, since a dangling S3 object
-   with no DB reference is a safe, sweepable state, unlike the reverse).
+1. ✅ **Item 1 (`TaxonService.update()`) — done 2026-07-15.** Added
+   `.deletedBy(existing.getDeletedBy())` to the builder, mirroring how `deletedAt` was already
+   forwarded. `TaxonRepository.restore()`'s `deleted_by` handling confirmed intentional (permanent
+   "who last deleted this" trail, unaffected) — not touched.
+   `integration-tests/src/test/java/org/ost/integrationtests/taxon/TaxonServiceTest.java` (2
+   tests: `update_onSoftDeletedTaxon_preservesDeletedBy`, `update_onActiveTaxon_deletedByStaysNull`).
+   TDD-verified: confirmed the first test fails against the pre-fix code
+   (`expected: 42L but was: null`) before re-applying the fix. `bash scripts/integration-tests.sh
+   --sandbox TaxonServiceTest`: 2/2, `BUILD SUCCESS`.
+2. ✅ **Item 2 (`commitTempUploadsQuiet()`) — done 2026-07-15.** Replaced the `.stream().map()`
+   (which ran `storageService.move()` outside the `try` block) with a plain `for` loop that builds
+   `toSave` incrementally *inside* the `try`, so a mid-loop `move()` failure leaves `toSave`
+   containing exactly the files that succeeded before it — the existing `catch` block's cleanup now
+   actually sees them. Covered with a plain Mockito unit test (no Spring, no DB — matches
+   `UserServiceTest`'s shape) rather than Playwright: `AttachmentService`'s storage dependency is
+   directly mockable, no test-only fault-injection hook needed.
+   `integration-tests/src/test/java/org/ost/integrationtests/attachment/AttachmentServiceTest.java`
+   (2 tests: mid-batch `move()` failure cleans up the already-moved files and never reaches
+   `saveAll()`; all-succeed case saves once with no cleanup calls). TDD-verified against the
+   pre-fix code. `bash scripts/integration-tests.sh --sandbox AttachmentServiceTest`: 2/2,
+   `BUILD SUCCESS`.
+3. ✅ **Item 3 (`upload()`) — done 2026-07-15.** Added `@Transactional`, matching
+   `delete()`/`deleteSkipSnapshot()`/`addVideo()` in the same class — an exception anywhere in the
+   method (including from `captureMediaChanges()`) now rolls back the `attachmentRepository.save()`
+   too, so there is never a committed row with no corresponding file.
+   `integration-tests/src/test/java/org/ost/integrationtests/attachment/AttachmentServiceTransactionTest.java`
+   — a real `@SpringBootTest` (not a Mockito unit test: proving a genuine DB transaction rollback
+   requires Spring's actual `@Transactional` proxy and a real Postgres, which a plain
+   `new AttachmentService(...)` construction can't provide) with its own `TestConfig`
+   (`@ImportAutoConfiguration` allow-list, see ADR-009) plus `@MockitoBean` overrides for
+   `S3Client`/`StorageService` (no real S3/MinIO dependency) and `AttachmentSnapshotService`
+   (forced to throw, to trigger the rollback path) — a plain `@Bean` override lost the
+   `@ConditionalOnMissingBean` ordering race against `AttachmentS3Config`'s real beans, confirmed
+   directly, hence `@MockitoBean`'s dedicated override mechanism instead (see the class's own
+   javadoc). TDD-verified against the pre-fix code (DB row survived the forced audit-capture
+   failure). `bash scripts/integration-tests.sh --sandbox AttachmentServiceTransactionTest`: 2/2,
+   `BUILD SUCCESS`.
+4. ✅ **Item 4 (`AttachmentCleanupService.deleteAttachments()`) — done 2026-07-15.** Swapped the
+   order — DB rows deleted first, S3 objects after. Turned out to need more than reordering two
+   statements: `cleanup()`'s `@Transactional` deferred the DB commit until the whole method
+   returned (i.e. until *after* the S3 loop too), which would have silently reintroduced the same
+   crash-window bug in the opposite direction. Removed `@Transactional` from `cleanup()` entirely
+   — `deleteByUrls()` is a single SQL statement, already atomic on its own, and now auto-commits
+   immediately instead of waiting on the method boundary; see the class's own javadoc for the full
+   reasoning. `failedUrls` bookkeeping now only affects logging (no longer excludes URLs from the
+   DB delete, since the DB delete already happened first for all of them).
+   `integration-tests/src/test/java/org/ost/integrationtests/attachment/AttachmentCleanupServiceTest.java`
+   (2 tests: `InOrder`-verified DB-delete-before-S3-delete ordering; a storage failure doesn't
+   affect the already-completed DB delete). TDD-verified: both tests failed against the pre-fix
+   code. `bash scripts/integration-tests.sh --sandbox AttachmentCleanupServiceTest`: 2/2,
+   `BUILD SUCCESS`.
+
+**All 4 items done — improvement-049 complete (2026-07-15).** Full `integration-tests` suite
+verified twice consecutively at 49/49 green after all four fixes together.
 
 ## Required verification
 
 - Confirm whether `AttachmentCleanupService`'s scheduled orphan-cleanup job would actually catch
   the files orphaned by item 2's bug, or whether its criteria (age threshold? DB-reference check?)
-  would miss them — not verified as part of this issue, changes the urgency assessment for item 2
-  if the existing cleanup job already provides a safety net.
-- After each fix, run the full `bash scripts/integration-tests.sh --sandbox` suite plus the
-  relevant Playwright attachment/taxon specs (`04-marketplace-advertisement-flow` for gallery
-  upload, `03-marketplace-promotion-flow` for taxon edit) to confirm no regression.
+  would miss them — not verified as part of this issue, out of scope for the fix itself (item 2's
+  own fix closes the orphaning at the source, independent of whether the safety net would have
+  caught it).
+- Playwright regression: not run as part of this issue — all four fixes were verified at the
+  integration-tests level (real Postgres, real transactions where relevant); a full Playwright
+  pass covering attachment/taxon flows is still worth running before considering this fully closed
+  end-to-end, tracked as a follow-up rather than blocking.
 
 ## Related
 

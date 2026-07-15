@@ -75,7 +75,7 @@ if [ -n "$NO_CHECK" ]; then
   echo "Applying --no-check: skipping the staleness check — testing against whatever is already" \
        "in ~/.m2, even if stale."
 else
-  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter"
+  STARTER_MODULES="platform-commons advertisement-spring-boot-starter user-spring-boot-starter taxon-spring-boot-starter audit-spring-boot-starter attachment-spring-boot-starter"
   NEEDS_INSTALL=""
   for m in $STARTER_MODULES; do
     JAR="$(find "$HOME/.m2/repository/org/ost/$m" -name '*.jar' 2>/dev/null | head -1)"
