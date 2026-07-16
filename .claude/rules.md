@@ -70,6 +70,12 @@ Always use project scripts — never raw docker/mvn commands:
 
 ## Issue Lifecycle
 
+When filing a **new** issue in `backlog/issues/`:
+- Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
+- Always add it to `backlog/BACKLOG.md`'s Priority order table at a ranked position (not just the
+  "Still open" listing table) in the same operation — a new issue is never left unranked pending
+  future triage. See `backlog/BACKLOG.md`'s "Maintenance rules".
+
 When an issue in `backlog/issues/` is resolved (fix is implemented and committed):
 - Move the file to `backlog/completed/issues/` — **immediately, in the same operation as the fix**
 - Do not leave resolved issues in `backlog/issues/`
