@@ -343,3 +343,26 @@ the way: the issue originally proposed a `backlog/<name>/SPEC.md`-per-directory 
 `backlog/entity-extensions/SPEC.md` as an example — confirmed neither that file nor any other
 `SPEC.md` exists anywhere in the repo anymore; retargeted to formalize the `backlog/issues/`
 one-file-per-issue shape that actually won out in practice instead.
+
+✅ Done (2026-07-16): [improvement-030](issues/improvement-030-archunit-test-module.md) — ArchUnit
+(`com.tngtech.archunit:archunit-junit5:1.4.2`) added to `marketplace-app`'s existing test tree
+(`src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java`), not a new module —
+`marketplace-app` already depends on every starter + `platform-commons` + `query-lib`, so its test
+classpath sees everything these rules need with zero new module/dependency wiring, and the checks
+run automatically via the existing `scripts/unit-tests.sh`/`scripts/ci.sh --unit` stage. All 7
+prose rules from the original issue codified (Port/Hook split into two `@ArchTest` rules rather
+than one combined `.or()` rule): UI-must-not-call-repositories, no-Vaadin-in-starters,
+Ports/Hooks-live-only-in-platform-commons, no-class-level-`@PreAuthorize`-on-services,
+no-`Optional`-method-parameters (custom `ArchCondition`, no ArchUnit built-in for this),
+no-`configuration`-packages, `*PortImpl`/`*HookImpl`-delegation-only. All 8 `@ArchTest` fields
+passed cleanly on first run (codebase already followed these rules by discipline) — verified via
+`bash scripts/unit-tests.sh ArchitectureRulesTest` (8/8) and a full `bash scripts/unit-tests.sh`
+run (all suites still green). The delegation-only rule needed no explicit exception list for
+`DefaultTaxonPort`/`DefaultAuditPort`/`DefaultAttachmentPort` (documented coordination-layer
+exceptions) — it only targets the `*PortImpl`/`*HookImpl` suffix, which none of those three match,
+so the existing `Default*Port` vs. `*PortImpl` naming convention already draws the needed line for
+free. See `marketplace-app/DECISIONS.md` ADR-041. Note: improvement-010 (a view deviating from the
+`refresh()` pattern) is not one of the 7 codified rules (a behavioral convention, not a
+dependency-direction rule ArchUnit expresses cleanly) — still open, needs its own fix. Also
+unblocked improvement-033 (`/quality-gate` skill), whose three prerequisites (027/030/032) are now
+all done.

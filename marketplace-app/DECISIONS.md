@@ -1506,6 +1506,55 @@ purely inline/inherited styling). Confirmed visually via direct screenshot befor
 
 ---
 
+## ADR-041: ArchUnit codifies cross-module architecture rules — lives in `marketplace-app/src/test`, not a new module
+
+**Status:** Accepted
+
+**Context:** Every cross-module and intra-module architecture rule in this project (module import
+restrictions, no-Vaadin-in-starters, Port/Hook placement, `@PreAuthorize` placement, `Optional`-
+parameter ban, `config` vs `configuration` naming, `*PortImpl`/`*HookImpl` delegation-only) lived
+as prose in `CLAUDE.md`/`rules.md`, checked by human review only. Two real violations
+(improvement-011's unguarded port injection, improvement-010's view deviating from its own
+`refresh()` pattern) reached working code before being caught by manual audit rather than a build
+failure.
+
+**Decision:** Added ArchUnit (`com.tngtech.archunit:archunit-junit5:1.4.2`, test-scope) directly to
+`marketplace-app`'s existing test tree — `marketplace-app/src/test/java/org/ost/marketplace/
+architecture/ArchitectureRulesTest.java` — rather than a new dedicated module. `marketplace-app`
+already depends on every starter + `platform-commons` + `query-lib` (confirmed directly), so its
+test classpath already has every compiled class ArchUnit needs to check cross-module rules (e.g.
+"no Vaadin in starters" needs starter classes; "UI must not call repositories directly" needs
+marketplace-app's own `ui` package) — no new module, no new dependency wiring. This also means
+these checks run automatically as part of the existing `scripts/unit-tests.sh`/`scripts/ci.sh
+--unit` stage, with zero new script/CI plumbing.
+
+Seven rules implemented, mapping directly to the seven prose rules identified in improvement-030:
+UI-must-not-call-repositories, no-Vaadin-in-starters, Ports/Hooks-live-only-in-platform-commons
+(split into two separate rules, one per suffix, rather than one combined `.or()` rule — simpler
+and less error-prone than chaining ArchUnit's fluent predicate combinators), no-class-level-
+`@PreAuthorize`-on-services, no-`Optional`-method-parameters (a custom `ArchCondition` — ArchUnit
+has no built-in predicate for this), no-`configuration`-packages, and `*PortImpl`/`*HookImpl`-
+delegation-only (no `java.util.stream`/Jackson dependencies).
+
+**The delegation-only rule needed no explicit exception list for `DefaultTaxonPort`/
+`DefaultAuditPort`/`DefaultAttachmentPort`** (all three are documented, deliberate
+coordination-layer exceptions — see e.g. `taxon-spring-boot-starter/CLAUDE.md`, and `DefaultTaxonPort`
+does genuinely import `java.util.stream.Collectors`) — the rule only targets the `*PortImpl`/
+`*HookImpl` simple-name suffix, and none of the three `Default*Port`-named classes match that
+suffix. The existing `Default*Port` vs. `*PortImpl` naming convention
+(`platform-commons/CLAUDE.md` "Hook and Port Implementation Rules") already draws exactly the
+line this rule needs, for free.
+
+**Consequences:**
+- All 7 rules (8 `@ArchTest` fields — Port/Hook split into two) pass cleanly against the current
+  codebase on first run — the rules describe discipline already actually followed, now enforced by
+  a build failure instead of a code-review judgment call. Verified via `bash scripts/unit-tests.sh
+  ArchitectureRulesTest` (8/8 passed) and a full `bash scripts/unit-tests.sh` run (all suites still
+  green) to confirm the new test-scope dependency didn't disturb anything else.
+- → [improvement-030-archunit-test-module](../backlog/completed/issues/improvement-030-archunit-test-module.md).
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)

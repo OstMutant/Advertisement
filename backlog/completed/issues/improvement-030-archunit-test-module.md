@@ -1,4 +1,4 @@
-# improvement-030: ArchUnit test module — prose architecture rules become build-breaking tests
+# improvement-030: ArchUnit test module — prose architecture rules become build-breaking tests — ✅ DONE (2026-07-16)
 
 **Type:** improvement — architecture consistency/tooling. Migrated from `backlog/process-
 improvements.md` Part 2, item 7 — flagged there as "Highest ROI of Part 2."
@@ -39,6 +39,30 @@ isolation between starters; ArchUnit is specifically for the intra-module rules 
 express (e.g. "no Vaadin inside a starter" is a dependency-direction rule Maven's own module
 graph doesn't capture, since Vaadin is a valid transitive dependency of the reactor as a whole).
 
+## Resolution (2026-07-16)
+
+Went with a test-only package inside `marketplace-app` (`src/test/java/org/ost/marketplace/
+architecture/ArchitectureRulesTest.java`), not a new module — confirmed `marketplace-app` already
+depends on every starter + `platform-commons` + `query-lib`, so its test classpath already sees
+every class any of these 7 rules needs, with zero new module/dependency wiring. This also means
+the checks run automatically via the existing `scripts/unit-tests.sh`/`scripts/ci.sh --unit` stage.
+
+All 7 rules from the table above implemented (Port/Hook split into two separate `@ArchTest` rules
+rather than one combined `.or()` rule — simpler than chaining ArchUnit's fluent predicate
+combinators). All 8 `@ArchTest` fields passed cleanly on first run against the current codebase —
+verified via `bash scripts/unit-tests.sh ArchitectureRulesTest` (8/8) and a full `bash
+scripts/unit-tests.sh` run (all suites still green, confirming the new test-scope ArchUnit
+dependency didn't disturb anything else).
+
+The `*PortImpl`/`*HookImpl` delegation-only rule needed no explicit exception list for
+`DefaultTaxonPort`/`DefaultAuditPort`/`DefaultAttachmentPort` (documented, deliberate
+coordination-layer exceptions — confirmed `DefaultTaxonPort` genuinely imports `java.util.stream
+.Collectors`): the rule only targets the `*PortImpl`/`*HookImpl` simple-name suffix, and none of
+those three `Default*Port`-named classes match it — the existing naming convention
+(`platform-commons/CLAUDE.md`) already draws exactly the line this rule needs.
+
+Full rationale: `marketplace-app/DECISIONS.md` ADR-041.
+
 ## Related
 
 - `backlog/process-improvements.md` Part 2, item 7 — source item, now superseded by this issue.
@@ -48,6 +72,10 @@ graph doesn't capture, since Vaadin is a valid transitive dependency of the reac
   existed as a test rather than a review-time judgment call).
 - `backlog/issues/improvement-010-advertisements-view-refresh-error-notification.md` — the
   second concrete violation (a view deviating from the documented `refresh()` guard pattern),
-  still open (Deferred bucket, batch into any nearby UI-touching PR).
+  still open (Deferred bucket, batch into any nearby UI-touching PR) — not one of the 7 rules
+  codified here (it's a behavioral/structural convention, not a dependency-direction rule ArchUnit
+  can express cleanly), so still needs its own fix separately.
+- `marketplace-app/src/test/java/org/ost/marketplace/architecture/ArchitectureRulesTest.java` —
+  the implemented test class.
 - `backlog/issues/improvement-028-minimal-ci-pipeline.md` — where these tests actually get
   enforced on every push, not just locally.

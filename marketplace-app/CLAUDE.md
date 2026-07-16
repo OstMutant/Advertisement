@@ -93,13 +93,15 @@ Translation keys — single consolidated enum:
 
 `@EnableMethodSecurity` is active. **Never put `@PreAuthorize` at class level on service beans.** Vaadin initializes view beans on the first HTTP request before the user authenticates; a class-level annotation causes an `AuthorizationDeniedException` during view wiring, preventing any view from loading.
 
-- Method-level `@PreAuthorize` is fine for future REST controller endpoints.
+- Method-level `@PreAuthorize` is fine for REST controller endpoints.
 - Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
-- `/health` is intentionally public (load balancer probe).
+- `rest/HealthController` (`GET /health`) is this app's one existing non-Vaadin REST controller —
+  intentionally public (load balancer probe), with its own explicit
+  `requestMatchers("/health").permitAll()` rule in `SecurityConfig`, ahead of the catch-all (see
+  next bullet). Any *new* non-Vaadin REST controller must add the same kind of explicit rule for
+  its own path prefix, following this precedent.
 - `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
-  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025). Any future
-  non-Vaadin REST controller must add its own explicit `requestMatchers(...)` rule ahead of the
-  catch-all.
+  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025).
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
   are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
   failures — never successes (see `DECISIONS.md` ADR-026).

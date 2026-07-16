@@ -5,9 +5,12 @@ item 10.
 **Module:** `.claude/` skills, `.claude/rules.md`
 **Priority:** low-medium — a convenience/discipline layer on top of gates that mostly don't exist
 yet
-**When:** **blocked** — depends on improvement-027 (unit/Testcontainers layer), improvement-030
-(ArchUnit), and improvement-032 (SonarQube blocking) all existing first; do this last of the four,
-once its three prerequisites are real
+**When:** unblocked (2026-07-16) — improvement-027, improvement-030, and improvement-032 are all
+now done. **Note:** `scripts/ci.sh`/`/ci` (improvement-059) already implements most of what this
+issue's "Suggested fix" describes — a single command chaining unit (now includes ArchUnit) →
+integration → e2e → sonar (now blocking), with one summary report (`progress.txt`). Re-scope this
+issue before starting: it may reduce to "record the Definition of Done in `.claude/rules.md`" only,
+rather than building a new skill from scratch.
 
 ## Problem
 
