@@ -223,6 +223,9 @@ public enum I18nKey {
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
     ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
 
+    // === Notifications ===
+    NOTIFICATION_CLOSE_TOOLTIP("notification.close.tooltip"),
+
     // === Main Tabs ===
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
     MAIN_TAB_USERS("main.tab.users"),

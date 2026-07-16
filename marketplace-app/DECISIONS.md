@@ -1451,6 +1451,55 @@ Java/Maven version at build time. Filed as improvement-031.
 
 ---
 
+## ADR-040: `NotificationService`'s close button converted to `UiIconButton` despite being a plain `@Service`, not a Vaadin bean
+
+**Status:** Accepted
+
+**Context:** `NotificationService.createLayout()`'s close button was the one raw-`Button` spot
+improvement-026 deliberately excluded from its mechanical conversion, because
+`NotificationService` is a plain `@Service` (not a `@SpringComponent` Vaadin bean like every other
+`Ui*Button` consumer) and its icon was a raw Lumo font glyph (`new Icon("lumo", "cross")`, not
+`VaadinIcon`) — a conversion would be a small visible icon change, not a pure refactor. Filed as
+improvement-057 to decide explicitly rather than leave unresolved.
+
+**Decision:** Convert anyway, in favor of full consistency over the narrow exception. Neither
+concern held up as a real blocker on inspection:
+- No rule in this codebase (`.claude/rules.md`, `platform-commons/CLAUDE.md`) forbids a `@Service`
+  from depending on `UiComponentFactory<T>` — it simply hadn't been done before.
+  `NotificationService` already lives in the UI-layer package (`ui.views.services`), so a
+  singleton service reaching into `UiComponentFactory<UiIconButton>` (itself backed by
+  `ObjectProvider<UiIconButton>`, exactly the mechanism Spring provides for a singleton to obtain
+  fresh prototype-scoped instances) is architecturally unremarkable, not a scope violation.
+- The icon swap (Lumo glyph → `VaadinIcon.CLOSE_SMALL`) is visually negligible — an "X" in either
+  icon set — and now every icon-only button in the app renders through the same wrapper, with no
+  documented exception for a future `improvement-030` (ArchUnit) rule to special-case.
+
+New `NOTIFICATION_CLOSE_TOOLTIP` i18n key added (the raw glyph never had a tooltip/aria-label
+before; `UiIconButton.configure()` now sets both `title` and `aria-label` per ADR-037's
+improvement-037 follow-up).
+
+**Follow-up fix (2026-07-16, found via direct visual screenshot inspection, not caught by any
+Playwright assertion):** `UiIconButton`'s default tertiary-theme icon color is Lumo's primary
+blue (`rgb(0, 95, 219)`) — correct on the white/neutral surfaces every other `UiIconButton`
+consumer renders on, but wrong here: `Notification`'s `LUMO_ERROR`/`LUMO_SUCCESS` variants render
+white text (`rgb(255, 255, 255)`, confirmed via computed-style inspection) on red/green
+backgrounds, so the close icon rendered as a mismatched blue glyph on a colored background.
+Added `.notification-close-btn { color: var(--app-surface-white); }` in a new
+`notification.css` (the `notification-*` CSS classes had no theme file at all before this —
+purely inline/inherited styling). Confirmed visually via direct screenshot before and after.
+
+**Consequences:**
+- Zero remaining raw `new Button(...)` spots from the original improvement-026 audit — every
+  identified spot is now either converted or explicitly, permanently out of scope
+  (`QueryActionButton`, `AttachmentUploadButton` — see improvement-026's own "Do NOT touch" list).
+- Verified via full `deploy.sh` + `bash scripts/playwright.sh e2e --full --ux`, 48/48 — the two
+  existing Playwright selectors touching the notification close button
+  (`e2e/_helpers.js`'s `closeNotification()`, `_flows/category.flow.js`) both use the generic
+  `vaadin-notification-card vaadin-button` pattern, unaffected by the icon/class change.
+- → [improvement-057-notificationservice-close-button-decision](../backlog/completed/issues/improvement-057-notificationservice-close-button-decision.md).
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)

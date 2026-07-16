@@ -2,10 +2,9 @@ package org.ost.marketplace.ui.views.services;
 
 import com.vaadin.flow.component.Text;
 import com.vaadin.flow.component.UI;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -15,13 +14,18 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.springframework.stereotype.Service;
+
+import static org.ost.marketplace.services.i18n.I18nKey.NOTIFICATION_CLOSE_TOOLTIP;
 
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
     private final I18nService i18n;
+    private final UiComponentFactory<UiIconButton> iconButtonFactory;
 
     /**
      * Convenience method for success notifications
@@ -79,8 +83,10 @@ public class NotificationService {
         Div text = new Div(new Text(message));
         text.addClassName("notification-text");
 
-        Button closeButton = new Button(new Icon("lumo", "cross"), _ -> notification.close());
-        closeButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
+        UiIconButton closeButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(NOTIFICATION_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
+        closeButton.addClassName("notification-close-btn");
+        closeButton.addClickListener(_ -> notification.close());
 
         HorizontalLayout layout = new HorizontalLayout(icon, text, closeButton);
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
