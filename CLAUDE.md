@@ -123,6 +123,7 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
 - `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
 - `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
+- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table (improvement-034)
 
 ---
 

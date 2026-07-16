@@ -331,3 +331,15 @@ gate failure. Verified directly both ways: default mode correctly exits `3` on a
 `EXECUTION SUCCESS` regardless. As of this fix, `scripts/ci.sh`'s default run reports its `sonar`
 stage as `FAILED` until those 35 issues are addressed or the gate reconfigured — intended, not a
 bug. See `scripts/sonar/DECISIONS.md` (2026-07-16 entry).
+
+✅ Done (2026-07-16): [improvement-034](issues/improvement-034-feature-workflow-standardization.md)
+— `/feature <title>` skill (`.claude/commands/feature.md`) scaffolds a new
+`backlog/issues/<prefix>-NNN-<slug>.md` from the shape already in consistent use across this
+backlog (auto-numbered across both `backlog/issues/` and `backlog/completed/issues/`, filled from
+conversation context, reading source first when needed rather than leaving placeholders), and
+inserts a ranked row into `BACKLOG.md`'s priority table in the same operation — enforcing the
+`.claude/rules.md` "Issue Lifecycle" rule automatically. Corrected from the original wording along
+the way: the issue originally proposed a `backlog/<name>/SPEC.md`-per-directory template, citing
+`backlog/entity-extensions/SPEC.md` as an example — confirmed neither that file nor any other
+`SPEC.md` exists anywhere in the repo anymore; retargeted to formalize the `backlog/issues/`
+one-file-per-issue shape that actually won out in practice instead.
