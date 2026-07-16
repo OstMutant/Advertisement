@@ -96,7 +96,7 @@
     max-height: 75vh;
     border-radius: var(--lumo-border-radius-m);
     outline: none;
-    background: #000;
+    background: var(--app-overlay-backdrop);
 }
 
 .card-lightbox__close {

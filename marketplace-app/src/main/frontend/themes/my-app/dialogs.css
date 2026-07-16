@@ -48,7 +48,7 @@ vaadin-dialog-overlay::part(footer) {
 }
 
 .dialog-confirm-icon {
-    color: #f59e0b;
+    color: var(--app-status-warning-accent);
     width: 26px;
     height: 26px;
     min-width: 26px;
@@ -57,7 +57,7 @@ vaadin-dialog-overlay::part(footer) {
 
 .dialog-confirm-text {
     margin: 0;
-    color: #334155;
+    color: var(--app-text-secondary);
     line-height: 1.55;
 }
 
@@ -65,7 +65,7 @@ vaadin-dialog-overlay::part(footer) {
 
 .pagination-count {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: var(--app-text-muted);
     margin-left: var(--lumo-space-m);
     white-space: nowrap;
 }

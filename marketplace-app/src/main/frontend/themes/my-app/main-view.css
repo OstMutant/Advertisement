@@ -66,21 +66,21 @@ html, body, #root {
 /* ── Tab bar ───────────────────────────────────────────────────────── */
 
 .main-tabs {
-  background: #ffffff;
-  border-bottom: 2px solid #e2e8f0;
+  background: var(--app-surface-white);
+  border-bottom: 2px solid var(--app-border-default);
   padding: 0 1.25rem;
 }
 
 .main-tabs vaadin-tab {
   font-weight: 500;
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   padding: 0.7rem 1rem;
   letter-spacing: 0.01em;
 }
 
 .main-tabs vaadin-tab[selected] {
-  color: #3b82f6;
+  color: var(--app-accent-primary);
   font-weight: 600;
 }
 

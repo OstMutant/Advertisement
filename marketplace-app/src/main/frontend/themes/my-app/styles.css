@@ -26,10 +26,102 @@
 @import url("./sort-icon.css");
 @import url("./taxon-view.css");
 
+/* ==========================================================================
+   Design tokens (improvement-037 / improvement-039)
+   Every color previously hardcoded as a hex literal across this theme's 21
+   CSS files is named here once. Rationale: (1) the same handful of hex
+   values were copy-pasted into 9-15 different files each -- a single named
+   source removes that drift risk; (2) this is the prerequisite dark-mode
+   infrastructure (improvement-039) needs, built now so it isn't redone
+   later. Values below map almost exactly onto Tailwind's default palette
+   (e.g. #94a3b8 = slate-400, #3b82f6 = blue-500) -- the app already
+   implicitly followed that palette, this just gives it names.
+   Full mapping rationale: marketplace-app/DECISIONS.md ADR-038.
+   ========================================================================== */
+:root {
+    /* --- Text (neutral/slate) --- */
+    --app-text-primary: #1e293b;     /* headings, primary labels */
+    --app-text-secondary: #334155;   /* body text, secondary labels */
+    --app-text-tertiary: #475569;    /* author names, less prominent labels */
+    --app-text-muted: #64748b;       /* de-emphasized text: dates, placeholders, empty-state hints.
+                                         Also replaces the former #94a3b8 (~2.5:1 contrast, failed
+                                         WCAG AA) -- see improvement-037. */
+
+    /* --- Borders & surfaces (neutral/slate) --- */
+    --app-border-default: #e2e8f0;
+    --app-border-subtle: #cbd5e1;
+    --app-border-accent: #c7d2e0;
+    --app-surface-page: #f5f7fa;
+    --app-surface-muted: #f1f5f9;
+    --app-surface-subtle: #f8fafc;
+    --app-surface-white: #ffffff;
+    --app-overlay-backdrop: #000;
+
+    /* --- Primary accent (blue) -- interactive elements, links, query blocks --- */
+    --app-accent-primary: #3b82f6;
+    --app-accent-primary-rgb: 59, 130, 246;  /* channels of --app-accent-primary, for rgba() alpha blends */
+    --app-accent-primary-strong: #1d4ed8;
+    --app-accent-primary-bold: #2563eb;
+    --app-accent-primary-light: #60a5fa;
+    --app-accent-primary-faint: #93c5fd;
+    --app-accent-primary-bg: #dbeafe;
+    --app-accent-primary-bg-hover: #eff6ff;
+    --app-accent-primary-bg-soft: #f0f9ff;
+    --app-accent-primary-tint: #f0f7ff;
+    --app-accent-primary-glow: #e8f0fe;
+
+    /* --- Gallery accent (indigo) -- attachment-gallery.css only --- */
+    --app-accent-gallery: #6366f1;
+    --app-accent-gallery-light: #818cf8;
+    --app-accent-gallery-bg: #e0e7ff;
+    --app-accent-gallery-bg-hover: #f0f4ff;
+    --app-accent-gallery-bg-soft: #eef2ff;
+    --app-accent-gallery-border: #c7d2fe;
+
+    /* --- Violet accent -- USER_SETTINGS activity badge, card gradient partner --- */
+    --app-accent-violet: #5b21b6;
+    --app-accent-violet-bg: #ede9fe;
+    --app-accent-violet-glow: #f0e6ff;
+
+    /* --- Status: success (green) -- created badge, active user role --- */
+    --app-status-success-text: #059669;
+    --app-status-success-badge-text: #166534;
+    --app-status-success-badge-bg: #dcfce7;
+    --app-status-success-role-text: #15803d;
+    --app-status-success-bg-soft: #ecfdf5;
+    --app-status-success-bg-softer: #f0fdf4;
+    --app-status-success-border: #a7f3d0;
+
+    /* --- Status: info (blue) -- updated badge (bg reuses --app-accent-primary-bg) --- */
+    --app-status-info-text: #1e40af;
+
+    /* --- Status: warning accent (amber) -- confirm dialogs, dirty-state outline --- */
+    --app-status-warning-accent: #f59e0b;
+    --app-status-warning-accent-rgb: 245, 158, 11;
+
+    /* --- Status: entity-type badge -- "advertisement" pill in activity/timeline feeds --- */
+    --app-status-entity-advertisement-bg: #fef3c7;
+    --app-status-entity-advertisement-text: #92400e;
+
+    /* --- Status: restored action badge (amber/yellow) --- */
+    --app-status-restored-badge-text: #854d0e;
+    --app-status-restored-badge-bg: #fef9c3;
+
+    /* --- Status: moderator role (orange) --- */
+    --app-status-moderator-text: #c2410c;
+    --app-status-moderator-bg: #ffedd5;
+
+    /* --- Status: danger/deleted (red) --- */
+    --app-status-danger-text: #991b1b;
+    --app-status-danger-bg: #fee2e2;
+    --app-status-danger-outline: #ef4444;
+    --app-status-danger-outline-rgb: 239, 68, 68;
+}
+
 /* Global font + page background */
 html, body {
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif !important;
-    background-color: #f5f7fa;
+    background-color: var(--app-surface-page);
 }
 
 /* Global utility classes */
@@ -44,4 +136,14 @@ html, body {
 /* Ensure all interactive buttons have a pointer cursor */
 vaadin-button {
     cursor: pointer;
+}
+
+/* Visible keyboard focus on the Ui*Button family (improvement-037) -- same treatment already
+   established for .advertisement-card:focus-visible, applied consistently across every button
+   wrapper (primary/tertiary/icon) instead of relying only on Lumo's unstyled default. */
+.primary-button:focus-visible,
+.tertiary-button:focus-visible,
+.icon-button:focus-visible {
+    outline: 2px solid var(--app-accent-primary);
+    outline-offset: 2px;
 }

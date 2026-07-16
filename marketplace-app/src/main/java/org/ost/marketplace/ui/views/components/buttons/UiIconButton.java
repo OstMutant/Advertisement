@@ -41,7 +41,10 @@ public class UiIconButton extends Button
     @Override
     public UiIconButton configure(Parameters p) {
         setIcon(p.getIcon());
-        getElement().setAttribute("title", getValue(p.getLabelKey()));
+        String label = getValue(p.getLabelKey());
+        getElement().setAttribute("title", label);
+        // icon-only button -- title alone isn't a reliable accessible name across screen readers
+        getElement().setAttribute("aria-label", label);
         return this;
     }
 }

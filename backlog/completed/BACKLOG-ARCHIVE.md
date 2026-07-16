@@ -264,3 +264,19 @@ helpers to `.query-action-block`. `NotificationService`'s close-button decision 
 extracted to
 [improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
 See `marketplace-app/DECISIONS.md` ADR-037.
+
+✅ Done (2026-07-16): [improvement-037](issues/improvement-037-accessibility-contrast-and-aria.md)
+— WCAG AA contrast failure fixed via full theme-CSS tokenization (49 unique hex colors / ~180
+occurrences across 21 files named as `--app-*` custom properties in `styles.css`'s `:root`,
+bigger scope than originally requested but done together with improvement-039's identical
+prerequisite per both issues' own suggestion — see `marketplace-app/DECISIONS.md` ADR-038). The
+failing `.header-auth-row` color `#94a3b8` (~2.5:1) was merged into the already-compliant
+`#64748b` (~4.76:1) as one shared `--app-text-muted` token — the only value intentionally
+changed, every other token preserves its prior color exactly. Also added: `aria-label` on
+`UiIconButton` (fixes every icon-only button app-wide in one shared-component edit), `role="list"`/
+`"listitem"` + `aria-label` on the category chip list, and a `.primary-button/.tertiary-button
+/.icon-button:focus-visible` rule matching the pre-existing `.advertisement-card:focus-visible`
+treatment. Verified twice with full `deploy.sh` + `bash scripts/playwright.sh e2e --full --ux`
+(48/48 both times) plus a direct browser check confirming `--app-text-muted` resolves to the
+compliant `#64748b`. improvement-039 (dark mode) is now unblocked at the infrastructure level —
+its own prerequisite shipped here, only the actual dark palette + toggle remain.

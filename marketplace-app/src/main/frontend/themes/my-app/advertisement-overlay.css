@@ -4,7 +4,7 @@
     position: fixed;
     inset: 0;
     z-index: 100;
-    background: #f5f7fa;
+    background: var(--app-surface-page);
     display: none;
 }
 
@@ -34,7 +34,7 @@
     align-items: center;
     justify-content: space-between;
     padding: var(--lumo-space-m) 0;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--app-border-default);
     flex-shrink: 0;
     gap: var(--lumo-space-s);
 }
@@ -106,9 +106,9 @@
 
 /* White card for title + description */
 .overlay__view-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-top: 3px solid #059669 !important;
+    background: var(--app-surface-white);
+    border: 1px solid var(--app-border-default);
+    border-top: 3px solid var(--app-status-success-text) !important;
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
@@ -125,8 +125,8 @@
 
 /* White card for edit fields */
 .overlay__form-fields-card {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--app-surface-white);
+    border: 1px solid var(--app-border-default);
     border-radius: 12px;
     padding: 20px 24px;
     display: flex;
@@ -144,7 +144,7 @@
 .overlay__view-title {
     font-size: 1.85rem;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--app-text-primary);
     letter-spacing: -0.02em;
     line-height: 1.2;
     margin: 0;
@@ -154,7 +154,7 @@
 
 .overlay__view-description {
     font-size: 1rem;
-    color: #475569;
+    color: var(--app-text-tertiary);
     line-height: 1.75;
     overflow-wrap: break-word;
     overflow-x: hidden;
@@ -172,7 +172,7 @@
 /* ----------------------------------------------------------------- meta container */
 
 .overlay__meta-container {
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--app-border-default);
     padding-top: var(--lumo-space-m);
     margin-top: var(--lumo-space-s);
 }
@@ -183,7 +183,7 @@
     overflow: visible;
     text-overflow: unset;
     font-size: var(--lumo-font-size-s);
-    color: #94a3b8;
+    color: var(--app-text-muted);
     flex-wrap: wrap;
 }
 

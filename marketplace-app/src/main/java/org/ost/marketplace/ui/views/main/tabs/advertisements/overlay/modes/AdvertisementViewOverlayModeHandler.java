@@ -84,9 +84,12 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
             if (!cats.isEmpty()) {
                 Div categoriesRow = new Div();
                 categoriesRow.addClassName("advertisement-categories-chips");
+                categoriesRow.getElement().setAttribute("role", "list");
+                categoriesRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
                 cats.forEach(cat -> {
                     Span chip = new Span(cat.getName());
                     chip.addClassName("advertisement-category-chip");
+                    chip.getElement().setAttribute("role", "listitem");
                     categoriesRow.add(chip);
                 });
                 textCard.add(categoriesRow);

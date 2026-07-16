@@ -16,8 +16,8 @@
 }
 
 .entity-activity-row {
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
+    background: var(--app-surface-white);
+    border: 1px solid var(--app-border-default);
     border-radius: 10px;
     padding: 12px 16px;
     display: flex;
@@ -37,8 +37,8 @@
 .entity-activity-version {
     font-size: 0.72rem;
     font-weight: 700;
-    color: #94a3b8;
-    background: #f1f5f9;
+    color: var(--app-text-muted);
+    background: var(--app-surface-muted);
     border-radius: 4px;
     padding: 1px 6px;
     letter-spacing: 0.03em;
@@ -54,15 +54,15 @@
     letter-spacing: 0.04em;
 }
 
-.entity-activity-action--created  { background: #dcfce7; color: #166534; }
-.entity-activity-action--updated  { background: #dbeafe; color: #1e40af; }
-.entity-activity-action--deleted  { background: #fee2e2; color: #991b1b; }
-.entity-activity-action--restored { background: #fef9c3; color: #854d0e; }
+.entity-activity-action--created  { background: var(--app-status-success-badge-bg); color: var(--app-status-success-badge-text); }
+.entity-activity-action--updated  { background: var(--app-accent-primary-bg); color: var(--app-status-info-text); }
+.entity-activity-action--deleted  { background: var(--app-status-danger-bg); color: var(--app-status-danger-text); }
+.entity-activity-action--restored { background: var(--app-status-restored-badge-bg); color: var(--app-status-restored-badge-text); }
 
 .entity-activity-user {
     font-size: var(--lumo-font-size-s);
     font-weight: 600;
-    color: #334155;
+    color: var(--app-text-secondary);
     flex: 1;
     min-width: 0;
     overflow: hidden;
@@ -72,7 +72,7 @@
 
 .entity-activity-time {
     font-size: var(--lumo-font-size-xs);
-    color: #94a3b8;
+    color: var(--app-text-muted);
     white-space: nowrap;
 }
 
@@ -81,12 +81,12 @@
     flex-direction: column;
     gap: 2px;
     padding-left: 4px;
-    border-left: 2px solid #cbd5e1;
+    border-left: 2px solid var(--app-border-subtle);
 }
 
 .entity-activity-changes-item {
     font-size: var(--lumo-font-size-xs);
-    color: #64748b;
+    color: var(--app-text-muted);
     font-style: italic;
     word-break: break-word;
     overflow-wrap: break-word;
@@ -98,7 +98,7 @@
 
 .entity-activity-changes-value {
     font-style: normal;
-    color: #334155;
+    color: var(--app-text-secondary);
 }
 
 .entity-activity-changes-value--collapsible {
@@ -123,8 +123,8 @@
 .entity-activity-current-badge {
     font-size: 0.72rem;
     font-weight: 600;
-    color: #166534;
-    background: #dcfce7;
+    color: var(--app-status-success-badge-text);
+    background: var(--app-status-success-badge-bg);
     border-radius: 4px;
     padding: 2px 8px;
     letter-spacing: 0.02em;

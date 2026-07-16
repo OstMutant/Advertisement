@@ -1300,6 +1300,98 @@ itself around its own Apply/Clear buttons — rather than the wider block select
 
 ---
 
+## ADR-038: Theme CSS colors tokenized into named custom properties — fixes the WCAG AA contrast failure and builds the prerequisite dark-mode needs
+
+**Status:** Accepted
+
+**Context:** `marketplace-app/src/main/frontend/themes/my-app/` (21 CSS files) used hardcoded hex
+color literals throughout — 49 unique values, ~180 occurrences, the same handful of colors
+copy-pasted into 9-15 different files each, zero `:root`/custom-property infrastructure. Two
+concrete problems, filed as improvement-037 (accessibility) and improvement-039 (dark mode):
+1. `.header-auth-row span` used `#94a3b8` (~2.5:1 contrast on white) — fails WCAG AA's 4.5:1
+   minimum for body text.
+2. Dark mode is structurally impossible without a token layer — Lumo ships a dark palette, but
+   only components already using `var(--lumo-*)`/custom-property tokens pick it up automatically;
+   swapping 180 hardcoded literals in place isn't a real option.
+
+Both issues' own text called out that they share the exact same prerequisite (hardcoded hex →
+named tokens) and recommended doing both in one pass over the theme files rather than two separate
+touches of the same CSS. improvement-039's actual dark-mode toggle (`prefers-color-scheme` +
+switcher UI) is explicitly deferred to a later pass — this ADR covers only the token
+infrastructure + the accessibility fix riding on top of it.
+
+**Decision:** Every hex value was named as a semantic custom property in a new `:root` block in
+`styles.css` (`--app-*` prefix, to stay visually distinct from Lumo's own `--lumo-*` tokens), then
+every occurrence across all 21 files was replaced with `var(--app-*)`. Values map almost exactly
+onto Tailwind's default palette (`#94a3b8` = slate-400, `#3b82f6` = blue-500, etc.) — not a
+coincidence, the app's colors were already implicitly drawn from that palette; tokenizing just
+gives the existing (if undocumented) design system real names instead of inventing a new one.
+
+Token groups, by role (full list with inline comments: `styles.css` lines 41-118):
+- **Text** (`--app-text-primary/-secondary/-tertiary/-muted`) — 4-tier slate text hierarchy.
+- **Borders/surfaces** (`--app-border-*`, `--app-surface-*`) — dividers, card/page backgrounds.
+- **Primary accent** (`--app-accent-primary*`, 10 shades) — the blue family: links, focus
+  outlines, query-block chrome, active tab.
+- **Gallery accent** (`--app-accent-gallery*`, 6 shades) — indigo, `attachment-gallery.css` only.
+- **Violet accent** (`--app-accent-violet*`) — the `USER_SETTINGS` activity-type badge and one
+  card gradient partner.
+- **Status colors** — separate bg/text token pairs per badge kind: success (created action,
+  active user role), info (updated action, reuses `--app-accent-primary-bg`), the
+  `advertisement` entity-type pill, restored action, moderator role, danger (deleted action).
+
+**The WCAG fix, specifically:** `--app-text-muted` is defined as `#64748b` (the color that was
+*already* used, and already measured ~4.76:1 — passes AA with margin) and now serves **both** the
+former `#64748b` call sites and the former `#94a3b8` (failing) call sites — the two were
+functionally the same "de-emphasized text" role, just drifted to two different grays over time.
+Merging them into one compliant value is not a workaround; it's the actual fix — you cannot keep a
+visually-distinct "extra light" gray tier that also passes 4.5:1, `#94a3b8` was failing precisely
+*because* it was lighter than the compliant tier. This was the **only** value intentionally
+changed during tokenization — every other token preserves its exact prior hex value, so the rest
+of this refactor has zero visual delta by construction.
+
+**RGB-triplet companion tokens:** three colors (`--app-accent-primary`, `--app-status-warning-accent`,
+`--app-status-danger-outline`) also appeared as `rgba(r,g,b,alpha)` literals for shadow/highlight
+glows (`highlight.css`, query-block focus rings). Added `--app-accent-primary-rgb: 59, 130, 246`-style
+companions (raw comma-separated channels, since `var()` can't extract channels out of a hex
+custom property) so those `rgba()` calls became `rgba(var(--app-accent-primary-rgb), 0.07)` instead
+of a second, disconnected copy of the same color.
+
+**Deliberately left as literals (documented scope boundary, not an oversight):**
+- Pure black/white shadow and overlay alphas (`rgba(0,0,0,0.04)` box-shadows,
+  `rgba(0,0,0,0.92)` lightbox backdrop, `rgba(255,255,255,0.15)` lightbox control hover) — these
+  are an elevation/shadow system, not brand colors; tokenizing two dozen distinct one-off alpha
+  values (each hand-tuned for a specific shadow depth) would add indirection with no reuse value.
+  Revisit only if/when the dark-mode toggle actually ships and shadows need to invert.
+- `query-block.css:22`'s `rgba(239, 246, 255, 0.9)` — a near-white tint close to but not identical
+  to `--app-accent-primary-bg-hover`, single occurrence, not worth a dedicated token.
+
+**Consequences:**
+- `styles.css`'s `:root` block is now the single source of truth for every brand/status color in
+  the app — changing a color means editing one line, not grep-and-replace across up to 15 files.
+- improvement-039 (dark mode) is now unblocked at the infrastructure level: a dark palette is a
+  second `:root` (or `[data-theme="dark"]`) block redefining the same custom-property names — no
+  further CSS file touches required for the color layer itself.
+- Verified via full `deploy.sh` + `bash scripts/playwright.sh e2e --full --ux` — a pure CSS-value
+  substitution carries no logic-level regression risk, but the file count (21) and occurrence
+  count (~180) made a full visual smoke pass worth doing rather than assuming.
+- improvement-037's two remaining items (not part of the tokenization itself, done as a follow-up
+  in the same pass) — `UiIconButton.configure()` now sets `aria-label` alongside `title` (an
+  icon-only button's `title` attribute alone isn't a reliably announced accessible name across
+  screen readers), which fixes every icon-only button app-wide in one shared-component edit
+  (lightbox prev/next/close, pagination nav, attachment-thumbnail delete, `UserPickerField`
+  clear/open) rather than per-call-site; the category chip list
+  (`AdvertisementViewOverlayModeHandler`) got `role="list"`/`role="listitem"` +
+  `aria-label` for correct screen-reader grouping (no "city chips" exist in the codebase yet — that
+  feature is still on the private roadmap, nothing to fix there); a `.primary-button/.tertiary-button
+  /.icon-button:focus-visible` rule was added to `styles.css`, matching the pre-existing
+  `.advertisement-card:focus-visible` treatment, since no explicit focus style existed for the
+  `Ui*Button` family before. Full e2e suite re-verified 48/48 after these additions.
+- → [improvement-037-accessibility-contrast-and-aria](../backlog/completed/issues/improvement-037-accessibility-contrast-and-aria.md)
+  (done), [improvement-039-dark-mode-lumo-tokens](../backlog/issues/improvement-039-dark-mode-lumo-tokens.md)
+  (still open — only its own prerequisite shipped here).
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)
