@@ -49,13 +49,20 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- improvement-031: pins the version dependencyConvergence flagged as split across
-                 liquibase-core's two paths (direct 1.15.0 vs. opencsv's transitive 1.13.1); pinned
-                 to the newer version, matching liquibase-core's own direct requirement. -->
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-text</artifactId>
                 <version>1.15.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.liquibase</groupId>
+                <artifactId>liquibase-core</artifactId>
+                <version>5.0.3</version>
+            </dependency>
+            <dependency>
+                <groupId>commons-io</groupId>
+                <artifactId>commons-io</artifactId>
+                <version>2.22.0</version>
             </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
@@ -132,10 +139,6 @@
             </plugins>
         </pluginManagement>
         <plugins>
-            <!-- improvement-031: dependency hygiene enforced at build time, not just review.
-                 The starter-to-starter ban is NOT here (it would also apply to marketplace-app
-                 and integration-tests, which legitimately depend on starters); each starter's own
-                 pom.xml activates that rule individually instead, see their build/plugins block. -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>

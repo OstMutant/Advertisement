@@ -58,7 +58,7 @@ fi
 
 # ── Compile all modules ───────────────────────────────────────────────────────
 echo "Compiling modules..."
-mvn -f /app/pom.xml compile -q -DskipTests 2>&1
+/app/mvnw -f /app/pom.xml compile -q -DskipTests 2>&1
 
 # ── Copy source and compiled files to container ───────────────────────────────
 echo "Copying source files..."

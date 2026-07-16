@@ -77,8 +77,6 @@
 
     <build>
         <plugins>
-            <!-- improvement-031: build-time enforcement of .claude/rules.md "Module Import Rules"
-                 (no direct starter-to-starter dependencies) -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>

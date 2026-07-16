@@ -4,11 +4,18 @@
 item 4 (verified 2026-07-04, re-verified during migration on 2026-07-13 — still no `.github/`
 directory in the repo).
 **Module:** repo-wide (CI config, no application code)
-**Priority:** medium — the "tests after fixes" project rule is currently enforced by discipline
-alone; nothing stops a broken build or a skipped e2e run from landing on `main`
-**When:** independent — becomes materially more valuable once improvement-027 (unit/Testcontainers
-layer) and improvement-030 (ArchUnit) exist, since a CI pipeline with nothing fast to run gains
-little; can still add the skeleton (build + full e2e) now
+**Priority:** low — [improvement-059](../completed/issues/improvement-059-local-isolated-parameterized-ci-runner.md)
+(the local, isolated, parameterized runner this issue was deferred behind) is now done, so the
+pipeline logic itself is proven; what's left is genuinely GitHub-specific and unrelated to that:
+repo is public so execution is free, but still needs `gh` CLI set up + explicit push authorization,
+and a from-scratch GitHub-hosted-runner environment vs. this project's current sandbox-tuned
+scripts.
+**When:** unblocked (improvement-059 done 2026-07-16) — the same compile/unit/integration/e2e
+pipeline already exists as `scripts/ci.sh`; migrating it to GitHub Actions steps is now the
+remaining, much smaller step (see that issue's "Related" for how the two map onto each other:
+local `ci-*` env-var overrides ↔ GitHub `services:`, `ci-m2-cache` named volume ↔ `actions/cache`).
+Still also benefits from improvement-030 (ArchUnit, not yet done) existing first, per the original
+sequencing note below.
 
 ## Problem
 
@@ -40,6 +47,11 @@ GitHub Actions (or equivalent), staged by cost:
 ## Related
 
 - `backlog/process-improvements.md` Part 1, item 4 — source item, now superseded by this issue.
+- [improvement-059](../completed/issues/improvement-059-local-isolated-parameterized-ci-runner.md)
+  — the local runner this issue builds on, done 2026-07-16; the same pipeline logic, proven locally
+  first, now to be adapted here by swapping the outer orchestration layer (`ci-*` env-var overrides
+  → GitHub `services:`, `ci-m2-cache` named volume → `actions/cache`) without rewriting the actual
+  build/test steps.
 - `backlog/completed/issues/improvement-027-unit-testcontainers-test-layer.md` — the test layer this
   pipeline should actually exercise.
 - `backlog/issues/improvement-030-archunit-test-module.md` — architecture rules that become

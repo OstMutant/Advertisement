@@ -6,9 +6,14 @@ bash scripts/deploy.sh        # Linux / WSL
 scripts\deploy.bat            # Windows
 ```
 Builds a Docker image from scratch (`mvn package` inside Docker — Vaadin's production bundle is built automatically by `vaadin-maven-plugin`, no Maven profile needed; `SPRING_PROFILES_ACTIVE=prod` at runtime sets `vaadin.productionMode=true`), starts all infra + app on **port 8081** (8080 reserved for local IntelliJ dev server).
-After build, Docker garbage is pruned automatically (`image prune`, `container prune`, `volume prune`).
+After build, dangling (untagged) Docker images are pruned automatically (`docker image prune -f`
+only — scoped by definition to unreferenced images, so it can never touch another stack's
+resources). `docker container prune -f`/`docker volume prune -f` are opt-in only, via
+`--prune-all` — both act host-wide, not scoped to this app's own containers/volumes, so they will
+remove any other stopped container / unused volume on the machine too (see `scripts/ci/DECISIONS.md` ADR-001
+for the incident that made this explicit instead of automatic).
 
-Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache.
+Use `--reset` to wipe DB/MinIO volumes. Use `--restart-infra` to restart containers only. Use `--reset-db` to truncate app tables (`reset-clean.sql`) before starting the app, without touching volumes. Use `--no-cache` to force a rebuild ignoring the Docker layer cache. Use `--prune-all` for a deliberate, whole-machine deep clean (see warning above).
 
 **Streaming output requirement — BuildKit + buildx:**
 Docker Engine must have BuildKit enabled AND the `buildx` CLI plugin must be installed at
@@ -235,3 +240,59 @@ Ryuk cleanup both just work outside this sandbox.
    bash scripts/playwright.sh [scenario] 2>&1 | tee /tmp/playwright.log
    ```
    with `timeout: 600000`
+
+---
+
+## Local CI Runner (isolated, parameterized) — improvement-059
+
+Lives in `scripts/ci/` (own `DECISIONS.md`/`README.md`, matching `scripts/sonar/`'s nested-module
+shape, not `playwright/`'s root-level one — this is a tool wrapping other scripts, not a separate
+test-authoring ecosystem). One CI-runner container (`scripts/ci/Dockerfile`), built fresh from the
+current source tree and run with the host's `/var/run/docker.sock` mounted
+(Docker-outside-of-Docker) — it creates and tears down its own isolated `ci-*`-named sibling
+containers, never touching the persistent dev stack. See `scripts/ci/DECISIONS.md` ADR-001 for the
+full design (why DooD, not DinD) and `scripts/ci/entrypoint.sh` for the in-container orchestration.
+
+```bash
+bash scripts/ci.sh                                        # default: most extensive run
+                                                            # (unit+integration+e2e+sonar, e2e uses
+                                                            # "e2e --full --ux"), backgrounded
+bash scripts/ci.sh --unit --integration --e2e              # chosen stages only
+bash scripts/ci.sh --all --sonar                            # everything, explicit
+bash scripts/ci.sh --playwright-args "e2e --ux"              # override the e2e stage's Playwright args
+bash scripts/ci.sh --report-dir /some/path                    # configurable report destination
+bash scripts/ci.sh --keep-reports 5                             # keep last N report dirs (default 3)
+bash scripts/ci.sh --keep-infra                                  # don't tear down the isolated
+                                                                   # e2e stack after (debugging)
+bash scripts/ci.sh --integration --sandbox                        # this claude-dev sandbox's
+                                                                    # Testcontainers workaround
+bash scripts/ci.sh --foreground                                    # block and stream instead of
+                                                                     # the background default (see
+                                                                     # "How to run it" below)
+```
+
+**Background by default, with a live progress file.** A bare `bash scripts/ci.sh` builds the image
+in the foreground (fast, fails loudly), then detaches and returns control within seconds, printing
+the background PID and two paths: `scripts/ci/reports/<timestamp>/progress.txt` (a small,
+continuously-rewritten status file — per-stage `PENDING`/`RUNNING`/`DONE`/`FAILED` with elapsed
+seconds, updated via periodic `docker cp` while the container runs, since bind mounts don't work in
+this sandbox — same constraint as `playwright/CLAUDE.md`) and `run.log` (the full raw output).
+Check in on a running background job anytime with `cat <path>/progress.txt` — no need to attach to
+anything. Reports land in `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,
+sonar}/` (gitignored, pruned to the last 3 runs by default — see `--keep-reports`). Maven
+dependencies are cached across runs via the `ci-m2-cache` named volume. No stage logic is
+reimplemented — `entrypoint.sh` calls the existing `unit-tests.sh`/`integration-tests.sh`/
+`deploy.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy.sh` and `playwright/run.sh` now
+accepting env-var overrides (container/network names, ports, volume names — default to the exact
+values already in use, so normal dev usage is unaffected) for the isolated e2e stack.
+
+**How to run it (when *you*, not the user, need to verify a change to this tool itself):** unlike
+every other script in this file, do NOT use the Monitor + `| tee` pattern here for a normal
+end-to-end run — `scripts/ci.sh`'s own background mode plus `progress.txt` already gives you a
+non-blocking way to watch it, and re-wrapping that in a blocking foreground call defeats the whole
+point of this tool. Launch it plain (`bash scripts/ci.sh [flags]`, no `--foreground`, no
+backgrounding wrapper needed since it returns on its own in seconds), then either poll
+`progress.txt` yourself between other work, or set up a `Monitor` that periodically reads
+`progress.txt` (not raw stdout) and reports on `RESULT:`. Reserve `--foreground` + Monitor+`tee` for
+the rare case where you need a single blocking call with a definite end (e.g. scripted verification
+inside a larger multi-step check).

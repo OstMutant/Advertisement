@@ -110,3 +110,13 @@ already captures most of the available time savings without new infrastructure. 
 scripts (`unit-tests.sh`, `integration-tests.sh`, `playwright.sh`) remain the default, single-suite
 entry points for day-to-day iteration — `run-all-tests.sh` is an additional, opt-in grouping, not a
 replacement.
+
+---
+
+## ADR-005 through ADR-008: moved to scripts/ci/DECISIONS.md
+
+The local CI runner's ADRs (one CI-runner container via Docker-outside-of-Docker, background
+execution with a live progress file, most-extensive-by-default stage selection, report retention)
+now live in `scripts/ci/DECISIONS.md` (its own ADR-001 through ADR-004) — `scripts/ci/` grew its
+own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant it, matching
+`scripts/sonar/`'s precedent of a nested tool directory with its own ADR file.

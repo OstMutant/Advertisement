@@ -292,3 +292,28 @@ had vestigial `<optional>true</optional>` Maven dependencies on `audit-`/
 caught a genuine `commons-text` version conflict via `liquibase-core`'s two dependency paths
 (1.15.0 direct vs. 1.13.1 via opencsv — pinned to 1.15.0). Verified via full `deploy.sh --no-cache`
 + `bash scripts/playwright.sh e2e --full --ux`, 48/48. See `marketplace-app/DECISIONS.md` ADR-039.
+
+✅ Done (2026-07-16): [improvement-059](issues/improvement-059-local-isolated-parameterized-ci-runner.md)
+— local, isolated, parameterized CI runner: one `scripts/ci/Dockerfile` container
+(Docker-outside-of-Docker — host's `docker.sock` mounted, `--network host`), run via
+`scripts/ci.sh --unit/--integration/--e2e/--sonar/--all`. Isolated e2e stack reuses the
+existing `deploy.sh`/`playwright/run.sh` unchanged, now made parameterizable via env-var overrides
+(`ci-*` container/network/volume names, ports 15432/19000/19001/18081) rather than a new compose
+file — no e2e logic duplicated. `ci-m2-cache` named volume caches Maven deps across runs; reports
+collected into `ci-reports/<timestamp>/` via `docker cp`. DinD was considered and rejected in favor
+of DooD (matches how GitHub Actions' own `services:` model works, keeping the migration path to
+improvement-028 clean) — see `scripts/DECISIONS.md` ADR-005. Verified each stage standalone:
+`--unit` 22/22, `--integration --sandbox` 83/83 (including the highest-risk DooD-inside-DooD
+Testcontainers path), `--e2e` 35/48 matching the non-containerized baseline exactly. Surfaced and
+fixed three real, pre-existing bugs along the way: an Enforcer `dependencyConvergence` conflict in
+`integration-tests` (nothing had run `mvn -pl integration-tests test` since improvement-031 —
+fixed by bumping `liquibase-core` to 5.0.3 and pinning `commons-io` to 2.22.0 to match, after
+confirming `testcontainers` is already on its latest release so the pin can't be avoided by
+upgrading either side alone); `playwright/run.sh` never forwarding `APP_URL` into the `pw-runner`
+container's actual environment (invisible in normal dev use since its default already matched
+`playwright.config.js`'s own fallback); and `deploy.sh`'s unconditional `docker container prune -f`
+/`docker volume prune -f` acting host-wide — confirmed directly to delete the dev
+`marketplace-app`/`pw-runner`/`sonarqube` containers outright when they happened to be stopped
+during a `scripts/ci.sh` run (data survived in untouched named volumes, containers didn't) — fixed by
+moving both behind a new, opt-in `deploy.sh --prune-all` flag rather than dropping the capability.
+improvement-028 (GitHub Actions) is now unblocked. See `scripts/DECISIONS.md` ADR-005.

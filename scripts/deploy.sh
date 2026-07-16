@@ -8,24 +8,49 @@
 #   bash scripts/deploy.sh --reset              — wipe DB/MinIO volumes, then rebuild
 #   bash scripts/deploy.sh --restart-infra      — restart infra containers only (no rebuild)
 #   bash scripts/deploy.sh --reset-db           — truncate app tables (reset-clean.sql) before starting the app
+#   bash scripts/deploy.sh --prune-all          — ALSO run `docker container prune -f` and
+#                                                  `docker volume prune -f` after the build. These
+#                                                  act HOST-WIDE, not scoped to this app -- they
+#                                                  will remove any other stopped container / unused
+#                                                  volume on the machine, dev or otherwise. Opt-in
+#                                                  only, never run automatically -- see
+#                                                  scripts/ci/DECISIONS.md ADR-001 for the incident that made
+#                                                  this explicit instead of unconditional.
 #
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
+#
+# All container/network/volume names and host ports are overridable via env vars (default shown
+# above each), e.g. for a second, isolated stack run alongside the normal dev one:
+#   NETWORK=ci-advertisement DB_CONTAINER=ci-advertisement-db MINIO_CONTAINER=ci-advertisement-minio \
+#   APP_CONTAINER=ci-marketplace-app APP_IMAGE=marketplace-app-ci \
+#   DB_PORT=15432 MINIO_PORT=19000 MINIO_CONSOLE_PORT=19001 APP_PORT=18081 \
+#   DB_VOLUME=ci_advertisement_postgres_data MINIO_VOLUME=ci_advertisement_minio_data \
+#   bash scripts/deploy.sh
+# Used by scripts/ci/entrypoint.sh (improvement-059) for an isolated e2e run.
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOG=/tmp/deploy.log
 
-NETWORK="advertisement"
-DB_CONTAINER="advertisement-db"
-MINIO_CONTAINER="advertisement-minio"
-APP_CONTAINER="marketplace-app"
+NETWORK="${NETWORK:-advertisement}"
+DB_CONTAINER="${DB_CONTAINER:-advertisement-db}"
+MINIO_CONTAINER="${MINIO_CONTAINER:-advertisement-minio}"
+APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
+APP_IMAGE="${APP_IMAGE:-marketplace-app}"
+DB_PORT="${DB_PORT:-5432}"
+MINIO_PORT="${MINIO_PORT:-9000}"
+MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9001}"
+APP_PORT="${APP_PORT:-8081}"
+DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
+MINIO_VOLUME="${MINIO_VOLUME:-advertisement_minio_data}"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 MODE="default"
 FILE_MODE=false
 NO_CACHE=false
 RESET_DB=false
+PRUNE_ALL=false
 for arg in "$@"; do
   case "$arg" in
     --reset)         MODE="reset" ;;
@@ -33,6 +58,7 @@ for arg in "$@"; do
     --file)          FILE_MODE=true ;;
     --no-cache)      NO_CACHE=true ;;
     --reset-db)      RESET_DB=true ;;
+    --prune-all)     PRUNE_ALL=true ;;
   esac
 done
 
@@ -85,7 +111,7 @@ wait_for_db() {
 # ── Helper: wait for MinIO ────────────────────────────────────────────────────
 wait_for_minio() {
   echo "Waiting for MinIO..."
-  until curl -s --max-time 3 http://localhost:9000/minio/health/live >/dev/null 2>&1; do
+  until curl -s --max-time 3 "http://localhost:$MINIO_PORT/minio/health/live" >/dev/null 2>&1; do
     sleep 1
   done
   echo "MinIO ready."
@@ -110,7 +136,7 @@ echo "=== Step 1: Infrastructure ==="
 if [ "$MODE" = "reset" ]; then
   echo "Resetting all containers and volumes..."
   docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
-  docker volume rm advertisement_postgres_data advertisement_minio_data 2>/dev/null || true
+  docker volume rm "$DB_VOLUME" "$MINIO_VOLUME" 2>/dev/null || true
 fi
 
 if [ "$MODE" = "restart-infra" ]; then
@@ -126,19 +152,19 @@ pull_if_missing "minio/mc:latest"
 
 ensure_running "$DB_CONTAINER" \
   docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
-    -p 5432:5432 \
+    -p "$DB_PORT":5432 \
     -e POSTGRES_DB=experiments \
     -e POSTGRES_USER=experiments_user \
     -e POSTGRES_PASSWORD=experiments_user_password \
-    -v advertisement_postgres_data:/var/lib/postgresql/data \
+    -v "$DB_VOLUME":/var/lib/postgresql/data \
     postgres:15-alpine
 
 ensure_running "$MINIO_CONTAINER" \
   docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
-    -p 9000:9000 -p 9001:9001 \
+    -p "$MINIO_PORT":9000 -p "$MINIO_CONSOLE_PORT":9001 \
     -e MINIO_ROOT_USER=admin \
     -e MINIO_ROOT_PASSWORD=admin12345 \
-    -v advertisement_minio_data:/data \
+    -v "$MINIO_VOLUME":/data \
     minio/minio:latest server /data --console-address ":9001"
 
 wait_for_db
@@ -163,31 +189,40 @@ BUILD_FLAGS=""
 $NO_CACHE && BUILD_FLAGS="--no-cache"
 
 if $FILE_MODE; then
-  docker build --progress=plain $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT" 2>&1 \
+  docker build --progress=plain $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT" 2>&1 \
     | tee "$LOG" \
     | grep --line-buffered -E "^Step [0-9]+|^#[0-9]+ |Building .+\[[0-9]+/[0-9]+\]|BUILD (SUCCESS|FAILURE)|=== |ERROR|Successfully built"
 else
-  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t marketplace-app "$ROOT"
+  docker build $BUILD_FLAGS -f "$ROOT/Dockerfile" -t "$APP_IMAGE" "$ROOT"
 fi
 
+# Only dangling (untagged) images are pruned automatically -- by definition unreferenced by any
+# tag/container, so this can never touch another stack's active image.
 docker image prune -f
-docker container prune -f
-docker volume prune -f
+
+if $PRUNE_ALL; then
+  echo ""
+  echo "--prune-all: also removing every OTHER stopped container and unused volume on this" \
+       "machine, not just this app's own (confirmed directly to affect an unrelated dev stack" \
+       "if it happened to be stopped at the time -- see scripts/ci/DECISIONS.md ADR-001)."
+  docker container prune -f
+  docker volume prune -f
+fi
 
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
 echo "=== Step 3: Start application ==="
 docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
-  -p 8081:8080 \
+  -p "$APP_PORT":8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME=experiments \
   -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
   -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET=advertisement \
   -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
   -e S3_REGION=us-east-1 \
-  -e S3_PUBLIC_URL=http://localhost:9000/advertisement \
+  -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/advertisement" \
   -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
-  marketplace-app
+  "$APP_IMAGE"
 
 echo "Waiting for application to start..."
 end=$((SECONDS + 180))
@@ -204,4 +239,4 @@ while true; do
 done
 
 echo ""
-echo "=== Application is ready at http://localhost:8081 ==="
+echo "=== Application is ready at http://localhost:$APP_PORT ==="

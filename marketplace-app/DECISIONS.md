@@ -1442,6 +1442,12 @@ Java/Maven version at build time. Filed as improvement-031.
    resolving inconsistently depending on classpath order. Pinned to `1.15.0` (matching
    liquibase-core's own direct requirement) in the root `dependencyManagement`.
 
+**Follow-up (2026-07-16, improvement-059):** the same rule caught a second, equivalent
+`commons-io` conflict once something actually ran `mvn -pl integration-tests test` for the first
+time (`testcontainers`'s transitive `2.20.0` vs. `liquibase-core`'s transitive `2.21.0`) —
+`liquibase-core` bumped to `5.0.3` (from `5.0.2` above) and `commons-io` pinned to `2.22.0` to
+match. Full rationale in `scripts/ci/DECISIONS.md` ADR-001.
+
 **Consequences:**
 - A future starter→starter Maven dependency (optional or not) now fails the build immediately,
   not just a code-review catch.

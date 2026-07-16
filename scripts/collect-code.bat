@@ -19,7 +19,7 @@ goto :main
 :: still mid-execution of that same file is a known-fragile self-read pattern in cmd.exe and can
 :: silently truncate the output - this script's source is always available locally anyway, no
 :: need to have it re-dump itself into all-code.txt.
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ collect-code\.bat" ') do (
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\sonar\\report\\ collect-code\.bat" ') do (
     echo %%A >> "%FILE_LIST%"
 )
 goto :EOF

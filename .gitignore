@@ -44,6 +44,9 @@
 /target/sonar
 /scripts/sonar/report
 /.claude/worktrees
+
+# scripts/ci consolidated report output (improvement-059)
+/scripts/ci/reports/
 /user-spring-boot-starter/target
 /advertisement-spring-boot-starter/target
 
