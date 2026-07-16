@@ -38,7 +38,7 @@ Use this mapping table:
 | `**/*Service.java`, `**/*Repository.java` | `docs/architecture/05-sequence-diagrams.md` |
 | Any `*.java` | `docs/architecture/06-coupling-analysis.md`, `07-risk-report.md`, `08-scorecard.md` |
 | Any `*.java` or `**/pom.xml` | `CLAUDE.md` (per changed module), `DECISIONS.md` (per changed module) |
-| Any `*.java` or `**/pom.xml` | `features/issues/` — create/close/update tracked issues |
+| Any `*.java` or `**/pom.xml` | `backlog/issues/` — create/close/update tracked issues |
 
 Print which targets are affected before proceeding.
 
@@ -61,7 +61,7 @@ For each affected target, read the relevant source files:
 
 **DECISIONS.md** (per module) — ADR audit:
 - Mark realized open goals as done (add date)
-- Replace inline bug/improvement descriptions with `→ [issue-NNN](../features/issues/...)` links
+- Replace inline bug/improvement descriptions with `→ [issue-NNN](../backlog/issues/...)` links
 - Add new ADR entry if a new architectural pattern or constraint was introduced
 - Update Status of superseded entries
 - Remove entries whose patterns no longer exist in code
@@ -71,9 +71,9 @@ For each affected target, read the relevant source files:
 - Fix stale package paths
 - Do NOT rewrite prose
 
-**features/issues/** — lifecycle:
+**backlog/issues/** — lifecycle:
 - Create new issue file if a violation or open goal is detected that is not yet tracked
-- Close issue (move to `features/completed/issues/`) if the code confirms it is resolved
+- Close issue (move to `backlog/completed/issues/`) if the code confirms it is resolved
 - Update issue file if scope or constraints changed
 
 **README.md** — update only the block between `<!-- arch:start -->` and `<!-- arch:end -->`:

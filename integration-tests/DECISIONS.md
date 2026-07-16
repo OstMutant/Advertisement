@@ -87,7 +87,7 @@ isn't found — no silent default.
 - Renaming the Postgres version updates both consumers from one place.
 - `deploy.sh`'s own separate `docker pull`/`docker run` references to `postgres:15-alpine` were
   **not** touched by this decision — tracked separately in
-  [improvement-044](../features/issues/improvement-044-shared-env-config-consolidation.md).
+  [improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md).
 - Neither Docker Compose's `.env` auto-load nor `SharedEnvConfig`'s upward search is AI-specific —
   both work identically for a human running the same commands from a terminal or an IDE.
 

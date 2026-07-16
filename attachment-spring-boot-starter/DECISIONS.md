@@ -47,7 +47,7 @@ column. Domain Spring events replaced by SPI calls. S3 folder layout:
 
 **Consequences:**
 - ✅ `EntityRef(EntityType, Long)` record implemented in `platform-commons/core.model`.
-- → [improvement-003-deferred-performance](../features/issues/improvement-003-deferred-performance.md) (items G, H)
+- → [improvement-003-deferred-performance](../backlog/issues/improvement-003-deferred-performance.md) (items G, H)
 - Rejected: keeping the event-based flow alongside the SPI — the starter speaks SPI and only SPI.
 
 ---
@@ -158,6 +158,6 @@ platform-commons DTOs.
 **Resolution (verified 2026-07-13):** all six violations fixed —
 `org.ost.attachment.services|repository|entities` imports in marketplace-app: zero matches.
 `MediaContentTypeUtil` merged into `AttachmentMediaContentType` (platform-commons). See
-`features/completed/issues/improvement-001-attachment-ui-boundary-violation.md` for the full
+`backlog/completed/issues/improvement-001-attachment-ui-boundary-violation.md` for the full
 resolution record; that issue file's own Status line already says RESOLVED — this ADR's Status
 line was the one place still describing it as open work.

@@ -236,7 +236,7 @@ natural per-target key the way login failures do.
 `X-Forwarded-For` is not verifiable from this dev environment and is worth confirming once
 deployed.
 
-→ [improvement-020](../../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md), [improvement-022](../../features/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
+→ [improvement-020](../../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md), [improvement-022](../../backlog/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
 
 ### 5. URL-Level Access Control
 
@@ -254,7 +254,7 @@ controller (must add its own explicit `requestMatchers(...)` ahead of the catch-
 **Risk:** LOW-MEDIUM — acceptable for a single-route Vaadin SPA with no REST endpoints yet;
 becomes a real gap the moment a REST controller is added without its own explicit matcher.
 
-→ [improvement-020](../../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+→ [improvement-020](../../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
 
 ---
 
@@ -273,7 +273,7 @@ session. User X changing their page size silently resized user Y's live grid.
 by `entry.userId().equals(userId)` — see `marketplace-app/DECISIONS.md` ADR-028. Also added
 `bar.addDetachListener(...)` so cleanup no longer depends solely on `@PreDestroy`.
 
-→ [improvement-018](../../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
+→ [improvement-018](../../backlog/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
 
 ### 2. ✅ RESOLVED — No Optimistic Locking on Concurrent Entity Edits
 
@@ -289,7 +289,7 @@ so `UserRepository.updateProfile()` implements the check manually. UI shows a de
 notification (no auto-reload, to avoid silently discarding in-progress form edits) — see
 `marketplace-app/DECISIONS.md` ADR-029.
 
-→ [improvement-015](../../features/completed/issues/improvement-015-optimistic-locking.md)
+→ [improvement-015](../../backlog/completed/issues/improvement-015-optimistic-locking.md)
 
 ---
 

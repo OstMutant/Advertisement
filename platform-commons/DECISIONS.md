@@ -208,7 +208,7 @@ record a taxonomy assignment event — restoring to that "snapshot" makes no dom
 overrider), leaving every implementation on the default `true`; snapshot-cleanup then removed
 `isRestorable()` (and the analogous `isVisible()`) from `AuditableSnapshot` entirely as dead
 code. If a metadata/event snapshot type ever reappears, reintroduce the flag with it — do not
-add it preemptively. See `features/completed/snapshot-cleanup/SPEC.md`.
+add it preemptively. See `backlog/completed/issues/feature-006-snapshot-cleanup.md`.
 
 ---
 
@@ -393,4 +393,4 @@ starter's repository to throw `OptimisticLockingFailureException`.
 - See `marketplace-app/DECISIONS.md` ADR-029 for the full cross-module design (why `@Version` on
   the entity is not enough by itself, the manual guard needed for `User`, and the UI conflict
   handling).
-- → [improvement-015-optimistic-locking](../features/completed/issues/improvement-015-optimistic-locking.md)
+- → [improvement-015-optimistic-locking](../backlog/completed/issues/improvement-015-optimistic-locking.md)

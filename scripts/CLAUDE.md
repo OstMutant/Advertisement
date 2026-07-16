@@ -48,7 +48,7 @@ Verify: `docker buildx version` / `docker compose version`.
 **`--project-directory` is required whenever `-f` points outside the repo root.**
 `scripts/infra/docker-compose.db.yml`/`docker-compose.app.yml`/`docker-compose.minio.yml` live in
 `scripts/infra/`, not the repo root, but read `${POSTGRES_IMAGE}` (and, per
-[improvement-044](../features/issues/improvement-044-shared-env-config-consolidation.md), more
+[improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md), more
 values to come) from the repo-root `.env`. Compose's default project directory — where it looks
 for `.env` — is the directory containing the first `-f` file, **not** the invoking shell's working
 directory. Always pass `--project-directory .` (run from the repo root) or

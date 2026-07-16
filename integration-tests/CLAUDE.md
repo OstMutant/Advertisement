@@ -136,7 +136,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
   are never the same running container (Testcontainers always starts its own ephemeral instance,
   never reuses the persistent dev one). `deploy.sh`'s own `docker pull`/`docker run` for Postgres
   still hardcode the tag separately — tracked as a follow-up in
-  `features/issues/improvement-044-shared-env-config-consolidation.md`, out of scope here.
+  `backlog/issues/improvement-044-shared-env-config-consolidation.md`, out of scope here.
 - Data isolation across `*RepositoryTest` classes sharing the one physical container: each
   applies its own starter's real Liquibase changelog against the shared container/database:
   Postgres allows multiple independent tables per database, so distinct starters' schemas

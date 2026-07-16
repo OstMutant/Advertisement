@@ -481,6 +481,6 @@ starter that actually owns the consuming bean.
 
 ## Deferred backlog
 
-→ [improvement-002-snapshot-schema-versioning](../features/issues/improvement-002-snapshot-schema-versioning.md)
+→ [improvement-002-snapshot-schema-versioning](../backlog/issues/improvement-002-snapshot-schema-versioning.md)
 
-→ [improvement-003-deferred-performance](../features/issues/improvement-003-deferred-performance.md)
+→ [improvement-003-deferred-performance](../backlog/issues/improvement-003-deferred-performance.md)

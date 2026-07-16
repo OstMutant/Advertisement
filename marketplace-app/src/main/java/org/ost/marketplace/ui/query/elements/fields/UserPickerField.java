@@ -19,6 +19,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.spi.UserPort;
@@ -27,6 +29,8 @@ import org.springframework.data.domain.Sort;
 
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTOR;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_ACTOR;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_CLEAR_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_OPEN_TOOLTIP;
 
 @SpringComponent
 @Scope("prototype")
@@ -38,6 +42,7 @@ public class UserPickerField extends CustomField<UserDto>
 
     private final transient UserPort    userPort;
     private final transient I18nService i18nService;
+    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
 
     private UserDto currentValue;
     private Span    displaySpan;
@@ -51,12 +56,14 @@ public class UserPickerField extends CustomField<UserDto>
         displaySpan = new Span(i18nService.get(TIMELINE_FILTER_ACTOR));
         displaySpan.addClassName(PLACEHOLDER_CSS);
 
-        clearButton = new Button(VaadinIcon.CLOSE_SMALL.create());
+        clearButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(USER_PICKER_CLEAR_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
         clearButton.addClassName("user-picker-clear");
         clearButton.setVisible(false);
         clearButton.addClickListener(e -> clearValue());
 
-        Button openButton = new Button(VaadinIcon.SEARCH.create());
+        Button openButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(USER_PICKER_OPEN_TOOLTIP).icon(VaadinIcon.SEARCH.create()).build());
         openButton.addClassName("user-picker-open");
         openButton.addClickListener(e -> openDialog());
 

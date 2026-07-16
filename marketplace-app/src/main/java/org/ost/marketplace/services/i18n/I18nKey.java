@@ -240,6 +240,10 @@ public enum I18nKey {
     TIMELINE_SORT_CREATED_AT("timeline.sort.createdAt"),
     TIMELINE_SORT_ACTOR("timeline.sort.actor"),
 
+    // === User Picker Field ===
+    USER_PICKER_CLEAR_TOOLTIP("user.picker.clear.tooltip"),
+    USER_PICKER_OPEN_TOOLTIP("user.picker.open.tooltip"),
+
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),
     PAGINATION_PREV("pagination.prev"),

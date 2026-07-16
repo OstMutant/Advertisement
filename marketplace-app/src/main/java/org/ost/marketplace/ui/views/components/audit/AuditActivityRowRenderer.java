@@ -16,6 +16,8 @@ import org.ost.marketplace.services.i18n.InstantFormatter;
 import org.ost.platform.core.model.ActionType;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 import org.springframework.context.annotation.Scope;
 
 import java.time.Instant;
@@ -40,6 +42,7 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
     private final I18nService              i18n;
     private final InstantFormatter         formatter;
     private final AuditTimelineRowRenderer fieldRenderer;
+    private final transient UiComponentFactory<UiTertiaryButton> tertiaryButtonFactory;
 
     @Override
     public AuditActivityRowRenderer init() { return this; }
@@ -76,8 +79,9 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
     }
 
     private Button buildRestoreButton(AuditActivityItemDto<? extends AuditableSnapshot> h, LongConsumer onRestore) {
-        Button btn = new Button(i18n.get(I18nKey.AUDIT_HISTORY_RESTORE));
-        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
+        UiTertiaryButton btn = tertiaryButtonFactory.build(
+                UiTertiaryButton.Parameters.builder().labelKey(I18nKey.AUDIT_HISTORY_RESTORE).build());
+        btn.addThemeVariants(ButtonVariant.LUMO_SMALL);
         btn.addClassName("entity-activity-restore-btn");
         btn.addClickListener(_ -> onRestore.accept(h.snapshotId()));
         return btn;

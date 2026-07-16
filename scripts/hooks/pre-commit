@@ -41,8 +41,8 @@ echo "$STAGED" | grep -qE '\.java$' \
 _stage() { git add "$1" 2>/dev/null || true; }
 
 _stage "$ROOT/docs/architecture/"
-_stage "$ROOT/features/issues/"
-_stage "$ROOT/features/completed/issues/"
+_stage "$ROOT/backlog/issues/"
+_stage "$ROOT/backlog/completed/issues/"
 _stage "$ROOT/README.md"
 _stage "$ROOT/CHANGELOG.md"
 

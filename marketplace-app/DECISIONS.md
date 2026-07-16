@@ -299,9 +299,9 @@ components may reference each other freely. UI ports/hooks (`AuditUiPort`, `Atta
 
 `MediaContentTypeUtil` merged into `AttachmentMediaContentType` enum (platform-commons). All attachment UI components now import only from `platform-commons`. No `org.ost.attachment.*` imports remain in marketplace-app.
 
-→ [improvement-001-attachment-ui-boundary-violation](../features/completed/issues/improvement-001-attachment-ui-boundary-violation.md) (completed)
+→ [improvement-001-attachment-ui-boundary-violation](../backlog/completed/issues/improvement-001-attachment-ui-boundary-violation.md) (completed)
 
-→ [improvement-004-accessevaluator-boundary-violation](../features/completed/issues/improvement-004-accessevaluator-boundary-violation.md) (completed)
+→ [improvement-004-accessevaluator-boundary-violation](../backlog/completed/issues/improvement-004-accessevaluator-boundary-violation.md) (completed)
 
 ### ✅ Resolved — marketplace-app → org.ost.user.* internals (2026-06-15)
 
@@ -489,7 +489,7 @@ Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
 advertisement-snapshot-redesign no snapshot type ever returned `false`, making the visibility
 filter in `AuditActivityPanel` a no-op. Category change information rides in the main
 `AdvertisementSnapshotDto` diff; no row-hiding machinery exists anymore
-(see `features/completed/snapshot-cleanup/SPEC.md`).
+(see `backlog/completed/issues/feature-006-snapshot-cleanup.md`).
 
 ---
 
@@ -552,7 +552,7 @@ enforced only by a client-reachable, regex-based binder validator
 (`html.replaceAll("<[^>]+>", "")` + length check) that tag-spam could bypass — formatting tags
 like `<b></b>` survive the OWASP sanitizer (it preserves allowed tags), so thousands of empty
 ones pass the stripped-text check while still bloating the stored HTML
-(`features/completed/issues/issue-description-length-tag-spam.md`). No server-side length
+(`backlog/completed/issues/issue-description-length-tag-spam.md`). No server-side length
 guard existed at all — a direct port call bypassing the UI could persist an unbounded
 description.
 
@@ -616,7 +616,7 @@ catch-all, as a discipline/process rule rather than a global switch.
   matcher get explicit rules.
 - Any new REST controller added later must add its own security rule *before* the catch-all —
   reviewers should treat a missing explicit rule on a new controller as a blocker.
-- → [improvement-020-security-baseline-before-public-endpoints](../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+- → [improvement-020-security-baseline-before-public-endpoints](../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
 
 ---
 
@@ -654,7 +654,7 @@ limit is exceeded) separately from the generic exception handler, showing a dedi
 - No equivalent e2e test exists for the registration limiter's `DuplicateKeyException` path —
   it is not reachable through the normal UI flow (client-side check intercepts first) and would
   require bypassing that check to force a real race.
-- → [improvement-020-security-baseline-before-public-endpoints](../features/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
+- → [improvement-020-security-baseline-before-public-endpoints](../backlog/completed/issues/improvement-020-security-baseline-before-public-endpoints.md)
 
 ---
 
@@ -690,7 +690,7 @@ codebase's actual threat model. Fixing the IP resolution itself is the real fix.
 **Consequences:**
 - The login limiter (`AuthService`) was not touched — its compound key already scopes lockout
   to one target account even under a fully collapsed `remoteAddr`.
-- → [improvement-022-registration-rate-limit-shared-proxy-ip](../features/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
+- → [improvement-022-registration-rate-limit-shared-proxy-ip](../backlog/completed/issues/improvement-022-registration-rate-limit-shared-proxy-ip.md)
 
 ---
 
@@ -726,7 +726,7 @@ call.
   sizes...` test now opens a second browser context logged in as `userEn` right after `adminEn`
   changes their own page size, and asserts `userEn`'s Advertisements grid still shows the
   default page size (unaffected).
-- → [improvement-018-settings-pagination-cross-session-bleed](../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
+- → [improvement-018-settings-pagination-cross-session-bleed](../backlog/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md)
 
 ---
 
@@ -783,7 +783,7 @@ login or notifications, not just a lock-check regression. Since `passwordHash`/`
 mapped properties on `UserProfileUpdate`, the generated `UPDATE` cannot reference them regardless
 of builder mistakes — the risk is closed at the type level, not by discipline. See
 `user-spring-boot-starter/CLAUDE.md` and
-[improvement-024](../features/completed/issues/improvement-024-user-save-via-crudrepository.md).
+[improvement-024](../backlog/completed/issues/improvement-024-user-save-via-crudrepository.md).
 
 `softDelete` on `Advertisement` and `Taxon` also got the same manual guard (an admin/owner
 deleting a listing while someone else is mid-edit should not silently win); `updateMedia`,
@@ -812,7 +812,7 @@ retry — safer than a clever auto-merge for a first version of this feature.
 - e2e coverage: new test in `04-marketplace-advertisement-flow.spec.js` — two browser contexts
   (`userEn`, `moderatorEn`) open the same advertisement for edit before either saves; the first
   save succeeds, the second (stale) save shows the conflict notification instead of overwriting.
-- → [improvement-015-optimistic-locking](../features/completed/issues/improvement-015-optimistic-locking.md)
+- → [improvement-015-optimistic-locking](../backlog/completed/issues/improvement-015-optimistic-locking.md)
 
 ---
 
@@ -849,7 +849,7 @@ default no-op implementation, so this doesn't require every entity type to regis
   assertions updated from the old raw-field-name-tolerant regex (`/adsPageSize|Оголошень/i`) to
   the actual humanized label (`/Ads per page|Оголошень/i`), which now proves the fix rather than
   merely tolerating the old bug.
-- → [improvement-013-raw-field-names-in-activity-diff](../features/completed/issues/improvement-013-raw-field-names-in-activity-diff.md)
+- → [improvement-013-raw-field-names-in-activity-diff](../backlog/completed/issues/improvement-013-raw-field-names-in-activity-diff.md)
 
 ---
 
@@ -889,7 +889,7 @@ number, just the column matching a limit the application already enforces one la
   are validated against is unchanged.
 - Full e2e suite 48/48 green; counter visually confirmed via Playwright screenshot
   (`adv-useren-create-form-filled`, showing "85 / 2000").
-- → [improvement-006-quill-description-counter-and-db-limit](../features/completed/issues/improvement-006-quill-description-counter-and-db-limit.md)
+- → [improvement-006-quill-description-counter-and-db-limit](../backlog/completed/issues/improvement-006-quill-description-counter-and-db-limit.md)
 
 ---
 
@@ -943,7 +943,7 @@ correlate.
 - Verified end-to-end: `docker logs` shows a distinct `requestId` per login request during the
   e2e run (e.g. `[d96a341c]`, `[121b21da]`, one per HTTP round-trip).
 - Full e2e suite 48/48 green.
-- → [improvement-023-request-correlation-id-via-mdc](../features/completed/issues/improvement-023-request-correlation-id-via-mdc.md)
+- → [improvement-023-request-correlation-id-via-mdc](../backlog/completed/issues/improvement-023-request-correlation-id-via-mdc.md)
 
 ---
 
@@ -1015,7 +1015,7 @@ optional singleton services/ports"):
   correctly by accident, not by design.
 - Full e2e suite verified 48/48 green after the corrected fix (was 8/48 with the
   `@ConditionalOnBean` approach).
-- → [improvement-011-unguarded-port-injection-in-ui-components](../features/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+- → [improvement-011-unguarded-port-injection-in-ui-components](../backlog/completed/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
 
 ---
 
@@ -1081,7 +1081,7 @@ knowing the referenced table) that this ADR does not attempt to resolve.
   button visibility (`getOwnerUserId()`, used in `AdvertisementCardView`,
   `AdvertisementFormOverlayModeHandler`, `AdvertisementViewOverlayModeHandler`) are the concrete
   regression detectors.
-- → [improvement-041-advertisement-user-sql-join-and-column-naming](../features/completed/issues/improvement-041-advertisement-user-sql-join-and-column-naming.md)
+- → [improvement-041-advertisement-user-sql-join-and-column-naming](../backlog/completed/issues/improvement-041-advertisement-user-sql-join-and-column-naming.md)
 
 ---
 
@@ -1096,7 +1096,7 @@ whenever `AttachmentService` fired `AttachmentMediaChangeHook`. An earlier pass 
 dismissed these columns as "fine as-is" because the sync mechanism (a hook) was clean — that
 answered "is the sync mechanism clean?" (yes) instead of "does the coupling exist?" (also yes,
 independently of the mechanism): three columns named with attachment-domain vocabulary, living on
-`advertisement`'s own row, in a different starter's schema. `features/entity-extensions/SPEC.md`
+`advertisement`'s own row, in a different starter's schema. `backlog/entity-extensions/SPEC.md`
 (deleted 2026-07-13) had already named this exact coupling as a motivating problem; its proposed
 fix (genericize into a `media JSONB` column) was rejected — re-encoding the same data on the same
 row removes type safety without removing the coupling itself.
@@ -1139,7 +1139,7 @@ same real decoupling benefit.
   (reads `ad.getMediaUrl()`/`getMediaContentType()`/`getMediaCount()`) is the concrete regression
   detector; behavior is unchanged since `AdvertisementInfoDto` still carries these fields, just
   populated by enrichment instead of a stored column.
-- → [improvement-042-advertisement-media-denormalized-columns](../features/completed/issues/improvement-042-advertisement-media-denormalized-columns.md)
+- → [improvement-042-advertisement-media-denormalized-columns](../backlog/completed/issues/improvement-042-advertisement-media-denormalized-columns.md)
 
 ---
 
@@ -1205,11 +1205,101 @@ size for this app.
   .findByFilter_allowedIdsRestrictsToMatchingRows` /
   `.countByFilter_allowedIdsRestrictsCount` — the existing test class had zero coverage of the
   non-null `allowedIds` path before this (every prior test passed `null`).
-- → [improvement-050-toctou-scalability-locale-audit-tiebreak](../features/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
+- → [improvement-050-toctou-scalability-locale-audit-tiebreak](../backlog/issues/improvement-050-toctou-scalability-locale-audit-tiebreak.md)
   item 2.
+
+---
+
+## ADR-037: Raw `new Button(...)` spots converted to `Ui*Button` wrappers — every consumer is itself a bean injecting its own factory, never a pre-built widget through a constructor
+
+**Status:** Accepted
+
+**Context:** `HeaderBar`, `PaginationBar`, the attachment lightbox/gallery family
+(`CardMediaLightbox`, `AttachmentLightbox`, `CardLightboxViewer`, `AttachmentThumbnail`,
+`AttachmentGallery`), `AuditActivityRowRenderer`'s restore button, and `UserPickerField`'s
+clear/open buttons all hand-built raw `Button`/`ButtonVariant` calls instead of reusing the
+existing `UiPrimaryButton`/`UiTertiaryButton`/`UiIconButton` wrappers — five of these spots applied
+**no theme variant at all** (a real visible UX bug in the header's 4 auth buttons, not just
+duplication). Filed as improvement-026.
+
+**Design question that came up mid-implementation:** how should a plain (non-Spring) helper class
+obtain a `Ui*Button` instance? Two designs were tried and rejected before landing on the final
+one:
+1. Pass a `UiComponentFactory<UiIconButton>` into a plain class's constructor — rejected: a
+   Spring factory has no business being injected into a class the container doesn't manage.
+2. Pass a pre-built `Ui*Button` widget into the constructor (asymmetric: some call sites via
+   constructor, others via a static `open()` factory method) — rejected: inconsistent construction
+   shape across sibling classes, and passing *views* into a constructor is backwards regardless —
+   constructors should receive **beans**, not pre-built widgets.
+
+A full-tree survey (every class anywhere that consumes a `Ui*Button`/`*ActionButton` type) found
+**zero exceptions** to one pattern: the consumer is always itself a real `@SpringComponent
+@Scope("prototype")` bean, and it injects its own `UiComponentFactory<T>` directly.
+
+**Decision:** Apply that same pattern everywhere raw buttons were converted. Where a plain class
+didn't already carry Spring wiring (`AttachmentLightbox`, `CardLightboxViewer`,
+`AttachmentThumbnail` — previously plain classes or partially so), it was promoted to a full
+`@SpringComponent @Scope("prototype")` bean specifically so it could inject
+`UiComponentFactory<UiIconButton>` itself, matching every other consumer in the codebase. Done in
+four phased batches (full e2e run after each, per the project's established discipline for
+wide-blast-radius UI refactors):
+1. **`HeaderBar`** — 4 auth buttons → `UiPrimaryButton`, all CSS classes (`header-*-button`)
+   preserved exactly — these are selected by nearly every Playwright spec's login-check.
+2. **`PaginationBar`** — 4 nav icon buttons → `UiIconButton`.
+3. **Attachment lightboxes/gallery** — `CardMediaLightbox`, `AttachmentLightbox`,
+   `CardLightboxViewer`, `AttachmentThumbnail` all promoted to beans as described above; new
+   `ATTACHMENT_LIGHTBOX_*_TOOLTIP` i18n keys added (these buttons previously had no tooltip at
+   all).
+4. **`AuditActivityRowRenderer`**'s restore button → `UiTertiaryButton` + `.addThemeVariants
+   (LUMO_SMALL)` layered on top (the established "wrapper + one extra variant" technique, same as
+   `ConfirmActionDialog`'s `LUMO_ERROR` layering); `UserPickerField`'s clear/open buttons →
+   `UiIconButton`, with two new tooltip keys (`USER_PICKER_CLEAR_TOOLTIP`/`_OPEN_TOOLTIP`) since
+   neither button had one before.
+
+**Deliberately excluded, each for a documented reason:**
+- `query/elements/action/QueryActionButton.java` — a legitimate sibling wrapper (its own
+  `Configurable` component, SVG icons, `ButtonVariant` passed as an explicit parameter) used only
+  by `QueryActionBlock`. Architecturally inconsistent with the `Ui*Button` family
+  (variant-as-parameter vs. variant-hardcoded-per-class) but that's a design-unification question,
+  not raw-`Button` duplication.
+- `services/NotificationService.java`'s close button — a plain `@Service`, not a Vaadin bean, with
+  a raw Lumo font glyph icon (not `VaadinIcon`); converting would mean a non-UI-scoped service
+  reaching into `UiComponentFactory` machinery and would visibly change the rendered icon, not a
+  pure refactor. Extracted to its own decision issue:
+  [improvement-057](../backlog/issues/improvement-057-notificationservice-close-button-decision.md).
+- `UserPickerField`'s inline search button (a `TextField` suffix component using
+  `LUMO_TERTIARY_INLINE`, a variant `UiIconButton` doesn't support) — forcing it through
+  `UiIconButton`'s hardcoded `LUMO_TERTIARY+LUMO_ICON` baseline risked a visual regression for zero
+  UX benefit. Extracted, along with an unrelated pagination-correctness bug found in the same file
+  while scoping this batch, to
+  [improvement-056](../backlog/issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
+- `AttachmentUploadButton` — wraps Vaadin's `Upload` component, a materially different widget, not
+  a `Button` at all.
+
+**Regression found and fixed along the way:** adding a real tooltip to `UserPickerField`'s clear
+button (previously it had none) broke a shared Playwright helper,
+`e2e/_flows/filter.flow.js`'s `clearFilter()`/`applyFilter()` — both used
+`${blockSelector} vaadin-button[title*="Clear"/"Apply"]`, a selector scoped to the whole query
+block, not just the block's own Apply/Clear buttons. Once the picker's clear button also carried a
+"Clear"-containing title, the selector matched two elements (strict-mode violation) inside
+`TimelineQueryBlock` specifically (the only query block that embeds a `UserPickerField`). Fixed by
+scoping both helpers to `.query-action-block` — the CSS class `QueryActionBlock` already applies to
+itself around its own Apply/Clear buttons — rather than the wider block selector.
+
+**Consequences:**
+- All four batches verified independently with a full `deploy.sh` + `bash scripts/playwright.sh
+  e2e --full --ux` run — 48/48 green each time.
+- `marketplace-app/CLAUDE.md`'s "Configurable prototype beans" pattern now has three more
+  real-world instances of the "promote a plain class to a bean solely to inject a `UiComponentFactory`"
+  shape — if [improvement-025](../backlog/issues/improvement-025-leaf-ui-components-plain-classes.md)
+  (leaf widgets → plain classes) is picked up later, these three new beans
+  (`AttachmentLightbox`/`CardLightboxViewer`/`AttachmentThumbnail`) become new candidates for
+  reverting back to plain classes once `UiIconButton` itself stops being a Spring bean — flagged
+  directly in that issue's own investigation notes, not lost.
+- → [improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers](../backlog/completed/issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md).
 
 ---
 
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
-→ [goal-001-activity-field-visibility-by-role](../features/issues/goal-001-activity-field-visibility-by-role.md)
+→ [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)

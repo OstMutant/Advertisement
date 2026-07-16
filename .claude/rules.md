@@ -70,9 +70,12 @@ Always use project scripts — never raw docker/mvn commands:
 
 ## Issue Lifecycle
 
-When an issue in `features/issues/` is resolved (fix is implemented and committed):
-- Move the file to `features/completed/issues/` — **immediately, in the same operation as the fix**
-- Do not leave resolved issues in `features/issues/`
+When an issue in `backlog/issues/` is resolved (fix is implemented and committed):
+- Move the file to `backlog/completed/issues/` — **immediately, in the same operation as the fix**
+- Do not leave resolved issues in `backlog/issues/`
+- Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
+  `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
+  `backlog/BACKLOG.md`'s "Maintenance rules"
 
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.
