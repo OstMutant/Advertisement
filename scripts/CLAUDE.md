@@ -111,11 +111,12 @@ docker compose -f scripts/sonar/docker-compose.sonar.yml up -d
 
 ### Run analysis
 ```bash
-bash scripts/sonar.sh        # Linux / WSL
-scripts\sonar.bat            # Windows
+bash scripts/sonar.sh              # Linux / WSL -- blocking: exits non-zero if the quality gate fails
+scripts\sonar.bat                  # Windows -- same
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
 ```
 
-The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`.
+The script starts SonarQube automatically if not running, copies source files into a scanner container via `docker cp`, and runs `sonar-scanner-cli`. Results: `http://localhost:9099/dashboard?id=advertisement`. Quality-gate-blocking is the default (`-Dsonar.qualitygate.wait=true`) — see `scripts/sonar/DECISIONS.md` for why this needed more than just adding that flag (a `tee`d exit-code bug meant the flag alone wouldn't have blocked anything).
 
 **IMPORTANT:** Same Docker socket constraint as Playwright — never use `docker run -v`. The script uses `docker cp` internally.
 

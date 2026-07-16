@@ -61,6 +61,8 @@ register_stage() {
   STAGE_STATUS[$name]="PENDING"
 }
 
+HEARTBEAT_PID=""
+
 start_stage() {
   local name="$1"
   STAGE_STATUS[$name]="RUNNING"
@@ -69,10 +71,23 @@ start_stage() {
   write_progress
   echo ""
   echo "=== Stage: $name (started ${STAGE_START_HUMAN[$name]}) ==="
+  # Background heartbeat: re-writes progress.txt every 5s while this stage's blocking command
+  # runs, so "Elapsed"/"so far"/"Last updated" stay live for long stages (e2e is ~10 minutes) --
+  # not just frozen at the values captured when the stage started. Safe as a forked subshell: the
+  # associative arrays it inherited at fork time don't change again until this stage ends (nothing
+  # else touches them mid-stage), and `date +%s` inside write_progress is computed fresh on every
+  # call regardless.
+  ( while true; do sleep 5; write_progress; done ) &
+  HEARTBEAT_PID=$!
 }
 
 end_stage() {
   local name="$1" rc="$2"
+  if [ -n "$HEARTBEAT_PID" ]; then
+    kill "$HEARTBEAT_PID" 2>/dev/null
+    wait "$HEARTBEAT_PID" 2>/dev/null
+    HEARTBEAT_PID=""
+  fi
   STAGE_END_HUMAN[$name]=$(date '+%H:%M:%S')
   STAGE_ELAPSED[$name]=$(( $(date +%s) - STAGE_START_EPOCH[$name] ))
   STAGE_STATUS[$name]=$([ "$rc" -eq 0 ] && echo DONE || echo FAILED)
@@ -112,9 +127,13 @@ teardown_e2e_stack() {
   docker rm -f "$CI_APP_CONTAINER" "$CI_DB_CONTAINER" "$CI_MINIO_CONTAINER" 2>/dev/null || true
   docker network rm "$CI_NETWORK" 2>/dev/null || true
 }
-# Registered unconditionally (harmless no-op via `|| true` if the e2e stage never ran) so any
-# early exit/failure anywhere in this script still guarantees cleanup of the isolated stack.
-trap teardown_e2e_stack EXIT
+cleanup_on_exit() {
+  [ -n "$HEARTBEAT_PID" ] && kill "$HEARTBEAT_PID" 2>/dev/null
+  teardown_e2e_stack
+}
+# Registered unconditionally (harmless no-op via `|| true` if the e2e stage never ran, or if no
+# heartbeat is active) so any early exit/failure anywhere in this script still guarantees cleanup.
+trap cleanup_on_exit EXIT
 
 if [ "$STAGE_UNIT" = "1" ]; then
   start_stage unit

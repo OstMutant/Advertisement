@@ -302,7 +302,7 @@ existing `deploy.sh`/`playwright/run.sh` unchanged, now made parameterizable via
 file — no e2e logic duplicated. `ci-m2-cache` named volume caches Maven deps across runs; reports
 collected into `ci-reports/<timestamp>/` via `docker cp`. DinD was considered and rejected in favor
 of DooD (matches how GitHub Actions' own `services:` model works, keeping the migration path to
-improvement-028 clean) — see `scripts/DECISIONS.md` ADR-005. Verified each stage standalone:
+improvement-028 clean) — see `scripts/ci/DECISIONS.md` ADR-001. Verified each stage standalone:
 `--unit` 22/22, `--integration --sandbox` 83/83 (including the highest-risk DooD-inside-DooD
 Testcontainers path), `--e2e` 35/48 matching the non-containerized baseline exactly. Surfaced and
 fixed three real, pre-existing bugs along the way: an Enforcer `dependencyConvergence` conflict in
@@ -316,4 +316,18 @@ container's actual environment (invisible in normal dev use since its default al
 `marketplace-app`/`pw-runner`/`sonarqube` containers outright when they happened to be stopped
 during a `scripts/ci.sh` run (data survived in untouched named volumes, containers didn't) — fixed by
 moving both behind a new, opt-in `deploy.sh --prune-all` flag rather than dropping the capability.
-improvement-028 (GitHub Actions) is now unblocked. See `scripts/DECISIONS.md` ADR-005.
+improvement-028 (GitHub Actions) is now unblocked. See `scripts/ci/DECISIONS.md` ADR-001.
+
+✅ Done (2026-07-16): [improvement-032](issues/improvement-032-sonarqube-quality-gate-blocking.md)
+— `scripts/sonar/run.sh` now passes `-Dsonar.qualitygate.wait=true` by default (script exits
+non-zero if the gate is `ERROR`), with `--no-gate` restoring the old informational-only behavior.
+`scripts/ci.sh`'s `sonar` stage takes the default. Turning this on surfaced a real bug that would
+have silently defeated it even with the flag added: the scanner was piped through `tee`, so
+`EXIT_CODE=$?` was reading `tee`'s exit status (always 0), never the scanner's — fixed by reading
+`${PIPESTATUS[0]}`, bracketed with `set +e`/`set -e` (not a trailing `|| true`, which would itself
+have clobbered `PIPESTATUS`) so `set -e` doesn't abort before the HTML report gets generated on a
+gate failure. Verified directly both ways: default mode correctly exits `3` on a real gate failure
+(35 pre-existing issues in this codebase) with a clear message and a report; `--no-gate` reports
+`EXECUTION SUCCESS` regardless. As of this fix, `scripts/ci.sh`'s default run reports its `sonar`
+stage as `FAILED` until those 35 issues are addressed or the gate reconfigured — intended, not a
+bug. See `scripts/sonar/DECISIONS.md` (2026-07-16 entry).

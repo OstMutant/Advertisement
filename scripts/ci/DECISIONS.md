@@ -106,20 +106,38 @@ or restart.
 
 **Decision:** `scripts/ci/run.sh` builds the image in the foreground (fast, fails loudly if
 something's wrong with the Dockerfile itself), then detaches: `docker run -d` starts the container,
-a background subshell (`&` + `disown`) polls `docker inspect .State.Running` and copies out just
-`progress.txt` via `docker cp` every 5 seconds — bind mounts don't work from inside this sandbox
-(same constraint `playwright/CLAUDE.md` documents), so periodic `docker cp` of one small file is
-the only way to surface live progress on the host while the container is still running. The script
-itself returns control (prints the background PID, the `progress.txt` path, and the full
-`run.log` path) within seconds, not minutes. `--foreground` opts back into the old blocking,
-streaming behavior — this is what an AI-driven Monitor+tee-style verification invocation should
-use instead, since it needs a definite, single point where the run has finished.
+a background subshell (`&` + `disown`) polls `docker inspect .State.Running` and copies out the
+whole report tree (not just `progress.txt` — see the report-tree note below) via `docker cp` every
+5 seconds — bind mounts don't work from inside this sandbox (same constraint `playwright/CLAUDE.md`
+documents), so periodic `docker cp` is the only way to surface live progress on the host while the
+container is still running. The script itself returns control (prints the background PID, the
+`progress.txt` path, and the full `run.log` path) within seconds, not minutes. `--foreground` opts
+back into the old blocking, streaming behavior — this is what an AI-driven Monitor+tee-style
+verification invocation should use instead, since it needs a definite, single point where the run
+has finished.
 
 `scripts/ci/entrypoint.sh` (inside the container) rewrites the whole `progress.txt` file on every
 stage transition (registered as `PENDING` up front for every requested stage, flipped to
 `RUNNING` when it starts, `DONE`/`FAILED` with elapsed seconds when it ends) — a full rewrite each
 time, not an append, so the file is always a complete, current snapshot rather than a growing log
-that needs to be read from the bottom.
+that needs to be read from the bottom. A background heartbeat (a forked subshell, started in
+`start_stage()`, killed in `end_stage()`) also re-writes it every 5s *during* a running stage —
+without this, `Elapsed`/`Last updated`/the running stage's `so far` counter would stay frozen at
+whatever they were the instant the stage started, for however long that stage takes (confirmed
+directly: e2e alone runs ~10 minutes, and without the heartbeat the file looked stale/dead for that
+whole time even though the host-side copy loop was faithfully re-copying it every 5s — it just had
+nothing new to copy).
+
+**Incremental report collection, not just a final copy.** The host-side polling loop originally
+copied only `progress.txt` out on each cycle, deferring the actual report subdirectories
+(`unit-tests/`, `integration-tests/`, ...) to a single `docker cp` after the container exits — so a
+completed stage's reports weren't visible on the host until the *entire* run finished, even though
+that stage's own results had been ready for many minutes (confirmed directly, then corrected):
+`entrypoint.sh` already writes each stage's report subdirectory into the container's
+`/app/ci-reports/<id>/` the moment that stage ends, so the polling loop now `docker cp`s the whole
+tree every cycle instead of just the one file — negligible extra cost (the report tree is at most a
+few MB of text/XML at any point mid-run), and completed stages' reports now appear on the host
+within one 5s cycle of that stage finishing, not after the whole run.
 
 **Consequences:**
 - The most-extensive default (see ADR-003) makes this default background behavior matter in

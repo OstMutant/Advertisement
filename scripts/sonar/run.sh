@@ -1,10 +1,19 @@
 #!/bin/bash
 set -e
 # Usage:
-#   bash /app/scripts/sonar/run.sh          — run SonarQube analysis
+#   bash /app/scripts/sonar/run.sh          — run analysis, exit non-zero if the quality gate
+#                                              fails (improvement-032; blocking by default)
+#   bash /app/scripts/sonar/run.sh --no-gate — run analysis, always exit 0 regardless of the
+#                                               quality gate result (informational-only, the
+#                                               pre-improvement-032 behavior)
 #
 # SonarQube server starts automatically if not running (localhost:9099).
 # Results: http://localhost:9099/dashboard?id=advertisement
+
+NO_GATE=""
+for arg in "$@"; do
+  [ "$arg" = "--no-gate" ] && NO_GATE=1
+done
 
 LOG=/tmp/sonar.log
 trap '_rc=$?; echo ""; echo "=== FAILED (exit $_rc) ==="; echo "Last output:"; tail -20 "$LOG" 2>/dev/null; echo "Full log: $LOG"; exit $_rc' ERR
@@ -79,12 +88,25 @@ done
 docker cp "$PROPS_FILE" "$SCANNER_CONTAINER:/tmp/sonar-src/sonar-project.properties"
 
 # ── Run analysis ──────────────────────────────────────────────────────────────
+# -Dsonar.qualitygate.wait=true (default; --no-gate to skip) makes the scanner poll the quality
+# gate's computed status after upload and exit non-zero if it's ERROR -- improvement-032. `$?`
+# after a pipe is `tee`'s own exit status (always 0), not sonar-scanner's, so ${PIPESTATUS[0]} is
+# read instead. `set +e`/`set -e` bracket the pipe (not `|| true` on the same line) so `set -e`
+# doesn't abort the script on a gate failure -- report generation below still needs to run, it's
+# exactly the output someone needs to see *why* the gate failed -- while also not clobbering
+# PIPESTATUS the way a trailing `|| true` would (bash treats `true` as its own pipeline, which
+# would overwrite PIPESTATUS with `true`'s own exit code before this script gets to read it).
+GATE_FLAG="-Dsonar.qualitygate.wait=true"
+[ -n "$NO_GATE" ] && GATE_FLAG=""
+
 echo "Running SonarQube analysis..."
+set +e
 docker exec "$SCANNER_CONTAINER" sonar-scanner \
   -Dproject.settings=/tmp/sonar-src/sonar-project.properties \
-  -Dsonar.projectBaseDir=/tmp/sonar-src 2>&1 | tee "$LOG"
-
-EXIT_CODE=$?
+  -Dsonar.projectBaseDir=/tmp/sonar-src \
+  $GATE_FLAG 2>&1 | tee "$LOG"
+EXIT_CODE=${PIPESTATUS[0]}
+set -e
 
 # ── Generate HTML report (runs inside sonar-scanner container) ────────────────
 REPORT_DIR="/app/scripts/sonar/report"
@@ -192,5 +214,10 @@ docker cp "$SCANNER_CONTAINER":/tmp/sonar-report.html "$REPORT_FILE"
 echo ""
 echo "Analysis complete: $SONAR_URL/dashboard?id=advertisement"
 echo "Local report:      $REPORT_FILE"
+
+if [ "$EXIT_CODE" -ne 0 ] && [ -z "$NO_GATE" ]; then
+  echo ""
+  echo "=== QUALITY GATE FAILED (exit $EXIT_CODE) === (--no-gate to make this informational only)"
+fi
 
 exit $EXIT_CODE
