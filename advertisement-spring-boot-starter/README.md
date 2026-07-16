@@ -24,5 +24,12 @@ Auto-configured Advertisement domain for the Advertisement Platform.
 
 - `platform-commons` — `AdvertisementPort` SPI and DTOs
 - `query-lib` — `SqlFilterBuilder`, `OrderByBuilder` for dynamic queries
-- `taxon-spring-boot-starter` — optional, via `ComponentFactory<TaxonPort>` for category assignment
+- `audit-spring-boot-starter` — optional Maven dependency (`<optional>true</optional>`), for audit
+  write integration
+- `attachment-spring-boot-starter` — optional Maven dependency (`<optional>true</optional>`), via
+  `ComponentFactory<AttachmentPort>` for media-summary enrichment
+- `taxon-spring-boot-starter` — **not a Maven dependency at all** (corrected 2026-07-16 — this
+  `pom.xml` has no dependency on it, optional or otherwise). Category assignment goes entirely
+  through `platform-commons`' `TaxonPort` SPI via `ComponentFactory<TaxonPort>` — a real runtime
+  decoupling with no build-time coupling to the taxon starter whatsoever.
 - Spring Boot, Spring JDBC, Liquibase, OWASP HTML Sanitizer, Jsoup

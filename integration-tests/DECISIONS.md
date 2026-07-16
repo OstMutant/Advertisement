@@ -159,7 +159,10 @@ constructed during context startup.
 `MutableAuditorAware`, empty `ComponentFactory<AuditPort>`/`ComponentFactory<AttachmentPort>`
 beans) and a per-test DB-cleanup routine. Written inline the first time, this boilerplate was about
 to be re-typed verbatim in every future `*RepositoryTest` (Batch 3: `AuditLogRepositoryTest`,
-`TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest`).
+`TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest` — **done, 2026-07-16 correction:** all
+three now exist and pass, plus several more added since (`AttachmentServiceTest`,
+`AttachmentServiceTransactionTest`, `AttachmentCleanupServiceTest`, `TaxonServiceTest`,
+`TaxonSnapshotDtoTest`, `UserServiceRestoreTest`)).
 
 **Decision:** Extract to `org.ost.integrationtests.support` (in `src/main`, not `src/test`, so
 `*RepositoryTest` classes can import without a test-jar dependency), by direct analogy with
@@ -185,7 +188,9 @@ current)
 
 **Context:** `run.sh` always ran `./mvnw -pl integration-tests -am test` — `-am` ("also-make")
 rebuilds every module `integration-tests` depends on (`platform-commons`, `advertisement`/`user`/
-`taxon`/`audit-spring-boot-starter` — `audit` added later, see ADR-009) on every single invocation,
+`taxon`/`audit-spring-boot-starter` — `audit` added later, see ADR-009 — and
+`attachment-spring-boot-starter`, added since, corrected here 2026-07-16: `run.sh`'s
+`STARTER_MODULES` now lists 6 modules, not the 5 originally described) on every single invocation,
 even when none of them changed. Measured
 directly in this sandbox: ~100s of pure "nothing to compile" Maven plugin overhead walking through
 those 7 reactor modules, on top of the actual test run — meaning re-running a test after only
@@ -229,7 +234,9 @@ auto-detection exists to close.
   classes, with a real test-isolation cost — a broken bean/changelog in any one starter would then
   fail every repository test together, not just its own domain's), but revisit once Batch 2/3
   (`AuditLogRepositoryTest`, `AttachmentRepositoryTest`, `TaxonAssignmentRepositoryTest`) land and
-  the per-class bootstrap cost starts dominating total suite time more clearly.
+  the per-class bootstrap cost starts dominating total suite time more clearly. **Trigger note
+  (2026-07-16): Batch 2/3 have since landed** (see ADR-006's correction above) — this evaluation
+  was not revisited as part of that work; still an open, undecided question, not a done goal.
 
 ---
 

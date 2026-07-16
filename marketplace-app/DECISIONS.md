@@ -116,16 +116,22 @@ Future non-public REST endpoints use `@PreAuthorize` at method level on the cont
 ---
 
 ## ADR-008: Double-click guard on save buttons via setEnabled
-**Status:** Accepted
+**Status:** Accepted, mechanism superseded by ADR-020 (2026-07-01, corrected 2026-07-16)
 
 **Context:** Rapid double-click submits the form twice, causing duplicate saves.
 
-**Decision:** Save buttons in `AdvertisementFormOverlayModeHandler`, `UserFormOverlayModeHandler`,
-and `SettingsOverlay` are guarded with `setEnabled(false)` at the start of the click listener
-and re-enabled in a `finally` block.
+**Decision:** Save buttons are disabled on click to prevent a double submit.
 
-**Consequences:** The guard lives in `activate()` of the FormModeHandler (not in the Overlay)
-because the save button is a Spring-injected field of the handler.
+**Consequences (updated 2026-07-16 — verified against current code, original text was stale):**
+The guard no longer lives in each handler's `activate()` with a `finally` block re-enable, as
+originally described here. It now lives in shared
+`AbstractFormOverlayModeHandler.wireSaveGuard()` (`saveBtn.setEnabled(false)` on click, no
+`finally` block anywhere in this flow) — re-enabling happens instead via `afterSave(boolean)` →
+`updateButtons()` in each concrete handler (e.g. `AdvertisementFormOverlayModeHandler
+.afterSave()`), called unconditionally from every branch of `AbstractEntityOverlay.handleSave()`.
+This is ADR-020's later, more general lifecycle mechanism — this entry should have been marked
+Superseded when ADR-020 landed and wasn't; corrected here instead of duplicating ADR-020's fuller
+description.
 
 ---
 
@@ -359,10 +365,18 @@ SPI contracts in `platform-commons`:
 - `TaxonAuditHook` (starter → marketplace) — fires when assignments change
 
 Marketplace-app additions:
-- `TaxonAuditHookImpl` → delegates to `TaxonActivityService.recordAssignmentChange()`
 - `TaxonManagementView` + `TaxonOverlay` + `TaxonFormOverlayModeHandler` + `TaxonViewOverlayModeHandler`
 - `ReferenceDataView` — tab container for taxon management (nested sub-tabs)
-- `TaxonActivityService` in `services/audit/taxon/`
+- **Not implemented (corrected 2026-07-16 — verified against current code, original text was
+  aspirational):** `TaxonAuditHookImpl` and `TaxonActivityService` were planned here but were
+  never written — `services/audit/taxon/` exists as an empty package, `TaxonAuditHook`
+  (`platform-commons`) has zero implementing classes anywhere in the repo. `TaxonAssignmentService
+  .assign()/unassign()` still fires `onAssignmentChanged` via `auditHook.ifAvailable(...)`, which
+  is a graceful no-op today since nothing is registered to receive it. **Concrete consequence:**
+  category assignment changes on advertisements are not recorded to the audit log at all —
+  contrary to this ADR's own stated goal ("must be audited") and to
+  `taxon-spring-boot-starter/CLAUDE.md`'s claim that `TaxonAuditHookImpl` records this. Tracked as
+  [improvement-058](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md).
 
 `TaxonType` enum (in `platform-commons`) — closed set: currently `CATEGORY`. Adding a new type
 is a release-level change requiring UI, audit translations, and seed entries.
@@ -467,11 +481,14 @@ match the current entity state, and a "Restore" button on versions that differ. 
 equality must cover all user-visible fields so that the badge only appears when restoring would
 have no effect.
 
-**Decision:** A historical snapshot is considered "current state" when ALL of the following match:
-- `title` — advertisement title
-- `description` — advertisement body (rich HTML)
-- `categoryIds` — sorted list of assigned category ids
-- `media` — attachment filenames at that version (via `AuditActivityEnrichHook.matchesCurrent`)
+**Decision:** A historical snapshot is considered "current state" when its full
+`AdvertisementSnapshotDto` record equals the current one via `Objects.equals` — covering `title`,
+`description`, `categoryIds`, and (since improvement's advertisement-snapshot-redesign,
+corrected here 2026-07-16) `attachmentSnapshotId`, a soft reference to the attachment gallery's
+current snapshot id. Media is no longer compared via a separate hook call — it's folded into the
+same single record-equality check as every other field, because `attachmentSnapshotId` lives
+directly on `AdvertisementSnapshotDto`. `AuditActivityRowRenderer` computes the badge with exactly
+one line: `Objects.equals(h.snapshotData(), cfg.currentSnapshot())`.
 
 If any of these differ, the "Restore" button is shown. If all are identical, the badge is shown.
 
@@ -481,8 +498,9 @@ of category names"; verified directly in `AdvertisementSnapshotDto.java`: the fi
 `List<Long> categoryIds`, compared and diffed via `Objects.equals`/`FieldChange`, never a
 name-based string — the diff display formats ids to a comma-separated string only for the UI
 diff view, the stored/compared value itself is numeric ids). `Objects.equals` on the full record
-covers title + description + categoryIds; `mediaMatchCurrent` via `AuditActivityEnrichHook`
-covers media.
+covers title + description + categoryIds + attachmentSnapshotId in one comparison (see the
+corrected Decision above — `AuditActivityEnrichHook` has no `matchesCurrent`/`mediaMatchCurrent`
+method; that mechanism was removed by advertisement-snapshot-redesign, not just renamed).
 
 Update (2026-07-03, snapshot-cleanup): `CategoryChangeSnapshotDto` and the
 `AuditableSnapshot.isVisible()` mechanism were removed entirely — after

@@ -237,14 +237,19 @@ The starter speaks SPI and only SPI.
 ---
 
 ## ADR-011: Audit decoupled from attachment via AuditActivityEnrichHook
-**Status:** Accepted
+**Status:** Accepted — see `audit-spring-boot-starter/DECISIONS.md` ADR-010 for the same decision
+from the audit starter's side (corrected together, 2026-07-16 — the two entries had drifted to
+describe different, both-inaccurate mechanisms with no cross-reference between them)
 
 **Context:** The audit starter called `AttachmentAuditHook` (an `attachment.spi` interface) directly
 — starter-to-starter coupling. Marketplace is the correct orchestrator.
 
-**Decision:** `AuditActivityEnrichHook` SPI added to `audit.spi`. Audit starter calls it via
-`ObjectProvider`. Marketplace implements `ActivityEnrichHookImpl`, which delegates to
-`ObjectProvider<AttachmentAuditHook>`.
+**Decision (corrected 2026-07-16):** `AuditActivityEnrichHook` SPI added to `audit.spi`.
+`AuditReadService` (audit starter) injects it as `List<AuditActivityEnrichHook>` — a plain
+required field per ADR-012's rule, not `ObjectProvider`. Marketplace implements
+`ActivityEnrichHookImpl`, which delegates directly to `AdvertisementEnrichService` — it has no
+`ObjectProvider<AttachmentAuditHook>` reference at all; that class doesn't call into the
+attachment starter through this hook.
 
 **Consequences:** Audit starter must never import from `attachment.*` packages. Any enrichment
 from outside the audit domain flows through a hook in `audit.spi`.
@@ -266,6 +271,15 @@ Using `ObjectProvider` in a starter implies the hook is optional, which is archi
 **Consequences:**
 - `private final CurrentActorHook currentActorHook;` — correct inside a starter.
 - `private final ObjectProvider<AuditPort> auditPort;` — correct inside marketplace-app.
+- **Documented exception (found 2026-07-16, not previously noted):** `AttachmentService`
+  (attachment-spring-boot-starter) injects `AttachmentMediaChangeHook` as
+  `ObjectProvider<AttachmentMediaChangeHook>`, not a plain required field — its own javadoc calls
+  this intentional ("Optional — attachment-starter injects via `ObjectProvider`"). This is a real,
+  live exception to this ADR's rule, not a violation to silently fix — `AttachmentMediaChangeHook`
+  currently has zero implementations anywhere (the old `MediaChangeHookImpl` was deleted, see
+  ADR-035 in `marketplace-app/DECISIONS.md`), so a required field would fail to autowire. Whether
+  to keep this exception long-term or restore a listener is a decision for whoever revisits that
+  hook, not something to resolve via documentation alone.
 
 ---
 
@@ -295,7 +309,10 @@ subject shape. Rejected: keeping `userId` aliases — would perpetuate user-doma
 **Decision (superseded):** `AuditUiPort`, `AuditActivityRowHook`, and `AuditHistoryRowActionsHook`
 removed from platform-commons (2026-06-15). All Vaadin UI lives in marketplace-app — UI ports/hooks
 are unnecessary indirection with no cross-module consumer. Marketplace UI components use
-`AuditSnapshotBinder` directly via `ComponentFactory<AuditPort>`.
+`OverlayFormBinder` directly via `ComponentFactory<AuditPort>` (corrected 2026-07-16 —
+`AuditSnapshotBinder`, named here originally, does not exist anywhere in the codebase; this exact
+staleness was already caught and fixed once in `audit-spring-boot-starter/DECISIONS.md` ADR-008
+but the correction was never propagated to this entry).
 
 **Consequences:** Do not re-introduce `AuditUiPort` or `AttachmentGalleryPort`.
 

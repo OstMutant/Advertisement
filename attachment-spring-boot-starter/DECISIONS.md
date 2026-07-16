@@ -25,8 +25,11 @@ JdbcClient persistence — no Vaadin UI.
 dependency on attachment. No realistic scenario exists where storage runs without the attachment
 module or vice versa.
 
-**Decision:** `S3StorageService` and `NoOpStorageService` merged into `attachment-spring-boot-starter`.
-`storage-s3-spring-boot-starter` deleted.
+**Decision:** `S3StorageService` merged into `attachment-spring-boot-starter`, implementing the
+`StorageService` interface. `storage-s3-spring-boot-starter` deleted. (Corrected 2026-07-16 —
+originally also claimed a `NoOpStorageService` was merged in; no such class exists anywhere in the
+repo, only `S3StorageService`/`StorageService` — likely a planned-but-never-written no-op fallback,
+not something that actually shipped.)
 
 **Consequences:** Rejected: keeping the separate module — theoretical benefit ("S3 without attachment
 logic") has no concrete use case.
@@ -103,7 +106,10 @@ infrastructure setup.
 
 **Decision:** Three structural changes:
 1. Package rename: `org.ost.attachment.service` → `org.ost.attachment.services` (plural).
-2. i18n enum rename: `AttachmentMessages` → `AttachmentI18n`.
+2. i18n: `AttachmentMessages` removed, not renamed (corrected 2026-07-16 — no `AttachmentI18n`
+   class exists anywhere in the repo). Attachment i18n keys now live in the single consolidated
+   `org.ost.marketplace.services.i18n.I18nKey` enum, per `marketplace-app/CLAUDE.md`'s "single
+   consolidated enum" rule — starters carry no i18n infrastructure of their own.
 3. Port registration via `@Component` — `DefaultAttachmentPort` discovered by ComponentScan,
    not an explicit `@Bean` in `AttachmentAutoConfiguration`.
 
@@ -120,9 +126,9 @@ Do not re-introduce `AttachmentGalleryPort`.
 
 **Decision:** All `IFrame` components for video embedding carry:
 `sandbox="allow-scripts allow-same-origin allow-presentation"` (corrected 2026-07-13 — written as
-including `allow-forms` originally; verified in `AttachmentLightbox.java:65` and
-`CardLightboxViewer.java:31`, neither carries `allow-forms` — the minimum flag set needed turned
-out not to require it).
+including `allow-forms` originally; verified in `AttachmentLightbox.java:83` and
+`CardLightboxViewer.java:44` (line numbers re-verified 2026-07-16, drifted from the original
+citation after later refactors — substance unchanged, neither carries `allow-forms`).
 
 **Consequences:** Minimum flags required for YouTube and generic embed playback.
 
@@ -136,10 +142,11 @@ after initial render — the property diff is not propagated to the DOM.
 
 **Decision:** In `CardLightboxViewer` (corrected 2026-07-13 — written as `CardMediaLightbox`
 originally, which today is a dialog/navigation orchestrator with no `IFrame`/`executeJs` code at
-all; the actual iframe-patching class is `CardLightboxViewer.java`, confirmed lines 62-85: both
-`iframe.getElement().setAttribute("src", embedUrl)` and a matching `ui.getPage().executeJs(...
-f.src=$0 ...)` call), iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in
-addition to `getElement().setAttribute(...)`.
+all; the actual iframe-patching class is `CardLightboxViewer.java`, line numbers re-verified
+2026-07-16 — the paired `setAttribute("src", ...)` / `getPage().executeJs(...)` calls now span
+lines 77-98, drifted from the original "62-85" citation after later refactors, substance
+unchanged), iframe `src` is updated via `UI.getCurrent().getPage().executeJs(...)` in addition to
+`getElement().setAttribute(...)`.
 
 **Consequences:** `setAttribute` is kept in sync so Vaadin's internal state stays consistent.
 Rejected: using only `setSrc()` or `setProperty()` — confirmed non-functional via diagnostic

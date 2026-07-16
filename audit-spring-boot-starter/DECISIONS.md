@@ -170,15 +170,19 @@ in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubt
 ---
 
 ## ADR-010: Audit decoupled from attachment via AuditActivityEnrichHook
-**Status:** Accepted
+**Status:** Accepted — see `platform-commons/DECISIONS.md` ADR-011 for the SPI-side counterpart
+of the same decision (corrected together, 2026-07-16)
 
 **Context:** The audit starter called `AttachmentAuditHook` (an `attachment.spi` interface)
 directly — starter-to-starter coupling. Marketplace is the correct orchestrator.
 
 **Decision:** `AttachmentAuditHook` removed from audit-starter. New `AuditActivityEnrichHook`
-SPI (`audit.spi`) replaces the direct attachment calls with domain-neutral method names
-(`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`.
-Required hook injections now use plain required fields, not `ObjectProvider`.
+SPI (`audit.spi`) replaces the direct attachment calls with domain-neutral methods — current
+signature (corrected 2026-07-16, originally listed `getAdditionalChanges`/`matchesCurrent`, which
+do not exist anywhere in the codebase): `entityType()`, `merge(...)`, `enrichActivity(...)`,
+`getMediaStateForSnapshot(EntityRef, Long)`. Marketplace implements `ActivityEnrichHookImpl`.
+`AuditReadService` injects the hook list as a plain required field
+(`List<AuditActivityEnrichHook>`), not `ObjectProvider`.
 
 **Consequences:** Audit starter must never import from `attachment.*` packages.
 

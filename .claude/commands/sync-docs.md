@@ -3,8 +3,8 @@ Analyze what changed in the codebase and update only the affected architecture d
 Usage:
   /sync-docs               — compare current HEAD against origin/main
   /sync-docs <ref>         — compare current HEAD against <ref> (branch, tag, or SHA)
-  /sync-docs --full-audit  — ignore git diff entirely; verify every existing README.md/DECISIONS.md
-                             claim against current code (see "Full Audit Mode" below)
+  /sync-docs --full-audit  — ignore git diff entirely; verify every existing README.md/DECISIONS.md/
+                             CLAUDE.md claim against current code (see "Full Audit Mode" below)
 
 **Known limitation of the default (diff-based) mode:** it only re-checks documentation for files
 that changed in the given diff. Staleness introduced by a rename/removal in commit A, where no
@@ -94,15 +94,20 @@ Print a summary:
 
 ## Full Audit Mode (`--full-audit`)
 
-Skip Steps 1-2 entirely (no `git diff`, no changed-file mapping) — every `README.md` and
-`DECISIONS.md` in the repo is in scope regardless of recent activity.
+Skip Steps 1-2 entirely (no `git diff`, no changed-file mapping) — every `README.md`,
+`DECISIONS.md`, and `CLAUDE.md` in the repo is in scope regardless of recent activity. `CLAUDE.md`
+was added to full-audit scope after a direct audit (2026-07-16) found the repo-root `/app/CLAUDE.md`
+wrongly claiming `taxon-spring-boot-starter` had no `DECISIONS.md` when it actually did (77 lines,
+4 real ADRs) — the default diff-based mode would never catch this class of drift, since a
+module-listing claim in a *different* file than the one that changed never appears in any single
+commit's diff.
 
 ### Step A1 — Enumerate targets
 
-`find . -maxdepth 2 -iname "DECISIONS.md" -o -maxdepth 2 -iname "README.md"` (excluding
-`target/`/`node_modules/`). Note which modules have no README.md or no DECISIONS.md — that alone
-is not necessarily a problem (e.g. a pure-contracts module may not need a README), but flag it in
-the report rather than silently skipping.
+`find . -maxdepth 2 -iname "DECISIONS.md" -o -maxdepth 2 -iname "README.md" -o -maxdepth 2 -iname
+"CLAUDE.md"` (excluding `target/`/`node_modules/`). Note which modules have no README.md, no
+DECISIONS.md, or no CLAUDE.md — that alone is not necessarily a problem (e.g. a pure-contracts
+module may not need a README), but flag it in the report rather than silently skipping.
 
 ### Step A2 — Verify every claim, not just changed ones
 
@@ -123,14 +128,26 @@ more current source when the two disagree (verify which one is actually right by
 don't assume CLAUDE.md wins by default) — note any case where `CLAUDE.md` itself turns out to be
 the stale one, since it's the one place this skill otherwise treats as ground truth.
 
+For each `CLAUDE.md` (repo-root and per-module), cross-check every concrete factual claim the same
+way — class/package names and paths, "What it owns" file lists, cross-module dependency claims
+(e.g. which starters have/don't have a `DECISIONS.md`, which starters another module optionally
+depends on), config values, naming-convention examples. Pay particular attention to claims *about
+other files or modules* (e.g. the repo-root `CLAUDE.md`'s module-layout summary, or a starter's
+`CLAUDE.md` describing what another module implements) — these are the claims most likely to drift
+silently, since fixing the referenced file/module doesn't naturally prompt anyone to revisit the
+claim describing it from outside.
+
 ### Step A3 — Parallelize for cost
 
-Given the volume (every ADR/README claim needs an independent code cross-check, not a batch
-grep), split the audit across parallel research agents — group by size, not just by module,
+Given the volume (every ADR/README/CLAUDE.md claim needs an independent code cross-check, not a
+batch grep), split the audit across parallel research agents — group by size, not just by module,
 so no single agent gets an oversized file. As a rule of thumb: one agent per ~500-1000 lines of
-combined DECISIONS.md content, one agent for all README.md files together. Each agent reports
-findings only (file, line, claim, verdict, evidence) — it does not edit anything; the calling
-context reviews and applies fixes afterward, the same way a normal code-review pass would.
+combined DECISIONS.md content, one agent for all README.md files together, one agent for all
+CLAUDE.md files together (these tend to be shorter than DECISIONS.md but numerous — one pass
+covering all of them is usually cheaper than folding them into the DECISIONS.md agents). Each
+agent reports findings only (file, line, claim, verdict, evidence) — it does not edit anything;
+the calling context reviews and applies fixes afterward, the same way a normal code-review pass
+would.
 
 ### Step A4 — Apply fixes
 
@@ -148,9 +165,9 @@ plus:
 ### Step A5 — Report
 
 Same shape as Step 5, plus: a per-file table of ADR verdicts (VALID count vs. each flagged entry
-with a one-line reason), and an explicit list of anything found stale in code itself (not just in
-docs) that was deliberately left unfixed per the rule above — so it doesn't silently disappear
-after the audit.
+with a one-line reason), the same per-file verdict shape for every README.md and CLAUDE.md
+checked, and an explicit list of anything found stale in code itself (not just in docs) that was
+deliberately left unfixed per the rule above — so it doesn't silently disappear after the audit.
 
 ---
 
