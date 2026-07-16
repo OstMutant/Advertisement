@@ -44,7 +44,12 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - `TaxonType` enum lives in `platform-commons` (`org.ost.platform.taxon.model`). Adding a new type is a release-level change requiring UI, audit translations, and seed entries.
 - `@EnableJdbcRepositories(basePackages = "org.ost.taxon.repository")` declared in `TaxonAutoConfiguration`.
 - `DefaultTaxonPort` is a coordination layer, not pure delegation — it resolves translations, filters active records, and builds DTOs. Business logic stays in `TaxonService` and `TaxonAssignmentService`.
-- `TaxonAuditHook` is called by this starter when assignments change; `TaxonAuditHookImpl` in marketplace-app records it to the audit log via `TaxonActivityService`.
+- `TaxonAuditHook` is called by this starter when assignments change, but **no implementation
+  currently exists** (corrected 2026-07-16 — this line previously claimed `TaxonAuditHookImpl` in
+  marketplace-app records it via `TaxonActivityService`; neither class exists anywhere in the
+  repo). `TaxonAssignmentService` still fires the hook via `auditHook.ifAvailable(...)`, a valid
+  graceful no-op today. Tracked as
+  [improvement-058](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md).
 - `Taxon.version` (`@Version`) enforces optimistic locking on `save()` and `softDelete()`.
   `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
   entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,

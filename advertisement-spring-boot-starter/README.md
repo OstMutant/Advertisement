@@ -22,14 +22,17 @@ Auto-configured Advertisement domain for the Advertisement Platform.
 
 ## Dependencies
 
-- `platform-commons` — `AdvertisementPort` SPI and DTOs
+- `platform-commons` — `AdvertisementPort` SPI and DTOs, plus the `TaxonPort`/`UserPort`/
+  `AttachmentPort`/`AuditPort` SPI interfaces `AdvertisementService` wires through
+  `ComponentFactory<T>`
 - `query-lib` — `SqlFilterBuilder`, `OrderByBuilder` for dynamic queries
-- `audit-spring-boot-starter` — optional Maven dependency (`<optional>true</optional>`), for audit
-  write integration
-- `attachment-spring-boot-starter` — optional Maven dependency (`<optional>true</optional>`), via
-  `ComponentFactory<AttachmentPort>` for media-summary enrichment
-- `taxon-spring-boot-starter` — **not a Maven dependency at all** (corrected 2026-07-16 — this
-  `pom.xml` has no dependency on it, optional or otherwise). Category assignment goes entirely
-  through `platform-commons`' `TaxonPort` SPI via `ComponentFactory<TaxonPort>` — a real runtime
-  decoupling with no build-time coupling to the taxon starter whatsoever.
+- **No Maven dependency on any sibling starter** (`audit-`/`attachment-`/`taxon-spring-boot-starter`)
+  — confirmed 2026-07-16, this `pom.xml` used to declare `audit-`/`attachment-spring-boot-starter`
+  as `<optional>true</optional>` dependencies, but zero Java source in this module ever imported
+  from either (`org.ost.audit.*`/`org.ost.attachment.*`); removed as vestigial cruft alongside
+  improvement-031 (Maven Enforcer's `bannedDependencies` rule now makes a real starter→starter
+  dependency a build failure, not just a code-review catch). All optional-port wiring (category
+  assignment, author enrichment, media-summary enrichment, audit writes) goes entirely through
+  `platform-commons`' SPI types via `ComponentFactory<T>` — genuine runtime decoupling with zero
+  build-time coupling to any other starter.
 - Spring Boot, Spring JDBC, Liquibase, OWASP HTML Sanitizer, Jsoup

@@ -280,3 +280,15 @@ treatment. Verified twice with full `deploy.sh` + `bash scripts/playwright.sh e2
 (48/48 both times) plus a direct browser check confirming `--app-text-muted` resolves to the
 compliant `#64748b`. improvement-039 (dark mode) is now unblocked at the infrastructure level —
 its own prerequisite shipped here, only the actual dark palette + toggle remain.
+
+✅ Done (2026-07-16): [improvement-031](issues/improvement-031-maven-enforcer-plugin.md) — Maven
+Enforcer added to root `pom.xml` (`dependencyConvergence`, `requireJavaVersion [25,)`,
+`requireMavenVersion [3.9,)`, active for every module via inheritance) plus a `bannedDependencies`
+starter-to-starter ban activated individually in each of the 5 starter poms (not at the root,
+since marketplace-app/integration-tests legitimately depend on starters). Turning the rules on
+immediately found two real, previously-invisible problems: `advertisement-spring-boot-starter`
+had vestigial `<optional>true</optional>` Maven dependencies on `audit-`/
+`attachment-spring-boot-starter` with zero actual Java usage (removed), and `dependencyConvergence`
+caught a genuine `commons-text` version conflict via `liquibase-core`'s two dependency paths
+(1.15.0 direct vs. 1.13.1 via opencsv — pinned to 1.15.0). Verified via full `deploy.sh --no-cache`
++ `bash scripts/playwright.sh e2e --full --ux`, 48/48. See `marketplace-app/DECISIONS.md` ADR-039.

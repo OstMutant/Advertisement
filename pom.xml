@@ -49,6 +49,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <!-- improvement-031: pins the version dependencyConvergence flagged as split across
+                 liquibase-core's two paths (direct 1.15.0 vs. opencsv's transitive 1.13.1); pinned
+                 to the newer version, matching liquibase-core's own direct requirement. -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-text</artifactId>
+                <version>1.15.0</version>
+            </dependency>
             <dependency>
                 <groupId>org.ost</groupId>
                 <artifactId>query-lib</artifactId>
@@ -116,7 +124,41 @@
                         </annotationProcessorPaths>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
             </plugins>
         </pluginManagement>
+        <plugins>
+            <!-- improvement-031: dependency hygiene enforced at build time, not just review.
+                 The starter-to-starter ban is NOT here (it would also apply to marketplace-app
+                 and integration-tests, which legitimately depend on starters); each starter's own
+                 pom.xml activates that rule individually instead, see their build/plugins block. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-build-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <dependencyConvergence/>
+                                <requireJavaVersion>
+                                    <version>[25,)</version>
+                                </requireJavaVersion>
+                                <requireMavenVersion>
+                                    <version>[3.9,)</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 </project>

@@ -1410,6 +1410,47 @@ of a second, disconnected copy of the same color.
 
 ---
 
+## ADR-039: Maven Enforcer — dependency hygiene enforced at build time, starter-to-starter ban activated per-starter not at the root
+
+**Status:** Accepted
+
+**Context:** Several dependency-hygiene rules were convention-only, checked by human review: no
+direct starter→starter Maven dependencies (the module import rule from `.claude/rules.md`), no
+guard against conflicting transitive dependency versions across the reactor, no enforced minimum
+Java/Maven version at build time. Filed as improvement-031.
+
+**Decision:**
+- Root `pom.xml`: `maven-enforcer-plugin` added to an active `<build><plugins>` block (inherited by
+  every module) with `dependencyConvergence`, `requireJavaVersion` (`[25,)`), and
+  `requireMavenVersion` (`[3.9,)`).
+- The starter→starter ban (`bannedDependencies`) is **not** in the root's active plugins — a
+  project-wide ban would also apply to `marketplace-app`/`integration-tests`, which legitimately
+  depend on starters. Instead, each of the 5 starter poms
+  (`audit-`/`attachment-`/`user-`/`advertisement-`/`taxon-spring-boot-starter`) activates the same
+  rule individually in its own `<build><plugins>`, banning the other 4 starter artifacts.
+
+**Found and fixed while turning this on (not just theoretical):**
+1. `advertisement-spring-boot-starter/pom.xml` declared `audit-spring-boot-starter` and
+   `attachment-spring-boot-starter` as `<optional>true</optional>` Maven dependencies with **zero**
+   Java source anywhere in the module importing from either (`org.ost.audit.*`/`org.ost.attachment.*`
+   — confirmed via full-module grep before removing). Vestigial cruft, removed; all real
+   cross-starter wiring already went through `platform-commons`' SPI types via `ComponentFactory<T>`,
+   which needed no Maven dependency at all.
+2. `dependencyConvergence` immediately caught a real, previously invisible conflict:
+   `liquibase-core:5.0.2` depends on `commons-text:1.15.0` directly, and also on
+   `opencsv:5.12.0` → `commons-text:1.13.1` transitively — two versions of the same artifact
+   resolving inconsistently depending on classpath order. Pinned to `1.15.0` (matching
+   liquibase-core's own direct requirement) in the root `dependencyManagement`.
+
+**Consequences:**
+- A future starter→starter Maven dependency (optional or not) now fails the build immediately,
+  not just a code-review catch.
+- Verified via full `deploy.sh --no-cache` (all 5 starters + marketplace-app rebuild from empty
+  cache, exercising every enforcer rule) + `bash scripts/playwright.sh e2e --full --ux`, 48/48.
+- → [improvement-031-maven-enforcer-plugin](../backlog/completed/issues/improvement-031-maven-enforcer-plugin.md).
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)

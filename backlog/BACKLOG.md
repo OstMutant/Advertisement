@@ -23,25 +23,24 @@ until that trigger fires.
 
 | # | Issue | Origin | What | Why this tier |
 |---|---|---|---|---|
-| 1 | [improvement-032](issues/improvement-032-sonarqube-quality-gate-blocking.md) | Migrated | Make SonarQube quality gate blocking (server/script already exist) | 🟢 cheapest — config flip only |
-| 2 | [improvement-031](issues/improvement-031-maven-enforcer-plugin.md) | Migrated | Maven Enforcer — ban starter→starter deps, dependencyConvergence | 🟢 cheapest — low effort |
+| 1 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions: push/PR/nightly) | 🟡 grouped with #2 — build the CI first, `improvement-027` prerequisite already done |
+| 2 | [improvement-032](issues/improvement-032-sonarqube-quality-gate-blocking.md) | Migrated | Make SonarQube quality gate blocking (server/script already exist) | 🟡 grouped with #1 — config flip is cheap on its own, but only becomes real once #1's CI exists to run it on every push, not just manually |
 | 3 | [improvement-057](issues/improvement-057-notificationservice-close-button-decision.md) | Still open | Decide whether `NotificationService`'s close button converts to `UiIconButton` | 🟢 cheapest — trivial decision, no code required either way |
 | 4 | [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | Migrated | SQL-seed spec 05 instead of UI-driven — full e2e 11 min → ~7-8 min | 🟢 cheapest — contained, pure speed |
 | 5 | [improvement-034](issues/improvement-034-feature-workflow-standardization.md) | Migrated | SPEC.md template + `/feature` skill | 🟢 cheapest — low priority, convenience only, but low effort too |
 | 6 | [improvement-030](issues/improvement-030-archunit-test-module.md) | Migrated | ArchUnit module — prose architecture rules become build-breaking tests | 🟡 high ROI — "highest ROI per the original audit; would have caught improvement-011/010" |
-| 7 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions: push/PR/nightly) | 🟡 high ROI — was gated on improvement-027 + 030; 027 is now done, partially unblocked |
-| 8 | [improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md) | Still open | `UserPickerField`'s `CallbackDataProvider` offset→page pagination correctness bug + inline search-button gap | 🟡 high ROI — item 2 is a real correctness bug at scale, not just cosmetic |
-| 9 | [improvement-058](issues/improvement-058-taxon-assignment-audit-trail-missing.md) | Still open | Category/taxon assignment changes on advertisements are never recorded to the audit log — a stated ADR-019 goal never shipped | 🟡 high ROI — real, silent audit-trail gap, found via `/sync-docs --full-audit` |
-| 10 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Still open | Cover `marketplace-app`'s non-UI service layer with unit tests | 🟡 high ROI — follow-up to already-done improvement-045 item 1, pattern already proven |
-| 11 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Still open | Keep `integration-tests` out of a plain `mvn install`/`mvn test`, Docker precheck, `.env` doc note | 🟡 high ROI — CI-safety, corrected version of an external PR review |
-| 12 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | Still open | Consolidate DB/MinIO credentials duplicated across 4-5 files into root `.env` | 🟡 high ROI — pure drift-risk reduction |
-| 13 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Still open | Convert ~17 stateless leaf UI widgets from `@SpringComponent` beans to plain Java classes | 🔵 larger tech-debt — no bug, 4 phased batches, brings code in line with an existing but unfollowed rule |
-| 14 | [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging | 🔵 larger tech-debt |
-| 15 | [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 1 (tokenization) done via improvement-037, step 2 (palette values + toggle) remains | 🔵 larger tech-debt — infra prerequisite already shipped |
-| 16 | [improvement-040](issues/improvement-040-spring-boot-vaadin-minor-bump.md) | Migrated | Spring Boot 4.1.0 + Vaadin 25.2.1 bump | 🔵 larger tech-debt — routine, re-check latest versions before starting |
-| 17 | [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) | Migrated | Docs-drift guard + incremental-compile Claude Code hooks | 🔵 larger tech-debt |
-| 18 | [improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) | Migrated | `/quality-gate` skill + Definition of Done in rules.md | 🔵 larger tech-debt — still practically blocked (needs 030 + 032 landed first, not just 027) |
-| 19 | [improvement-038](issues/improvement-038-pg-trgm-title-index.md) | Migrated | `pg_trgm` GIN index on `advertisement.title` | 🔵 larger tech-debt — trigger-based (do as data volume grows), listed here only for completeness |
+| 7 | [improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md) | Still open | `UserPickerField`'s `CallbackDataProvider` offset→page pagination correctness bug + inline search-button gap | 🟡 high ROI — item 2 is a real correctness bug at scale, not just cosmetic |
+| 8 | [improvement-058](issues/improvement-058-taxon-assignment-audit-trail-missing.md) | Still open | Category/taxon assignment changes on advertisements are never recorded to the audit log — a stated ADR-019 goal never shipped | 🟡 high ROI — real, silent audit-trail gap, found via `/sync-docs --full-audit` |
+| 9 | [improvement-048](issues/improvement-048-service-layer-test-coverage.md) | Still open | Cover `marketplace-app`'s non-UI service layer with unit tests | 🟡 high ROI — follow-up to already-done improvement-045 item 1, pattern already proven |
+| 10 | [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) | Still open | Keep `integration-tests` out of a plain `mvn install`/`mvn test`, Docker precheck, `.env` doc note | 🟡 high ROI — CI-safety, corrected version of an external PR review |
+| 11 | [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) | Still open | Consolidate DB/MinIO credentials duplicated across 4-5 files into root `.env` | 🟡 high ROI — pure drift-risk reduction |
+| 12 | [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Still open | Convert ~17 stateless leaf UI widgets from `@SpringComponent` beans to plain Java classes | 🔵 larger tech-debt — no bug, 4 phased batches, brings code in line with an existing but unfollowed rule |
+| 13 | [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging | 🔵 larger tech-debt |
+| 14 | [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 1 (tokenization) done via improvement-037, step 2 (palette values + toggle) remains | 🔵 larger tech-debt — infra prerequisite already shipped |
+| 15 | [improvement-040](issues/improvement-040-spring-boot-vaadin-minor-bump.md) | Migrated | Spring Boot 4.1.0 + Vaadin 25.2.1 bump | 🔵 larger tech-debt — routine, re-check latest versions before starting |
+| 16 | [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) | Migrated | Docs-drift guard + incremental-compile Claude Code hooks | 🔵 larger tech-debt |
+| 17 | [improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) | Migrated | `/quality-gate` skill + Definition of Done in rules.md | 🔵 larger tech-debt — still practically blocked (needs 030 + 032 landed first, not just 027) |
+| 18 | [improvement-038](issues/improvement-038-pg-trgm-title-index.md) | Migrated | `pg_trgm` GIN index on `advertisement.title` | 🔵 larger tech-debt — trigger-based (do as data volume grows), listed here only for completeness |
 
 ---
 
@@ -82,7 +81,6 @@ preserved across the issues above and this note, not lost) so there is exactly o
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Minimal CI pipeline (GitHub Actions: push/PR/nightly) | most valuable once 027 and 030 exist |
 | [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) | Docs-drift guard + incremental-compile Claude Code hooks | merges two source items that duplicated each other |
 | [improvement-030](issues/improvement-030-archunit-test-module.md) | ArchUnit module — prose architecture rules become build-breaking tests | highest ROI per the original audit; would have caught improvement-011/010 |
-| [improvement-031](issues/improvement-031-maven-enforcer-plugin.md) | Maven Enforcer — ban starter→starter deps, dependencyConvergence | low effort |
 | [improvement-032](issues/improvement-032-sonarqube-quality-gate-blocking.md) | Make SonarQube quality gate blocking (server/script already exist) | config flip only |
 | [improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) | `/quality-gate` skill + Definition of Done in rules.md | blocked on 027 + 030 + 032 |
 | [improvement-034](issues/improvement-034-feature-workflow-standardization.md) | SPEC.md template + `/feature` skill | low priority, convenience only |

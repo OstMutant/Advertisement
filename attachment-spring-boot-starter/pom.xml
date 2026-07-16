@@ -63,4 +63,40 @@
         </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <!-- improvement-031: build-time enforcement of .claude/rules.md "Module Import Rules"
+                 (no direct starter-to-starter dependencies) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>enforce-no-starter-to-starter-deps</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>org.ost:audit-spring-boot-starter</exclude>
+                                        <exclude>org.ost:attachment-spring-boot-starter</exclude>
+                                        <exclude>org.ost:user-spring-boot-starter</exclude>
+                                        <exclude>org.ost:advertisement-spring-boot-starter</exclude>
+                                        <exclude>org.ost:taxon-spring-boot-starter</exclude>
+                                    </excludes>
+                                    <message>Starters must not depend on each other directly (see
+                                        .claude/rules.md "Module Import Rules"). Use
+                                        platform-commons SPI (Port/Hook) contracts instead.
+                                    </message>
+                                </bannedDependencies>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
 </project>
