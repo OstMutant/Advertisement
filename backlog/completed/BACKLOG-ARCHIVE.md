@@ -442,3 +442,22 @@ already-applied changeset's `defaultValue` has no retroactive effect). Documente
 `integration-tests/.../user/UserSettingsRepositoryTest` (3/3, real Postgres) and a full e2e
 Playwright regression run (48/48 — no new Playwright assertions added, per explicit direction that
 dry-test coverage was sufficient for this fix).
+
+✅ Done (2026-07-17): [improvement-048](issues/improvement-048-service-layer-test-coverage.md) —
+`marketplace-app`'s non-UI service layer (`org.ost.marketplace.services.*`, zero `com.vaadin.*`
+imports) had no dedicated test tree, unlike the precedent already set by improvement-045's
+`AccessEvaluatorTest`. Added `services/advertisement/AdvertisementSaveServiceTest` (5 tests: create
+vs update capture, the `attachmentSnapshotId` fallback in both directions, graceful completion with
+optional ports absent), `services/advertisement/AdvertisementEnrichServiceTest` (9 tests:
+`mergeMediaChanges()`/`enrichActivityItems()` media-hook merge and no-op paths, category-name
+resolution with `TaxonPort` present/absent, non-`ADVERTISEMENT` passthrough,
+`getMediaStateForSnapshot()`), and `services/auth/AuthContextServiceTest` (5 tests: authenticated,
+unauthenticated, non-`AuthenticatedPrincipal` principal, exception-swallow paths via direct
+`SecurityContextHolder` set/clear). Re-verified target classes' current shape before writing tests
+since `AdvertisementEnrichService` had changed since the issue was filed (ADR-043's
+`ChangeEntry.replaceIfField()`/`prevSnapshotData` refactor postdates it). `ComponentFactory<T>`
+mocked directly (a plain non-final class); Mockito's default-empty-values behavior already returns
+`Optional.empty()`/no-ops for unstubbed `findIfAvailable()`/`ifAvailable()`, matching the
+"optional starter absent" shape with zero extra stubbing. Verified via
+`bash scripts/unit-tests.sh marketplace-app` — BUILD SUCCESS, all 19 new tests green, plus
+`ArchitectureRulesTest` (8/8) confirming no ArchUnit violations.

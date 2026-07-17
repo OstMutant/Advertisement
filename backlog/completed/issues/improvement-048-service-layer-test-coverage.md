@@ -132,3 +132,42 @@ any of these three classes.
 - `integration-tests/CLAUDE.md` ADR-001 — why `integration-tests` never hosts `marketplace-app`
   tests.
 - `platform-commons/CLAUDE.md` "Governance" — why this layer's classes never move there.
+
+## Resolution (2026-07-17)
+
+Added all three planned classes under `marketplace-app/src/test/java/org/ost/marketplace/services/`,
+mirroring `src/main`'s package layout exactly as `AccessEvaluatorTest` already does. Re-read the
+current source of all three target classes before writing tests, since `AdvertisementEnrichService`
+had changed shape since this issue was filed (ADR-043's `ChangeEntry.replaceIfField()` /
+`prevSnapshotData` refactor postdates this issue's original scoping) — tests target the code as it
+exists today, not the issue's original description.
+
+- `services/advertisement/AdvertisementSaveServiceTest` (5 tests) — create vs update path
+  (`captureCreation` vs `captureUpdate`), the `attachmentSnapshotId` fallback in both directions
+  (gallery touched → uses the fresh snapshot id; not touched → falls back to the previous one),
+  and graceful completion when `taxonPortFactory`/`auditPortFactory` are unstubbed (simulating the
+  optional-starter-absent shape).
+- `services/advertisement/AdvertisementEnrichServiceTest` (9 tests) — `mergeMediaChanges()` (Timeline)
+  and `enrichActivityItems()` (Activity): media changes merge ahead of resolved category changes
+  when the attachment hook is available, no-op gracefully when it's absent, category-name
+  resolution falls back to the raw id string when `TaxonPort` is absent, non-`ADVERTISEMENT`
+  timeline entries pass through untouched, and `enrichActivityItems()` only pulls media changes
+  when the snapshot's `attachmentSnapshotId` actually differs from the previous one (not on every
+  row). Plus `getMediaStateForSnapshot()`'s null-id short-circuit and hook-present/absent paths.
+- `services/auth/AuthContextServiceTest` (5 tests) — authenticated with `AuthenticatedPrincipal` →
+  `UserDto`; no `Authentication` in context → empty; `isAuthenticated() == false` → empty; a
+  non-`AuthenticatedPrincipal` principal type → empty (not an exception); `Authentication` that
+  throws on `isAuthenticated()` → caught, empty, not propagated. `SecurityContextHolder` set/cleared
+  directly per test (no mocking of the holder itself), per the plan's stated approach.
+
+`ComponentFactory<T>` (a plain, non-final class wrapping `ObjectProvider<T>`) is mocked directly in
+both advertisement-service tests rather than mocking the underlying `ObjectProvider` — a small
+`stubAvailable(factory, component)` helper (duplicated locally in each of the two files, ~6 lines,
+not worth a shared test-support class) stubs `findIfAvailable()`/`ifAvailable()` together; when left
+unstubbed, Mockito's default-empty-values behavior already returns `Optional.empty()` for
+`findIfAvailable()` and no-ops `ifAvailable()`, which is exactly the "optional starter absent" shape
+production code sees via `ObjectProvider` — no extra stubbing needed for the absent-port test cases.
+
+Verified via `bash scripts/unit-tests.sh marketplace-app` — BUILD SUCCESS, all 3 new classes green
+(19 new tests total), plus `ArchitectureRulesTest` (8/8) confirming no ArchUnit rule violations from
+the new test code.
