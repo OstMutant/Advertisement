@@ -84,11 +84,11 @@ public class AuditReadService {
         if (row.snapshot() == null) {
             warnNullSnapshot(row);
             return new AuditTimelineItemDto<>(row.id(), ref, row.actionType(), row.createdAt(),
-                    List.of(), row.actorId(), null);
+                    List.of(), row.actorId(), null, row.prevSnapshot());
         }
         return new AuditTimelineItemDto<>(
                 row.id(), ref, row.actionType(), row.createdAt(),
-                row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot());
+                row.snapshot().diff(row.prevSnapshot()), row.actorId(), row.snapshot(), row.prevSnapshot());
     }
 
     private List<AuditLogProjection> withSameTypePrevSnapshot(List<AuditLogProjection> rows) {

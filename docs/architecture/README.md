@@ -80,7 +80,7 @@ Complete architecture documentation for the Marketplace modular monolith (Java 2
 | Total Modules | 9 (query-lib, platform-commons, 5 starters, marketplace-app, integration-tests test-only) |
 | Total Java Files | 264 |
 | Total Tables | 5 (user_information, advertisement, attachment, attachment_snapshot, audit_log) |
-| SPI Interfaces | 11 (AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook, AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook, UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, AdvertisementPort, TaxonPort, TaxonAuditHook, CurrentActorHook) |
+| SPI Interfaces | 13 (AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditActivityEnrichHook, AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook, UserPort, AuthenticatedPrincipal, UserSettingsChangedHook, AdvertisementPort, TaxonPort, CurrentActorHook) |
 | Largest Module | marketplace-app (152 files) |
 | Largest File | I18nKey.java (370 lines) |
 | Dependency Cycles | 0 (clean DAG) |

@@ -28,14 +28,14 @@ public class ActivityEnrichHookImpl implements AuditActivityEnrichHook<Advertise
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> merge(
             @NonNull List<EntityRef> subjects,
             @NonNull List<AuditTimelineItemDto<AdvertisementSnapshotDto>> base) {
-        return advertisementEnrichService.mergeMediaChanges(subjects, base);
+        return advertisementEnrichService.mergeMediaChanges(base);
     }
 
     @Override
     public List<AuditActivityItemDto<AdvertisementSnapshotDto>> enrichActivity(
             @NonNull EntityRef entityRef,
             @NonNull List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
-        return advertisementEnrichService.enrichActivityItems(entityRef, items);
+        return advertisementEnrichService.enrichActivityItems(items);
     }
 
     @Override

@@ -233,10 +233,14 @@ graph TB
 
 **Contract:**
 - `TaxonPort` (`platform-commons`) — marketplace calls starter for CRUD, assignment management, and batched queries
-- `TaxonAuditHook` (`platform-commons`) — starter fires when assignments change; marketplace records to audit log via `TaxonActivityService`
 
 **Cross-Domain Dependencies:**
-- `TaxonAuditHook` calls back to marketplace; `TaxonAuditHookImpl` delegates to `TaxonActivityService` which writes to audit log via `AuditPort`
+- Category assignment changes are not independently recorded to `audit_log` (`TaxonAuditHook` was
+  removed entirely in improvement-058 — zero implementations, and both call sites already sit
+  inside an advertisement save/delete that produces its own audit snapshot). The advertisement's
+  own snapshot (`AdvertisementSnapshotDto.categoryIds`) captures the change instead, with
+  `AdvertisementEnrichService` resolving raw taxon ids to display names via `TaxonPort.findByIds()`
+  at read time.
 - Advertisement domain uses `TaxonPort.findEntityIdsWithAnyTaxon()` to filter by category without a direct SQL JOIN to `taxon_assignment`
 
 ---

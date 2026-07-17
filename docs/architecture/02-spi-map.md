@@ -29,7 +29,6 @@ graph TD
         CurrentActorHook["CurrentActorHook<br/>(core.spi)"]
         
         TaxonPort["TaxonPort<br/>(taxon.spi)"]
-        TaxonAuditHook["TaxonAuditHook<br/>(taxon.spi)"]
     end
     
     subgraph AUD["audit-spring-boot-starter"]
@@ -61,7 +60,6 @@ graph TD
         UserActivityFieldsHookImpl["UserActivityFieldsHookImpl<br/>(spi)"]
         UserSettingsActivityFieldsHookImpl["UserSettingsActivityFieldsHookImpl<br/>(spi)"]
         ActivityEnrichHookImpl["ActivityEnrichHookImpl<br/>(spi)"]
-        TaxonAuditHookImpl["TaxonAuditHookImpl<br/>(spi)"]
         TaxonActivityFieldsHookImpl["TaxonActivityFieldsHookImpl<br/>(spi)"]
         SettingsPaginationService["SettingsPaginationService<br/>(pagination)"]
     end
@@ -86,7 +84,6 @@ graph TD
     CurrentActorHook -->|implemented by| CurrentActorHookImpl
     
     TaxonPort -->|implemented by| DefaultTaxonPort
-    TaxonAuditHook -->|implemented by| TaxonAuditHookImpl
 ```
 
 ## SPI Interface Details
@@ -127,7 +124,6 @@ graph TD
 | Interface | Location | Direction | Implementation | Purpose |
 |-----------|----------|-----------|-----------------|---------|
 | **TaxonPort** | `org.ost.platform.taxon.spi` | marketplace → starter | `org.ost.taxon.services.DefaultTaxonPort` | Manage taxonomies (categories, tags); query; translations |
-| **TaxonAuditHook** | `org.ost.platform.taxon.spi` | starter → marketplace | `org.ost.marketplace.spi.TaxonAuditHookImpl` | Callback: taxon module notifies marketplace of taxon changes for audit |
 
 ### Core / Platform
 
@@ -221,7 +217,6 @@ marketplace-app (viewing activity feed)
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserSettingsActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java`
-- `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonAuditHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 

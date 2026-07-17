@@ -303,25 +303,27 @@ sequenceDiagram
 ## 7. Taxon Category Assignment to Advertisement
 
 **Classes involved:**
-- `org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler` (saves categories on form submit)
+- `org.ost.marketplace.services.advertisement.AdvertisementSaveService` (calls `replaceAssignments` as part of every advertisement save)
 - `org.ost.platform.taxon.spi.TaxonPort` (interface)
 - `org.ost.taxon.services.DefaultTaxonPort` (implementation)
 - `org.ost.taxon.services.TaxonAssignmentService` (business logic)
-- `org.ost.platform.taxon.spi.TaxonAuditHook` (callback to marketplace)
-- `org.ost.marketplace.spi.TaxonAuditHookImpl` (records to audit log)
+
+Category assignment changes are **not** independently recorded to `audit_log` — there is no
+`TaxonAuditHook`/`*AuditHookImpl` chain (removed entirely in improvement-058; the interface had
+zero implementations and its only two call sites already sit inside an advertisement save/delete
+that produces its own audit snapshot). Instead, the advertisement's own audit snapshot
+(`AdvertisementSnapshotDto.categoryIds`) captures the before/after category set as part of the
+same save, and `AdvertisementEnrichService` resolves those raw taxon ids to display names for both
+the Activity tab and the Timeline tab at read time (via `TaxonPort.findByIds()`).
 
 ```mermaid
 sequenceDiagram
-    participant UI as AdvertisementFormOverlayModeHandler
+    participant SaveService as AdvertisementSaveService
     participant TaxonPort as TaxonPort
     participant TaxonImpl as DefaultTaxonPort
     participant AssignService as TaxonAssignmentService
-    participant AuditHook as TaxonAuditHook
-    participant HookImpl as TaxonAuditHookImpl
-    participant TaxonActivity as TaxonActivityService
 
-    UI->>UI: user selects categories in form
-    UI->>TaxonPort: replaceAssignments(ADVERTISEMENT, advId, taxonIds)
+    SaveService->>TaxonPort: replaceAssignments(ADVERTISEMENT, advId, taxonIds)
 
     TaxonPort->>TaxonImpl: (delegation)
     TaxonImpl->>AssignService: replaceAssignments(ADVERTISEMENT, advId, taxonIds, actorId)
@@ -331,23 +333,17 @@ sequenceDiagram
 
     loop For each removed taxon
         AssignService->>AssignService: DELETE FROM taxon_assignment
-        AssignService->>AuditHook: onAssignmentChanged(ADVERTISEMENT, advId, taxonId, UNASSIGNED)
-        AuditHook->>HookImpl: (delegation)
-        HookImpl->>TaxonActivity: recordAssignmentChange(...)
-        TaxonActivity->>TaxonActivity: write audit_log entry
     end
 
     loop For each added taxon
         AssignService->>AssignService: INSERT INTO taxon_assignment
-        AssignService->>AuditHook: onAssignmentChanged(ADVERTISEMENT, advId, taxonId, ASSIGNED)
-        AuditHook->>HookImpl: (delegation)
-        HookImpl->>TaxonActivity: recordAssignmentChange(...)
-        TaxonActivity->>TaxonActivity: write audit_log entry
     end
 
     AssignService-->>TaxonImpl: void
     TaxonImpl-->>TaxonPort: void
-    TaxonPort-->>UI: void
+    TaxonPort-->>SaveService: void
+
+    Note over SaveService: SaveService continues its own audit capture<br/>(captureCreation/captureUpdate) with the new categoryIds<br/>already baked into the AdvertisementSnapshotDto it builds.
 ```
 
 ---

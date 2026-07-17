@@ -32,16 +32,6 @@ public class DefaultTaxonPort implements TaxonPort {
     private final TaxonProperties        properties;
 
     @Override
-    public void assign(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long taxonId) {
-        assignmentService.assign(entityType, entityId, taxonId, null);
-    }
-
-    @Override
-    public void unassign(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long taxonId) {
-        assignmentService.unassign(entityType, entityId, taxonId, null);
-    }
-
-    @Override
     public void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                                    @NonNull Set<Long> taxonIds) {
         assignmentService.replaceAssignments(entityType, entityId, taxonIds, null);
@@ -101,13 +91,6 @@ public class DefaultTaxonPort implements TaxonPort {
             return Map.of();
         }
         return buildDtoIndex(taxonIds.stream().toList(), locale, false);
-    }
-
-    @Override
-    public Optional<TaxonDto> findByCode(@NonNull TaxonType type, @NonNull String code,
-                                          @NonNull Locale locale) {
-        return taxonService.findByCode(type, code)
-                .map(taxon -> toDto(taxon, locale));
     }
 
     @Override

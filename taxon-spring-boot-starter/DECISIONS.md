@@ -64,14 +64,19 @@ tracked via an ADR entry here.
 ---
 
 ## ADR-004: TaxonAuditHook fires per assignment change, not per batch
-**Status:** Accepted (done 2026-06-26)
+**Status:** Superseded 2026-07-17 (improvement-058) — `TaxonAuditHook` removed entirely
 
 **Context:** `TaxonAssignmentService.replaceAssignments()` processes a diff between old and new
 assignment sets. The diff may add N items and remove M items in a single call.
 
-**Decision:** `TaxonAuditHook.onAssignmentChanged()` is called once per individual add/remove
-operation inside the diff loop — not once per batch. This produces one `audit_log` row per taxon
-assignment change, giving fine-grained history.
+**Original decision (no longer in effect):** `TaxonAuditHook.onAssignmentChanged()` was called once
+per individual add/remove operation inside the diff loop — not once per batch. This produced one
+`audit_log` row per taxon assignment change, giving fine-grained history.
 
-**Consequences:** A batch of 5 adds + 3 removes produces 8 audit_log entries. This is intentional
-for full audit traceability. If performance becomes a concern, consider a batch hook variant.
+**Why superseded:** `TaxonAuditHook` never gained an implementation, and both of its call sites
+(both routed through an advertisement save or delete) already sit inside a flow that produces its
+own audit snapshot covering the same net information. The per-change firing granularity this ADR
+designed for was never actually consumed by anything. Removed rather than implemented — see
+`marketplace-app/DECISIONS.md` ADR-019 and ADR-043, `platform-commons/DECISIONS.md` ADR-017's note.
+`TaxonAssignmentService.replaceAssignments()` still computes the same add/remove diff internally
+(needed for the `INSERT`/`DELETE` statements themselves) — only the per-item hook call was removed.

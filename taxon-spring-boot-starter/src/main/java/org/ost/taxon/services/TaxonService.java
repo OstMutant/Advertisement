@@ -118,10 +118,6 @@ public class TaxonService {
         return taxonRepository.findByIds(ids);
     }
 
-    public Optional<Taxon> findByCode(@NonNull TaxonType type, @NonNull String code) {
-        return taxonRepository.findByTypeAndCode(type, code);
-    }
-
     public List<TaxonTranslation> getTranslations(@NonNull Long taxonId) {
         return translationRepository.findAllByTaxonId(taxonId);
     }

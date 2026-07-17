@@ -35,7 +35,7 @@ advertisement.spi  — AdvertisementPort
 
 taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto, CategoryChangeSnapshotDto
 taxon.model    — TaxonType
-taxon.spi      — TaxonPort, TaxonAuditHook
+taxon.spi      — TaxonPort
 ```
 
 **Consequences:** `core.i18n`, `ui`, `attachment.event`, `attachment.storage` packages removed —
@@ -79,8 +79,7 @@ strategy.
 
 Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort`.
 Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`,
-`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`,
-`TaxonAuditHook`.
+`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`.
 
 **Consequences:**
 - New suffixes require a DECISIONS.md entry. Existing suffixes must not be repurposed.
@@ -348,14 +347,14 @@ fitting naturally on the existing `UserPort`.
 ---
 
 ## ADR-017: Taxon SPI contracts added — TaxonPort and TaxonAuditHook
-**Status:** Accepted (done 2026-06-26)
+**Status:** Accepted (done 2026-06-26); `TaxonAuditHook` half **removed** 2026-07-17 (see note below)
 
 **Context:** Introduction of `taxon-spring-boot-starter` required new cross-module contracts. UI and
 services in marketplace-app must reach taxon functionality without importing starter internals.
 
 **Decision:** Two new SPI interfaces added to `platform-commons`:
 - `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
-- `TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change
+- ~~`TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change~~
 
 New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`.
 New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding a value is a release-level change).
@@ -363,6 +362,13 @@ New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding
 **Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
 audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
 updates — used by `AuditPort.captureRestore()` and written to `audit_log.action_type`.
+
+**Note (2026-07-17, improvement-058):** `TaxonAuditHook` was removed entirely — it never gained an
+implementation, and both of its call sites already sit inside an advertisement save/delete that
+produces its own audit snapshot, making a separate assignment-event trail redundant. `TaxonPort`
+itself is unaffected and remains as originally decided (minus `assign()`/`unassign()`/
+`findByCode()`, also removed as zero-caller dead API surface in the same pass). See
+`marketplace-app/DECISIONS.md` ADR-019 and ADR-043 for the full resolution.
 
 ---
 

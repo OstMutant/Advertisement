@@ -362,21 +362,25 @@ prevent reuse across other entity types.
 
 SPI contracts in `platform-commons`:
 - `TaxonPort` (marketplace → starter) — CRUD, assignment management, batched queries
-- `TaxonAuditHook` (starter → marketplace) — fires when assignments change
 
 Marketplace-app additions:
 - `TaxonManagementView` + `TaxonOverlay` + `TaxonFormOverlayModeHandler` + `TaxonViewOverlayModeHandler`
 - `ReferenceDataView` — tab container for taxon management (nested sub-tabs)
-- **Not implemented (corrected 2026-07-16 — verified against current code, original text was
-  aspirational):** `TaxonAuditHookImpl` and `TaxonActivityService` were planned here but were
-  never written — `services/audit/taxon/` exists as an empty package, `TaxonAuditHook`
-  (`platform-commons`) has zero implementing classes anywhere in the repo. `TaxonAssignmentService
-  .assign()/unassign()` still fires `onAssignmentChanged` via `auditHook.ifAvailable(...)`, which
-  is a graceful no-op today since nothing is registered to receive it. **Concrete consequence:**
-  category assignment changes on advertisements are not recorded to the audit log at all —
-  contrary to this ADR's own stated goal ("must be audited") and to
-  `taxon-spring-boot-starter/CLAUDE.md`'s claim that `TaxonAuditHookImpl` records this. Tracked as
-  [improvement-058](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md).
+- **Resolved (2026-07-17, improvement-058):** this ADR originally required a dedicated
+  `TaxonAuditHook` → `TaxonAuditHookImpl` → `TaxonActivityService` chain recording category
+  assignment changes to the audit log independently. That chain was never built (`TaxonAuditHook`
+  had zero implementations; `TaxonActivityService` never existed). Investigation found the
+  underlying need was already met differently: every taxon assignment change in this codebase
+  happens exclusively inside an advertisement save/delete (`AdvertisementSaveService`/
+  `AdvertisementService`, both via `TaxonPort.replaceAssignments()`), which already produces its
+  own audit snapshot capturing the before/after category set
+  (`AdvertisementSnapshotDto.categoryIds`). The actual, narrower bug was that the Timeline tab
+  rendered raw taxon ids instead of resolved names in that diff (the Activity tab already resolved
+  them) — fixed in `AdvertisementEnrichService` (see below). `TaxonAuditHook` was removed entirely
+  rather than implemented, along with the unused `TaxonPort.assign()`/`unassign()`/`findByCode()`
+  methods (zero callers). See
+  [improvement-058](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
+  (not yet closed — pending Playwright verification).
 
 `TaxonType` enum (in `platform-commons`) — closed set: currently `CATEGORY`. Adding a new type
 is a release-level change requiring UI, audit translations, and seed entries.
@@ -388,7 +392,6 @@ join to `taxon_assignment` table from advertisement code.
 **Consequences:**
 - `EntityType.TAXON` added to `platform-commons` for audit records of taxon entity changes.
 - `ReferenceDataView` added as a new top-level navigation tab with sub-tabs per taxon type.
-- Taxon CRUD triggers `TaxonAuditHook.onAssignmentChanged()` from `TaxonAssignmentService`.
 - `DefaultTaxonPort` is permitted to contain coordination logic (translation fallback chain,
   DTO assembly) because the alternative would require exposing TaxonTranslation internals
   to marketplace-app — that would be a worse boundary violation.
@@ -1609,6 +1612,72 @@ of 20 rather than 50's partial third page of 10).
   needs to pass a Vaadin-native (or otherwise raw) offset through to a `Pageable`-based repository
   method without page-number derivation.
 - → [improvement-056-userpickerfield-inline-button-gap-and-pagination-bug](../backlog/completed/issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
+
+---
+
+## ADR-043: Timeline tab resolves category names via a typed `prevSnapshotData` on `AuditTimelineItemDto`; `ChangeEntry.replaceIfField()` consolidates the one unavoidable type check
+
+**Status:** Accepted
+
+**Context:** The Timeline tab (global activity feed) rendered category changes as raw taxon ids
+(`Category: 3, 5 → 3, 5, 7`), while the per-advertisement Activity tab already resolved the same
+data to names (`Category: Electronics, Books → ...`) via `AdvertisementEnrichService
+.enrichActivityItems()`. Root cause: `AuditTimelineItemDto` (unlike `AuditActivityItemDto`) carried
+only the current snapshot, not the previous one — `AuditReadService.toTimelineItem()` computed the
+diff via `row.snapshot().diff(row.prevSnapshot())` but only passed `row.snapshot()` into the DTO,
+discarding `row.prevSnapshot()` even though `AuditLogProjection` already had it.
+
+**Decision:**
+- Added `T prevSnapshotData` to `AuditTimelineItemDto` (`platform-commons`) and populated it from
+  `AuditLogProjection.prevSnapshot()` (already available, previously unused) in
+  `AuditReadService.toTimelineItem()`. Only two constructor call sites existed for this record
+  (`toTimelineItem()` and `withChanges()`), both updated — no other consumer constructs it.
+- `AdvertisementEnrichService.mergeMediaChanges()` (Timeline) and `enrichActivityItems()` (Activity)
+  now share the same fully-typed `resolveCategories()` helper, reading `List<Long>` directly from
+  both DTOs' `categoryIds()` — no string parsing of the diff's own rendered values (an earlier,
+  rejected draft parsed `ChangeEntry.FieldChange`'s `from`/`to` strings via
+  `split(",\\s*")`; discarded once the DTO gained a typed previous snapshot, making that
+  unnecessary).
+- `AdvertisementEnrichService`'s `mergeMediaChanges`/`enrichActivityItems` dropped unused
+  parameters (`List<EntityRef> subjects`, `EntityRef entityRef`) that only existed to mirror
+  `AuditActivityEnrichHook`'s interface signature — they are plain internal service methods, not
+  the hook's own override (that's `ActivityEnrichHookImpl`, which still needs the full interface
+  signature and now simply doesn't forward the unused arguments).
+- `ChangeEntry.replaceIfField(String fieldName, UnaryOperator<String> fromFn, UnaryOperator<String>
+  toFn)` — a new default method on the `ChangeEntry` sealed interface — consolidates the one
+  instanceof-check on `FieldChange` that Java's type erasure makes genuinely unavoidable (some
+  identifying key — here, the existing field-name constant already used everywhere else in this
+  codebase for the same purpose — is required to know *which* generic `FieldChange` to transform).
+  Every consumer needing to conditionally rewrite one field's value calls this instead of writing
+  its own `instanceof`/`switch`; it is now the only such check in the entire codebase.
+  `AdvertisementEnrichService.resolveCategories()` uses it instead of a hand-rolled pattern match.
+
+**Rejected alternatives (considered and discarded during design):**
+- A new sealed `ChangeEntry` subtype (e.g. `CategoryFieldChange`) carrying typed `List<Long>`
+  values directly, matched via `instanceof CategoryFieldChange` instead of a field-name string.
+  Rejected: `ChangeEntry` has several **exhaustive** switches with no `default` branch across
+  `AuditChangeFormatter` and `AuditTimelineRowRenderer` (rendering code for every entity type, not
+  just advertisements) — adding a third permitted subtype would require a new case in each one,
+  a "sealed tax" repeating for every future field needing the same treatment. Also would have
+  required carrying the `T`-erased value out of the entry itself, reintroducing exactly the
+  unchecked cast this design avoids.
+- A generic `FieldChange<T>` carrying a `ValueFormatter<T>` alongside typed `from`/`to`. Same
+  rendering-code blast radius as above, plus every renderer would need to call `.fromDisplay()`/
+  `.toDisplay()` instead of pattern-matching `from`/`to` directly — a larger, orthogonal refactor
+  of code this fix didn't need to touch.
+
+**Consequences:**
+- `TaxonAuditHook` (SPI) removed entirely, along with `TaxonPort.assign()`/`unassign()`/
+  `findByCode()`, `TaxonService.findByCode()`, and `TaxonRepository.findByTypeAndCode()` — all
+  confirmed zero callers via direct trace, not assumption. See ADR-019's updated resolution note
+  and `taxon-spring-boot-starter/DECISIONS.md` ADR-004 (marked superseded).
+- `integration-tests/.../taxon/TaxonRepositoryTest`'s `findByTypeAndCode_*` tests removed along
+  with the repository method they covered (a deliberate soft-delete-filter regression test from
+  improvement-045, item 4/5 — traded for keeping the method-removal clean per explicit direction,
+  not an oversight).
+- → [improvement-058-taxon-assignment-audit-trail-missing](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
+  (not yet closed — pending Playwright verification that the Timeline tab now shows resolved
+  category names).
 
 ---
 

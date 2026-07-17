@@ -33,7 +33,9 @@ async function assertFeedHasRow(page, expect, { action, entityType, editor, scre
 // Asserts at least minCount feed rows match the given criteria.
 // Optional: titleText checks that at least one row's .activity-feed-name contains the text.
 //           actorText checks that at least one row's .activity-feed-editor contains the text.
-async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, actorText, screenshotName } = {}) {
+//           changesText checks that at least one row's .activity-feed-changes contains the text
+//           (e.g. a resolved category name, not a raw taxon id).
+async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, actorText, changesText, screenshotName } = {}) {
   const feed = page.locator('.activity-feed');
   await feed.waitFor({ timeout: 8000 });
   let rows = feed.locator('.activity-feed-row');
@@ -50,6 +52,11 @@ async function assertTimelineHasRows(page, expect, { action, entityType, minCoun
   if (actorText) {
     await expect(
       rows.filter({ has: page.locator('.activity-feed-editor', { hasText: actorText }) }).first()
+    ).toBeVisible({ timeout: 5000 });
+  }
+  if (changesText) {
+    await expect(
+      rows.filter({ has: page.locator('.activity-feed-changes', { hasText: changesText }) }).first()
     ).toBeVisible({ timeout: 5000 });
   }
   if (screenshotName) await screenshot(page, screenshotName);

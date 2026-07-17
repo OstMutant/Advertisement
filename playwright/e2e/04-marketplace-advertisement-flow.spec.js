@@ -252,7 +252,9 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, screenshotName: 'timeline-adminen-edit-ad' });
+    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name
+    // (improvement-058) instead of showing the raw taxon id.
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
