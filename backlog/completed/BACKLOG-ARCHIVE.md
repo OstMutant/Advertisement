@@ -380,3 +380,17 @@ timeline actor-filter test retargeted to a user past the first page, with a grid
 to `fillActorPicker`, specifically to exercise the previously-buggy path. Verified via full
 `bash scripts/playwright.sh e2e --full --ux`, 48/48 passed. See `marketplace-app/DECISIONS.md`
 ADR-042.
+
+✅ Closed, not fixed (2026-07-17): [improvement-074](issues/improvement-074-mockito-self-attach-dynamic-agent-slow-first-test.md) —
+investigation into the ~40-90s delay on whichever test runs first in each Maven test JVM fork. The
+original diagnosis (Mockito's dynamic self-attach) was disproven: configuring Mockito as a real
+`-javaagent` removed the self-attach warning but not the delay. JFR profiling
+(`jdk.ExecutionSample`/`jdk.NativeMethodSample`) found the actual cost is JUnit Platform's own
+`ServiceLoader`-based classpath scan at `LauncherFactory.openSession()` — unrelated to Mockito.
+Two further fixes tested and also ruled out: disabling JUnit's launcher interceptors
+(`-Djunit.platform.launcher.interceptors.enabled=false`, no change) and relocating `~/.m2` off
+this sandbox's 9p-mounted Windows drive to a native path (measurably sped up every *other* reactor
+module's build 2-4x — a real, separate finding worth doing manually if wanted — but left this
+specific delay unchanged at ~43s). Root cause of the JUnit-launcher-session classpath scan itself
+remains unidentified; all experimental changes reverted, nothing applied to the repo or
+environment. Closed as investigated-not-fixed rather than left open against a disproven diagnosis.
