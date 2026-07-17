@@ -1,7 +1,6 @@
 package org.ost.marketplace.ui.query.elements.fields;
 
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.customfield.CustomField;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
@@ -31,6 +30,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTOR;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_ACTOR;
 import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_CLEAR_TOOLTIP;
 import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_OPEN_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_SEARCH_TOOLTIP;
 
 @SpringComponent
 @Scope("prototype")
@@ -108,9 +108,9 @@ public class UserPickerField extends CustomField<UserDto>
         grid.setHeight("300px");
 
         CallbackDataProvider<UserDto, String> dataProvider = DataProvider.fromFilteringCallbacks(
-                query -> userPort.getFiltered(
+                query -> userPort.getFilteredByOffset(
                         UserFilterDto.builder().name(query.getFilter().orElse(null)).build(),
-                        query.getOffset() / Math.max(1, query.getLimit()),
+                        query.getOffset(),
                         query.getLimit(),
                         Sort.by(Sort.Order.asc("name"))).stream(),
                 query -> userPort.count(
@@ -119,9 +119,9 @@ public class UserPickerField extends CustomField<UserDto>
         ConfigurableFilterDataProvider<UserDto, Void, String> filterable = dataProvider.withConfigurableFilter();
         grid.setItems(filterable);
 
-        Button searchButton = new Button(VaadinIcon.SEARCH.create(),
-                e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
-        searchButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY_INLINE);
+        Button searchButton = iconButtonFactory.build(
+                UiIconButton.Parameters.builder().labelKey(USER_PICKER_SEARCH_TOOLTIP).icon(VaadinIcon.SEARCH.create()).inline(true).build());
+        searchButton.addClickListener(e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
         searchField.setSuffixComponent(searchButton);
 
         searchField.addValueChangeListener(e ->

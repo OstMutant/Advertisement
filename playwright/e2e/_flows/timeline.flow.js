@@ -120,6 +120,24 @@ async function fillActorPicker(page, userName) {
   const dialog = page.locator('vaadin-dialog-overlay[opened]');
   await dialog.waitFor({ state: 'visible', timeout: 5000 });
   const cell = page.locator('vaadin-grid-cell-content').filter({ hasText: new RegExp(`^${userName}$`) });
+
+  // The grid virtualizes rows and lazy-loads beyond its first data-provider page (Vaadin's
+  // default page size is 50) — a target further down the name-sorted list won't be in the DOM
+  // yet. Scroll the grid's virtual scroller in increasing steps until the row appears or a
+  // reasonable number of attempts is exhausted. Each scroll step waits on the grid's own
+  // rendering completion (a frame + microtask flush) rather than a fixed timer.
+  // Only one grid exists on screen while the picker dialog is open — select it directly rather
+  // than scoping through `vaadin-dialog-overlay[opened]`: the grid is not a CSS descendant of
+  // the overlay element itself (Vaadin renders dialog content outside that direct subtree),
+  // confirmed by a scoped-vs-global locator count check.
+  const grid = page.locator('vaadin-grid');
+  for (let index = 10; index <= 200 && (await cell.count()) === 0; index += 10) {
+    await grid.evaluate((el, idx) => {
+      el.scrollToIndex(idx);
+      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    }, index);
+  }
+
   await cell.first().waitFor({ timeout: 8000 });
   await cell.first().click();
   await dialog.waitFor({ state: 'hidden', timeout: 5000 });

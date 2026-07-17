@@ -22,6 +22,7 @@ import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
+import org.ost.query.sort.OffsetPageable;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
 import org.springframework.dao.DuplicateKeyException;
@@ -64,6 +65,10 @@ public class UserService {
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
+    }
+
+    public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
+        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(this::toDto).toList();
     }
 
     public int count(@Valid @NonNull UserFilterDto filter) {

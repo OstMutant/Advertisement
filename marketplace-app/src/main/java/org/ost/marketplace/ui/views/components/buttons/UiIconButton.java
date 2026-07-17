@@ -25,6 +25,10 @@ public class UiIconButton extends Button
     public static class Parameters {
         @NonNull I18nKey labelKey;
         @NonNull Icon    icon;
+        /** Renders with {@code LUMO_TERTIARY_INLINE} instead of {@code LUMO_TERTIARY} — matches
+         *  Vaadin's own treatment for buttons placed in a text field's prefix/suffix slot (no
+         *  button-like padding/hover ring). Defaults to {@code false} (the normal, non-inline case). */
+        boolean inline;
     }
 
     @Getter
@@ -33,13 +37,14 @@ public class UiIconButton extends Button
     @Override
     @PostConstruct
     public UiIconButton init() {
-        addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ICON);
         addClassName("icon-button");
         return this;
     }
 
     @Override
     public UiIconButton configure(Parameters p) {
+        addThemeVariants(p.isInline() ? ButtonVariant.LUMO_TERTIARY_INLINE : ButtonVariant.LUMO_TERTIARY,
+                ButtonVariant.LUMO_ICON);
         setIcon(p.getIcon());
         String label = getValue(p.getLabelKey());
         getElement().setAttribute("title", label);

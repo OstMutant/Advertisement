@@ -43,7 +43,7 @@ const USER_BLOCK = '.user-query-block';
 const ADV_ITEM   = '.advertisement-card';
 const USER_ITEM  = '.user-grid-name';
 
-const SEED_COUNT = 50;
+const SEED_COUNT = 60;
 // Distinct from spec-03 categories (Electronics, Vehicles) to avoid duplicates in e2e suite mode.
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
 
@@ -145,7 +145,7 @@ test.describe('Seed data and query validation', () => {
     for (let i = 1; i <= SEED_COUNT; i++) {
       await createAdvertisementBulk(page, { ...seedAd(i), category: CATEGORIES[(i - 1) % CATEGORIES.length] });
     }
-    // Force a full page reload to clear 50 stale advertisement overlay DOM elements before logout.
+    // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
     // Without this, SPA-style logout/login preserves the stale DOM, which causes Vaadin to
     // re-activate a stale overlay when the category filter combo fires a server sync event.
     await page.reload();
@@ -171,7 +171,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'adv-filter-title-exact');
     await clearFilter(page, ADV_BLOCK);
 
-    // ── title partial match → 50 results ─────────────────────────────────────
+    // ── title partial match → 60 results ─────────────────────────────────────
     await fillText(page, ADV_BLOCK, 'Title', 'Seed');
     await applyFilter(page, ADV_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -193,21 +193,21 @@ test.describe('Seed data and query validation', () => {
       block: ADV_BLOCK, sortCol: 'Title', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'all', filter: { field: 'Title', value: 'Seed' } },
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
     await verifySortColumn(page, {
       block: ADV_BLOCK, sortCol: 'Created At', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'Updated At', filter: { field: 'Title', value: 'Seed' } },
       startDesc: true,
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
     await verifySortColumn(page, {
       block: ADV_BLOCK, sortCol: 'Updated At', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'Created At', filter: { field: 'Title', value: 'Seed' } },
       startDesc: true,
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
 
     // ── pagination ────────────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-email-exact');
     await clearFilter(page, USER_BLOCK);
 
-    // ── email partial match → 50 results ─────────────────────────────────────
+    // ── email partial match → 60 results ─────────────────────────────────────
     await fillText(page, USER_BLOCK, 'Email', 'seed.user');
     await applyFilter(page, USER_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -252,7 +252,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-email-no-results');
     await clearFilter(page, USER_BLOCK);
 
-    // ── name partial match → 50 results ──────────────────────────────────────
+    // ── name partial match → 60 results ──────────────────────────────────────
     await fillText(page, USER_BLOCK, 'Name', 'Seed');
     await applyFilter(page, USER_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -290,19 +290,19 @@ test.describe('Seed data and query validation', () => {
       block: USER_BLOCK, sortCol: 'Name', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'all', filter: { field: 'Name', value: 'Seed' } },
-      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 60', prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'Email', itemSelector: USER_ITEM,
       assertSelector: '.user-grid-email',
       setup: { reset: 'clearAll', filter: { field: 'Email', value: 'seed.user' } },
-      firstAsc: 'seed.user01@example.com', firstDesc: 'seed.user50@example.com', prefix: 'user',
+      firstAsc: 'seed.user01@example.com', firstDesc: 'seed.user60@example.com', prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'ID', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'clearAll', filter: { field: 'Name', value: 'Seed' } },
-      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 60', prefix: 'user',
     });
     // ADMIN < USER alphabetically: ASC → adminEn (ADMIN) first; DESC → seed users (USER) first.
     await verifySortColumn(page, {
@@ -322,14 +322,14 @@ test.describe('Seed data and query validation', () => {
       assertSelector: USER_ITEM,
       setup: { reset: 'Updated At', filter: { field: 'Name', value: 'Seed' } },
       startDesc: true,
-      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (49|50)/, prefix: 'user',
+      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (59|60)/, prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'Updated At', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'Created At', filter: { field: 'Name', value: 'Seed' } },
       startDesc: true,
-      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (49|50)/, prefix: 'user',
+      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (59|60)/, prefix: 'user',
     });
 
     // ── pagination ────────────────────────────────────────────────────────────
@@ -473,9 +473,11 @@ test.describe('Seed data and query validation', () => {
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     await assertAllRowsHaveAction(page, expect, 'updated', 'timeline-filter-action-updated');
 
-    // Filter by actor (adminEn) — result count must be less than unfiltered total
+    // Filter by actor — result count must be less than unfiltered total. Target the last
+    // name-sorted "Seed User" (not adminEn, which sorts near the top and would never exercise
+    // the picker grid's second data-provider page — see improvement-056).
     await clearFilter(page, TIMELINE_BLOCK);
-    await fillActorPicker(page, TEST_USERS.adminEn.name);
+    await fillActorPicker(page, 'Seed User 60');
     await applyFilter(page, TIMELINE_BLOCK);
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     const actorFilteredCount = await getTotalCount(page);

@@ -41,6 +41,11 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    public List<UserDto> getFilteredByOffset(@NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
+        return userService.getFilteredByOffset(filter, offset, limit, sort);
+    }
+
+    @Override
     public int count(@NonNull UserFilterDto filter) {
         return userService.count(filter);
     }

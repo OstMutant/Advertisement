@@ -246,6 +246,7 @@ public enum I18nKey {
     // === User Picker Field ===
     USER_PICKER_CLEAR_TOOLTIP("user.picker.clear.tooltip"),
     USER_PICKER_OPEN_TOOLTIP("user.picker.open.tooltip"),
+    USER_PICKER_SEARCH_TOOLTIP("user.picker.search.tooltip"),
 
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),

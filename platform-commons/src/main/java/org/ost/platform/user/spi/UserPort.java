@@ -22,6 +22,13 @@ public interface UserPort {
 
     List<UserDto> getFiltered(@NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort);
 
+    /**
+     * Offset-based variant of {@link #getFiltered}, for callers with a raw row offset that isn't
+     * necessarily a multiple of {@code limit} (e.g. Vaadin's {@code CallbackDataProvider}) — see
+     * {@code UserPickerField} and improvement-056.
+     */
+    List<UserDto> getFilteredByOffset(@NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort);
+
     int count(@NonNull UserFilterDto filter);
 
     void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId);
