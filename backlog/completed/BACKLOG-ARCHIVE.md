@@ -366,3 +366,17 @@ free. See `marketplace-app/DECISIONS.md` ADR-041. Note: improvement-010 (a view 
 dependency-direction rule ArchUnit expresses cleanly) — still open, needs its own fix. Also
 unblocked improvement-033 (`/quality-gate` skill), whose three prerequisites (027/030/032) are now
 all done.
+
+✅ Done (2026-07-17): [improvement-056](issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md) —
+`UserPickerField`'s `CallbackDataProvider` offset→page pagination bug fixed via a new
+`OffsetPageable` (`query-lib`), a `Pageable` carrying a raw offset directly, plus a new
+`UserPort.getFilteredByOffset()` method — the repository's SQL needed no changes at all, since it
+already used `pageable.getOffset()` correctly; only the `Pageable` it received was wrong. Also
+closed the companion gap: `UiIconButton` gained an `inline` variant (`LUMO_TERTIARY_INLINE`) so the
+picker's search button no longer needs a raw `Button`. The bug had never triggered in Playwright
+because the seed spec's 50 users exactly matched Vaadin `Grid`'s default page size (always one
+aligned fetch) — `05-seed-filter-sort-pagination.spec.js`'s `SEED_COUNT` bumped 50→60 and the
+timeline actor-filter test retargeted to a user past the first page, with a grid-scroll step added
+to `fillActorPicker`, specifically to exercise the previously-buggy path. Verified via full
+`bash scripts/playwright.sh e2e --full --ux`, 48/48 passed. See `marketplace-app/DECISIONS.md`
+ADR-042.

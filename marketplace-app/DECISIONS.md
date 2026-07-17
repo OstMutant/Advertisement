@@ -1555,6 +1555,63 @@ line this rule needs, for free.
 
 ---
 
+## ADR-042: `UserPickerField` gains an offset-based lookup (`OffsetPageable`) instead of deriving a page number from Vaadin's raw offset
+
+**Status:** Accepted
+
+**Context:** `UserPickerField` is the only place in `marketplace-app` using Vaadin's native lazy
+`CallbackDataProvider`/`DataProvider.fromFilteringCallbacks` — every other grid uses the app's own
+`PaginationBar` with explicit page-state tracking. Its data provider derived a page number from
+Vaadin's raw row offset via `query.getOffset() / query.getLimit()`, which is only correct when the
+offset happens to be an exact multiple of the limit — not guaranteed by Vaadin's `Grid`/
+`DataCommunicator` under fast/jump scrolling. A non-page-aligned fetch (e.g. `offset=137,
+limit=50`) silently computed the wrong page, returning duplicated, skipped, or wrong rows. Went
+untriggered by existing Playwright coverage because the seed spec used exactly 50 users, matching
+Vaadin `Grid`'s default page size — the entire result set fit in one always-aligned fetch
+(`offset=0`). Filed as improvement-056 alongside a related, smaller gap: the picker's inline
+search button used a raw `Button` instead of `UiIconButton`, since `UiIconButton` had no variant
+for Vaadin's `LUMO_TERTIARY_INLINE` (the suffix/prefix-slot button treatment).
+
+**Decision:**
+- Added `OffsetPageable` (`query-lib/src/main/java/org/ost/query/sort/OffsetPageable.java`) — a
+  `record` implementing Spring Data's `Pageable` directly, carrying an arbitrary raw `offset`
+  instead of deriving `offset = page * size` the way `PageRequest.of(page, size)` always does.
+  Chosen over reworking `UserPort.getFiltered()`'s existing page-based contract (used by every
+  `PaginationBar`-style caller) — introducing a second, offset-shaped `Pageable` implementation
+  is additive and keeps the page-based contract untouched for its existing callers.
+- Added `UserPort.getFilteredByOffset(filter, offset, limit, sort)`, delegating through
+  `UserPortImpl` → `UserService.getFilteredByOffset()` → `UserRepository.findByFilter(filter, new
+  OffsetPageable(offset, limit, sort))`. The repository itself needed **no changes** — its SQL
+  already used `pageable.getOffset()` (via `PaginationSqlBuilder.pageLimit()` →
+  `LIMIT :limit OFFSET :offset`), so it was already offset-correct; only the `Pageable` it
+  received was wrong.
+- `UserPickerField`'s data provider now calls `userPort.getFilteredByOffset(filter,
+  query.getOffset(), query.getLimit(), sort)` directly — no more `offset/limit` division.
+- `UiIconButton.Parameters` gained a `boolean inline` field (default `false`); `configure()` now
+  applies `LUMO_TERTIARY_INLINE` instead of `LUMO_TERTIARY` when `inline` is set, moved out of
+  `init()` (which previously hardcoded the non-inline variant unconditionally). The picker's
+  search button now goes through `UiIconButton` with `inline(true)`.
+
+**Verification:** the existing Playwright seed volume (50 users) could never have exercised the
+bug (see Context) — bumped `05-seed-filter-sort-pagination.spec.js`'s `SEED_COUNT` from 50 to 60
+specifically so the picker's underlying grid needs a second Vaadin-internal data-provider page,
+and retargeted the timeline actor-filter test to pick a name-sorted user past the first page
+(`'Seed User 60'` instead of `adminEn`, who previously sorted within the first page and never
+exercised the bug either). `fillActorPicker` in `timeline.flow.js` gained a grid-scroll step
+(`grid.scrollToIndex(...)`) to actually reach that row. Full `bash scripts/playwright.sh e2e --full
+--ux` run: 48/48 passed, confirming both the fix and that the seed-count bump didn't regress any
+existing pagination assertion (`verifyPagination()`'s hardcoded 3-page structure, `1-20`/`21-40`/
+`41-{total}`, holds for 60 exactly as cleanly as for 50 — 60 divides evenly into three full pages
+of 20 rather than 50's partial third page of 10).
+
+**Consequences:**
+- `OffsetPageable` is a new, general-purpose `query-lib` type available to any future caller that
+  needs to pass a Vaadin-native (or otherwise raw) offset through to a `Pageable`-based repository
+  method without page-number derivation.
+- → [improvement-056-userpickerfield-inline-button-gap-and-pagination-bug](../backlog/completed/issues/improvement-056-userpickerfield-inline-button-gap-and-pagination-bug.md).
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)
