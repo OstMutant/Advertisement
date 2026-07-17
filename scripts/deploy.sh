@@ -33,17 +33,36 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOG=/tmp/deploy.log
 
+# Load shared credential/port defaults from the repo-root .env (also read natively by
+# scripts/infra/docker-compose*.yml and integration-tests' Testcontainers) into ENV_*-prefixed
+# vars -- NOT exported/sourced directly, so an already-exported override (e.g. DB_PORT=15432 from
+# scripts/ci/entrypoint.sh's isolated e2e stack) is never clobbered. Used only as the fallback
+# default below, same precedence every other var here already has.
+if [ -f "$ROOT/.env" ]; then
+  while IFS='=' read -r _env_key _env_value; do
+    [[ "$_env_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    printf -v "ENV_$_env_key" '%s' "$_env_value"
+  done < <(grep -v '^\s*#' "$ROOT/.env" | grep -v '^\s*$')
+fi
+
 NETWORK="${NETWORK:-advertisement}"
 DB_CONTAINER="${DB_CONTAINER:-advertisement-db}"
 MINIO_CONTAINER="${MINIO_CONTAINER:-advertisement-minio}"
 APP_CONTAINER="${APP_CONTAINER:-marketplace-app}"
 APP_IMAGE="${APP_IMAGE:-marketplace-app}"
-DB_PORT="${DB_PORT:-5432}"
-MINIO_PORT="${MINIO_PORT:-9000}"
+DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"
+MINIO_PORT="${MINIO_PORT:-${ENV_S3_PORT:-9000}}"
 MINIO_CONSOLE_PORT="${MINIO_CONSOLE_PORT:-9001}"
 APP_PORT="${APP_PORT:-8081}"
 DB_VOLUME="${DB_VOLUME:-advertisement_postgres_data}"
 MINIO_VOLUME="${MINIO_VOLUME:-advertisement_minio_data}"
+DB_NAME="${DB_NAME:-${ENV_DB_NAME:-experiments}}"
+DB_USER="${DB_USER:-${ENV_DB_USER:-experiments_user}}"
+DB_PASSWORD="${DB_PASSWORD:-${ENV_DB_PASSWORD:-experiments_user_password}}"
+S3_ACCESS_KEY="${S3_ACCESS_KEY:-${ENV_S3_ACCESS_KEY:-admin}}"
+S3_SECRET_KEY="${S3_SECRET_KEY:-${ENV_S3_SECRET_KEY:-admin12345}}"
+S3_BUCKET="${S3_BUCKET:-${ENV_S3_BUCKET:-advertisement}}"
+S3_REGION="${S3_REGION:-${ENV_S3_REGION:-us-east-1}}"
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 MODE="default"
@@ -102,7 +121,7 @@ ensure_running() {
 # ── Helper: wait for DB ───────────────────────────────────────────────────────
 wait_for_db() {
   echo "Waiting for DB..."
-  until docker exec "$DB_CONTAINER" pg_isready -U experiments_user -d experiments -q 2>/dev/null; do
+  until docker exec "$DB_CONTAINER" pg_isready -U "$DB_USER" -d "$DB_NAME" -q 2>/dev/null; do
     sleep 1
   done
   echo "DB ready."
@@ -122,9 +141,9 @@ configure_minio() {
   echo "Configuring MinIO bucket..."
   docker rm -f minio-init 2>/dev/null || true
   docker run --rm --network "$NETWORK" --entrypoint /bin/sh minio/mc:latest -c "
-    mc alias set local http://$MINIO_CONTAINER:9000 admin admin12345
-    mc mb --ignore-existing local/advertisement
-    mc anonymous set public local/advertisement
+    mc alias set local http://$MINIO_CONTAINER:9000 $S3_ACCESS_KEY $S3_SECRET_KEY
+    mc mb --ignore-existing local/$S3_BUCKET
+    mc anonymous set public local/$S3_BUCKET
     echo 'Bucket OK.'
   "
 }
@@ -153,17 +172,17 @@ pull_if_missing "minio/mc:latest"
 ensure_running "$DB_CONTAINER" \
   docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
     -p "$DB_PORT":5432 \
-    -e POSTGRES_DB=experiments \
-    -e POSTGRES_USER=experiments_user \
-    -e POSTGRES_PASSWORD=experiments_user_password \
+    -e POSTGRES_DB="$DB_NAME" \
+    -e POSTGRES_USER="$DB_USER" \
+    -e POSTGRES_PASSWORD="$DB_PASSWORD" \
     -v "$DB_VOLUME":/var/lib/postgresql/data \
     postgres:15-alpine
 
 ensure_running "$MINIO_CONTAINER" \
   docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
     -p "$MINIO_PORT":9000 -p "$MINIO_CONSOLE_PORT":9001 \
-    -e MINIO_ROOT_USER=admin \
-    -e MINIO_ROOT_PASSWORD=admin12345 \
+    -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
+    -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
     -v "$MINIO_VOLUME":/data \
     minio/minio:latest server /data --console-address ":9001"
 
@@ -174,7 +193,7 @@ configure_minio
 if $RESET_DB; then
   echo "Resetting database (reset-clean.sql)..."
   docker cp "$ROOT/scripts/database/reset-clean.sql" "$DB_CONTAINER:/tmp/reset-clean.sql"
-  docker exec "$DB_CONTAINER" psql -U experiments_user -d experiments -f /tmp/reset-clean.sql -q \
+  docker exec "$DB_CONTAINER" psql -U "$DB_USER" -d "$DB_NAME" -f /tmp/reset-clean.sql -q \
     && echo "Database reset."
 fi
 
@@ -215,12 +234,12 @@ echo "=== Step 3: Start application ==="
 docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
   -p "$APP_PORT":8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME=experiments \
-  -e DB_USER=experiments_user -e DB_PASSWORD=experiments_user_password \
-  -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET=advertisement \
-  -e S3_ACCESS_KEY=admin -e S3_SECRET_KEY=admin12345 \
-  -e S3_REGION=us-east-1 \
-  -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/advertisement" \
+  -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME" \
+  -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
+  -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET" \
+  -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" \
+  -e S3_REGION="$S3_REGION" \
+  -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET" \
   -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
   "$APP_IMAGE"
 

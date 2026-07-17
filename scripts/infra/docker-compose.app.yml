@@ -20,10 +20,13 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: db
+      # DB_PORT/S3_ENDPOINT's port here are the containers' own internal Docker-network ports
+      # (always 5432/9000 regardless of the host-side ${DB_PORT}/${S3_PORT} mapping below) --
+      # deliberately left literal, not parameterized from .env.
       DB_PORT: 5432
-      DB_NAME: experiments
-      DB_USER: experiments_user
-      DB_PASSWORD: experiments_user_password
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
       # Uncomment for Neon:
       # DB_HOST: ep-late-flower-a43sj7qz-pooler.us-east-1.aws.neon.tech
       # DB_NAME: neondb
@@ -31,11 +34,11 @@ services:
       # DB_PASSWORD: your_password
       # DB_SSL_PARAMS: "?sslmode=require&channel_binding=require"
       S3_ENDPOINT: http://minio:9000
-      S3_BUCKET: advertisement
-      S3_ACCESS_KEY: admin
-      S3_SECRET_KEY: admin12345
-      S3_REGION: us-east-1
-      S3_PUBLIC_URL: http://localhost:9000/advertisement
+      S3_BUCKET: ${S3_BUCKET}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_REGION: ${S3_REGION}
+      S3_PUBLIC_URL: http://localhost:${S3_PORT}/${S3_BUCKET}
       # Uncomment for Supabase Storage:
       # S3_ENDPOINT: https://<project-ref>.supabase.co/storage/v1/s3
       # S3_BUCKET: advertisement

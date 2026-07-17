@@ -485,3 +485,26 @@ delegation to it. Full design rationale — including why this doesn't repeat
 `integration-tests/DECISIONS.md` ADR-008's rejected "widen visibility for test convenience"
 pattern, since `SharedEnvConfig` is this module's own internal test-support plumbing rather than a
 starter's shipped production surface — is in ADR-010.
+
+✅ Done (2026-07-17): [improvement-044](issues/improvement-044-shared-env-config-consolidation.md) —
+DB credentials (`experiments`/`experiments_user`/`experiments_user_password`) and MinIO/S3
+credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were each hardcoded
+independently across 4-5 files of different formats (`docker-compose.db.yml`/`.minio.yml`/
+`.app.yml`, `application-dev.yml`, `deploy.sh`, `scripts/database/reset.sh`) — not a live bug, but
+a real drift risk on the next credential rotation. Consolidated into the repo-root `.env` (already
+established for `POSTGRES_IMAGE` by improvement-027): compose files reference `${VAR}` directly
+(including inside `minio-init`'s inline shell entrypoint), `application-dev.yml` uses
+`${VAR:default}` Spring placeholders with the current values as a safety-net default for IDE runs
+that never source `.env`. The tricky part was `deploy.sh`/`reset.sh`, both of which
+`scripts/ci/entrypoint.sh` already overrides via env vars (e.g. `DB_PORT=15432`) for its isolated
+e2e stack — a naive `source .env` would have silently clobbered those overrides, so `.env` is
+instead parsed into `ENV_*`-prefixed vars used only as a second-tier fallback under any
+already-exported value, preserving the exact existing precedence. Also collapsed
+`playwright/run.sh`'s `v1.52.0-jammy` image tag (two occurrences, same file) and the separate
+`playwright@1.52.0`/`@playwright/test@1.52.0` npm pins into `PLAYWRIGHT_VERSION`/`PLAYWRIGHT_IMAGE`
+variables. Deliberately left hardcoded: `docker-compose.app.yml`'s `DB_PORT: 5432`/
+`S3_ENDPOINT: http://minio:9000` and `deploy.sh`'s app-container `DB_PORT=5432` — these are the
+containers' own internal Docker-network ports, a different concept from the host-facing `.env`
+value despite sharing the same number today. Documented in `scripts/DECISIONS.md` ADR-009.
+Verified via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO volumes+containers+image) and
+a full e2e Playwright run, 48/48 green.

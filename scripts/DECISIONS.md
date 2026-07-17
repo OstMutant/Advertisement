@@ -120,3 +120,68 @@ execution with a live progress file, most-extensive-by-default stage selection, 
 now live in `scripts/ci/DECISIONS.md` (its own ADR-001 through ADR-004) — `scripts/ci/` grew its
 own `DECISIONS.md`/`README.md` once the tool had enough surface area to warrant it, matching
 `scripts/sonar/`'s precedent of a nested tool directory with its own ADR file.
+
+---
+
+## ADR-009: DB/S3 credentials consolidated into the repo-root `.env`, loaded as fallback defaults (not unconditional overrides) so CI's per-run port overrides survive
+
+**Status:** Accepted
+
+**Context:** DB name/user/password (`experiments`/`experiments_user`/`experiments_user_password`)
+and MinIO/S3 credentials (`admin`/`admin12345`, bucket `advertisement`, region `us-east-1`) were
+each hardcoded independently across 4-5 files of different formats: `docker-compose.db.yml`,
+`docker-compose.minio.yml`, `docker-compose.app.yml`, `application-dev.yml`,
+`scripts/deploy.sh`, `scripts/database/reset.sh` — the same class of duplication improvement-027
+already closed for `POSTGRES_IMAGE` alone. Not a live bug (every copy still agreed), but a real
+drift risk: changing one copy and missing the others fails as a confusing "connection refused"
+at runtime, not a build error. → [improvement-044](../backlog/completed/issues/improvement-044-shared-env-config-consolidation.md).
+
+**Decision:** Extend the repo-root `.env` (Docker Compose's native mechanism, already used for
+`POSTGRES_IMAGE`) with `DB_NAME`/`DB_USER`/`DB_PASSWORD`/`DB_PORT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/
+`S3_BUCKET`/`S3_REGION`/`S3_PORT`. Docker Compose files (`docker-compose.db.yml`/`.minio.yml`/
+`.app.yml`) reference `${VAR}` directly — including inside `minio-init`'s inline shell entrypoint,
+since Compose substitutes `${VAR}` in any string field, not just `environment:` blocks.
+`marketplace-app/application-dev.yml` uses `${VAR:default}` Spring placeholder syntax, with the
+default matching `.env`'s current value exactly — a deliberate safety net so an IDE dev run (which
+never sources `.env`) keeps working unmodified; this does mean the *default* literal is still a
+second copy of the value, an acknowledged residual duplication Spring's inability to natively read
+`.env` files makes unavoidable without extra script plumbing IDE runs don't go through anyway.
+
+**`scripts/deploy.sh` / `scripts/database/reset.sh` — the tricky part:** both already had
+`VAR="${VAR:-literal-default}"` override variables (`DB_PORT`, `MINIO_PORT`, etc.) that
+`scripts/ci/entrypoint.sh` relies on for its isolated e2e stack (e.g. `DB_PORT=15432`). A naive
+`set -a; source .env; set +a` would unconditionally overwrite any already-exported value —
+including a CI override — since plain shell assignment doesn't check whether a var came from a
+prior export. Instead, `.env` is parsed into `ENV_*`-prefixed variables (never exported directly),
+then used only as the *second* fallback tier: `DB_PORT="${DB_PORT:-${ENV_DB_PORT:-5432}}"`. This
+preserves the exact existing override precedence (explicit env var wins, `.env` is the new
+fallback default, the old hardcoded literal is now only the last-resort fallback if `.env` itself
+is missing) — confirmed via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO
+volumes+containers+image) and a full Playwright e2e run (48/48 green).
+
+`playwright/run.sh`'s DB/S3-flag `echo` lines (a printed usage-example message, not runtime logic)
+were deliberately left hardcoded — cosmetic duplication only, consistent with the originating
+issue's "doc mentions" exclusion. Its actual runtime duplication —
+`mcr.microsoft.com/playwright:v1.52.0-jammy` appearing twice in the same file plus the separate
+`playwright@1.52.0`/`@playwright/test@1.52.0` npm pins — was extracted into
+`PLAYWRIGHT_VERSION`/`PLAYWRIGHT_IMAGE` variables at the top of the script instead (a same-file,
+same-format duplication, unrelated to the `.env` story but cheap to fix in the same pass, per the
+issue's own item 5).
+
+**What was deliberately left hardcoded, not parameterized:** `DB_PORT: 5432` inside
+`docker-compose.app.yml`'s `app` service environment and `deploy.sh`'s app-container `-e
+DB_PORT=5432` both refer to the **container-internal** Docker-network port (`db`'s own listening
+port, always 5432 regardless of the host-side `${DB_PORT}` mapping) — conflating this with the
+host-facing `.env` value would be semantically wrong even though they share the same number today.
+Same reasoning for `S3_ENDPOINT: http://minio:9000` (minio's internal port). Only genuinely
+host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) were parameterized.
+
+**Consequences:**
+- Renaming a DB user or rotating a MinIO credential going forward is a one-line `.env` change
+  instead of a 4-5-file hunt — the drift-risk class of bug this ADR closes.
+- `scripts/ci/entrypoint.sh`'s isolated e2e stack (port overrides via env vars) is unaffected —
+  verified its override precedence survives the `.env`-as-fallback change.
+- Explicitly out of scope, per the originating issue: secrets management (these remain committed,
+  non-production dev credentials, same as before — moving them to `.env` is a pure refactor, not
+  a security hardening pass) and `deploy.sh`'s deliberate `8081` vs `8080` port distinction
+  (untouched, must stay distinct).

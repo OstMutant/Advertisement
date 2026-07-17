@@ -106,3 +106,31 @@ app actually connects with.
   investigation surfaced.
 - `scripts/CLAUDE.md` — documents the deliberate `8081`/`8080` port distinction that must not be
   collapsed by this issue.
+
+## Resolution (2026-07-17)
+
+Implemented items 1-5 from "Suggested fix" as written. `.env` extended with `DB_NAME`/`DB_USER`/
+`DB_PASSWORD`/`DB_PORT`/`S3_ACCESS_KEY`/`S3_SECRET_KEY`/`S3_BUCKET`/`S3_REGION`/`S3_PORT`. All
+three `docker-compose*.yml` files reference `${VAR}` directly (including inside `minio-init`'s
+inline shell entrypoint — Compose substitutes `${VAR}` in any string field). `application-dev.yml`
+uses `${VAR:default}` Spring placeholders with the current values as defaults, so an IDE dev run
+that never sources `.env` keeps working unmodified. `deploy.sh` and `scripts/database/reset.sh`
+parse `.env` into `ENV_*`-prefixed variables used only as a fallback *under* any already-exported
+override — preserving `scripts/ci/entrypoint.sh`'s existing port-override contract for its isolated
+e2e stack, which a naive `source .env` would have silently broken. `playwright/run.sh` item 5:
+extracted `PLAYWRIGHT_VERSION`/`PLAYWRIGHT_IMAGE` variables, collapsing the `v1.52.0-jammy` image
+tag's two occurrences and the separate `playwright@1.52.0`/`@playwright/test@1.52.0` npm pins into
+one place each.
+
+Deliberately left hardcoded (not a miss): `docker-compose.app.yml`'s `DB_PORT: 5432` and
+`S3_ENDPOINT: http://minio:9000`, and `deploy.sh`'s app-container `-e DB_PORT=5432` — these are the
+**container-internal** Docker-network ports (always 5432/9000 regardless of the host-side
+`${DB_PORT}`/`${S3_PORT}` mapping), a different concept from the host-facing value even though they
+share the same number today. Full design rationale and the CI-override-precedence concern are in
+`scripts/DECISIONS.md` ADR-009.
+
+Verified per "Required test coverage": `bash scripts/deploy.sh --reset` (full DB/MinIO
+volumes+containers+image recreation from the new `.env`-driven compose files) succeeded end to end,
+and a full `bash scripts/playwright.sh e2e --full --ux` run was 48/48 green — confirming the
+consolidated values match what the app actually connects with, and that `scripts/ci/entrypoint.sh`'s
+override contract survived.

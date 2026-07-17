@@ -16,15 +16,15 @@ services:
     image: ${POSTGRES_IMAGE}
     restart: unless-stopped
     environment:
-      POSTGRES_DB: experiments
-      POSTGRES_USER: experiments_user
-      POSTGRES_PASSWORD: experiments_user_password
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U experiments_user -d experiments"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 10s
       timeout: 5s
       retries: 5

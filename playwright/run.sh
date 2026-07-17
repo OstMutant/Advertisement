@@ -32,6 +32,11 @@ DB_PORT="${DB_PORT:-5432}"
 DB_USER="${DB_USER:-experiments_user}"
 DB_NAME="${DB_NAME:-experiments}"
 
+# Playwright version must match image (see playwright/CLAUDE.md) -- one place to bump both
+# instead of two independent literals in the same file (improvement-044).
+PLAYWRIGHT_VERSION="1.52.0"
+PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
+
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
   echo "ERROR: Container '$APP_CONTAINER' not found. Build and start it:"
   echo "  docker build -f Dockerfile -t marketplace-app ."
@@ -108,16 +113,16 @@ fi
 
 # ── Reuse pw-runner if already running, otherwise start it ───────────────────
 if ! docker inspect "$PW_CONTAINER" &>/dev/null; then
-  docker run -d --name "$PW_CONTAINER" --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 86400
+  docker run -d --name "$PW_CONTAINER" --network host "$PLAYWRIGHT_IMAGE" sleep 86400
 else
   STATUS=$(docker inspect -f '{{.State.Status}}' "$PW_CONTAINER" 2>/dev/null)
   if [ "$STATUS" != "running" ]; then
     docker rm -f "$PW_CONTAINER"
-    docker run -d --name "$PW_CONTAINER" --network host mcr.microsoft.com/playwright:v1.52.0-jammy sleep 86400
+    docker run -d --name "$PW_CONTAINER" --network host "$PLAYWRIGHT_IMAGE" sleep 86400
   fi
 fi
 
-INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@1.52.0 @playwright/test@1.52.0 -q 2>&1 | grep -v '^npm notice'; fi"
+INSTALL_CMD="if [ ! -d /tmp/node_modules ]; then cd /tmp && PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install playwright@${PLAYWRIGHT_VERSION} @playwright/test@${PLAYWRIGHT_VERSION} -q 2>&1 | grep -v '^npm notice'; fi"
 
 # ── Clean stale artifacts in container and host ───────────────────────────────
 docker exec "$PW_CONTAINER" bash -c "rm -rf /tmp/e2e /tmp/playwright.config.js /tmp/test-results /tmp/pw-report && rm -f /tmp/*.spec.js"
