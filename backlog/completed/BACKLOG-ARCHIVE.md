@@ -394,3 +394,30 @@ module's build 2-4x — a real, separate finding worth doing manually if wanted 
 specific delay unchanged at ~43s). Root cause of the JUnit-launcher-session classpath scan itself
 remains unidentified; all experimental changes reverted, nothing applied to the repo or
 environment. Closed as investigated-not-fixed rather than left open against a disproven diagnosis.
+
+✅ Done (2026-07-17): [improvement-058](issues/improvement-058-taxon-assignment-audit-trail-missing.md) —
+the Timeline tab (global activity feed) showed raw taxon ids instead of resolved category names in
+audit diffs, while the per-advertisement Activity tab already showed names correctly for the same
+data. Original framing (based on ADR-019's "must be audited" text) overstated the gap as "taxon
+assignments not audited at all" — direct code tracing found every category change is already
+captured via the advertisement's own audit snapshot (`AdvertisementSnapshotDto.categoryIds`); the
+real, narrower bug was a raw-id-vs-name display inconsistency between the two rendering paths.
+Root cause: `AuditTimelineItemDto` carried only the current snapshot, not the previous one
+(unlike `AuditActivityItemDto`), so `AdvertisementEnrichService` couldn't resolve the "before" side
+of a category diff for the Timeline path. Fixed by adding `prevSnapshotData` to
+`AuditTimelineItemDto` (populated from `AuditLogProjection.prevSnapshot()`, already available,
+previously unused) — both rendering paths now share one fully-typed `resolveCategories()` helper,
+switched to `TaxonPort.findByIds()` (targeted batch lookup) instead of `listAllByType()` (scan-all).
+Consolidated the one unavoidable `instanceof ChangeEntry.FieldChange` check into a single default
+method, `ChangeEntry.replaceIfField()`. `TaxonAuditHook` (SPI) removed entirely rather than
+implemented — zero implementations existed, and both call sites already sit inside an advertisement
+save/delete producing its own audit snapshot; also removed `TaxonPort.assign()`/`unassign()`/
+`findByCode()` and `TaxonRepository.findByTypeAndCode()` (zero callers, confirmed by direct trace),
+along with the improvement-045 regression tests the latter had (a deliberate trade — clean removal
+over a safety net for an already-unreachable method). Documentation corrected across `CLAUDE.md`,
+`docs/architecture/`, and `DECISIONS.md` files (marketplace-app ADR-043, platform-commons ADR-017
+note, taxon-spring-boot-starter ADR-004 marked Superseded). Verified via full
+`bash scripts/unit-tests.sh` (30/30), `integration-tests` `Taxon*` suite (24/24), and full e2e
+Playwright suite (48/48) — including a new `changesText: 'Vehicles'` assertion in
+`04-marketplace-advertisement-flow.spec.js` proving the Timeline row now shows the resolved
+category name, not a raw id.
