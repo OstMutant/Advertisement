@@ -26,6 +26,15 @@
         it, instead of duplicating fixture logic per starter.
     </description>
 
+    <properties>
+        <!-- Excluded by default so a plain `mvn test`/`mvn install` from the repo root never
+             requires a reachable Docker daemon (improvement-047). Every Docker-backed test class
+             inherits @Tag("testcontainers") from AbstractPostgresIntegrationTest. run.sh (the
+             sanctioned way to run these tests) overrides this back to empty via
+             -Dsurefire.excludedGroups=. -->
+        <surefire.excludedGroups>testcontainers</surefire.excludedGroups>
+    </properties>
+
     <dependencies>
 
         <dependency>
@@ -105,5 +114,17 @@
         </dependency>
 
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 
 </project>

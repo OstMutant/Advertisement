@@ -58,7 +58,12 @@ regressions that a test against the real `user-spring-boot-starter` schema would
   directory, so it resolves whether launched from the repo root, a module subdirectory, or an IDE
   test runner). `AbstractPostgresIntegrationTest` uses it to source `POSTGRES_IMAGE`, the single
   source of truth also read natively by `scripts/infra/docker-compose.db.yml` — renaming the
-  Postgres version updates both consumers from one place, no drift possible.
+  Postgres version updates both consumers from one place, no drift possible. The repo-root `.env`
+  is intentionally **committed** (not `.gitignore`d) and must only ever hold non-secret, dev-only
+  values (currently just `POSTGRES_IMAGE`) — any future addition to it (see
+  [improvement-044](../backlog/issues/improvement-044-shared-env-config-consolidation.md)) must
+  keep that invariant; production secrets belong in CI/deploy-time environment variables, never in
+  this file.
 - Per-starter `*RepositoryTest` classes (e.g. `advertisement/AdvertisementRepositoryTest`) and
   plain unit tests for pure logic that would otherwise have no home (e.g. `diff()` on
   `platform-commons` snapshot DTOs) — organized into sub-packages per domain

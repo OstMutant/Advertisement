@@ -54,6 +54,27 @@ for arg in "$@"; do
   fi
 done
 
+# CI-environment guard (improvement-047): --sandbox and the sandbox-only env vars it sets are
+# workarounds for this specific claude-dev sandbox's Docker networking limitations (see
+# scripts/CLAUDE.md "Unit / Testcontainers Tests") -- never needed, and never correct, on a real
+# CI runner with normal Docker networking. Fail fast instead of letting someone copy-paste a
+# --sandbox invocation into a future CI config without realizing why it's there.
+if [ -n "$GITHUB_ACTIONS" ] && { [ -n "$SANDBOX" ] || [ -n "$TESTCONTAINERS_RYUK_DISABLED" ] || [ -n "$INTEGRATION_TESTS_POSTGRES_FIXED_PORT" ]; }; then
+  echo "ERROR: --sandbox / TESTCONTAINERS_RYUK_DISABLED / INTEGRATION_TESTS_POSTGRES_FIXED_PORT" \
+       "detected under GITHUB_ACTIONS. These are workarounds for this project's claude-dev sandbox" \
+       "only -- a real CI runner has normal Docker networking and must never set them. Remove the" \
+       "flag/env var from the CI config."
+  exit 1
+fi
+
+# Docker daemon precheck (improvement-047): fail with a clear message here instead of letting the
+# failure surface deep inside Testcontainers' own (slower, less clear) connection probing.
+if ! docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker daemon not reachable. integration-tests requires a running Docker daemon" \
+       "(Testcontainers starts a real Postgres container). Start Docker Desktop / dockerd and retry."
+  exit 1
+fi
+
 TEST_ARG=""
 if [ -n "$SCENARIO" ]; then
   if [ "$SCENARIO" = "smoke" ]; then
@@ -109,8 +130,10 @@ mkdir -p "$REPORT_DIR"
 rm -f "$LOG_FILE"
 rm -rf "$REPORT_DIR/surefire"
 
-echo "Running: env ${ENV_PREFIX[*]} ./mvnw -pl integration-tests test $TEST_ARG"
-env "${ENV_PREFIX[@]}" ./mvnw -pl integration-tests test $TEST_ARG 2>&1 | tee "$LOG_FILE"
+# -Dsurefire.excludedGroups= (empty) overrides the pom's default "testcontainers" exclusion --
+# this script's whole purpose is running these Docker-backed tests deliberately (improvement-047).
+echo "Running: env ${ENV_PREFIX[*]} ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG"
+env "${ENV_PREFIX[@]}" ./mvnw -pl integration-tests test -Dsurefire.excludedGroups= $TEST_ARG 2>&1 | tee "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}
 
 mkdir -p "$REPORT_DIR/surefire"

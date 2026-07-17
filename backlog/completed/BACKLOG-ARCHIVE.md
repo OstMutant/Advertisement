@@ -461,3 +461,27 @@ mocked directly (a plain non-final class); Mockito's default-empty-values behavi
 "optional starter absent" shape with zero extra stubbing. Verified via
 `bash scripts/unit-tests.sh marketplace-app` — BUILD SUCCESS, all 19 new tests green, plus
 `ArchitectureRulesTest` (8/8) confirming no ArchUnit violations.
+
+✅ Done (2026-07-17): [improvement-047](issues/improvement-047-integration-tests-ci-safety.md) —
+a plain `mvn install`/`mvn test` from the repo root silently required a reachable Docker daemon,
+because every Testcontainers-backed test in `integration-tests` ran unconditionally; a missing
+Docker daemon surfaced as an unclear failure deep inside Testcontainers' own connection probing.
+Fixed via `@Tag("testcontainers")` placed once on `AbstractPostgresIntegrationTest` (JUnit 5 tags
+on a superclass are inherited, so all 12 Docker-backed test classes got tagged with zero per-class
+edits) plus `<excludedGroups>testcontainers</excludedGroups>` wired into `maven-surefire-plugin`
+via a property in `integration-tests/pom.xml` — a bare `mvn test` now runs only the 9 Docker-free
+classes (41 tests, 1:23, zero Docker activity). `integration-tests/run.sh` (the sanctioned way to
+run the full suite) overrides the exclusion back to blank unconditionally, verified unaffected
+(88/88 green). Also added: a Docker daemon precheck and a CI-environment guard (fails fast if
+`GITHUB_ACTIONS` + this sandbox's `--sandbox`/`TESTCONTAINERS_RYUK_DISABLED`/
+`INTEGRATION_TESTS_POSTGRES_FIXED_PORT` are set together) to `run.sh`; a new `SharedEnvConfigTest`
+(4 tests, no Docker); and a one-line `.env`-is-intentionally-committed-and-non-secret doc note in
+`integration-tests/CLAUDE.md`. Hit a real dead end along the way: reassigning the `user.dir` system
+property per test (the originally planned way to simulate different working directories) turned
+out not to actually affect how `java.io.File` resolves relative paths on this JDK — fixed by giving
+`SharedEnvConfig` a second, package-visible `require(String, File)` entry point the test calls
+directly against `@TempDir` trees, with the original `require(String)` becoming a one-line
+delegation to it. Full design rationale — including why this doesn't repeat
+`integration-tests/DECISIONS.md` ADR-008's rejected "widen visibility for test convenience"
+pattern, since `SharedEnvConfig` is this module's own internal test-support plumbing rather than a
+starter's shipped production surface — is in ADR-010.

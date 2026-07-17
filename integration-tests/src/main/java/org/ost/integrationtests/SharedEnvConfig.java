@@ -22,19 +22,28 @@ final class SharedEnvConfig {
     }
 
     static String require(String key) {
-        Properties properties = load();
+        return require(key, new File("").getAbsoluteFile());
+    }
+
+    /**
+     * Package-visible overload taking an explicit starting directory instead of always resolving
+     * the JVM's actual working directory -- exists so {@code SharedEnvConfigTest} can exercise
+     * the walk-up logic against isolated {@code @TempDir} trees. {@link #require(String)} is the
+     * only entry point real callers use.
+     */
+    static String require(String key, File startDir) {
+        Properties properties = load(startDir);
         String value = properties.getProperty(key);
         if (value == null || value.isBlank()) {
             throw new IllegalStateException(
                     "Missing required key '" + key + "' in .env — searched up to "
-                            + MAX_PARENT_LEVELS + " parent levels from "
-                            + new File("").getAbsolutePath());
+                            + MAX_PARENT_LEVELS + " parent levels from " + startDir.getAbsolutePath());
         }
         return value;
     }
 
-    private static Properties load() {
-        File dir = new File("").getAbsoluteFile();
+    private static Properties load(File startDir) {
+        File dir = startDir;
         for (int i = 0; i <= MAX_PARENT_LEVELS && dir != null; i++, dir = dir.getParentFile()) {
             File envFile = new File(dir, ".env");
             if (envFile.isFile()) {
@@ -49,6 +58,6 @@ final class SharedEnvConfig {
         }
         throw new IllegalStateException(
                 "Could not find .env within " + MAX_PARENT_LEVELS + " parent levels of "
-                        + new File("").getAbsolutePath());
+                        + startDir.getAbsolutePath());
     }
 }

@@ -119,3 +119,36 @@ three issues, checked against current code before writing this issue:
   content for AccessEvaluator/rate-limiting/etc.; this issue is build/CI plumbing only.
 - [improvement-044](improvement-044-shared-env-config-consolidation.md) — the `.env` consolidation
   effort item 4's doc note should stay consistent with, if more values get added to `.env` later.
+
+## Resolution (2026-07-17)
+
+Implemented items 1-4 from "Suggested fix" (item 5 folded into item 1's `run.sh` change). Went with
+the recommended `@Tag`-based option, placed once on the shared base class rather than on each of
+the 12 subclasses: `@Tag("testcontainers")` on `AbstractPostgresIntegrationTest` (JUnit 5 tags on a
+superclass are inherited by subclasses), `<excludedGroups>testcontainers</excludedGroups>` wired
+into `maven-surefire-plugin` via a `surefire.excludedGroups` property in
+`integration-tests/pom.xml`, and `run.sh` overriding it back to blank (`-Dsurefire.excludedGroups=`)
+unconditionally since running the full Docker-backed suite deliberately is this script's entire
+purpose. Added a Docker daemon precheck (`docker info`) and the CI-environment guard (item 5) to
+`run.sh`. Added `SharedEnvConfigTest` (untagged, no Docker) covering all 4 cases from item 3. Added
+the one-line `.env` doc note (item 4) to `integration-tests/CLAUDE.md`.
+
+Hit a real dead end while writing `SharedEnvConfigTest`: reassigning the `user.dir` system property
+per test (the originally planned approach) does not actually change how `SharedEnvConfig`'s
+`new File("").getAbsoluteFile()` resolves on this JDK — all 4 tests kept reading the real repo-root
+`.env` regardless. Fixed by giving `SharedEnvConfig` a second, package-visible
+`require(String key, File startDir)` entry point that the test calls directly against isolated
+`@TempDir` trees; the original `require(String key)` is now a one-line delegation to it and remains
+the only entry point real callers use. Full design rationale, including why this doesn't repeat
+ADR-008's rejected "widen visibility for test convenience" pattern, is in
+`integration-tests/DECISIONS.md` ADR-010.
+
+Verified: `./mvnw -pl integration-tests test` (no flags, no `--sandbox`) now runs only the 9
+Docker-free classes (41 tests) in 1:23 with zero Docker/container activity — confirming the actual
+goal of this issue. `bash scripts/integration-tests.sh --sandbox` (full suite, no scenario) still
+runs everything, 88/88 green — confirming `run.sh` is unaffected. `SharedEnvConfigTest` alone: 4/4
+green in both modes.
+
+Explicitly not done here (out of scope, per "Explicitly out of scope" above): no GitHub Actions
+workflow was added — this repo still has no `.github/workflows/`; the CI-environment guard only
+protects a *future* one from a specific mistake.

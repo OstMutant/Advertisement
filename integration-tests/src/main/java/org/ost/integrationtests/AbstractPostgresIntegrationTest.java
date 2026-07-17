@@ -1,5 +1,6 @@
 package org.ost.integrationtests;
 
+import org.junit.jupiter.api.Tag;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -13,7 +14,14 @@ import java.util.List;
  * annotated with {@code @Testcontainers}/{@code @Container} — that ties container lifecycle to
  * per-class before/after-all hooks, which restarts it once per test class. Testcontainers' Ryuk
  * reaper cleans this up on JVM exit; there is no explicit stop.
+ * <p>
+ * {@code @Tag("testcontainers")} here is inherited by every subclass (JUnit 5 tags declared on a
+ * superclass apply to all subclasses) -- this is the single point that keeps every Docker-backed
+ * test out of a plain {@code mvn test} by default, via {@code excludedGroups} in
+ * {@code integration-tests/pom.xml} (improvement-047). A new {@code *RepositoryTest} extending
+ * this class is tagged automatically; nothing to remember per test class.
  */
+@Tag("testcontainers")
 public abstract class AbstractPostgresIntegrationTest {
 
     /**

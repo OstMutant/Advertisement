@@ -389,3 +389,81 @@ test config) — see `audit-spring-boot-starter/DECISIONS.md`.
 - Full verification: two consecutive full `bash scripts/integration-tests.sh --sandbox` runs
   (`mvn -pl integration-tests test`, all classes together, no `-Dtest` filter), 41/41 green both
   times.
+
+---
+
+## ADR-010: `@Tag("testcontainers")` on the shared base class + Surefire `excludedGroups`; `SharedEnvConfig` gains a testable overload
+
+**Status:** Accepted
+
+**Context:** A plain `mvn install`/`mvn test` from the repo root — a normal thing a new
+contributor or a future CI pipeline would run — silently required a reachable Docker daemon,
+because every Testcontainers-backed test in this module ran unconditionally. If Docker wasn't
+running, the failure surfaced deep inside Testcontainers' own connection probing instead of a
+clear message. Also `SharedEnvConfig` (the repo-root `.env` reader `AbstractPostgresIntegrationTest`
+depends on) had zero test coverage of its own walk-up/missing-file logic.
+→ [improvement-047](../backlog/completed/issues/improvement-047-integration-tests-ci-safety.md).
+
+**Decision:**
+- `@Tag("testcontainers")` placed once on `AbstractPostgresIntegrationTest` — JUnit 5 tags declared
+  on a superclass are inherited by every subclass, so all 12 Docker-backed `*RepositoryTest`/
+  `*ServiceTest` classes (and `PostgresContainerSmokeTest`) got tagged with zero per-class edits,
+  and any *future* class extending this base is tagged automatically — nothing to remember.
+- `integration-tests/pom.xml` gained a `<surefire.excludedGroups>testcontainers</surefire.excludedGroups>`
+  property, wired into `maven-surefire-plugin`'s `<excludedGroups>`. A plain `mvn test`/`mvn install`
+  now skips every Docker-backed class by default and touches no Docker socket at all — confirmed
+  directly: `./mvnw -pl integration-tests test` with no flags ran only the 9 Docker-free classes
+  (41 tests) in 1:23, no container-start log lines anywhere.
+- `integration-tests/run.sh` — the sanctioned way to run these tests — passes
+  `-Dsurefire.excludedGroups=` (blank, overriding the pom's default) unconditionally, so it keeps
+  running the full suite (Docker-backed + Docker-free together) exactly as before this change;
+  confirmed via `bash scripts/integration-tests.sh --sandbox` (no scenario), 88/88 green.
+- `run.sh` also gained a Docker daemon precheck (`docker info` before invoking `mvn`, clear message
+  + exit 1 on failure) and a CI-environment guard (fails fast if `GITHUB_ACTIONS` is set alongside
+  `--sandbox` or the sandbox-only `TESTCONTAINERS_RYUK_DISABLED`/`INTEGRATION_TESTS_POSTGRES_FIXED_PORT`
+  env vars — these are this claude-dev sandbox's own Docker-networking workarounds, never correct
+  on a real CI runner).
+- New `SharedEnvConfigTest` (`org.ost.integrationtests`, no `@Tag` — runs under a plain `mvn test`)
+  covers: `.env` found in the start directory, found after walking up to a parent, missing
+  entirely (`IllegalStateException`), and present but missing the requested key
+  (`IllegalStateException` naming the key).
+
+**A real dead end hit during implementation:** the first version of `SharedEnvConfigTest` tried to
+simulate different working directories by reassigning the `user.dir` system property before each
+call to `SharedEnvConfig.require(String)`. All 4 tests failed — `SharedEnvConfig`'s
+`new File("").getAbsoluteFile()` kept resolving the *real* repo-root `.env`
+(`POSTGRES_IMAGE=postgres:15-alpine`) regardless of what `user.dir` was set to, confirming directly
+that `java.io.File`'s relative-path resolution does not dynamically re-read `user.dir` on this JDK
+(a commonly cited "trick" that turned out not to hold here). Fixed by giving `SharedEnvConfig` a
+second, package-visible entry point, `require(String key, File startDir)`, with the original
+`require(String key)` becoming a one-line delegation to it using the real
+`new File("").getAbsoluteFile()`. The test calls the two-arg overload directly against isolated
+`@TempDir` trees instead of fighting the JVM's real working directory.
+
+**Why this doesn't repeat ADR-008's rejected pattern (widening visibility for test convenience):**
+ADR-008 rejected widening a *starter's* internal method (`DefaultTaxonPort.resolveTranslation()`)
+because that starter is a real, shipped production module — widening its surface area for a test
+is a production-code change made *for* a test. `SharedEnvConfig` is different in kind: it already
+lives in `integration-tests/src/main/java`, not a starter, specifically so this module's own
+`src/test/java` can consume it directly (the same placement rationale already documented for
+`AbstractPostgresIntegrationTest`/`RepositoryTestSupport`/`TestDataCleaner` — see "What it owns"
+above). `integration-tests` is never shipped or deployed (ADR-001), so there is no external
+production surface being widened — only this module's own internal test-support plumbing, for
+consumption by this module's own tests. ADR-008's actual instruction — "test the *behavior* through
+the public entry point" — is still honored: `require(String key)` (the one production callers use)
+is unchanged and delegates straight into the tested overload; no behavior was special-cased for
+tests.
+
+**Consequences:**
+- New contributor / future CI running a bare `mvn test`/`mvn install` from the repo root no longer
+  needs Docker at all, and gets a fast, safe sanity build.
+- `integration-tests/run.sh` continues to be the only sanctioned way to run the Docker-backed
+  suite — unaffected in behavior, verified 88/88 green.
+- Any future `*RepositoryTest`/`*ServiceTest` extending `AbstractPostgresIntegrationTest` is tagged
+  automatically; no new discipline required per class.
+- Doc note added to `integration-tests/CLAUDE.md` (near the `SharedEnvConfig` description):
+  the repo-root `.env` is intentionally committed and must only ever hold non-secret, dev-only
+  values.
+- Explicitly out of scope (per the originating issue): a GitHub Actions workflow itself — this
+  repo still has no `.github/workflows/`; the CI-environment guard added here only protects a
+  *future* one from a specific copy-paste mistake, it doesn't introduce CI.
