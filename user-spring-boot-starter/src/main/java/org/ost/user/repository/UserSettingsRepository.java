@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
@@ -23,15 +24,26 @@ public class UserSettingsRepository {
 
     @Transactional
     public void save(@NonNull Long userId, @NonNull UserSettingsDto settings) {
+        UserSettingsDto toStore = settings.toBuilder().version(settings.getVersion() + 1).build();
+        String json;
         try {
-            jdbcClient.sql("UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId")
-                      .paramSource(new MapSqlParameterSource()
-                              .addValue("settings", mapper.writeValueAsString(settings))
-                              .addValue("userId",   userId))
-                      .update();
+            json = mapper.writeValueAsString(toStore);
         } catch (Exception ex) {
-            log.error("Failed to save settings for userId={}", userId, ex);
-            throw new RuntimeException("Failed to save settings for userId=" + userId, ex);
+            log.error("Failed to serialize settings for userId={}", userId, ex);
+            throw new RuntimeException("Failed to serialize settings for userId=" + userId, ex);
+        }
+        int updated = jdbcClient.sql("""
+                        UPDATE user_information SET settings = :settings::jsonb
+                        WHERE id = :userId AND (settings->>'version')::bigint = :expectedVersion
+                        """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("settings",        json)
+                        .addValue("userId",          userId)
+                        .addValue("expectedVersion", settings.getVersion()))
+                .update();
+        if (updated == 0) {
+            throw new OptimisticLockingFailureException(
+                    "Settings for userId=" + userId + " were modified concurrently");
         }
     }
 

@@ -45,3 +45,32 @@ desired).
 - `user-spring-boot-starter/CLAUDE.md` — documents the existing `UserProfileUpdate`/
   `UserProfileCrudRepository` narrow-entity pattern `ADR-029` already established for a different
   part of the same `user_information` row.
+
+## Resolution (2026-07-17)
+
+Went with neither option floated in "Suggested fix" above (a shared `user_information.version` nor
+a dedicated new SQL column) — the version lives **inside the `settings` JSONB blob itself**, since
+`UserSettingsRepository.save()`/`load()` already serialize/deserialize the whole
+`UserSettingsDto` directly into/from that one column:
+
+- `UserSettingsDto` (`platform-commons`) gained a `long version` field.
+- `UserSettingsRepository.save()`: increments `version` on the DTO being written, and the `UPDATE`
+  now reads `WHERE id = :userId AND (settings->>'version')::bigint = :expectedVersion` — 0 affected
+  rows throws `OptimisticLockingFailureException`, same as every other mutable entity (ADR-029).
+  `load()` needed no change — `version` round-trips through normal Jackson deserialization once the
+  DTO field existed.
+- UI (`SettingsEditDto`, `SettingsFormModeHandler`): `version` threaded through every lifecycle path
+  (`activate`, `save`, `discardChanges`, `handleRestoreFromActivity`, `loadRestored`) so a stale
+  value is never silently re-derived — same discipline ADR-029 already requires for
+  `Advertisement`/`Taxon`.
+- Schema default (`01-user-schema.xml`'s `settings` column `defaultValue`) updated to include
+  `"version":0` so freshly-registered users start at version 0 instead of a missing key (which
+  would make `(settings->>'version')::bigint` throw/never match). **Not in production** — the dev
+  DB's live column default was fixed directly via `ALTER TABLE ... ALTER COLUMN settings SET
+  DEFAULT ...`, no new Liquibase changeset added (would be required before any real deploy).
+- Covered by `integration-tests/.../user/UserSettingsRepositoryTest` (3 cases: fresh user starts at
+  version 0, stale-version save throws, current-version save succeeds and increments) — verified
+  against real Postgres. Full Playwright e2e suite (48/48) re-run as a pure regression check —
+  no new Playwright assertions added, per explicit direction that the dry test coverage above is
+  sufficient.
+- See `marketplace-app/DECISIONS.md` ADR-044 for the full design writeup and rejected alternatives.

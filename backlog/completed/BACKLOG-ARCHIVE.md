@@ -421,3 +421,24 @@ note, taxon-spring-boot-starter ADR-004 marked Superseded). Verified via full
 Playwright suite (48/48) — including a new `changesText: 'Vehicles'` assertion in
 `04-marketplace-advertisement-flow.spec.js` proving the Timeline row now shows the resolved
 category name, not a raw id.
+
+✅ Done (2026-07-17): [improvement-066](issues/improvement-066-usersettingsrepository-missing-version-check.md) —
+`UserSettingsRepository.save()` had no optimistic-locking version check at all, unlike every other
+mutable entity in this codebase (ADR-029) — two browser tabs of the same user editing settings
+could silently clobber each other, last-write-wins on the whole JSONB blob, no conflict signal.
+Fixed by embedding the version **inside** the `settings` JSONB column itself
+(`UserSettingsDto.version`) rather than adding a new SQL column or reusing
+`user_information`'s shared `version` (would have spuriously coupled a settings save to an
+unrelated profile-name edit in another tab) — `save()`'s `UPDATE` now checks
+`(settings->>'version')::bigint = :expectedVersion`, throwing `OptimisticLockingFailureException`
+on a mismatch. UI (`SettingsEditDto`, `SettingsFormModeHandler`) threads `version` through every
+lifecycle path (`activate`, `save`, `discardChanges`, `handleRestoreFromActivity`, `loadRestored`)
+per the same discipline ADR-029 already requires elsewhere. Schema default updated to include
+`"version":0` so fresh users don't start with a missing key; the live dev DB's column default was
+fixed directly via `ALTER TABLE` rather than a new Liquibase changeset, since the app is not yet in
+production (a real changeset is still required before any production deploy — editing an
+already-applied changeset's `defaultValue` has no retroactive effect). Documented in
+`marketplace-app/DECISIONS.md` ADR-044 and `user-spring-boot-starter/CLAUDE.md`. Verified via new
+`integration-tests/.../user/UserSettingsRepositoryTest` (3/3, real Postgres) and a full e2e
+Playwright regression run (48/48 — no new Playwright assertions added, per explicit direction that
+dry-test coverage was sufficient for this fix).

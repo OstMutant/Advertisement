@@ -85,6 +85,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .adsPageSize(current.getAdsPageSize())
                 .usersPageSize(current.getUsersPageSize())
                 .timelinePageSize(current.getTimelinePageSize())
+                .version(current.getVersion())
                 .build();
 
         saveButton.configure(UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
@@ -137,6 +138,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .adsPageSize(dto.getAdsPageSize() != null ? dto.getAdsPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .usersPageSize(dto.getUsersPageSize() != null ? dto.getUsersPageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
                 .timelinePageSize(dto.getTimelinePageSize() != null ? dto.getTimelinePageSize() : PaginationDefaults.DEFAULT_PAGE_SIZE)
+                .version(dto.getVersion())
                 .build()));
     }
 
@@ -158,11 +160,13 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .adsPageSize(fresh.getAdsPageSize())
                         .usersPageSize(fresh.getUsersPageSize())
                         .timelinePageSize(fresh.getTimelinePageSize())
+                        .version(fresh.getVersion())
                         .build(),
                 (src, tgt) -> {
                     tgt.setAdsPageSize(src.getAdsPageSize());
                     tgt.setUsersPageSize(src.getUsersPageSize());
                     tgt.setTimelinePageSize(src.getTimelinePageSize());
+                    tgt.setVersion(src.getVersion());
                 });
         updateButtons(false);
     }
@@ -184,6 +188,10 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                                 .adsPageSize(c.snapshotData().adsPageSize())
                                 .usersPageSize(c.snapshotData().usersPageSize())
                                 .timelinePageSize(c.snapshotData().timelinePageSize())
+                                // Restore only stages values into the form -- the eventual save()
+                                // still checks against the current DB version, never the snapshot's
+                                // (snapshots don't carry one; they predate optimistic locking here).
+                                .version(userPort.loadSettings(params.getUserId()).getVersion())
                                 .build())
                         .ifPresent(this::loadRestored));
     }
@@ -195,11 +203,13 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                         .adsPageSize(restored.getAdsPageSize())
                         .usersPageSize(restored.getUsersPageSize())
                         .timelinePageSize(restored.getTimelinePageSize())
+                        .version(restored.getVersion())
                         .build(),
                 (src, tgt) -> {
                     tgt.setAdsPageSize(src.getAdsPageSize());
                     tgt.setUsersPageSize(src.getUsersPageSize());
                     tgt.setTimelinePageSize(src.getTimelinePageSize());
+                    tgt.setVersion(src.getVersion());
                 });
         updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(settingsTab);

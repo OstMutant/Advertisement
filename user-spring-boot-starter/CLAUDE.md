@@ -56,3 +56,12 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   value for a sensitive field, without relying on builder discipline. `UserService.applyUserRestore()`
   (name/role restore from a snapshot) reuses the same `updateProfile()` method. See
   `marketplace-app/DECISIONS.md` ADR-029.
+- `UserSettingsRepository.save()` also enforces optimistic locking, but via a version embedded
+  **inside** the `settings` JSONB column (`UserSettingsDto.version`) rather than a separate SQL
+  column — since this repository already serializes/deserializes the whole DTO directly into that
+  one column, the version round-trips through the same Jackson (de)serialization for free. The
+  `UPDATE`'s `WHERE` clause checks `(settings->>'version')::bigint = :expectedVersion`; 0 affected
+  rows throws `OptimisticLockingFailureException`, same as `User.version`/`UserProfileUpdate` above.
+  Deliberately does **not** reuse the row's shared `user_information.version` — that would couple
+  a settings save to an unrelated profile-name edit in another tab. See
+  `marketplace-app/DECISIONS.md` ADR-044.

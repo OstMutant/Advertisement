@@ -1681,6 +1681,73 @@ discarding `row.prevSnapshot()` even though `AuditLogProjection` already had it.
 
 ---
 
+## ADR-044: `UserSettingsRepository` optimistic-locking version lives inside the `settings` JSONB blob, not a new SQL column
+
+**Status:** Accepted
+
+**Context:** `UserSettingsRepository.save()` had no conflict detection at all — a bare
+`UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId`, unlike every other
+mutable entity in this codebase (`Advertisement`, `Taxon`, `user_information` name/role via
+`UserProfileUpdate` — all `@Version`-column optimistic locking per ADR-029). Two browser tabs of
+the same user editing settings would silently clobber each other: the second tab's save overwrites
+the *entire* JSONB blob with its own stale copy, discarding whatever the first tab's save had just
+written, with no error and no conflict notification. Traced the full call chain
+(`SettingsOverlay` → `AuthContextService.getCurrentUser()`) and confirmed there is exactly one
+write path (the current user's own settings, via the header settings icon) — no admin-edits-
+another-user's-settings path, no background writer — so the only realistic conflict is the same
+user's own concurrent tabs. → [improvement-066](../backlog/issues/improvement-066-usersettingsrepository-missing-version-check.md).
+
+**Decision:**
+- `UserSettingsDto` (`platform-commons`) gained a `long version` field. `UserSettingsRepository`
+  already serializes/deserializes the *entire* DTO directly into/from the `settings` JSONB column
+  (`mapper.writeValueAsString`/`readValue`), so the version travels for free through the same
+  round-trip — no new SQL column, no entity restructuring.
+- `save()` increments `version` on the DTO being written and adds
+  `AND (settings->>'version')::bigint = :expectedVersion` to the `UPDATE`'s `WHERE` clause (Postgres
+  JSONB `->>` operator extracts the field as text, cast to `bigint` for the comparison); 0 affected
+  rows throws `OptimisticLockingFailureException` — same exception type and UI conflict-handling
+  path ADR-029 already standardized on, so no new UI code was needed for the failure case itself.
+- UI (`SettingsEditDto`, `SettingsFormModeHandler`) threads `version` through every lifecycle path
+  (`activate`, `save`, `discardChanges`, `handleRestoreFromActivity`, `loadRestored`) so it is never
+  silently re-derived from a stale read mid-flow — the same discipline ADR-029 requires for
+  `Advertisement.buildEntity()`/`Taxon.update()`. `handleRestoreFromActivity()` is the one
+  deliberate exception: it fetches the *current* DB version via `userPort.loadSettings()` rather
+  than trusting the audit snapshot (which predates this field and carries no version), since a
+  restore only stages values into the form — the eventual save still has to check against whatever
+  is actually current in the row, not what the snapshot happened to hold.
+- Schema default (`01-user-schema.xml`'s `settings` column) updated to
+  `{"adsPageSize":20,"usersPageSize":20,"timelinePageSize":20,"version":0}` so freshly-registered
+  users start at version 0 rather than a missing JSON key (which would make
+  `(settings->>'version')::bigint` never match any expected value on a user's first save).
+
+**Rejected alternatives:**
+- **A dedicated new SQL column** (e.g. `settings_version BIGINT`), matching the shape of a real
+  `@Version` field. Rejected as unnecessary ceremony: it would require restructuring
+  `UserSettingsRepository` to read/write the column separately from the JSONB blob, when the whole
+  point of that repository is that it treats `settings` as one opaque serialized DTO.
+- **Reusing the row's existing `user_information.version`** (the one `UserProfileUpdate`/
+  `UserProfileCrudRepository` already uses for name/role edits). Rejected: it would couple two
+  functionally independent parts of the same row — a settings save in one tab and a profile-name
+  edit in another tab would spuriously conflict with each other, which is not a real data race
+  (they touch disjoint columns) and would surface confusing, unwarranted conflict errors.
+- **A formal new Liquibase changeset** (`02-user-settings-default-version`) to fix the live dev
+  database's column default, mirroring how every other schema change in this codebase is applied.
+  Explicitly skipped per direct instruction, since this application is not yet in production — the
+  dev DB's actual column default was fixed directly via a one-off `ALTER TABLE ... ALTER COLUMN
+  settings SET DEFAULT ...`. **A proper Liquibase changeset is still required before any real
+  deploy** — editing `01-user-schema.xml`'s `defaultValue` (even with `validCheckSum ANY`) has no
+  effect on an already-migrated database; Liquibase does not re-execute a changeset once applied,
+  it only suppresses the checksum-mismatch error on future runs.
+
+**Consequences:**
+- No new SQL column, no new Liquibase changeset (see rejected alternative above — a real gap, not
+  an oversight, tracked for whenever this app approaches a production deploy).
+- `integration-tests/.../user/UserSettingsRepositoryTest` (new) covers fresh-user version-0 start,
+  stale-version save throwing `OptimisticLockingFailureException`, and current-version save
+  succeeding + incrementing — verified against real Postgres.
+
+---
+
 ## [OPEN GOAL] Activity field visibility — filter by viewer's role
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)
