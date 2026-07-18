@@ -612,3 +612,20 @@ conversion, not this code. `catch (Exception _)` narrowed to `catch (SQLExceptio
 attachment-domain integration test sweep (`AttachmentServiceTest`, `AttachmentServiceTransactionTest`,
 `AttachmentSnapshotRepositoryTest`, `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) —
 21/21 green, no regression in adjacent tests.
+
+✅ Done (2026-07-18): [improvement-068](issues/improvement-068-attachment-audit-shows-uuid-not-original-filename.md) —
+`AttachmentSnapshotService.filename(url)` derived the displayed media name from the S3 object key
+(always `UUID + extension`), so Activity/Timeline diffs showed meaningless UUIDs instead of the
+uploaded file's real name. A dedicated research pass (user-prompted: "check whether this applies
+to Activity and views too") confirmed the bug was fully isolated to this one method — gallery/
+lightbox/card components already display the real `attachment.filename` column throughout, and
+Activity/Timeline rendering only shows whatever string this method already produced at capture
+time. Fixed by resolving real filenames via a new `resolveFilenames()` bulk lookup
+(`AttachmentRepository.findByEntityAndUrls()`) into a `Map<url, filename>` — keyed by url, not
+filename, so two attachments sharing an identical original filename can't collide; each url still
+resolves independently. Falls back to the old UUID-derived name only when no matching row exists
+(e.g. an attachment purged past the 90-day retention window). See
+`attachment-spring-boot-starter/DECISIONS.md` ADR-013. New `AttachmentSnapshotServiceTest` (4
+tests, plain Mockito) covers real-name resolution, the no-match fallback, `getMediaStateForSnapshot()`,
+and the duplicate-filename-no-collision case. Full attachment-domain integration sweep (25/25) and
+a full Playwright e2e pass (35/35 non-skipped) both green.

@@ -266,3 +266,52 @@ any kind. `catch (Exception _)` narrowed to `catch (SQLException e)` (the only c
   `java.sql.Array`/`ResultSet` — 3/3 green, plus the 4 other attachment-domain integration test
   classes re-verified green (21/21 total) to rule out any regression in adjacent tests that
   exercise the same starter.
+
+---
+
+## ADR-013: `AttachmentSnapshotService` resolves real filenames from `attachment.filename` by url, instead of deriving a display name from the S3 object key
+
+**Status:** Accepted
+
+**Context:** [improvement-068](../backlog/completed/issues/improvement-068-attachment-audit-shows-uuid-not-original-filename.md)
+— `AttachmentSnapshotService.filename(url)` took the last path segment of the stored URL as the
+displayed media name in Activity/Timeline diffs. Since `S3StorageService.upload()` always names
+uploaded objects `UUID + extension` (never the original filename), every non-video media change
+showed something like `550e8400-e29b....png → 6789bcde-f123....png`, meaningless to the user who
+actually uploaded `sofa-front.jpg`. A dedicated research pass (prompted by "this same fix should
+apply to Activity and views too") confirmed the bug is fully isolated to this one method — gallery
+/lightbox/card UI components already display the real `attachment.filename` column end-to-end via
+`AttachmentItemDto`, and Activity/Timeline rendering only ever displays whatever string this
+method already produced at snapshot-capture time, re-deriving nothing themselves. Fixing this one
+method was therefore sufficient, no changes needed elsewhere.
+
+**Decision:** Picked option 2 from the issue (repository lookup) over option 1 (extend the
+snapshot schema/payload) — no schema change, and the `attachment` row reliably still exists at
+every point `filename()` is called (capture always runs right after the row's own
+insert/soft-delete in the same or an immediately following transaction). New private
+`resolveFilenames(EntityType, Long, List<String> urls)` bulk-resolves via
+`AttachmentRepository.findByEntityAndUrls()` into a `Map<url, filename>` — **keyed by url, not by
+filename**, so two attachments legitimately sharing the same original filename (e.g. uploaded from
+different devices) can never collide in the lookup; each url still resolves to its own correct
+name independently, even if both display the same string. `filename(url, urlToFilename)` checks
+this map after the existing YouTube-id branch, before falling back to the old last-path-segment
+behavior (only reachable now if the attachment row is gone entirely, e.g. purged past retention).
+`buildDiff()` (capture-time, called from `captureAndGetId()`) and `getMediaStateForSnapshot()`
+(render-time) both resolve once per call via one bulk lookup covering every url they need, not one
+lookup per url.
+
+**Consequences:**
+- New snapshots capture the real filename permanently into `changes_summary` at write time — no
+  later re-resolution needed, and no dependency on the `attachment` row still existing once
+  captured. Snapshots captured before this fix keep showing their already-baked-in UUID-derived
+  names (no data migration; out of scope, same precedent as every other in-place fix in this
+  codebase).
+- If an attachment is later hard-deleted (past the 90-day retention purge in
+  `AttachmentCleanupService`), a *new* snapshot capture for the same entity would fall back to the
+  old UUID-derived name for that url, since no row remains to resolve against — an acknowledged,
+  narrow edge case matching the issue's own framing, not fixed here.
+- New `AttachmentSnapshotServiceTest` (`integration-tests`, plain Mockito, no Spring context) — 4
+  tests: real filename resolved on first capture, fallback to url segment when no attachment row
+  matches, `getMediaStateForSnapshot()` resolves correctly, and two attachments sharing an
+  identical original filename resolve independently without collision. Full attachment-domain
+  integration sweep (25/25) and a full Playwright e2e pass (35/35 non-skipped) both green.
