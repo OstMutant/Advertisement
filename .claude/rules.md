@@ -11,15 +11,22 @@ Before executing any tool call — re-read this entire file. No exceptions.
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 
-Before doing anything, generate and present a detailed prompt — the exact instruction you would give yourself to execute the action. This prompt must include:
-- Full file paths
-- Exact changes (method signatures, SQL, config values, field names)
-- Any side-effects or follow-up steps
+Before doing anything, present the plan in two layers, in this order:
 
-Present the prompt, then **STOP and wait for explicit confirmation** before executing.
+1. **Plain-language layer (first):** why this is being done and what the outcome will be, in
+   words a non-technical reader could follow — no file paths, no method signatures yet.
+2. **Technical layer (after):** the exact instruction you would give yourself to execute the
+   action — full file paths, exact changes (method signatures, SQL, config values, field names),
+   any side-effects or follow-up steps.
+
+Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
 Example format:
-> "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
+> Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
+> approved a change. Fixing it so the correct reviewer's name always shows."
+>
+> Technical: "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
+> `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
 
 Wait for explicit confirmation before making any change.
 
