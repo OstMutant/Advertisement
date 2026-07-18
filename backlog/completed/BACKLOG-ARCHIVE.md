@@ -597,3 +597,18 @@ and `marketplace-app/DECISIONS.md` ADR-047. New tests: `AttachmentServiceTest` (
 (`AdvertisementSaveServiceTest` 5/5), `bash scripts/integration-tests.sh --sandbox
 AttachmentServiceTest,AttachmentCleanupServiceTest` (8/8) and `AttachmentRepositoryTest` (8/8, real
 Postgres), plus a full Playwright e2e pass (35/35 non-skipped).
+
+✅ Done (2026-07-18): [improvement-070](issues/improvement-070-attachmentsnapshotrepository-unsafe-array-cast-silent-swallow.md) —
+`AttachmentSnapshotRepository.extractUrls()`'s unsafe `(String[])` cast (resting on driver
+convention, not a `java.sql.Array` contract guarantee) wrapped in a silent `catch (Exception _)`.
+Rejected the initially-proposed `(Object[])` cast + `Stream.of(...).map(String::valueOf)` fix on
+user request (standing preference against casts, not just unsafe ones) in favor of a genuinely
+cast-free rewrite: `java.sql.Array.getResultSet()` — part of the `Array` interface itself, returns
+a two-column `ResultSet` (index, value) read via `getString(2)`, so the driver handles type
+conversion, not this code. `catch (Exception _)` narrowed to `catch (SQLException e)` with a
+`log.warn(...)`. See `attachment-spring-boot-starter/DECISIONS.md` ADR-012. New
+`AttachmentSnapshotRepositoryTest` (real Postgres, first coverage this repository has ever had) —
+3/3 green, round-tripping multiple urls through `insert()`/`getPrevUrls()`/`getUrlsById()`. Full
+attachment-domain integration test sweep (`AttachmentServiceTest`, `AttachmentServiceTransactionTest`,
+`AttachmentSnapshotRepositoryTest`, `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) —
+21/21 green, no regression in adjacent tests.

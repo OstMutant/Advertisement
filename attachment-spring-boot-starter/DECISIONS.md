@@ -233,3 +233,36 @@ line was the one place still describing it as open work.
   re-verified green after adding `findExistingUrls`. Full `integration-tests` (`AttachmentServiceTest`,
   `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) and a full Playwright e2e pass
   (35/35 non-skipped) both green.
+
+---
+
+## ADR-012: `AttachmentSnapshotRepository.extractUrls()` reads the `attachment_urls` array via `Array.getResultSet()` — no cast at all, not even to `Object[]`
+
+**Status:** Accepted
+
+**Context:** [improvement-070](../backlog/completed/issues/improvement-070-attachmentsnapshotrepository-unsafe-array-cast-silent-swallow.md)
+— `extractUrls()` did `(String[]) arr.getArray()`, an unchecked cast resting on PostgreSQL JDBC
+driver convention rather than a `java.sql.Array` contract guarantee, wrapped in `catch (Exception
+_) { return List.of(); }` — any failure, including a `ClassCastException` from the cast itself,
+silently became an empty result with no log trace.
+
+**Decision:** Standing project preference against casts (not just unsafe ones). The initially
+proposed fix — cast to `Object[]` instead of `String[]`, then `Stream.of(raw).map(String::valueOf)`
+— was rejected on exactly that basis even though it's the safe/conventional version of this fix
+(array covariance guarantees any reference-type array is assignable to `Object[]`). Replaced
+instead with `java.sql.Array.getResultSet()` — part of the `java.sql.Array` interface itself, not
+driver-specific behavior: it returns a two-column `ResultSet` (array index, element value) that's
+read via `arrRs.getString(2)`, so the driver does the type conversion, not our code. Zero casts of
+any kind. `catch (Exception _)` narrowed to `catch (SQLException e)` (the only checked exception
+`getArray()`/`getResultSet()`/`getString()` can throw) with a `log.warn(...)`.
+
+**Consequences:**
+- No other place in this codebase reads a Postgres array column back via `getArray()` (writing
+  arrays via `= ANY(:array)` bind params is common; this was the only read side), so there was no
+  existing convention to stay consistent with — free to pick the cast-free option.
+- New `AttachmentSnapshotRepositoryTest` (real Postgres, first test coverage this repository has
+  ever had) round-trips multiple urls through `insert()` → `getPrevUrls()`/`getUrlsById()`,
+  proving the new extraction against a real `text[]` column rather than mocking
+  `java.sql.Array`/`ResultSet` — 3/3 green, plus the 4 other attachment-domain integration test
+  classes re-verified green (21/21 total) to rule out any regression in adjacent tests that
+  exercise the same starter.
