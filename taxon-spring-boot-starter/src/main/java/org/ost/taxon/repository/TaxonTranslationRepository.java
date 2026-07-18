@@ -58,9 +58,9 @@ public class TaxonTranslationRepository {
         return jdbcClient.sql("""
                         SELECT taxon_id, locale, name, description
                         FROM taxon_translation
-                        WHERE taxon_id IN (:taxonIds)
+                        WHERE taxon_id = ANY(:taxonIds)
                         """)
-                         .paramSource(new MapSqlParameterSource("taxonIds", taxonIds))
+                         .paramSource(new MapSqlParameterSource("taxonIds", taxonIds.toArray(new Long[0])))
                          .query(ROW_MAPPER)
                          .list();
     }

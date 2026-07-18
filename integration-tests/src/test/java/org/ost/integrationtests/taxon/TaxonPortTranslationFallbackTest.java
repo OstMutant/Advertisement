@@ -19,7 +19,9 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -146,5 +148,29 @@ class TaxonPortTranslationFallbackTest extends AbstractPostgresIntegrationTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().getName()).isEqualTo("Електроніка");
+    }
+
+    /**
+     * Covers improvement-067: {@code TaxonTranslationRepository.findAllByTaxonIds()} switched from
+     * {@code IN (:taxonIds)} to {@code = ANY(:taxonIds)}. {@code TaxonPort.findByIds()} is the only
+     * public entry point that drives this method with more than one id at once (via
+     * {@code DefaultTaxonPort.buildDtoIndex()} -> {@code TaxonService.getTranslationsForMany()}),
+     * so this exercises the array-bind SQL directly rather than through a single-id call that
+     * would pass under either clause shape.
+     */
+    @Test
+    void findByIds_resolvesTranslationsForMultipleTaxonsInOneCall() {
+        Long electronics = createTaxonWithTranslations(
+                translation("en", "Electronics"),
+                translation("uk", "Електроніка"));
+        Long vehicles = createTaxonWithTranslations(
+                translation("en", "Vehicles"),
+                translation("uk", "Транспорт"));
+
+        Map<Long, TaxonDto> result = taxonPort.findByIds(Set.of(electronics, vehicles), Locale.ENGLISH);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(electronics).getName()).isEqualTo("Electronics");
+        assertThat(result.get(vehicles).getName()).isEqualTo("Vehicles");
     }
 }

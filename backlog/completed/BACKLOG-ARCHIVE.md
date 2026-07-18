@@ -549,3 +549,27 @@ no Playwright test added since the buggy path isn't reachable through any real U
 masking note above). Full e2e suite (specs 01-06, `--ux`) re-run after the change: 35/35
 non-skipped tests green, including the User/Advertisement/Taxon activity-tab flows this refactor
 directly touches.
+
+✅ Done (2026-07-18): [improvement-060](issues/improvement-060-advertisementenrichservice-listallbytype-instead-of-findbyids.md) —
+found already resolved on re-check: the issue's target method (`resolveCategoryNames()`, using
+`listAllByType()` + an in-memory `.filter()`) no longer exists under that shape.
+`AdvertisementEnrichService.resolveNames()` (its current form) already calls the bulk
+`TaxonPort.findByIds(ids, Locale.ENGLISH)` lookup the issue was asking for — a side effect of
+improvement-058 (2026-07-17, "Timeline tab resolves category names instead of raw taxon ids"),
+which rewrote this method for an unrelated reason and picked up the same fix along the way. No
+code change needed; moved directly to `completed/issues/`.
+
+✅ Done (2026-07-18): [improvement-067](issues/improvement-067-taxontranslationrepository-unbounded-in-clause.md) —
+`TaxonTranslationRepository.findAllByTaxonIds()` was the one method improvement-054 missed when it
+fixed this same unbounded-`IN`-clause pattern in `TaxonAssignmentRepository`/`AttachmentRepository`.
+Switched to `WHERE taxon_id = ANY(:taxonIds)` with `taxonIds.toArray(new Long[0])`, matching the
+existing pattern exactly (one placeholder regardless of collection size, avoids Postgres's
+parameter-count limit and query-plan cache churn). Mechanical, same-shape fix as improvement-054 —
+no new ADR (improvement-054 itself has none either, just this archive entry). Caught a gap while
+verifying: no existing test exercised this method at all — `TaxonPort.findByIds()` is the only
+public entry point that drives it with more than one id
+(`DefaultTaxonPort.buildDtoIndex()` -> `TaxonService.getTranslationsForMany()`), so a new test,
+`findByIds_resolvesTranslationsForMultipleTaxonsInOneCall()`, was added to
+`TaxonPortTranslationFallbackTest` to actually exercise the array-bind SQL with 2 taxons. Verified
+via `bash scripts/integration-tests.sh --sandbox TaxonPortTranslationFallbackTest` — 6/6 green
+(5 pre-existing + the new one).
