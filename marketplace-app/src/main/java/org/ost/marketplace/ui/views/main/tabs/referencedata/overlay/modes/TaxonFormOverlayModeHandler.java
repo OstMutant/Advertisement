@@ -66,8 +66,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private final ComponentFactory<TaxonPort>                              taxonPortFactory;
     private final ComponentFactory<AuditPort>                              auditPortFactory;
     private final NotificationService                                      notificationService;
-    @SuppressWarnings("rawtypes")
-    private final UiComponentFactory<OverlayFormBinder>                    formBinderFactory;
+    private final UiComponentFactory<OverlayFormBinder<TaxonEditDto>>      formBinderFactory;
     private final UiComponentFactory<AuditActivityPanel>                   auditActivityPanelFactory;
     private final UiComponentFactory<UiIconButton>                         cancelButtonFactory;
     private final UiPrimaryButton                                          saveButton;
@@ -273,7 +272,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         return dto;
     }
 
-    @SuppressWarnings("unchecked")
     private void buildBinder(TaxonEditDto dto) {
         binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<TaxonEditDto>builder()

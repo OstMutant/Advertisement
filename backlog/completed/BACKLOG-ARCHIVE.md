@@ -629,3 +629,16 @@ resolves independently. Falls back to the old UUID-derived name only when no mat
 tests, plain Mockito) covers real-name resolution, the no-match fallback, `getMediaStateForSnapshot()`,
 and the duplicate-filename-no-collision case. Full attachment-domain integration sweep (25/25) and
 a full Playwright e2e pass (35/35 non-skipped) both green.
+
+✅ Done (2026-07-18): [improvement-071](issues/improvement-071-taxonformoverlaymodehandler-raw-uicomponentfactory.md) —
+`TaxonFormOverlayModeHandler` was the only one of the four `OverlayFormBinder`-using form handlers
+declaring its factory field with a raw type (`UiComponentFactory<OverlayFormBinder>`, with
+`@SuppressWarnings("rawtypes")`/`"unchecked"`). Parameterized to
+`UiComponentFactory<OverlayFormBinder<TaxonEditDto>>`, matching
+`AdvertisementFormOverlayModeHandler`/`UserFormOverlayModeHandler`/`SettingsFormModeHandler`
+exactly; both suppressions removed as no longer needed. Purely cosmetic type-safety alignment, no
+ADR (matches an already-established pattern, nothing new decided). `bash scripts/unit-tests.sh
+marketplace-app` 58/58. Full Playwright e2e: first run hit 4 unrelated failures (`.header
+-settings-button` not appearing post-login/signup — a frontend/browser timing issue, not a server
+error per `docker logs`), confirmed flaky by an immediate clean retry at 35/35 non-skipped green —
+not caused by this change (a compile-time-only generics fix cannot alter runtime UI behavior).
