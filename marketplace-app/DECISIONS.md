@@ -1748,6 +1748,53 @@ user's own concurrent tabs. → [improvement-066](../backlog/issues/improvement-
 
 ---
 
-## [OPEN GOAL] Activity field visibility — filter by viewer's role
+## ADR-045: New `QueryLongField` (text-backed) replaces `NumberField` (`Double`-backed) for the user id range filter — neither Vaadin numeric field type actually fits a `Long`
+
+**Status:** Accepted
+
+**Context:** `UserFilterMeta.ID_MIN`/`ID_MAX` used Vaadin's `NumberField` (`Double`-backed) with
+`SupportUtil.toLong(Double)` (`value.longValue()`) converting to the `Long` the filter DTO actually
+needs. Entering a fractional value (e.g. `123.99`) was silently truncated to `123` with no
+validation error — a real, silent filter-correctness bug, since the truncated `Long` is what the
+UI's own conversion pipeline (`FilterProcessor.register()`'s value-change listener calls the
+setter, which runs `toLong()`, *before* any validation predicate ever runs against the DTO) writes
+into the DTO. The originating issue's own suggested fix — add a whole-number check to the DTO-level
+`idValid` predicate — turned out to be structurally impossible: that predicate only ever sees the
+already-truncated `Long` field on the DTO, by which point the fractional part is already gone.
+→ [improvement-061](../backlog/completed/issues/improvement-061-supportutil-tolong-silent-truncation-id-filter.md).
+
+**Decision:** Neither of Vaadin's built-in numeric field types is actually the right fit for a
+`user_information.id` (`BIGSERIAL`, a true 64-bit `Long`) filter: `NumberField` is `Double`-backed
+(safe integer range ~53 bits, plus the truncation-on-convert problem above), and `IntegerField` is
+32-bit — narrower than the real column's range, an artificial UI-level ceiling below what the
+schema actually allows (confirmed every domain table in this project uses `BIGSERIAL`, not
+`SERIAL`, consistently — this isn't a `user`-specific choice to special-case around). Vaadin has no
+built-in `Long`-backed field. New `org.ost.marketplace.ui.query.elements.fields.QueryLongField`
+(mirrors `QueryNumberField`'s `Configurable` structure exactly, but extends `TextField` instead) —
+raw text parsed directly via `SupportUtil.toLongOrNull(String)` (`Long.parseLong`, catches
+`NumberFormatException` → `null`). Un-parseable input (fractional, non-numeric) is flagged via the
+component's own native `setInvalid`/`setErrorMessage` (Vaadin's `HasValidation`), independent of —
+and confirmed not conflicting with — `HighlighterUtil`'s separate dirty/changed CSS-class styling
+(`resetHighlightClasses()` only touches `CLEAN`/`DIRTY`/`CHANGED`/`INVALID` class names, never
+Vaadin's own `invalid` attribute). `SupportUtil.toLong(Double)` removed outright — confirmed zero
+other callers before deleting.
+
+**Rejected alternative — `IntegerField` swap.** Considered first (matches the originating issue's
+own "alternative considered"), but rejected once the actual `id` column type was checked: 32-bit
+would be a real, if narrow, regression against the 64-bit `BIGSERIAL` range the filter is
+supposed to express, for no benefit over the text-field approach.
+
+**Consequences:**
+- No `Double` anywhere in the id-filter pipeline anymore — component, setter, and DTO are all
+  `String`/`Long` end to end.
+- New `UiComponentFactory<QueryLongField>` bean (`MarketplaceUiConfiguration`) and `@Uses` (`MainView`),
+  mirroring `QueryNumberField`'s exact wiring — `QueryLongField` is currently only used by
+  `UserQueryBlock`'s two id fields, but is a generic, reusable component like its siblings.
+- New `I18nKey.USER_FILTER_ID_INVALID_NUMBER` ("Must be a whole number" / uk equivalent).
+- Covered by `SupportUtilTest` (8 cases: whole number, negative, whitespace-trimmed, fractional →
+  null, non-numeric → null, blank → null, null → null, beyond-`Long`-range → null) and a new
+  Playwright assertion in spec 05 (`05-seed-filter-sort-pagination.spec.js`): typing `1.5` into the
+  ID-min field sets the Vaadin `invalid` attribute, typing `1` clears it. Full suite verified 48/48
+  green.
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)

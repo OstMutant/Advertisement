@@ -12,8 +12,8 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
-import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
@@ -34,7 +34,7 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
     private final transient SortProcessor                  sortProcessor;
 
     private final transient UiComponentFactory<QueryTextField>                    textFieldFactory;
-    private final transient UiComponentFactory<QueryNumberField>                  numberFieldFactory;
+    private final transient UiComponentFactory<QueryLongField>                    longFieldFactory;
     private final transient UiComponentFactory<QueryDateTimeField>                dateTimeFieldFactory;
     private final transient UiComponentFactory<QueryMultiSelectComboField<Role>>  roleComboFactory;
     private final transient UiComponentFactory<QueryInlineRow>                    inlineRowFactory;
@@ -49,10 +49,12 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         setVisible(false);
 
         // Id row
-        QueryNumberField idMinField = numberFieldFactory.build(
-                QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MIN).build());
-        QueryNumberField idMaxField = numberFieldFactory.build(
-                QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MAX).build());
+        QueryLongField idMinField = longFieldFactory.build(
+                QueryLongField.Parameters.builder()
+                        .placeholderKey(USER_FILTER_ID_MIN).invalidNumberMessageKey(USER_FILTER_ID_INVALID_NUMBER).build());
+        QueryLongField idMaxField = longFieldFactory.build(
+                QueryLongField.Parameters.builder()
+                        .placeholderKey(USER_FILTER_ID_MAX).invalidNumberMessageKey(USER_FILTER_ID_INVALID_NUMBER).build());
         SortIcon idSort = sortIconFactory.get();
         QueryInlineRow idRow = inlineRowFactory.build(
                 QueryInlineRow.Parameters.builder()

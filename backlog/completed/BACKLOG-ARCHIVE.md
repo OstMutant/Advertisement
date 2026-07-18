@@ -508,3 +508,22 @@ containers' own internal Docker-network ports, a different concept from the host
 value despite sharing the same number today. Documented in `scripts/DECISIONS.md` ADR-009.
 Verified via a full `bash scripts/deploy.sh --reset` (fresh DB/MinIO volumes+containers+image) and
 a full e2e Playwright run, 48/48 green.
+
+✅ Done (2026-07-18): [improvement-061](issues/improvement-061-supportutil-tolong-silent-truncation-id-filter.md) —
+the user id range filter used a `Double`-backed `NumberField` with `SupportUtil.toLong(Double)`
+(`value.longValue()`) silently truncating fractional input (`123.99` → `123`) with no validation
+error. The issue's own suggested fix (add a whole-number check to the DTO-level `idValid`
+predicate) turned out structurally impossible during implementation: that predicate only ever sees
+the `Long` field on the DTO *after* the setter already ran `toLong()` and destroyed the fractional
+part. The "alternative considered" (`IntegerField`, 32-bit) was also rejected once the actual
+column type was checked — `user_information.id` is `BIGSERIAL` (64-bit), same as every domain
+table in this project; `IntegerField` would impose an artificial ceiling below the real schema
+range. Fixed instead with a new `QueryLongField` UI component (text-backed, mirrors
+`QueryNumberField`'s `Configurable` structure) parsing raw text directly to `Long` via new
+`SupportUtil.toLongOrNull(String)` — no `Double` anywhere in the pipeline. Un-parseable input is
+flagged via the component's own native Vaadin `invalid`/error-message state, confirmed not
+conflicting with `HighlighterUtil`'s separate CSS-class styling. `SupportUtil.toLong(Double)`
+removed (zero other callers). Documented in `marketplace-app/DECISIONS.md` ADR-045. Verified via
+`SupportUtilTest` (8/8) and a new Playwright assertion in `05-seed-filter-sort-pagination.spec.js`
+(typing `1.5` sets Vaadin's `invalid` attribute, typing `1` clears it) — full e2e suite 48/48
+green.

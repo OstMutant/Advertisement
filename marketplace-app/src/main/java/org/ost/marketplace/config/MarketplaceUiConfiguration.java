@@ -18,6 +18,7 @@ import org.ost.marketplace.ui.query.elements.SvgIcon;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.UserPickerField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
+import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
@@ -112,6 +113,11 @@ public class MarketplaceUiConfiguration {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<QueryNumberField> queryNumberFieldFactory(ObjectProvider<QueryNumberField> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<QueryLongField> queryLongFieldFactory(ObjectProvider<QueryLongField> p) {
         return new UiComponentFactory<>(p);
     }
 

@@ -15,7 +15,7 @@ import java.util.function.BiPredicate;
 
 import static org.ost.platform.user.dto.UserFilterDto.Fields.*;
 import static org.ost.marketplace.ui.views.utils.SupportUtil.nullIfBlank;
-import static org.ost.marketplace.ui.views.utils.SupportUtil.toLong;
+import static org.ost.marketplace.ui.views.utils.SupportUtil.toLongOrNull;
 import static org.ost.marketplace.ui.query.utils.TimeZoneUtil.toInstant;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -30,11 +30,11 @@ public class UserFilterMeta {
     private static final BiPredicate<ValidationService<UserFilterDto>, UserFilterDto> updatedValid =
             ValidationPredicates.range(updatedAtStart, updatedAtEnd);
 
-    public static final FilterFieldMeta<Double, UserFilterDto, Long> ID_MIN =
-            FilterFieldMeta.of(startId, UserFilterDto::getStartId, (dto, v) -> dto.setStartId(toLong(v)), idValid);
+    public static final FilterFieldMeta<String, UserFilterDto, Long> ID_MIN =
+            FilterFieldMeta.of(startId, UserFilterDto::getStartId, (dto, v) -> dto.setStartId(toLongOrNull(v)), idValid);
 
-    public static final FilterFieldMeta<Double, UserFilterDto, Long> ID_MAX =
-            FilterFieldMeta.of(endId, UserFilterDto::getEndId, (dto, v) -> dto.setEndId(toLong(v)), idValid);
+    public static final FilterFieldMeta<String, UserFilterDto, Long> ID_MAX =
+            FilterFieldMeta.of(endId, UserFilterDto::getEndId, (dto, v) -> dto.setEndId(toLongOrNull(v)), idValid);
 
     public static final FilterFieldMeta<String, UserFilterDto, String> NAME =
             FilterFieldMeta.of(name, UserFilterDto::getName, (dto, v) -> dto.setName(nullIfBlank(v)));

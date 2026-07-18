@@ -28,7 +28,7 @@ const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
   fillText, fillNumber, fillRole, fillCategory,
-  getTotalCount,
+  getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
@@ -222,7 +222,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 4: user filters, sort, pagination ────────────────────────────────
 
-  test('users — email, role and date filters, column sort, pagination', async () => {
+  test('users — email, role and date filters, invalid fractional ID input, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Users' }).first().click();
@@ -280,6 +280,16 @@ test.describe('Seed data and query validation', () => {
     expect(idCount).toBeGreaterThanOrEqual(1);
     expect(idCount).toBeLessThanOrEqual(10);
     await screenshot(page, 'user-filter-id-range');
+    await clearFilter(page, USER_BLOCK);
+
+    // ── ID filter fractional input — flagged invalid, not silently truncated (improvement-061) ──
+    const idMinInput = getRow(page, USER_BLOCK, 'ID').locator('.query-number input').first();
+    const idMinField = getRow(page, USER_BLOCK, 'ID').locator('.query-number').first();
+    await idMinInput.fill('1.5');
+    await expect(idMinField).toHaveAttribute('invalid', '', { timeout: 5000 });
+    await screenshot(page, 'user-filter-id-fractional-invalid');
+    await idMinInput.fill('1');
+    await expect(idMinField).not.toHaveAttribute('invalid', '', { timeout: 5000 });
     await clearFilter(page, USER_BLOCK);
 
     // ── date range filters (created/updated today + boundary cases) ──────────

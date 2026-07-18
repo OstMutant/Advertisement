@@ -289,6 +289,7 @@ module.exports = {
   applyFilter, clearFilter,
   clickSort, resetDefaultSorts,
   fillText, fillNumber, fillRole, fillCategory, setDateRange,
+  getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,

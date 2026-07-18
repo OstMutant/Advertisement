@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-17 · 48 passed · 0 failed · 0 skipped · 48 total
+Last updated: 2026-07-18 · 48 passed · 0 failed · 0 skipped · 48 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -66,7 +66,7 @@ Last updated: 2026-07-17 · 48 passed · 0 failed · 0 skipped · 48 total
 - [x] Seed data and query validation › seed 60 users — parallel signup
 - [x] Seed data and query validation › adminEn seeds 60 advertisements — five categories
 - [x] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
-- [x] Seed data and query validation › users — email, role and date filters, column sort, pagination
+- [x] Seed data and query validation › users — email, role and date filters, invalid fractional ID input, column sort, pagination
 - [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
 - [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination
 

@@ -137,6 +137,7 @@ public enum I18nKey {
     // === User Filter ===
     USER_FILTER_ID_MIN("user.filter.id.min"),
     USER_FILTER_ID_MAX("user.filter.id.max"),
+    USER_FILTER_ID_INVALID_NUMBER("user.filter.id.invalid.number"),
     USER_FILTER_NAME_PLACEHOLDER("user.filter.name.placeholder"),
     USER_FILTER_EMAIL_PLACEHOLDER("user.filter.email.placeholder"),
     USER_FILTER_ROLE_ANY("user.filter.role.any"),

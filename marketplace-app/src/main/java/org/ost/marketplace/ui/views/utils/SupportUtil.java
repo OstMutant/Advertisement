@@ -8,8 +8,19 @@ import java.util.Objects;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SupportUtil {
 
-    public static Long toLong(Double value) {
-        return value != null ? value.longValue() : null;
+    /**
+     * Parses a whole-number string into a Long. Returns null for blank input or text that
+     * doesn't parse as a whole number (e.g. "123.99") -- callers relying on that distinction for
+     * user feedback (e.g. a field's own invalid state) must check parseability separately.
+     */
+    public static Long toLongOrNull(String value) {
+        String trimmed = nullIfBlank(value);
+        if (trimmed == null) return null;
+        try {
+            return Long.parseLong(trimmed);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     public static <T> boolean hasChanged(T current, T previous) {
