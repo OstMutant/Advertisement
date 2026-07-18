@@ -286,7 +286,7 @@ async function verifyPagination(page, prefix, total) {
 
 module.exports = {
   openQueryPanel, closeQueryPanel,
-  applyFilter, clearFilter,
+  applyFilter, clearFilter, waitForVaadin,
   clickSort, resetDefaultSorts,
   fillText, fillNumber, fillRole, fillCategory, setDateRange,
   getRow,

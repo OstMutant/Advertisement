@@ -1901,3 +1901,93 @@ sufficient to eventually clean up any orphan, but only on its next nightly run):
 - Verified via `bash scripts/unit-tests.sh marketplace-app` (`AdvertisementSaveServiceTest` 5/5)
   and a full Playwright e2e pass (specs 01-06, `--ux`): 35/35 non-skipped green, including every
   advertisement create/edit/restore flow that exercises the gallery commit path.
+
+---
+
+## ADR-048: `UserPickerField` rewritten from `CustomField<UserDto>` (single value) to `CustomField<Set<UserDto>>` (chip list) for the Timeline actor filter
+
+**Status:** Accepted
+
+**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
+— the Timeline actor filter needed to match "any of N selected actors" (see
+`platform-commons/DECISIONS.md` ADR-020, `query-lib/DECISIONS.md` ADR-005), which meant
+`UserPickerField` had to hold and display a *set* of picks, not one.
+
+**Decision:** `currentValue: Set<UserDto>` (`LinkedHashSet`, insertion order preserved for display
+stability). Picking a row in the dialog *adds* to the selection (`selectUser()`, replacing any
+existing entry with the same id) instead of replacing it outright, and the dialog still closes
+after each pick — repeat-open-pick to build up a selection, rather than a multi-select grid inside
+the dialog (would have meant rewriting the dialog's own grid interaction model; out of scope for
+what the issue asked). Each selected actor renders as a removable chip (`buildChip()` — name +
+small "X" button, `VaadinIcon.CLOSE_SMALL`, CSS `user-picker-chip`/`user-picker-chip-remove`); a
+separate clear-all button (same `CLOSE_SMALL` icon — the established codebase-wide convention for
+any close/remove action, see `AttachmentThumbnail`/`NotificationService`) sits between the chip
+list and the search-open button, in the same flat `HorizontalLayout(chipsContainer, clearButton,
+openButton)` the field already used for its single-value form — no new wrapper `Div` introduced
+around it. `.user-picker-layout` gets the same bordered-box treatment every native Vaadin input
+gets for free from Lumo (`forms.css`'s `vaadin-*-field::part(input-field)` overrides): `border:
+1.5px solid var(--app-border-default); border-radius: 8px; background-color:
+var(--app-surface-white);` plus a `:focus-within` state matching the same accent-color/box-shadow
+pattern — required because this field is a hand-built `CustomField` (Div + buttons), not a native
+input, so it never got Lumo's field-box styling automatically the way `QueryTextField`/
+`QueryComboField` do.
+
+**Consequences (bugs found and fixed across two Playwright verification passes on this issue, not
+left for a follow-up):**
+- An early version of this chip UI added the clear-all button with `VaadinIcon.CLOSE_CIRCLE` — an
+  icon used nowhere else in the codebase for a close/remove action (confirmed by grep) — plus a
+  `HorizontalLayout` left at Vaadin's default spacing (~1rem between all three children) with an
+  extra `margin-left: 6px` stacked on top, producing a highlighted rounded search-adjacent icon
+  the user's own words correctly called "де ти бачив круглий хрест" (nowhere else in this app) and
+  a much larger gap than any other icon-button pairing in the codebase. Fixed by switching to
+  `CLOSE_SMALL`, calling `layout.setSpacing(false)`, and replacing the stray margin with a single
+  `gap: 6px` on `.user-picker-layout`.
+- `removeActorChip()` (the Playwright flow helper added for this issue, `timeline.flow.js`) read
+  the post-removal chip count immediately after the click with no wait for the Vaadin server
+  round-trip that `removeUser()` → `setModelValue()` triggers — unlike `fillActorPicker()`'s
+  add-path, which already waits on the picker dialog closing (a reliable proxy, since
+  `selectUser()` and `dialog.close()` run in the same server round-trip). Fixed by calling the
+  existing `waitForVaadin()` helper (`filter.flow.js`, already used by `applyFilter()`/
+  `clearFilter()`) after the click, rather than inventing a new wait mechanism.
+- Unrelated to this field but found while re-verifying the same Playwright screenshots end to end:
+  `.advertisement-category-chip` (view overlay) and `.taxon-row-name` (Reference Data category
+  list) both had `white-space: nowrap` (the latter not even that — no overflow handling at all)
+  with no `max-width`/`text-overflow`, so a maximum-length (255-char) category name either broke
+  the flex row's wrapping or ballooned into a multi-line block that dwarfed its sibling pills.
+  Both fixed with the same `max-width` + `overflow: hidden` + `text-overflow: ellipsis` pattern.
+  Verified two ways: first via a disposable, non-committed Playwright script against the running
+  dev stack (not a new automated test); then, per explicit follow-up direction, permanently by
+  changing one of the 10 "Boundary-XX" seed categories in spec 03's boundary-category test to an
+  actual 255-char name (`MAX_CATEGORY_NAME`, same generation pattern as the file's existing
+  `MAX_TITLE_EN`/`MAX_NAME_100` constants) instead of adding a new test case — spec 04's existing
+  max-content assertions (category chips, card text line) now exercise this edge case on every
+  run.
+- A third review pass (prompted by "what about with the actor?") found `.user-picker-chip` itself
+  had the exact same missing-truncation bug — `white-space: nowrap` with no `max-width`, so a
+  maximum-length actor name would grow the chip unbounded. Fixed with `max-width: 200px` on the
+  chip plus a new `.user-picker-chip-name` class (`flex: 1; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis`) on the name `Span` — `min-width: 0` is required because flex items
+  default to `min-width: auto` (sized to content), which would otherwise prevent the ellipsis from
+  ever engaging. Given permanent coverage the same way as the category fix: spec 05's timeline
+  actor-filter test now picks `maxEn` (`MAX_ACTOR_NAME`, same 100-char generation formula as spec
+  03's `MAX_NAME_100`) as its second actor instead of another short "Seed User N". This surfaced a
+  real flake in `fillActorPicker()` itself: `maxEn` and `maxUk` share the *identical* 100-char
+  name (both generated from the same formula), so the picker grid shows two rows with equal text;
+  the existing manual-scroll lookup could land on a scroll position where the target row was only
+  partially clipped by the grid's own `overflow` — Playwright's actionability check still reports
+  such an element as "visible" (non-zero area) even though the click misses, and the dialog never
+  closes. Fixed by adding an opt-in `useSearch` mode to `fillActorPicker(page, name, {useSearch})`
+  that types into the picker dialog's own (until now unused-by-tests) search field instead of
+  scrolling — the filtered result set is small enough to render fully without virtualization,
+  sidestepping the clipped-row race entirely. Left the original scroll-based path as the default,
+  unchanged, for the existing `'Seed User 60'` call, which deliberately exercises the grid's
+  second-data-provider-page lazy loading (improvement-056) — switching that one to search would
+  have silently dropped that coverage.
+- Full Playwright e2e (`--full`, seeds spec 05) 48/48 green after all three passes; see
+  `attachment-spring-boot-starter/DECISIONS.md` ADR-013 for a fourth, unrelated bug
+  (`AttachmentSnapshotService` duplicate-key crash) the first of these passes also caught and
+  fixed. One transient `Client network socket disconnected before secure TLS connection was
+  established` failure (spec 04, right after a plain login with an empty ad list — no code from
+  any of these fixes anywhere near the failure point) did not reproduce on the immediately
+  following rerun — confirmed via screenshot before being discounted as infra flakiness, not
+  dismissed on assumption.

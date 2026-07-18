@@ -642,3 +642,84 @@ marketplace-app` 58/58. Full Playwright e2e: first run hit 4 unrelated failures 
 -settings-button` not appearing post-login/signup — a frontend/browser timing issue, not a server
 error per `docker logs`), confirmed flaky by an immediate clean retry at 35/35 non-skipped green —
 not caused by this change (a compile-time-only generics fix cannot alter runtime UI behavior).
+
+✅ Done (2026-07-18): [improvement-075](issues/improvement-075-timeline-actor-filter-multi-select.md) —
+Timeline actor filter now supports multiple actors: picking a row in `UserPickerField`'s dialog
+adds to the selection instead of replacing it (dialog still closes after each pick), each selected
+actor shows as a removable chip, and the query matches "any of the selected actors" via a new
+`= ANY(:actorIds)` SQL condition. `AuditTimelineFilterDto.actorId` (`Long`) → `actorIds`
+(`Set<Long>`, see `platform-commons/DECISIONS.md` ADR-020); new `SqlOperator.ANY_OF`/
+`SqlCondition.anyOf(Set<Long>)` in query-lib rather than an `inSet()` overload (erasure clash with
+the existing `<E extends Enum<E>>` generic method) or reusing `IN` (same unbounded-placeholder
+class improvement-054/067 already fixed twice — see `query-lib/DECISIONS.md` ADR-005);
+`UserPickerField` rewritten from `CustomField<UserDto>` to `CustomField<Set<UserDto>>` with a
+chip-list UI (new `user-picker-field.css`, new `USER_PICKER_REMOVE_TOOLTIP` i18n key). Caught and
+fixed a real regression before it shipped: `TimelineView.refresh()`'s non-privileged-viewer self
+-scoping used `Set.of(access.getCurrentUserId())`, which throws `NullPointerException` when that
+id is null (an unauthenticated/transient session state) — `Set.of()` rejects null elements where a
+plain `Long`-typed builder setter silently accepted them; this broke Vaadin's `TimelineView` bean
+construction and failed *every* Playwright test at first run (app-wide startup failure, not
+Timeline-specific) until guarded. New tests: `SqlConditionTest`/`SqlOperatorTest` (`anyOf`/
+`ANY_OF`), `AuditLogRepositoryTest` (real Postgres, `= ANY()` matches multiple actors).
+
+A first full Playwright pass (46/48) surfaced a spec 04 max-content failure that was initially
+(wrongly) assumed unrelated flakiness; screenshot inspection showed the real cause: `Save error:
+Duplicate key <url> (attempted merging values ...)` — `AttachmentSnapshotService.resolveFilenames()`
+(improvement-068 code, not this issue) used `Collectors.toMap(url, filename)` with no merge
+function, which throws whenever two `attachment` rows share a URL (a soft-deleted row and its
+re-added replacement, e.g. a YouTube video removed then re-added) — only exercised by spec 04's
+10-item gallery-replace scenario, never by this issue's own lighter tests. Fixed with a
+`(a, b) -> a` merge function. Also found and fixed while re-checking the UI end to end:
+`.advertisement-category-chip` had `white-space: nowrap` with no `max-width`/`text-overflow`, so a
+maximum-length (255-char) category name rendered as one unbounded, layout-breaking chip. Root
+-caused a second, unrelated Playwright red herring during this pass: `removeActorChip()` (this
+issue's own flow helper) asserted the post-removal chip count immediately after the click with no
+wait for the Vaadin server round-trip — unlike `applyFilter`/`fillActorPicker`, which already wait
+on `waitForVaadin()`/dialog-closed. Fixed by calling the existing `waitForVaadin()` helper
+(exported from `filter.flow.js`) after the click, matching the established pattern rather than
+inventing a new one.
+
+A second round of user-driven style review (after this pass had already reported "done") found the
+new `UserPickerField` chip UI didn't actually match the rest of the app: its clear-all button used
+`VaadinIcon.CLOSE_CIRCLE`, an icon used nowhere else in the codebase for a close/remove action
+(confirmed by grep — every other place uses `CLOSE_SMALL`), sitting an unjustifiably large gap from
+the search button (Vaadin's default `HorizontalLayout` spacing, ~1rem, plus a redundant
+`margin-left` stacked on top), and the field had no visible border/box in its static state at all
+— unlike every native Vaadin field, which gets one for free from Lumo, because this is a hand-built
+`CustomField` that never got that styling. Fixed: `CLOSE_SMALL` everywhere, `setSpacing(false)` +
+a single `gap: 6px`, and a bordered-box treatment on `.user-picker-layout` matching `forms.css`'s
+established `vaadin-*-field::part(input-field)` pattern (border, radius, `:focus-within` accent).
+The same review surfaced a second, previously-missed instance of the max-length-category overflow
+bug: `.taxon-row-name` (Reference Data's category list) had no overflow handling at all, so a
+255-char name ballooned into a multi-line block dwarfing its sibling pills — fixed with the same
+`max-width`/`ellipsis` pattern. Per explicit instruction, the max-length-category edge case was
+then given *permanent* automated coverage instead of remaining a disposable verification script:
+one of spec 03's 10 seeded "Boundary-XX" categories was changed to an actual 255-char name
+(`MAX_CATEGORY_NAME`), so spec 04's existing max-content assertions exercise it on every run
+— no new test case added, matching the standing "check everything, don't add new tests" directive
+for this pass.
+
+Full Playwright e2e (`--full`, seeds spec 05) run five times total across both rounds of this
+pass: the true count is 48/48 green — the max-content duplicate-key crash and the chip-removal
+race were real bugs, not flakiness; an intermediate isolated `05-seed-filter-sort-pagination`-only
+run also showed a `page sizes` test failing on login ("Invalid email or password"), traced to
+running spec 05 alone against a freshly reset DB without spec 02 (which creates the fixture
+accounts) having run first — a test-invocation artifact, not a bug, confirmed by the full-suite
+rerun passing that test cleanly.
+
+A third round ("what about with the actor?") found `.user-picker-chip` had the identical missing
+-truncation bug as the category chip — fixed with `max-width` + a `.user-picker-chip-name` class
+(`min-width: 0` needed since flex items default to sizing by content). Given the same permanent
+-coverage treatment: spec 05's timeline actor-filter test now picks `maxEn` (100-char name) as its
+second actor instead of another short "Seed User N". This surfaced a real flake in the shared
+`fillActorPicker()` flow helper itself — `maxEn`/`maxUk` share an *identical* generated name, so
+the picker grid shows two equal-text rows, and the existing scroll-based lookup could land on a
+position where the target row was only partially clipped by the grid's overflow (Playwright still
+reports such a row as "visible", so the click silently misses and the dialog never closes). Fixed
+by adding an opt-in `useSearch` mode to `fillActorPicker()` that types into the picker's own
+-search field instead of scrolling, used only for this call — the original `'Seed User 60'` call
+keeps its scroll-based path unchanged, since that one deliberately exercises the picker grid's
+second-page lazy loading (improvement-056). Full e2e 48/48 green after this round too, including a
+rerun confirming a one-off "TLS connection disconnected" failure (spec 04, immediately after a
+plain login, nowhere near any of this session's code) did not reproduce — checked via screenshot
+before being ruled out, not assumed.

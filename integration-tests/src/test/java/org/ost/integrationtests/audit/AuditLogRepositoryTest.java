@@ -124,14 +124,19 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     private Long insertRow(EntityType entityType, Long entityId, Instant createdAt) {
+        return insertRow(entityType, entityId, createdAt, 1L);
+    }
+
+    private Long insertRow(EntityType entityType, Long entityId, Instant createdAt, Long actorId) {
         return jdbcClient.sql("""
                         INSERT INTO audit_log (entity_type, entity_id, action_type, actor_id, created_at)
-                        VALUES (:entityType, :entityId, 'CREATED', 1, :createdAt)
+                        VALUES (:entityType, :entityId, 'CREATED', :actorId, :createdAt)
                         RETURNING id
                         """)
                 .paramSource(new MapSqlParameterSource()
                         .addValue("entityType", entityType.name())
                         .addValue("entityId", entityId)
+                        .addValue("actorId", actorId)
                         .addValue("createdAt", java.time.OffsetDateTime.ofInstant(createdAt, java.time.ZoneOffset.UTC),
                                 java.sql.Types.TIMESTAMP_WITH_TIMEZONE))
                 .query(Long.class)
@@ -166,5 +171,21 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(firstVersion).isNotEqualTo(secondVersion);
         assertThat(firstVersion).isEqualTo(1);
         assertThat(secondVersion).isEqualTo(2);
+    }
+
+    // Covers improvement-075: actorIds filter matches any of the selected actors via = ANY(),
+    // not just a single one.
+    @Test
+    void findTimeline_actorIdsFilter_matchesAnyOfSelectedActors() {
+        Instant t = Instant.parse("2026-01-01T00:00:00Z");
+        Long rowActor10 = insertRow(EntityType.USER, 3L, t, 10L);
+        Long rowActor20 = insertRow(EntityType.USER, 3L, t.plusSeconds(1), 20L);
+        insertRow(EntityType.USER, 3L, t.plusSeconds(2), 30L);
+
+        AuditTimelineFilterDto filter = AuditTimelineFilterDto.builder().actorIds(Set.of(10L, 20L)).build();
+
+        List<AuditLogProjection> rows = auditLogRepository.findTimeline(filter, Sort.by("createdAt").ascending(), 0, 10);
+        assertThat(rows).extracting(AuditLogProjection::id).containsExactlyInAnyOrder(rowActor10, rowActor20);
+        assertThat(auditLogRepository.countTimeline(filter)).isEqualTo(2);
     }
 }

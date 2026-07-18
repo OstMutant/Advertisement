@@ -393,6 +393,11 @@ const MAX_EMAIL_UK   = `max-boundary-uk-${_emailLocal}@${_emailSeg1}.${_emailSeg
 const MAX_EN         = { name: MAX_NAME_100, email: MAX_EMAIL_EN, password: 'password' };
 const MAX_UK         = { name: MAX_NAME_100, email: MAX_EMAIL_UK, password: 'password' };
 
+// 255 chars — the name field's actual max (VARCHAR(255), maxLength(255) on the form) — one of
+// the 10 boundary categories uses this instead of a short "Boundary-XX" label so spec 04's
+// category-chip assertions exercise a genuinely long name, not just a short placeholder.
+const MAX_CATEGORY_NAME = 'Max Boundary Category Name Test '.repeat(8).substring(0, 255);
+
 test.describe('Max-boundary users and categories', () => {
   test.skip(!process.env.PW_FULL, 'Skipped by default — run with --full for boundary tests');
 
@@ -447,7 +452,7 @@ test.describe('Max-boundary users and categories', () => {
     await loginBulk(page, TEST_USERS.adminEn);
     await openRefDataTab(page);
     for (let i = 1; i <= 10; i++) {
-      const label = `Boundary-${String(i).padStart(2, '0')}`;
+      const label = i === 1 ? MAX_CATEGORY_NAME : `Boundary-${String(i).padStart(2, '0')}`;
       await createCategory(page, { nameEn: label, descEn: `Boundary category ${i}`, nameUk: label, descUk: `Гранична категорія ${i}` });
     }
     await screenshot(page, 'max-05-boundary-categories-seeded');

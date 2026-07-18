@@ -201,6 +201,7 @@
 .advertisement-category-chip {
   display: inline-flex;
   align-items: center;
+  max-width: 240px;
   padding: 3px 10px;
   border-radius: 12px;
   font-size: 0.78rem;
@@ -209,6 +210,8 @@
   color: var(--app-text-tertiary);
   border: 1px solid var(--app-border-default);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Hide trailing empty Quill paragraph (<p><br></p>) in card display */

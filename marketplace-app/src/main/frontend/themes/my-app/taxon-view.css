@@ -76,6 +76,10 @@
   color: var(--app-accent-primary);
   cursor: pointer;
   transition: color 0.15s ease;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .taxon-row-name:hover {

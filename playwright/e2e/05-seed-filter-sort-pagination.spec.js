@@ -32,7 +32,7 @@ const {
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
-const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
+const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
 const { runCreateCategoryFlow } = require('./_flows/category.flow');
 
@@ -46,6 +46,11 @@ const USER_ITEM  = '.user-grid-name';
 const SEED_COUNT = 60;
 // Distinct from spec-03 categories (Electronics, Vehicles) to avoid duplicates in e2e suite mode.
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
+
+// Same generation formula as spec 03's MAX_NAME_100 (maxEn's 100-char boundary name) — used as
+// the timeline actor filter's second pick below so the actor chip's own truncation gets exercised
+// by a real maximum-length name, not just short "Seed User N" labels.
+const MAX_ACTOR_NAME = 'MaxBoundaryUserNameForValidationTest'.repeat(3).substring(0, 100);
 
 const SEED_CATEGORIES = [
   { nameEn: 'Clothing',  descriptionEn: 'Clothes, fashion and apparel.',        nameUk: 'Одяг',    descriptionUk: 'Одяг, мода та аксесуари.' },
@@ -443,7 +448,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 6: timeline filter and pagination ────────────────────────────────
 
-  test('adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination', async () => {
+  test('adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination', async () => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
@@ -493,7 +498,30 @@ test.describe('Seed data and query validation', () => {
     const actorFilteredCount = await getTotalCount(page);
     expect(actorFilteredCount).toBeGreaterThan(0);
     expect(actorFilteredCount).toBeLessThan(total);
+    expect(await actorChipCount(page)).toBe(1);
     await screenshot(page, 'timeline-filter-actor-adminen');
+
+    // Picking a second actor adds to the selection (not replace) — two chips, result count
+    // grows to cover "any of the selected actors" via = ANY(), not just the first pick. Uses
+    // maxEn's 100-char boundary name (not another short "Seed User N") so the chip's own
+    // max-width/ellipsis truncation gets exercised by a real maximum-length actor name.
+    await fillActorPicker(page, MAX_ACTOR_NAME, { useSearch: true });
+    expect(await actorChipCount(page)).toBe(2);
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    const twoActorsCount = await getTotalCount(page);
+    expect(twoActorsCount).toBeGreaterThanOrEqual(actorFilteredCount);
+    expect(twoActorsCount).toBeLessThan(total);
+    await screenshot(page, 'timeline-filter-actor-two-selected');
+
+    // Removing one chip shrinks the selection back to a single actor and the result count
+    // back down to the single-actor value.
+    await removeActorChip(page, MAX_ACTOR_NAME);
+    expect(await actorChipCount(page)).toBe(1);
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    expect(await getTotalCount(page)).toBe(actorFilteredCount);
+    await screenshot(page, 'timeline-filter-actor-chip-removed');
 
     // Clear and verify pagination navigates correctly
     await clearFilter(page, TIMELINE_BLOCK);

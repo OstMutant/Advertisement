@@ -248,6 +248,7 @@ public enum I18nKey {
     USER_PICKER_CLEAR_TOOLTIP("user.picker.clear.tooltip"),
     USER_PICKER_OPEN_TOOLTIP("user.picker.open.tooltip"),
     USER_PICKER_SEARCH_TOOLTIP("user.picker.search.tooltip"),
+    USER_PICKER_REMOVE_TOOLTIP("user.picker.remove.tooltip"),
 
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),

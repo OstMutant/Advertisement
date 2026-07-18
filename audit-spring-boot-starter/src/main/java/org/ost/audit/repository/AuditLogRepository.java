@@ -31,13 +31,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actionTypes;
-import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorId;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorIds;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.entityTypes;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.fromDate;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.toDate;
 import static org.ost.query.filter.SqlCondition.after;
+import static org.ost.query.filter.SqlCondition.anyOf;
 import static org.ost.query.filter.SqlCondition.before;
-import static org.ost.query.filter.SqlCondition.equalsTo;
 import static org.ost.query.filter.SqlCondition.inSet;
 
 /**
@@ -63,7 +63,7 @@ public class AuditLogRepository {
     private static final Map<String, String> SORT_ALIASES = Map.of(AuditTimelineItemDto.Fields.createdAt, "al.created_at");
 
     private static final SqlFilterBuilder<AuditTimelineFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(actorId,     "al.actor_id",    (m, v) -> equalsTo(m, v.getActorId())),
+            SqlBoundFilter.of(actorIds,    "al.actor_id",    (m, v) -> anyOf(m, v.getActorIds())),
             SqlBoundFilter.of(entityTypes, "al.entity_type", (m, v) -> inSet(m, v.getEntityTypes())),
             SqlBoundFilter.of(actionTypes, "al.action_type", (m, v) -> inSet(m, v.getActionTypes())),
             SqlBoundFilter.of(fromDate,    "al.created_at",  (m, v) -> after(m, v.getFromDate())),

@@ -315,3 +315,13 @@ lookup per url.
   matches, `getMediaStateForSnapshot()` resolves correctly, and two attachments sharing an
   identical original filename resolve independently without collision. Full attachment-domain
   integration sweep (25/25) and a full Playwright e2e pass (35/35 non-skipped) both green.
+- **Bug found during improvement-075's Playwright pass (2026-07-18):** `resolveFilenames()`'s
+  `Collectors.toMap(Attachment::getUrl, Attachment::getFilename)` had no merge function, so it
+  threw `IllegalStateException: Duplicate key <url>` whenever `findByEntityAndUrls()` returned two
+  rows sharing the same url — not the "same filename, different url" case this ADR already
+  guarded against, but the inverse: **the same url appearing on two rows**, e.g. a YouTube
+  attachment soft-deleted and then re-added with the same video url. `findByEntityAndUrls()` does
+  not filter `deleted_at`, so both rows come back. Only ever exercised by a heavier scenario (spec
+  04's 10-item gallery replace) than this ADR's own original test coverage exercised. Fixed with a
+  `(a, b) -> a` merge function — either name is acceptable since both rows resolve to the same
+  underlying url/attachment identity for display purposes.

@@ -35,4 +35,10 @@ class SqlOperatorTest {
         assertThat(SqlOperator.IN.formatClause("a.role", "roles"))
                 .isEqualTo("a.role IN (:roles)");
     }
+
+    @Test
+    void anyOf_formatsClause() {
+        assertThat(SqlOperator.ANY_OF.formatClause("a.actor_id", "actorIds"))
+                .isEqualTo("a.actor_id = ANY(:actorIds)");
+    }
 }

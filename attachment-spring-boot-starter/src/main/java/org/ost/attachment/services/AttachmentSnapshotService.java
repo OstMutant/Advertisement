@@ -100,10 +100,13 @@ public class AttachmentSnapshotService {
     }
 
     // Keyed by url, not filename -- duplicate original filenames across attachments can't collide.
+    // findByEntityAndUrls() doesn't filter deleted_at, so a soft-deleted row and a newly re-added
+    // row can legitimately share the same url (e.g. a YouTube video removed then re-added) --
+    // merge function keeps either name rather than letting Collectors.toMap throw.
     private Map<String, String> resolveFilenames(EntityType entityType, Long entityId, List<String> urls) {
         if (urls.isEmpty()) return Map.of();
         return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls.toArray(new String[0])).stream()
-                .collect(Collectors.toMap(Attachment::getUrl, Attachment::getFilename));
+                .collect(Collectors.toMap(Attachment::getUrl, Attachment::getFilename, (a, b) -> a));
     }
 
     private static String filename(String url, Map<String, String> urlToFilename) {

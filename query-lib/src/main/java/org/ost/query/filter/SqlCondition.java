@@ -67,6 +67,15 @@ public record SqlCondition<R>(
         return applyIfPresent(filterMapping, values, SqlOperator.IN, v -> v.stream().map(Enum::name).toList());
     }
 
+    // Array bind via = ANY(), not IN(:set) -- avoids unbounded placeholder expansion for
+    // potentially large id sets (unlike inSet() above, whose enum cardinality is always small).
+    public static SqlCondition<Long[]> anyOf(SqlFilterMapping filterMapping, Set<Long> values) {
+        if (CollectionUtils.isEmpty(values)) {
+            return null;
+        }
+        return applyIfPresent(filterMapping, values, SqlOperator.ANY_OF, v -> v.toArray(new Long[0]));
+    }
+
     private static <I1, R1> SqlCondition<R1> applyIfPresent(SqlFilterMapping filterMapping, I1 value,
                                                             SqlOperator operator,
                                                             Function<I1, R1> valueMapper) {

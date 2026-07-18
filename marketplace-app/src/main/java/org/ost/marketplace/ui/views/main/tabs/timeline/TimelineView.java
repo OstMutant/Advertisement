@@ -24,6 +24,7 @@ import org.ost.marketplace.ui.views.main.tabs.timeline.query.TimelineQueryBlock;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @SpringComponent
@@ -92,9 +93,10 @@ public class TimelineView extends VerticalLayout {
 
         TimelineQueryBlock queryBlock = (TimelineQueryBlock) queryStatusBar.getQueryBlock();
         AuditTimelineFilterDto baseFilter = queryBlock.getFilterProcessor().getOriginalFilter();
+        Long currentUserId = access.getCurrentUserId();
         AuditTimelineFilterDto filter = access.canView()
                 ? baseFilter
-                : baseFilter.toBuilder().actorId(access.getCurrentUserId()).build();
+                : baseFilter.toBuilder().actorIds(currentUserId != null ? Set.of(currentUserId) : Set.of()).build();
 
         try {
             List<AuditTimelineItemDto<AuditableSnapshot>> items = auditPort.getTimelinePage(

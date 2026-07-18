@@ -1,5 +1,5 @@
 const { screenshot } = require('../_helpers');
-const { openQueryPanel, applyFilter, clearFilter } = require('./filter.flow');
+const { openQueryPanel, applyFilter, clearFilter, waitForVaadin } = require('./filter.flow');
 
 const TIMELINE_BLOCK = '.timeline-query-block';
 
@@ -122,32 +122,60 @@ async function fillActionType(page, value) {
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
-async function fillActorPicker(page, userName) {
+async function fillActorPicker(page, userName, { useSearch = false } = {}) {
   await page.locator('.user-picker-open').click();
   const dialog = page.locator('vaadin-dialog-overlay[opened]');
   await dialog.waitFor({ state: 'visible', timeout: 5000 });
   const cell = page.locator('vaadin-grid-cell-content').filter({ hasText: new RegExp(`^${userName}$`) });
 
-  // The grid virtualizes rows and lazy-loads beyond its first data-provider page (Vaadin's
-  // default page size is 50) — a target further down the name-sorted list won't be in the DOM
-  // yet. Scroll the grid's virtual scroller in increasing steps until the row appears or a
-  // reasonable number of attempts is exhausted. Each scroll step waits on the grid's own
-  // rendering completion (a frame + microtask flush) rather than a fixed timer.
-  // Only one grid exists on screen while the picker dialog is open — select it directly rather
-  // than scoping through `vaadin-dialog-overlay[opened]`: the grid is not a CSS descendant of
-  // the overlay element itself (Vaadin renders dialog content outside that direct subtree),
-  // confirmed by a scoped-vs-global locator count check.
-  const grid = page.locator('vaadin-grid');
-  for (let index = 10; index <= 200 && (await cell.count()) === 0; index += 10) {
-    await grid.evaluate((el, idx) => {
-      el.scrollToIndex(idx);
-      return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    }, index);
+  if (useSearch) {
+    // Server-side filter via the dialog's own search field narrows the grid to a handful of
+    // rows, all rendered without scrolling — needed when the target name isn't guaranteed to be
+    // alone in the virtualized grid (e.g. two boundary-test users sharing an identical 100-char
+    // name), where a row that's only partially scrolled into view can still report as "visible"
+    // to Playwright's actionability check while clipped by the grid's own overflow, silently
+    // missing the click. Selected globally rather than scoped through `dialog` — same reasoning
+    // as the grid below: Vaadin renders dialog content outside the overlay element's own subtree,
+    // so a `dialog.locator(...)`-scoped search times out even though the field is on screen.
+    // Only one `vaadin-text-field` exists on screen while the picker dialog is open (the rest of
+    // the query panel behind it uses combo-boxes/date fields, not a plain text field).
+    await page.locator('vaadin-text-field input').fill(userName);
+    await page.locator('vaadin-text-field vaadin-button').click();
+  } else {
+    // The grid virtualizes rows and lazy-loads beyond its first data-provider page (Vaadin's
+    // default page size is 50) — a target further down the name-sorted list won't be in the DOM
+    // yet. Scroll the grid's virtual scroller in increasing steps until the row appears or a
+    // reasonable number of attempts is exhausted. Each scroll step waits on the grid's own
+    // rendering completion (a frame + microtask flush) rather than a fixed timer.
+    // Only one grid exists on screen while the picker dialog is open — select it directly rather
+    // than scoping through `vaadin-dialog-overlay[opened]`: the grid is not a CSS descendant of
+    // the overlay element itself (Vaadin renders dialog content outside that direct subtree),
+    // confirmed by a scoped-vs-global locator count check.
+    const grid = page.locator('vaadin-grid');
+    for (let index = 10; index <= 200 && (await cell.count()) === 0; index += 10) {
+      await grid.evaluate((el, idx) => {
+        el.scrollToIndex(idx);
+        return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }, index);
+    }
   }
 
   await cell.first().waitFor({ timeout: 8000 });
   await cell.first().click();
   await dialog.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+async function removeActorChip(page, userName) {
+  const chip = page.locator('.user-picker-chip').filter({ hasText: userName });
+  await chip.locator('.user-picker-chip-remove').click();
+  // Removal is a server round-trip (CustomField.setModelValue -> re-render), same as any other
+  // Vaadin button click -- without this the immediately-following chip-count read can observe
+  // stale DOM, unlike fillActorPicker's selection which already waits on the dialog closing.
+  await waitForVaadin(page);
+}
+
+function actorChipCount(page) {
+  return page.locator('.user-picker-chip').count();
 }
 
 module.exports = {
@@ -162,5 +190,7 @@ module.exports = {
   fillEntityType,
   fillActionType,
   fillActorPicker,
+  removeActorChip,
+  actorChipCount,
   TIMELINE_BLOCK,
 };

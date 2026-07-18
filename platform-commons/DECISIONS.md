@@ -417,3 +417,26 @@ starter's repository to throw `OptimisticLockingFailureException`.
   the entity is not enough by itself, the manual guard needed for `User`, and the UI conflict
   handling).
 - → [improvement-015-optimistic-locking](../backlog/completed/issues/improvement-015-optimistic-locking.md)
+
+---
+
+## ADR-020: `AuditTimelineFilterDto.actorId` (`Long`) → `actorIds` (`Set<Long>`)
+
+**Status:** Accepted
+
+**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
+— the Timeline actor filter needed to match "any of N selected actors" in one query instead of one
+actor at a time. `actorId` was the only scalar field on this DTO; `entityTypes`/`actionTypes`
+already use the `Set<T>` shape this change brings `actorIds` in line with.
+
+**Decision:** Renamed and retyped the field. Every consumer updated in the same change: `AuditLogRepository`'s
+binding (`equalsTo` → `anyOf`, see `query-lib/DECISIONS.md` ADR-005), `TimelineFilterMeta.ACTOR`
+(`UserDto → Long` mapping became `Set<UserDto> → Set<Long>`), and `TimelineView.refresh()`'s
+non-privileged-viewer self-scoping (`.actorId(userId)` → `.actorIds(Set.of(userId))`) — the latter
+needed an explicit null guard (`Set.of(null)` throws `NullPointerException`, unlike a plain
+`Long`-typed builder setter accepting `null` silently), caught via a full Playwright run that
+failed application startup entirely until fixed.
+
+**Consequences:** No other module reads or writes this field outside `audit-spring-boot-starter`
+and `marketplace-app`'s timeline package — confirmed by a full-repo grep before making the change,
+so this is a clean rename with no compatibility shim needed.
