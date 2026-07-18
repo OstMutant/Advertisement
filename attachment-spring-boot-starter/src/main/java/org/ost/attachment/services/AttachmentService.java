@@ -17,6 +17,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -78,6 +79,7 @@ public class AttachmentService {
         log.info("Attachment upload: entityType={}, entityId={}, filename={}, size={}",
                 entityType, entityId, filename, contentLength);
         String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
+        closeQuietly(inputStream);
         try {
             Attachment saved = attachmentRepository.save(Attachment.builder()
                     .entityType(entityType)
@@ -151,6 +153,7 @@ public class AttachmentService {
                                         @NonNull InputStream inputStream, long contentLength,
                                         @NonNull String contentType) {
         String tempUrl = storageService.upload("temp/%s".formatted(tempSessionId), filename, inputStream, contentLength, contentType);
+        closeQuietly(inputStream);
         return new TempAttachmentDto(tempUrl, filename, contentType, contentLength);
     }
 
@@ -256,6 +259,15 @@ public class AttachmentService {
 
     public static AttachmentItemDto toDto(Attachment a) {
         return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
+    }
+
+    // Logged, not thrown -- a close failure shouldn't turn a successful upload into a reported one.
+    private static void closeQuietly(InputStream inputStream) {
+        try {
+            inputStream.close();
+        } catch (IOException e) {
+            log.warn("Failed to close attachment upload input stream", e);
+        }
     }
 
     private static String embedFilename(String url) {

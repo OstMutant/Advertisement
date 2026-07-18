@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -157,6 +159,14 @@ public class AttachmentRepository {
         return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls)")
                          .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
                          .update();
+    }
+
+    // Subset of urls that have a matching row (active or soft-deleted) -- used by the orphan sweep.
+    public Set<String> findExistingUrls(@NonNull Collection<String> urls) {
+        return new HashSet<>(jdbcClient.sql("SELECT url FROM attachment WHERE url = ANY(:urls)")
+                         .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
+                         .query(String.class)
+                         .list());
     }
 
     public MediaStats loadMediaStats(@NonNull EntityType entityType, @NonNull Long entityId) {

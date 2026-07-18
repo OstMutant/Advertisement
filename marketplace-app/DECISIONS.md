@@ -1853,3 +1853,51 @@ tab-building shell was shared. `UserFormOverlayModeHandler` was fixed to
   scenario OR unit test" framing. Full e2e suite (specs 01-06, `--ux`, non-`--full`) re-run after
   the change: 35/35 non-skipped tests green, including the User/Advertisement/Taxon activity-tab
   flows this refactor directly touches.
+
+---
+
+## ADR-047: `AdvertisementSaveService.save()` moves the attachment-gallery commit to just before the transaction's own commit; logs loudly if it rolls back after the S3 move anyway
+
+**Status:** Accepted
+
+**Context:** [improvement-069](../backlog/completed/issues/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md)
+— `save()`'s `tx.execute(...)` block called `commitGallery.apply(...)` (which triggers
+`AttachmentService.commitTempUploadsQuiet()`'s non-transactional, physical S3 file move) right
+after the initial `advertisementPortFactory.get().save(dto, actorId)`, with category reassignment
+(`taxonPortFactory...replaceAssignments()`) and audit capture both still running *after* it,
+inside the same transaction. Any failure in either of those (or the transaction's own commit)
+rolled the DB back while the S3 files stayed physically moved — an orphan invisible to every
+existing cleanup pass (see `attachment-spring-boot-starter/DECISIONS.md` ADR-011, which closes the
+gap on the other side by teaching `AttachmentCleanupService` to actually find these).
+
+**Decision:** Two changes, both defense-in-depth on top of ADR-011's sweep (which alone is
+sufficient to eventually clean up any orphan, but only on its next nightly run):
+1. Reordered `save()` so `replaceAssignments()` runs *before* `commitGallery.apply()` — the S3
+   move is now the last mutation before this transaction's own commit, so it only has to survive
+   the commit itself, not also category reassignment and audit capture. `commitGallery`'s return
+   value (`gallerySnapshotId`) is still needed immediately after for `attachmentSnapshotId`/`after`
+   snapshot construction, so those stay in their original relative order right after the call.
+2. `registerOrphanWarningOnRollback(entityRef, gallerySnapshotId)` — guarded by both
+   `gallerySnapshotId != null` (skip if the gallery wasn't actually touched this save) and
+   `TransactionSynchronizationManager.isSynchronizationActive()` (skip outside a real Spring
+   -managed transaction — required, not optional: `registerSynchronization()` itself throws
+   `IllegalStateException` otherwise, which is exactly the shape `AdvertisementSaveServiceTest`'s
+   mocked `TransactionTemplate` exercises, since `tx.execute()` there just invokes the callback
+   directly with no real transaction ever starting). Registers a `TransactionSynchronization`
+   whose `afterCompletion()` logs `ERROR` if `status == STATUS_ROLLED_BACK`, naming the
+   `EntityRef` — turns a silent orphan into an immediately discoverable one via logs/alerting,
+   without waiting for ADR-011's nightly sweep.
+
+**Consequences:**
+- Does not eliminate the gap entirely — a failure between the S3 move and the transaction's own
+  commit is still structurally possible, just a much smaller window than before (previously had to
+  survive two more steps). ADR-011's sweep is what actually guarantees eventual cleanup regardless
+  of this window's size.
+- No behavior change to the four existing `AdvertisementSaveServiceTest` cases (none assert
+  ordering between `taxonPortFactory` and the `commitGallery` lambda) — reordering is safe against
+  them as-is; the `isSynchronizationActive()` guard is what keeps the new rollback-logging code
+  from breaking them (confirmed: without the guard, `save_galleryTouched_...` throws
+  `IllegalStateException` since its mocked `tx` never activates real transaction synchronization).
+- Verified via `bash scripts/unit-tests.sh marketplace-app` (`AdvertisementSaveServiceTest` 5/5)
+  and a full Playwright e2e pass (specs 01-06, `--ux`): 35/35 non-skipped green, including every
+  advertisement create/edit/restore flow that exercises the gallery commit path.

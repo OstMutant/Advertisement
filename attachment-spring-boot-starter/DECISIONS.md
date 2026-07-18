@@ -168,3 +168,68 @@ platform-commons DTOs.
 `backlog/completed/issues/improvement-001-attachment-ui-boundary-violation.md` for the full
 resolution record; that issue file's own Status line already says RESOLVED — this ADR's Status
 line was the one place still describing it as open work.
+
+---
+
+## ADR-011: `AttachmentService` closes upload `InputStream`s explicitly; `AttachmentCleanupService` gains a DB-cross-checked orphan sweep for entity-folder S3 files
+
+**Status:** Accepted
+
+**Context:** Two independent findings, fixed together since both touch the upload/cleanup path.
+
+1. [improvement-064](../backlog/completed/issues/improvement-064-s3storageservice-inputstream-not-closed.md)
+   — `RequestBody.fromInputStream(InputStream, long)` (AWS SDK v2) documents that it does not
+   close the given stream, to support retries. Neither `S3StorageService.upload()` nor its two
+   `AttachmentService` call sites (`upload()`, `uploadTemp()`) ever closed it.
+2. [improvement-069](../backlog/completed/issues/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md)
+   — `AttachmentService.commitTempUploadsQuiet()`'s `storageService.move()` physically relocates
+   S3 files as a non-transactional side effect, called from inside
+   `AdvertisementSaveService.save()`'s DB transaction (see `marketplace-app/DECISIONS.md`
+   ADR-047). If a later step in that same transaction fails, the DB rolls back but the already
+   -moved S3 files do not — an orphan with no `attachment` row at all, active or soft-deleted.
+   Neither of `AttachmentCleanupService`'s two existing cleanup passes could ever catch this
+   shape: `deleteStaleTempUploads()` only looks under `temp/`, and `deleteAttachments()` only acts
+   on urls a DB row already names. This was an explicitly flagged open question in
+   [improvement-049](../backlog/completed/issues/improvement-049-taxon-attachment-incomplete-rollback-bugs.md)'s
+   "Required verification" section ("confirm whether the scheduled job would actually catch"),
+   never previously answered.
+
+**Decision:**
+1. `AttachmentService` gets a private `closeQuietly(InputStream)` helper (catches and logs
+   `IOException`, never throws) called right after `storageService.upload(...)` returns in both
+   `upload()` and `uploadTemp()`. Deliberately not try-with-resources: wrapping the call in one
+   would make a `close()` failure *after* a successful S3 upload throw from the enclosing
+   try-with-resources statement, which would then incorrectly look like the upload itself failed
+   (and, in `upload()`, would trigger the surrounding catch block's `storageService.delete(url)`
+   cleanup on a file that actually made it to S3 successfully). Logging and swallowing the close
+   failure keeps "did the upload succeed" and "did we manage to close an unrelated stream"
+   independent, as they should be.
+2. `AttachmentRepository` gains `findExistingUrls(Collection<String>)` — `SELECT url FROM
+   attachment WHERE url = ANY(:urls)` (array bind, matching the `= ANY()` convention already
+   established for every bulk lookup in this codebase, not `IN`). `AttachmentCleanupService.cleanup()`
+   gains a third pass, `sweepOrphanedEntityFiles()`, run after the two existing ones: for every
+   `EntityType`, list S3 objects under `<type>/` older than 1 day (`storageService.listByPrefix`,
+   already used for the `temp/` sweep), cross-check against `findExistingUrls`, delete whichever
+   have no matching row at all. No new scheduling infrastructure — `cleanup()` already runs on
+   `CleanupProperties.cronExpression()` (`AttachmentAutoConfiguration`'s `SchedulingConfigurer`
+   bean), this is a third step inside the method that's already wired to fire nightly.
+
+**Consequences:**
+- Closes improvement-049's open "Required verification" question definitively: no, the existing
+  scheduled job did not catch this orphan shape before this ADR: now it does.
+- The 1-day age cutoff means a file orphaned by a rollback isn't swept instantly — it's caught by
+  the next nightly run once it's old enough, same latency profile as the existing `temp/` sweep.
+  Combined with `marketplace-app/DECISIONS.md` ADR-047's reorder + rollback log, an operator sees
+  the orphan in logs immediately even though the sweep itself waits.
+- Iterates all four `EntityType` values generically (matches ADR-003's "generic over EntityType"
+  principle) even though only `ADVERTISEMENT` has a live caller of `commitTempUploadsQuiet()`
+  today — a future entity type adopting the attachment gallery gets orphan-sweep coverage for
+  free, no code change needed here.
+- New tests: `AttachmentServiceTest` (`upload_closesInputStreamAfterS3UploadSucceeds`,
+  `uploadTemp_closesInputStreamAfterS3UploadSucceeds`) and `AttachmentCleanupServiceTest`
+  (`cleanup_orphanedEntityFileWithNoDbRow_getsDeleted`,
+  `cleanup_entityFileWithMatchingDbRow_isNotDeleted`), same plain-Mockito, no-Spring-context shape
+  as their existing siblings in the same files. `AttachmentRepositoryTest` (real Postgres)
+  re-verified green after adding `findExistingUrls`. Full `integration-tests` (`AttachmentServiceTest`,
+  `AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`) and a full Playwright e2e pass
+  (35/35 non-skipped) both green.

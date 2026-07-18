@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
@@ -15,7 +16,10 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.beans.factory.ObjectProvider;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -52,6 +56,8 @@ class AttachmentServiceTest {
     private CurrentActorHook currentActorHook;
     @Mock
     private ObjectProvider<AttachmentMediaChangeHook> mediaChangeHook;
+    @Mock
+    private InputStream inputStream;
 
     private AttachmentService service;
 
@@ -98,5 +104,30 @@ class AttachmentServiceTest {
 
         verify(attachmentRepository, times(1)).saveAll(any());
         verify(storageService, never()).delete(anyString());
+    }
+
+    @Test
+    void upload_closesInputStreamAfterS3UploadSucceeds() throws IOException {
+        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+                .thenReturn("final/photo.jpg");
+        when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
+                .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .build());
+        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.empty());
+
+        service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg");
+
+        verify(inputStream).close();
+    }
+
+    @Test
+    void uploadTemp_closesInputStreamAfterS3UploadSucceeds() throws IOException {
+        when(storageService.upload(anyString(), eq("clip.mp4"), eq(inputStream), eq(200L), eq("video/mp4")))
+                .thenReturn("temp/session-1/clip.mp4");
+
+        service.uploadTemp("session-1", "clip.mp4", inputStream, 200L, "video/mp4");
+
+        verify(inputStream).close();
     }
 }

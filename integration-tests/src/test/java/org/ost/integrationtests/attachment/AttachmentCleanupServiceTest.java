@@ -13,12 +13,17 @@ import org.ost.platform.core.config.CleanupProperties;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -78,5 +83,31 @@ class AttachmentCleanupServiceTest {
         // storage failure afterward cannot un-delete those rows or prevent the call from having
         // happened
         verify(attachmentRepository).deleteByUrls(urls);
+    }
+
+    @Test
+    void cleanup_orphanedEntityFileWithNoDbRow_getsDeleted() {
+        when(attachmentRepository.findUrlsDeletedOlderThan(anyInt())).thenReturn(List.of());
+        String orphanUrl = "https://s3.example/advertisement/1/orphan.jpg";
+        when(storageService.listByPrefix(eq("advertisement/"), any(Instant.class)))
+                .thenReturn(List.of(orphanUrl));
+        when(attachmentRepository.findExistingUrls(anyCollection())).thenReturn(Set.of());
+
+        service.cleanup();
+
+        verify(storageService).delete(orphanUrl);
+    }
+
+    @Test
+    void cleanup_entityFileWithMatchingDbRow_isNotDeleted() {
+        when(attachmentRepository.findUrlsDeletedOlderThan(anyInt())).thenReturn(List.of());
+        String trackedUrl = "https://s3.example/advertisement/1/tracked.jpg";
+        when(storageService.listByPrefix(eq("advertisement/"), any(Instant.class)))
+                .thenReturn(List.of(trackedUrl));
+        when(attachmentRepository.findExistingUrls(anyCollection())).thenReturn(Set.of(trackedUrl));
+
+        service.cleanup();
+
+        verify(storageService, never()).delete(trackedUrl);
     }
 }

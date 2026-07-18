@@ -150,14 +150,6 @@ class TaxonPortTranslationFallbackTest extends AbstractPostgresIntegrationTest {
         assertThat(result.get().getName()).isEqualTo("Електроніка");
     }
 
-    /**
-     * Covers improvement-067: {@code TaxonTranslationRepository.findAllByTaxonIds()} switched from
-     * {@code IN (:taxonIds)} to {@code = ANY(:taxonIds)}. {@code TaxonPort.findByIds()} is the only
-     * public entry point that drives this method with more than one id at once (via
-     * {@code DefaultTaxonPort.buildDtoIndex()} -> {@code TaxonService.getTranslationsForMany()}),
-     * so this exercises the array-bind SQL directly rather than through a single-id call that
-     * would pass under either clause shape.
-     */
     @Test
     void findByIds_resolvesTranslationsForMultipleTaxonsInOneCall() {
         Long electronics = createTaxonWithTranslations(

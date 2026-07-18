@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.core.config.CleanupProperties;
+import org.ost.platform.core.model.EntityType;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -32,6 +33,7 @@ public class AttachmentCleanupService {
         log.info("Attachment cleanup started, retention = {} days", cleanupProperties.retentionDays());
         deleteStaleTempUploads();
         deleteAttachments();
+        sweepOrphanedEntityFiles();
         log.info("Attachment cleanup finished");
     }
 
@@ -78,5 +80,27 @@ public class AttachmentCleanupService {
         if (!failedUrls.isEmpty()) {
             log.warn("{} S3 objects failed to delete after their DB rows were already removed — orphaned storage, safe to sweep later", failedUrls.size());
         }
+    }
+
+    // Deletes entity-folder S3 files with no matching attachment row at all -- left behind when a
+    // save's DB transaction rolls back after storageService.move() already ran.
+    private void sweepOrphanedEntityFiles() {
+        Instant cutoff = Instant.now().minus(1, ChronoUnit.DAYS);
+        int deleted = 0;
+        for (EntityType type : EntityType.values()) {
+            List<String> candidates = storageService.listByPrefix(type.name().toLowerCase() + "/", cutoff);
+            if (candidates.isEmpty()) continue;
+            Set<String> existing = attachmentRepository.findExistingUrls(candidates);
+            for (String url : candidates) {
+                if (existing.contains(url)) continue;
+                try {
+                    storageService.delete(url);
+                    deleted++;
+                } catch (Exception e) { //NOSONAR java:S7467 — e.getMessage() is used
+                    log.warn("Failed to delete orphaned entity file {}: {}", url, e.getMessage());
+                }
+            }
+        }
+        log.info("Deleted {} orphaned entity files with no matching attachment row", deleted);
     }
 }

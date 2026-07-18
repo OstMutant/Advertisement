@@ -573,3 +573,27 @@ public entry point that drives it with more than one id
 `TaxonPortTranslationFallbackTest` to actually exercise the array-bind SQL with 2 taxons. Verified
 via `bash scripts/integration-tests.sh --sandbox TaxonPortTranslationFallbackTest` — 6/6 green
 (5 pre-existing + the new one).
+
+✅ Done (2026-07-18): [improvement-064](issues/improvement-064-s3storageservice-inputstream-not-closed.md) +
+[improvement-069](issues/improvement-069-attachment-s3-move-inside-db-transaction-orphans-on-rollback.md) —
+fixed together, both touch the attachment upload/cleanup path. improvement-064:
+`AttachmentService.upload()`/`uploadTemp()` now explicitly close the `InputStream` they're given
+(AWS SDK v2's `RequestBody.fromInputStream()` documents that it never does) via a `closeQuietly()`
+helper that logs, not throws, on a close failure — deliberately not try-with-resources, which would
+have made a post-upload close failure look like the upload itself failed. improvement-069: went
+beyond the two cheap mitigations (reorder + log-on-rollback) to the full fix — `AdvertisementSaveService
+.save()` now runs the S3 gallery commit as the last mutation before its transaction's own commit
+(shrinks the failure window) and logs `ERROR` via `TransactionSynchronizationManager` if the
+transaction still rolls back after it (guarded by `isSynchronizationActive()`, required so the
+existing mocked-`TransactionTemplate` unit tests don't throw `IllegalStateException`); AND
+`AttachmentCleanupService` (already scheduled nightly via `CleanupProperties.cronExpression()` —
+correction from an earlier draft of this fix that almost added a second, redundant scheduler)
+gained a third pass, `sweepOrphanedEntityFiles()`, that cross-checks S3 objects under each
+`EntityType`'s folder against a new `AttachmentRepository.findExistingUrls()` bulk lookup and
+deletes whichever have no matching DB row at all — closing the "Required verification" question
+improvement-049 had explicitly left open. See `attachment-spring-boot-starter/DECISIONS.md` ADR-011
+and `marketplace-app/DECISIONS.md` ADR-047. New tests: `AttachmentServiceTest` (2), `AttachmentCleanupServiceTest`
+(2) — both plain Mockito, no Spring context. Verified via `bash scripts/unit-tests.sh marketplace-app`
+(`AdvertisementSaveServiceTest` 5/5), `bash scripts/integration-tests.sh --sandbox
+AttachmentServiceTest,AttachmentCleanupServiceTest` (8/8) and `AttachmentRepositoryTest` (8/8, real
+Postgres), plus a full Playwright e2e pass (35/35 non-skipped).
