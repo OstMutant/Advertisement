@@ -1798,3 +1798,58 @@ supposed to express, for no benefit over the text-field approach.
   green.
 
 → [goal-001-activity-field-visibility-by-role](../backlog/issues/goal-001-activity-field-visibility-by-role.md)
+
+---
+
+## ADR-046: `AbstractFormOverlayModeHandler.buildContentWithActivity()` unifies the Edit/Activity tab choreography across Advertisement/Taxon/User form handlers; fixes `UserFormOverlayModeHandler`'s viewer/subject `userId` bug
+
+**Status:** Accepted
+
+**Context:** `AdvertisementFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, and
+`UserFormOverlayModeHandler` each independently built the same "Edit tab + lazily-loaded Activity
+tab wrapping an `AuditActivityPanel`" structure — same `Tabs`/`Tab` construction, same
+`ComponentFactory<AuditPort>.findIfAvailable()` degrade-gracefully guard, same
+`tabbedSecondaryContent` CSS wiring. Verifying the proposed dedup surfaced a real, independently
+traced bug: `UserFormOverlayModeHandler.buildActivityContent()` passed
+`.userId(params.getUser().id())` (the profile subject) into `AuditActivityPanel.Parameters`, while
+Advertisement and Taxon both correctly pass `.userId(access.getCurrentUserId())` (the acting
+viewer). Tracing `AuditPort.getEntityActivity(entityType, entityId, userId, isPrivileged)` →
+`AuditLogRepository.findRows()` confirms `userId` becomes `filterActorId`, applied as `WHERE
+CAST(:filterActorId AS BIGINT) IS NULL OR actor_id = :filterActorId` for non-privileged viewers —
+i.e. it must always be the viewer's id, never the subject's. The bug was masked because
+`canOperate` for `User` entities only allows self-view (`owner == viewer` always coincide in the
+only reachable path today) or privileged viewers (whose filter short-circuits to `null`
+regardless). → [improvement-079](../backlog/completed/issues/improvement-079-formoverlaymodehandler-activity-tab-duplication-and-userid-bug.md).
+
+**Decision:** Extracted the shared choreography into
+`AbstractFormOverlayModeHandler.buildContentWithActivity(ActivityTabParams)` — a new nested
+`@Value @lombok.Builder` parameter class (9 fields: `canOperate`, `isCreateMode`, `editTabLabel`,
+`activityTabLabel`, `tabsCssClass`, `secondaryContentCssClass`, `editContent`, `auditPortFactory`,
+`activityContentLoader`) per the "5+ fields → Builder" convention. `formTabs`/`editTab` moved up
+from being redeclared as private fields in each subclass to `protected` fields on the base class
+(subclasses still reference them by the same names in `afterSave()`/`loadRestored()`; Taxon's
+previously differently-named `topTabs` was renamed to `formTabs` to match). All three call sites
+now delegate to this one method; Taxon's own near-identical private `buildContentWithActivity(Div)`
+helper (which predates this ADR and only existed in `TaxonFormOverlayModeHandler`) was deleted
+outright, superseded by the base-class version. Domain-specific pieces (`AuditActivityPanel`
+parameter construction — `entityRef`, `canOperate`, `onRestoreRequested`) stay local to each
+subclass's own `buildActivityContent()`, since those genuinely differ per domain; only the
+tab-building shell was shared. `UserFormOverlayModeHandler` was fixed to
+`.userId(access.getCurrentUserId())`, matching Advertisement/Taxon.
+
+**Consequences:**
+- Any future domain form handler adding an Activity tab has one call site to follow, not three
+  slightly-different examples to copy from (and potentially re-introduce this class of bug from).
+- `TaxonFormOverlayModeHandler`'s `canOperate` is passed as a literal `true` — preserves its
+  pre-existing behavior exactly (it never filtered by ownership, unlike Advertisement/User, since
+  taxon management is already privileged-only at the view level); not a behavior change.
+- Covered by a new `UserFormOverlayModeHandlerTest` (marketplace-app, plain Mockito unit test, no
+  Spring context) that constructs the handler with a viewer id and profile-subject id deliberately
+  different, invokes the private `buildActivityContent()` via reflection, and asserts the captured
+  `AuditActivityPanel.Parameters.userId` equals the viewer's id — fails under the pre-fix code,
+  passes under the fix. No Playwright coverage added: the buggy path (subject id ≠ viewer id while
+  `canOperate` is true) isn't reachable through any real UI flow today (see masking note above), so
+  an e2e test couldn't exercise it either way — matches the originating issue's own "Playwright
+  scenario OR unit test" framing. Full e2e suite (specs 01-06, `--ux`, non-`--full`) re-run after
+  the change: 35/35 non-skipped tests green, including the User/Advertisement/Taxon activity-tab
+  flows this refactor directly touches.

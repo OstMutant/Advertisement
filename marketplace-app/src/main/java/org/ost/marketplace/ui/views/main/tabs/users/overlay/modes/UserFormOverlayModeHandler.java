@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.main.tabs.users.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -76,8 +74,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final UiTertiaryButton                                      discardButton;
 
     private Parameters params;
-    private Tabs       formTabs;
-    private Tab        editTab;
     @Getter
     private UserDto    savedUser;
 
@@ -129,18 +125,17 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = auditPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getUser().id()))
-                .map(_ -> {
-                    editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));
-                    Tab activityTab = new Tab(getValue(USER_ACTIVITY_TAB));
-                    formTabs = new Tabs(editTab, activityTab);
-                    formTabs.addClassName("user-form-tabs");
-                    Div result = buildTabbedContent(formTabs, editTab, editContent, this::buildActivityContent);
-                    tabbedSecondaryContent.addClassName("activity-feed-content");
-                    return result;
-                })
-                .orElse(editContent);
+        Div content = buildContentWithActivity(ActivityTabParams.builder()
+                .canOperate(access.canOperate(params.getUser().id()))
+                .isCreateMode(false)
+                .editTabLabel(getValue(USER_DIALOG_SECTION_LABEL))
+                .activityTabLabel(getValue(USER_ACTIVITY_TAB))
+                .tabsCssClass("user-form-tabs")
+                .secondaryContentCssClass("activity-feed-content")
+                .editContent(editContent)
+                .auditPortFactory(auditPortFactory)
+                .activityContentLoader(this::buildActivityContent)
+                .build());
 
         layout.setContent(content);
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
@@ -174,7 +169,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private com.vaadin.flow.component.Component buildActivityContent() {
         return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
-                .userId(params.getUser().id())
+                .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getUser().id()))
                 .onRestoreRequested(this::handleRestoreFromActivity)

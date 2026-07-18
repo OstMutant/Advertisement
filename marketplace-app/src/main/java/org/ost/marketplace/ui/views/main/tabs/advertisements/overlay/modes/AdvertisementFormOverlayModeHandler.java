@@ -5,8 +5,6 @@ import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -101,8 +99,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
-    private Tabs                              formTabs;
-    private Tab                               editTab;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
     private List<TaxonDto>                    availableCategories = List.of();
 
@@ -195,18 +191,17 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
         updateButtons(false);
 
-        Div tabbedContent = isCreate ? content : auditPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
-                .map(_ -> {
-                    editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
-                    Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
-                    formTabs = new Tabs(editTab, activityTab);
-                    formTabs.addClassName("adv-form-tabs");
-                    Div result = buildTabbedContent(formTabs, editTab, content, this::buildActivityContent);
-                    tabbedSecondaryContent.addClassName("entity-activity-content");
-                    return result;
-                })
-                .orElse(content);
+        Div tabbedContent = buildContentWithActivity(ActivityTabParams.builder()
+                .canOperate(!isCreate && access.canOperate(params.getAd().getOwnerUserId()))
+                .isCreateMode(isCreate)
+                .editTabLabel(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC))
+                .activityTabLabel(getValue(ADVERTISEMENT_ACTIVITY_TAB))
+                .tabsCssClass("adv-form-tabs")
+                .secondaryContentCssClass("entity-activity-content")
+                .editContent(content)
+                .auditPortFactory(auditPortFactory)
+                .activityContentLoader(this::buildActivityContent)
+                .build());
         layout.setContent(tabbedContent);
     }
 

@@ -4,8 +4,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.H4;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -80,8 +78,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private final UiTextArea                                               descriptionUkField;
 
     private Parameters params;
-    private Tabs       topTabs;
-    private Tab        editTab;
     @Getter private Long savedTaxonId;
 
     @Override
@@ -160,7 +156,17 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = buildContentWithActivity(editContent);
+        Div content = buildContentWithActivity(ActivityTabParams.builder()
+                .canOperate(true)
+                .isCreateMode(params.getMode() == Mode.CREATE)
+                .editTabLabel(getValue(TAXON_OVERLAY_TAB_EDIT))
+                .activityTabLabel(getValue(TAXON_OVERLAY_TAB_ACTIVITY))
+                .tabsCssClass("taxon-form-tabs")
+                .secondaryContentCssClass("activity-feed-content")
+                .editContent(editContent)
+                .auditPortFactory(auditPortFactory)
+                .activityContentLoader(this::buildActivityContent)
+                .build());
         layout.setContent(content);
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
         updateButtons(false);
@@ -201,28 +207,11 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     public void afterSave(boolean success) {
         if (success) {
             updateButtons(false);
-            if (topTabs != null) topTabs.setSelectedTab(editTab);
+            if (formTabs != null) formTabs.setSelectedTab(editTab);
             if (tabbedSecondaryContent != null) tabbedSecondaryContent.removeAll();
         } else {
             updateButtons(true);
         }
-    }
-
-    private Div buildContentWithActivity(Div editContent) {
-        if (params.getMode() == Mode.CREATE) {
-            return editContent;
-        }
-        return auditPortFactory.findIfAvailable()
-                .map(_ -> {
-                    editTab = new Tab(getValue(TAXON_OVERLAY_TAB_EDIT));
-                    Tab activityTab = new Tab(getValue(TAXON_OVERLAY_TAB_ACTIVITY));
-                    topTabs = new Tabs(editTab, activityTab);
-                    topTabs.addClassName("taxon-form-tabs");
-                    Div result = buildTabbedContent(topTabs, editTab, editContent, this::buildActivityContent);
-                    tabbedSecondaryContent.addClassName("activity-feed-content");
-                    return result;
-                })
-                .orElse(editContent);
     }
 
     private com.vaadin.flow.component.Component buildActivityContent() {
@@ -260,7 +249,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         });
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
-        if (topTabs != null) topTabs.setSelectedTab(editTab);
+        if (formTabs != null) formTabs.setSelectedTab(editTab);
     }
 
     private TaxonEditDto buildDto() {

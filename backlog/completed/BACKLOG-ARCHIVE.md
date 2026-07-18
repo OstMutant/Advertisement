@@ -527,3 +527,25 @@ removed (zero other callers). Documented in `marketplace-app/DECISIONS.md` ADR-0
 `SupportUtilTest` (8/8) and a new Playwright assertion in `05-seed-filter-sort-pagination.spec.js`
 (typing `1.5` sets Vaadin's `invalid` attribute, typing `1` clears it) — full e2e suite 48/48
 green.
+
+✅ Done (2026-07-18): [improvement-079](issues/improvement-079-formoverlaymodehandler-activity-tab-duplication-and-userid-bug.md) —
+`UserFormOverlayModeHandler.buildActivityContent()` passed `.userId(params.getUser().id())` (the
+profile subject) into `AuditActivityPanel.Parameters` instead of the acting viewer's id, unlike
+`AdvertisementFormOverlayModeHandler`/`TaxonFormOverlayModeHandler` which both correctly pass
+`access.getCurrentUserId()`. Traced through `AuditPort.getEntityActivity()` →
+`AuditLogRepository.findRows()`'s `filterActorId` SQL condition to confirm this must always be the
+viewer, not the subject — currently masked because `canOperate` for `User` only allows self-view
+(owner == viewer) or privileged viewers (whose filter short-circuits to `null` regardless). Fixed
+alongside extracting the near-identical "Edit tab + lazily-loaded Activity tab" choreography,
+independently duplicated across all three form handlers, into a new
+`AbstractFormOverlayModeHandler.buildContentWithActivity(ActivityTabParams)` — a `@Value
+@lombok.Builder` parameter object per the "5+ fields" convention; `formTabs`/`editTab` moved from
+per-subclass private fields to `protected` base-class fields; Taxon's own now-redundant private
+`buildContentWithActivity(Div)` helper was deleted outright. See `marketplace-app/DECISIONS.md`
+ADR-046. Moved to `completed/issues/`. New `UserFormOverlayModeHandlerTest` (plain Mockito, no
+Spring context) constructs the handler with a viewer id deliberately different from the
+profile-subject id and asserts the panel receives the viewer's id — fails pre-fix, passes post-fix;
+no Playwright test added since the buggy path isn't reachable through any real UI flow today (see
+masking note above). Full e2e suite (specs 01-06, `--ux`) re-run after the change: 35/35
+non-skipped tests green, including the User/Advertisement/Taxon activity-tab flows this refactor
+directly touches.
