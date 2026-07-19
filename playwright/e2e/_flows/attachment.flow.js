@@ -29,6 +29,15 @@ async function waitForLightboxClosed(page) {
   ).catch(() => {});
 }
 
+// Every lookup below is rooted at the currently *opened* dialog, not `document` as a whole --
+// Vaadin dialogs don't remove their content from the DOM on close, only hide it, so after several
+// lightboxes have been opened and closed earlier in a test run, more than one `.card-lightbox__*`
+// element can exist at once. An unscoped `document.querySelector` (or a recursive shadow-DOM
+// search rooted at `document`) picks whichever one happens to be first in document order, which
+// is not necessarily the currently open instance -- confirmed directly: this broke the "YouTube
+// -> image" lightbox test once CardLightboxViewer.update() stopped taking the same shortcut
+// (see improvement-082's CardLightboxViewer fix in marketplace-app/DECISIONS.md ADR-049).
+
 async function getIframeSrc(page) {
   return page.evaluate((sel) => {
     function search(root) {
@@ -38,7 +47,8 @@ async function getIframeSrc(page) {
         if (c.shadowRoot) { const r = search(c.shadowRoot); if (r !== undefined) return r; }
       return undefined;
     }
-    return search(document);
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    return dialog ? search(dialog) : undefined;
   }, '.card-lightbox__iframe');
 }
 
@@ -50,7 +60,8 @@ async function clickLightboxThumb(page, index) {
         if (c.shadowRoot) els.push(...findAll(c.shadowRoot, sel));
       return els;
     }
-    const thumbs = findAll(document, '.card-lightbox__strip .card-lightbox__thumb');
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    const thumbs = dialog ? findAll(dialog, '.card-lightbox__strip .card-lightbox__thumb') : [];
     if (thumbs[idx]) thumbs[idx].click();
   }, index);
 }
@@ -64,7 +75,8 @@ async function getVideoSrc(page) {
         if (c.shadowRoot) { const r = search(c.shadowRoot); if (r !== undefined) return r; }
       return undefined;
     }
-    return search(document);
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    return dialog ? search(dialog) : undefined;
   });
 }
 
@@ -77,7 +89,8 @@ async function isVideoWrapperVisible(page) {
         if (c.shadowRoot) { const r = search(c.shadowRoot); if (r !== undefined) return r; }
       return undefined;
     }
-    return search(document);
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    return dialog ? search(dialog) : undefined;
   });
 }
 
@@ -90,7 +103,8 @@ async function waitForVideoWrapperVisible(page) {
         if (c.shadowRoot && search(c.shadowRoot)) return true;
       return false;
     }
-    return search(document);
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    return dialog ? search(dialog) : false;
   }, { timeout: 8000 });
 }
 
@@ -103,7 +117,8 @@ async function waitForMainImageVisible(page) {
         if (c.shadowRoot && search(c.shadowRoot)) return true;
       return false;
     }
-    return search(document);
+    const dialog = document.querySelector('vaadin-dialog.card-lightbox[opened]');
+    return dialog ? search(dialog) : false;
   }, { timeout: 5000 });
 }
 

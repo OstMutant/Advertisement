@@ -179,8 +179,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
-        boolean neverEdited = ad.getUpdatedAt() == null
-                || ad.getUpdatedAt().equals(ad.getCreatedAt());
+        boolean neverEdited = ad.getUpdatedAt().equals(ad.getCreatedAt());
 
         return metaPanelFactory.build(AdvertisementCardMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
@@ -213,7 +212,6 @@ public class AdvertisementCardView extends HorizontalLayout
                         .build()
         );
         edit.setVisible(visible);
-        edit.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return edit;
     }
 
@@ -227,7 +225,6 @@ public class AdvertisementCardView extends HorizontalLayout
                         .build()
         );
         delete.setVisible(visible);
-        delete.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return delete;
     }
 

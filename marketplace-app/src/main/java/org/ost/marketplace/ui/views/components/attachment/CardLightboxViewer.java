@@ -17,6 +17,8 @@ import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
+import java.util.UUID;
+
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
@@ -31,6 +33,11 @@ public class CardLightboxViewer extends HorizontalLayout {
     private UiIconButton  prevBtn;
     private UiIconButton  nextBtn;
 
+    // Unique per instance -- see update()'s comment for why these replace a shared CSS class in
+    // the page-level executeJs() calls below.
+    private final String iframeId  = "card-lightbox-iframe-" + UUID.randomUUID();
+    private final String videoElId = "card-lightbox-video-" + UUID.randomUUID();
+
     private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
 
     @PostConstruct
@@ -38,12 +45,14 @@ public class CardLightboxViewer extends HorizontalLayout {
         mainImg.addClassName("card-lightbox__main-image");
 
         iframe.addClassName("card-lightbox__iframe");
+        iframe.getElement().setAttribute("id", iframeId);
         iframe.getElement().setAttribute("allow",
                 "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
         iframe.getElement().setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
         iframe.setVisible(false);
 
+        videoEl.setAttribute("id", videoElId);
         videoEl.setAttribute("controls", "");
         videoEl.getClassList().add("card-lightbox__main-video");
         mainVideo.addClassName("card-lightbox__main-video-wrapper");
@@ -71,39 +80,59 @@ public class CardLightboxViewer extends HorizontalLayout {
         nextBtn.setVisible(visible);
     }
 
+    // Confirmed via git history (4310b0be, "fix: stop YouTube iframe when switching to image")
+    // plus direct re-confirmation this session: Vaadin Flow does not reliably apply
+    // Element.setAttribute("src", ...) -- nor even element-scoped Element.executeJs() -- to
+    // either <iframe src> or <video src> in the live DOM once the element has already rendered
+    // once. Only UI.getPage().executeJs() (page-level, not element-scoped) reliably lands the
+    // change. getElement().setAttribute() is still called first so Vaadin's own server-side diff
+    // baseline stays correct for later changes; the actual DOM write goes through
+    // page.executeJs(), targeted by each element's own unique id rather than the shared
+    // ".card-lightbox__iframe"/".card-lightbox__main-video" classes the pre-improvement-082 code
+    // selected via document.querySelector() -- that global selector is what actually made this a
+    // cross-instance bug (two open/opened-then-closed lightboxes' elements share the same class;
+    // Vaadin dialogs don't remove their content from the DOM on close, only hide it).
     void update(AttachmentItemDto a) {
         String ct = a.contentType();
         if (AttachmentMediaContentType.isEmbedded(ct)) {
-            getUI().ifPresent(ui -> ui.getPage().executeJs(
-                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}"));
+            videoEl.setAttribute("src", "");
+            setVideoSrcViaPage("", true);
             String embedUrl = embedSrc(a);
             iframe.getElement().setAttribute("src", embedUrl);
-            getUI().ifPresent(ui -> ui.getPage().executeJs(
-                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src=$0;", embedUrl));
+            setIframeSrcViaPage(embedUrl);
             mainImg.setVisible(false);
             mainVideo.setVisible(false);
             iframe.setVisible(true);
         } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {
             iframe.getElement().setAttribute("src", "about:blank");
-            getUI().ifPresent(ui -> ui.getPage().executeJs(
-                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';"));
+            setIframeSrcViaPage("about:blank");
             videoEl.setAttribute("src", a.url());
+            setVideoSrcViaPage(a.url(), false);
             mainImg.setVisible(false);
             iframe.setVisible(false);
             mainVideo.setVisible(true);
-            getUI().ifPresent(ui -> ui.getPage().executeJs(
-                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.src=$0; v.load();}", a.url()));
         } else {
             iframe.getElement().setAttribute("src", "about:blank");
-            getUI().ifPresent(ui -> ui.getPage().executeJs(
-                "var f=document.querySelector('.card-lightbox__iframe'); if(f) f.src='about:blank';" +
-                "var v=document.querySelector('.card-lightbox__main-video'); if(v){v.pause();v.src='';}"));
+            setIframeSrcViaPage("about:blank");
+            videoEl.setAttribute("src", "");
+            setVideoSrcViaPage("", true);
             mainVideo.setVisible(false);
             iframe.setVisible(false);
             mainImg.setSrc(a.url());
             mainImg.setAlt(a.filename());
             mainImg.setVisible(true);
         }
+    }
+
+    private void setIframeSrcViaPage(String src) {
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
+                "var f = document.getElementById($0); if (f) f.src = $1;", iframeId, src));
+    }
+
+    private void setVideoSrcViaPage(String src, boolean pause) {
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
+                "var v = document.getElementById($0); if (v) { v.src = $1; if ($2) v.pause(); else v.load(); }",
+                videoElId, src, pause));
     }
 
     private static String embedSrc(AttachmentItemDto a) {

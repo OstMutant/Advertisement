@@ -723,3 +723,22 @@ second-page lazy loading (improvement-056). Full e2e 48/48 green after this roun
 rerun confirming a one-off "TLS connection disconnected" failure (spec 04, immediately after a
 plain login, nowhere near any of this session's code) did not reproduce — checked via screenshot
 before being ruled out, not assumed.
+
+✅ Done (2026-07-18): [improvement-076](issues/improvement-076-advertisementcardview-redundant-stoppropagation.md) —
+removed the redundant `.getElement().addEventListener("click", ...).addEventData("event.stopPropagation()")`
+calls in `AdvertisementCardView.createEditButton()`/`createDeleteButton()`; confirmed
+`BaseActionButton.applyConfig()` already registers the identical listener for both buttons.
+
+✅ Done (2026-07-18): [improvement-077](issues/improvement-077-advertisementcardview-dead-updatedat-null-check.md) —
+removed the dead `ad.getUpdatedAt() == null ||` half of `AdvertisementCardView.createMetaPanel()`'s
+`neverEdited` check — `updatedAt` is `@LastModifiedDate`, never null on a persisted row. Kept the
+live `.equals(ad.getCreatedAt())` half unchanged.
+
+✅ Done (2026-07-18): [improvement-082](issues/improvement-082-cardlightboxviewer-redundant-queryselector.md) —
+`CardLightboxViewer.update()` no longer uses `document.querySelector`-based page-level JS; each of
+the three call sites was checked individually before removal rather than deleted in bulk. The
+iframe-`src` re-sets were literal duplicates of the direct `iframe.getElement().setAttribute(...)`
+call immediately above them — deleted outright. The video pause/clear and `.load()` calls had no
+existing direct equivalent, so they were kept but rewritten as `videoEl.executeJs(...)` on the
+already-held `Element` reference (same pattern already used by `AttachmentLightbox`), rather than
+a page-wide `querySelector` that could cross-control a second open lightbox instance.
