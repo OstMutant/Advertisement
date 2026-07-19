@@ -189,3 +189,57 @@ children `"labeled-field__label"`/`"labeled-field__value"`) and `AdvertisementCa
 - [improvement-026](../completed/issues/improvement-026-duplicate-raw-buttons-instead-of-ui-button-wrappers.md) — the
   raw `Button` → `Ui*Button` wrapper migration currently in progress (Batches 1-3 done); related
   but separate scope, not re-litigated here.
+
+## Additional polish findings from the 2026-07-19 UX screenshot review
+
+Collected during the UX review that filed improvement-096–101 — each too small for its own
+issue, all needing the same standardization-decision treatment as the findings above:
+
+- **Required-field marker** is a tiny dot next to the label (`Title •`, `Email •`) — easy to miss;
+  decide on the conventional `*` plus a one-line "required" legend on forms.
+- **Pagination bar renders in full on single-page results** («« ‹ Page 1 of 1 › »» + record
+  count) — hide it, or at least the arrows, when there is only one page.
+- **Card metadata shows categories as run-on text** ("Categories: Електроніка, Транспорт") while
+  the form shows chips — decide one representation (chips are also where improvement-008's
+  deleted-strikethrough would land).
+- **Filter-panel expand toggle (`▸`)** is a small click target (well under ~44px) for the primary
+  entry point to filtering; the filter apply (funnel) / clear (eraser) icon-buttons have the same
+  problem plus no labels (aria half tracked in improvement-098).
+- **Header branding**: "ANNOUNCEMENTS" wordmark with decorative glyphs reads as a placeholder,
+  and the tab it sits above is called "Advertisements" — one product name should win.
+- **Video URL input placeholder** promises "YouTube, Facebook..." but the backend supports
+  YouTube + generic iframe embeds (`CT_EMBED`) — a raw Facebook watch URL won't embed; align the
+  placeholder with what actually works, or add proper FB URL→embed translation.
+- **Success toast (5s, bottom-right)** lingers over subsequent interactions (visible on top of
+  the logout confirm in screenshots) — consider shorter duration for pure-success toasts, and
+  verify stacking behavior for rapid successive actions.
+
+## Edge-case findings from the 2026-07-19 deep review (minor — fold into a UI-touching PR)
+
+- **Pagination doesn't re-fetch after the total shrinks.** `PaginationBar.setTotalCount()`
+  correctly clamps `currentPage` when it exceeds the new page count, but nothing re-fetches the
+  clamped page — deleting the last item on page N leaves the user looking at an empty list with
+  the indicator already showing the clamped page, until the next interaction. Trigger a `refresh`
+  when the clamp actually changes `currentPage`. (Related surface: improvement-010's refresh
+  handling.)
+- **Optimistic-lock conflict leaves the form on a stale version.** `AbstractEntityOverlay` shows
+  the conflict notification correctly, but the form keeps the old `version`, so every subsequent
+  save conflicts again until the user manually reloads. Acceptable today, but re-fetching the
+  fresh entity into the form after a conflict (and telling the user "reloaded to the latest
+  version — reapply your change") would close the loop.
+
+- **Timestamps fall back to server timezone before the client-TZ JS round-trip resolves.**
+  `TimeZoneUtil` correctly reads the client zone via `extendedClientDetails` and caches it in the
+  session, but its fallback is `ZoneId.systemDefault()` — so the very first render (before the JS
+  round-trip completes) formats timestamps in the *server's* timezone, which then silently shifts
+  once the client zone arrives. Compounds the already-noted `TimeZoneUtil`/`InstantFormatter`
+  split (two formatting paths that can disagree on zone). Decide one zone-resolution path and one
+  pre-resolution behavior (e.g. render nothing / a skeleton until the client zone is known,
+  rather than a wrong-zone value that later changes).
+
+- **Advertisement title is not trimmed before persist, unlike user registration.**
+  `AdvertisementService.buildEntity()` stores `dto.title()` raw, while `UserService.register()`
+  trims `name`/`email`/`password`. A title with leading/trailing whitespace ("  My Ad  ") persists
+  verbatim, hurting sort/search/display. `@NotBlank` already rejects whitespace-only, so this is
+  purely about edge whitespace. Trim `title` (and description's outer whitespace if appropriate)
+  on the save path for consistency with the registration path.

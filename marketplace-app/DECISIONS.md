@@ -1991,3 +1991,30 @@ left for a follow-up):**
   any of these fixes anywhere near the failure point) did not reproduce on the immediately
   following rerun — confirmed via screenshot before being discounted as infra flakiness, not
   dismissed on assumption.
+
+## ADR-049: `I18nKey` stays one consolidated enum — domain-split considered and rejected
+
+**Status:** Accepted (rejection of a proposed change)
+
+**Context:** An external review (2026-07-19) suggested splitting the ~300-key, ~400-line
+`I18nKey` enum into per-domain enums (`AuditI18nKey`, `AdI18nKey`, `TaxonI18nKey`, ...) to ease
+navigation and reduce Git merge conflicts.
+
+**Decision:** Keep the single consolidated `I18nKey` enum (`services/i18n/I18nKey.java`), as
+already codified in `marketplace-app/CLAUDE.md` ("Translation keys — single consolidated enum").
+
+**Why the split loses on inspection:**
+- A split requires a common type for `I18nService.get(...)` — a `sealed interface I18nKey
+  permits AuditI18nKey, ...` — which trades the enum's flat simplicity for a new failure mode
+  that does not exist today: two enums can silently declare the same message-properties key, so
+  key uniqueness would need a runtime startup check instead of being structurally impossible.
+- `I18nKey.forAction(ActionType)` and similar exhaustive mappings are simplest against one enum.
+- The Git-conflict argument assumes parallel team edits; this is a single-developer repo.
+- Navigation inside one sectioned enum is an IDE structure-view away; 400 lines is large but
+  cohesive (same conclusion as `docs/architecture/08-scorecard.md`'s cohesion note).
+
+**Revisit trigger:** a new large domain landing (which would push the enum well past its current
+size), or i18n infrastructure appearing in starters — currently explicitly excluded ("Starters
+have no i18n infrastructure of their own", `marketplace-app/CLAUDE.md`). If revisited, the
+sealed-interface design above is the starting point, with a startup-time uniqueness check over
+all member enums' keys as a hard requirement.

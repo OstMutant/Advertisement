@@ -62,11 +62,9 @@ sequenceDiagram
 ## 2. Advertisement Update with Media Change
 
 **Classes involved:**
-- `org.ost.advertisement.services.AdvertisementService`
 - `org.ost.attachment.spi.DefaultAttachmentPort` (attachment starter)
-- `org.ost.advertisement.spi.MediaChangeHookImpl` (advertisement listens to attachment changes)
-- `org.ost.audit.services.DefaultAuditPort`
 - `org.ost.attachment.services.AttachmentService`
+- `org.ost.advertisement.services.AdvertisementService` (read-time enrichment only — ADR-035)
 
 ```mermaid
 sequenceDiagram
@@ -74,9 +72,6 @@ sequenceDiagram
     participant AttPort as AttachmentPort
     participant AttImpl as DefaultAttachmentPort
     participant AttService as AttachmentService
-    participant MediaHook as MediaChangeHookImpl
-    participant AdvService as AdvertisementService
-    participant AuditPort as DefaultAuditPort
     
     App->>AttPort: upload(file, ADVERTISEMENT, advId)
     
@@ -86,18 +81,7 @@ sequenceDiagram
     AttService->>AttService: StorageService.upload() → S3
     AttService->>AttService: INSERT INTO attachment
     
-    Note over AttService: Trigger media change hook
-    
-    AttService->>MediaHook: onChange(ADVERTISEMENT, advId)
-    MediaHook->>AdvService: updateMediaMetadata(advId)
-    
-    AdvService->>AdvService: SELECT advertisement WHERE id=advId
-    AdvService->>AdvService: UPDATE advertisement SET media_url, media_count
-    
-    Note over AdvService: Capture advertisement change in audit
-    
-    AdvService->>AuditPort: captureUpdate(advId, before, after, actorId)
-    AuditPort->>AuditPort: INSERT INTO audit_log (action=UPDATE)
+    Note over AttService: Fires AttachmentMediaChangeHook.onChange(ADVERTISEMENT, advId) —<br/>no implementation registered today, event is dropped (ADR-035)
     
     AttService->>AttService: INSERT INTO attachment_snapshot
     
@@ -105,6 +89,11 @@ sequenceDiagram
     AttImpl-->>AttPort: success
     AttPort-->>App: success
 ```
+
+Nothing is ever written to the `advertisement` row on a media change. List/detail views resolve
+media summaries at read time: `AdvertisementService.enrichWithMediaSummary()` →
+`AttachmentPort.getMediaSummaries(EntityType, Set<Long>)` — one bulk query over the `attachment`
+table per list render (see `marketplace-app/DECISIONS.md` ADR-035).
 
 ---
 
@@ -443,7 +432,7 @@ Marketplace UI classes never import from starter internal classes:
 ### Delegation Pattern
 All Port/Hook implementations are pure delegation with no business logic:
 - Example: `AdvertisementPortImpl.save()` calls `AdvertisementService.save()` and returns result
-- Example: `MediaChangeHookImpl.onChange()` calls `AdvertisementService.updateMediaMetadata()` and returns result
+- Example: `CurrentActorHookImpl.getCurrentActorId()` calls `AuthContextService.getCurrentActorId()` and returns result
 
 ### Batch Resolution Pattern (avoiding N+1)
 Reads that need per-entity taxon data for a whole page of results resolve them in one batch

@@ -66,7 +66,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 **Evidence:**
 - ✓ User domain owns: User entity, UserService, UserRepository, UserPortImpl, security (UserPrincipal, RoleChecker)
-- ✓ Advertisement domain owns: Advertisement entity, AdvertisementService, AdvertisementRepository, AdvertisementPortImpl, MediaChangeHookImpl
+- ✓ Advertisement domain owns: Advertisement entity, AdvertisementService, AdvertisementRepository, AdvertisementPortImpl
 - ✓ Audit domain owns: AuditLog entity, AuditLogRepository, AuditReadService, DefaultAuditPort
 - ✓ Attachment domain owns: Attachment entity, AttachmentService, S3StorageService, DefaultAttachmentPort
 - ✓ Taxon domain owns: Taxon entities, TaxonService, DefaultTaxonPort
@@ -97,7 +97,7 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 - ✓ DTOs separate from SPI (data carriers don't pollute interfaces)
 - ✓ Implementations are pure delegation (no business logic in ports/hooks)
 - ✓ ComponentFactory<T> abstraction for optional singleton services
-- ~ UserSettingsChangedHook defined but no implementations (premature abstraction?) — acceptable as forward-looking
+- ~ AttachmentMediaChangeHook fires but has no implementation today (its former receiver, MediaChangeHookImpl, was removed by ADR-035) — acceptable, gracefully-degraded optional SPI
 - ~ Some hooks have 1 method (AttachmentMediaChangeHook.onChange), others have many (AuditPort.captureCreation, captureUpdate, captureDeletion, getSnapshotContent, getEntityActivity, getLastSnapshot, getTimelinePage, countTimeline) — acceptable variation
 
 **Why 8, not higher:**
@@ -116,12 +116,12 @@ Each dimension scored 1-10 with reasoning tied to actual code observations:
 
 **Evidence:**
 - ✓ User domain: pure user management, no business rules about advertisements
-- ✓ Advertisement domain: CRUD and ownership checks, doesn't know about attachments (except via hook)
+- ✓ Advertisement domain: CRUD and ownership checks, knows attachments only via optional `AttachmentPort` (read-time media-summary enrichment, ADR-035)
 - ✓ Audit domain: cross-cutting, doesn't know domain semantics (calls hooks to understand)
 - ✓ Attachment domain: file storage, knows about entity_type/entity_id generically
 - ✓ Taxon domain: taxonomy management, self-contained; no FK to advertisement
 - ✓ Advertisement imports AuditPort + AttachmentPort but only calls via interfaces ✓
-- ✓ Attachment → Advertisement via MediaChangeHook (allows notification without import) ✓
+- ✓ Attachment fires MediaChangeHook without importing any receiver (currently no implementation at all — ADR-035); advertisement media summaries come from read-time `AttachmentPort.getMediaSummaries()` bulk lookups ✓
 - ✓ AccessEvaluator fixed (ADR-016, 2026-06-15) — no more user.security.* imports
 - ~ Advertisement → User via database FK (schema coupling, not code import; acceptable)
 

@@ -32,7 +32,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 
 - No Vaadin dependency. No UI code here.
 - `UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook` live in `platform-commons`.
-- `@EnableJdbcRepositories(basePackages = "org.ost.user")` declared in `UserAutoConfiguration`.
+- `@EnableJdbcRepositories(basePackages = "org.ost.user.repository")` declared in `UserAutoConfiguration`.
 - First registered user is auto-promoted to `ADMIN` role — enforced in `UserService`.
 - `@PreAuthorize` must NOT be placed at class level on service beans — see marketplace-app/CLAUDE.md.
 - `passwordEncoder()` bean in `UserAutoConfiguration` uses

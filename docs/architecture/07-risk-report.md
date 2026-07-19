@@ -78,12 +78,12 @@ Checked for packages with excessive class concentrations (>20 classes = smell):
 
 | Constraint | Risk | Impact |
 |-----------|------|--------|
-| advertisement.created_by_user_id FK (RESTRICT) | MEDIUM | Cannot delete user if they have ads; may need manual cleanup |
-| advertisement.last_modified_by_user_id FK (SET NULL) | LOW | OK; nullable, deletes orphan the reference |
-| advertisement.deleted_by_user_id FK (SET NULL) | LOW | OK; nullable |
+| advertisement.created_by FK (RESTRICT) | MEDIUM | Cannot delete user if they have ads; may need manual cleanup |
+| advertisement.updated_by FK (SET NULL) | LOW | OK; nullable, deletes orphan the reference |
+| advertisement.deleted_by FK (SET NULL) | LOW | OK; nullable |
 | attachment.entity_id (no FK, generic) | LOW | Attachment orphans possible; cleanup job handles via soft-delete |
 
-**Mitigation:** RESTRICT on created_by_user_id is intentional (creator is immutable). Handle soft-delete via audit cleanup job.
+**Mitigation:** RESTRICT on created_by is intentional (creator is immutable). Handle soft-delete via audit cleanup job.
 
 ### 2. JSONB Columns (Flexible Schema)
 

@@ -29,3 +29,16 @@ old stored JSON silently deserializes to wrong values or nulls.
 ## Implementation trigger
 
 Before the first `AuditableSnapshot` field rename or type change.
+
+## Related surface (2026-07-19, edge-case review): the settings JSONB blob has the same forward-compat gap
+
+`UserSettingsDto` is serialized whole into `user_information.settings` (JSONB) and read back via
+`UserSettingsRepository.load()` (Jackson `readValue`). The read path is robust against *malformed*
+JSON (catch → `defaultSettings()`), but not against *schema evolution*: renaming or removing a
+`UserSettingsDto` field silently drops the old stored value on the next read (Jackson applies
+defaults for the new shape), with no versioning or migration — exactly the class of problem this
+issue solves for `AuditableSnapshot` snapshots. Whatever versioning/migration mechanism this issue
+adopts for snapshots should either cover the settings blob too, or the settings blob should get an
+explicit `version` field (it already carries `UserSettingsDto.version` for optimistic locking, see
+`marketplace-app/DECISIONS.md` ADR-044 — that counter could double as the schema-version anchor).
+Decide together so there is one story for "a JSONB-persisted DTO's shape changed", not two.

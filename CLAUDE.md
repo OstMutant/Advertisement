@@ -61,7 +61,7 @@ advertisement-parent (root pom)
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
 3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
-3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.storage`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
+3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 

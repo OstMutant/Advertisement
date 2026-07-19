@@ -34,7 +34,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - No Vaadin dependency. No UI code here. UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
 - `AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` live in `platform-commons`.
 - UI components in marketplace-app MUST degrade gracefully via `ObjectProvider.ifAvailable()` when this starter is absent.
-- `@EnableJdbcRepositories(basePackages = "org.ost.attachment")` declared in `AttachmentAutoConfiguration`.
+- `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` declared in `AttachmentAutoConfiguration`.
 - Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.services` — not in marketplace-app.
 - `AttachmentPort.getMediaSummary(EntityRef)` (single-entity) and `.getMediaSummaries(EntityType,
   Set<Long>)` (bulk) both compute the "main attachment" the same way: the earliest-created,

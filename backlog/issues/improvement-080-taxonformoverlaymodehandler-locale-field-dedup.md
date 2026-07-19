@@ -42,3 +42,22 @@ error messages still show correctly for both locales.
 
 - Filed as part of a verified 8-item Vaadin UI refactor batch (2026-07-17); see improvement-076
   through improvement-079 and improvement-081 through improvement-083 for the rest.
+
+## Related finding (2026-07-19, pattern-focused code review): the same EN/UK hardcoding lives server-side too
+
+`TaxonService` (taxon-spring-boot-starter) repeats the exact same locale-pair hardcoding this
+issue targets in the UI handler — an OCP gap, not just duplication:
+
+- `buildSnapshotFromData()` reads only `Locale.ENGLISH` and `Locale.forLanguageTag("uk")`;
+- `buildSnapshotFromTranslations()` string-matches only `"en"`/`"uk"`;
+- yet `validateTranslations()` iterates `properties.supportedLocales()` — config-driven.
+
+Adding a third locale via `TaxonProperties` would validate fine but **silently vanish from audit
+snapshots** (`TaxonSnapshotDto` itself has fixed `nameEn/descEn/nameUk/descUk` fields, so a truly
+config-driven snapshot needs a DTO-shape decision, not just a loop).
+
+When implementing the map-keyed-by-locale refactor here, extend the same shape to
+`TaxonService`'s two snapshot builders in the same PR — or, if the `TaxonSnapshotDto` schema
+question makes that too big, at minimum leave a comment in both builders pointing at the fixed
+DTO shape as the real constraint. Do not silently ship a UI-side-only fix that leaves the
+server-side pair as the last hardcoded copy.

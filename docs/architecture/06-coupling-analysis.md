@@ -105,7 +105,7 @@ Advertisement entity has foreign key to user_information:
 -- /app/advertisement-spring-boot-starter/src/main/resources/db/advertisement-changelog/changes/01-advertisement-schema.xml
 ALTER TABLE advertisement
 ADD CONSTRAINT fk_advertisement_created_by
-FOREIGN KEY (created_by_user_id)
+FOREIGN KEY (created_by)
 REFERENCES user_information(id) ON DELETE RESTRICT;
 ```
 

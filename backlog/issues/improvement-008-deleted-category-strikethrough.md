@@ -3,7 +3,7 @@
 **Type:** improvement — follow-up gap from category-ids-in-snapshot
 **Module:** marketplace-app
 **Priority:** low — cosmetic, no functional breakage
-**When:** Deferred — batch into any nearby UI-touching PR
+**When:** Batch F (UI dedup & polish, PR 2) — see `backlog/BACKLOG.md` "Execution batches" (2026-07-19; formerly Deferred "any nearby UI-touching PR")
 
 ## Problem
 

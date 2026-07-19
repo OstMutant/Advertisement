@@ -3,7 +3,7 @@
 **Type:** improvement — pattern deviation found during app code review
 **Module:** marketplace-app
 **Priority:** low — only visible when a refresh actually fails; no data risk
-**When:** Deferred — batch into any nearby UI-touching PR
+**When:** Batch F (UI dedup & polish, PR 2) — see `backlog/BACKLOG.md` "Execution batches" (2026-07-19; formerly Deferred "any nearby UI-touching PR")
 
 ## Problem
 

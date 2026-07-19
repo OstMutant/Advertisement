@@ -3,7 +3,7 @@
 **Type:** improvement — SQL performance, found by external code audit (round 6), verified
 **Module:** audit-spring-boot-starter
 **Priority:** medium — fine at current scale; first audit-side bottleneck at growth; fix is cheap
-**When:** Wave 3 / opportunistic — bundle with any audit-starter touch
+**When:** Batch H (audit read-side rewrite, with improvement-095) — see `backlog/BACKLOG.md` "Execution batches" (2026-07-19; formerly Wave 3 "any audit-starter touch" — the batch is that touch)
 
 ## Problem
 

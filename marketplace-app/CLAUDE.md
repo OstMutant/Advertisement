@@ -114,7 +114,6 @@ Translation keys — single consolidated enum:
 ## Naming Conventions
 
 ### Class suffixes
-- `*Projection` — SQL query object that owns its SQL (text block) and `mapRow()`. Lives in `repository/*`.
 - `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
 - `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
 - `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
@@ -126,13 +125,16 @@ Translation keys — single consolidated enum:
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
-- `services/audit/` — audit snapshot DTOs, diff engine, `@AuditedField` annotation
-- `services/auth/` — authentication context (`AuthContextService`)
+- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementEnrichService` — category-name resolution for audit diffs)
+- `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
-- `services/security/` — security beans (`AccessEvaluator`, `RoleChecker`, `OwnershipChecker`, etc.)
-- `repository/activity/` — activity feed SQL repositories + projections
+- `services/security/` — `AccessEvaluator` (role/ownership checks live in user-spring-boot-starter's `org.ost.user.security` — `RoleChecker`, `OwnershipChecker`)
+- `spi/` — hook implementations (`CurrentActorHookImpl`, `AuditDomainHookImpl`, `*ActivityFieldsHookImpl`, `ActivityEnrichHookImpl`)
+- `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs
+- `ui/mappers/` — UI-form ↔ DTO mappers (`AdvertisementMapper`, `UserMapper`, `*FilterMapper`)
+- `ui/query/` — query-bar infrastructure (`QueryBlock`, `QueryStatusBar`, `filter/`, `sort/`, `elements/`, `utils/`)
 - `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/`, `fields/` subpackages). `fields/` contains `QuillEditor` (rich-text web component wrapping Quill v2) and standard field wrappers.
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support
