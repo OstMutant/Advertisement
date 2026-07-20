@@ -94,6 +94,22 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
+    void findByCreator_returnsOnlyActiveAdsForThatUser() {
+        Advertisement mine = save("Mine", "Desc");
+        User other = UserTestFixtures.createTestUser(userRepository, "Other Actor",
+                "other-" + UUID.randomUUID() + "@example.com");
+        auditorAware.setCurrentUserId(other.getId());
+        save("Someone else's", "Desc");
+        auditorAware.setCurrentUserId(actorId);
+        Advertisement deletedOfMine = save("Deleted mine", "Desc");
+        advertisementRepository.softDelete(deletedOfMine.getId(), actorId, deletedOfMine.getVersion());
+
+        List<AdvertisementInfoDto> result = advertisementRepository.findByCreator(actorId);
+
+        assertThat(result).extracting(AdvertisementInfoDto::getId).containsExactly(mine.getId());
+    }
+
+    @Test
     void findByFilter_titleFilter_returnsOnlyMatchingRows() {
         save("Vintage bicycle", "A red one");
         save("Modern bicycle", "A blue one");

@@ -68,6 +68,16 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).optional();
     }
 
+    public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
+        return jdbcClient.sql("""
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
+                        FROM advertisement a
+                        WHERE a.created_by = :userId AND a.deleted_at IS NULL
+                        """)
+                .paramSource(new MapSqlParameterSource("userId", userId))
+                .query(ROW_MAPPER).list();
+    }
+
     public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();

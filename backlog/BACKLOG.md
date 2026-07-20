@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **E** | 🟡 | 089 | user-deletion audit trail — design decision + possible Liquibase changeset |
 | **F** | 🟡 | 078, 081, 084, 083, 008, 010, 014, 101, 080 | UI dedup & polish — two PRs, full e2e after each, 080 last |
 | **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
 | **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
@@ -47,15 +46,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch E 🟡 — user-deletion audit trail (single-issue)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-089](issues/improvement-089-userservice-hard-delete-no-audit-trail.md) | New | `UserService.delete()` — the only hard delete in the system and the only lifecycle mutation with no audit capture; decide soft-delete (recommended) vs capture-then-delete |
-
-Standalone — needs a design decision and possibly a Liquibase changeset (soft-delete columns);
-too heavy to ride in another batch.
 
 ### Batch F 🟡 — UI dedup & polish (marketplace-app; two PRs, full e2e after each)
 

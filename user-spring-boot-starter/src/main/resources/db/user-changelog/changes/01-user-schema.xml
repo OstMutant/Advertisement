@@ -34,6 +34,8 @@
             <column name="version" type="BIGINT" defaultValueNumeric="0">
                 <constraints nullable="false"/>
             </column>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
+            <column name="deleted_by" type="BIGINT"/>
         </createTable>
 
         <sql>
@@ -41,6 +43,18 @@
             ADD CONSTRAINT chk_user_role
             CHECK (role IN ('ADMIN', 'USER', 'MODERATOR'));
         </sql>
+
+        <addForeignKeyConstraint
+                baseTableName="user_information"
+                baseColumnNames="deleted_by"
+                constraintName="fk_user_deleted_by"
+                referencedTableName="user_information"
+                referencedColumnNames="id"
+                onDelete="SET NULL"/>
+
+        <createIndex indexName="idx_user_deleted_at" tableName="user_information">
+            <column name="deleted_at"/>
+        </createIndex>
 
     </changeSet>
 

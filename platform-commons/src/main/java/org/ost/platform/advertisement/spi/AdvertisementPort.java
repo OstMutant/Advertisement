@@ -26,4 +26,6 @@ public interface AdvertisementPort {
     void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
+
+    List<AdvertisementInfoDto> findByCreator(@NonNull Long userId);
 }

@@ -71,8 +71,8 @@ public class UserPortImpl implements UserPort {
 
     @Override
     @Transactional
-    public void delete(@NonNull Long userId) {
-        userService.delete(userId);
+    public void delete(@NonNull Long userId, @NonNull Long actingUserId) {
+        userService.delete(userId, actingUserId);
     }
 
     @Override
@@ -100,6 +100,11 @@ public class UserPortImpl implements UserPort {
     @Override
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return userService.findExistingIds(ids);
+    }
+
+    @Override
+    public Set<Long> findDeletedIds(@NonNull Set<Long> ids) {
+        return userService.findDeletedIds(ids);
     }
 
     @Override

@@ -37,7 +37,7 @@ public interface UserPort {
 
     void updateLocale(@NonNull Long userId, @NonNull String locale);
 
-    void delete(@NonNull Long userId);
+    void delete(@NonNull Long userId, @NonNull Long actingUserId);
 
     void register(@NonNull SignUpDto dto, @NonNull String clientIp);
 
@@ -48,6 +48,8 @@ public interface UserPort {
     Optional<UserDto> findByEmail(@NonNull String email);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
+
+    Set<Long> findDeletedIds(@NonNull Set<Long> ids);
 
     Map<Long, String> findActorNames(@NonNull Collection<Long> ids);
 

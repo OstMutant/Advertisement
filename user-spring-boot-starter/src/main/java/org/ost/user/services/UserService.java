@@ -25,6 +25,7 @@ import org.ost.user.entity.User;
 import org.ost.query.sort.OffsetPageable;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -93,9 +94,30 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(@NonNull Long userId) {
+    public void delete(@NonNull Long userId, @NonNull Long actingUserId) {
         log.info("User delete: id={}", userId);
-        repository.deleteById(userId);
+        User before = repository.findById(userId).orElseThrow();
+        repository.softDelete(userId, actingUserId);
+        auditPortFactory.ifAvailable(p -> p.captureDeletion(userId, toSnapshot(before), actingUserId));
+    }
+
+    public Set<Long> findDeletedIds(@NonNull Set<Long> ids) {
+        return repository.findDeletedIds(ids.toArray(new Long[0]));
+    }
+
+    // per-row, not one bulk statement -- an FK-blocked row is skipped, not fatal to the batch
+    public void cleanup(int retentionDays) {
+        List<Long> candidates = repository.findIdsDeletedOlderThan(retentionDays);
+        int purged = 0;
+        for (Long id : candidates) {
+            try {
+                repository.deleteById(id);
+                purged++;
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Skipped purging user {} - still referenced elsewhere, will retry next run", id);
+            }
+        }
+        log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
     }
 
     @Transactional

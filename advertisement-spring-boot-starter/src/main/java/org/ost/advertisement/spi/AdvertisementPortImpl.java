@@ -54,4 +54,9 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
         return service.findExistingIds(ids);
     }
+
+    @Override
+    public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
+        return service.findByCreator(userId);
+    }
 }

@@ -811,3 +811,27 @@ filter resolved) — the repository's own `null`-means-no-filter contract is unt
 `UserPortImpl`, `AdvertisementPortImpl`, and `DefaultTaxonPort` all got class-level
 `@Transactional(readOnly = true)` plus per-method `@Transactional` overrides on their write
 methods, matching `DefaultAuditPort`'s existing pattern.
+
+✅ Done (2026-07-20): [improvement-089](issues/improvement-089-userservice-hard-delete-no-audit-trail.md) —
+Option A (soft-delete, aligning with the rest of the platform). `user_information` gained
+`deleted_at`/`deleted_by` columns (added directly to the existing `01-user-schema` changeset, not
+a new one — app isn't in production yet). `UserService.delete()` now soft-deletes + captures a
+deletion snapshot; `UserPort.delete()` gained an `actingUserId` parameter. `findByEmail` (login)
+and the user list (`findByFilter`/`countByFilter`) now exclude soft-deleted rows; `findById`/
+`findActorNames`/`findByIds` stay unfiltered (historical resolution still works), matching
+`TaxonRepository.findById`'s precedent rather than `AdvertisementRepository`'s stricter one.
+
+Also added, after discovering `advertisement.created_by`'s `ON DELETE RESTRICT` FK would otherwise
+block purging a deleted user who ever posted a still-active ad: new marketplace-app
+`UserDeleteService` cascades to soft-delete the user's own advertisements first (each with its own
+audit capture via `AdvertisementSaveService.delete()`), and a new 90-day retention cleanup job
+(`UserService.cleanup()`, `UserAutoConfiguration`'s scheduler) purges old soft-deleted rows —
+per-row with try/catch around `DataIntegrityViolationException` rather than one bulk `DELETE`, so
+a row still blocked by some other reference is skipped and retried the next run instead of failing
+the whole batch.
+
+Actor-name resolution for historical audit rows now annotates deleted actors via a new
+`UserActorNameService` (marketplace-app) — `AuditDomainHookImpl.resolveNames()` was kept a pure
+delegation per the `*HookImpl` rule, with the actual name+deleted-flag combining logic living in
+the new service instead. New `I18nKey.AUDIT_ACTOR_DELETED_NAME` (`"{0} (deleted)"` / uk
+`"{0} (видалено)"`).

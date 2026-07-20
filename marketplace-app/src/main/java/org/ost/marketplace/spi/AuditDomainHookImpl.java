@@ -15,6 +15,7 @@ import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.spi.UserPort;
+import org.ost.marketplace.services.user.UserActorNameService;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -29,12 +30,11 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     private final ComponentFactory<AdvertisementPort> advertisementPortFactory;
     private final ComponentFactory<UserPort>          userPortFactory;
     private final ComponentFactory<TaxonPort>         taxonPortFactory;
+    private final UserActorNameService                userActorNameService;
 
     @Override
     public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
-        return userPortFactory.findIfAvailable()
-                .map(p -> p.findActorNames(actorIds))
-                .orElse(Map.of());
+        return userActorNameService.resolveNames(actorIds);
     }
 
     @Override

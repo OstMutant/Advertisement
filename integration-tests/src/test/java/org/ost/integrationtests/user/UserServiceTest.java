@@ -3,24 +3,38 @@ package org.ost.integrationtests.user;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserFilterDto;
+import org.ost.platform.user.dto.UserSnapshotDto;
+import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +64,10 @@ class UserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private AuditPort auditPort;
+
+    private ObjectProvider<AuditPort> auditPortProvider;
     private ComponentFactory<AuditPort> auditPortFactory;
 
     private UserService userService;
@@ -57,11 +75,19 @@ class UserServiceTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        ObjectProvider<AuditPort> auditPortProvider = mock(ObjectProvider.class);
+        auditPortProvider = mock(ObjectProvider.class);
         auditPortFactory = new ComponentFactory<>(auditPortProvider);
         userService = new UserService(userRepository, passwordEncoder, auditPortFactory);
-        when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
-        when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
+        lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
+        lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
+    }
+
+    private void stubAuditPortAvailable() {
+        doAnswer(inv -> {
+            Consumer<AuditPort> consumer = inv.getArgument(0);
+            consumer.accept(auditPort);
+            return null;
+        }).when(auditPortProvider).ifAvailable(any());
     }
 
     private static SignUpDto signUpDto(String email) {
@@ -149,5 +175,46 @@ class UserServiceTest {
         // A different IP must not be affected by blockedIp's attempts.
         stubSaveSucceeds();
         userService.register(signUpDto("new@example.com"), CLIENT_IP);
+    }
+
+    @Test
+    void delete_softDeletesAndCapturesDeletionWithPreDeleteSnapshot() {
+        Long userId = 42L;
+        Long actorId = 10L;
+        User before = User.builder().id(userId).name("Deleted User").email("gone@example.com")
+                .role(Role.USER).build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(before));
+        stubAuditPortAvailable();
+
+        userService.delete(userId, actorId);
+
+        verify(userRepository).softDelete(userId, actorId);
+        verify(userRepository, never()).deleteById(any());
+        ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
+        verify(auditPort).captureDeletion(eq(userId), snapshotCaptor.capture(), eq(actorId));
+        assertThat(((UserSnapshotDto) snapshotCaptor.getValue()).name()).isEqualTo("Deleted User");
+    }
+
+    @Test
+    void cleanup_purgesAllEligibleRows() {
+        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
+
+        userService.cleanup(90);
+
+        verify(userRepository).deleteById(1L);
+        verify(userRepository).deleteById(2L);
+        verify(userRepository).deleteById(3L);
+    }
+
+    @Test
+    void cleanup_rowBlockedByForeignKey_skipsItButStillPurgesTheRest() {
+        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
+        lenient().doThrow(new DataIntegrityViolationException("still referenced")).when(userRepository).deleteById(2L);
+
+        userService.cleanup(90);
+
+        verify(userRepository).deleteById(1L);
+        verify(userRepository).deleteById(2L);
+        verify(userRepository).deleteById(3L);
     }
 }

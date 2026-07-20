@@ -2060,3 +2060,52 @@ robustness versus the previous `ifAvailable()` guard.
   logic lives for advertisements.
 - Existing `AdvertisementServiceHtmlSanitizationTest`'s direct `new AdvertisementService(...)`
   constructor call updated (one fewer constructor arg).
+
+## ADR-051: User deletion — soft-delete, cascade to the user's own ads, retention purge, actor-name annotation
+
+**Status:** Accepted
+
+**Context:** [improvement-089](../backlog/completed/issues/improvement-089-userservice-hard-delete-no-audit-trail.md) —
+`UserService.delete()` was a hard `DELETE`, the only hard-delete lifecycle mutation in the system
+and the only one with no audit capture. User picked Option A: soft-delete, aligning with
+advertisement/taxon.
+
+**Decision:**
+- `user_information` gets `deleted_at`/`deleted_by` columns, added directly to the existing
+  `01-user-schema` Liquibase changeset (not a new one — this app has no production deployment
+  yet, so in-place edits to an unreleased changeset are acceptable; `<validCheckSum>ANY</validCheckSum>`
+  already present on it).
+- `UserService.delete(userId, actingUserId)` soft-deletes and calls `captureDeletion`. `findByEmail`
+  (the login lookup) and the user list (`findByFilter`/`countByFilter`) exclude soft-deleted rows;
+  `findById`/`findActorNames`/`findByIds` stay unfiltered, matching `TaxonRepository.findById`'s
+  precedent (not `AdvertisementRepository`'s stricter one) — those three are used for internal
+  lookups and historical audit-name resolution, where a deleted user must still resolve.
+- **Cascade discovered mid-design:** `advertisement.created_by` has `ON DELETE RESTRICT`. A user
+  who ever posted a still-active ad would block their own row's eventual retention purge forever
+  once that ad's cleanup never fires (advertisement cleanup only purges *already* soft-deleted
+  ads). Fix: new marketplace-app `UserDeleteService` cascades — soft-deletes the user's own ads
+  first (each via `AdvertisementSaveService.delete()`, so each gets its own audit capture too),
+  then soft-deletes the user. Lives in marketplace-app, not in `UserService` (the starter), because
+  `AdvertisementSaveService` (where advertisement audit capture now lives, per ADR-050) isn't
+  reachable from a starter.
+- **Retention purge job:** `UserService.cleanup(retentionDays)` + a `UserAutoConfiguration`
+  `SchedulingConfigurer` bean, same `CleanupProperties`/cron shape as advertisement/attachment/
+  audit. Deliberately **not** one bulk `DELETE` (unlike advertisement's `deleteOlderThan`) — loops
+  per-id with `try/catch` around `DataIntegrityViolationException`, so a row still FK-blocked by
+  some other reference (a race between this job and the ad-cleanup job, or any future domain
+  adding its own reference to `user_information`) is skipped and retried the next run instead of
+  aborting the whole batch.
+- **Actor-name annotation:** historical audit rows must still show a deleted actor's name (not a
+  raw unresolved id), but visibly marked. New marketplace-app `UserActorNameService` combines
+  `UserPort.findActorNames()` + a new `UserPort.findDeletedIds()`, appending an i18n suffix
+  (`I18nKey.AUDIT_ACTOR_DELETED_NAME`, `"{0} (deleted)"`) for deleted actors. `AuditDomainHookImpl
+  .resolveNames()` delegates to this service instead of doing the combining itself, keeping the
+  `*HookImpl` pure-delegation rule intact.
+
+**Consequences:**
+- `UserPort.delete()` signature gained `actingUserId` — the only caller (`UserView`) already had
+  it via `AccessEvaluator.getCurrentUserId()`.
+- New `AdvertisementPort.findByCreator(userId)` — needed so the cascade can find a user's ads
+  without a starter-to-starter dependency.
+- No "restore a deleted user" UI was added — out of scope for this issue; the soft-delete only
+  exists to preserve the audit trail and support the cascade/cleanup ordering above.

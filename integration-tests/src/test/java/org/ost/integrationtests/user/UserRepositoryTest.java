@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserProfileDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.config.UserAutoConfiguration;
@@ -13,8 +14,16 @@ import org.ost.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,5 +107,48 @@ class UserRepositoryTest extends AbstractPostgresIntegrationTest {
         User reloaded = userRepository.findById(saved.getId()).orElseThrow();
         assertThat(reloaded.getEmail()).isEqualTo(originalEmail);
         assertThat(reloaded.getPasswordHash()).isEqualTo(originalPasswordHash);
+    }
+
+    @Test
+    void softDelete_setsDeletedAtAndDeletedBy_and_findByEmail_noLongerResolvesIt() {
+        String email = "user-" + UUID.randomUUID() + "@example.com";
+        User saved = save("To Delete", email, "hash", Role.USER);
+        User deleter = save("Deleter", "deleter-" + UUID.randomUUID() + "@example.com", "hash", Role.ADMIN);
+
+        userRepository.softDelete(saved.getId(), deleter.getId());
+
+        assertThat(userRepository.findByEmail(email)).isEmpty();
+        assertThat(userRepository.findDeletedIds(new Long[] {saved.getId(), deleter.getId()}))
+                .containsExactly(saved.getId());
+    }
+
+    @Test
+    void findByFilter_excludesSoftDeletedUsers() {
+        User active = save("Active", "active-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        User deleted = save("Deleted", "deleted-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        userRepository.softDelete(deleted.getId(), active.getId());
+
+        List<User> result = userRepository.findByFilter(UserFilterDto.empty(), PageRequest.of(0, 10, Sort.unsorted()));
+
+        assertThat(result).extracting(User::getId).containsExactly(active.getId());
+        assertThat(userRepository.countByFilter(UserFilterDto.empty())).isEqualTo(1L);
+    }
+
+    @Test
+    void findIdsDeletedOlderThan_excludesRecentlyDeletedUsers() {
+        User oldDeleted = save("Old", "old-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        User recentDeleted = save("Recent", "recent-" + UUID.randomUUID() + "@example.com", "hash", Role.USER);
+        userRepository.softDelete(oldDeleted.getId(), oldDeleted.getId());
+        userRepository.softDelete(recentDeleted.getId(), recentDeleted.getId());
+        jdbcClient.sql("UPDATE user_information SET deleted_at = :deletedAt WHERE id = :id")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("deletedAt", OffsetDateTime.ofInstant(
+                                Instant.now().minus(100, ChronoUnit.DAYS), ZoneOffset.UTC))
+                        .addValue("id", oldDeleted.getId()))
+                .update();
+
+        List<Long> candidates = userRepository.findIdsDeletedOlderThan(90);
+
+        assertThat(candidates).containsExactly(oldDeleted.getId());
     }
 }

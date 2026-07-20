@@ -157,6 +157,10 @@ public class AdvertisementService {
         return Set.copyOf(repository.findExistingIds(ids.toArray(new Long[0])));
     }
 
+    public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
+        return repository.findByCreator(userId);
+    }
+
     @Transactional
     public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         log.info("Advertisement delete: id={}", id);

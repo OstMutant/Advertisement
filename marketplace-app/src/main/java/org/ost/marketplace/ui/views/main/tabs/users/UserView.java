@@ -15,6 +15,7 @@ import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.user.UserDeleteService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
@@ -38,6 +39,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class UserView extends VerticalLayout {
 
     private final transient UserPort                               userPort;
+    private final transient UserDeleteService                      userDeleteService;
     private final transient AccessEvaluator                        access;
     private final transient I18nService                            i18n;
     private final transient NotificationService                    notificationService;
@@ -132,7 +134,7 @@ public class UserView extends VerticalLayout {
                         .onConfirm(() -> {
                             try {
                                 if (access.canNotDelete(user.id())) return;
-                                userPort.delete(user.id());
+                                userDeleteService.delete(user.id(), access.getCurrentUserId());
                                 notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
                                 refresh();
                             } catch (Exception e) {

@@ -210,6 +210,7 @@ public enum I18nKey {
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
     AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
     AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
+    AUDIT_ACTOR_DELETED_NAME("audit.actor.deleted.name"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
     AUDIT_CHANGES_BULLET("audit.changes.bullet"),
