@@ -49,7 +49,7 @@ public class CardLightboxViewer extends HorizontalLayout {
         iframe.getElement().setAttribute("allow",
                 "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
-        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
+        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-presentation"); // no allow-same-origin -- sandbox escape
         iframe.setVisible(false);
 
         videoEl.setAttribute("id", videoElId);

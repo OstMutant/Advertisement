@@ -96,7 +96,6 @@ class AttachmentCleanupServiceTest {
         verify(attachmentRepository).deleteByUrls(allUrls);
     }
 
-    // improvement-090 item 1
     @Test
     void cleanup_deleteByUrlsReturnsFewerThanRequested_onlyDeletesStorageForActuallyRemovedRows() {
         List<DeletableAttachment> candidates = List.of(
@@ -112,7 +111,6 @@ class AttachmentCleanupServiceTest {
         verify(storageService, never()).delete("restored.jpg");
     }
 
-    // improvement-090 item 2
     @Test
     void cleanup_videoRowAmongDeleted_dbRowRemovedButNoS3DeleteAttempted() {
         List<DeletableAttachment> candidates = List.of(
@@ -129,7 +127,6 @@ class AttachmentCleanupServiceTest {
         verify(storageService, never()).delete("https://youtube.com/watch?v=abc");
     }
 
-    // improvement-090 item 3
     @Test
     void cleanup_purgesStaleAttachmentSnapshots() {
         service.cleanup();

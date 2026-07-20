@@ -104,3 +104,33 @@ express this) rather than generalizing speculatively.
   not reintroduce `IN (:set)` — this is now the established pattern for unbounded-cardinality id
   sets in query-lib, the same role `= ANY()` array-bind already plays for repository-level bulk
   lookups outside this library (`AttachmentRepository.findExistingUrls()`, `deleteByUrls()`, etc.).
+
+---
+
+## ADR-006: `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate
+
+**Status:** Accepted
+
+**Context:** [improvement-106](../backlog/completed/issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
+`TimelineView` built a non-admin's "restrict to my own activity" filter as `actorIds(Set.of())`
+when the current user id wasn't resolvable yet. `SqlCondition.anyOf()` returns `null` on an empty
+set, `SqlFilterBuilder` drops `null` conditions, so the predicate vanished and the non-admin saw
+every actor's activity — fail-open, not fail-closed.
+
+**Decision:** `anyOf()`/`inSet()`'s "empty input → no predicate" behavior stays as-is (correct for
+their actual purpose: an optional, user-facing multi-select filter, where "nothing selected" means
+"don't restrict"). No `mustMatchSomething` variant was added — the caller in question
+(`TimelineView`) never has a genuine optional-filter use for `actorIds` when narrowing for
+non-admins; it's a mandatory security parameter with a different, incompatible empty-input meaning
+overloaded onto the same field. Fixed at the call site instead: `TimelineView.refresh()` fails
+closed (empty feed, no query) when a non-admin's actor id isn't resolvable, so `anyOf()` is never
+invoked with an empty security-narrowing set at all.
+
+**Consequences:**
+- **Rule for all future callers:** `anyOf`/`inSet` must never be handed an empty set to express
+  "must match nothing" — they can't distinguish that from "no filter." Any access-narrowing
+  predicate must guarantee a non-empty value upstream (or skip the query outright), never rely on
+  the SQL layer to do it.
+- If a genuine "must match nothing on empty" predicate is ever needed by more than one caller, add
+  a dedicated method then (e.g. `= ANY('{}'::bigint[])`, always false) — not by changing `anyOf`'s
+  existing semantics, which the admin/optional-filter path still correctly depends on.

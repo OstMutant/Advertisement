@@ -88,15 +88,22 @@ public class TimelineView extends VerticalLayout {
             return;
         }
 
+        Long currentUserId = access.getCurrentUserId();
+        if (!access.canView() && currentUserId == null) {
+            // fail closed -- empty actorIds would mean "no restriction", not "nothing"
+            feed.removeAll();
+            paginationBar.setTotalCount(0);
+            return;
+        }
+
         int page = paginationBar.getCurrentPage();
         int size = paginationBar.getPageSize();
 
         TimelineQueryBlock queryBlock = (TimelineQueryBlock) queryStatusBar.getQueryBlock();
         AuditTimelineFilterDto baseFilter = queryBlock.getFilterProcessor().getOriginalFilter();
-        Long currentUserId = access.getCurrentUserId();
         AuditTimelineFilterDto filter = access.canView()
                 ? baseFilter
-                : baseFilter.toBuilder().actorIds(currentUserId != null ? Set.of(currentUserId) : Set.of()).build();
+                : baseFilter.toBuilder().actorIds(Set.of(currentUserId)).build();
 
         try {
             List<AuditTimelineItemDto<AuditableSnapshot>> items = auditPort.getTimelinePage(

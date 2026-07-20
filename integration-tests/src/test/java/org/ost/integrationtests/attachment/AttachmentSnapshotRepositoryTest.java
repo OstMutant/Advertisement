@@ -122,7 +122,6 @@ class AttachmentSnapshotRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(result).isEmpty();
     }
 
-    // improvement-090 item 3
     @Test
     void deleteOlderThan_removesOnlyRowsOlderThanTheGivenDays() {
         String[] oldUrls = {"https://s3.example/old.jpg"};

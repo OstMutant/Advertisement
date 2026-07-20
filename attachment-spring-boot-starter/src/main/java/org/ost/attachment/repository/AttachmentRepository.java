@@ -145,7 +145,7 @@ public class AttachmentRepository {
                          .list();
     }
 
-    // includes videos too -- cleanup service decides which get an S3 delete (improvement-090 item 2)
+    // includes videos too -- cleanup service decides which get an S3 delete
     public List<DeletableAttachment> findUrlsDeletedOlderThan(int days) {
         return jdbcClient.sql("""
                         SELECT url, content_type FROM attachment
@@ -156,7 +156,7 @@ public class AttachmentRepository {
                          .list();
     }
 
-    // re-checks deleted_at + RETURNING url so a concurrently-restored row survives (improvement-090 item 1)
+    // re-checks deleted_at + RETURNING url so a concurrently-restored row survives
     public List<String> deleteByUrls(@NonNull List<String> urls) {
         // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion (improvement-054).
         return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls) AND deleted_at IS NOT NULL RETURNING url")

@@ -19,6 +19,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +34,7 @@ public class AttachmentService {
 
     private static final String CT_YOUTUBE = "video/youtube";
     private static final String CT_EMBED   = "video/embed";
+    private static final Set<String> ALLOWED_EMBED_HOSTS = Set.of("vimeo.com", "player.vimeo.com");
 
     private final StorageService              storageService;
     private final AttachmentRepository        attachmentRepository;
@@ -124,6 +127,7 @@ public class AttachmentService {
             return new TempAttachmentDto(YoutubeUtil.watchUrl(ytId), YoutubeUtil.filename(ytId), CT_YOUTUBE, 0L);
         }
         if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        validateEmbedUrl(url);
         return new TempAttachmentDto(url, embedFilename(url), CT_EMBED, 0L);
     }
 
@@ -139,6 +143,7 @@ public class AttachmentService {
                     .url(YoutubeUtil.watchUrl(ytId)).filename(YoutubeUtil.filename(ytId))
                     .contentType(CT_YOUTUBE).size(0L).build());
         } else {
+            validateEmbedUrl(url);
             saved = attachmentRepository.save(Attachment.builder()
                     .entityType(entityType).entityId(entityId)
                     .url(url).filename(embedFilename(url))
@@ -272,6 +277,21 @@ public class AttachmentService {
 
     private static String embedFilename(String url) {
         return url.replaceAll("https?://", "").replaceAll("[^a-zA-Z0-9._-]", "_");
+    }
+
+    private static void validateEmbedUrl(String url) {
+        URI uri;
+        try {
+            uri = new URI(url);
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid video URL", e);
+        }
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        boolean validScheme = "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
+        boolean validHost = host != null && ALLOWED_EMBED_HOSTS.stream()
+                .anyMatch(allowed -> host.equalsIgnoreCase(allowed) || host.toLowerCase().endsWith("." + allowed));
+        if (!validScheme || !validHost) throw new IllegalArgumentException("Invalid video URL");
     }
 
     private static boolean isVideo(String contentType) {

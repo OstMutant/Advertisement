@@ -80,7 +80,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
         iframe.getElement().setAttribute("allow",
                 "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
-        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
+        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-presentation"); // no allow-same-origin -- sandbox escape
         iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return iframe;
     }

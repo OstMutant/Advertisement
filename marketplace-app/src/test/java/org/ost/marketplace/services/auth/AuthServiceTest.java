@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -86,6 +87,20 @@ class AuthServiceTest {
     void login_badCredentials_returnsFalse() {
         stubBadCredentials();
         assertThat(authService.login("user@example.com", "wrong")).isFalse();
+    }
+
+    @Test
+    void login_success_rotatesSessionId() {
+        stubSuccess();
+        authService.login("user@example.com", "password");
+        verify(request).changeSessionId();
+    }
+
+    @Test
+    void login_badCredentials_doesNotRotateSessionId() {
+        stubBadCredentials();
+        authService.login("user@example.com", "wrong");
+        verify(request, never()).changeSessionId();
     }
 
     @Test

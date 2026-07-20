@@ -75,7 +75,7 @@ public class AttachmentCleanupService {
                 .map(AttachmentRepository.DeletableAttachment::url)
                 .collect(Collectors.toSet());
 
-        // DB deleted+committed first (see cleanup() javadoc); only actually-removed urls reach S3 delete (improvement-090 item 1)
+        // DB deleted+committed first (see cleanup() javadoc); only actually-removed urls reach S3 delete
         List<String> deletedUrls = attachmentRepository.deleteByUrls(allUrls);
         log.info("Deleted {} attachments", deletedUrls.size());
 
@@ -93,7 +93,7 @@ public class AttachmentCleanupService {
         }
     }
 
-    // pure historical bookkeeping -- age-based purge is safe (improvement-090 item 3)
+    // pure historical bookkeeping -- age-based purge is safe
     private void deleteStaleSnapshots() {
         int deleted = attachmentSnapshotRepository.deleteOlderThan(cleanupProperties.retentionDays());
         log.info("Deleted {} stale attachment snapshots", deleted);

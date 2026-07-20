@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **C** | 🔴 | 106, 107, 088 | session & access-control security — timeline fail-open, embed-URL validation, session fixation |
 | **D** | 🟡 | 092, 094, 062 | advertisement service & port consistency — 092's design decision first |
 | **E** | 🟡 | 089 | user-deletion audit trail — design decision + possible Liquibase changeset |
 | **F** | 🟡 | 078, 081, 084, 083, 008, 010, 014, 101, 080 | UI dedup & polish — two PRs, full e2e after each, 080 last |
@@ -49,21 +48,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch C 🔴 — session & access-control security
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-106](issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) | New (edge-case review) | Timeline fails OPEN for a non-admin when `actorIds` resolves empty — the actor filter vanishes and a plain user sees every actor's activity; fail closed + harden the query-lib invariant |
-| [improvement-107](issues/improvement-107-embed-video-url-no-validation-and-sandbox-escape.md) | New (edge-case review) | Embed video URLs get zero scheme/host validation before landing in an iframe `src`; sandbox uses the escape-prone `allow-scripts`+`allow-same-origin` combo — validate on write + tighten sandbox |
-| [improvement-088](issues/improvement-088-authservice-login-session-fixation.md) | New | `AuthService.login()` — rotate the session id after manual `authenticate()` (session fixation; Spring Security's built-in protection never runs for this hand-rolled login) |
-
-One pass because: all three are pre-launch security fixes verified by the same auth/timeline
-Playwright pass. 106 is the highest-severity (broken access control). If a broader hardening pass
-happens, pull deferred
-[improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) (first-admin
-TOCTOU) and [improvement-100](issues/improvement-100-forgot-password-flow-missing.md) forward
-into it. 107 coordinates with improvement-081 (same lightbox classes, Batch F).
 
 ### Batch D 🟡 — advertisement service & port consistency
 
@@ -261,7 +245,7 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 | [goal-001](issues/goal-001-activity-field-visibility-by-role.md) | user feedback |
 | [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md) | product decision on which option (A-E) to pursue — offset pagination over the activity-sorted advertisement list has no stable-view guarantee under concurrent edits; captures a design discussion, not an agreed fix |
 | [improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) | project nearing production readiness — `UserService.register()` first-admin TOCTOU race, accepted risk for now (narrow window, only the instant of a fresh instance's very first registration); extracted from improvement-050 item 1 |
-| [improvement-100](issues/improvement-100-forgot-password-flow-missing.md) | project nearing public launch (same gate as improvement-052) — no password-recovery flow exists; requires an email-infrastructure decision first; natural companion to 052/088 in a pre-launch hardening pass |
+| [improvement-100](issues/improvement-100-forgot-password-flow-missing.md) | project nearing public launch (same gate as improvement-052) — no password-recovery flow exists; requires an email-infrastructure decision first; natural companion to 052 in a pre-launch hardening pass (improvement-088, formerly grouped here, shipped 2026-07-20) |
 | [improvement-111](issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md) | before the first non-UI mutation endpoint (F-01/improvement-073 seeding/any API) — authorization is UI-only today; the service/port boundary trusts `actingUserId`. Hard gate, same shape as the completed improvement-020 baseline; not exploitable in the current Vaadin-only architecture |
 | [improvement-109](issues/improvement-109-reference-data-view-no-pagination.md) | category dictionary growing past a couple screens' worth, or a dedicated UI-consistency pass; batch with a reference-data touch |
 | [improvement-112](issues/improvement-112-enrichment-failure-blanks-entire-list.md) | batch with any advertisement-service resilience touch; cheap and standalone |

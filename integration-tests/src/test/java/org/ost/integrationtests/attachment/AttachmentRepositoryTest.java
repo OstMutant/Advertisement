@@ -185,7 +185,6 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 .update();
     }
 
-    // improvement-090 item 2
     @Test
     void findUrlsDeletedOlderThan_excludesRecentlyDeletedButIncludesOldVideoRows() {
         Attachment oldDeleted = save(1L, "old.jpg");
@@ -220,7 +219,6 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 .extracting(Attachment::getUrl).containsExactly("keep-active.jpg");
     }
 
-    // improvement-090 item 1
     @Test
     void deleteByUrls_rowNoLongerSoftDeleted_survivesEvenIfUrlIsInTheRequestedList() {
         Attachment restored = save(1L, "restored.jpg");
@@ -272,7 +270,6 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(stats).doesNotContainKey(3L);
     }
 
-    // improvement-091: loadMediaStats had no id tiebreaker on tied created_at
     @Test
     void loadMediaStats_singleEntity_tiedCreatedAt_pickIsDeterministicByLowestId() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");

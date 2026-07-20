@@ -8,11 +8,14 @@ Before executing any tool call — re-read this entire file. No exceptions.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
 
-> ## ⛔ Code comments: one line or none
+> ## ⛔ Code comments: one line or none, never an issue/ticket number
 > Every code comment (production code and test code alike) is either **one line** or **not
 > written at all**. Never a multi-line block explaining background/rationale in full — that
-> belongs in the issue file, ADR, or commit message. Write the one-line version on the first
-> pass; do not wait to be told to shorten it. Violating this rule has happened repeatedly.
+> belongs in the issue file, ADR, or commit message. Also never mention an issue/ticket number
+> (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as issues get renumbered
+> or archived; that traceability belongs in the commit message, not the code. Write the one-line,
+> number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
+> happened repeatedly.
 
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**

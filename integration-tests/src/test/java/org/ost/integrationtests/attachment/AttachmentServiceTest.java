@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -122,7 +123,6 @@ class AttachmentServiceTest {
         verify(inputStream).close();
     }
 
-    // improvement-093: captureMediaChanges() used to silently skip without an actor
     @Test
     void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() throws IOException {
         when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
@@ -146,5 +146,24 @@ class AttachmentServiceTest {
         service.uploadTemp("session-1", "clip.mp4", inputStream, 200L, "video/mp4");
 
         verify(inputStream).close();
+    }
+
+    @Test
+    void addVideoTemp_javascriptScheme_throws() {
+        assertThatThrownBy(() -> service.addVideoTemp("javascript:alert(1)"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void addVideoTemp_disallowedHost_throws() {
+        assertThatThrownBy(() -> service.addVideoTemp("https://attacker.example/embed"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void addVideoTemp_allowedVimeoHost_succeeds() {
+        TempAttachmentDto temp = service.addVideoTemp("https://player.vimeo.com/video/12345");
+
+        assertThat(temp.tempUrl()).isEqualTo("https://player.vimeo.com/video/12345");
     }
 }

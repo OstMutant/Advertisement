@@ -772,3 +772,24 @@ by age via a new `AttachmentSnapshotRepository.deleteOlderThan()`, same shape as
 snapshot when no actor is present, matching `delete()`'s fail-fast contract in the same class.
 Required updating one existing `AttachmentServiceTest` case that had stubbed an absent actor while
 expecting a normal upload to succeed; added a new case asserting the throw.
+
+✅ Done (2026-07-20): [improvement-106](issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
+`TimelineView.refresh()` now fails closed (empty feed, no query) when a non-admin's actor id isn't
+resolvable, instead of building a filter with an empty `actorIds` set that `SqlCondition.anyOf()`
+silently turns into "no restriction." `query-lib/DECISIONS.md` ADR-006 records why `anyOf`/`inSet`
+themselves were left unchanged (their null-on-empty behavior is correct for the admin/optional-
+filter path) and the rule for future access-narrowing callers instead.
+
+✅ Done (2026-07-20): [improvement-088](issues/improvement-088-authservice-login-session-fixation.md) —
+`AuthService.login()` now calls `request.changeSessionId()` right after successful authentication,
+before `saveContext()`. Chose the plain Servlet API over `VaadinService.reinitializeSession()`
+(the issue's other suggested option) because the latter needs a live `VaadinRequest` bound via
+`CurrentInstance`, which the existing plain-Mockito `AuthServiceTest` suite has none of.
+
+✅ Done (2026-07-20): [improvement-107](issues/improvement-107-embed-video-url-no-validation-and-sandbox-escape.md) —
+`AttachmentService.addVideoTemp()`/`addVideo()` now validate the embed URL (scheme must be
+http/https, host must be in an allowlist) before persisting a `CT_EMBED` attachment; both
+lightbox classes' iframe `sandbox` attribute dropped `allow-same-origin`. Allowlist scoped to
+Vimeo (YouTube already has its own path via `YoutubeUtil`) after confirming with the user — the
+placeholder text previously advertised "YouTube, Facebook..." but no Facebook resolver ever
+existed, so both EN/UK placeholders were corrected to "YouTube, Vimeo" to match reality.

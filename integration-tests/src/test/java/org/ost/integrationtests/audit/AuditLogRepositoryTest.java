@@ -206,7 +206,6 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(secondVersion).isEqualTo(2);
     }
 
-    // improvement-087: prev_id had no id tiebreaker on tied created_at
     @Test
     void findTimeline_twoRowsSameCreatedAt_prevIdPointsAtTrueTiedPredecessor() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
@@ -237,7 +236,6 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(secondRow.prevSnapshot().displayName()).contains("first");
     }
 
-    // improvement-087: getLastSnapshot() had no id tiebreaker on tied created_at
     @Test
     void getLastSnapshot_twoRowsSameCreatedAt_returnsHighestId() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
