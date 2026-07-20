@@ -83,9 +83,7 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
     @EnableJdbcAuditing
     static class TestConfig {
 
-        // AuditAutoConfiguration's default auditObjectMapper has no AuditableSnapshot subtypes
-        // registered — needed here too for insertRowWithSnapshot()'s "@type":"user" rows, same gap
-        // UserServiceRestoreTest's TestConfig already documents and works around.
+        // registers UserSnapshotDto -- same gap UserServiceRestoreTest's TestConfig documents
         @Autowired
         @Qualifier("auditObjectMapper")
         private ObjectMapper auditObjectMapper;
@@ -208,9 +206,7 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(secondVersion).isEqualTo(2);
     }
 
-    // Covers improvement-087: findTimeline()'s prev_id/prev_snapshot_data subqueries used strict
-    // `<` with no id tiebreaker, so the second of two tied-created_at rows (version 2) got a null
-    // prev_id/prev_snapshot_data instead of pointing at its true predecessor (the first row).
+    // improvement-087: prev_id had no id tiebreaker on tied created_at
     @Test
     void findTimeline_twoRowsSameCreatedAt_prevIdPointsAtTrueTiedPredecessor() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
@@ -241,8 +237,7 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(secondRow.prevSnapshot().displayName()).contains("first");
     }
 
-    // Covers improvement-087: getLastSnapshot() ordered by created_at alone, so a tie left the
-    // "last" pick nondeterministic instead of always resolving to the highest id.
+    // improvement-087: getLastSnapshot() had no id tiebreaker on tied created_at
     @Test
     void getLastSnapshot_twoRowsSameCreatedAt_returnsHighestId() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");

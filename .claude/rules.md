@@ -8,6 +8,12 @@ Before executing any tool call — re-read this entire file. No exceptions.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
 
+> ## ⛔ Code comments: one line or none
+> Every code comment (production code and test code alike) is either **one line** or **not
+> written at all**. Never a multi-line block explaining background/rationale in full — that
+> belongs in the issue file, ADR, or commit message. Write the one-line version on the first
+> pass; do not wait to be told to shorten it. Violating this rule has happened repeatedly.
+
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 

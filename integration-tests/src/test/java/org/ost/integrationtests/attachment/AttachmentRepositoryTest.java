@@ -123,9 +123,7 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 .build());
     }
 
-    // save() always uses the column's NOW() default, which two calls can never reliably tie —
-    // inserted directly to force an identical created_at, same technique AuditLogRepositoryTest
-    // uses for improvement-087's tied-row coverage.
+    // raw insert to force a tied created_at, same technique as AuditLogRepositoryTest
     private Long insertTiedRow(Long entityId, String url, Instant createdAt) {
         return jdbcClient.sql("""
                         INSERT INTO attachment (entity_type, entity_id, url, filename, content_type, size, created_at)
@@ -178,35 +176,63 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(active).extracting(Attachment::getId).containsExactly(keep.getId());
     }
 
-    @Test
-    void findUrlsDeletedOlderThan_excludesRecentlyDeletedAndVideoRows() {
-        Attachment oldDeleted = save(1L, "old.jpg");
-        Attachment recentDeleted = save(1L, "recent.jpg");
-        attachmentRepository.softDelete(oldDeleted.getId(), 42L);
-        attachmentRepository.softDelete(recentDeleted.getId(), 42L);
-        // backdate the "old" row's deleted_at so it's actually past the retention window
+    private void backdateDeletedAt(Long attachmentId, int daysAgo) {
         jdbcClient.sql("UPDATE attachment SET deleted_at = :deletedAt WHERE id = :id")
                 .paramSource(new MapSqlParameterSource()
                         .addValue("deletedAt", OffsetDateTime.ofInstant(
-                                Instant.now().minus(100, ChronoUnit.DAYS), ZoneOffset.UTC))
-                        .addValue("id", oldDeleted.getId()))
+                                Instant.now().minus(daysAgo, ChronoUnit.DAYS), ZoneOffset.UTC))
+                        .addValue("id", attachmentId))
                 .update();
+    }
 
-        List<String> urls = attachmentRepository.findUrlsDeletedOlderThan(90);
+    // improvement-090 item 2
+    @Test
+    void findUrlsDeletedOlderThan_excludesRecentlyDeletedButIncludesOldVideoRows() {
+        Attachment oldDeleted = save(1L, "old.jpg");
+        Attachment recentDeleted = save(1L, "recent.jpg");
+        Attachment oldVideo = attachmentRepository.save(Attachment.builder()
+                .entityType(EntityType.ADVERTISEMENT).entityId(1L)
+                .url("https://youtube.com/watch?v=abc").filename("abc")
+                .contentType("video/youtube").size(0L).build());
+        attachmentRepository.softDelete(oldDeleted.getId(), 42L);
+        attachmentRepository.softDelete(recentDeleted.getId(), 42L);
+        attachmentRepository.softDelete(oldVideo.getId(), 42L);
+        // backdate the "old" rows' deleted_at so they're actually past the retention window
+        backdateDeletedAt(oldDeleted.getId(), 100);
+        backdateDeletedAt(oldVideo.getId(), 100);
 
-        assertThat(urls).containsExactly("old.jpg");
+        List<AttachmentRepository.DeletableAttachment> candidates = attachmentRepository.findUrlsDeletedOlderThan(90);
+
+        assertThat(candidates).extracting(AttachmentRepository.DeletableAttachment::url)
+                .containsExactlyInAnyOrder("old.jpg", "https://youtube.com/watch?v=abc");
     }
 
     @Test
     void deleteByUrls_removesOnlyTheGivenUrls() {
-        save(1L, "keep.jpg");
-        save(1L, "remove.jpg");
+        save(1L, "keep-active.jpg");
+        Attachment toRemove = save(1L, "remove.jpg");
+        attachmentRepository.softDelete(toRemove.getId(), 42L);
 
-        int deleted = attachmentRepository.deleteByUrls(List.of("remove.jpg"));
+        List<String> deleted = attachmentRepository.deleteByUrls(List.of("remove.jpg"));
 
-        assertThat(deleted).isEqualTo(1);
+        assertThat(deleted).containsExactly("remove.jpg");
         assertThat(attachmentRepository.getByEntityId(EntityType.ADVERTISEMENT, 1L))
-                .extracting(Attachment::getUrl).containsExactly("keep.jpg");
+                .extracting(Attachment::getUrl).containsExactly("keep-active.jpg");
+    }
+
+    // improvement-090 item 1
+    @Test
+    void deleteByUrls_rowNoLongerSoftDeleted_survivesEvenIfUrlIsInTheRequestedList() {
+        Attachment restored = save(1L, "restored.jpg");
+        attachmentRepository.softDelete(restored.getId(), 42L);
+        // simulate a concurrent restore that ran between candidate-collection and this call
+        attachmentRepository.restoreUndelete(EntityType.ADVERTISEMENT, 1L, new String[] {"restored.jpg"});
+
+        List<String> deleted = attachmentRepository.deleteByUrls(List.of("restored.jpg"));
+
+        assertThat(deleted).isEmpty();
+        assertThat(attachmentRepository.getByEntityId(EntityType.ADVERTISEMENT, 1L))
+                .extracting(Attachment::getUrl).containsExactly("restored.jpg");
     }
 
     @Test
@@ -246,9 +272,7 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(stats).doesNotContainKey(3L);
     }
 
-    // Covers improvement-091: neither loadMediaStats overload has an id tiebreaker on tied
-    // created_at, so Postgres gives no ordering guarantee among ties — the "main attachment"
-    // pick must be deterministic (lowest id = earliest inserted) instead of flapping between runs.
+    // improvement-091: loadMediaStats had no id tiebreaker on tied created_at
     @Test
     void loadMediaStats_singleEntity_tiedCreatedAt_pickIsDeterministicByLowestId() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");

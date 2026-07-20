@@ -79,6 +79,13 @@ public class AttachmentSnapshotRepository {
                 : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
+    // pure age-based purge -- snapshot rows are just historical bookkeeping (improvement-090 item 3)
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql("DELETE FROM attachment_snapshot WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
+                         .paramSource(new MapSqlParameterSource("days", days))
+                         .update();
+    }
+
     public Optional<Long> findLatestId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT id FROM attachment_snapshot

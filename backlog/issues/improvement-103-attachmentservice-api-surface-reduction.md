@@ -44,7 +44,7 @@ same PR with its marketplace call sites — this is an internal-shape cleanup, n
 
 ## Related
 
-- `backlog/issues/improvement-093-capturemediachanges-silent-skip-without-actor.md` — lands
-  first (Batch B); its `orElseThrow` decision shapes the actor-parameter question here.
+- `backlog/completed/issues/improvement-093-capturemediachanges-silent-skip-without-actor.md` —
+  landed 2026-07-20 (Batch B); its `orElseThrow` decision shapes the actor-parameter question here.
 - `backlog/issues/improvement-021-attachment-concurrency-and-batching.md` item C — `saveAll`
   batching sits in the same commit path; natural rider if Batch M and 021's trigger align.

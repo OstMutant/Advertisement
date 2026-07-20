@@ -287,7 +287,7 @@ public class AttachmentService {
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {
-        currentActorHook.getCurrentActorId().ifPresent(actorId ->
-                attachmentSnapshotService.capture(entityType, entityId, actorId));
+        Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
+        attachmentSnapshotService.capture(entityType, entityId, actorId);
     }
 }

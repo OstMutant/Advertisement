@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **B** | 🔴 | 090, 093 | attachment lifecycle correctness — one starter, one integration-test run |
 | **C** | 🔴 | 106, 107, 088 | session & access-control security — timeline fail-open, embed-URL validation, session fixation |
 | **D** | 🟡 | 092, 094, 062 | advertisement service & port consistency — 092's design decision first |
 | **E** | 🟡 | 089 | user-deletion audit trail — design decision + possible Liquibase changeset |
@@ -41,7 +40,7 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
 | **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
 | **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
-| **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression; after Batch B |
+| **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression |
 | **N** | 🔵 | 104, 105 | audit-rendering simplification — DTO-layer moves; after Batch F |
 | **I** | 🔵 | 029, 033 | process & docs tooling — no production code |
 | **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
@@ -50,15 +49,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch B 🔴 — attachment lifecycle correctness (attachment-spring-boot-starter)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-090](issues/improvement-090-attachment-cleanup-restore-race-and-video-rows-never-purged.md) | New | `AttachmentCleanupService` — `deleteByUrls` lacks `deleted_at IS NOT NULL`, so cleanup can hard-delete an attachment restored from an old snapshot mid-run; plus soft-deleted video rows are never purged |
-| [improvement-093](issues/improvement-093-capturemediachanges-silent-skip-without-actor.md) | New | `AttachmentService.captureMediaChanges()` — fail fast (`orElseThrow`, like its siblings in the same file) instead of silently skipping the snapshot when no actor is present |
-
-One pass because: same starter, adjacent services, one attachment integration-test run covers both.
 
 ### Batch C 🔴 — session & access-control security
 
@@ -159,8 +149,9 @@ in this rewrite's window-function `ORDER BY`.
 | [improvement-103](issues/improvement-103-attachmentservice-api-surface-reduction.md) | New (simplification review) | `AttachmentService` — compress the 13+-method public API: DTO-return unification, explicit snapshot-capture parameter instead of `*Quiet`/`*SkipSnapshot` twins, dedup video branching, rethink the `restoreToUrls` overload trio |
 
 One pass because: same file/starter, and 102's removal (if chosen) directly shrinks the surface
-103 restructures — sequencing them apart guarantees rebase churn. Do after Batch B (090/093
-touch the same service).
+103 restructures — sequencing them apart guarantees rebase churn. Batch B (090/093, same service)
+shipped 2026-07-20, so this batch's `captureMediaChanges()`/`deleteAttachments()` starting point
+already reflects that fix.
 
 ### Batch N 🔵 — audit-rendering simplification (after Batch F)
 

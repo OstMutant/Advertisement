@@ -1,11 +1,12 @@
-# improvement-090: AttachmentCleanupService — restore/cleanup TOCTOU can hard-delete a restored attachment; video rows are never purged
+# improvement-090: AttachmentCleanupService — restore/cleanup TOCTOU can hard-delete a restored attachment; video rows and snapshot metadata are never purged
 
-**Type:** bug ×2 — data-loss race + unbounded row accumulation, both in the same
-`deleteAttachments()` path. Found via pattern-focused code review (2026-07-19).
+**Type:** bug ×3 — data-loss race + two unbounded row-accumulation gaps, all in the attachment
+cleanup path. Found via pattern-focused code review (2026-07-19); item 3 added 2026-07-20 while
+investigating a question about restore-vs-retention interaction.
 **Module:** `attachment-spring-boot-starter` (`services/AttachmentCleanupService.java`,
-`repository/AttachmentRepository.java`)
+`repository/AttachmentRepository.java`, `repository/AttachmentSnapshotRepository.java`)
 **Priority:** medium-high — item 1 is real data loss with a plausible trigger (restore from an old
-snapshot); item 2 is harmless-per-day but unbounded; both are one-line SQL fixes in the same PR
+snapshot); items 2 and 3 are harmless-per-day but unbounded; all are small, same-PR fixes
 **When:** independent, no blockers
 
 ## Item 1 — TOCTOU: cleanup can hard-delete an attachment restored between its two steps
@@ -41,11 +42,38 @@ The S3-safety filter accidentally became a DB-retention policy.
 NULL`) with no S3 step, or restructure `deleteAttachments()` to select `(url, content_type)` and
 skip only the S3 call for videos.
 
+## Item 3 — `attachment_snapshot` rows are never purged
+
+`AttachmentSnapshotRepository` has no delete method at all, and `AttachmentCleanupService.cleanup()`
+never touches the `attachment_snapshot` table — unlike `audit_log` (purged by
+`AuditCleanupService.deleteOlderThan()`, same `app.cleanup.retentionDays` config) and `attachment`
+itself (this same service, items 1-2 above). Every media change inserts one row
+(`AttachmentSnapshotRepository.insert()`) and none is ever removed, so the table grows forever.
+
+This is safe to purge purely by age (`created_at`), independent of whether the attachment(s) it
+references are still active: a snapshot row is only historical bookkeeping (an array of urls that
+were in the gallery at one point in time), never a source of truth an active `attachment` row
+depends on — deleting an old snapshot row never touches or renames a currently-live attachment.
+
+It's also already unreachable once its window closes: the only UI path to a snapshot id is via a
+Timeline entry (`audit_log.snapshot_data` embeds `attachmentSnapshotId`), and `audit_log` rows are
+already purged after the same `retentionDays` (default 90, from the row's `created_at`, not last
+access) — so a snapshot old enough to purge here has no reachable "Restore" button pointing at it
+regardless of this fix. Purging it at the same age threshold doesn't shrink the actual restore
+window (already capped by `AuditCleanupService`); it only removes bookkeeping that's already
+orphaned.
+
+**Fix:** `AttachmentSnapshotRepository.deleteOlderThan(int days)` —
+`DELETE FROM attachment_snapshot WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)`, same
+shape as `AuditLogRepository.deleteOlderThan()`. Call it from `AttachmentCleanupService.cleanup()`
+with `cleanupProperties.retentionDays()`, alongside the other cleanup steps.
+
 ## Suggested verification
 
 Integration test in `integration-tests` (attachment package): (a) seed a long-deleted row, restore
 it, run cleanup, assert the row and its "S3" url survive; (b) seed a long-deleted video row, run
-cleanup, assert the row is gone.
+cleanup, assert the row is gone; (c) seed an old and a recent `attachment_snapshot` row, run
+cleanup, assert only the old one is gone.
 
 ## Related
 

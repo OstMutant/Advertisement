@@ -19,6 +19,7 @@ import org.springframework.beans.factory.ObjectProvider;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -114,11 +115,27 @@ class AttachmentServiceTest {
                 .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
                 .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
                 .build());
-        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.empty());
+        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.of(1L));
 
         service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg");
 
         verify(inputStream).close();
+    }
+
+    // improvement-093: captureMediaChanges() used to silently skip without an actor
+    @Test
+    void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() throws IOException {
+        when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
+                .thenReturn("final/photo.jpg");
+        when(attachmentRepository.save(any())).thenReturn(Attachment.builder()
+                .id(1L).entityType(EntityType.ADVERTISEMENT).entityId(1L)
+                .url("final/photo.jpg").filename("photo.jpg").contentType("image/jpeg").size(100L)
+                .build());
+        when(currentActorHook.getCurrentActorId()).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+                service.upload(EntityType.ADVERTISEMENT, 1L, "photo.jpg", inputStream, 100L, "image/jpeg"))
+                .isInstanceOf(NoSuchElementException.class);
     }
 
     @Test

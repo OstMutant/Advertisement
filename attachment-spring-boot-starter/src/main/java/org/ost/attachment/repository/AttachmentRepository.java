@@ -25,6 +25,8 @@ public class AttachmentRepository {
 
     public record MediaStats(String mainUrl, String mainContentType, int count) {}
 
+    public record DeletableAttachment(String url, String contentType) {}
+
     private static final RowMapper<Attachment> ROW_MAPPER = (rs, _) -> {
         String typeName = rs.getString("entity_type");
         Timestamp createdAt = rs.getTimestamp("created_at");
@@ -143,22 +145,24 @@ public class AttachmentRepository {
                          .list();
     }
 
-    public List<String> findUrlsDeletedOlderThan(int days) {
+    // includes videos too -- cleanup service decides which get an S3 delete (improvement-090 item 2)
+    public List<DeletableAttachment> findUrlsDeletedOlderThan(int days) {
         return jdbcClient.sql("""
-                        SELECT url FROM attachment
+                        SELECT url, content_type FROM attachment
                         WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)
-                          AND content_type NOT IN ('video/youtube', 'video/embed')
                         """)
                          .paramSource(new MapSqlParameterSource("days", days))
-                         .query(String.class)
+                         .query((rs, _) -> new DeletableAttachment(rs.getString("url"), rs.getString("content_type")))
                          .list();
     }
 
-    public int deleteByUrls(@NonNull List<String> urls) {
+    // re-checks deleted_at + RETURNING url so a concurrently-restored row survives (improvement-090 item 1)
+    public List<String> deleteByUrls(@NonNull List<String> urls) {
         // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion (improvement-054).
-        return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls)")
+        return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls) AND deleted_at IS NOT NULL RETURNING url")
                          .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
-                         .update();
+                         .query(String.class)
+                         .list();
     }
 
     // Subset of urls that have a matching row (active or soft-deleted) -- used by the orphan sweep.

@@ -25,10 +25,15 @@ import org.springframework.boot.transaction.autoconfigure.TransactionAutoConfigu
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.domain.AuditorAware;
 import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import software.amazon.awssdk.services.s3.S3Client;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -115,5 +120,31 @@ class AttachmentSnapshotRepositoryTest extends AbstractPostgresIntegrationTest {
         Optional<List<String>> result = snapshotRepository.getPrevUrls(EntityType.ADVERTISEMENT, 999L);
 
         assertThat(result).isEmpty();
+    }
+
+    // improvement-090 item 3
+    @Test
+    void deleteOlderThan_removesOnlyRowsOlderThanTheGivenDays() {
+        String[] oldUrls = {"https://s3.example/old.jpg"};
+        snapshotRepository.insert(EntityType.ADVERTISEMENT, 3L, oldUrls,
+                List.of(new AttachmentMediaChange(null, List.of("old.jpg"))), 42L);
+        Long oldId = snapshotRepository.findLatestId(EntityType.ADVERTISEMENT, 3L).orElseThrow();
+        jdbcClient.sql("UPDATE attachment_snapshot SET created_at = :createdAt WHERE id = :id")
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("createdAt", OffsetDateTime.ofInstant(
+                                Instant.now().minus(100, ChronoUnit.DAYS), ZoneOffset.UTC))
+                        .addValue("id", oldId))
+                .update();
+
+        String[] recentUrls = {"https://s3.example/recent.jpg"};
+        snapshotRepository.insert(EntityType.ADVERTISEMENT, 4L, recentUrls,
+                List.of(new AttachmentMediaChange(null, List.of("recent.jpg"))), 42L);
+        Long recentId = snapshotRepository.findLatestId(EntityType.ADVERTISEMENT, 4L).orElseThrow();
+
+        int deleted = snapshotRepository.deleteOlderThan(90);
+
+        assertThat(deleted).isEqualTo(1);
+        assertThat(snapshotRepository.getUrlsById(oldId)).isEmpty();
+        assertThat(snapshotRepository.getUrlsById(recentId)).isPresent();
     }
 }

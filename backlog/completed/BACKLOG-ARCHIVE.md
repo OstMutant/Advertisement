@@ -755,3 +755,20 @@ confirmed red against the old strict-`<`/no-tiebreaker SQL before the fix, green
 the "main attachment" pick on tied `created_at` is deterministic and the single/bulk variants
 agree. Fixed alongside improvement-087 (Batch A) — same defect class, same tied-row test
 technique, one PR covering both starters.
+
+✅ Done (2026-07-20): [improvement-090](issues/improvement-090-attachment-cleanup-restore-race-and-video-rows-never-purged.md) —
+`AttachmentRepository.deleteByUrls` now re-checks `deleted_at IS NOT NULL` and returns only the
+urls it actually removed (`RETURNING url`), so a row restored concurrently between candidate
+collection and delete survives (item 1); `findUrlsDeletedOlderThan` no longer excludes video
+content types from the DB-purge candidate list, only from the S3-delete step inside
+`AttachmentCleanupService` (item 2); a third item was folded in after a follow-up question about
+restore-vs-retention interaction — `attachment_snapshot` rows had no purge at all, now cleaned up
+by age via a new `AttachmentSnapshotRepository.deleteOlderThan()`, same shape as
+`AuditLogRepository.deleteOlderThan()` (item 3). Covered by new/rewritten tests in
+`AttachmentCleanupServiceTest`, `AttachmentRepositoryTest`, and `AttachmentSnapshotRepositoryTest`.
+
+✅ Done (2026-07-20): [improvement-093](issues/improvement-093-capturemediachanges-silent-skip-without-actor.md) —
+`AttachmentService.captureMediaChanges()` now uses `orElseThrow()` instead of silently skipping the
+snapshot when no actor is present, matching `delete()`'s fail-fast contract in the same class.
+Required updating one existing `AttachmentServiceTest` case that had stubbed an absent actor while
+expecting a normal upload to succeed; added a new case asserting the throw.
