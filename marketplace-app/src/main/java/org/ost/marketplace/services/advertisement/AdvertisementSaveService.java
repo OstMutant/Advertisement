@@ -69,6 +69,16 @@ public class AdvertisementSaveService {
         });
     }
 
+    public void delete(@NonNull Long id, @NonNull Long actorId, Long version) {
+        tx.executeWithoutResult(status -> {
+            AdvertisementSnapshotDto snapshot = buildCurrentSnapshot(id);
+            advertisementPortFactory.get().delete(id, actorId, version);
+            if (snapshot != null) {
+                auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId));
+            }
+        });
+    }
+
     // isSynchronizationActive() guard is required -- registerSynchronization() throws outside a real transaction.
     private void registerOrphanWarningOnRollback(EntityRef entityRef, Long gallerySnapshotId) {
         if (gallerySnapshotId == null || !TransactionSynchronizationManager.isSynchronizationActive()) {

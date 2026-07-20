@@ -10,7 +10,6 @@ import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.user.spi.UserPort;
@@ -40,8 +39,6 @@ class AdvertisementServiceHtmlSanitizationTest {
     @Mock
     private AdvertisementRepository repository;
     @Mock
-    private ComponentFactory<AuditPort> auditPortFactory;
-    @Mock
     private ComponentFactory<AttachmentPort> attachmentPortFactory;
     @Mock
     private ComponentFactory<TaxonPort> taxonPortFactory;
@@ -49,7 +46,7 @@ class AdvertisementServiceHtmlSanitizationTest {
     private ComponentFactory<UserPort> userPortFactory;
 
     private AdvertisementService newService() {
-        return new AdvertisementService(repository, auditPortFactory, attachmentPortFactory, taxonPortFactory, userPortFactory);
+        return new AdvertisementService(repository, attachmentPortFactory, taxonPortFactory, userPortFactory);
     }
 
     @Test

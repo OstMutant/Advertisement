@@ -2018,3 +2018,45 @@ size), or i18n infrastructure appearing in starters — currently explicitly exc
 have no i18n infrastructure of their own", `marketplace-app/CLAUDE.md`). If revisited, the
 sealed-interface design above is the starting point, with a startup-time uniqueness check over
 all member enums' keys as a hard requirement.
+
+## ADR-050: Advertisement delete-side audit capture moves into `AdvertisementSaveService`, matching save's existing orchestration
+
+**Status:** Accepted
+
+**Context:** [improvement-092](../backlog/completed/issues/improvement-092-advertisement-audit-capture-split-across-modules.md) —
+audit-snapshot capture for advertisements was split: save-side lived in
+`AdvertisementSaveService` (`marketplace-app`), delete-side lived inline in
+`AdvertisementService.delete()` (`advertisement-spring-boot-starter`), doing near-identical
+snapshot assembly (title/description + category ids via `TaxonPort` + attachment snapshot id via
+`AttachmentPort`) in two different modules. Every other domain (user, taxon) captures entirely
+inside its own starter; advertisement was the only split-brain case.
+
+**Decision:** Option A from the issue — move delete-side capture up into
+`AdvertisementSaveService`, reusing its existing `buildCurrentSnapshot()` (already built for
+save's "before" snapshot; a delete's snapshot is exactly the same shape). New
+`AdvertisementSaveService.delete(id, actorId, version)`:
+1. `buildCurrentSnapshot(id)` — reads the current state before anything is mutated.
+2. `advertisementPortFactory.get().delete(id, actorId, version)` — the starter's `delete()` now
+   does pure domain work only (soft-delete the row, clear taxon assignments, soft-delete
+   attachments) — no audit capture, no snapshot assembly.
+3. `auditPortFactory.ifAvailable(p -> p.captureDeletion(id, snapshot, actorId))` — only if step 1
+   found something to capture (mirrors the starter's old `findById(id).ifPresent(...)` guard).
+
+All three steps run inside one `tx.executeWithoutResult(...)` transaction (same `TransactionTemplate`
+`save()` already uses) — the starter's own `@Transactional delete()` joins it via default
+`REQUIRED` propagation, so this is still one atomic unit, not two.
+
+`AdvertisementCardView` (the only UI caller) now calls `AdvertisementSaveService.delete(...)`
+directly instead of going through `ComponentFactory<AdvertisementPort>.ifAvailable(...)` —
+`AdvertisementPort` is a mandatory dependency for this view already (there is no advertisement UI
+without it), so the unconditional `.get()` inside `AdvertisementSaveService` doesn't reduce
+robustness versus the previous `ifAvailable()` guard.
+
+**Consequences:**
+- `AdvertisementService` (starter) drops its `ComponentFactory<AuditPort>` dependency entirely —
+  it now has no audit awareness at all, same shape as no other domain's *lifecycle* orchestration
+  needing an unrelated cross-cutting concern once that concern moves to where it's coordinated.
+- The duplicated snapshot-assembly block is gone; `buildCurrentSnapshot()` is the one place this
+  logic lives for advertisements.
+- Existing `AdvertisementServiceHtmlSanitizationTest`'s direct `new AdvertisementService(...)`
+  constructor call updated (one fewer constructor arg).

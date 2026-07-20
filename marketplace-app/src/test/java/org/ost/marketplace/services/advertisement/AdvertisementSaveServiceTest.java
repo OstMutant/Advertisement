@@ -55,10 +55,15 @@ class AdvertisementSaveServiceTest {
     void setUp() {
         service = new AdvertisementSaveService(tx, advertisementPortFactory, attachmentPortFactory,
                 taxonPortFactory, auditPortFactory);
-        when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
+        lenient().when(tx.execute(this.<Long>callback())).thenAnswer(inv -> {
             TransactionCallback<Long> callback = inv.getArgument(0);
             return callback.doInTransaction(mock(TransactionStatus.class));
         });
+        lenient().doAnswer(inv -> {
+            Consumer<TransactionStatus> callback = inv.getArgument(0);
+            callback.accept(mock(TransactionStatus.class));
+            return null;
+        }).when(tx).executeWithoutResult(any());
         lenient().when(advertisementPortFactory.get()).thenReturn(advertisementPort);
     }
 
@@ -166,5 +171,45 @@ class AdvertisementSaveServiceTest {
         Long id = service.save(dto, ACTOR_ID, ref -> null);
 
         assertThat(id).isEqualTo(1L);
+    }
+
+    @Test
+    void delete_existingAdvertisement_capturesDeletionWithSnapshotReadBeforeDeleting() {
+        Long adId = 42L;
+        Long version = 5L;
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(adId).title("Deleted Title").description("Deleted Desc").build()));
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.delete(adId, ACTOR_ID, version);
+
+        verify(advertisementPort).delete(adId, ACTOR_ID, version);
+        ArgumentCaptor<AuditableSnapshot> snapshotCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
+        verify(auditPort).captureDeletion(eq(adId), snapshotCaptor.capture(), eq(ACTOR_ID));
+        assertThat(((AdvertisementSnapshotDto) snapshotCaptor.getValue()).title()).isEqualTo("Deleted Title");
+    }
+
+    @Test
+    void delete_nonExistentAdvertisement_stillCallsPortButNeverCapturesDeletion() {
+        Long adId = 99L;
+        when(advertisementPort.findById(adId)).thenReturn(Optional.empty());
+        stubAvailable(auditPortFactory, auditPort);
+
+        service.delete(adId, ACTOR_ID, null);
+
+        verify(advertisementPort).delete(adId, ACTOR_ID, null);
+        verify(auditPort, never()).captureDeletion(any(), any(), any());
+    }
+
+    @Test
+    void delete_optionalAuditPortAbsent_completesWithoutException() {
+        Long adId = 42L;
+        when(advertisementPort.findById(adId)).thenReturn(Optional.of(
+                AdvertisementInfoDto.builder().id(adId).title("T").description("D").build()));
+        // auditPortFactory left unstubbed -- ObjectProvider-absent shape.
+
+        service.delete(adId, ACTOR_ID, 1L);
+
+        verify(advertisementPort).delete(adId, ACTOR_ID, 1L);
     }
 }

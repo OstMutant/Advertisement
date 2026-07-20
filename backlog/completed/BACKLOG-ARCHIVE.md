@@ -793,3 +793,21 @@ lightbox classes' iframe `sandbox` attribute dropped `allow-same-origin`. Allowl
 Vimeo (YouTube already has its own path via `YoutubeUtil`) after confirming with the user — the
 placeholder text previously advertised "YouTube, Facebook..." but no Facebook resolver ever
 existed, so both EN/UK placeholders were corrected to "YouTube, Vimeo" to match reality.
+
+✅ Done (2026-07-20): [improvement-092](issues/improvement-092-advertisement-audit-capture-split-across-modules.md) —
+delete-side audit capture moved from `AdvertisementService.delete()` (starter) into
+`AdvertisementSaveService.delete()` (marketplace-app), reusing the existing `buildCurrentSnapshot()`
+helper save already had — one module now owns all advertisement audit orchestration. Recorded as
+`marketplace-app/DECISIONS.md` ADR-050. `AdvertisementCardView` now calls the new service method
+directly instead of going through `ComponentFactory<AdvertisementPort>.ifAvailable(...)`.
+
+✅ Done (2026-07-20): [improvement-094](issues/improvement-094-resolvecategoryfilter-null-sentinel.md) —
+`AdvertisementService.resolveCategoryFilter()` now returns `Optional<Set<Long>>` instead of a
+nullable `Set<Long>` (`empty()` = no filter/taxon starter absent, `of(ids)` possibly empty =
+filter resolved) — the repository's own `null`-means-no-filter contract is untouched. New
+`AdvertisementServiceCategoryFilterTest` covers all four states through `getFiltered()`/`count()`.
+
+✅ Done (2026-07-20): [improvement-062](issues/improvement-062-missing-readonly-transactional-on-port-impls.md) —
+`UserPortImpl`, `AdvertisementPortImpl`, and `DefaultTaxonPort` all got class-level
+`@Transactional(readOnly = true)` plus per-method `@Transactional` overrides on their write
+methods, matching `DefaultAuditPort`'s existing pattern.

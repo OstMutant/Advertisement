@@ -9,10 +9,8 @@ import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
-import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -49,36 +47,35 @@ public class AdvertisementService {
             .and(new HtmlPolicyBuilder().allowElements("pre").toFactory());
 
     private final AdvertisementRepository          repository;
-    private final ComponentFactory<AuditPort>      auditPortFactory;
     private final ComponentFactory<AttachmentPort> attachmentPortFactory;
     private final ComponentFactory<TaxonPort>      taxonPortFactory;
     private final ComponentFactory<UserPort>       userPortFactory;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
-        Set<Long> allowedIds = resolveCategoryFilter(filter);
-        if (allowedIds != null && allowedIds.isEmpty()) {
+        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
+        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
-        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), allowedIds);
+        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), categoryFilter.orElse(null));
         if (ads.isEmpty()) return ads;
         return enrichWithMediaSummary(enrichWithActorInfo(enrichWithCategories(ads, locale)));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
-        Set<Long> allowedIds = resolveCategoryFilter(filter);
-        if (allowedIds != null && allowedIds.isEmpty()) {
+        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
+        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
             return 0;
         }
-        return repository.countByFilter(filter, allowedIds).intValue();
+        return repository.countByFilter(filter, categoryFilter.orElse(null)).intValue();
     }
 
-    private Set<Long> resolveCategoryFilter(AdvertisementFilterDto filter) {
+    // empty() = no filter requested (or taxon starter absent); of(ids), possibly empty = filter resolved
+    private Optional<Set<Long>> resolveCategoryFilter(AdvertisementFilterDto filter) {
         if (filter.getCategoryIds() == null) {
-            return null;
+            return Optional.empty();
         }
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, filter.getCategoryIds()))
-                .orElse(null);
+                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, filter.getCategoryIds()));
     }
 
     private List<AdvertisementInfoDto> enrichWithCategories(List<AdvertisementInfoDto> ads, Locale locale) {
@@ -163,16 +160,7 @@ public class AdvertisementService {
     @Transactional
     public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         log.info("Advertisement delete: id={}", id);
-        repository.findById(id).ifPresent(entity -> {
-            List<Long> catIds = taxonPortFactory.findIfAvailable()
-                    .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH)
-                            .stream().map(TaxonDto::getId).sorted().toList())
-                    .orElse(List.of());
-            Long attachmentSnapshotId = attachmentPortFactory.findIfAvailable()
-                    .map(p -> p.getLatestSnapshotId(EntityType.ADVERTISEMENT, id))
-                    .orElse(null);
-            auditPortFactory.ifAvailable(p -> p.captureDeletion(id,
-                    new AdvertisementSnapshotDto(entity.getTitle(), entity.getDescription(), catIds, attachmentSnapshotId), actingUserId));
+        repository.findById(id).ifPresent(_ -> {
             attachmentPortFactory.ifAvailable(p -> p.softDeleteAll(new EntityRef(EntityType.ADVERTISEMENT, id), actingUserId));
             taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, id, Set.of()));
         });

@@ -9,6 +9,7 @@ import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Locale;
@@ -17,6 +18,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class AdvertisementPortImpl implements AdvertisementPort {
 
     private final AdvertisementService service;
@@ -37,11 +39,13 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     }
 
     @Override
+    @Transactional
     public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId) {
         return service.save(dto, actingUserId);
     }
 
     @Override
+    @Transactional
     public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         service.delete(id, actingUserId, version);
     }

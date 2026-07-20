@@ -14,6 +14,7 @@ import org.ost.taxon.entities.TaxonTranslation;
 import org.ost.taxon.repository.TaxonFilter;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class DefaultTaxonPort implements TaxonPort {
 
     private final TaxonService           taxonService;
@@ -32,6 +34,7 @@ public class DefaultTaxonPort implements TaxonPort {
     private final TaxonProperties        properties;
 
     @Override
+    @Transactional
     public void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                                    @NonNull Set<Long> taxonIds) {
         assignmentService.replaceAssignments(entityType, entityId, taxonIds, null);
@@ -138,6 +141,7 @@ public class DefaultTaxonPort implements TaxonPort {
     }
 
     @Override
+    @Transactional
     public Long create(@NonNull TaxonType type, @NonNull Map<Locale, TaxonTranslationDto> translations,
                        Long actorId) {
         Map<Locale, TaxonTranslationData> data = toTranslationData(translations);
@@ -145,6 +149,7 @@ public class DefaultTaxonPort implements TaxonPort {
     }
 
     @Override
+    @Transactional
     public void update(@NonNull Long id, @NonNull Map<Locale, TaxonTranslationDto> translations,
                        Long actorId, Long version) {
         Map<Locale, TaxonTranslationData> data = toTranslationData(translations);
@@ -152,11 +157,13 @@ public class DefaultTaxonPort implements TaxonPort {
     }
 
     @Override
+    @Transactional
     public void softDelete(@NonNull Long id, Long actorId, Long version) {
         taxonService.softDelete(id, actorId, version);
     }
 
     @Override
+    @Transactional
     public void restore(@NonNull Long id, Long actorId) {
         taxonService.restore(id, actorId);
     }

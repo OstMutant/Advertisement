@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **D** | 🟡 | 092, 094, 062 | advertisement service & port consistency — 092's design decision first |
 | **E** | 🟡 | 089 | user-deletion audit trail — design decision + possible Liquibase changeset |
 | **F** | 🟡 | 078, 081, 084, 083, 008, 010, 014, 101, 080 | UI dedup & polish — two PRs, full e2e after each, 080 last |
 | **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
@@ -48,18 +47,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch D 🟡 — advertisement service & port consistency
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-092](issues/improvement-092-advertisement-audit-capture-split-across-modules.md) | New | Advertisement audit capture split across two modules (save in `AdvertisementSaveService`, delete in the starter) — pick one home, collapse the duplicated snapshot assembly; design decision first, record in DECISIONS.md |
-| [improvement-094](issues/improvement-094-resolvecategoryfilter-null-sentinel.md) | New | `AdvertisementService.resolveCategoryFilter()` — replace the `null`/empty-set sentinel with an explicit tri-state (Optional or sealed record family) |
-| [improvement-062](issues/improvement-062-missing-readonly-transactional-on-port-impls.md) | Still open | `UserPortImpl`/`AdvertisementPortImpl`/`DefaultTaxonPort` have no `@Transactional(readOnly=true)`, unlike `DefaultAuditPort` |
-
-One pass because: 092 restructures exactly the service pair (`AdvertisementService.delete()` /
-`AdvertisementSaveService`) where 094's sentinel lives, and 062's mechanical read-only
-annotations ride along on the same port/service layer. 092's design decision comes first.
 
 ### Batch E 🟡 — user-deletion audit trail (single-issue)
 
@@ -253,8 +240,9 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 | [improvement-055](issues/improvement-055-ui-vaadin-template-consistency-audit.md) | before the next large UI-pattern rollout, or a dedicated UI consistency pass; design discussion only, no agreed fix — most Configurable-shape findings already superseded by improvement-025, remaining findings (CSS naming, TimeZoneUtil/InstantFormatter split, badge/empty-state duplication) need a standardization decision first |
 | [improvement-086](issues/improvement-086-postgres-major-version-bump.md) | PostgreSQL 15 → 18 major version bump — do when data volume/feature needs justify it, or PG15's support window starts actually approaching its end, whichever comes first; same trigger shape as improvement-038 |
 
-Former Deferred residents now scheduled: improvement-008/010/014 → Batch F, improvement-094 →
-Batch D, improvement-095 → Batch H (see "Execution batches" above).
+Former Deferred residents now scheduled: improvement-008/010/014 → Batch F, improvement-095 →
+Batch H (see "Execution batches" above). improvement-094 was briefly in Batch D, shipped
+2026-07-20.
 
 improvement-109/112 moved here from the "Standalone" table above (2026-07-19 index-consistency
 fix) — both issue files already said `**When:** Deferred`, but had been mis-ranked as actionable

@@ -14,7 +14,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -56,7 +56,7 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient AdvertisementSaveService                    advertisementSaveService;
     private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
@@ -237,7 +237,7 @@ public class AdvertisementCardView extends HorizontalLayout
                         .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
                         .onConfirm(() -> {
                             try {
-                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion()));
+                                advertisementSaveService.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion());
                                 notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
                                 onChanged.run();
                             } catch (Exception _) {

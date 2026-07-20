@@ -18,6 +18,7 @@ import org.ost.user.services.UserService;
 import org.ost.user.services.UserSettingsService;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collection;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class UserPortImpl implements UserPort {
 
     private final UserService         userService;
@@ -51,6 +53,7 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    @Transactional
     public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
         userService.save(dto, actingUserId);
     }
@@ -61,16 +64,19 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    @Transactional
     public void updateLocale(@NonNull Long userId, @NonNull String locale) {
         userService.updateLocale(userId, locale);
     }
 
     @Override
+    @Transactional
     public void delete(@NonNull Long userId) {
         userService.delete(userId);
     }
 
     @Override
+    @Transactional
     public void register(@NonNull SignUpDto dto, @NonNull String clientIp) {
         userService.register(dto, clientIp);
     }
@@ -81,6 +87,7 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    @Transactional
     public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
         return userService.restoreToSnapshot(userId, snapshotId, actingUserId);
     }
@@ -116,6 +123,7 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
+    @Transactional
     public void saveSettings(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         settingsService.save(userId, settings);
     }
