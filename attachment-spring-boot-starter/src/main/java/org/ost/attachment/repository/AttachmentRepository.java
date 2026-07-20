@@ -174,7 +174,7 @@ public class AttachmentRepository {
                         SELECT url, content_type, COUNT(*) OVER () AS total_count
                         FROM attachment
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
-                        ORDER BY created_at ASC
+                        ORDER BY created_at ASC, id ASC
                         LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
@@ -190,7 +190,7 @@ public class AttachmentRepository {
                         SELECT entity_id, url, content_type, cnt FROM (
                             SELECT entity_id, url, content_type,
                                    COUNT(*) OVER (PARTITION BY entity_id) AS cnt,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC) AS rn
+                                   ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC, id ASC) AS rn
                             FROM attachment
                             WHERE entity_type = :entityType AND entity_id = ANY(:entityIds) AND deleted_at IS NULL
                         ) ranked

@@ -742,3 +742,16 @@ call immediately above them — deleted outright. The video pause/clear and `.lo
 existing direct equivalent, so they were kept but rewritten as `videoEl.executeJs(...)` on the
 already-held `Element` reference (same pattern already used by `AttachmentLightbox`), rather than
 a page-wide `querySelector` that could cross-control a second open lightbox instance.
+
+✅ Done (2026-07-20): [improvement-087](issues/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md) —
+`AuditLogRepository.findTimeline()`'s `prev_id`/`prev_snapshot_data` subqueries and
+`getLastSnapshot()` now compare `(created_at, id)` tuples / order by `id DESC` as a tiebreaker,
+matching the shape improvement-050 item 4 already fixed for `version` numbering. TDD: three new
+tied-row tests in `AuditLogRepositoryTest` (reusing the raw-`jdbcClient`-insert technique) were
+confirmed red against the old strict-`<`/no-tiebreaker SQL before the fix, green after.
+
+✅ Done (2026-07-20): [improvement-091](issues/improvement-091-loadmediastats-nondeterministic-main-attachment.md) —
+`AttachmentRepository.loadMediaStats` (single + bulk) now orders by `created_at ASC, id ASC`, so
+the "main attachment" pick on tied `created_at` is deterministic and the single/bulk variants
+agree. Fixed alongside improvement-087 (Batch A) — same defect class, same tied-row test
+technique, one PR covering both starters.

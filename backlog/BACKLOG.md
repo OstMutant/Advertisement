@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **A** | 🔴 | 087, 091 | missing `id` tiebreakers — two repositories, identical one-line fix shape |
 | **B** | 🔴 | 090, 093 | attachment lifecycle correctness — one starter, one integration-test run |
 | **C** | 🔴 | 106, 107, 088 | session & access-control security — timeline fail-open, embed-URL validation, session fixation |
 | **D** | 🟡 | 092, 094, 062 | advertisement service & port consistency — 092's design decision first |
@@ -51,16 +50,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch A 🔴 — missing `id` tiebreakers (one PR, two repositories, identical fix shape)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-087](issues/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md) | New | `AuditLogRepository` — add the missing `id` tiebreakers to `findTimeline()`'s `prev_*` subqueries and `getLastSnapshot()` (leftover of improvement-050 item 4; restore flows read `getLastSnapshot()`) |
-| [improvement-091](issues/improvement-091-loadmediastats-nondeterministic-main-attachment.md) | New | `AttachmentRepository.loadMediaStats` (single + bulk) — add `id` tiebreaker so the "main attachment" pick is deterministic and list/detail views agree |
-
-One pass because: same defect class (improvement-050 item 4 leftovers), same one-line fix shape,
-verified by extending the same tied-row integration-test technique 050 established.
 
 ### Batch B 🔴 — attachment lifecycle correctness (attachment-spring-boot-starter)
 
@@ -158,9 +147,9 @@ Deferred — riskier infra change, different cadence.)
 | [improvement-019](issues/improvement-019-findtimeline-correlated-subqueries.md) | Wave 3 | `findTimeline()` — rewrite the correlated `version`/`prev_*` subqueries as window functions (same shape `findRows()` already uses) |
 | [improvement-095](issues/improvement-095-getentityactivity-hardcoded-limit.md) | New | `AuditReadService.getEntityActivity()` — name the hardcoded 100-row activity limit (silent truncation policy is currently invisible) |
 
-One pass because: same read-side code (`AuditLogRepository` + `AuditReadService`). Sequencing vs
-Batch A: if A shipped first, keep its tiebreakers in the window-function `ORDER BY`; if H somehow
-goes first, A reduces to `getLastSnapshot()` + `loadMediaStats` only.
+One pass because: same read-side code (`AuditLogRepository` + `AuditReadService`). Batch A (087,
+091 — the `id`-tiebreaker fixes) shipped 2026-07-20; keep its `(created_at, id)` tiebreaker shape
+in this rewrite's window-function `ORDER BY`.
 
 ### Batch M 🔵 — attachment API simplification (attachment-spring-boot-starter)
 

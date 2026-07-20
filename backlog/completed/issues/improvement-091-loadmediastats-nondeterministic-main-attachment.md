@@ -34,7 +34,7 @@ the deterministic tiebreak. Update the CLAUDE.md sentence to "earliest-created (
 
 ## Related
 
-- `backlog/issues/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md` —
-  same class; consider one "add missing id tiebreakers" PR covering both.
+- `backlog/completed/issues/improvement-087-audit-prev-snapshot-and-last-snapshot-missing-id-tiebreaker.md` —
+  same class; fixed together in one PR (Batch A, 2026-07-20).
 - `marketplace-app/DECISIONS.md` ADR-035 — why these queries are the sole source of media
   summaries (no denormalized fallback exists to mask the flicker).

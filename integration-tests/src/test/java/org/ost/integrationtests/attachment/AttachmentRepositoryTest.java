@@ -123,6 +123,24 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
                 .build());
     }
 
+    // save() always uses the column's NOW() default, which two calls can never reliably tie —
+    // inserted directly to force an identical created_at, same technique AuditLogRepositoryTest
+    // uses for improvement-087's tied-row coverage.
+    private Long insertTiedRow(Long entityId, String url, Instant createdAt) {
+        return jdbcClient.sql("""
+                        INSERT INTO attachment (entity_type, entity_id, url, filename, content_type, size, created_at)
+                        VALUES (:entityType, :entityId, :url, :url, 'image/jpeg', 100, :createdAt)
+                        RETURNING id
+                        """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("entityType", EntityType.ADVERTISEMENT.name())
+                        .addValue("entityId", entityId)
+                        .addValue("url", url)
+                        .addValue("createdAt", OffsetDateTime.ofInstant(createdAt, ZoneOffset.UTC)))
+                .query(Long.class)
+                .single();
+    }
+
     @Test
     void save_and_getByEntityId_excludesSoftDeletedRows() {
         Attachment active = save(1L, "active.jpg");
@@ -226,5 +244,33 @@ class AttachmentRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(stats.get(2L).mainUrl()).isEqualTo("ad2-only.jpg");
         assertThat(stats.get(2L).count()).isEqualTo(1);
         assertThat(stats).doesNotContainKey(3L);
+    }
+
+    // Covers improvement-091: neither loadMediaStats overload has an id tiebreaker on tied
+    // created_at, so Postgres gives no ordering guarantee among ties — the "main attachment"
+    // pick must be deterministic (lowest id = earliest inserted) instead of flapping between runs.
+    @Test
+    void loadMediaStats_singleEntity_tiedCreatedAt_pickIsDeterministicByLowestId() {
+        Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
+        Long firstId = insertTiedRow(10L, "first.jpg", tiedInstant);
+        insertTiedRow(10L, "second.jpg", tiedInstant);
+
+        AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(EntityType.ADVERTISEMENT, 10L);
+
+        assertThat(stats.mainUrl()).isEqualTo("first.jpg");
+        assertThat(firstId).isNotNull();
+    }
+
+    @Test
+    void loadMediaStats_bulkAndSingle_tiedCreatedAt_agreeOnMainAttachment() {
+        Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
+        insertTiedRow(11L, "first.jpg", tiedInstant);
+        insertTiedRow(11L, "second.jpg", tiedInstant);
+
+        AttachmentRepository.MediaStats singleStats = attachmentRepository.loadMediaStats(EntityType.ADVERTISEMENT, 11L);
+        Map<Long, AttachmentRepository.MediaStats> bulkStats =
+                attachmentRepository.loadMediaStats(EntityType.ADVERTISEMENT, Set.of(11L));
+
+        assertThat(bulkStats.get(11L).mainUrl()).isEqualTo(singleStats.mainUrl());
     }
 }

@@ -145,12 +145,12 @@ public class AuditLogRepository {
                                   AND (b.created_at, b.id) <= (f.created_at, f.id))::int AS version,
                                (SELECT id FROM audit_log b
                                 WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at < f.created_at
-                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_id,
+                                  AND (b.created_at, b.id) < (f.created_at, f.id)
+                                ORDER BY b.created_at DESC, b.id DESC LIMIT 1)      AS prev_id,
                                (SELECT snapshot_data::text FROM audit_log b
                                 WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at < f.created_at
-                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_snapshot_data
+                                  AND (b.created_at, b.id) < (f.created_at, f.id)
+                                ORDER BY b.created_at DESC, b.id DESC LIMIT 1)      AS prev_snapshot_data
                         FROM filtered f
                         %s
                         """.formatted(FILTER.build(params, filter, " AND "), innerOrderBy, outerOrderBy);
@@ -170,7 +170,7 @@ public class AuditLogRepository {
         return jdbcClient.sql("""
                         SELECT snapshot_data::text FROM audit_log
                         WHERE entity_type = :entityType AND entity_id = :entityId
-                        ORDER BY created_at DESC LIMIT 1
+                        ORDER BY created_at DESC, id DESC LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())

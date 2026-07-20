@@ -1,5 +1,7 @@
 package org.ost.integrationtests.audit;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ost.audit.config.AuditAutoConfiguration;
@@ -12,7 +14,9 @@ import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
+import org.ost.platform.user.dto.UserSnapshotDto;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
 import org.springframework.boot.autoconfigure.context.ConfigurationPropertiesAutoConfiguration;
 import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
@@ -79,6 +83,18 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
     @EnableJdbcAuditing
     static class TestConfig {
 
+        // AuditAutoConfiguration's default auditObjectMapper has no AuditableSnapshot subtypes
+        // registered — needed here too for insertRowWithSnapshot()'s "@type":"user" rows, same gap
+        // UserServiceRestoreTest's TestConfig already documents and works around.
+        @Autowired
+        @Qualifier("auditObjectMapper")
+        private ObjectMapper auditObjectMapper;
+
+        @PostConstruct
+        void registerAuditSnapshotSubtypes() {
+            auditObjectMapper.registerSubtypes(UserSnapshotDto.class);
+        }
+
         @Bean
         CurrentActorHook currentActorHook() {
             return Optional::empty;
@@ -143,6 +159,25 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
                 .single();
     }
 
+    private Long insertRowWithSnapshot(EntityType entityType, Long entityId, Instant createdAt, String userName) {
+        String snapshotJson = """
+                {"@type":"user","name":"%s","email":"%s@example.com","role":"USER"}
+                """.formatted(userName, userName).strip();
+        return jdbcClient.sql("""
+                        INSERT INTO audit_log (entity_type, entity_id, action_type, actor_id, created_at, snapshot_data)
+                        VALUES (:entityType, :entityId, 'CREATED', 1, :createdAt, :snapshotData::jsonb)
+                        RETURNING id
+                        """)
+                .paramSource(new MapSqlParameterSource()
+                        .addValue("entityType", entityType.name())
+                        .addValue("entityId", entityId)
+                        .addValue("createdAt", java.time.OffsetDateTime.ofInstant(createdAt, java.time.ZoneOffset.UTC),
+                                java.sql.Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("snapshotData", snapshotJson))
+                .query(Long.class)
+                .single();
+    }
+
     @Test
     void findTimeline_twoRowsSameCreatedAt_getDistinctVersions() {
         Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
@@ -171,6 +206,52 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         assertThat(firstVersion).isNotEqualTo(secondVersion);
         assertThat(firstVersion).isEqualTo(1);
         assertThat(secondVersion).isEqualTo(2);
+    }
+
+    // Covers improvement-087: findTimeline()'s prev_id/prev_snapshot_data subqueries used strict
+    // `<` with no id tiebreaker, so the second of two tied-created_at rows (version 2) got a null
+    // prev_id/prev_snapshot_data instead of pointing at its true predecessor (the first row).
+    @Test
+    void findTimeline_twoRowsSameCreatedAt_prevIdPointsAtTrueTiedPredecessor() {
+        Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
+        Long firstId = insertRow(EntityType.USER, 4L, tiedInstant);
+        Long secondId = insertRow(EntityType.USER, 4L, tiedInstant);
+
+        List<AuditLogProjection> rows = auditLogRepository.findTimeline(
+                AuditTimelineFilterDto.empty(), Sort.by("createdAt").ascending(), 0, 10);
+
+        AuditLogProjection firstRow = rows.stream().filter(r -> r.id().equals(firstId)).findFirst().orElseThrow();
+        AuditLogProjection secondRow = rows.stream().filter(r -> r.id().equals(secondId)).findFirst().orElseThrow();
+        assertThat(firstRow.prevId()).isNull();
+        assertThat(secondRow.prevId()).isEqualTo(firstId);
+    }
+
+    @Test
+    void findTimeline_twoRowsSameCreatedAt_prevSnapshotMatchesTiedPredecessor() {
+        Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
+        insertRowWithSnapshot(EntityType.USER, 5L, tiedInstant, "first");
+        Long secondId = insertRowWithSnapshot(EntityType.USER, 5L, tiedInstant, "second");
+
+        List<AuditLogProjection> rows = auditLogRepository.findTimeline(
+                AuditTimelineFilterDto.empty(), Sort.by("createdAt").ascending(), 0, 10);
+
+        AuditLogProjection secondRow = rows.stream()
+                .filter(r -> r.id().equals(secondId)).findFirst().orElseThrow();
+        assertThat(secondRow.prevSnapshot()).isNotNull();
+        assertThat(secondRow.prevSnapshot().displayName()).contains("first");
+    }
+
+    // Covers improvement-087: getLastSnapshot() ordered by created_at alone, so a tie left the
+    // "last" pick nondeterministic instead of always resolving to the highest id.
+    @Test
+    void getLastSnapshot_twoRowsSameCreatedAt_returnsHighestId() {
+        Instant tiedInstant = Instant.parse("2026-01-01T00:00:00Z");
+        insertRowWithSnapshot(EntityType.USER, 6L, tiedInstant, "first");
+        insertRowWithSnapshot(EntityType.USER, 6L, tiedInstant, "second");
+
+        AuditableSnapshot last = auditLogRepository.getLastSnapshot(EntityType.USER, 6L).orElseThrow();
+
+        assertThat(last.displayName()).contains("second");
     }
 
     // Covers improvement-075: actorIds filter matches any of the selected actors via = ANY(),
