@@ -25,6 +25,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
 import org.ost.marketplace.ui.views.components.fields.UiComboBox;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
@@ -211,6 +212,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private void updateButtons(boolean hasChanges) {
         saveButton.setEnabled(hasChanges);
         discardButton.setEnabled(hasChanges);
+        BeforeUnloadUtil.sync(hasChanges);
     }
 
     private void buildBinder(UserEditDto dto) {

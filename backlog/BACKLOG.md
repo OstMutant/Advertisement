@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
 | **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
 | **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
 | **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression |
@@ -45,21 +44,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch L 🟡 — UX quick pass (marketplace-app; one PR, one e2e + screenshot run)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-097](issues/improvement-097-modal-scrim-and-lightbox-close-placement.md) | New (UX review) | Modal surfaces (dialogs, lightbox) render without a visible scrim; lightbox close `×` is detached from the lightbox frame |
-| [improvement-098](issues/improvement-098-aria-labels-icon-only-controls.md) | New (UX review) | Icon-only controls (grid edit/delete, pagination arrows, chip/close `×`, filter apply/clear) have no accessible names — 2 aria-labels app-wide |
-| [improvement-099](issues/improvement-099-confirm-dialogs-action-verbs-danger-styling.md) | New (UX review) | Confirm dialogs say "Yes/Cancel" instead of action verbs; destructive confirms lack `LUMO_ERROR` styling |
-| [improvement-110](issues/improvement-110-no-unsaved-changes-guard-on-tab-switch-and-unload.md) | New (edge-case review) | In-progress edits silently lost on top-nav tab switch / browser unload — wire the existing `hasUnsavedChanges()` into navigation + a `beforeunload` guard |
-
-One pass because: all four are small marketplace-app UI-layer changes (theme CSS + dialog
-helper + aria sweep + nav guard) with zero service-layer impact, verified together by one full
-e2e `--ux` screenshot run. Filed 2026-07-19 from the UX review; if Batch F runs first, rebase
-097's lightbox work on 081's extraction. 110 reuses 099's discard-confirm copy — do 099 first
-within the batch.
 
 ### Batch G 🔵 — dependency bumps (one pass, full suite after)
 

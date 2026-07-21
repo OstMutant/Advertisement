@@ -40,7 +40,7 @@ async function loginBulk(page, { email, password }) {
 async function logoutBulk(page) {
   await page.locator('.header-logout-button').click();
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 5000 });
-  await page.getByRole('button', { name: /^yes$|^так$/i }).click();
+  await page.getByRole('button', { name: /^log out$|^вийти$/i }).last().click();
   await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
 }
 

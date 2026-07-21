@@ -921,3 +921,52 @@ because `TaxonSnapshotDto` has a fixed 4-field shape — the DTO-shape change ne
 `supportedLocales()`-driven loop is out of scope here, per the issue's own escape hatch.
 
 **Batch F complete** (078, 081, 084, 083, 008, 010, 014, 101, 080 — all done across three PRs).
+
+✅ Done (2026-07-21): [improvement-097](issues/improvement-097-modal-scrim-and-lightbox-close-placement.md) —
+added a `--app-modal-scrim` token applied to `vaadin-dialog-overlay::part(backdrop)` and
+`vaadin-confirm-dialog-overlay::part(backdrop)` (previously fully transparent — every dialog and
+the header behind it were left undimmed). Lightbox close button (`.card-lightbox__close`, shared
+by both `AttachmentLightbox` and `CardMediaLightbox`) moved from `position: fixed` (viewport
+corner, visually detached from the frame) to `position: absolute` within its now-`position:
+relative` container. `AttachmentLightbox` (a hand-rolled `Div`, not a Vaadin `Dialog`) gained
+Esc-to-close (`Shortcuts.addShortcutListener`) plus focus-into/restore-on-close — `CardMediaLightbox`
+already got both for free from Vaadin's own `Dialog`.
+
+✅ Done (2026-07-21): [improvement-098](issues/improvement-098-aria-labels-icon-only-controls.md) —
+`BaseActionButton.applyConfig()` (grid edit/delete buttons) now sets `aria-label` alongside
+`title` — most other icon-only controls (pagination arrows, gallery delete/add-video, notification
+close, `UserPickerField` chips) already got this for free via the existing `UiIconButton`
+mechanism; the real gaps were `BaseActionButton`, `SortIcon` (a bare `Span`, gained `role="button"`
++ `aria-label` synced to its current sort-state tooltip), and `QueryActionButton` (filter
+apply/clear). New `07-accessibility.spec.js` walks every main tab as `adminEn` and asserts no
+icon-only `vaadin-button`/`button` lacks an `aria-label`. Also added Tab-focus-trapping to
+`BaseOverlay` for the big edit overlays (kept), but an accompanying "focus first field on open"
+attempt was reverted after manual testing showed it actually focused the overlay's own
+`.overlay__breadcrumb-back` button (plain `querySelectorAll` doesn't reach into Vaadin fields'
+shadow DOM, so the breadcrumb "back" button was the only host-level `[tabindex]` match) — user
+correctly called this out as `хоме`/`Reference Data` getting focused instead of any real field.
+
+✅ Done (2026-07-21): [improvement-099](issues/improvement-099-confirm-dialogs-action-verbs-danger-styling.md) —
+turned out much smaller than filed: `ConfirmActionDialog` (advertisement/user/taxon delete,
+discard-changes) already took `confirmKey`/`cancelKey` as parameters and already applied
+`ButtonVariant.LUMO_ERROR` unconditionally — someone had already fixed that half. The only actual
+generic-text case was `LogoutDialog` (a raw Vaadin `ConfirmDialog`, separate from
+`ConfirmActionDialog`), which said "Yes"/"Так"; now reuses the existing `HEADER_LOGOUT` key
+("Log Out"/"Вийти"). Required fixing three Playwright helpers that hardcoded the old button text
+(`auth.flow.js`, `seed.flow.js`, `05-seed-filter-sort-pagination.spec.js`) — the header's own
+"Log Out" button and the dialog's confirm button now share the same text, so the locator also
+needed `.last()` to disambiguate (a bare `getByRole` matched both).
+
+✅ Done (2026-07-21): [improvement-110](issues/improvement-110-no-unsaved-changes-guard-on-tab-switch-and-unload.md) —
+partially implemented, then partially reverted after manual verification. The `beforeunload`
+half works as filed: `BeforeUnloadUtil.sync(hasChanges)`, called from all three form handlers'
+`updateButtons()`, registers/unregisters a native "leave site?" browser prompt. The tab-switch
+half (`MainView` consulting the active view before hiding it) was **removed entirely** after
+confirming live that `.base-overlay` is `position: fixed; inset: 0; z-index: 100` — it already
+covers the entire viewport, including the top-nav tab bar, whenever any edit overlay is open. A
+user literally cannot click another tab while an overlay is open (confirmed via Playwright's own
+`elementFromPoint`-based pointer-event interception, not assumption), so the "click another tab
+while editing" scenario the issue described cannot happen through the current UI and the guard
+code for it was dead on arrival — removed per YAGNI rather than kept "for later."
+
+**Batch L complete** (097, 098, 099, 110 — all done in one PR; 110 shipped as beforeunload-only).

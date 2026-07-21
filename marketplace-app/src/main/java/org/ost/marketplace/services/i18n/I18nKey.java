@@ -16,7 +16,6 @@ public enum I18nKey {
 
     // === Logout Confirm ===
     LOGOUT_CONFIRM_TEXT("logout.confirm.text"),
-    LOGOUT_CONFIRM_YES("logout.confirm.yes"),
     LOGOUT_CONFIRM_CANCEL("logout.confirm.cancel"),
 
     // === Login ===

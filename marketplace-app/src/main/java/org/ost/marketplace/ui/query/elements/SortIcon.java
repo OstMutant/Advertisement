@@ -82,6 +82,8 @@ public class SortIcon extends Span implements Initialization<SortIcon> {
     public SortIcon init() {
         addClassName("sort-icon");
         setTitle(i18nService.get(SORT_ICON_TOOLTIP));
+        getElement().setAttribute("role", "button");
+        getElement().setAttribute("aria-label", i18nService.get(SORT_ICON_TOOLTIP));
         add(icon);
         addClickListener(_ -> cycleDirection());
         return this;
@@ -101,6 +103,7 @@ public class SortIcon extends Span implements Initialization<SortIcon> {
         SortIconState state = SortIconState.fromDirection(currentDirection);
         icon.setSvg(state.getPath());
         icon.setTitle(i18nService.get(state.getTooltipKey()));
+        getElement().setAttribute("aria-label", i18nService.get(state.getTooltipKey()));
     }
 
     public void setColor(SortHighlightColor sortHighlightColor) {

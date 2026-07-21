@@ -91,7 +91,7 @@ async function ensureAdminEn(page) {
     // Already exists — log out so tests start from logged-out state.
     await page.locator('.header-logout-button').click();
     await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 5000 });
-    await page.getByRole('button', { name: /^yes$|^так$/i }).click();
+    await page.getByRole('button', { name: /^log out$|^вийти$/i }).last().click();
     await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
   } else {
     // Login failed — adminEn doesn't exist yet; close dialog and sign them up.

@@ -58,6 +58,7 @@
     --app-surface-subtle: #f8fafc;
     --app-surface-white: #ffffff;
     --app-overlay-backdrop: #000;
+    --app-modal-scrim: rgba(0, 0, 0, 0.5);
 
     /* --- Primary accent (blue) -- interactive elements, links, query blocks --- */
     --app-accent-primary: #3b82f6;

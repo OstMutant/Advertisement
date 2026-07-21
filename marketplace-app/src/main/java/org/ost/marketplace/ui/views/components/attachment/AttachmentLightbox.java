@@ -1,5 +1,8 @@
 package org.ost.marketplace.ui.views.components.attachment;
 
+import com.vaadin.flow.component.Key;
+import com.vaadin.flow.component.ShortcutRegistration;
+import com.vaadin.flow.component.Shortcuts;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.IFrame;
 import com.vaadin.flow.component.html.Image;
@@ -33,6 +36,9 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
 
     private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
 
+    private transient ShortcutRegistration escShortcut;
+    private Runnable                       closeAction;
+
     @Override
     public AttachmentLightbox configure(Parameters p) {
         addClassName("attachment-lightbox");
@@ -40,38 +46,49 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
 
         UiIconButton closeBtn = iconButtonFactory.build(
                 UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE.create()).build());
-        closeBtn.addClickListener(_ -> close(null));
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 
         String ct = attachment.contentType();
         if (AttachmentMediaContentType.isEmbedded(ct)) {
             IFrame iframe = buildIFrame(attachment);
-            addClickListener(_ -> close(iframe));
+            closeAction = () -> { iframe.setSrc("about:blank"); removeFromParent(); };
+            addClickListener(_ -> close());
             add(closeBtn, iframe);
         } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {
             Element videoEl = buildVideoElement(attachment);
             Div videoWrapper = new Div();
             videoWrapper.getElement().appendChild(videoEl);
             videoWrapper.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
-            addClickListener(_ -> {
-                videoEl.executeJs("this.pause(); this.src='';");
-                removeFromParent();
-            });
+            closeAction = () -> { videoEl.executeJs("this.pause(); this.src='';"); removeFromParent(); };
+            addClickListener(_ -> close());
             add(closeBtn, videoWrapper);
         } else {
             Image img = new Image(attachment.url(), attachment.filename());
             img.addClassName("attachment-lightbox__image");
             img.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
-            addClickListener(_ -> removeFromParent());
+            closeAction = this::removeFromParent;
+            addClickListener(_ -> close());
             add(closeBtn, img);
         }
+        closeBtn.addClickListener(_ -> close());
+
+        addAttachListener(_ -> getUI().ifPresent(ui -> {
+            escShortcut = Shortcuts.addShortcutListener(ui, this::close, Key.ESCAPE);
+            getElement().executeJs(
+                    "window.__lightboxTrigger = document.activeElement; $0.focus();", closeBtn.getElement());
+        }));
         return this;
     }
 
-    private void close(IFrame iframe) {
-        if (iframe != null) iframe.setSrc("about:blank");
-        removeFromParent();
+    private void close() {
+        if (escShortcut != null) {
+            escShortcut.remove();
+            escShortcut = null;
+        }
+        getElement().executeJs(
+                "if (window.__lightboxTrigger) { window.__lightboxTrigger.focus(); window.__lightboxTrigger = null; }");
+        closeAction.run();
     }
 
     private static IFrame buildIFrame(AttachmentItemDto attachment) {

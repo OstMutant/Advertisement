@@ -19,6 +19,7 @@ public class BaseActionButton extends Button {
             addClassName(config.getCssClassName());
         }
         getElement().setAttribute("title", config.getTooltip());
+        getElement().setAttribute("aria-label", config.getTooltip());
         addClickListener(_ -> config.getOnClick().run());
         getElement().addEventListener("click", _ -> {}).addEventData("event.stopPropagation()");
     }

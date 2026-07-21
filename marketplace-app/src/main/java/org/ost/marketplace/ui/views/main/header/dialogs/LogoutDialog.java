@@ -24,7 +24,7 @@ public class LogoutDialog extends ConfirmDialog {
     @PostConstruct
     private void initDialog() {
         setText(i18n.get(LOGOUT_CONFIRM_TEXT));
-        setConfirmButton(i18n.get(LOGOUT_CONFIRM_YES), _ -> handleLogout());
+        setConfirmButton(i18n.get(HEADER_LOGOUT), _ -> handleLogout());
         setCancelButton(i18n.get(LOGOUT_CONFIRM_CANCEL), _ -> close());
     }
 

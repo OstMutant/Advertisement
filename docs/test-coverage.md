@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-21 · 35 passed · 0 failed · 13 skipped · 48 total
+Last updated: 2026-07-21 · 49 passed · 0 failed · 0 skipped · 49 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -37,9 +37,9 @@ Last updated: 2026-07-21 · 35 passed · 0 failed · 13 skipped · 48 total
 - [x] Promotion flow › adminEn edits userEn name — activity diff, grid updated, restore reverts name, userEn relogin after edit
 - [x] Promotion flow › adminEn creates categories Electronics and Vehicles — both in list, create discard clears form
 - [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted
-- [-] Max-boundary users and categories › maxEn signs up — 100-char name accepted, admin verifies user created
-- [-] Max-boundary users and categories › maxUk signs up — 100-char name accepted, admin verifies user created
-- [-] Max-boundary users and categories › adminEn seeds 10 boundary categories — for max category selection in spec 04
+- [x] Max-boundary users and categories › maxEn signs up — 100-char name accepted, admin verifies user created
+- [x] Max-boundary users and categories › maxUk signs up — 100-char name accepted, admin verifies user created
+- [x] Max-boundary users and categories › adminEn seeds 10 boundary categories — for max category selection in spec 04
 
 ## e2e/04-marketplace-advertisement-flow.spec.js
 
@@ -55,24 +55,29 @@ Last updated: 2026-07-21 · 35 passed · 0 failed · 13 skipped · 48 total
 - [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check
 - [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
 - [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated
-- [-] Max-content advertisement boundary › maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
-- [-] Max-content advertisement boundary › maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
-- [-] Max-content advertisement boundary › maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
-- [-] Max-content advertisement boundary › maxUk edits UK max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
+- [x] Max-content advertisement boundary › maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
+- [x] Max-content advertisement boundary › maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
+- [x] Max-content advertisement boundary › maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
+- [x] Max-content advertisement boundary › maxUk edits UK max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card
 
 ## e2e/05-seed-filter-sort-pagination.spec.js
 
 **› e2e/05-seed-filter-sort-pagination.spec.js**
-- [-] Seed data and query validation › seed 60 users — parallel signup
-- [-] Seed data and query validation › adminEn seeds 60 advertisements — five categories
-- [-] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
-- [-] Seed data and query validation › users — email, role and date filters, invalid fractional ID input, column sort, pagination
-- [-] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
-- [-] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination
+- [x] Seed data and query validation › seed 60 users — parallel signup
+- [x] Seed data and query validation › adminEn seeds 60 advertisements — five categories
+- [x] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
+- [x] Seed data and query validation › users — email, role and date filters, invalid fractional ID input, column sort, pagination
+- [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
+- [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination
 
 ## e2e/06-marketplace-delete-flow.spec.js
 
 **› e2e/06-marketplace-delete-flow.spec.js**
 - [x] Delete flow › userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list
 - [x] Delete flow › adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid
+
+## e2e/07-accessibility.spec.js
+
+**› e2e/07-accessibility.spec.js**
+- [x] Accessibility — icon-only controls have accessible names › adminEn — no unlabeled icon-only buttons across all main tabs
 

@@ -1,4 +1,9 @@
 /* General settings for Vaadin dialog overlays */
+vaadin-dialog-overlay::part(backdrop),
+vaadin-confirm-dialog-overlay::part(backdrop) {
+    background: var(--app-modal-scrim);
+}
+
 vaadin-dialog-overlay::part(overlay) {
     max-width: 95vw;
     display: flex;

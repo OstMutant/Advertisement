@@ -45,6 +45,7 @@ public class QueryActionButton extends Button implements Configurable<QueryActio
     public QueryActionButton configure(Parameters p) {
         setIcon(createSvgIcon(p.getSvgPath()));
         getElement().setProperty("title", i18nService.get(p.getTooltipKey()));
+        getElement().setAttribute("aria-label", i18nService.get(p.getTooltipKey()));
         addThemeVariants(p.getVariant(), ButtonVariant.LUMO_ICON);
         return this;
     }
