@@ -151,6 +151,7 @@ public class TaxonService {
                 .toList();
     }
 
+    // hardcoded en/uk, not a supportedLocales() loop -- TaxonSnapshotDto has a fixed 4-field shape
     private TaxonSnapshotDto buildSnapshotFromData(Map<Locale, TaxonTranslationData> translations) {
         TaxonTranslationData en = translations.get(Locale.ENGLISH);
         TaxonTranslationData uk = translations.get(Locale.forLanguageTag("uk"));
@@ -161,6 +162,7 @@ public class TaxonService {
                 uk != null ? uk.description() : null);
     }
 
+    // hardcoded en/uk, not a supportedLocales() loop -- TaxonSnapshotDto has a fixed 4-field shape
     private TaxonSnapshotDto buildSnapshotFromTranslations(List<TaxonTranslation> translations) {
         String nameEn = null, descEn = null, nameUk = null, descUk = null;
         for (TaxonTranslation t : translations) {

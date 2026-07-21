@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **F** | 🟡 | 080 | UI dedup & polish — PR 1 (078/081/084) and PR 2 (083/008/010/014/101) done, 080 last |
 | **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
 | **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
 | **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
@@ -46,16 +45,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch F 🟡 — UI dedup & polish (marketplace-app; two PRs, full e2e after each)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-080](issues/improvement-080-taxonformoverlaymodehandler-locale-field-dedup.md) | New | `TaxonFormOverlayModeHandler` — collapse ~60-70 duplicated lines of EN/UK locale field wiring (plus the 2026-07-19 `TaxonService` snapshot-builder note inside) |
-
-PR 1 = structural dedup (078, 081, 084 — ✅ done). PR 2 = cosmetics folded in from the former
-Deferred row (083, 008, 010, 014) plus 101 (diff-rendering, same surface as 014) — ✅ done. 080
-goes last with its own dedicated e2e run — binder-validation risk, see its file.
 
 ### Batch L 🟡 — UX quick pass (marketplace-app; one PR, one e2e + screenshot run)
 

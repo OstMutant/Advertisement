@@ -4,8 +4,10 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.html.H4;
+import com.vaadin.flow.data.binder.Setter;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
+import com.vaadin.flow.function.ValueProvider;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -51,6 +53,12 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     public enum Mode { CREATE, EDIT }
 
+    private record LocaleField(
+            UiTextField nameField, UiTextArea descriptionField,
+            ValueProvider<TaxonEditDto, String> getName, Setter<TaxonEditDto, String> setName,
+            ValueProvider<TaxonEditDto, String> getDescription, Setter<TaxonEditDto, String> setDescription,
+            ValueProvider<TaxonSnapshotDto, String> getSnapshotName, ValueProvider<TaxonSnapshotDto, String> getSnapshotDescription) {}
+
     @Value
     @lombok.Builder
     public static class Parameters {
@@ -78,6 +86,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     private Parameters params;
     @Getter private Long savedTaxonId;
+    private List<LocaleField> localeFields;
 
     @Override
     public TaxonFormOverlayModeHandler configure(Parameters p) {
@@ -87,30 +96,31 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     @Override
     public void activate(OverlayLayout layout) {
-        nameEnField.configure(UiTextField.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_FIELD_NAME)
-                .placeholderKey(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER)
-                .maxLength(255)
-                .required(true)
-                .build());
-        descriptionEnField.configure(UiTextArea.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_FIELD_DESCRIPTION)
-                .placeholderKey(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER)
-                .maxLength(2000)
-                .required(true)
-                .build());
-        nameUkField.configure(UiTextField.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_FIELD_NAME)
-                .placeholderKey(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER)
-                .maxLength(255)
-                .required(true)
-                .build());
-        descriptionUkField.configure(UiTextArea.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_FIELD_DESCRIPTION)
-                .placeholderKey(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER)
-                .maxLength(2000)
-                .required(true)
-                .build());
+        localeFields = List.of(
+                new LocaleField(nameEnField, descriptionEnField,
+                        TaxonEditDto::getNameEn, TaxonEditDto::setNameEn,
+                        TaxonEditDto::getDescriptionEn, TaxonEditDto::setDescriptionEn,
+                        TaxonSnapshotDto::nameEn, TaxonSnapshotDto::descriptionEn),
+                new LocaleField(nameUkField, descriptionUkField,
+                        TaxonEditDto::getNameUk, TaxonEditDto::setNameUk,
+                        TaxonEditDto::getDescriptionUk, TaxonEditDto::setDescriptionUk,
+                        TaxonSnapshotDto::nameUk, TaxonSnapshotDto::descriptionUk)
+        );
+
+        for (LocaleField lf : localeFields) {
+            lf.nameField().configure(UiTextField.Parameters.builder()
+                    .labelKey(TAXON_OVERLAY_FIELD_NAME)
+                    .placeholderKey(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER)
+                    .maxLength(255)
+                    .required(true)
+                    .build());
+            lf.descriptionField().configure(UiTextArea.Parameters.builder()
+                    .labelKey(TAXON_OVERLAY_FIELD_DESCRIPTION)
+                    .placeholderKey(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER)
+                    .maxLength(2000)
+                    .required(true)
+                    .build());
+        }
 
         saveButton.configure(UiPrimaryButton.Parameters.builder()
                 .labelKey(TAXON_OVERLAY_BUTTON_SAVE).build());
@@ -128,14 +138,12 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
         TaxonEditDto dto = buildDto();
         buildBinder(dto);
 
-        nameEnField.setValueChangeMode(ValueChangeMode.EAGER);
-        descriptionEnField.setValueChangeMode(ValueChangeMode.EAGER);
-        nameUkField.setValueChangeMode(ValueChangeMode.EAGER);
-        descriptionUkField.setValueChangeMode(ValueChangeMode.EAGER);
-        nameEnField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        descriptionEnField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        nameUkField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        descriptionUkField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        for (LocaleField lf : localeFields) {
+            lf.nameField().setValueChangeMode(ValueChangeMode.EAGER);
+            lf.descriptionField().setValueChangeMode(ValueChangeMode.EAGER);
+            lf.nameField().addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+            lf.descriptionField().addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        }
 
         Div cardHeader = new Div(VaadinIcon.TAG.create(), new Span(getValue(TAXON_OVERLAY_SECTION_LABEL)));
         cardHeader.addClassName("overlay__form-card-header");
@@ -194,12 +202,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     public void discardChanges() {
         TaxonEditDto fresh = buildDto();
-        binder.reload(fresh, (src, tgt) -> {
-            tgt.setNameEn(src.getNameEn());
-            tgt.setDescriptionEn(src.getDescriptionEn());
-            tgt.setNameUk(src.getNameUk());
-            tgt.setDescriptionUk(src.getDescriptionUk());
-        });
+        binder.reload(fresh, (src, tgt) -> copyLocaleFields(src, tgt));
         updateButtons(false);
     }
 
@@ -230,25 +233,27 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
                             TaxonSnapshotDto snapshot = content.snapshotData();
                             TaxonEditDto dto = new TaxonEditDto();
                             dto.setId(params.getTaxon().getId());
-                            dto.setNameEn(snapshot.nameEn());
-                            dto.setDescriptionEn(snapshot.descriptionEn());
-                            dto.setNameUk(snapshot.nameUk());
-                            dto.setDescriptionUk(snapshot.descriptionUk());
+                            localeFields.forEach(lf -> {
+                                lf.setName().accept(dto, lf.getSnapshotName().apply(snapshot));
+                                lf.setDescription().accept(dto, lf.getSnapshotDescription().apply(snapshot));
+                            });
                             loadRestored(dto);
                         })
         );
     }
 
     public void loadRestored(@NonNull TaxonEditDto restoredDto) {
-        binder.loadRestored(restoredDto, (src, tgt) -> {
-            tgt.setNameEn(src.getNameEn());
-            tgt.setDescriptionEn(src.getDescriptionEn());
-            tgt.setNameUk(src.getNameUk());
-            tgt.setDescriptionUk(src.getDescriptionUk());
-        });
+        binder.loadRestored(restoredDto, (src, tgt) -> copyLocaleFields(src, tgt));
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(editTab);
+    }
+
+    private void copyLocaleFields(TaxonEditDto src, TaxonEditDto tgt) {
+        localeFields.forEach(lf -> {
+            lf.setName().accept(tgt, lf.getName().apply(src));
+            lf.setDescription().accept(tgt, lf.getDescription().apply(src));
+        });
     }
 
     private TaxonEditDto buildDto() {
@@ -279,22 +284,16 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
                         .dto(dto)
                         .build()
         );
-        binder.getBinder().forField(nameEnField)
-                .asRequired(getValue(TAXON_OVERLAY_VALIDATION_NAME_REQUIRED))
-                .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_NAME_LENGTH), 1, 255))
-                .bind(TaxonEditDto::getNameEn, TaxonEditDto::setNameEn);
-        binder.getBinder().forField(descriptionEnField)
-                .asRequired(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
-                .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH), 1, 2000))
-                .bind(TaxonEditDto::getDescriptionEn, TaxonEditDto::setDescriptionEn);
-        binder.getBinder().forField(nameUkField)
-                .asRequired(getValue(TAXON_OVERLAY_VALIDATION_NAME_REQUIRED))
-                .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_NAME_LENGTH), 1, 255))
-                .bind(TaxonEditDto::getNameUk, TaxonEditDto::setNameUk);
-        binder.getBinder().forField(descriptionUkField)
-                .asRequired(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
-                .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH), 1, 2000))
-                .bind(TaxonEditDto::getDescriptionUk, TaxonEditDto::setDescriptionUk);
+        for (LocaleField lf : localeFields) {
+            binder.getBinder().forField(lf.nameField())
+                    .asRequired(getValue(TAXON_OVERLAY_VALIDATION_NAME_REQUIRED))
+                    .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_NAME_LENGTH), 1, 255))
+                    .bind(lf.getName(), lf.setName());
+            binder.getBinder().forField(lf.descriptionField())
+                    .asRequired(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED))
+                    .withValidator(new StringLengthValidator(getValue(TAXON_OVERLAY_VALIDATION_DESCRIPTION_LENGTH), 1, 2000))
+                    .bind(lf.getDescription(), lf.setDescription());
+        }
         binder.readInitialValues();
     }
 

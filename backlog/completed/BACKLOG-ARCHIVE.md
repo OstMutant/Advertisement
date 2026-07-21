@@ -902,3 +902,22 @@ still needed for audit capture).
 code change. Decided to keep the full before/after filename list in media-change diff rows rather
 than collapsing it to a counts summary ("2 added, 1 removed") — explicit user direction: seeing
 which specific files were added/removed/kept matters more than a shorter row.
+
+✅ Done (2026-07-21): [improvement-080](issues/improvement-080-taxonformoverlaymodehandler-locale-field-dedup.md) —
+`TaxonFormOverlayModeHandler` collapsed its four separately-wired EN/UK locale fields
+(`nameEnField`/`descriptionEnField`/`nameUkField`/`descriptionUkField`) into a private
+`LocaleField` record (holding the two UI fields plus `ValueProvider`/`Setter` accessor pairs for
+both `TaxonEditDto` and `TaxonSnapshotDto`), built once at the top of `activate()`. All five
+duplicated usage sites now loop over `localeFields`: field `configure()`, value-change wiring,
+`buildBinder()`'s `asRequired`/`StringLengthValidator`/`bind()` chain, and the two
+`TaxonEditDto`-copy sites (`discardChanges()`/`loadRestored()`, extracted into a shared
+`copyLocaleFields()`) plus the `TaxonSnapshotDto`-to-`TaxonEditDto` copy in
+`handleRestoreFromActivity()`. Per the issue's risk note (binder validation is the delicate part
+of this file), manually re-verified after the refactor that saving is still blocked when either
+locale's name is left blank (row count unchanged, overlay stays open) — confirmed for both EN and
+UK, not just one. Also added a one-line comment to `TaxonService`'s two snapshot builders
+(`buildSnapshotFromData()`/`buildSnapshotFromTranslations()`) noting they stay hardcoded to en/uk
+because `TaxonSnapshotDto` has a fixed 4-field shape — the DTO-shape change needed for a true
+`supportedLocales()`-driven loop is out of scope here, per the issue's own escape hatch.
+
+**Batch F complete** (078, 081, 084, 083, 008, 010, 014, 101, 080 — all done across three PRs).
