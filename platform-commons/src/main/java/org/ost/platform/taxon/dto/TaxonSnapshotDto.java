@@ -8,9 +8,9 @@ import org.ost.platform.core.model.EntityType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
+import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -33,18 +33,10 @@ public record TaxonSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         TaxonSnapshotDto prev = previous instanceof TaxonSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        String prevNameEn = field(prev, TaxonSnapshotDto::nameEn);
-        String prevDescEn = field(prev, TaxonSnapshotDto::descriptionEn);
-        String prevNameUk = field(prev, TaxonSnapshotDto::nameUk);
-        String prevDescUk = field(prev, TaxonSnapshotDto::descriptionUk);
-        if (!Objects.equals(prevNameEn, nameEn()))
-            changes.add(new FieldChange(Fields.nameEn, prevNameEn, nameEn()));
-        if (!Objects.equals(prevDescEn, descriptionEn()))
-            changes.add(new FieldChange(Fields.descriptionEn, prevDescEn, descriptionEn()));
-        if (!Objects.equals(prevNameUk, nameUk()))
-            changes.add(new FieldChange(Fields.nameUk, prevNameUk, nameUk()));
-        if (!Objects.equals(prevDescUk, descriptionUk()))
-            changes.add(new FieldChange(Fields.descriptionUk, prevDescUk, descriptionUk()));
+        diffField(changes, Fields.nameEn,        field(prev, TaxonSnapshotDto::nameEn),        nameEn());
+        diffField(changes, Fields.descriptionEn, field(prev, TaxonSnapshotDto::descriptionEn), descriptionEn());
+        diffField(changes, Fields.nameUk,        field(prev, TaxonSnapshotDto::nameUk),        nameUk());
+        diffField(changes, Fields.descriptionUk, field(prev, TaxonSnapshotDto::descriptionUk), descriptionUk());
         return changes;
     }
 

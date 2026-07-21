@@ -12,9 +12,9 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.utils.LightboxUtil;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
 import java.util.UUID;
@@ -46,10 +46,7 @@ public class CardLightboxViewer extends HorizontalLayout {
 
         iframe.addClassName("card-lightbox__iframe");
         iframe.getElement().setAttribute("id", iframeId);
-        iframe.getElement().setAttribute("allow",
-                "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
-        iframe.getElement().setAttribute("allowfullscreen", "true");
-        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-presentation"); // no allow-same-origin -- sandbox escape
+        LightboxUtil.applyEmbedIframeAttributes(iframe);
         iframe.setVisible(false);
 
         videoEl.setAttribute("id", videoElId);
@@ -97,7 +94,7 @@ public class CardLightboxViewer extends HorizontalLayout {
         if (AttachmentMediaContentType.isEmbedded(ct)) {
             videoEl.setAttribute("src", "");
             setVideoSrcViaPage("", true);
-            String embedUrl = embedSrc(a);
+            String embedUrl = LightboxUtil.resolveEmbedUrl(a);
             iframe.getElement().setAttribute("src", embedUrl);
             setIframeSrcViaPage(embedUrl);
             mainImg.setVisible(false);
@@ -135,9 +132,4 @@ public class CardLightboxViewer extends HorizontalLayout {
                 videoElId, src, pause));
     }
 
-    private static String embedSrc(AttachmentItemDto a) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(a.contentType()))
-            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(a.url()));
-        return a.url();
-    }
 }

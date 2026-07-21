@@ -8,9 +8,9 @@ import org.ost.platform.core.model.EntityType;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
+import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -32,12 +32,9 @@ public record UserSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         UserSnapshotDto prev = previous instanceof UserSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        String prevName  = field(prev, UserSnapshotDto::name);
-        String prevEmail = field(prev, UserSnapshotDto::email);
-        String prevRole  = field(prev, UserSnapshotDto::role);
-        if (!Objects.equals(prevName,  name()))  changes.add(new FieldChange(Fields.name,  prevName,  name()));
-        if (!Objects.equals(prevEmail, email())) changes.add(new FieldChange(Fields.email, prevEmail, email()));
-        if (!Objects.equals(prevRole,  role()))  changes.add(new FieldChange(Fields.role,  prevRole,  role()));
+        diffField(changes, Fields.name,  field(prev, UserSnapshotDto::name),  name());
+        diffField(changes, Fields.email, field(prev, UserSnapshotDto::email), email());
+        diffField(changes, Fields.role,  field(prev, UserSnapshotDto::role),  role());
         return changes;
     }
 

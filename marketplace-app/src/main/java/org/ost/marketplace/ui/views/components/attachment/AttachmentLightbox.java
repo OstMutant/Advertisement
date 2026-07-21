@@ -11,9 +11,9 @@ import lombok.Value;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
+import org.ost.marketplace.ui.views.utils.LightboxUtil;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
-import org.ost.platform.attachment.util.YoutubeUtil;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -75,12 +75,9 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
     }
 
     private static IFrame buildIFrame(AttachmentItemDto attachment) {
-        IFrame iframe = new IFrame(resolveEmbedUrl(attachment));
+        IFrame iframe = new IFrame(LightboxUtil.resolveEmbedUrl(attachment));
         iframe.addClassName("attachment-lightbox__iframe");
-        iframe.getElement().setAttribute("allow",
-                "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
-        iframe.getElement().setAttribute("allowfullscreen", "true");
-        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-presentation"); // no allow-same-origin -- sandbox escape
+        LightboxUtil.applyEmbedIframeAttributes(iframe);
         iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return iframe;
     }
@@ -91,11 +88,5 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
         videoEl.setAttribute("src", attachment.url());
         videoEl.getClassList().add("attachment-lightbox__video");
         return videoEl;
-    }
-
-    private static String resolveEmbedUrl(AttachmentItemDto attachment) {
-        if (AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.contentType()))
-            return YoutubeUtil.embedUrl(YoutubeUtil.extractId(attachment.url()));
-        return attachment.url();
     }
 }

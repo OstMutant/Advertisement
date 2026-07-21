@@ -33,7 +33,7 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **F** | 🟡 | 078, 081, 084, 083, 008, 010, 014, 101, 080 | UI dedup & polish — two PRs, full e2e after each, 080 last |
+| **F** | 🟡 | 083, 008, 010, 014, 101, 080 | UI dedup & polish — PR 1 (078/081/084) done, PR 2 next, full e2e after each, 080 last |
 | **L** | 🟡 | 097, 098, 099, 110 | UX quick pass — modal scrim, aria-labels, confirm-verb buttons, unsaved-changes nav guard; one e2e `--ux` run |
 | **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
 | **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
@@ -51,9 +51,6 @@ Details, links, and per-batch rationale below.
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-078](issues/improvement-078-queryblock-filterrow-helper.md) | New | `QueryBlock` — extract `filterRow()` helper to collapse ~13 duplicated filter-row blocks across `AdvertisementQueryBlock`/`UserQueryBlock`/`TimelineQueryBlock` |
-| [improvement-081](issues/improvement-081-lightbox-embedurl-and-iframe-attrs-duplication.md) | New | Extract duplicated embed-URL resolution + iframe security attributes from `AttachmentLightbox`/`CardLightboxViewer` |
-| [improvement-084](issues/improvement-084-snapshot-dto-diff-field-boilerplate.md) | New | `AuditableSnapshot` DTOs — extract two `diffField()` overloads to collapse 12 of 13 duplicated field-diff blocks across the four snapshot DTOs' `diff()` |
 | [improvement-083](issues/improvement-083-advertisementcardview-thumbnail-click-no-op-when-attachment-port-unavailable.md) | New | `AdvertisementCardView` thumbnail — decide UX when `AttachmentPort` unavailable mid-session |
 | [improvement-008](issues/improvement-008-deleted-category-strikethrough.md) | Deferred | Strikethrough for soft-deleted categories in the advertisement view overlay |
 | [improvement-010](issues/improvement-010-advertisements-view-refresh-error-notification.md) | Deferred | `AdvertisementsView.refresh()` + `TimelineView.refresh()` — show the error notification the catch blocks currently omit |
@@ -61,9 +58,9 @@ Details, links, and per-batch rationale below.
 | [improvement-101](issues/improvement-101-audit-diff-unresolved-category-ids.md) | New (UX review) | Audit diffs render unresolved category ids as bare numbers — localized `#id (removed)` fallback + live-verify Activity-tab resolution for existing categories |
 | [improvement-080](issues/improvement-080-taxonformoverlaymodehandler-locale-field-dedup.md) | New | `TaxonFormOverlayModeHandler` — collapse ~60-70 duplicated lines of EN/UK locale field wiring (plus the 2026-07-19 `TaxonService` snapshot-builder note inside) |
 
-PR 1 = structural dedup (078, 081, 084); PR 2 = cosmetics folded in from the former Deferred row
-(083, 008, 010, 014) plus 101 (diff-rendering, same surface as 014). 080 goes last with its own
-dedicated e2e run — binder-validation risk, see its file.
+PR 1 = structural dedup (078, 081, 084 — ✅ done). PR 2 = cosmetics folded in from the former
+Deferred row (083, 008, 010, 014) plus 101 (diff-rendering, same surface as 014). 080 goes last
+with its own dedicated e2e run — binder-validation risk, see its file.
 
 ### Batch L 🟡 — UX quick pass (marketplace-app; one PR, one e2e + screenshot run)
 

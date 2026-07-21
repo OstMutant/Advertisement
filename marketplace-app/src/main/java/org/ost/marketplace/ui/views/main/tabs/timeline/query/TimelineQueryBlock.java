@@ -61,17 +61,15 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
         QueryMultiSelectComboField<EntityType> entityTypeField = entityTypeComboFactory.build(
                 QueryMultiSelectComboField.Parameters.<EntityType>builder()
                         .placeholderKey(TIMELINE_FILTER_ENTITY_TYPE).items(EntityType.values()).build());
-        QueryInlineRow entityTypeRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(TIMELINE_FILTER_ENTITY_TYPE).filterField(entityTypeField).build());
+        filterRow(inlineRowFactory,
+                TIMELINE_FILTER_ENTITY_TYPE, entityTypeField, TimelineFilterMeta.ENTITY_TYPES);
 
         // Action type row
         QueryMultiSelectComboField<ActionType> actionTypeField = actionTypeComboFactory.build(
                 QueryMultiSelectComboField.Parameters.<ActionType>builder()
                         .placeholderKey(TIMELINE_FILTER_ACTION_TYPE).items(ActionType.values()).build());
-        QueryInlineRow actionTypeRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(TIMELINE_FILTER_ACTION_TYPE).filterField(actionTypeField).build());
+        filterRow(inlineRowFactory,
+                TIMELINE_FILTER_ACTION_TYPE, actionTypeField, TimelineFilterMeta.ACTION_TYPES);
 
         // Date row
         QueryDateTimeField fromDateField = dateTimeFieldFactory.build(
@@ -82,13 +80,9 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(TIMELINE_FILTER_DATE_END)
                         .timePlaceholderKey(TIMELINE_FILTER_TIME_END).isEnd(true).build());
-        SortIcon dateSort = sortIconFactory.get();
-        QueryInlineRow dateRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(TIMELINE_SORT_CREATED_AT).sortIcon(dateSort)
-                        .filterField(fromDateField).filterField(toDateField).build());
-
-        add(entityTypeRow, actionTypeRow, dateRow);
+        filterRow(inlineRowFactory, sortIconFactory,
+                TIMELINE_SORT_CREATED_AT, fromDateField, toDateField,
+                TimelineSortMeta.CREATED_AT, TimelineFilterMeta.FROM_DATE, TimelineFilterMeta.TO_DATE);
 
         // Actor row (admin/mod only)
         if (access.canView()) {
@@ -101,12 +95,5 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
         }
 
         add(queryActionBlock);
-
-        sortProcessor.register(TimelineSortMeta.CREATED_AT, dateSort, queryActionBlock);
-
-        filterProcessor.register(TimelineFilterMeta.ENTITY_TYPES, entityTypeField, queryActionBlock);
-        filterProcessor.register(TimelineFilterMeta.ACTION_TYPES, actionTypeField, queryActionBlock);
-        filterProcessor.register(TimelineFilterMeta.FROM_DATE,    fromDateField,   queryActionBlock);
-        filterProcessor.register(TimelineFilterMeta.TO_DATE,      toDateField,     queryActionBlock);
     }
 }

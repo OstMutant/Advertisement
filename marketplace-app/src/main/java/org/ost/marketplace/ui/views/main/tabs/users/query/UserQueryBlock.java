@@ -55,36 +55,28 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
         QueryLongField idMaxField = longFieldFactory.build(
                 QueryLongField.Parameters.builder()
                         .placeholderKey(USER_FILTER_ID_MAX).invalidNumberMessageKey(USER_FILTER_ID_INVALID_NUMBER).build());
-        SortIcon idSort = sortIconFactory.get();
-        QueryInlineRow idRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_ID).sortIcon(idSort)
-                        .filterField(idMinField).filterField(idMaxField).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_ID, idMinField, idMaxField,
+                UserSortMeta.ID, UserFilterMeta.ID_MIN, UserFilterMeta.ID_MAX);
 
         // Name row
         QueryTextField nameField = textFieldFactory.build(
                 QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_NAME_PLACEHOLDER).build());
-        SortIcon nameSort = sortIconFactory.get();
-        QueryInlineRow nameRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_NAME, nameField, UserSortMeta.NAME, UserFilterMeta.NAME);
 
         // Email row
         QueryTextField emailField = textFieldFactory.build(
                 QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_EMAIL_PLACEHOLDER).build());
-        SortIcon emailSort = sortIconFactory.get();
-        QueryInlineRow emailRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_EMAIL, emailField, UserSortMeta.EMAIL, UserFilterMeta.EMAIL);
 
         // Role row
         QueryMultiSelectComboField<Role> roleField = roleComboFactory.build(
                 QueryMultiSelectComboField.Parameters.<Role>builder()
                         .placeholderKey(USER_FILTER_ROLE_ANY).items(Role.values()).build());
-        SortIcon roleSort = sortIconFactory.get();
-        QueryInlineRow roleRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_ROLE, roleField, UserSortMeta.ROLE, UserFilterMeta.ROLES);
 
         // Created date row
         QueryDateTimeField createdStart = dateTimeFieldFactory.build(
@@ -95,11 +87,9 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_CREATED_END)
                         .timePlaceholderKey(USER_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = sortIconFactory.get();
-        QueryInlineRow createdRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_CREATED).sortIcon(createdSort)
-                        .filterField(createdStart).filterField(createdEnd).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_CREATED, createdStart, createdEnd,
+                UserSortMeta.CREATED_AT, UserFilterMeta.CREATED_AT_START, UserFilterMeta.CREATED_AT_END);
 
         // Updated date row
         QueryDateTimeField updatedStart = dateTimeFieldFactory.build(
@@ -110,30 +100,11 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(USER_FILTER_DATE_UPDATED_END)
                         .timePlaceholderKey(USER_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = sortIconFactory.get();
-        QueryInlineRow updatedRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_UPDATED).sortIcon(updatedSort)
-                        .filterField(updatedStart).filterField(updatedEnd).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                USER_SORT_UPDATED, updatedStart, updatedEnd,
+                UserSortMeta.UPDATED_AT, UserFilterMeta.UPDATED_AT_START, UserFilterMeta.UPDATED_AT_END);
 
-        add(idRow, nameRow, emailRow, roleRow, createdRow, updatedRow, queryActionBlock);
-
-        sortProcessor.register(UserSortMeta.ID,         idSort,      queryActionBlock);
-        sortProcessor.register(UserSortMeta.NAME,       nameSort,    queryActionBlock);
-        sortProcessor.register(UserSortMeta.EMAIL,      emailSort,   queryActionBlock);
-        sortProcessor.register(UserSortMeta.ROLE,       roleSort,    queryActionBlock);
-        sortProcessor.register(UserSortMeta.CREATED_AT, createdSort, queryActionBlock);
-        sortProcessor.register(UserSortMeta.UPDATED_AT, updatedSort, queryActionBlock);
-
-        filterProcessor.register(UserFilterMeta.ID_MIN,           idMinField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ID_MAX,           idMaxField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.NAME,             nameField,    queryActionBlock);
-        filterProcessor.register(UserFilterMeta.EMAIL,            emailField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ROLES,            roleField,    queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_START, createdStart, queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_END,   createdEnd,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_START, updatedStart, queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_END,   updatedEnd,   queryActionBlock);
+        add(queryActionBlock);
     }
 
 }

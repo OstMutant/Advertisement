@@ -58,10 +58,9 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         QueryTextField titleField = textFieldFactory.build(
                 QueryTextField.Parameters.builder()
                         .placeholderKey(ADVERTISEMENT_FILTER_TITLE_PLACEHOLDER).build());
-        SortIcon titleSort = sortIconFactory.get();
-        QueryInlineRow titleRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_SORT_TITLE).sortIcon(titleSort).filterField(titleField).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                ADVERTISEMENT_SORT_TITLE, titleField,
+                AdvertisementSortMeta.TITLE, AdvertisementFilterMeta.TITLE);
 
         // Created date row
         QueryDateTimeField createdStart = dateTimeFieldFactory.build(
@@ -72,11 +71,10 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_CREATED_END)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = sortIconFactory.get();
-        QueryInlineRow createdRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_SORT_CREATED_AT).sortIcon(createdSort)
-                        .filterField(createdStart).filterField(createdEnd).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                ADVERTISEMENT_SORT_CREATED_AT, createdStart, createdEnd,
+                AdvertisementSortMeta.CREATED_AT,
+                AdvertisementFilterMeta.CREATED_AT_START, AdvertisementFilterMeta.CREATED_AT_END);
 
         // Updated date row
         QueryDateTimeField updatedStart = dateTimeFieldFactory.build(
@@ -87,11 +85,10 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
                 QueryDateTimeField.Parameters.builder()
                         .datePlaceholderKey(ADVERTISEMENT_FILTER_DATE_UPDATED_END)
                         .timePlaceholderKey(ADVERTISEMENT_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = sortIconFactory.get();
-        QueryInlineRow updatedRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_SORT_UPDATED_AT).sortIcon(updatedSort)
-                        .filterField(updatedStart).filterField(updatedEnd).build());
+        filterRow(inlineRowFactory, sortIconFactory,
+                ADVERTISEMENT_SORT_UPDATED_AT, updatedStart, updatedEnd,
+                AdvertisementSortMeta.UPDATED_AT,
+                AdvertisementFilterMeta.UPDATED_AT_START, AdvertisementFilterMeta.UPDATED_AT_END);
 
         // Categories row
         MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
@@ -99,22 +96,10 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         categoriesField.setItemLabelGenerator(TaxonDto::getName);
         taxonPortFactory.ifAvailable(port ->
                 categoriesField.setItems(port.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale())));
-        QueryInlineRow categoriesRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_FILTER_CATEGORIES).filterField(categoriesField).build());
+        filterRow(inlineRowFactory,
+                ADVERTISEMENT_FILTER_CATEGORIES, categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
 
-        add(titleRow, createdRow, updatedRow, categoriesRow, queryActionBlock);
-
-        sortProcessor.register(AdvertisementSortMeta.TITLE,      titleSort,   queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.CREATED_AT, createdSort, queryActionBlock);
-        sortProcessor.register(AdvertisementSortMeta.UPDATED_AT, updatedSort, queryActionBlock);
-
-        filterProcessor.register(AdvertisementFilterMeta.TITLE,            titleField,    queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_START, createdStart,  queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CREATED_AT_END,   createdEnd,    queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_START, updatedStart,  queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.UPDATED_AT_END,   updatedEnd,    queryActionBlock);
-        filterProcessor.register(AdvertisementFilterMeta.CATEGORY_IDS,     categoriesField, queryActionBlock);
+        add(queryActionBlock);
     }
 
 }

@@ -835,3 +835,30 @@ Actor-name resolution for historical audit rows now annotates deleted actors via
 delegation per the `*HookImpl` rule, with the actual name+deleted-flag combining logic living in
 the new service instead. New `I18nKey.AUDIT_ACTOR_DELETED_NAME` (`"{0} (deleted)"` / uk
 `"{0} (видалено)"`).
+
+✅ Done (2026-07-21): [improvement-078](issues/improvement-078-queryblock-filterrow-helper.md) —
+new `QueryBlock.filterRow()` helper family (3 overloads: single-field no-sort, single-field+sort,
+two-field+sort) collapses the repeated `add()` + sort-register + filter-register boilerplate;
+`AdvertisementQueryBlock`/`UserQueryBlock`/`TimelineQueryBlock` all migrated to use it.
+
+✅ Done (2026-07-21): [improvement-081](issues/improvement-081-lightbox-embedurl-and-iframe-attrs-duplication.md) —
+new `org.ost.marketplace.ui.views.utils.LightboxUtil` (`resolveEmbedUrl()` +
+`applyEmbedIframeAttributes()`) extracted from the duplicated logic in `AttachmentLightbox` and
+`CardLightboxViewer`; both now delegate to it instead of each keeping its own copy.
+
+✅ Done (2026-07-21): [improvement-084](issues/improvement-084-snapshot-dto-diff-field-boilerplate.md) —
+`AuditableSnapshot` gained two `diffField()` static helper overloads (`String` via
+`Objects.equals`, `int`/boxed `Integer` for "no previous value" detection); `TaxonSnapshotDto`,
+`UserSnapshotDto`, `SettingsSnapshotDto`, and `AdvertisementSnapshotDto` all migrated their
+`diff()` methods to use it, collapsing 12 of the 13 duplicated field-diff blocks (the 13th,
+`AdvertisementSnapshotDto`'s `categoryIds` list-diff, stays bespoke).
+
+PR 1 of Batch F verified: `./mvnw` compile clean across `platform-commons` + `marketplace-app`,
+all `*SnapshotDtoTest` classes green (22 tests), and a full `bash scripts/deploy.sh --reset` +
+`bash scripts/playwright.sh e2e --ux` run — 35/35 non-skipped e2e tests passed (13 skipped, no
+`--full`). The `--reset` was also needed to clear an unrelated pre-existing drift: the dev
+Postgres volume predated the improvement-089 in-place changeset edit (`user_information.deleted_at`),
+so `UserRepository.findByEmail()` was failing with `column u.deleted_at does not exist` on this
+container before the reset — confirms editing an already-applied changeset in place (per
+improvement-089's explicit non-prod exception) requires a volume reset on any environment that
+ran the old version of that changeset.
