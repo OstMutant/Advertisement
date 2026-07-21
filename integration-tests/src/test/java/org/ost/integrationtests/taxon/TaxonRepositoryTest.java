@@ -18,14 +18,15 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Covers improvement-045 item 4/5: {@link TaxonRepository#findByIds} was found missing a
- * {@code deleted_at IS NULL} filter, unlike every other query in the class ({@code findAllByType},
- * {@code countByType}). See {@code features/issues/improvement-045-critical-test-coverage-gaps.md}.
+ * {@link TaxonRepository#findByIds} returns soft-deleted rows too (reversed 2026-07-21,
+ * improvement-008/101 — see {@code taxon-spring-boot-starter/DECISIONS.md} ADR-005): its only
+ * caller, {@code DefaultTaxonPort.indexById()}, needs deleted taxons visible so the advertisement
+ * view overlay can render them struck-through and audit diffs can resolve their real name instead
+ * of a bare id.
  *
- * <p>{@code findByTypeAndCode} (formerly covered by the same fix) was removed entirely during
+ * <p>{@code findByTypeAndCode} (formerly covered by the same class) was removed entirely during
  * improvement-058, along with {@code TaxonPort.findByCode}/{@code TaxonService.findByCode} —
- * confirmed zero callers anywhere in the codebase, including its own known-unreachable state at
- * the time of the original improvement-045 fix.
+ * confirmed zero callers anywhere in the codebase.
  */
 @SpringBootTest(classes = {
         TaxonAutoConfiguration.class,
@@ -49,14 +50,14 @@ class TaxonRepositoryTest extends AbstractPostgresIntegrationTest {
     }
 
     @Test
-    void findByIds_excludesSoftDeletedRows() {
+    void findByIds_includesSoftDeletedRows() {
         Taxon active = save("active-category");
         Taxon deleted = save("deleted-category");
         taxonRepository.softDelete(deleted.getId(), null, deleted.getVersion());
 
         var result = taxonRepository.findByIds(Set.of(active.getId(), deleted.getId()));
 
-        assertThat(result).extracting(Taxon::getId).containsExactly(active.getId());
+        assertThat(result).extracting(Taxon::getId).containsExactlyInAnyOrder(active.getId(), deleted.getId());
     }
 
     @Test

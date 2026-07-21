@@ -46,7 +46,7 @@ public class CardLightboxViewer extends HorizontalLayout {
 
         iframe.addClassName("card-lightbox__iframe");
         iframe.getElement().setAttribute("id", iframeId);
-        LightboxUtil.applyEmbedIframeAttributes(iframe);
+        LightboxUtil.applyEmbedIframeAttributes(iframe, false);
         iframe.setVisible(false);
 
         videoEl.setAttribute("id", videoElId);
@@ -95,8 +95,10 @@ public class CardLightboxViewer extends HorizontalLayout {
             videoEl.setAttribute("src", "");
             setVideoSrcViaPage("", true);
             String embedUrl = LightboxUtil.resolveEmbedUrl(a);
+            String sandbox  = LightboxUtil.embedSandbox(LightboxUtil.isYoutube(a));
+            iframe.getElement().setAttribute("sandbox", sandbox);
             iframe.getElement().setAttribute("src", embedUrl);
-            setIframeSrcViaPage(embedUrl);
+            setIframeSrcViaPage(sandbox, embedUrl);
             mainImg.setVisible(false);
             mainVideo.setVisible(false);
             iframe.setVisible(true);
@@ -124,6 +126,13 @@ public class CardLightboxViewer extends HorizontalLayout {
     private void setIframeSrcViaPage(String src) {
         getUI().ifPresent(ui -> ui.getPage().executeJs(
                 "var f = document.getElementById($0); if (f) f.src = $1;", iframeId, src));
+    }
+
+    // sandbox must be set before src -- it only applies on the iframe's next navigation
+    private void setIframeSrcViaPage(String sandbox, String src) {
+        getUI().ifPresent(ui -> ui.getPage().executeJs(
+                "var f = document.getElementById($0); if (f) { f.setAttribute('sandbox', $1); f.src = $2; }",
+                iframeId, sandbox, src));
     }
 
     private void setVideoSrcViaPage(String src, boolean pause) {

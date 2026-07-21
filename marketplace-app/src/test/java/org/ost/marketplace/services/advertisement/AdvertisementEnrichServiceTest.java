@@ -128,7 +128,40 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        assertThat(result.get(0).changes()).isSameAs(item.changes());
+        List<ChangeEntry> changes = result.get(0).changes();
+        assertThat(changes).hasSize(2);
+        assertThat(changes.get(0)).isInstanceOf(ChangeEntry.MediaChange.class);
+        assertThat(((ChangeEntry.FieldChange) changes.get(1)).to()).isEqualTo("1");
+    }
+
+    @Test
+    void mergeMediaChanges_noAttachmentSnapshotEver_addsNoMediaEntry() {
+        AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
+                1L, new EntityRef(EntityType.ADVERTISEMENT, 1L), ActionType.CREATED, null,
+                List.of(), 10L, snapshot(List.of(), null), null);
+
+        List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
+
+        List<ChangeEntry> changes = result.get(0).changes();
+        assertThat(changes).hasSize(1);
+        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.get(0);
+        assertThat(mediaChange.before()).isNull();
+        assertThat(mediaChange.after()).isEqualTo("—");
+    }
+
+    @Test
+    void enrichActivityItems_noAttachmentSnapshotEver_addsNoMediaEntry() {
+        AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
+                1L, 1, ActionType.CREATED, 10L, null, List.of(),
+                null, snapshot(List.of(), null), null);
+
+        List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
+
+        List<ChangeEntry> changes = result.get(0).changes();
+        assertThat(changes).hasSize(1);
+        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.get(0);
+        assertThat(mediaChange.before()).isNull();
+        assertThat(mediaChange.after()).isEqualTo("—");
     }
 
     // ── enrichActivityItems() (Activity tab) ────────────────────────────────────────────────

@@ -47,7 +47,7 @@ public class DefaultTaxonPort implements TaxonPort {
         if (assignments.isEmpty()) {
             return List.of();
         }
-        return resolveDtos(assignments.stream().map(TaxonAssignment::getTaxonId).toList(), locale, true);
+        return resolveDtos(assignments.stream().map(TaxonAssignment::getTaxonId).toList(), locale, false);
     }
 
     @Override

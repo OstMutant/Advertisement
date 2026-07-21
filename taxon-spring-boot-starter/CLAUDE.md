@@ -57,3 +57,9 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
   `TaxonService.update()` must always forward the caller-supplied `version` when rebuilding the
   entity via `Builder` — never re-derive it from the `existing` row fetched in the same method,
   or the check silently stops detecting conflicts. See `marketplace-app/DECISIONS.md` ADR-029.
+- `TaxonRepository.findByIds()` returns soft-deleted rows too (no `deleted_at` filter) — its only
+  caller, `DefaultTaxonPort.indexById()`, needs deleted taxons visible so `getForEntity()` can
+  surface them (struck-through via `TaxonDto.deleted` in the advertisement view overlay) and the
+  port-level `findByIds()` can resolve their real name for audit-diff rendering instead of a bare
+  id. Any *new* caller of `findByIds()`/`indexById()` must pass its own `activeOnly` filtering
+  intent explicitly — see `DECISIONS.md` ADR-005.

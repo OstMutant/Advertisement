@@ -89,6 +89,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                 cats.forEach(cat -> {
                     Span chip = new Span(cat.getName());
                     chip.addClassName("advertisement-category-chip");
+                    if (cat.isDeleted()) chip.addClassName("advertisement-category-chip--deleted");
                     chip.getElement().setAttribute("role", "listitem");
                     categoriesRow.add(chip);
                 });

@@ -862,3 +862,43 @@ so `UserRepository.findByEmail()` was failing with `column u.deleted_at does not
 container before the reset — confirms editing an already-applied changeset in place (per
 improvement-089's explicit non-prod exception) requires a volume reset on any environment that
 ran the old version of that changeset.
+
+✅ Done (2026-07-21): [improvement-083](issues/improvement-083-advertisementcardview-thumbnail-click-no-op-when-attachment-port-unavailable.md) —
+`AdvertisementCardView.createThumbnail()`'s click handler now uses
+`attachmentPortFactory.findIfAvailable().ifPresentOrElse(...)` instead of `.ifAvailable(...)`,
+showing a new `ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE` notification when the starter
+becomes unavailable mid-session instead of silently doing nothing.
+
+✅ Done (2026-07-21): [improvement-008](issues/improvement-008-deleted-category-strikethrough.md) +
+[improvement-101](issues/improvement-101-audit-diff-unresolved-category-ids.md) — both traced to
+the same root cause: `TaxonRepository.findByIds()` had a `deleted_at IS NULL` filter (added for
+improvement-045) that made a soft-deleted category invisible to its only caller,
+`DefaultTaxonPort.indexById()`. This meant a deleted category didn't render struck-through in the
+advertisement view overlay as improvement-008 originally assumed — it vanished from the category
+list entirely — and its name could never be resolved for audit-diff rendering (improvement-101),
+falling back to a bare numeric id. Fixed at the root: removed the SQL filter (see
+`taxon-spring-boot-starter/DECISIONS.md` ADR-005), flipped `DefaultTaxonPort.getForEntity()`'s
+`activeOnly` flag to `false`, added the `.advertisement-category-chip--deleted` (strikethrough)
+CSS class + `cat.isDeleted()` check in `AdvertisementViewOverlayModeHandler`, and wrapped deleted
+category names in a plain `<s>` tag in `AdvertisementEnrichService.resolveNames()` (rendered
+as-is since `AuditChangeFormatter` already sets diff values via `innerHTML`) — no new i18n text,
+just the same strikethrough treatment as the view overlay, per explicit user direction against a
+textual "(deleted)" suffix. `TaxonRepositoryTest.findByIds_excludesSoftDeletedRows` rewritten to
+`findByIds_includesSoftDeletedRows`. Playwright: extended the existing Electronics delete/restore
+test in `03-marketplace-promotion-flow.spec.js` (rather than adding a new test) with a step that
+assigns Electronics to a throwaway ad before deletion, then verifies the view-overlay chip and the
+activity-diff row both render it struck through, before the existing restore step runs.
+
+✅ Done (2026-07-21): [improvement-010](issues/improvement-010-advertisements-view-refresh-error-notification.md) —
+`AdvertisementsView.refresh()`'s catch block now calls
+`notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR)`, matching `UserView`'s
+refresh guard. Also removed `AdvertisementService.save()`'s unused `actingUserId` parameter
+(authorship is handled entirely by `@CreatedBy`/`AuditorAware` — the parameter was never read in
+the method body) — cascaded through `AdvertisementPort.save()`, `AdvertisementPortImpl.save()`,
+and the call site in `AdvertisementSaveService.save()` (which keeps its own `actorId` parameter,
+still needed for audit capture).
+
+✅ Done (2026-07-21): [improvement-014](issues/improvement-014-media-diff-counts-summary.md) — no
+code change. Decided to keep the full before/after filename list in media-change diff rows rather
+than collapsing it to a counts summary ("2 added, 1 removed") — explicit user direction: seeing
+which specific files were added/removed/kept matters more than a shorter row.

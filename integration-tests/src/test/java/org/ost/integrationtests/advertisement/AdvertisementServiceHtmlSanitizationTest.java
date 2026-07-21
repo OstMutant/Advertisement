@@ -59,7 +59,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(
                 null, "Title", "<script>alert(1)</script><b>Bold</b>", null, null);
 
-        service.save(dto, 1L);
+        service.save(dto);
 
         assertThat(captor.getValue().getDescription())
                 .doesNotContain("<script>")
@@ -72,7 +72,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         String tooLong = "a".repeat(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH + 1);
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", tooLong, null, null);
 
-        assertThatThrownBy(() -> service.save(dto, 1L))
+        assertThatThrownBy(() -> service.save(dto))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("exceeds maximum length");
     }
@@ -86,7 +86,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         String exactlyMax = "a".repeat(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", exactlyMax, null, null);
 
-        service.save(dto, 1L);
+        service.save(dto);
 
         assertThat(captor.getValue().getDescription()).hasSize(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
     }
@@ -103,7 +103,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         String html = "<b>" + visibleText + "</b>" + "<i></i>".repeat(50);
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", html, null, null);
 
-        service.save(dto, 1L);
+        service.save(dto);
 
         assertThat(captor.getValue().getDescription()).contains(visibleText);
     }

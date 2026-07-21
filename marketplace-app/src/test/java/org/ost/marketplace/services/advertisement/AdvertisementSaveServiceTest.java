@@ -84,7 +84,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_newAdvertisement_capturesCreationNotUpdate() {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", Set.of(1L, 2L), null);
-        when(advertisementPort.save(dto, ACTOR_ID)).thenReturn(100L);
+        when(advertisementPort.save(dto)).thenReturn(100L);
         when(advertisementPort.findById(100L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(100L).title("Title").description("Desc").build()));
         stubAvailable(auditPortFactory, auditPort);
@@ -109,7 +109,7 @@ class AdvertisementSaveServiceTest {
         AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
 
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(beforeInfo), Optional.of(afterInfo));
-        when(advertisementPort.save(dto, ACTOR_ID)).thenReturn(adId);
+        when(advertisementPort.save(dto)).thenReturn(adId);
         stubAvailable(auditPortFactory, auditPort);
         stubAvailable(taxonPortFactory, mock(TaxonPort.class));
 
@@ -130,7 +130,7 @@ class AdvertisementSaveServiceTest {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
-        when(advertisementPort.save(dto, ACTOR_ID)).thenReturn(adId);
+        when(advertisementPort.save(dto)).thenReturn(adId);
         stubAvailable(auditPortFactory, auditPort);
         stubAvailable(attachmentPortFactory, attachmentPort);
         when(attachmentPort.getLatestSnapshotId(EntityType.ADVERTISEMENT, adId)).thenReturn(777L);
@@ -148,7 +148,7 @@ class AdvertisementSaveServiceTest {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
-        when(advertisementPort.save(dto, ACTOR_ID)).thenReturn(adId);
+        when(advertisementPort.save(dto)).thenReturn(adId);
         stubAvailable(auditPortFactory, auditPort);
         stubAvailable(attachmentPortFactory, attachmentPort);
         when(attachmentPort.getLatestSnapshotId(EntityType.ADVERTISEMENT, adId)).thenReturn(777L);
@@ -163,7 +163,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_optionalPortsAbsent_completesWithoutException() {
         AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "T", "D", null, null);
-        when(advertisementPort.save(dto, ACTOR_ID)).thenReturn(1L);
+        when(advertisementPort.save(dto)).thenReturn(1L);
         when(advertisementPort.findById(1L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(1L).title("T").description("D").build()));
         // taxonPortFactory / auditPortFactory left unstubbed -- ObjectProvider-absent shape.

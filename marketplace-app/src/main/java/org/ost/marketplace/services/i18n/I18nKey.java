@@ -133,6 +133,7 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON("advertisement.view.confirm.cancel.button"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
+    ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
 
     // === User Filter ===
     USER_FILTER_ID_MIN("user.filter.id.min"),
@@ -177,6 +178,7 @@ public enum I18nKey {
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
+    ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE("advertisement.card.notification.media.unavailable"),
 
     // === Advertisement Description Dialog ===
     ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),

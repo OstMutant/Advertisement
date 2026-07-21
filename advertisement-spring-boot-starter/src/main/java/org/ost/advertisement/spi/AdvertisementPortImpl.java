@@ -40,8 +40,8 @@ public class AdvertisementPortImpl implements AdvertisementPort {
 
     @Override
     @Transactional
-    public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId) {
-        return service.save(dto, actingUserId);
+    public Long save(@NonNull AdvertisementSaveDto dto) {
+        return service.save(dto);
     }
 
     @Override

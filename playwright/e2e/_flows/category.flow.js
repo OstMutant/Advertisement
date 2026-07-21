@@ -211,6 +211,38 @@ async function assertViewOverlayHasCategories(page, expect, overlay, categoryNam
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+async function runDeleteCategoryFlow(page, expect, nameEn) {
+  await openReferenceDataTab(page);
+  const activeRow = page.locator('.taxon-row-wrapper')
+    .filter({ has: page.locator('.taxon-row-name', { hasText: nameEn }) })
+    .filter({ hasNot: page.locator('.taxon-deleted-badge:visible') });
+  await activeRow.locator('vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:trash"]') })
+    .click();
+  await page.locator('vaadin-dialog-overlay').waitFor({ timeout: 5000 });
+  await page.evaluate(() => {
+    const dialog = document.querySelector('vaadin-dialog[opened]');
+    [...dialog.querySelectorAll('vaadin-button')]
+      .find(b => /^delete$|^видалити$/i.test(b.textContent?.trim()))
+      ?.click();
+  });
+  await page.locator('vaadin-dialog-overlay').waitFor({ state: 'hidden', timeout: 5000 });
+  await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+  await page.locator('vaadin-notification-card vaadin-button').click();
+}
+
+async function assertViewOverlayHasDeletedCategory(page, expect, overlay, categoryName, screenshotName) {
+  const chip = overlay.locator('.advertisement-category-chip', { hasText: categoryName });
+  await expect(chip).toBeVisible({ timeout: 5000 });
+  await expect(chip).toHaveClass(/advertisement-category-chip--deleted/);
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
+async function assertActivityDiffHasStruckThroughCategory(page, expect, changes, categoryName, screenshotName) {
+  await expect(changes.locator('s', { hasText: categoryName })).toBeVisible({ timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
 module.exports = {
   openReferenceDataTab,
   runCreateCategoryFlow,
@@ -218,4 +250,7 @@ module.exports = {
   deselectCategoryInAdForm,
   assertCardHasCategories,
   assertViewOverlayHasCategories,
+  runDeleteCategoryFlow,
+  assertViewOverlayHasDeletedCategory,
+  assertActivityDiffHasStruckThroughCategory,
 };

@@ -119,8 +119,9 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                attachmentPortFactory.ifAvailable(_ ->
-                        galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                attachmentPortFactory.findIfAvailable().ifPresentOrElse(
+                        _ -> galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())),
+                        () -> notificationService.error(ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }

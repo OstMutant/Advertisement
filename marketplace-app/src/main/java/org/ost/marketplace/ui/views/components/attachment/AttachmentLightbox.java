@@ -77,7 +77,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
     private static IFrame buildIFrame(AttachmentItemDto attachment) {
         IFrame iframe = new IFrame(LightboxUtil.resolveEmbedUrl(attachment));
         iframe.addClassName("attachment-lightbox__iframe");
-        LightboxUtil.applyEmbedIframeAttributes(iframe);
+        LightboxUtil.applyEmbedIframeAttributes(iframe, LightboxUtil.isYoutube(attachment));
         iframe.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return iframe;
     }

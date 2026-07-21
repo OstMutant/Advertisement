@@ -214,5 +214,9 @@
   text-overflow: ellipsis;
 }
 
+.advertisement-category-chip--deleted {
+  text-decoration: line-through;
+}
+
 /* Hide trailing empty Quill paragraph (<p><br></p>) in card display */
 .advertisement-description p:last-child:has(> br:only-child) { display: none; }

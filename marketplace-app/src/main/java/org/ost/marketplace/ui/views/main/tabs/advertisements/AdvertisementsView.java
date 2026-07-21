@@ -17,6 +17,7 @@ import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.PaginationBar;
@@ -46,6 +47,7 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
     private final transient LocaleProvider                            localeProvider;
+    private final transient NotificationService                       notificationService;
 
     private final QueryStatusBar<AdvertisementFilterDto> queryStatusBar;
     private final PaginationBar                          paginationBar;
@@ -162,6 +164,7 @@ public class AdvertisementsView extends VerticalLayout {
             }
         } catch (Exception ex) {
             log.error("Failed to refresh advertisements", ex);
+            notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR);
             advertisementContainer.removeAll();
             paginationBar.setTotalCount(0);
         } finally {

@@ -10,6 +10,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
+import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.stereotype.Service;
 
@@ -70,9 +71,6 @@ public class AdvertisementEnrichService {
 
         List<ChangeEntry> resolved = resolveCategories(item.changes(), snapshot, item.prevSnapshotData(), nameById);
         List<ChangeEntry> mediaChanges = mediaChangesFor(snapshot.attachmentSnapshotId());
-        if (mediaChanges.isEmpty()) {
-            return resolved == item.changes() ? item : item.withChanges(resolved);
-        }
         List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
         merged.addAll(resolved);
         return item.withChanges(merged);
@@ -99,13 +97,10 @@ public class AdvertisementEnrichService {
 
         Long attachId     = snapshot.attachmentSnapshotId();
         Long prevAttachId = prev != null ? prev.attachmentSnapshotId() : null;
-        if (attachId == null || Objects.equals(attachId, prevAttachId)) {
+        if (attachId != null && Objects.equals(attachId, prevAttachId)) {
             return resolved == item.changes() ? item : item.withChanges(resolved);
         }
         List<ChangeEntry> mediaChanges = mediaChangesFor(attachId);
-        if (mediaChanges.isEmpty()) {
-            return resolved == item.changes() ? item : item.withChanges(resolved);
-        }
         List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
         merged.addAll(resolved);
         return item.withChanges(merged);
@@ -113,8 +108,10 @@ public class AdvertisementEnrichService {
 
     // ── Shared ───────────────────────────────────────────────────────────────────────────────
 
+    private static final ChangeEntry NO_MEDIA_ENTRY = new ChangeEntry.MediaChange(null, "—");
+
     private List<ChangeEntry> mediaChangesFor(Long attachmentSnapshotId) {
-        if (attachmentSnapshotId == null) return List.of();
+        if (attachmentSnapshotId == null) return List.of(NO_MEDIA_ENTRY);
         return attachmentAuditHookFactory.findIfAvailable()
                 .map(h -> h.getChangesBySnapshotId(attachmentSnapshotId))
                 .orElse(List.of());
@@ -151,7 +148,11 @@ public class AdvertisementEnrichService {
         return taxonPortFactory.findIfAvailable()
                 .map(p -> p.findByIds(ids, Locale.ENGLISH))
                 .map(m -> m.entrySet().stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().getName())))
+                        .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue()))))
                 .orElse(Map.of());
+    }
+
+    private static String nameOrStrikethrough(TaxonDto taxon) {
+        return taxon.isDeleted() ? "<s>" + taxon.getName() + "</s>" : taxon.getName();
     }
 }

@@ -88,7 +88,7 @@ public class TaxonRepository {
         return jdbcClient.sql("""
                         SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by, version
                         FROM taxon
-                        WHERE id IN (:ids) AND deleted_at IS NULL
+                        WHERE id IN (:ids)
                         """)
                          .paramSource(new MapSqlParameterSource("ids", ids))
                          .query(ROW_MAPPER)

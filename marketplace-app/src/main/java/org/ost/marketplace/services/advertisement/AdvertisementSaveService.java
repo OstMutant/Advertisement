@@ -41,7 +41,7 @@ public class AdvertisementSaveService {
             boolean isNew = dto.id() == null;
             AdvertisementSnapshotDto before = isNew ? null : buildCurrentSnapshot(dto.id());
 
-            Long savedId = advertisementPortFactory.get().save(dto, actorId);
+            Long savedId = advertisementPortFactory.get().save(dto);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, savedId, catIds));

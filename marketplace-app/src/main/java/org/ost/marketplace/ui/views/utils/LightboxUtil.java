@@ -16,10 +16,19 @@ public class LightboxUtil {
         return attachment.url();
     }
 
-    public static void applyEmbedIframeAttributes(IFrame iframe) {
+    public static boolean isYoutube(AttachmentItemDto attachment) {
+        return AttachmentMediaContentType.YOUTUBE.getValue().equals(attachment.contentType());
+    }
+
+    // YouTube's player needs Cache Storage (allow-same-origin) to bootstrap; safe only for YouTube since we build that URL ourselves.
+    public static String embedSandbox(boolean allowSameOrigin) {
+        return allowSameOrigin ? "allow-scripts allow-same-origin allow-presentation" : "allow-scripts allow-presentation";
+    }
+
+    public static void applyEmbedIframeAttributes(IFrame iframe, boolean allowSameOrigin) {
         iframe.getElement().setAttribute("allow",
                 "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture");
         iframe.getElement().setAttribute("allowfullscreen", "true");
-        iframe.getElement().setAttribute("sandbox", "allow-scripts allow-presentation"); // no allow-same-origin -- sandbox escape
+        iframe.getElement().setAttribute("sandbox", embedSandbox(allowSameOrigin));
     }
 }

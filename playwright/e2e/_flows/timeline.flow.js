@@ -161,6 +161,7 @@ async function fillActorPicker(page, userName, { useSearch = false } = {}) {
   }
 
   await cell.first().waitFor({ timeout: 8000 });
+  await cell.first().scrollIntoViewIfNeeded();
   await cell.first().click();
   await dialog.waitFor({ state: 'hidden', timeout: 5000 });
 }

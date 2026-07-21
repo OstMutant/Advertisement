@@ -133,7 +133,7 @@ public class AdvertisementService {
     }
 
     @Transactional
-    public Long save(@NonNull @Valid AdvertisementSaveDto dto, @NonNull Long actingUserId) {
+    public Long save(@NonNull @Valid AdvertisementSaveDto dto) {
         log.info("Advertisement save: id={}, isNew={}", dto.id(), dto.id() == null);
         Optional<Advertisement> before = dto.id() == null ? Optional.empty() : repository.findById(dto.id());
         Advertisement ad = buildEntity(dto, before.orElse(null));
