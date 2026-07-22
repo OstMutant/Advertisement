@@ -5,7 +5,8 @@ edge-case review (2026-07-19).
 **Module:** `query-lib` (`filter/SqlCondition.like()`, `filter/SqlOperator.LIKE_IGNORE_CASE`)
 **Priority:** 🟡 medium — every text filter (advertisement title, user name/email) behaves
 unpredictably for any search term containing `%`, `_`, or `\`
-**When:** Batch H-adjacent / query-lib touch — standalone; small and self-contained
+**When:** Top of the queue (promoted 2026-07-22 priority review) — standalone; small and
+self-contained; the old "Batch H-adjacent" note is moot now that Batch H has shipped
 
 ## Problem
 
