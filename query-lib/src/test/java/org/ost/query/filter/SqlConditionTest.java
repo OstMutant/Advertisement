@@ -22,12 +22,36 @@ class SqlConditionTest {
         assertThat(condition).isNotNull();
         assertThat(condition.value()).isEqualTo("%hello%");
         assertThat(condition.operator()).isEqualTo(SqlOperator.LIKE_IGNORE_CASE);
-        assertThat(condition.getConditionClause()).isEqualTo("a.title ILIKE :title");
+        assertThat(condition.getConditionClause()).isEqualTo("a.title ILIKE :title ESCAPE '\\'");
     }
 
     @Test
     void like_null_returnsNull() {
         assertThat(SqlCondition.like(MAPPING, null)).isNull();
+    }
+
+    @Test
+    void like_percentInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "100%");
+        assertThat(condition.value()).isEqualTo("%100\\%%");
+    }
+
+    @Test
+    void like_underscoreInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "a_b");
+        assertThat(condition.value()).isEqualTo("%a\\_b%");
+    }
+
+    @Test
+    void like_backslashInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "a\\b");
+        assertThat(condition.value()).isEqualTo("%a\\\\b%");
+    }
+
+    @Test
+    void like_mixedMetacharacters_areAllEscaped() {
+        var condition = SqlCondition.like(MAPPING, "50%_off\\now");
+        assertThat(condition.value()).isEqualTo("%50\\%\\_off\\\\now%");
     }
 
     // ── equalsTo ──────────────────────────────────────────────────────────────

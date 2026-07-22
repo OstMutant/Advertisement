@@ -33,26 +33,12 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| — | 🟡 | 108 | query-lib correctness fix — promoted to top 2026-07-22 (priority review); self-contained, cheap, real bug |
 | **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
 | **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
 | — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### improvement-108 🟡 — query-lib correctness fix (promoted to top)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-108](issues/improvement-108-ilike-wildcard-not-escaped.md) | New (edge-case review) | `query-lib` `like()` doesn't escape `%`/`_`/`\` — every text filter (advertisement title, user name/email) mis-matches search terms containing them |
-
-Promoted ahead of Batch J/K in the 2026-07-22 priority review: unlike everything else in this
-section, this is a real, currently-confirmed correctness bug (verified directly against
-`SqlCondition.like()` — still a bare `"%" + v + "%"`, no escaping), not tech debt or a nice-to-have,
-and the issue's own text says it's small and self-contained. Its original "Batch H-adjacent"
-note is moot now that Batch H has shipped (2026-07-22) — it was never blocked on it, just loosely
-adjacent.
 
 ### Batch J 🔵 — leaf UI components (its own multi-phase program)
 

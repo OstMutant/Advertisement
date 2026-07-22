@@ -30,7 +30,7 @@ private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFi
 
 | Method | SQL operator |
 |---|---|
-| `like(mapping, value)` | `ILIKE '%value%'` |
+| `like(mapping, value)` | `ILIKE '%value%' ESCAPE '\'` — `%`/`_`/`\` in `value` are escaped first, so literal wildcard characters in search terms match literally |
 | `equalsTo(mapping, value)` | `= :param` |
 | `after(mapping, instant/long)` | `>= :param` |
 | `before(mapping, instant/long)` | `<= :param` |

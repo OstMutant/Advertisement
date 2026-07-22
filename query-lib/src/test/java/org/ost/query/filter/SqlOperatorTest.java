@@ -27,7 +27,7 @@ class SqlOperatorTest {
     @Test
     void likeIgnoreCase_formatsClause() {
         assertThat(SqlOperator.LIKE_IGNORE_CASE.formatClause("a.title", "title"))
-                .isEqualTo("a.title ILIKE :title");
+                .isEqualTo("a.title ILIKE :title ESCAPE '\\'");
     }
 
     @Test

@@ -1106,3 +1106,24 @@ predicted — no new skill built. Recorded the Definition of Done as a new secti
 `.claude/rules.md` (full suite green, `DECISIONS.md` updated if architectural, issue moved to
 `completed/issues/`), referencing `/ci`/`scripts/ci.sh` instead of the never-built `/quality-gate`.
 **Batch I complete.**
+
+✅ Done (2026-07-22): [improvement-108](issues/improvement-108-ilike-wildcard-not-escaped.md) —
+promoted to the top of the queue in the same day's full-backlog priority review (a real,
+currently-confirmed correctness bug beats everything else waiting, which was all tech debt or
+nice-to-haves). `SqlCondition.like()` now escapes `\` (first), `%`, and `_` before wrapping the
+value in `%…%`, and `SqlOperator.LIKE_IGNORE_CASE` declares an explicit `ESCAPE '\'` clause so
+Postgres knows which character is the escape marker — fixed once in `query-lib`, every consumer
+(advertisement title, user name/email filters) benefits without its own change. Considered a
+regex one-liner (`value.replaceAll("([%_\\\\])", "\\\\$1")`) as a more compact equivalent; kept
+the three sequential `.replace()` calls since the backslash-must-go-first ordering constraint is
+clearer spelled out than folded into a regex alternation. Added `SqlConditionTest`/`SqlOperatorTest`
+cases for `%`/`_`/`\`/mixed inputs and the new clause text; updated the existing
+`like_nonNull_wrapsValueWithPercent` test's expected clause. Recorded `query-lib/DECISIONS.md`
+ADR-007 and updated the `like()` row in `query-lib/CLAUDE.md`. Caught a real verification trap
+mid-fix: `~/.m2`'s installed `query-lib` jar was 2 hours stale relative to the source fix (it
+isn't one of the starters `integration-tests/run.sh`'s auto-staleness-check watches), so the
+first integration-tests run after the fix silently tested the *old*, unescaped behavior and
+passed for the wrong reason — caught by comparing the jar's mtime against the source file's
+before trusting the green run, forced a `mvn install -pl query-lib`, and reran. Verified with the
+full suite: unit-tests (27/27 in query-lib), integration-tests (127/127) against the freshly
+installed jar, and Playwright e2e --full --ux (49/49).

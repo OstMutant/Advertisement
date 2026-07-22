@@ -11,7 +11,7 @@ enum SqlOperator {
     EQUALS          ("%s = :%s"),
     LESS_OR_EQUAL   ("%s <= :%s"),
     GREATER_OR_EQUAL("%s >= :%s"),
-    LIKE_IGNORE_CASE("%s ILIKE :%s"),
+    LIKE_IGNORE_CASE("%s ILIKE :%s ESCAPE '\\'"),
     IN              ("%s IN (:%s)"),
     ANY_OF          ("%s = ANY(:%s)");
 

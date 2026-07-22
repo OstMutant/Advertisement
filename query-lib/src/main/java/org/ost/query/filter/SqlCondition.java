@@ -31,8 +31,14 @@ public record SqlCondition<R>(
         return operator.formatClause(sqlExpression, filterProperty);
     }
 
+    // Escapes LIKE metacharacters before wrapping -- see SqlOperator.LIKE_IGNORE_CASE's ESCAPE '\'.
+    // Backslash must be escaped first, or the backslashes added for %/_ below would themselves
+    // get re-escaped into a wrong pattern.
     public static SqlCondition<String> like(SqlFilterMapping filterMapping, String value) {
-        return applyIfPresent(filterMapping, value, SqlOperator.LIKE_IGNORE_CASE, v -> "%" + v + "%");
+        return applyIfPresent(filterMapping, value, SqlOperator.LIKE_IGNORE_CASE, v -> {
+            String escaped = v.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+            return "%" + escaped + "%";
+        });
     }
 
     public static SqlCondition<String> equalsTo(SqlFilterMapping filterMapping, String value) {

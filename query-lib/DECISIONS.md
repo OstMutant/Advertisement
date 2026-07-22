@@ -134,3 +134,28 @@ invoked with an empty security-narrowing set at all.
 - If a genuine "must match nothing on empty" predicate is ever needed by more than one caller, add
   a dedicated method then (e.g. `= ANY('{}'::bigint[])`, always false) — not by changing `anyOf`'s
   existing semantics, which the admin/optional-filter path still correctly depends on.
+
+---
+
+## ADR-007: `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping
+
+**Status:** Accepted
+
+**Context:** [improvement-108](../backlog/completed/issues/improvement-108-ilike-wildcard-not-escaped.md)
+— `like()` wrapped the caller's raw value in `%…%` with no escaping. Postgres `ILIKE` treats `%`
+and `_` as wildcards and `\` as its escape character, so a search term containing any of them
+(`"100%"`, `"user_name"`, a trailing `\`) silently matched the wrong rows instead of the literal
+text — not SQL injection (values are bound as parameters), but wildcard-semantics leakage into
+every text filter in the app (advertisement title, user name/email).
+
+**Decision:** Escape the value inside `like()` itself — `\` first (so the escape character doesn't
+get folded into the `%`/`_` escapes added after it), then `%`, then `_` — and declare
+`SqlOperator.LIKE_IGNORE_CASE`'s explicit `ESCAPE '\'` clause so Postgres knows which character is
+the escape marker. Fixed once, centrally, in `query-lib` — every consumer (any domain's
+`*FilterDto`) benefits without its own change.
+
+**Consequences:**
+- `SqlConditionTest`/`SqlOperatorTest` cover `%`/`_`/`\`/mixed inputs and the new clause text.
+- Considered a regex-based one-liner (`value.replaceAll("([%_\\\\])", "\\\\$1")`) as a more compact
+  equivalent — kept the three sequential `.replace()` calls instead, since the ordering constraint
+  (backslash must go first) is more visible spelled out than folded into one regex alternation.
