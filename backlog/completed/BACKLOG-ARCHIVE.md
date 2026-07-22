@@ -970,3 +970,16 @@ while editing" scenario the issue described cannot happen through the current UI
 code for it was dead on arrival — removed per YAGNI rather than kept "for later."
 
 **Batch L complete** (097, 098, 099, 110 — all done in one PR; 110 shipped as beforeunload-only).
+
+✅ Done (2026-07-21): [improvement-040](issues/improvement-040-spring-boot-vaadin-minor-bump.md) —
+routine dependency bump in root `pom.xml`: `spring-boot-starter-parent` 4.0.6 → 4.1.0,
+`vaadin.version` 25.1.5 → 25.2.3, `jsoup.version` 1.22.1 → 1.22.2, `aws-s3-sdk.version` 2.44.4 →
+2.48.4, `jetbrains-annotations.version` 24.1.0 → 26.1.0 (`mapstruct.version` left at 1.6.3 — latest
+available is still a pre-release Beta). The issue file had gone stale twice before (per its own
+warning), so every target version was re-verified directly against Maven Central's
+`maven-metadata.xml` rather than trusted from the file — this caught two more stale claims: Vaadin
+was listed as 25.2.4 (actual latest: 25.2.3) and aws-s3-sdk as 2.48.3 (actual latest: 2.48.4), both
+corrected before applying. Verified with the full suite (Vaadin is UI-critical): unit-tests 72/72,
+integration-tests (Testcontainers) 127/127, Playwright e2e --full --ux 49/49, all clean of
+ERROR/FAILED in the actual log content, not just the summary line. Batch G's remaining item is
+improvement-085 (Playwright bump).

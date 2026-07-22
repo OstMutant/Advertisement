@@ -33,7 +33,7 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **G** | 🔵 | 040, 085 | dependency bumps — one full `/run-all-tests` sweep |
+| **G** | 🔵 | 085 | dependency bumps — one full `/run-all-tests` sweep |
 | **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
 | **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression |
 | **N** | 🔵 | 104, 105 | audit-rendering simplification — DTO-layer moves; after Batch F |
@@ -49,12 +49,12 @@ Details, links, and per-batch rationale below.
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-040](issues/improvement-040-spring-boot-vaadin-minor-bump.md) | Migrated | Spring Boot 4.1.0 + Vaadin 25.2.4 + jsoup/aws-sdk/jetbrains-annotations bump (re-scanned 2026-07-19) |
 | [improvement-085](issues/improvement-085-playwright-version-bump.md) | New | Playwright 1.52.0 → 1.61.1 (test tooling, 9 minor versions behind) |
 
-One pass because: both are version-bump-plus-release-notes work verified by the same full
-`/run-all-tests` sweep. (improvement-086, the Postgres major bump, stays trigger-gated in
-Deferred — riskier infra change, different cadence.)
+improvement-040 (Spring Boot 4.1.0 + Vaadin 25.2.3 + jsoup/aws-sdk/jetbrains-annotations bump)
+shipped 2026-07-21 — see BACKLOG-ARCHIVE.md. Remaining item is version-bump-plus-release-notes
+work verified by the same full `/run-all-tests` sweep. (improvement-086, the Postgres major bump,
+stays trigger-gated in Deferred — riskier infra change, different cadence.)
 
 ### Batch H 🔵 — audit read-side rewrite
 
