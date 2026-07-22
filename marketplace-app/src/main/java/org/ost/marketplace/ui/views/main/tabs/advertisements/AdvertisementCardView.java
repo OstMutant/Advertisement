@@ -60,7 +60,6 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
-    private final transient UiComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
 
@@ -216,22 +215,20 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
-                        .confirmKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON)
-                        .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
-                        .onConfirm(() -> {
-                            try {
-                                advertisementSaveService.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion());
-                                notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
-                                onChanged.run();
-                            } catch (Exception _) {
-                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
-                            }
-                        })
-                        .build()
+        new ConfirmActionDialog(
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        advertisementSaveService.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion());
+                        notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
+                        onChanged.run();
+                    } catch (Exception _) {
+                        notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
+                    }
+                }
         ).open();
     }
 }

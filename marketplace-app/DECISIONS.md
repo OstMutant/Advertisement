@@ -1320,7 +1320,7 @@ itself around its own Apply/Clear buttons — rather than the wider block select
   e2e --full --ux` run — 48/48 green each time.
 - `marketplace-app/CLAUDE.md`'s "Configurable prototype beans" pattern now has three more
   real-world instances of the "promote a plain class to a bean solely to inject a `UiComponentFactory`"
-  shape — if [improvement-025](../backlog/issues/improvement-025-leaf-ui-components-plain-classes.md)
+  shape — if [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
   (leaf widgets → plain classes) is picked up later, these three new beans
   (`AttachmentLightbox`/`CardLightboxViewer`/`AttachmentThumbnail`) become new candidates for
   reverting back to plain classes once `UiIconButton` itself stops being a Spring bean — flagged
@@ -2245,3 +2245,53 @@ changed.
   e2e --full --ux (49/49).
 - Remaining phase (`ConfirmActionDialog` itself) tracked as Batch 4 in the same issue; not done in
   this PR. `PaginationBar` is no longer tracked as a remaining phase — see decision above.
+
+---
+
+## ADR-055: `ConfirmActionDialog` converted to a plain class (Batch 4, final) — closes improvement-025; unrelated Playwright flake fixed in `fillActorPicker`'s search path
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 4, the last phase — `ConfirmActionDialog`'s only real dependency was `I18nService`, used
+solely to resolve `titleKey`/`confirmKey`/`cancelKey` (typed `I18nKey`) into display strings at
+`configure()` time; its `message` field was already a plain resolved `String` at every call site.
+
+**Decision:** Converted to a plain class:
+`ConfirmActionDialog(String title, String message, String confirmLabel, String cancelLabel, Runnable onConfirm)`,
+folding the old `@PostConstruct buildLayout()` + `configure(Parameters)` split into one constructor
+that calls `buildLayout(layout)` directly. `I18nKey → String` resolution moved to each of the four
+call sites (`AdvertisementCardView`/`TaxonManagementView`/`UserView`/`EntityOverlaySupport`), all of
+which already had `I18nService` on hand (either via `I18nParams.getValue()` or a direct `i18n`
+field) — same move Batch 1/2 made for buttons/fields. `BaseDialog.buildLayout()` (the niladic
+lifecycle hook, previously `abstract` and required by every subclass purely as an `@PostConstruct`
+target) changed to a no-op default method — `LoginDialog`/`SignUpDialog` still override and
+`@PostConstruct`-annotate it (they remain Spring beans, holding real dependencies like `AuthService`/
+`UserPort`), but `ConfirmActionDialog` no longer needs to implement it at all, since it calls
+`buildLayout(layout)` inline in its own constructor.
+
+Removed the now-empty `confirmActionDialogFactory` `@Bean` from `ComponentFactoryConfig`. No test
+constructs or mocks `ConfirmActionDialog` directly — verified by grep, no test changes needed.
+
+**Unrelated bug found and fixed along the way:** the first full Playwright verification run for
+this batch reproduced a pre-existing flake 3/3 times, including once against a freshly-reset
+database (`deploy.sh --reset`), ruling out stale-seed-data accumulation — confirmed the failure was
+unrelated to this batch's code by grepping `UserPickerField`'s imports (it builds its picker dialog
+from a raw `com.vaadin.flow.component.dialog.Dialog`, never `BaseDialog`/`DialogLayout`/
+`ConfirmActionDialog`). Root cause traced via the failure's stack trace and Playwright's
+`error-context.md` page snapshot to `fillActorPicker(page, MAX_ACTOR_NAME, { useSearch: true })` in
+`playwright/e2e/_flows/timeline.flow.js:143` — the `useSearch` branch (added in ADR-048 specifically
+to sidestep a virtualized-grid clipped-row race when two users, `maxEn`/`maxUk`, share an identical
+100-char boundary name) fills the picker dialog's search field and clicks its search button, but
+never waited for the resulting server-side filter round-trip before looking up the target cell —
+`cell.first().waitFor()` could grab a pre-filter row that then got detached mid-action once the
+async-filtered grid re-rendered, timing out `scrollIntoViewIfNeeded()`. Fixed by adding
+`await waitForVaadin(page);` (already imported from `filter.flow.js`, already used elsewhere in this
+same file for an analogous post-click server round-trip) right after the search button click.
+Verified fixed twice in a row: 49/49 full e2e passes, back to back.
+
+**Consequences:**
+- **improvement-025 fully closed** — all four batches done. Issue moved to
+  `backlog/completed/issues/`; `BACKLOG.md` row removed; `BACKLOG-ARCHIVE.md` entry added.
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49, confirmed twice consecutively after the `fillActorPicker` fix).

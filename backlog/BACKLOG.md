@@ -33,21 +33,11 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
 | **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
 | — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch J 🔵 — leaf UI components (its own multi-phase program)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Still open | Convert ~17 stateless leaf UI widgets from `@SpringComponent` beans to plain Java classes |
-
-Already internally batched by its own plan: 4 phased conversion batches with a full e2e run after
-each — do not merge with Batch F.
 
 ### Batch K ⚪ — Playwright seeding infrastructure (sequenced pair)
 

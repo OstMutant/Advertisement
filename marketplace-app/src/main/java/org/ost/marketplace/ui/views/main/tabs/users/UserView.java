@@ -45,7 +45,6 @@ public class UserView extends VerticalLayout {
     private final transient NotificationService                    notificationService;
     private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
     private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
-    private final transient UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final UserOverlay                                      overlay;
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
@@ -125,24 +124,22 @@ public class UserView extends VerticalLayout {
     }
 
     private void confirmAndDelete(UserDto user) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.id()))
-                        .confirmKey(USER_VIEW_CONFIRM_DELETE_BUTTON)
-                        .cancelKey(USER_VIEW_CONFIRM_CANCEL_BUTTON)
-                        .onConfirm(() -> {
-                            try {
-                                if (access.canNotDelete(user.id())) return;
-                                userDeleteService.delete(user.id(), access.getCurrentUserId());
-                                notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
-                                refresh();
-                            } catch (Exception e) {
-                                log.error("Error deleting user id={}", user.id(), e);
-                                notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
-                            }
-                        })
-                        .build()
+        new ConfirmActionDialog(
+                i18n.get(USER_VIEW_CONFIRM_DELETE_TITLE),
+                i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.id()),
+                i18n.get(USER_VIEW_CONFIRM_DELETE_BUTTON),
+                i18n.get(USER_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        if (access.canNotDelete(user.id())) return;
+                        userDeleteService.delete(user.id(), access.getCurrentUserId());
+                        notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
+                        refresh();
+                    } catch (Exception e) {
+                        log.error("Error deleting user id={}", user.id(), e);
+                        notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
+                    }
+                }
         ).open();
     }
 

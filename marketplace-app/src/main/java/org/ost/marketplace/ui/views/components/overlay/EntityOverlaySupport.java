@@ -9,7 +9,6 @@ import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.fields.OverlayBreadcrumbBackButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -21,7 +20,6 @@ public class EntityOverlaySupport {
 
     private final I18nService                                          i18n;
     private final NotificationService                                  notification;
-    private final UiComponentFactory<ConfirmActionDialog>                confirmDialogFactory;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
         OverlayBreadcrumbBackButton btn = new OverlayBreadcrumbBackButton(i18n.get(labelKey));
@@ -37,14 +35,12 @@ public class EntityOverlaySupport {
 
     public void handleCancel(boolean hasUnsavedChanges, Runnable doCancel) {
         if (hasUnsavedChanges) {
-            confirmDialogFactory.build(
-                    ConfirmActionDialog.Parameters.builder()
-                            .titleKey(OVERLAY_UNSAVED_TITLE)
-                            .message(i18n.get(OVERLAY_UNSAVED_TEXT))
-                            .confirmKey(OVERLAY_UNSAVED_CONFIRM)
-                            .cancelKey(OVERLAY_UNSAVED_CANCEL)
-                            .onConfirm(doCancel)
-                            .build()
+            new ConfirmActionDialog(
+                    i18n.get(OVERLAY_UNSAVED_TITLE),
+                    i18n.get(OVERLAY_UNSAVED_TEXT),
+                    i18n.get(OVERLAY_UNSAVED_CONFIRM),
+                    i18n.get(OVERLAY_UNSAVED_CANCEL),
+                    doCancel
             ).open();
         } else {
             doCancel.run();

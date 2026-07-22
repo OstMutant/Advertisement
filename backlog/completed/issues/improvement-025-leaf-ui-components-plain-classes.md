@@ -8,13 +8,15 @@ brings 14+ classes into line with an already-written rule this codebase does not
 **When:** independent, no blockers — recommended to execute in phased batches (see Suggested fix),
 not as one large PR
 
-**Progress:** Batch 1 (buttons: `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`,
-`DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`) done 2026-07-22 — see
-`marketplace-app/DECISIONS.md` ADR-052. Batch 2 (fields: `UiTextField`, `UiTextArea`,
-`UiEmailField`, `UiPasswordField`, `UiComboBox`, `UiLabeledField`) done 2026-07-22 — see ADR-053.
-Batch 3 (structural/no-dep: `EmptyStateView`, `DialogLayout`, `OverlayLayout`) done 2026-07-22 —
-see ADR-054. `PaginationBar` was reviewed as part of Batch 3 and deliberately kept a Spring bean
-permanently (not deferred) — see ADR-054 for why. Batch 4 (`ConfirmActionDialog`) remains open.
+**Progress:** DONE 2026-07-22 — all four batches complete. Batch 1 (buttons: `UiPrimaryButton`,
+`UiTertiaryButton`, `UiIconButton`, `DeleteActionButton`, `EditActionButton`,
+`OverlayBreadcrumbBackButton`) — see `marketplace-app/DECISIONS.md` ADR-052. Batch 2 (fields:
+`UiTextField`, `UiTextArea`, `UiEmailField`, `UiPasswordField`, `UiComboBox`, `UiLabeledField`) —
+see ADR-053. Batch 3 (structural/no-dep: `EmptyStateView`, `DialogLayout`, `OverlayLayout`) — see
+ADR-054. `PaginationBar` was reviewed as part of Batch 3 and deliberately kept a Spring bean
+permanently (not deferred) — see ADR-054 for why. Batch 4 (`ConfirmActionDialog`) — see ADR-055,
+which also records an unrelated pre-existing Playwright flake found and fixed in
+`fillActorPicker`'s `useSearch` path during this batch's verification.
 
 ## Problem
 

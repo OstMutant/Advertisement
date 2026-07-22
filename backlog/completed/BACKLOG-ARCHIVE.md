@@ -1127,3 +1127,27 @@ passed for the wrong reason — caught by comparing the jar's mtime against the 
 before trusting the green run, forced a `mvn install -pl query-lib`, and reran. Verified with the
 full suite: unit-tests (27/27 in query-lib), integration-tests (127/127) against the freshly
 installed jar, and Playwright e2e --full --ux (49/49).
+
+✅ Done (2026-07-22): [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md)
+(Batch J) — converted ~17 stateless leaf UI widgets from `@SpringComponent @Scope("prototype")`
+beans implementing `Configurable`/`Initialization` to plain Java classes, executed in 4 phased
+batches on `feature/leaf-ui-buttons-batch1` with a full Playwright run after each (per the issue's
+own plan): Batch 1 — buttons (`UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`,
+`DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`), which also found and fixed
+an unrelated pre-existing `LogoutDialog` race condition (`marketplace-app/DECISIONS.md` ADR-052).
+Batch 2 — fields (`UiTextField`, `UiTextArea`, `UiEmailField`, `UiPasswordField`, `UiComboBox`,
+`UiLabeledField`), preserving all 61 `data-testid`-dependent Playwright selectors byte-identical
+(ADR-053). Batch 3 — structural/no-dep components (`EmptyStateView`, `DialogLayout`,
+`OverlayLayout`); `PaginationBar` was reviewed here too but deliberately kept a Spring bean
+permanently — it's read from a separately-invoked `refresh()` in three `View` classes and already
+had a test mocking it as an injected collaborator, a materially different (and riskier) shape than
+the other three (ADR-054). Batch 4 — `ConfirmActionDialog`, the last phase, with `I18nKey`
+resolution moved to its four call sites; also found and fixed an unrelated pre-existing Playwright
+flake in `fillActorPicker`'s `useSearch` path (`timeline.flow.js`) — missing `await
+waitForVaadin(page)` after the picker dialog's search-button click let the cell lookup race the
+server-side filter's async re-render, reproduced 3/3 times including against a freshly-reset
+database before being traced and fixed; verified green twice in a row after the fix (ADR-055).
+Final state across all four batches: `UserFormOverlayModeHandler`'s constructor dropped from 13 to
+10 parameters; zero Spring/`Configurable`/`Initialization` scaffolding remains on any of the
+converted widgets; unit-tests (72/72, including ArchUnit), integration-tests (127/127), and
+Playwright e2e --full --ux (49/49, confirmed twice) all green on the final batch.

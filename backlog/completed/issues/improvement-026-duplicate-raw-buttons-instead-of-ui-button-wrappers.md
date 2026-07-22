@@ -164,7 +164,7 @@ writeup: `marketplace-app/DECISIONS.md` ADR-037.
   notes) plus an unrelated pagination correctness bug found in the same file while scoping Batch 4.
 - [improvement-057](improvement-057-notificationservice-close-button-decision.md) — the
   `NotificationService` in/out-of-scope decision this issue asked for, extracted to its own file.
-- `backlog/issues/improvement-025-leaf-ui-components-plain-classes.md` — the sibling refactor
+- `backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md` — the sibling refactor
   this investigation was originally spawned from; that issue converts the *wrapper components
   themselves* from Spring beans to plain classes, this issue is about *getting more call sites to
   use the wrappers at all*. The two can land in either order, but converting a wrapper (025) before

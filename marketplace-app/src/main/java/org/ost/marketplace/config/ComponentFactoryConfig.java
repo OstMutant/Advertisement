@@ -1,6 +1,5 @@
 package org.ost.marketplace.config;
 
-import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
@@ -20,11 +19,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ComponentFactoryConfig {
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<ConfirmActionDialog> confirmActionDialogFactory(ObjectProvider<ConfirmActionDialog> p) {
-        return new UiComponentFactory<>(p);
-    }
 
     @Bean @ConditionalOnMissingBean
     @SuppressWarnings("rawtypes")
