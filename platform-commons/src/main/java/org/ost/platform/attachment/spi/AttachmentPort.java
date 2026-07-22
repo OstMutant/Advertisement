@@ -50,7 +50,7 @@ public interface AttachmentPort {
 
     // ── gallery commit/discard ────────────────────────────────────────────────
 
-    void deleteSkipSnapshot(@NonNull Long attachmentId);
+    void delete(@NonNull Long attachmentId);
 
     void commitTempUploads(@NonNull EntityType entityType, @NonNull Long entityId,
                            @NonNull List<TempAttachmentDto> temps);
@@ -61,7 +61,4 @@ public interface AttachmentPort {
 
     void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                        @NonNull String[] targetUrls);
-
-    void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
-                                 @NonNull String[] targetUrls);
 }

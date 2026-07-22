@@ -1015,3 +1015,36 @@ modification. Separately, `AuditReadService.getEntityActivity()`'s bare `100`-ro
 extracted to `ENTITY_ACTIVITY_MAX_ROWS` with a one-line comment on the silent-truncation policy —
 extraction only, YAGNI on speculative paging (per the issue's own guidance). Full suite: unit-tests
 and integration-tests (127/127) both clean. **Batch H complete.**
+
+✅ Done (2026-07-22): [improvement-102](issues/improvement-102-attachmentmediachangehook-zero-consumers.md)
+and [improvement-103](issues/improvement-103-attachmentservice-api-surface-reduction.md) —
+attachment API simplification, one PR. Deeper verification beyond both issue files (direct
+whole-repo grep for every candidate method's callers) found more dead code than either issue
+anticipated: `AttachmentService.delete(Long)` (the snapshot-capturing delete) had **zero callers
+anywhere**, not even in tests, and `restoreToUrlsAndCapture` was dead across all **three** layers
+(`AttachmentPort` interface, `DefaultAttachmentPort`, `AttachmentService`) despite being fully
+wired through the SPI — removed entirely rather than folded into a flag parameter. Renamed
+`deleteSkipSnapshot` → `delete` end-to-end (interface, impl, `AttachmentGallery.java` call site)
+since it's now the only delete method. Merged the `*Dto`/entity twins
+(`upload`/`uploadDto`, `addVideo`/`addVideoDto`, `getByEntityId`/`getByEntityIdDtos`,
+`getByEntityAndUrls`/`getByEntityAndUrlsDtos`) into single DTO-returning methods —
+`DefaultAttachmentPort` was confirmed the only real DTO consumer, so the entity variants added no
+value once merged. Extracted `resolveVideoDescriptor(url)` to dedupe the yt-vs-embed branching
+between `addVideo`/`addVideoTemp`. Deliberately **did not** introduce a `SnapshotCapture` enum for
+`commitTempUploads`/`commitTempUploadsQuiet` as the issue's suggested shape proposed — after
+removing the dead capturing `delete()`, that pair was the only remaining candidate, already
+self-documenting by name, and `commitTempUploadsQuiet` is only ever called from tests; an enum
+would have been a speculative abstraction for zero real ambiguity. Also deviated from the issue's
+suggested "callers resolve `CurrentActorHook` themselves" shape for `restoreToUrls`'s actor
+parameter — that would have pushed actor-resolution logic into `DefaultAttachmentPort`, violating
+`platform-commons/CLAUDE.md`'s "`*PortImpl` — pure delegation only" rule; actor resolution stays
+inside `AttachmentService`, matching every other method in the class. `AttachmentMediaChangeHook`
+removed entirely from `platform-commons` (interface, `ObjectProvider` field, all 7
+`notifyMediaChanged()` call sites) — annotated `marketplace-app/DECISIONS.md` ADR-035 rather than
+only adding a new entry, since that ADR's "zero listeners is a valid degraded state" call is what
+this issue overturned. Full suite verified: unit-tests and integration-tests (127/127) both clean;
+full Playwright e2e --full --ux needed two reruns to get a clean signal — first run hit an
+unrelated Timeline actor-picker scroll timeout, a retry of just that spec hit a different, also
+unrelated login timeout, and a full clean rerun passed 49/49 with zero repeats of either failure,
+confirming both were environment flakes rather than regressions from this attachment-only change.
+**Batch M complete.**

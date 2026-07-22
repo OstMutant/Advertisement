@@ -8,12 +8,9 @@ import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.AttachmentMediaSummaryDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
-import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
 import org.ost.platform.attachment.util.YoutubeUtil;
-import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,13 +37,8 @@ public class AttachmentService {
     private final AttachmentRepository        attachmentRepository;
     private final AttachmentSnapshotService   attachmentSnapshotService;
     private final CurrentActorHook            currentActorHook;
-    private final ObjectProvider<AttachmentMediaChangeHook> mediaChangeHook;
 
-    public List<Attachment> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return attachmentRepository.getByEntityId(entityType, entityId);
-    }
-
-    public List<AttachmentItemDto> getByEntityIdDtos(@NonNull EntityType entityType, @NonNull Long entityId) {
+    public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return attachmentRepository.getByEntityId(entityType, entityId).stream().map(AttachmentService::toDto).toList();
     }
 
@@ -77,8 +69,8 @@ public class AttachmentService {
     }
 
     @Transactional
-    public Attachment upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
-                             @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
+    public AttachmentItemDto upload(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
+                                    @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
         log.info("Attachment upload: entityType={}, entityId={}, filename={}, size={}",
                 entityType, entityId, filename, contentLength);
         String url = storageService.upload(folder(entityType, entityId), filename, inputStream, contentLength, contentType);
@@ -93,8 +85,7 @@ public class AttachmentService {
                     .size(contentLength)
                     .build());
             captureMediaChanges(entityType, entityId);
-            notifyMediaChanged(entityType, entityId);
-            return saved;
+            return toDto(saved);
         } catch (Exception e) {
             storageService.delete(url);
             throw e;
@@ -103,55 +94,27 @@ public class AttachmentService {
 
     @Transactional
     public void delete(@NonNull Long attachmentId) {
-        log.info("Attachment delete: id={}", attachmentId);
         attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
             Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
             attachmentRepository.softDelete(attachmentId, actorId);
-            captureMediaChanges(attachment.getEntityType(), attachment.getEntityId());
-            notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
-        });
-    }
-
-    @Transactional
-    public void deleteSkipSnapshot(@NonNull Long attachmentId) {
-        attachmentRepository.findById(attachmentId).ifPresent(attachment -> {
-            Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
-            attachmentRepository.softDelete(attachmentId, actorId);
-            notifyMediaChanged(attachment.getEntityType(), attachment.getEntityId());
         });
     }
 
     public TempAttachmentDto addVideoTemp(@NonNull String url) {
-        String ytId = YoutubeUtil.extractId(url);
-        if (ytId != null) {
-            return new TempAttachmentDto(YoutubeUtil.watchUrl(ytId), YoutubeUtil.filename(ytId), CT_YOUTUBE, 0L);
-        }
-        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
-        validateEmbedUrl(url);
-        return new TempAttachmentDto(url, embedFilename(url), CT_EMBED, 0L);
+        VideoDescriptor d = resolveVideoDescriptor(url);
+        return new TempAttachmentDto(d.url(), d.filename(), d.contentType(), 0L);
     }
 
     @Transactional
-    public Attachment addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
+    public AttachmentItemDto addVideo(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
         log.info("Attachment add video: entityType={}, entityId={}", entityType, entityId);
-        String ytId = YoutubeUtil.extractId(url);
-        if (url.isBlank() && ytId == null) throw new IllegalArgumentException("Invalid video URL");
-        Attachment saved;
-        if (ytId != null) {
-            saved = attachmentRepository.save(Attachment.builder()
-                    .entityType(entityType).entityId(entityId)
-                    .url(YoutubeUtil.watchUrl(ytId)).filename(YoutubeUtil.filename(ytId))
-                    .contentType(CT_YOUTUBE).size(0L).build());
-        } else {
-            validateEmbedUrl(url);
-            saved = attachmentRepository.save(Attachment.builder()
-                    .entityType(entityType).entityId(entityId)
-                    .url(url).filename(embedFilename(url))
-                    .contentType(CT_EMBED).size(0L).build());
-        }
+        VideoDescriptor d = resolveVideoDescriptor(url);
+        Attachment saved = attachmentRepository.save(Attachment.builder()
+                .entityType(entityType).entityId(entityId)
+                .url(d.url()).filename(d.filename())
+                .contentType(d.contentType()).size(0L).build());
         captureMediaChanges(entityType, entityId);
-        notifyMediaChanged(entityType, entityId);
-        return saved;
+        return toDto(saved);
     }
 
     public TempAttachmentDto uploadTemp(@NonNull String tempSessionId, @NonNull String filename,
@@ -166,7 +129,6 @@ public class AttachmentService {
                                   @NonNull List<TempAttachmentDto> temps) {
         commitTempUploadsQuiet(entityType, entityId, temps);
         captureMediaChanges(entityType, entityId);
-        notifyMediaChanged(entityType, entityId);
     }
 
     public void captureSnapshot(@NonNull EntityType entityType, @NonNull Long entityId) {
@@ -200,13 +162,8 @@ public class AttachmentService {
         }
     }
 
-    public List<Attachment> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
-                                               @NonNull String[] urls) {
-        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls);
-    }
-
-    public List<AttachmentItemDto> getByEntityAndUrlsDtos(@NonNull EntityType entityType, @NonNull Long entityId,
-                                                          @NonNull String[] urls) {
+    public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
+                                                       @NonNull String[] urls) {
         return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls).stream().map(AttachmentService::toDto).toList();
     }
 
@@ -217,32 +174,19 @@ public class AttachmentService {
         restoreToUrls(entityType, entityId, targetUrls, actorId);
     }
 
-    @Transactional
-    public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
-                                        @NonNull String[] targetUrls) {
-        Long actorId = currentActorHook.getCurrentActorId().orElseThrow();
-        restoreToUrls(entityType, entityId, targetUrls, actorId);
-        attachmentSnapshotService.capture(entityType, entityId, actorId);
-    }
-
-    @Transactional
-    public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
-                              @NonNull String[] targetUrls, @NonNull Long actorId) {
+    private void restoreToUrls(EntityType entityType, Long entityId, String[] targetUrls, Long actorId) {
         if (targetUrls.length == 0) {
             attachmentRepository.softDeleteAll(entityType, entityId, actorId);
-            notifyMediaChanged(entityType, entityId);
             return;
         }
         attachmentRepository.restoreUndelete(entityType, entityId, targetUrls);
         attachmentRepository.restoreMarkDeleted(entityType, entityId, actorId, targetUrls);
-        notifyMediaChanged(entityType, entityId);
     }
 
     @Transactional
     public void softDeleteAll(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long actorId) {
         log.info("Attachment delete all: entityType={}, entityId={}", entityType, entityId);
         attachmentRepository.softDeleteAll(entityType, entityId, actorId);
-        notifyMediaChanged(entityType, entityId);
     }
 
     public void discardTempUploads(@NonNull List<TempAttachmentDto> temps) {
@@ -251,19 +195,22 @@ public class AttachmentService {
              .forEach(t -> storageService.delete(t.tempUrl()));
     }
 
-    public AttachmentItemDto uploadDto(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String filename,
-                                       @NonNull InputStream inputStream, long contentLength, @NonNull String contentType) {
-        return toDto(upload(entityType, entityId, filename, inputStream, contentLength, contentType));
-    }
-
-    public AttachmentItemDto addVideoDto(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull String url) {
-        return toDto(addVideo(entityType, entityId, url));
-    }
-
     // ── internals ────────────────────────────────────────────────────────────
 
     public static AttachmentItemDto toDto(Attachment a) {
         return new AttachmentItemDto(a.getId(), a.getUrl(), a.getFilename(), a.getContentType());
+    }
+
+    private record VideoDescriptor(String url, String filename, String contentType) {}
+
+    private VideoDescriptor resolveVideoDescriptor(String url) {
+        String ytId = YoutubeUtil.extractId(url);
+        if (ytId != null) {
+            return new VideoDescriptor(YoutubeUtil.watchUrl(ytId), YoutubeUtil.filename(ytId), CT_YOUTUBE);
+        }
+        if (url.isBlank()) throw new IllegalArgumentException("Invalid video URL");
+        validateEmbedUrl(url);
+        return new VideoDescriptor(url, embedFilename(url), CT_EMBED);
     }
 
     // Logged, not thrown -- a close failure shouldn't turn a successful upload into a reported one.
@@ -300,10 +247,6 @@ public class AttachmentService {
 
     private static String folder(EntityType entityType, Long entityId) {
         return "%s/%d".formatted(entityType.name().toLowerCase(), entityId);
-    }
-
-    private void notifyMediaChanged(EntityType entityType, Long entityId) {
-        mediaChangeHook.ifAvailable(hook -> hook.onMediaChanged(new EntityRef(entityType, entityId)));
     }
 
     private void captureMediaChanges(EntityType entityType, Long entityId) {

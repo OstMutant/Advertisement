@@ -1151,6 +1151,14 @@ lookup replaces the denormalized cache.
   which is the same valid, gracefully-degraded state every other optional SPI in this codebase
   already tolerates.
 
+**Update (2026-07-22, improvement-102):** the "zero listeners is fine" call above did not hold up
+against `platform-commons/CLAUDE.md`'s own governance rule ("random abstractions without ≥2
+cross-module consumers are not allowed there") — carrying a permanently-unimplemented hook cost
+comprehension on every read of `AttachmentService` with no concrete future consumer named. Removed
+entirely: `AttachmentMediaChangeHook` (interface), the `ObjectProvider` field and all 7
+`notifyMediaChanged()` call sites in `AttachmentService`. Git history preserves the shape if a real
+consumer ever appears.
+
 **Tradeoff accepted explicitly:** one more bulk `AttachmentPort` query per advertisement list
 render — the same cost class already accepted twice (Taxon categories, User author info) for the
 same real decoupling benefit.

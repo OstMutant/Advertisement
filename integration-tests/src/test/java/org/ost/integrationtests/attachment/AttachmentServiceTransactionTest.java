@@ -10,6 +10,7 @@ import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.attachment.services.StorageService;
 import org.ost.integrationtests.AbstractPostgresIntegrationTest;
 import org.ost.integrationtests.support.TestDataCleaner;
+import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +46,8 @@ import static org.mockito.Mockito.lenient;
 
 /**
  * Covers improvement-049 item 3: {@link AttachmentService#upload} was not {@code @Transactional},
- * unlike its siblings ({@code delete()}/{@code deleteSkipSnapshot()}/{@code restoreToUrls()}) in
- * the same class. If {@code captureMediaChanges()} threw after {@code attachmentRepository.save()}
+ * unlike its siblings ({@code delete()}/{@code restoreToUrls()}) in the same class. If {@code
+ * captureMediaChanges()} threw after {@code attachmentRepository.save()}
  * had already committed, the {@code catch} block deleted the just-uploaded file from storage but
  * the DB row stayed committed — worse than doing nothing, since the row now points at a file that
  * no longer exists. Fixed by adding {@code @Transactional}, matching the sibling methods: an
@@ -136,10 +137,10 @@ class AttachmentServiceTransactionTest extends AbstractPostgresIntegrationTest {
 
     @Test
     void upload_success_persistsAttachmentRow() {
-        Attachment saved = attachmentService.upload(EntityType.ADVERTISEMENT, 2L, "file.jpg",
+        AttachmentItemDto saved = attachmentService.upload(EntityType.ADVERTISEMENT, 2L, "file.jpg",
                 new ByteArrayInputStream("data".getBytes()), 4, "image/jpeg");
 
-        assertThat(saved.getId()).isNotNull();
+        assertThat(saved.id()).isNotNull();
         List<Attachment> rows = attachmentRepository.getByEntityId(EntityType.ADVERTISEMENT, 2L);
         assertThat(rows).hasSize(1);
     }

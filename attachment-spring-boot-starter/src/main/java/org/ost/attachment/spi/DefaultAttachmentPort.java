@@ -45,13 +45,13 @@ public class DefaultAttachmentPort implements AttachmentPort {
 
     @Override
     public List<AttachmentItemDto> getByEntityId(@NonNull EntityType entityType, @NonNull Long entityId) {
-        return attachmentService.getByEntityIdDtos(entityType, entityId);
+        return attachmentService.getByEntityId(entityType, entityId);
     }
 
     @Override
     public List<AttachmentItemDto> getByEntityAndUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                                                       @NonNull String[] urls) {
-        return attachmentService.getByEntityAndUrlsDtos(entityType, entityId, urls);
+        return attachmentService.getByEntityAndUrls(entityType, entityId, urls);
     }
 
     @Override
@@ -77,7 +77,7 @@ public class DefaultAttachmentPort implements AttachmentPort {
     public AttachmentItemDto upload(@NonNull EntityType entityType, @NonNull Long entityId,
                                     @NonNull String filename, @NonNull InputStream inputStream,
                                     long contentLength, @NonNull String contentType) {
-        return attachmentService.uploadDto(entityType, entityId, filename, inputStream, contentLength, contentType);
+        return attachmentService.upload(entityType, entityId, filename, inputStream, contentLength, contentType);
     }
 
     @Override
@@ -88,14 +88,14 @@ public class DefaultAttachmentPort implements AttachmentPort {
     @Override
     public AttachmentItemDto addVideo(@NonNull EntityType entityType, @NonNull Long entityId,
                                       @NonNull String url) {
-        return attachmentService.addVideoDto(entityType, entityId, url);
+        return attachmentService.addVideo(entityType, entityId, url);
     }
 
     // ── gallery commit/discard ────────────────────────────────────────────────
 
     @Override
-    public void deleteSkipSnapshot(@NonNull Long attachmentId) {
-        attachmentService.deleteSkipSnapshot(attachmentId);
+    public void delete(@NonNull Long attachmentId) {
+        attachmentService.delete(attachmentId);
     }
 
     @Override
@@ -118,11 +118,5 @@ public class DefaultAttachmentPort implements AttachmentPort {
     public void restoreToUrls(@NonNull EntityType entityType, @NonNull Long entityId,
                               @NonNull String[] targetUrls) {
         attachmentService.restoreToUrls(entityType, entityId, targetUrls);
-    }
-
-    @Override
-    public void restoreToUrlsAndCapture(@NonNull EntityType entityType, @NonNull Long entityId,
-                                        @NonNull String[] targetUrls) {
-        attachmentService.restoreToUrlsAndCapture(entityType, entityId, targetUrls);
     }
 }

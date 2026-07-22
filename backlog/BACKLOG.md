@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression |
 | **N** | 🔵 | 104, 105 | audit-rendering simplification — DTO-layer moves; after Batch F |
 | **I** | 🔵 | 029, 033 | process & docs tooling — no production code |
 | **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
@@ -42,18 +41,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch M 🔵 — attachment API simplification (attachment-spring-boot-starter)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-102](issues/improvement-102-attachmentmediachangehook-zero-consumers.md) | New (simplification review) | `AttachmentMediaChangeHook` has zero implementations — remove it (recommended) or re-justify in ADR-035 with a named future consumer |
-| [improvement-103](issues/improvement-103-attachmentservice-api-surface-reduction.md) | New (simplification review) | `AttachmentService` — compress the 13+-method public API: DTO-return unification, explicit snapshot-capture parameter instead of `*Quiet`/`*SkipSnapshot` twins, dedup video branching, rethink the `restoreToUrls` overload trio |
-
-One pass because: same file/starter, and 102's removal (if chosen) directly shrinks the surface
-103 restructures — sequencing them apart guarantees rebase churn. Batch B (090/093, same service)
-shipped 2026-07-20, so this batch's `captureMediaChanges()`/`deleteAttachments()` starting point
-already reflects that fix.
 
 ### Batch N 🔵 — audit-rendering simplification (after Batch F)
 

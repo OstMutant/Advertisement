@@ -11,10 +11,8 @@ import org.ost.attachment.services.AttachmentService;
 import org.ost.attachment.services.AttachmentSnapshotService;
 import org.ost.attachment.services.StorageService;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
-import org.ost.platform.attachment.spi.AttachmentMediaChangeHook;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.core.spi.CurrentActorHook;
-import org.springframework.beans.factory.ObjectProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -57,8 +55,6 @@ class AttachmentServiceTest {
     @Mock
     private CurrentActorHook currentActorHook;
     @Mock
-    private ObjectProvider<AttachmentMediaChangeHook> mediaChangeHook;
-    @Mock
     private InputStream inputStream;
 
     private AttachmentService service;
@@ -66,7 +62,7 @@ class AttachmentServiceTest {
     @BeforeEach
     void setUp() {
         service = new AttachmentService(storageService, attachmentRepository,
-                attachmentSnapshotService, currentActorHook, mediaChangeHook);
+                attachmentSnapshotService, currentActorHook);
     }
 
     @Test
