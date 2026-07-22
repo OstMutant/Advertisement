@@ -983,3 +983,16 @@ corrected before applying. Verified with the full suite (Vaadin is UI-critical):
 integration-tests (Testcontainers) 127/127, Playwright e2e --full --ux 49/49, all clean of
 ERROR/FAILED in the actual log content, not just the summary line. Batch G's remaining item is
 improvement-085 (Playwright bump).
+
+✅ Done (2026-07-22): [improvement-085](issues/improvement-085-playwright-version-bump.md) —
+bumped Playwright from 1.52.0 to 1.61.1 (9 minor versions) in `playwright/run.sh`
+(`PLAYWRIGHT_VERSION`) and `playwright/CLAUDE.md`, keeping the `-jammy` image tag suffix (verified
+`v1.61.1-jammy` exists on `mcr.microsoft.com`, still Ubuntu 22.04-based — the plain, unsuffixed
+tag switched to a newer Ubuntu base back in 1.47, unrelated to this bump). Read the 1.53-1.61
+release notes before touching anything, per the issue's own instruction, since this is a much
+larger gap than a routine patch bump: no breaking change in that range affects this project's
+patterns (`_react`/`_vue`/`:light` selectors, `page.accessibility`, `Locator.ariaRef()`,
+`videosPath`/`videoSize` — none of these are used here), so the manual `shadowFind`/
+`shadowFindAll` helpers in `e2e/_flows/*.flow.js` needed no changes. Verified with
+`bash scripts/playwright.sh e2e --full --ux`: 49/49 passed, 0 `failed`/`Error` in the actual log
+content. **Batch G complete** (040, 085 — both done, in two separate PRs/commits).

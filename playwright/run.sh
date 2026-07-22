@@ -34,7 +34,7 @@ DB_NAME="${DB_NAME:-experiments}"
 
 # Playwright version must match image (see playwright/CLAUDE.md) -- one place to bump both
 # instead of two independent literals in the same file (improvement-044).
-PLAYWRIGHT_VERSION="1.52.0"
+PLAYWRIGHT_VERSION="1.61.1"
 PLAYWRIGHT_IMAGE="mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION}-jammy"
 
 if ! docker inspect "$APP_CONTAINER" &>/dev/null; then
