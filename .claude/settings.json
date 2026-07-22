@@ -21,6 +21,26 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(cat | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//'); echo \"$file\" | grep -qE -- '-spring-boot-starter/.*/db/.*changelog' || exit 0; starter=$(echo \"$file\" | grep -oE '[a-z-]+-spring-boot-starter' | head -1); echo \"Reminder: $file is a Liquibase changelog edit -- check that $starter/CLAUDE.md's Schema/Tables section still matches before committing.\" >&2; exit 0"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "file=$(cat | grep -o '\"file_path\":\"[^\"]*\"' | head -1 | sed 's/\"file_path\":\"//;s/\"$//'); echo \"$file\" | grep -qE -- '-spring-boot-starter/.*/db/.*changelog' || exit 0; starter=$(echo \"$file\" | grep -oE '[a-z-]+-spring-boot-starter' | head -1); echo \"Reminder: $file is a Liquibase changelog edit -- check that $starter/CLAUDE.md's Schema/Tables section still matches before committing.\" >&2; exit 0"
+          }
+        ]
+      }
     ]
   }
 }

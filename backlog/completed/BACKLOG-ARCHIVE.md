@@ -1078,3 +1078,31 @@ duplication itself (per the issue's own "if generic comes out less readable, don
 guidance). Verified with unit-tests, integration-tests (127/127), and a clean full Playwright
 e2e --full --ux run (49/49) — the existing Timeline/Activity diff assertions are the natural
 characterization test for this exact enrichment path. **Batch N complete.**
+
+✅ Done (2026-07-22): [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) and
+[improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) — process
+tooling, one PR, both re-scoped after empirical verification. For 029: measured the
+incremental-compile hook's real cost in this sandbox before building it — `mvn compile -pl
+query-lib -q` (smallest module, nothing to recompile) took ~29s, `mvn compile -pl marketplace-app
+-q` (largest module, nothing to recompile) took ~95-108s, both stable across repeated runs. This is
+the same class of ~100s "nothing to compile" Maven overhead `integration-tests/CLAUDE.md` already
+documents for this sandbox — a hook firing after every `*.java` edit at that cost would be a net
+productivity loss, not the "seconds" feedback the issue wanted, so it was **not built** (documented
+here rather than silently dropped; likely fine on a normal developer machine, untestable in this
+sandbox). Built only the docs-drift guard half: two new `PostToolUse` hooks (`Edit` and `Write`
+matchers) in `.claude/settings.json` — fires when the edited `file_path` matches
+`*-spring-boot-starter/*/db/*changelog*` (the real pattern shared by all 5 domain starters'
+Liquibase changelogs, confirmed by listing every changelog path in the repo), printing a reminder
+naming the specific owning starter's `CLAUDE.md` to check. Deliberately warning-only, not blocking
+the next commit like the existing commit-approval hook — matches the issue's own "do the hook
+first (immediate, local)" framing, full blocking would need session-spanning state-tracking
+disproportionate to a first pass. Verified the shell logic in isolation against three realistic
+sample JSON payloads (a real starter changelog match, a plain `.java` non-match, and
+marketplace-app's own empty placeholder changelog correctly *not* matching since it lacks the
+`-spring-boot-starter` path segment) before wiring it into the committed hook, then confirmed via a
+live edit-and-revert against a real changelog file. For 033: confirmed `/ci` (improvement-059)
+already chains unit → integration → e2e → Sonar in one command, exactly as the issue's own note
+predicted — no new skill built. Recorded the Definition of Done as a new section in
+`.claude/rules.md` (full suite green, `DECISIONS.md` updated if architectural, issue moved to
+`completed/issues/`), referencing `/ci`/`scripts/ci.sh` instead of the never-built `/quality-gate`.
+**Batch I complete.**

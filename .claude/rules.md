@@ -99,6 +99,18 @@ When an issue in `backlog/issues/` is resolved (fix is implemented and committed
   `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
   `backlog/BACKLOG.md`'s "Maintenance rules"
 
+## Definition of Done
+A feature or fix is not complete until all of the following hold:
+- The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-
+  tests.sh --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
+  change touches UI-visible behavior. `bash scripts/ci.sh` (`/ci`) runs this whole chain
+  (unit → integration → e2e → Sonar) in one pass when a single command is preferred over running
+  each stage separately.
+- `DECISIONS.md` (the relevant module's) is updated if the change is architectural — a new
+  decision, or an annotation to an existing one it supersedes.
+- The issue file is moved from `backlog/issues/` to `backlog/completed/issues/`, its `BACKLOG.md`
+  row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Issue Lifecycle" above.
+
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.
 Wait for the next explicit user message before doing anything.

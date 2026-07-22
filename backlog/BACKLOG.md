@@ -33,23 +33,12 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **I** | 🔵 | 029, 033 | process & docs tooling — no production code |
 | **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
 | **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
 | — | 🟡/🔵/⚪ | 096, 108, 036, 039, 065, 072, 063, 028 | standalone — no one-pass partner (096 = its own responsive program; 108 = query-lib fix) |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch I 🔵 — process & docs tooling
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-029](issues/improvement-029-docs-drift-guard-and-hooks.md) | Migrated | Docs-drift guard + incremental-compile Claude Code hooks |
-| [improvement-033](issues/improvement-033-quality-gate-skill-and-definition-of-done.md) | Migrated | `/quality-gate` skill + Definition of Done in rules.md — likely reduces to recording the Definition of Done since `/ci` already does the chaining |
-
-One pass because: both are Claude-Code-process changes (hooks + skill/DoD recording), no
-production code touched.
 
 ### Batch J 🔵 — leaf UI components (its own multi-phase program)
 
