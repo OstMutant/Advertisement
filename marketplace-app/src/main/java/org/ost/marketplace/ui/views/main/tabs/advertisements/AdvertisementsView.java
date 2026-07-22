@@ -42,7 +42,6 @@ public class AdvertisementsView extends VerticalLayout {
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
     private final transient AdvertisementOverlay                      overlay;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
-    private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
     private final transient LocaleProvider                            localeProvider;
@@ -168,11 +167,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private EmptyStateView buildEmptyState() {
-        return emptyStateFactory.build(
-                EmptyStateView.Parameters.builder()
-                        .icon(VaadinIcon.CLIPBOARD_TEXT)
-                        .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
-                        .hint(i18n.get(ADVERTISEMENT_EMPTY_HINT))
-                        .build());
+        return new EmptyStateView(VaadinIcon.CLIPBOARD_TEXT,
+                i18n.get(ADVERTISEMENT_EMPTY_TITLE), i18n.get(ADVERTISEMENT_EMPTY_HINT));
     }
 }

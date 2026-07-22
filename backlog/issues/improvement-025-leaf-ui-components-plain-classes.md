@@ -12,7 +12,9 @@ not as one large PR
 `DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`) done 2026-07-22 — see
 `marketplace-app/DECISIONS.md` ADR-052. Batch 2 (fields: `UiTextField`, `UiTextArea`,
 `UiEmailField`, `UiPasswordField`, `UiComboBox`, `UiLabeledField`) done 2026-07-22 — see ADR-053.
-Batches 3 (structural/no-dep), 4 (`ConfirmActionDialog`) remain open.
+Batch 3 (structural/no-dep: `EmptyStateView`, `DialogLayout`, `OverlayLayout`) done 2026-07-22 —
+see ADR-054. `PaginationBar` was reviewed as part of Batch 3 and deliberately kept a Spring bean
+permanently (not deferred) — see ADR-054 for why. Batch 4 (`ConfirmActionDialog`) remains open.
 
 ## Problem
 
@@ -212,10 +214,10 @@ batches with a full Playwright run after each, not all ~17 classes in one PR:
    blast radius, easiest to verify visually.
 2. **Batch 2 — fields:** `UiTextField`, `UiTextArea`, `UiEmailField`, `UiPasswordField`,
    `UiComboBox`, `UiLabeledField`.
-3. **Batch 3 — structural/no-dep:** `EmptyStateView`, `DialogLayout`, `OverlayLayout`,
-   `PaginationBar` (the two zero-dependency layout classes and the already-plain-constructor
-   `PaginationBar` are the lowest risk in the whole set and could even move to Batch 1 if
-   preferred).
+3. **Batch 3 — structural/no-dep:** `EmptyStateView`, `DialogLayout`, `OverlayLayout` — done.
+   `PaginationBar` was reviewed here too but kept a Spring bean permanently: unlike the other
+   three, it's read from a separately-invoked `refresh()` in three `View` classes and already has
+   a test mocking it as an injected collaborator — see ADR-054.
 4. **Batch 4 — `ConfirmActionDialog`:** handled last and separately, once its two button
    dependencies (Batch 1) are already converted, since its own conversion depends on theirs.
 

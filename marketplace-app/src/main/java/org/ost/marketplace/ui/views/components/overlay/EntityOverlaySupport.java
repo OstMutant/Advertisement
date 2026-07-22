@@ -21,7 +21,6 @@ public class EntityOverlaySupport {
 
     private final I18nService                                          i18n;
     private final NotificationService                                  notification;
-    private final UiComponentFactory<OverlayLayout>                      overlayLayoutFactory;
     private final UiComponentFactory<ConfirmActionDialog>                confirmDialogFactory;
 
     public OverlayBreadcrumbBackButton createBreadcrumbButton(I18nKey labelKey, Runnable onBack) {
@@ -31,7 +30,7 @@ public class EntityOverlaySupport {
     }
 
     public OverlayLayout createLayout(OverlayBreadcrumbBackButton breadcrumbButton) {
-        OverlayLayout layout = overlayLayoutFactory.get();
+        OverlayLayout layout = new OverlayLayout();
         layout.setBreadcrumbButton(breadcrumbButton);
         return layout;
     }

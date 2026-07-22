@@ -1,9 +1,7 @@
 package org.ost.marketplace.config;
 
-import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
-import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementFormOverlayModeHandler;
@@ -24,17 +22,7 @@ import org.springframework.context.annotation.Configuration;
 public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<EmptyStateView> emptyStateViewFactory(ObjectProvider<EmptyStateView> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
     public UiComponentFactory<ConfirmActionDialog> confirmActionDialogFactory(ObjectProvider<ConfirmActionDialog> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<OverlayLayout> overlayLayoutFactory(ObjectProvider<OverlayLayout> p) {
         return new UiComponentFactory<>(p);
     }
 

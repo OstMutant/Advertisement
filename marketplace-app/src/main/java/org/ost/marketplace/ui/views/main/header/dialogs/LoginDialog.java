@@ -32,7 +32,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     private final I18nService                            i18nService;
     private final NotificationService                    notificationService;
     private final LocaleProvider                         localeProvider;
-    private final DialogLayout                           layout;
+    private final DialogLayout                           layout = new DialogLayout();
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;

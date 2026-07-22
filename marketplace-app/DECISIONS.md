@@ -2200,3 +2200,48 @@ outlive `activate()`.
   (49/49) — no `data-testid`-dependent selector broke.
 - Remaining phases (structural/no-dep components, `ConfirmActionDialog`) tracked as Batch 3-4 in
   the same issue; not done in this PR.
+
+---
+
+## ADR-054: Structural leaf components (`EmptyStateView`, `DialogLayout`, `OverlayLayout`) converted to plain classes (Batch 3); `PaginationBar` deliberately kept a Spring bean
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 3 — same rationale as ADR-052/ADR-053 (Batches 1-2), applied to the remaining structural
+components with zero real service dependencies: `EmptyStateView`, `DialogLayout`, `OverlayLayout`.
+`PaginationBar` was also a Batch 3 candidate on paper (constructor already reduced to just
+`I18nService` back in Batch 1) but was deliberately excluded after review: it is read from a
+separately-invoked `refresh()` method in three different `View` classes
+(`AdvertisementsView`/`TimelineView`/`UserView`), and `TimelineViewTest` already mocks it as an
+injected collaborator through the constructor. Converting it would force `TimelineView` to gain a
+new `I18nService` constructor parameter purely to build its own `PaginationBar` internally, and
+would require rewriting the existing test to swap a mock into the field via reflection post-
+construction — a materially bigger and riskier change than this batch's other three, and not the
+"leaf without dependencies" case the issue is about. Decision, made explicitly with the user: leave
+`PaginationBar` a `@SpringComponent @Scope("prototype")` bean permanently, not deferred further.
+
+**Decision:** Converted `EmptyStateView`, `DialogLayout`, `OverlayLayout` to plain classes,
+folding their old `init()`/`configure()` split into a single constructor:
+- `EmptyStateView(VaadinIcon icon, String title, String hint)` — `AdvertisementsView.buildEmptyState()`
+  now calls `new EmptyStateView(...)` directly instead of `emptyStateFactory.build(Parameters...)`.
+- `DialogLayout()` — no-arg constructor; its three consumers (`ConfirmActionDialog`, `LoginDialog`,
+  `SignUpDialog`) changed their `private final DialogLayout layout;` field to
+  `= new DialogLayout()`, which Lombok's `@RequiredArgsConstructor` on those three classes
+  automatically excludes from the generated constructor once it has an initializer.
+- `OverlayLayout()` — no-arg constructor; its sole factory-based consumer,
+  `EntityOverlaySupport.createLayout()`, now calls `new OverlayLayout()` directly instead of
+  `overlayLayoutFactory.get()`.
+
+Removed the now-empty `emptyStateViewFactory`/`overlayLayoutFactory` `@Bean` declarations from
+`ComponentFactoryConfig`. `ConfirmActionDialog`/`LoginDialog`/`SignUpDialog`/`EntityOverlaySupport`
+themselves remain Spring beans — only the leaf `DialogLayout`/`OverlayLayout` types they hold
+changed.
+
+**Consequences:**
+- No test constructs any of these three types directly or mocks them — verified by grep before
+  converting, so no test changes were needed this batch (unlike Batch 1/2's button/field fixups).
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49).
+- Remaining phase (`ConfirmActionDialog` itself) tracked as Batch 4 in the same issue; not done in
+  this PR. `PaginationBar` is no longer tracked as a remaining phase — see decision above.

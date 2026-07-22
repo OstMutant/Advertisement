@@ -41,7 +41,7 @@ public final class ConfirmActionDialog extends BaseDialog
 
     @Getter
     private final transient I18nService                          i18nService;
-    private final           DialogLayout                         layout;
+    private final           DialogLayout                         layout = new DialogLayout();
 
     @Override
     @PostConstruct

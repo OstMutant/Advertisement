@@ -4,24 +4,14 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.formlayout.FormLayout;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.ui.core.Initialization;
-import org.springframework.context.annotation.Scope;
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor
-public class DialogLayout extends VerticalLayout implements Initialization<DialogLayout> {
+public class DialogLayout extends VerticalLayout {
 
     private final FormLayout form = new FormLayout();
     private final Div bottom = new Div();
-    private Div scrollContainer;
+    private final Div scrollContainer;
 
-    @Override
-    @PostConstruct
-    public DialogLayout init() {
+    public DialogLayout() {
         form.setResponsiveSteps(new FormLayout.ResponsiveStep("0", 1));
         form.addClassName("dialog-form");
         bottom.addClassName("dialog-bottom");
@@ -32,7 +22,6 @@ public class DialogLayout extends VerticalLayout implements Initialization<Dialo
         addClassName("dialog-root");
         setAlignItems(Alignment.STRETCH);
         add(scrollContainer, bottom);
-        return this;
     }
 
     public void addFormContent(Component... components) {

@@ -34,7 +34,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     private final transient I18nService                             i18nService;
     private final transient NotificationService                     notificationService;
     private final transient HttpServletRequest                      request;
-    private final           DialogLayout                            layout;
+    private final           DialogLayout                            layout = new DialogLayout();
 
     private UiTextField     nameField;
     private UiEmailField    emailField;
