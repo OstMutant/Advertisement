@@ -25,6 +25,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AuditReadService {
 
+    // Older rows beyond this cap are silently truncated -- no "more..." affordance yet.
+    private static final int ENTITY_ACTIVITY_MAX_ROWS = 100;
+
     private final AuditLogRepository                   repository;
     @SuppressWarnings("rawtypes")
     private final List<AuditActivityEnrichHook>        activityEnrichHooks;
@@ -35,7 +38,7 @@ public class AuditReadService {
     public List<AuditActivityItemDto<? extends AuditableSnapshot>> getEntityActivity(EntityType entityType, Long entityId,
                                                       Long currentUserId, boolean showAll) {
         List<AuditLogProjection> rows = withSameTypePrevSnapshot(
-                repository.findRows(entityType, entityId, showAll ? null : currentUserId, 100));
+                repository.findRows(entityType, entityId, showAll ? null : currentUserId, ENTITY_ACTIVITY_MAX_ROWS));
         List items = rows.stream().map(this::toActivityItem).toList();
         EntityRef entityRef = new EntityRef(entityType, entityId);
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {

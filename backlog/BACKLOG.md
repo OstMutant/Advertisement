@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **H** | 🔵 | 019, 095 | audit read-side rewrite — same read-side code |
 | **M** | 🔵 | 102, 103 | attachment API simplification — dead SPI decision + surface compression |
 | **N** | 🔵 | 104, 105 | audit-rendering simplification — DTO-layer moves; after Batch F |
 | **I** | 🔵 | 029, 033 | process & docs tooling — no production code |
@@ -43,17 +42,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch H 🔵 — audit read-side rewrite
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-019](issues/improvement-019-findtimeline-correlated-subqueries.md) | Wave 3 | `findTimeline()` — rewrite the correlated `version`/`prev_*` subqueries as window functions (same shape `findRows()` already uses) |
-| [improvement-095](issues/improvement-095-getentityactivity-hardcoded-limit.md) | New | `AuditReadService.getEntityActivity()` — name the hardcoded 100-row activity limit (silent truncation policy is currently invisible) |
-
-One pass because: same read-side code (`AuditLogRepository` + `AuditReadService`). Batch A (087,
-091 — the `id`-tiebreaker fixes) shipped 2026-07-20; keep its `(created_at, id)` tiebreaker shape
-in this rewrite's window-function `ORDER BY`.
 
 ### Batch M 🔵 — attachment API simplification (attachment-spring-boot-starter)
 

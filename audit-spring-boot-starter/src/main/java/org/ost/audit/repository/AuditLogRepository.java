@@ -127,33 +127,22 @@ public class AuditLogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("limit",  size)
                 .addValue("offset", (long) page * size);
-        String innerOrderBy = OrderByBuilder.build(sort, SORT_ALIASES);
-        if (innerOrderBy.isBlank()) innerOrderBy = " ORDER BY al.created_at DESC";
-        String outerOrderBy = innerOrderBy.replace("al.", "f.");
+        String orderBy = OrderByBuilder.build(sort, SORT_ALIASES);
+        if (orderBy.isBlank()) orderBy = " ORDER BY al.created_at DESC";
         String sql = """
-                        WITH filtered AS (
-                            SELECT al.id, al.entity_type, al.entity_id, al.action_type, al.actor_id, al.created_at,
-                                   al.snapshot_data::text AS snapshot_data
-                            FROM audit_log al
-                            WHERE 1=1%s
-                            %s
-                            LIMIT :limit OFFSET :offset
+                        WITH numbered AS (
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text                                                                       AS snapshot_data,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id)          AS version,
+                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id) AS prev_id,
+                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id) AS prev_snapshot_data
+                            FROM audit_log
                         )
-                        SELECT f.*,
-                               (SELECT COUNT(*) FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND (b.created_at, b.id) <= (f.created_at, f.id))::int AS version,
-                               (SELECT id FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND (b.created_at, b.id) < (f.created_at, f.id)
-                                ORDER BY b.created_at DESC, b.id DESC LIMIT 1)      AS prev_id,
-                               (SELECT snapshot_data::text FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND (b.created_at, b.id) < (f.created_at, f.id)
-                                ORDER BY b.created_at DESC, b.id DESC LIMIT 1)      AS prev_snapshot_data
-                        FROM filtered f
+                        SELECT * FROM numbered al
+                        WHERE 1=1%s
                         %s
-                        """.formatted(FILTER.build(params, filter, " AND "), innerOrderBy, outerOrderBy);
+                        LIMIT :limit OFFSET :offset
+                        """.formatted(FILTER.build(params, filter, " AND "), orderBy);
         return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
     }
 

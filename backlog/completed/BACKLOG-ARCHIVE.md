@@ -996,3 +996,22 @@ patterns (`_react`/`_vue`/`:light` selectors, `page.accessibility`, `Locator.ari
 `shadowFindAll` helpers in `e2e/_flows/*.flow.js` needed no changes. Verified with
 `bash scripts/playwright.sh e2e --full --ux`: 49/49 passed, 0 `failed`/`Error` in the actual log
 content. **Batch G complete** (040, 085 — both done, in two separate PRs/commits).
+
+✅ Done (2026-07-22): [improvement-019](issues/improvement-019-findtimeline-correlated-subqueries.md)
+and [improvement-095](issues/improvement-095-getentityactivity-hardcoded-limit.md) — audit
+read-side rewrite, one PR. `AuditLogRepository.findTimeline()` computed `version`/`prev_id`/
+`prev_snapshot_data` via three correlated subqueries per returned row (worst: a `COUNT(*)` with a
+`<=` inequality) — rewritten to the same window-function shape the sibling `findRows()` already
+used (`ROW_NUMBER()`/`LAG() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id)`),
+preserving the `(created_at, id)` tiebreaker shape from improvement-087/091. Confirmed
+`idx_audit_entity (entity_type, entity_id, created_at DESC)` already covers the window's
+partition/order, so the rewrite is a single indexed pass instead of N per-row subquery probes —
+not a hidden regression. Simplified away the old `filtered`/`f` two-CTE split and the
+`innerOrderBy`/`outerOrderBy`/`.replace("al.", "f.")` alias hack it needed, since the new single
+`numbered` CTE reuses the same `al` alias `FILTER`/`SORT_ALIASES` already assume. Verified against
+the existing 6 `AuditLogRepositoryTest` cases (tied-`created_at` version/prev-id/prev-snapshot,
+actor-filter) unchanged — they test observable behavior, not SQL shape, and all passed without
+modification. Separately, `AuditReadService.getEntityActivity()`'s bare `100`-row literal was
+extracted to `ENTITY_ACTIVITY_MAX_ROWS` with a one-line comment on the silent-truncation policy —
+extraction only, YAGNI on speculative paging (per the issue's own guidance). Full suite: unit-tests
+and integration-tests (127/127) both clean. **Batch H complete.**
