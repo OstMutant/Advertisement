@@ -203,7 +203,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     public void discardChanges() {
         TaxonEditDto fresh = buildDto();
-        binder.reload(fresh, (src, tgt) -> copyLocaleFields(src, tgt));
+        binder.reload(fresh, this::copyLocaleFields);
         updateButtons(false);
     }
 
@@ -244,7 +244,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     }
 
     public void loadRestored(@NonNull TaxonEditDto restoredDto) {
-        binder.loadRestored(restoredDto, (src, tgt) -> copyLocaleFields(src, tgt));
+        binder.loadRestored(restoredDto, this::copyLocaleFields);
         notificationService.success(FORM_RESTORE_BANNER);
         updateButtons(true);
         if (formTabs != null) formTabs.setSelectedTab(editTab);

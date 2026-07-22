@@ -130,7 +130,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
             userPort.register(dto, request.getRemoteAddr());
             notificationService.success(SIGNUP_SUCCESS);
             close();
-        } catch (IllegalStateException ex) {
+        } catch (IllegalStateException _) {
             notificationService.error(SIGNUP_ERROR_TOO_MANY_ATTEMPTS);
         } catch (Exception ex) {
             log.error("Registration failed unexpectedly", ex);

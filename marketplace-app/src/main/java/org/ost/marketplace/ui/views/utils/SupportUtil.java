@@ -18,7 +18,7 @@ public class SupportUtil {
         if (trimmed == null) return null;
         try {
             return Long.parseLong(trimmed);
-        } catch (NumberFormatException e) {
+        } catch (NumberFormatException _) {
             return null;
         }
     }

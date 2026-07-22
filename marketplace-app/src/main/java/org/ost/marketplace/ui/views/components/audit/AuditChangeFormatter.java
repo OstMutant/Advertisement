@@ -15,9 +15,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AuditChangeFormatter {
 
-    private static final String BULLET      = "• ";
-    private static final String ARROW       = " → ";
-    private static final String EMPTY_VALUE = "—";
+    private static final String BULLET             = "• ";
+    private static final String ARROW              = " → ";
+    private static final String EMPTY_VALUE        = "—";
+    private static final String PROP_INNER_HTML     = "innerHTML";
+    private static final String CSS_SUFFIX_COLLAPSIBLE = "-value--collapsible";
 
     private final I18nService i18n;
 
@@ -64,7 +66,7 @@ public class AuditChangeFormatter {
                 if (text == null || text.isBlank()) return;
                 Div item = new Div();
                 item.addClassName(cssClass + "-item");
-                item.getElement().setProperty("innerHTML", i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
+                item.getElement().setProperty(PROP_INNER_HTML, i18n.get(I18nKey.AUDIT_CHANGES_BULLET, text));
                 container.add(item);
             }
         }
@@ -75,8 +77,8 @@ public class AuditChangeFormatter {
         boolean isLong  = value != null && !value.isBlank() && value.length() > VALUE_COLLAPSE_THRESHOLD;
         if (isLong) {
             Div valueDiv = new Div();
-            valueDiv.addClassName(cssClass + "-value--collapsible");
-            valueDiv.getElement().setProperty("innerHTML", rendered);
+            valueDiv.addClassName(cssClass + CSS_SUFFIX_COLLAPSIBLE);
+            valueDiv.getElement().setProperty(PROP_INNER_HTML, rendered);
             Span toggle = buildValueToggle(valueDiv, cssClass);
             parent.add(valueDiv);
             parent.add(toggle);
@@ -89,7 +91,7 @@ public class AuditChangeFormatter {
         } else {
             Span valueSpan = new Span();
             valueSpan.addClassName(cssClass + "-value");
-            valueSpan.getElement().setProperty("innerHTML", rendered);
+            valueSpan.getElement().setProperty(PROP_INNER_HTML, rendered);
             parent.add(valueSpan);
         }
     }
@@ -100,10 +102,10 @@ public class AuditChangeFormatter {
         boolean[] collapsed = {true};
         toggle.addClickListener(e -> {
             if (collapsed[0]) {
-                valueDiv.removeClassName(cssClass + "-value--collapsible");
+                valueDiv.removeClassName(cssClass + CSS_SUFFIX_COLLAPSIBLE);
                 toggle.setText(i18n.get(I18nKey.AUDIT_CHANGES_SHOW_LESS));
             } else {
-                valueDiv.addClassName(cssClass + "-value--collapsible");
+                valueDiv.addClassName(cssClass + CSS_SUFFIX_COLLAPSIBLE);
                 toggle.setText(i18n.get(I18nKey.AUDIT_CHANGES_SHOW_MORE));
             }
             collapsed[0] = !collapsed[0];

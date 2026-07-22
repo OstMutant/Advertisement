@@ -20,8 +20,8 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class CardMediaLightbox {
 
-    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
-    private final transient UiComponentFactory<CardLightboxViewer> viewerFactory;
+    private final UiComponentFactory<UiIconButton> iconButtonFactory;
+    private final UiComponentFactory<CardLightboxViewer> viewerFactory;
 
     public void open(@NonNull List<AttachmentItemDto> attachments, int startIndex) {
         int[] idx = {startIndex};

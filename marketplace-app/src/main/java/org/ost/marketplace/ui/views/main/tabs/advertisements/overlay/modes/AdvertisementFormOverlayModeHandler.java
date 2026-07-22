@@ -94,14 +94,12 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private QuillEditor descriptionField;
 
     private Parameters                        params;
-    private boolean                           isCreate;
     @Getter
     private Long                              savedId;
     @Getter
     private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
-    private List<TaxonDto>                    availableCategories = List.of();
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -111,7 +109,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     @Override
     public void activate(OverlayLayout layout) {
-        this.isCreate = params.getAd() == null;
+        boolean isCreate = params.getAd() == null;
 
         titleField.configure(UiTextField.Parameters.builder()
                 .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
@@ -126,7 +124,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
 
-        availableCategories = taxonPortFactory.findIfAvailable()
+        List<TaxonDto> availableCategories = taxonPortFactory.findIfAvailable()
                 .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
                 .orElse(List.of());
         if (!availableCategories.isEmpty()) {
@@ -141,7 +139,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(params.getAd());
-        buildBinder(dto);
+        buildBinder(dto, availableCategories);
 
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
@@ -303,7 +301,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         BeforeUnloadUtil.sync(hasChanges);
     }
 
-    private void buildBinder(AdvertisementEditDto dto) {
+    private void buildBinder(AdvertisementEditDto dto, List<TaxonDto> availableCategories) {
         binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)

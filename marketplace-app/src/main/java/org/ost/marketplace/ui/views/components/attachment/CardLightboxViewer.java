@@ -77,18 +77,11 @@ public class CardLightboxViewer extends HorizontalLayout {
         nextBtn.setVisible(visible);
     }
 
-    // Confirmed via git history (4310b0be, "fix: stop YouTube iframe when switching to image")
-    // plus direct re-confirmation this session: Vaadin Flow does not reliably apply
-    // Element.setAttribute("src", ...) -- nor even element-scoped Element.executeJs() -- to
-    // either <iframe src> or <video src> in the live DOM once the element has already rendered
-    // once. Only UI.getPage().executeJs() (page-level, not element-scoped) reliably lands the
-    // change. getElement().setAttribute() is still called first so Vaadin's own server-side diff
-    // baseline stays correct for later changes; the actual DOM write goes through
-    // page.executeJs(), targeted by each element's own unique id rather than the shared
-    // ".card-lightbox__iframe"/".card-lightbox__main-video" classes the pre-improvement-082 code
-    // selected via document.querySelector() -- that global selector is what actually made this a
-    // cross-instance bug (two open/opened-then-closed lightboxes' elements share the same class;
-    // Vaadin dialogs don't remove their content from the DOM on close, only hide it).
+    private static final String BLANK_SRC = "about:blank";
+
+    // Vaadin only reliably updates a rendered iframe/video src via page-level executeJs()
+    // targeted by the element's own unique id -- element-scoped calls and attribute diffing don't
+    // apply reliably once the element has already rendered once (see git history 4310b0be).
     void update(AttachmentItemDto a) {
         String ct = a.contentType();
         if (AttachmentMediaContentType.isEmbedded(ct)) {
@@ -103,16 +96,16 @@ public class CardLightboxViewer extends HorizontalLayout {
             mainVideo.setVisible(false);
             iframe.setVisible(true);
         } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {
-            iframe.getElement().setAttribute("src", "about:blank");
-            setIframeSrcViaPage("about:blank");
+            iframe.getElement().setAttribute("src", BLANK_SRC);
+            setIframeSrcViaPage(BLANK_SRC);
             videoEl.setAttribute("src", a.url());
             setVideoSrcViaPage(a.url(), false);
             mainImg.setVisible(false);
             iframe.setVisible(false);
             mainVideo.setVisible(true);
         } else {
-            iframe.getElement().setAttribute("src", "about:blank");
-            setIframeSrcViaPage("about:blank");
+            iframe.getElement().setAttribute("src", BLANK_SRC);
+            setIframeSrcViaPage(BLANK_SRC);
             videoEl.setAttribute("src", "");
             setVideoSrcViaPage("", true);
             mainVideo.setVisible(false);

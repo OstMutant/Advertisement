@@ -49,8 +49,12 @@ public class AdvertisementSaveService {
             // Last mutation before commit -- shrinks the window for a post-move rollback to orphan S3 files.
             EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, savedId);
             Long gallerySnapshotId = commitGallery.apply(entityRef);
-            Long attachmentSnapshotId = gallerySnapshotId != null ? gallerySnapshotId
-                    : (before != null ? before.attachmentSnapshotId() : null);
+            Long attachmentSnapshotId;
+            if (gallerySnapshotId != null) {
+                attachmentSnapshotId = gallerySnapshotId;
+            } else {
+                attachmentSnapshotId = before != null ? before.attachmentSnapshotId() : null;
+            }
             registerOrphanWarningOnRollback(entityRef, gallerySnapshotId);
 
             AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();

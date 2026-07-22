@@ -96,7 +96,7 @@ public class LoginDialog extends BaseDialog implements I18nParams {
             } else {
                 notificationService.error(LOGIN_ERROR);
             }
-        } catch (IllegalStateException ex) {
+        } catch (IllegalStateException _) {
             notificationService.error(LOGIN_ERROR_TOO_MANY_ATTEMPTS);
         } catch (Exception ex) {
             log.error("Login failed unexpectedly", ex);

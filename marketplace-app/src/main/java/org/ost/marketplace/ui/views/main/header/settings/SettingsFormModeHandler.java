@@ -68,7 +68,6 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private IntegerField adsPageSizeField;
     private IntegerField usersPageSizeField;
     private IntegerField timelinePageSizeField;
-    private Tabs         formTabs;
     private Tab          settingsTab;
 
     @Override

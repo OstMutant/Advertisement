@@ -42,7 +42,7 @@ public class AuditActivityRowRenderer implements Initialization<AuditActivityRow
     private final I18nService              i18n;
     private final InstantFormatter         formatter;
     private final AuditTimelineRowRenderer fieldRenderer;
-    private final transient UiComponentFactory<UiTertiaryButton> tertiaryButtonFactory;
+    private final UiComponentFactory<UiTertiaryButton> tertiaryButtonFactory;
 
     @Override
     public AuditActivityRowRenderer init() { return this; }

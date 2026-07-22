@@ -63,7 +63,10 @@ public class TaxonViewOverlayModeHandler extends AbstractViewOverlayModeHandler
                 .map(p -> p.getTranslations(params.getTaxon().getId()))
                 .orElse(List.of());
 
-        String nameEn = "", descEn = "", nameUk = "", descUk = "";
+        String nameEn = "";
+        String descEn = "";
+        String nameUk = "";
+        String descUk = "";
         for (TaxonTranslationDto t : translations) {
             if ("en".equals(t.getLocale())) { nameEn = t.getName(); descEn = t.getDescription(); }
             else if ("uk".equals(t.getLocale())) { nameUk = t.getName(); descUk = t.getDescription(); }
