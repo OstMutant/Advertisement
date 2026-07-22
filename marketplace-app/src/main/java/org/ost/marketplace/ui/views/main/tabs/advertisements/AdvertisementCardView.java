@@ -60,8 +60,6 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
-    private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
-    private final transient UiComponentFactory<DeleteActionButton>       deleteButtonFactory;
     private final transient UiComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
@@ -204,27 +202,15 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button edit = editButtonFactory.build(
-                EditActionButton.Parameters.builder()
-                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT))
-                        .onClick(() -> overlay.openForEdit(ad, onChanged))
-                        .small(true)
-                        .cssClassName("advertisement-edit")
-                        .build()
-        );
+        Button edit = new EditActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT),
+                () -> overlay.openForEdit(ad, onChanged), "advertisement-edit", true);
         edit.setVisible(visible);
         return edit;
     }
 
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button delete = deleteButtonFactory.build(
-                DeleteActionButton.Parameters.builder()
-                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE))
-                        .onClick(() -> confirmAndDelete(ad, onChanged))
-                        .small(true)
-                        .cssClassName("advertisement-delete")
-                        .build()
-        );
+        Button delete = new DeleteActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE),
+                () -> confirmAndDelete(ad, onChanged), "advertisement-delete", true);
         delete.setVisible(visible);
         return delete;
     }

@@ -7,7 +7,6 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.Setter;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
@@ -42,19 +41,15 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
     @Setter
     private transient Consumer<PaginationEvent> pageChangeListener;
 
-    public PaginationBar(I18nService i18nService, UiComponentFactory<UiIconButton> iconButtonFactory) {
+    public PaginationBar(I18nService i18nService) {
         this.i18nService = i18nService;
         setAlignItems(Alignment.CENTER);
         setSpacing(true);
 
-        firstButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(PAGINATION_FIRST).icon(VaadinIcon.ANGLE_DOUBLE_LEFT.create()).build());
-        prevButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(PAGINATION_PREV).icon(VaadinIcon.ANGLE_LEFT.create()).build());
-        nextButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(PAGINATION_NEXT).icon(VaadinIcon.ANGLE_RIGHT.create()).build());
-        lastButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(PAGINATION_LAST).icon(VaadinIcon.ANGLE_DOUBLE_RIGHT.create()).build());
+        firstButton = new UiIconButton(i18nService.get(PAGINATION_FIRST), VaadinIcon.ANGLE_DOUBLE_LEFT.create());
+        prevButton = new UiIconButton(i18nService.get(PAGINATION_PREV), VaadinIcon.ANGLE_LEFT.create());
+        nextButton = new UiIconButton(i18nService.get(PAGINATION_NEXT), VaadinIcon.ANGLE_RIGHT.create());
+        lastButton = new UiIconButton(i18nService.get(PAGINATION_LAST), VaadinIcon.ANGLE_DOUBLE_RIGHT.create());
 
         firstButton.addClickListener(_ -> {
             currentPage = 0;

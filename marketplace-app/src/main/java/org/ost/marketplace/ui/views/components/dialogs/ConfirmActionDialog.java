@@ -13,7 +13,6 @@ import lombok.Value;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
@@ -43,8 +42,6 @@ public final class ConfirmActionDialog extends BaseDialog
     @Getter
     private final transient I18nService                          i18nService;
     private final           DialogLayout                         layout;
-    private final transient UiComponentFactory<UiPrimaryButton>    primaryButtonFactory;
-    private final transient UiComponentFactory<UiTertiaryButton>   tertiaryButtonFactory;
 
     @Override
     @PostConstruct
@@ -66,8 +63,7 @@ public final class ConfirmActionDialog extends BaseDialog
         bodyWrapper.addClassName("dialog-confirm-body");
         layout.addFormContent(bodyWrapper);
 
-        UiPrimaryButton confirmButton = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
+        UiPrimaryButton confirmButton = new UiPrimaryButton(getValue(p.getConfirmKey()));
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
             try {
@@ -77,8 +73,7 @@ public final class ConfirmActionDialog extends BaseDialog
             }
         });
 
-        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
-                UiTertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
+        UiTertiaryButton cancelButton = new UiTertiaryButton(getValue(p.getCancelKey()));
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(confirmButton, cancelButton);

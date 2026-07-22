@@ -77,9 +77,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private final NotificationService                                      notificationService;
     private final UiComponentFactory<OverlayFormBinder<TaxonEditDto>>      formBinderFactory;
     private final UiComponentFactory<AuditActivityPanel>                   auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                         cancelButtonFactory;
-    private final UiPrimaryButton                                          saveButton;
-    private final UiTertiaryButton                                         discardButton;
     private final UiTextField                                              nameEnField;
     private final UiTextArea                                               descriptionEnField;
     private final UiTextField                                              nameUkField;
@@ -88,6 +85,8 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private Parameters params;
     @Getter private Long savedTaxonId;
     private List<LocaleField> localeFields;
+    private UiPrimaryButton   saveButton;
+    private UiTertiaryButton  discardButton;
 
     @Override
     public TaxonFormOverlayModeHandler configure(Parameters p) {
@@ -123,14 +122,9 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
                     .build());
         }
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_BUTTON_SAVE).build());
-        discardButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(FORM_DISCARD_CHANGES).build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(TAXON_OVERLAY_BUTTON_CANCEL)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(TAXON_OVERLAY_BUTTON_SAVE));
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
+        UiIconButton closeBtn = new UiIconButton(getValue(TAXON_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());

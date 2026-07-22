@@ -39,8 +39,6 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     private final transient UiComponentFactory<UiTextField>           textFieldFactory;
     private final transient UiComponentFactory<UiEmailField>          emailFieldFactory;
     private final transient UiComponentFactory<UiPasswordField>       passwordFieldFactory;
-    private final transient UiComponentFactory<UiPrimaryButton>       primaryButtonFactory;
-    private final transient UiComponentFactory<UiTertiaryButton>      tertiaryButtonFactory;
 
     private UiTextField     nameField;
     private UiEmailField    emailField;
@@ -91,10 +89,8 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
     }
 
     private void addActions() {
-        UiPrimaryButton registerButton = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_SUBMIT).build());
-        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
-                UiTertiaryButton.Parameters.builder().labelKey(SIGNUP_BUTTON_CANCEL).build());
+        UiPrimaryButton registerButton = new UiPrimaryButton(getValue(SIGNUP_BUTTON_SUBMIT));
+        UiTertiaryButton cancelButton = new UiTertiaryButton(getValue(SIGNUP_BUTTON_CANCEL));
 
         cancelButton.addClickListener(_ -> close());
         registerButton.addClickListener(_ -> handleRegistration());

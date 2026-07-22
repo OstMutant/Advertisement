@@ -11,8 +11,8 @@ import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
 import lombok.Value;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.utils.LightboxUtil;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
@@ -34,7 +34,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
         AttachmentItemDto attachment;
     }
 
-    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
+    private final transient I18nService i18nService;
 
     private transient ShortcutRegistration escShortcut;
     private Runnable                       closeAction;
@@ -44,8 +44,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
         addClassName("attachment-lightbox");
         AttachmentItemDto attachment = p.getAttachment();
 
-        UiIconButton closeBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE.create()).build());
+        UiIconButton closeBtn = new UiIconButton(i18nService.get(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP), VaadinIcon.CLOSE.create());
         closeBtn.addClassName("card-lightbox__close");
         closeBtn.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
 

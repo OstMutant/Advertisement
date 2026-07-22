@@ -68,15 +68,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                        auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                   cancelButtonFactory;
     private final UiTextField                                           nameField;
     private final UiComboBox<Role>                                      roleComboBox;
-    private final UiPrimaryButton                                       saveButton;
-    private final UiTertiaryButton                                      discardButton;
 
     private Parameters params;
     @Getter
     private UserDto    savedUser;
+    private UiPrimaryButton  saveButton;
+    private UiTertiaryButton discardButton;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -99,14 +98,9 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
                 .required(true)
                 .build());
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_SAVE).build());
-        discardButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(FORM_DISCARD_CHANGES).build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_CANCEL)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(USER_DIALOG_BUTTON_SAVE));
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
+        UiIconButton closeBtn = new UiIconButton(getValue(USER_DIALOG_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());

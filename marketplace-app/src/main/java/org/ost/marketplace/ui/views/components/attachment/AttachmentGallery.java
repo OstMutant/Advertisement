@@ -43,7 +43,6 @@ public class AttachmentGallery extends Div {
 
     private final transient ComponentFactory<AttachmentPort>          attachmentPortFactory;
     private final transient I18nService                               i18n;
-    private final transient UiComponentFactory<UiIconButton>          iconButtonFactory;
     private final transient UiComponentFactory<AttachmentThumbnail>   thumbnailFactory;
     private final transient UiComponentFactory<AttachmentLightbox>    lightboxFactory;
 
@@ -311,8 +310,7 @@ public class AttachmentGallery extends Div {
         urlField.setPlaceholder(i18n.get(I18nKey.ATTACHMENT_VIDEO_PLACEHOLDER));
         urlField.setWidthFull();
 
-        UiIconButton addBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(I18nKey.ATTACHMENT_VIDEO_ADD_TOOLTIP).icon(VaadinIcon.PLUS.create()).build());
+        UiIconButton addBtn = new UiIconButton(i18n.get(I18nKey.ATTACHMENT_VIDEO_ADD_TOOLTIP), VaadinIcon.PLUS.create());
         addBtn.addClickListener(_ -> {
             try {
                 String val = urlField.getValue();

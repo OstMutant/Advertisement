@@ -6,6 +6,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
@@ -20,7 +21,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class CardMediaLightbox {
 
-    private final UiComponentFactory<UiIconButton> iconButtonFactory;
+    private final I18nService i18nService;
     private final UiComponentFactory<CardLightboxViewer> viewerFactory;
 
     public void open(@NonNull List<AttachmentItemDto> attachments, int startIndex) {
@@ -40,8 +41,7 @@ public class CardMediaLightbox {
         content.setAlignItems(FlexComponent.Alignment.CENTER);
 
         CardLightboxDialog dialog = new CardLightboxDialog();
-        UiIconButton closeBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE.create()).build());
+        UiIconButton closeBtn = new UiIconButton(i18nService.get(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP), VaadinIcon.CLOSE.create());
         closeBtn.addClickListener(_ -> dialog.close());
         closeBtn.addClassName("card-lightbox__close");
         dialog.add(closeBtn, content);

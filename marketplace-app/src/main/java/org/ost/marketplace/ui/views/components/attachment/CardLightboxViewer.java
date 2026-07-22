@@ -10,7 +10,7 @@ import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.utils.LightboxUtil;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
@@ -38,7 +38,7 @@ public class CardLightboxViewer extends HorizontalLayout {
     private final String iframeId  = "card-lightbox-iframe-" + UUID.randomUUID();
     private final String videoElId = "card-lightbox-video-" + UUID.randomUUID();
 
-    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
+    private final transient I18nService i18nService;
 
     @PostConstruct
     void init() {
@@ -56,10 +56,8 @@ public class CardLightboxViewer extends HorizontalLayout {
         mainVideo.getElement().appendChild(videoEl);
         mainVideo.setVisible(false);
 
-        prevBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_PREV_TOOLTIP).icon(VaadinIcon.ANGLE_LEFT.create()).build());
-        nextBtn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_LIGHTBOX_NEXT_TOOLTIP).icon(VaadinIcon.ANGLE_RIGHT.create()).build());
+        prevBtn = new UiIconButton(i18nService.get(ATTACHMENT_LIGHTBOX_PREV_TOOLTIP), VaadinIcon.ANGLE_LEFT.create());
+        nextBtn = new UiIconButton(i18nService.get(ATTACHMENT_LIGHTBOX_NEXT_TOOLTIP), VaadinIcon.ANGLE_RIGHT.create());
         prevBtn.addClassName("card-lightbox__nav");
         nextBtn.addClassName("card-lightbox__nav");
 

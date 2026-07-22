@@ -36,8 +36,6 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     private final DialogLayout                           layout;
     private final transient UiComponentFactory<UiEmailField>      emailFieldFactory;
     private final transient UiComponentFactory<UiPasswordField>   passwordFieldFactory;
-    private final transient UiComponentFactory<UiPrimaryButton>   primaryButtonFactory;
-    private final transient UiComponentFactory<UiTertiaryButton>  tertiaryButtonFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
@@ -74,12 +72,10 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     }
 
     private void addActions() {
-        UiPrimaryButton loginButton = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_SUBMIT).build());
+        UiPrimaryButton loginButton = new UiPrimaryButton(getValue(LOGIN_BUTTON_SUBMIT));
         loginButton.addClickListener(_ -> handleLogin());
 
-        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
-                UiTertiaryButton.Parameters.builder().labelKey(LOGIN_BUTTON_CANCEL).build());
+        UiTertiaryButton cancelButton = new UiTertiaryButton(getValue(LOGIN_BUTTON_CANCEL));
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(loginButton, cancelButton);

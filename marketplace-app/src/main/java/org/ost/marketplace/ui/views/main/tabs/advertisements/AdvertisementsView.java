@@ -41,7 +41,6 @@ public class AdvertisementsView extends VerticalLayout {
 
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
     private final transient AdvertisementOverlay                      overlay;
-    private final transient UiComponentFactory<UiPrimaryButton>         primaryButtonFactory;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
     private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
@@ -126,11 +125,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private UiPrimaryButton buildAddButton() {
-        UiPrimaryButton button = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_SIDEBAR_BUTTON_ADD)
-                        .icon(VaadinIcon.PLUS.create())
-                        .build());
+        UiPrimaryButton button = new UiPrimaryButton(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD), VaadinIcon.PLUS.create());
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> overlay.openForCreate(this::refresh));
         button.setVisible(access.isLoggedIn());

@@ -39,8 +39,6 @@ public class TaxonManagementView extends Div {
     private final AccessEvaluator                          access;
     private final TaxonOverlay                             overlay;
     private final UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
-    private final UiComponentFactory<UiIconButton>         iconButtonFactory;
-    private final UiComponentFactory<UiPrimaryButton>      primaryButtonFactory;
 
     private Div listContainer;
 
@@ -59,11 +57,7 @@ public class TaxonManagementView extends Div {
         try {
             listContainer.removeAll();
 
-            UiPrimaryButton addBtn = primaryButtonFactory.build(
-                    UiPrimaryButton.Parameters.builder()
-                            .labelKey(REFERENCE_DATA_BUTTON_ADD)
-                            .icon(VaadinIcon.PLUS.create())
-                            .build());
+            UiPrimaryButton addBtn = new UiPrimaryButton(i18n.get(REFERENCE_DATA_BUTTON_ADD), VaadinIcon.PLUS.create());
             addBtn.addClassName("taxon-add-button");
             addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
             listContainer.add(addBtn);
@@ -125,23 +119,14 @@ public class TaxonManagementView extends Div {
         actions.addClassName("taxon-row-actions");
 
         if (isDeleted) {
-            UiIconButton restoreBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_RESTORE)
-                    .icon(VaadinIcon.ARROW_BACKWARD.create())
-                    .build());
+            UiIconButton restoreBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_RESTORE), VaadinIcon.ARROW_BACKWARD.create());
             restoreBtn.addClickListener(e -> doRestore(taxon));
             actions.add(restoreBtn);
         } else {
-            UiIconButton editBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_EDIT)
-                    .icon(VaadinIcon.PENCIL.create())
-                    .build());
+            UiIconButton editBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_EDIT), VaadinIcon.PENCIL.create());
             editBtn.addClickListener(e -> overlay.openForEdit(taxon, this::refresh));
 
-            UiIconButton deleteBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_DELETE)
-                    .icon(VaadinIcon.TRASH.create())
-                    .build());
+            UiIconButton deleteBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_DELETE), VaadinIcon.TRASH.create());
             deleteBtn.addClickListener(e -> confirmAndDelete(taxon));
 
             actions.add(editBtn, deleteBtn);

@@ -9,7 +9,7 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
@@ -24,7 +24,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @RequiredArgsConstructor
 public class AttachmentThumbnail extends Div {
 
-    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
+    private final transient I18nService i18nService;
 
     @PostConstruct
     void init() {
@@ -64,8 +64,7 @@ public class AttachmentThumbnail extends Div {
     }
 
     private Button deleteButton(Runnable onDelete) {
-        UiIconButton btn = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(ATTACHMENT_GALLERY_REMOVE_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
+        UiIconButton btn = new UiIconButton(i18nService.get(ATTACHMENT_GALLERY_REMOVE_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
         btn.addThemeVariants(ButtonVariant.LUMO_ERROR);
         btn.addClassName("attachment-gallery__delete-btn");
         btn.addClickListener(_ -> {

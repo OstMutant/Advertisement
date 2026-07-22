@@ -8,6 +8,11 @@ brings 14+ classes into line with an already-written rule this codebase does not
 **When:** independent, no blockers — recommended to execute in phased batches (see Suggested fix),
 not as one large PR
 
+**Progress:** Batch 1 (buttons: `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`,
+`DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`) done 2026-07-22 — see
+`marketplace-app/DECISIONS.md` ADR-052. Batches 2 (fields), 3 (structural/no-dep), 4
+(`ConfirmActionDialog`) remain open.
+
 ## Problem
 
 `marketplace-app/CLAUDE.md` already states the rule these classes should follow:

@@ -2117,3 +2117,47 @@ advertisement/taxon.
   without a starter-to-starter dependency.
 - No "restore a deleted user" UI was added — out of scope for this issue; the soft-delete only
   exists to preserve the audit trail and support the cascade/cleanup ordering above.
+
+---
+
+## ADR-052: Leaf UI buttons converted from `@SpringComponent` prototype beans to plain classes (Batch 1)
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+— `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`, `DeleteActionButton`, `EditActionButton`,
+`OverlayBreadcrumbBackButton` were all `@SpringComponent @Scope("prototype")` beans implementing
+`Configurable`/`Initialization`, even though their only real dependency was `I18nService`, used
+solely to resolve a label string at construction time — exactly the case
+`marketplace-app/CLAUDE.md`'s "When NOT to use Configurable" rule already called out. Every parent
+`ModeHandler`/`View` had to constructor-inject a `UiComponentFactory<T>` per widget just for this.
+
+**Decision:** Converted all six to plain classes with constructors taking already-resolved
+`String`/`Icon`/`Runnable` values; i18n resolution moved to the call site (`i18n.get(key)` before
+constructing). `BaseActionButton.applyConfig(BaseConfig)` (an interface used only by
+`DeleteActionButton`/`EditActionButton`) simplified to a plain
+`applyConfig(String tooltip, Runnable onClick, String cssClassName)` — the `BaseConfig` interface
+had no other consumer once its two implementers stopped needing an object shape at all. Handlers
+whose button fields were previously constructor-injected Spring beans (`SettingsFormModeHandler`,
+`AdvertisementFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `UserFormOverlayModeHandler`
+— each holding a `saveButton`/`discardButton` pair read across `activate()` and a later
+`updateButtons()` call) keep them as plain mutable fields instead, constructed once in `activate()`.
+Removed the now-empty `UiComponentFactory<T>` `@Bean` declarations from `ComponentFactoryConfig`
+for all six types.
+
+**Consequences:**
+- `UserFormOverlayModeHandler`'s constructor dropped from 13 to 10 parameters (the `cancelButtonFactory`,
+  `saveButton`, `discardButton` fields it previously took as Spring-injected beans).
+- Found and fixed an unrelated pre-existing bug while chasing a Playwright failure this batch
+  exposed: `LogoutDialog.handleLogout()` called `authService.logout()` (which invalidates the
+  HTTP session) *before* `vaadinLocaleProvider.refreshCurrentLocale(ui)` — a `@UIScope` bean read
+  immediately after, throwing `ScopeNotActiveException` and also silently falling back to the
+  default locale instead of the departing user's, since `authContextService.getCurrentUser()` was
+  already cleared. Reordered so the locale refresh runs first. Not a regression from this batch's
+  changes (neither `LogoutDialog` nor its dependencies were touched) — plain-class button
+  construction is faster than the Spring prototype-bean path it replaced, and the timing shift
+  apparently made this pre-existing race surface reliably where it previously didn't.
+- Remaining phases (fields, structural/no-dep components, `ConfirmActionDialog`) tracked as
+  Batch 2-4 in the same issue; not done in this PR.
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49) — the last one needed the `LogoutDialog` fix above to go green.

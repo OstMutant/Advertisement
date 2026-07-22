@@ -14,7 +14,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.springframework.stereotype.Service;
 
@@ -25,7 +24,6 @@ import static org.ost.marketplace.services.i18n.I18nKey.NOTIFICATION_CLOSE_TOOLT
 public class NotificationService {
 
     private final I18nService i18n;
-    private final UiComponentFactory<UiIconButton> iconButtonFactory;
 
     /**
      * Convenience method for success notifications
@@ -83,8 +81,7 @@ public class NotificationService {
         Div text = new Div(new Text(message));
         text.addClassName("notification-text");
 
-        UiIconButton closeButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(NOTIFICATION_CLOSE_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
+        UiIconButton closeButton = new UiIconButton(i18n.get(NOTIFICATION_CLOSE_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
         closeButton.addClassName("notification-close-btn");
         closeButton.addClickListener(_ -> notification.close());
 
