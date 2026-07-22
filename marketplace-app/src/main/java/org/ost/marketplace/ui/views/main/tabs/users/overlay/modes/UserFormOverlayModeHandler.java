@@ -68,14 +68,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                        auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
-    private final UiTextField                                           nameField;
-    private final UiComboBox<Role>                                      roleComboBox;
 
     private Parameters params;
     @Getter
     private UserDto    savedUser;
     private UiPrimaryButton  saveButton;
     private UiTertiaryButton discardButton;
+    private UiTextField     nameField;
+    private UiComboBox<Role> roleComboBox;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -85,18 +85,11 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     @Override
     public void activate(OverlayLayout layout) {
-        nameField.configure(UiTextField.Parameters.builder()
-                .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
-                .placeholderKey(USER_DIALOG_FIELD_NAME_PLACEHOLDER)
-                .maxLength(255)
-                .required(true)
-                .build());
+        nameField = new UiTextField(getValue(USER_DIALOG_FIELD_NAME_LABEL), getValue(USER_DIALOG_FIELD_NAME_PLACEHOLDER),
+                255, true, USER_DIALOG_FIELD_NAME_LABEL.toTestId());
 
-        roleComboBox.configure(UiComboBox.Parameters.<Role>builder()
-                .labelKey(USER_DIALOG_FIELD_ROLE_LABEL)
-                .items(Arrays.asList(Role.values()))
-                .required(true)
-                .build());
+        roleComboBox = new UiComboBox<>(getValue(USER_DIALOG_FIELD_ROLE_LABEL), Arrays.asList(Role.values()),
+                true, USER_DIALOG_FIELD_ROLE_LABEL.toTestId());
 
         saveButton = new UiPrimaryButton(getValue(USER_DIALOG_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));

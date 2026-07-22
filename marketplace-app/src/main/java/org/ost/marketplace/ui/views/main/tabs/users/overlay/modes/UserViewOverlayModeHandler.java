@@ -44,7 +44,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final UiComponentFactory<UiLabeledField>   labeledFieldFactory;
 
     private Parameters params;
 
@@ -119,10 +118,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {
-        return labeledFieldFactory.build(
-                UiLabeledField.Parameters.builder()
-                        .labelKey(labelKey)
-                        .value(value)
-                        .build());
+        return new UiLabeledField(getValue(labelKey), value);
     }
 }

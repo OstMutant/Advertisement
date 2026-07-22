@@ -77,10 +77,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
     private final NotificationService                                      notificationService;
     private final UiComponentFactory<OverlayFormBinder<TaxonEditDto>>      formBinderFactory;
     private final UiComponentFactory<AuditActivityPanel>                   auditActivityPanelFactory;
-    private final UiTextField                                              nameEnField;
-    private final UiTextArea                                               descriptionEnField;
-    private final UiTextField                                              nameUkField;
-    private final UiTextArea                                               descriptionUkField;
 
     private Parameters params;
     @Getter private Long savedTaxonId;
@@ -96,6 +92,15 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     @Override
     public void activate(OverlayLayout layout) {
+        UiTextField nameEnField = new UiTextField(getValue(TAXON_OVERLAY_FIELD_NAME), getValue(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER),
+                255, true, TAXON_OVERLAY_FIELD_NAME.toTestId());
+        UiTextArea descriptionEnField = new UiTextArea(getValue(TAXON_OVERLAY_FIELD_DESCRIPTION), getValue(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
+                2000, true, TAXON_OVERLAY_FIELD_DESCRIPTION.toTestId());
+        UiTextField nameUkField = new UiTextField(getValue(TAXON_OVERLAY_FIELD_NAME), getValue(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER),
+                255, true, TAXON_OVERLAY_FIELD_NAME.toTestId());
+        UiTextArea descriptionUkField = new UiTextArea(getValue(TAXON_OVERLAY_FIELD_DESCRIPTION), getValue(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER),
+                2000, true, TAXON_OVERLAY_FIELD_DESCRIPTION.toTestId());
+
         localeFields = List.of(
                 new LocaleField(nameEnField, descriptionEnField,
                         TaxonEditDto::getNameEn, TaxonEditDto::setNameEn,
@@ -106,21 +111,6 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
                         TaxonEditDto::getDescriptionUk, TaxonEditDto::setDescriptionUk,
                         TaxonSnapshotDto::nameUk, TaxonSnapshotDto::descriptionUk)
         );
-
-        for (LocaleField lf : localeFields) {
-            lf.nameField().configure(UiTextField.Parameters.builder()
-                    .labelKey(TAXON_OVERLAY_FIELD_NAME)
-                    .placeholderKey(TAXON_OVERLAY_FIELD_NAME_PLACEHOLDER)
-                    .maxLength(255)
-                    .required(true)
-                    .build());
-            lf.descriptionField().configure(UiTextArea.Parameters.builder()
-                    .labelKey(TAXON_OVERLAY_FIELD_DESCRIPTION)
-                    .placeholderKey(TAXON_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER)
-                    .maxLength(2000)
-                    .required(true)
-                    .build());
-        }
 
         saveButton = new UiPrimaryButton(getValue(TAXON_OVERLAY_BUTTON_SAVE));
         discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));

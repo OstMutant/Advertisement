@@ -2,10 +2,6 @@ package org.ost.marketplace.config;
 
 import org.ost.marketplace.ui.views.components.EmptyStateView;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
-import org.ost.marketplace.ui.views.components.fields.UiEmailField;
-import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
-import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
-import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
@@ -26,26 +22,6 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class ComponentFactoryConfig {
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UiTextField> uiTextFieldFactory(ObjectProvider<UiTextField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UiEmailField> uiEmailFieldFactory(ObjectProvider<UiEmailField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UiPasswordField> uiPasswordFieldFactory(ObjectProvider<UiPasswordField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UiLabeledField> uiLabeledFieldFactory(ObjectProvider<UiLabeledField> p) {
-        return new UiComponentFactory<>(p);
-    }
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<EmptyStateView> emptyStateViewFactory(ObjectProvider<EmptyStateView> p) {

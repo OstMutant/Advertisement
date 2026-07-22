@@ -84,11 +84,11 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final ComponentFactory<AuditPort>                                  auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>                       auditActivityPanelFactory;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
-    private final UiTextField                                                  titleField;
     private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
     private final LocaleProvider                                               localeProvider;
 
     private QuillEditor descriptionField;
+    private UiTextField titleField;
 
     private Parameters                        params;
     @Getter
@@ -110,12 +110,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     public void activate(OverlayLayout layout) {
         boolean isCreate = params.getAd() == null;
 
-        titleField.configure(UiTextField.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .maxLength(255)
-                .required(true)
-                .build());
+        titleField = new UiTextField(getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE), getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE),
+                255, true, ADVERTISEMENT_OVERLAY_FIELD_TITLE.toTestId());
 
         descriptionField = new QuillEditor();
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));

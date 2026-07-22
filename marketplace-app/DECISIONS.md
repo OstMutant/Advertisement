@@ -2161,3 +2161,42 @@ for all six types.
   Batch 2-4 in the same issue; not done in this PR.
 - Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
   e2e --full --ux (49/49) — the last one needed the `LogoutDialog` fix above to go green.
+
+---
+
+## ADR-053: Leaf UI fields converted from `@SpringComponent` prototype beans to plain classes (Batch 2)
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 2 — same rationale as ADR-052 (Batch 1, buttons), applied to `UiTextField`, `UiTextArea`,
+`UiEmailField`, `UiPasswordField`, `UiComboBox<T>`, `UiLabeledField`.
+
+**Decision:** Converted all six to plain classes. Unlike the buttons in Batch 1, these fields carry
+a `data-testid` attribute derived from `I18nKey.toTestId()` inside the old `configure()` — 61
+Playwright selectors depend on this staying byte-identical, so each new constructor takes the
+already-computed test id as an explicit `String testId` parameter (e.g.
+`new UiTextField(label, placeholder, maxLength, required, testId)`), computed at the call site via
+`SOME_KEY.toTestId()`, same value as before. `UiLabeledField` never set a `data-testid` in the
+first place — confirmed by reading its old `configure()` before converting, not assumed.
+
+Handlers whose field instances were previously constructor-injected Spring beans, read again later
+from a separate `buildBinder()` method (`AdvertisementFormOverlayModeHandler.titleField`,
+`UserFormOverlayModeHandler.nameField`/`roleComboBox`), keep them as plain mutable fields
+constructed once in `activate()` — same shape as Batch 1's `saveButton`/`discardButton`.
+`TaxonFormOverlayModeHandler`'s four locale fields (`nameEnField`/`descriptionEnField`/
+`nameUkField`/`descriptionUkField`) went further, becoming local variables of `activate()` entirely
+— verified by tracing every read: all four are only ever accessed through the `localeFields` list
+(a `LocaleField` record wrapping each pair), which *is* still a class field read from
+`buildBinder()`/`copyLocaleFields()`/etc., so the raw field references themselves never need to
+outlive `activate()`.
+
+**Consequences:**
+- Removed the `uiTextFieldFactory`/`uiEmailFieldFactory`/`uiPasswordFieldFactory`/
+  `uiLabeledFieldFactory` `@Bean` declarations from `ComponentFactoryConfig` (`UiTextArea`/
+  `UiComboBox` never had one — their sole two consumers already used direct field injection, the
+  same pattern Batch 1 found for `saveButton`/`discardButton`).
+- Verified with unit-tests (72/72), integration-tests (127/127), and Playwright e2e --full --ux
+  (49/49) — no `data-testid`-dependent selector broke.
+- Remaining phases (structural/no-dep components, `ConfirmActionDialog`) tracked as Batch 3-4 in
+  the same issue; not done in this PR.

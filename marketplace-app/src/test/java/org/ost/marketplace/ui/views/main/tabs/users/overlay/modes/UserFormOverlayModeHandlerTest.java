@@ -12,8 +12,6 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.mappers.UserMapper;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
-import org.ost.marketplace.ui.views.components.fields.UiComboBox;
-import org.ost.marketplace.ui.views.components.fields.UiTextField;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.audit.spi.AuditPort;
@@ -44,16 +42,13 @@ class UserFormOverlayModeHandlerTest {
     @Mock private UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     @Mock private ComponentFactory<AuditPort> auditPortFactory;
     @Mock private UiComponentFactory<AuditActivityPanel> auditActivityPanelFactory;
-    @Mock private UiTextField nameField;
-    @Mock private UiComboBox<Role> roleComboBox;
 
     private UserFormOverlayModeHandler handler;
 
     @BeforeEach
     void setUp() {
         handler = new UserFormOverlayModeHandler(userPort, mapper, access, i18nService, notificationService,
-                formBinderFactory, auditPortFactory, auditActivityPanelFactory,
-                nameField, roleComboBox);
+                formBinderFactory, auditPortFactory, auditActivityPanelFactory);
     }
 
     @Test

@@ -10,8 +10,9 @@ not as one large PR
 
 **Progress:** Batch 1 (buttons: `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`,
 `DeleteActionButton`, `EditActionButton`, `OverlayBreadcrumbBackButton`) done 2026-07-22 — see
-`marketplace-app/DECISIONS.md` ADR-052. Batches 2 (fields), 3 (structural/no-dep), 4
-(`ConfirmActionDialog`) remain open.
+`marketplace-app/DECISIONS.md` ADR-052. Batch 2 (fields: `UiTextField`, `UiTextArea`,
+`UiEmailField`, `UiPasswordField`, `UiComboBox`, `UiLabeledField`) done 2026-07-22 — see ADR-053.
+Batches 3 (structural/no-dep), 4 (`ConfirmActionDialog`) remain open.
 
 ## Problem
 

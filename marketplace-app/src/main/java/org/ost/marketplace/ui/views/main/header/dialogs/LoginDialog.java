@@ -17,7 +17,6 @@ import org.ost.marketplace.ui.views.components.fields.UiEmailField;
 import org.ost.marketplace.ui.views.components.fields.UiPasswordField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
@@ -34,8 +33,6 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     private final NotificationService                    notificationService;
     private final LocaleProvider                         localeProvider;
     private final DialogLayout                           layout;
-    private final transient UiComponentFactory<UiEmailField>      emailFieldFactory;
-    private final transient UiComponentFactory<UiPasswordField>   passwordFieldFactory;
 
     private UiEmailField    emailField;
     private UiPasswordField passwordField;
@@ -44,18 +41,10 @@ public class LoginDialog extends BaseDialog implements I18nParams {
     @PostConstruct
     protected void buildLayout() {
         super.buildLayout(layout);
-        emailField = emailFieldFactory.build(
-                UiEmailField.Parameters.builder()
-                        .labelKey(LOGIN_EMAIL_LABEL)
-                        .placeholderKey(LOGIN_EMAIL_LABEL)
-                        .required(true)
-                        .build());
-        passwordField = passwordFieldFactory.build(
-                UiPasswordField.Parameters.builder()
-                        .labelKey(LOGIN_PASSWORD_LABEL)
-                        .placeholderKey(LOGIN_PASSWORD_LABEL)
-                        .required(true)
-                        .build());
+        emailField = new UiEmailField(getValue(LOGIN_EMAIL_LABEL), getValue(LOGIN_EMAIL_LABEL),
+                true, LOGIN_EMAIL_LABEL.toTestId());
+        passwordField = new UiPasswordField(getValue(LOGIN_PASSWORD_LABEL), getValue(LOGIN_PASSWORD_LABEL),
+                true, LOGIN_PASSWORD_LABEL.toTestId());
         setTitle();
         addContent();
         addActions();
