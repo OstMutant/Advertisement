@@ -6,12 +6,9 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
-import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
@@ -208,12 +205,6 @@ public class UserService {
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return repository.findByIds(ids.toArray(new Long[0])).stream()
                 .collect(Collectors.toMap(User::getId, this::toDto));
-    }
-
-    public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
-        return item.snapshotData() != null
-                ? item.snapshotData().expandWithChanges(item.changes())
-                : item.changes();
     }
 
     private UserDto toDto(User user) {

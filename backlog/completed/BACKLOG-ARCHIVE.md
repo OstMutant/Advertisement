@@ -1048,3 +1048,33 @@ unrelated Timeline actor-picker scroll timeout, a retry of just that spec hit a 
 unrelated login timeout, and a full clean rerun passed 49/49 with zero repeats of either failure,
 confirming both were environment flakes rather than regressions from this attachment-only change.
 **Batch M complete.**
+
+✅ Done (2026-07-22): [improvement-104](issues/improvement-104-expandactivityfields-feature-envy.md)
+and [improvement-105](issues/improvement-105-advertisementenrichservice-unify-dual-paths.md) —
+audit-rendering simplification, one PR. Verification beyond the issue file found the duplication
+was worse than described: the same null-safe "expand changes against the snapshot" three-liner was
+copy-pasted **four** times, not two — inline in `TaxonActivityFieldsHookImpl` and
+`AdvertisementActivityFieldsHookImpl`, and routed through `UserService.expandActivityFields()` →
+`UserPort.expandActivityFields()` for both `UserActivityFieldsHookImpl` and
+`UserSettingsActivityFieldsHookImpl`. Confirmed no sibling copy exists for `AuditActivityItemDto`
+— `AuditActivityFieldsHook.expandFields()`'s signature only ever takes `AuditTimelineItemDto`, so
+the issue's "give both DTOs the method" contingency didn't apply. Added
+`AuditTimelineItemDto.expandedChanges()` as a narrow, documented exception to
+`platform-commons/CLAUDE.md`'s "`*.dto` has no behavior" rule (see `platform-commons/DECISIONS.md`
+ADR-021) — justified by the same-file precedent of `withChanges()` (a pure derivation over the
+record's own fields, no service calls). All four call sites now read `item.expandedChanges()`;
+deleted `UserService.expandActivityFields()` / `UserPort.expandActivityFields()` /
+`UserPortImpl.expandActivityFields()` entirely, and removed the now-unused `UserPort` field from
+both User-domain hooks. Separately, `AdvertisementEnrichService`'s mirrored
+`mergeTimelineItem()`/`mergeActivityItem()` were unified behind one private `mergeChanges()`
+worker, parameterized by a `skipMediaMergeIfUnchanged` boolean that preserves the one deliberate
+behavioral difference (Activity skips the media entry when `attachmentSnapshotId` is unchanged
+from the previous version; Timeline always merges it) — the other difference (Timeline's
+entity-type guard; Activity's DTO has no entity type to guard on) stayed as each method's own
+early-return, since it's inherent to the DTO shapes, not an arbitrary branch. Deliberately did
+**not** unify `collectTimelineCategoryIds()`/`collectActivityCategoryIds()` — each is 4-5 lines,
+and a generic adapter across the two different DTO types would have cost more readability than the
+duplication itself (per the issue's own "if generic comes out less readable, don't force it"
+guidance). Verified with unit-tests, integration-tests (127/127), and a clean full Playwright
+e2e --full --ux run (49/49) — the existing Timeline/Activity diff assertions are the natural
+characterization test for this exact enrichment path. **Batch N complete.**

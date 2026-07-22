@@ -2,9 +2,6 @@ package org.ost.user.spi;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -115,11 +112,6 @@ public class UserPortImpl implements UserPort {
     @Override
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return userService.findByIds(ids);
-    }
-
-    @Override
-    public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
-        return userService.expandActivityFields(item);
     }
 
     @Override

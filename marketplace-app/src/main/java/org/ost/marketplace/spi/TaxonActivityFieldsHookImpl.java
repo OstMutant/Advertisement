@@ -27,9 +27,7 @@ public class TaxonActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
     @Override
     public List<ChangeEntry> expandFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
-        return item.snapshotData() != null
-                ? item.snapshotData().expandWithChanges(item.changes())
-                : item.changes();
+        return item.expandedChanges();
     }
 
     @Override

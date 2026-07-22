@@ -24,4 +24,9 @@ public record AuditTimelineItemDto<T extends AuditableSnapshot>(
         return new AuditTimelineItemDto<>(snapshotId, entityRef, actionType,
                 createdAt, newChanges, changedByActorId, snapshotData, prevSnapshotData);
     }
+
+    // Pure derivation over this record's own fields -- same exception class as withChanges() above.
+    public List<ChangeEntry> expandedChanges() {
+        return snapshotData != null ? snapshotData.expandWithChanges(changes) : changes;
+    }
 }

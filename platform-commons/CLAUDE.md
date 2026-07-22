@@ -31,6 +31,12 @@ Sub-packages inside each subsystem namespace carry distinct roles:
 
 **Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. Non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
 
+**Narrow exception:** a pure derivation over a `*.dto` record's own fields, with no external
+dependencies (e.g. `AuditTimelineItemDto.withChanges()`/`.expandedChanges()`), is allowed — it's
+not business logic, just a convenience view of data the record already carries. Do not stretch
+this to anything that calls another service, branches on domain state beyond the record's own
+fields, or produces a different DTO type. See `platform-commons/DECISIONS.md`.
+
 ## SPI Interface Naming
 
 All cross-module extension points live in `platform-commons/*.spi`. The suffix encodes the call direction and semantic role:

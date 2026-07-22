@@ -440,3 +440,35 @@ failed application startup entirely until fixed.
 **Consequences:** No other module reads or writes this field outside `audit-spring-boot-starter`
 and `marketplace-app`'s timeline package — confirmed by a full-repo grep before making the change,
 so this is a clean rename with no compatibility shim needed.
+
+---
+
+## ADR-021: `AuditTimelineItemDto.expandedChanges()` — a narrow, documented exception to "`*.dto` has no behavior"
+
+**Status:** Accepted
+
+**Context:** [improvement-104](../backlog/completed/issues/improvement-104-expandactivityfields-feature-envy.md)
+— the same three-line "if there's a snapshot, expand the changes against it; otherwise return the
+changes as-is" check was independently copy-pasted four times: inline in
+`TaxonActivityFieldsHookImpl` and `AdvertisementActivityFieldsHookImpl` (marketplace-app), and
+routed through `UserService.expandActivityFields()` → `UserPort.expandActivityFields()` for
+`UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` — despite nothing about the
+logic being user-domain-specific. It operates purely on `AuditTimelineItemDto`'s own
+`snapshotData()`/`changes()` fields.
+
+**Decision:** Added `expandedChanges()` as a default-shaped instance method directly on
+`AuditTimelineItemDto` (`platform-commons/*.dto`), and deleted `UserService
+.expandActivityFields()` / `UserPort.expandActivityFields()` / `UserPortImpl
+.expandActivityFields()` entirely — all four call sites now read `item.expandedChanges()`. This is
+a `*.dto` class gaining a method, which `platform-commons/CLAUDE.md`'s package-semantics rule
+forbids ("`*.dto` — plain value objects with no behavior"). Justified as a narrow exception: the
+same file already has an identically-shaped precedent (`withChanges()`, a wither over the record's
+own fields), and the method calls no service, holds no dependency, and branches only on the
+record's own fields — the same "pure derivation" spirit that lets `diff()` live on
+`AuditableSnapshot` (a `*.api` marker, not `*.dto`, but the same category of exception). See
+`platform-commons/CLAUDE.md`'s "Narrow exception" note under Package Semantics for the boundary
+this does not extend past (no service calls, no cross-DTO production, no domain branching beyond
+this record's own fields).
+
+**Consequences:** `UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` no longer need
+a `UserPort` dependency at all for this method — removed the now-unused field from both.

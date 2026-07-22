@@ -69,10 +69,7 @@ public class AdvertisementEnrichService {
         AdvertisementSnapshotDto snapshot = item.snapshotData();
         if (snapshot == null) return item;
 
-        List<ChangeEntry> resolved = resolveCategories(item.changes(), snapshot, item.prevSnapshotData(), nameById);
-        List<ChangeEntry> mediaChanges = mediaChangesFor(snapshot.attachmentSnapshotId());
-        List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
-        merged.addAll(resolved);
+        List<ChangeEntry> merged = mergeChanges(item.changes(), snapshot, item.prevSnapshotData(), nameById, false);
         return item.withChanges(merged);
     }
 
@@ -92,23 +89,31 @@ public class AdvertisementEnrichService {
         AdvertisementSnapshotDto snapshot = item.snapshotData();
         if (snapshot == null) return item;
 
-        AdvertisementSnapshotDto prev = item.prevSnapshotData();
-        List<ChangeEntry> resolved = resolveCategories(item.changes(), snapshot, prev, nameById);
-
-        Long attachId     = snapshot.attachmentSnapshotId();
-        Long prevAttachId = prev != null ? prev.attachmentSnapshotId() : null;
-        if (attachId != null && Objects.equals(attachId, prevAttachId)) {
-            return resolved == item.changes() ? item : item.withChanges(resolved);
-        }
-        List<ChangeEntry> mediaChanges = mediaChangesFor(attachId);
-        List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
-        merged.addAll(resolved);
-        return item.withChanges(merged);
+        List<ChangeEntry> merged = mergeChanges(item.changes(), snapshot, item.prevSnapshotData(), nameById, true);
+        return merged == item.changes() ? item : item.withChanges(merged);
     }
 
     // ── Shared ───────────────────────────────────────────────────────────────────────────────
 
     private static final ChangeEntry NO_MEDIA_ENTRY = new ChangeEntry.MediaChange(null, "—");
+
+    // skipMediaMergeIfUnchanged: Activity skips the media entry when attachmentSnapshotId is
+    // unchanged from the previous version; Timeline always merges it (no "unchanged" concept there).
+    private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
+                                            AdvertisementSnapshotDto prev, Map<Long, String> nameById,
+                                            boolean skipMediaMergeIfUnchanged) {
+        List<ChangeEntry> resolved = resolveCategories(changes, snapshot, prev, nameById);
+
+        Long attachId     = snapshot.attachmentSnapshotId();
+        Long prevAttachId = prev != null ? prev.attachmentSnapshotId() : null;
+        if (skipMediaMergeIfUnchanged && attachId != null && Objects.equals(attachId, prevAttachId)) {
+            return resolved;
+        }
+        List<ChangeEntry> mediaChanges = mediaChangesFor(attachId);
+        List<ChangeEntry> merged = new ArrayList<>(mediaChanges);
+        merged.addAll(resolved);
+        return merged;
+    }
 
     private List<ChangeEntry> mediaChangesFor(Long attachmentSnapshotId) {
         if (attachmentSnapshotId == null) return List.of(NO_MEDIA_ENTRY);

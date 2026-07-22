@@ -1,9 +1,6 @@
 package org.ost.platform.user.spi;
 
 import lombok.NonNull;
-import org.ost.platform.audit.api.AuditableSnapshot;
-import org.ost.platform.audit.dto.AuditTimelineItemDto;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -54,8 +51,6 @@ public interface UserPort {
     Map<Long, String> findActorNames(@NonNull Collection<Long> ids);
 
     Map<Long, UserDto> findByIds(@NonNull Set<Long> ids);
-
-    List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item);
 
     UserSettingsDto loadSettings(@NonNull Long userId);
 

@@ -33,7 +33,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **N** | 🔵 | 104, 105 | audit-rendering simplification — DTO-layer moves; after Batch F |
 | **I** | 🔵 | 029, 033 | process & docs tooling — no production code |
 | **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
 | **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
@@ -41,16 +40,6 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch N 🔵 — audit-rendering simplification (after Batch F)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-104](issues/improvement-104-expandactivityfields-feature-envy.md) | New (simplification review) | Move `UserService.expandActivityFields()` (generic snapshot expansion) out of the user domain onto the audit DTO layer |
-| [improvement-105](issues/improvement-105-advertisementenrichservice-unify-dual-paths.md) | New (simplification review) | Unify `AdvertisementEnrichService`'s mirrored Timeline/Activity enrichment branches, preserving the two deliberate behavioral differences |
-
-One pass because: both reshape the same audit-rendering DTO boundary. Explicitly sequenced after
-Batch F — 084/101 rewrite parts of the very code this batch unifies.
 
 ### Batch I 🔵 — process & docs tooling
 
