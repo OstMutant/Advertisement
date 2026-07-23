@@ -6,10 +6,8 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
@@ -76,11 +74,10 @@ public class UserService {
     @Transactional
     public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
         log.info("User profile update: id={}", dto.id());
-        User before = repository.findById(dto.id()).orElseThrow();
+        repository.findById(dto.id()).orElseThrow();
         repository.updateProfile(dto);
         repository.findById(dto.id()).ifPresent(updated ->
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                        toSnapshot(before),
                         toSnapshot(updated),
                         actingUserId)));
     }
@@ -147,27 +144,6 @@ public class UserService {
 
     public Optional<UserDto> findById(@NonNull Long id) {
         return repository.findById(id).map(this::toDto);
-    }
-
-    @Transactional
-    public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
-        return auditPortFactory.findIfAvailable()
-                .flatMap(p -> p.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER))
-                .map(AuditSnapshotContentDto::snapshotData)
-                .flatMap(snap -> applyUserRestore(userId, snap, actingUserId))
-                .map(this::toDto);
-    }
-
-    private Optional<User> applyUserRestore(@NonNull Long userId, @NonNull UserSnapshotDto snap, @NonNull Long actingUserId) {
-        User before = repository.findById(userId).orElseThrow();
-        repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role()), before.getVersion()));
-        return repository.findById(userId).map(updated -> {
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                    toSnapshot(before),
-                    toSnapshot(updated),
-                    actingUserId));
-            return updated;
-        });
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {

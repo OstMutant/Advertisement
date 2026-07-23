@@ -28,11 +28,9 @@ public class UserSettingsService {
     @Transactional
     public void save(@NonNull Long userId, @NonNull UserSettingsDto settings) {
         log.info("User settings save: userId={}", userId);
-        UserSettingsDto old = repository.load(userId);
         repository.save(userId, settings);
         hookFactory.ifAvailable(hook -> hook.onSettingsChanged(userId, settings));
         auditPortFactory.ifAvailable(p -> p.captureUpdate(userId,
-                SettingsSnapshotDto.from(old),
                 SettingsSnapshotDto.from(settings),
                 userId));
     }

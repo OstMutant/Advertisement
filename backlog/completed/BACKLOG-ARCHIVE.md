@@ -1170,3 +1170,39 @@ shared signature, `I18nKey`→`String`); and the remaining simple fields (`Query
 `marketplace-app/DECISIONS.md` ADR-056. Verified with unit-tests (72/72, including ArchUnit),
 integration-tests (127/127), and Playwright e2e --full --ux (49/49, first try — no recurrence of
 the `fillActorPicker` flake fixed in the improvement-025 Batch 4 entry above).
+
+✅ Done (2026-07-23): [improvement-115](issues/improvement-115-intellij-inspection-cleanup-pass.md)
+— full triage of a project-wide IntelliJ IDEA inspection export (`/app/errors/*.xml`, 33 inspection
+files), run in 4 ordered sub-passes. Batch 1 (safe mechanical): 10 unused imports,
+`SequencedCollectionMethodCanBeUsed` ×20 (`.get(0)`→`.getFirst()`), diamond/method-ref, dangling
+Javadoc, `FieldCanBeLocal` ×2, redundant suppression, `Collectors.toSet()`→`new HashSet<>()` ×2,
+dead i18n property, `ClassCanBeRecord` ×2 (one Spring bean deliberately kept a class). Batch 2
+(bugs): fixed a real gap where `AdvertisementSaveService.save()`'s update path could NPE on a
+concurrent soft-delete race (no guard existed for `before == null`, unlike the sibling `delete()`
+method — added a matching guard + regression test); migrated Testcontainers'
+`org.testcontainers.containers.PostgreSQLContainer` (deprecated, forRemoval) to the new non-generic
+`org.testcontainers.postgresql.PostgreSQLContainer`; `setAcceptedFileTypes`→`setAcceptedMimeTypes`;
+found and fixed an unrelated pre-existing build break in `integration-tests/pom.xml`
+(`junit-jupiter-api` resolved to `runtime` scope transitively, invisible to `src/main` compilation
+— added an explicit `compile`-scope dependency, see `integration-tests/DECISIONS.md` ADR-011). The
+Vaadin `@Theme` deprecation was carved out into its own deferred issue,
+[improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) — needs a full
+visual-regression pass, not a mechanical fix. Batch 3: added missing `@NonNull`/`@jspecify.NonNull`
+across 20 real gaps (6 more were a `NullableProblems` inspection quirk on an interface that already
+followed the project's `@NonNull` convention — left alone). Batch 4 (dead code, largest): removed
+~40 confirmed-dead methods/fields (unused i18n enum constants, orphaned package markers, dead
+repository/service methods) while explicitly excluding known false positives (`*CrudRepository`
+"not implemented" — Spring Data JDBC proxies; `ArchitectureRulesTest` fields — ArchUnit reflection;
+`@PostConstruct`/`@ClientCallable`-invoked methods); simplified several SPI methods with
+provably-dead parameters end-to-end (`AuditPort.captureUpdate`'s `before`, `AuditActivityEnrichHook`'s
+`subjects`/`entityRef`, `AuditDomainHook.resolveDisplayName`'s `entityType` — see
+`platform-commons/DECISIONS.md` ADR-022); removed `UserPort.restoreToSnapshot()` and
+`AttachmentPort.getMediaSummary(EntityRef)` (both confirmed to have zero real callers, per explicit
+user confirmation); and collapsed `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab
+machinery, dead since the Timeline-tab extraction — tracing `activate()`'s logic showed the
+tab-rendering branch was already unreachable, not merely unused (see `marketplace-app/DECISIONS.md`
+ADR-057). Verified after every sub-pass: unit-tests (73/73), integration-tests (125/125 final,
+down from 127 after deleting `UserServiceRestoreTest.java`'s 2 tests for the removed feature), and
+a full Playwright e2e --full --ux run (a first run hit 3 cascading failures traced to one transient
+login timeout in spec 03 skipping fixture-creating tests that spec 04/05 depended on; a full
+re-run confirmed 49/49 green, not a regression).

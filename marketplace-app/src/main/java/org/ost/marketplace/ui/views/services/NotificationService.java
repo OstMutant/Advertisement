@@ -32,10 +32,6 @@ public class NotificationService {
         show(NotificationType.SUCCESS, key, args);
     }
 
-    public void success(@NonNull String message) {
-        show(NotificationType.SUCCESS, message);
-    }
-
     /**
      * Convenience method for error notifications
      */

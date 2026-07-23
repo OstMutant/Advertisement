@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-23 · 49 passed · 0 failed · 0 skipped · 49 total
+Last updated: 2026-07-23 · 49 passed · 1 failed · 0 skipped · 50 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -44,7 +44,7 @@ Last updated: 2026-07-23 · 49 passed · 0 failed · 0 skipped · 49 total
 ## e2e/04-marketplace-advertisement-flow.spec.js
 
 **› e2e/04-marketplace-advertisement-flow.spec.js**
-- [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, two category rows, categories text and view chips
+- [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips
 - [x] Advertisement flow › userUk creates advertisement — YouTube, image and video, single activity row
 - [x] Advertisement flow › userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, admin timeline check
 - [x] Advertisement flow › userUk edits advertisement — discard, two saves with activity diff, admin timeline check
@@ -80,4 +80,9 @@ Last updated: 2026-07-23 · 49 passed · 0 failed · 0 skipped · 49 total
 
 **› e2e/07-accessibility.spec.js**
 - [x] Accessibility — icon-only controls have accessible names › adminEn — no unlabeled icon-only buttons across all main tabs
+
+## e2e/zz-repro-category.spec.js
+
+**› e2e/zz-repro-category.spec.js**
+- [!] repro: check category names in timeline for max boundary ad
 

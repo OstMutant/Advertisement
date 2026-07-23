@@ -1,5 +1,7 @@
 package org.ost.integrationtests;
 
+import lombok.NonNull;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -31,7 +33,7 @@ final class SharedEnvConfig {
      * the walk-up logic against isolated {@code @TempDir} trees. {@link #require(String)} is the
      * only entry point real callers use.
      */
-    static String require(String key, File startDir) {
+    static String require(String key, @NonNull File startDir) {
         Properties properties = load(startDir);
         String value = properties.getProperty(key);
         if (value == null || value.isBlank()) {
@@ -42,7 +44,7 @@ final class SharedEnvConfig {
         return value;
     }
 
-    private static Properties load(File startDir) {
+    private static Properties load(@NonNull File startDir) {
         File dir = startDir;
         for (int i = 0; i <= MAX_PARENT_LEVELS && dir != null; i++, dir = dir.getParentFile()) {
             File envFile = new File(dir, ".env");

@@ -149,8 +149,8 @@ public class AdvertisementService {
                             return dto.toBuilder().categoryIds(catIds).build();
                         })
                         .orElse(dto))
-                .map(dto -> enrichWithActorInfo(List.of(dto)).get(0))
-                .map(dto -> enrichWithMediaSummary(List.of(dto)).get(0));
+                .map(dto -> enrichWithActorInfo(List.of(dto)).getFirst())
+                .map(dto -> enrichWithMediaSummary(List.of(dto)).getFirst());
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {

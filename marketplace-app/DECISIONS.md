@@ -2358,3 +2358,51 @@ subclass changed from constructor-injected to built once in `initLayout()`
   e2e --full --ux (49/49, first try, no `fillActorPicker` flake recurrence).
 - `improvement-113` fully closed — issue moved to `backlog/completed/issues/`; `BACKLOG.md`/
   `BACKLOG-ARCHIVE.md` updated.
+
+---
+
+## ADR-057: `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab machinery removed — dead since the Timeline-tab extraction
+
+**Status:** Accepted
+
+**Context:** [improvement-115](../backlog/issues/improvement-115-intellij-inspection-cleanup-pass.md)'s
+dead-code sub-pass found `AbstractViewOverlayModeHandler.buildSecondaryTab()`/`buildTertiaryTab()`
+always return `null` — none of its three subclasses (`AdvertisementViewOverlayModeHandler`,
+`TaxonViewOverlayModeHandler`, `UserViewOverlayModeHandler`) override either. Tracing `activate()`'s
+logic further: since `secondary`/`tertiary` are always `null`, the `if (secondary == null &&
+tertiary == null)` branch is unconditionally taken, meaning the `else` branch — the one that
+actually builds a `Tabs` component from `buildPrimaryTab()`/`tabsCssClass()` — was **already
+unreachable**, not merely unused. `UserViewOverlayModeHandler` did override `buildPrimaryTab()`
+(returning a "Profile" tab labeled via `ACTIVITY_PROFILE_TAB`) and `tabsCssClass()`, but neither
+override had any rendering effect today — confirmed by the same reachability argument, not
+guessed. This matches this project's known history: the tab-per-mode-handler approach was the
+pre-Timeline-tab design for showing activity/history data inline inside an overlay, superseded by
+the dedicated top-level Timeline tab; this was the leftover scaffolding from that migration that
+never got removed.
+
+**Decision:** Collapsed `AbstractViewOverlayModeHandler` to what `activate()` actually executes:
+```java
+public abstract class AbstractViewOverlayModeHandler implements OverlayModeHandler {
+    @Override
+    public final void activate(OverlayLayout layout) {
+        layout.setContent(buildPrimaryContent());
+        layout.setHeaderActions(buildHeaderActions());
+    }
+    protected abstract Div buildPrimaryContent();
+    protected abstract Div buildHeaderActions();
+}
+```
+Removed `SecondaryTabDef`/`TertiaryTabDef` records, `buildSecondaryTab()`/`buildTertiaryTab()`,
+`buildPrimaryTab()`/`tabsCssClass()` (both now with zero overriders), and the private
+`assembleTabbedContent()` tab-switching-listener logic. Removed `UserViewOverlayModeHandler`'s now-
+unreachable `buildPrimaryTab()`/`tabsCssClass()` overrides and the orphaned `ACTIVITY_PROFILE_TAB`
+i18n key (both locales).
+
+**Consequences:**
+- No behavior change for end users — the "Profile" tab label was never actually rendered, so its
+  removal doesn't remove anything currently visible; this is a pure code simplification, not a
+  UI change.
+- If per-mode secondary/tertiary tabbed content inside a *view* overlay is ever wanted again
+  (distinct from the Form-side `buildTabbedContent()` pattern in `AbstractFormOverlayModeHandler`,
+  which is unrelated and unaffected), re-add it then against a concrete need rather than restoring
+  this dead scaffolding.

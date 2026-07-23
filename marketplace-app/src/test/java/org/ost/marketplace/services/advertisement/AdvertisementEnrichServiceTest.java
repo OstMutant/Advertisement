@@ -26,8 +26,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -85,9 +83,9 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        List<ChangeEntry> changes = result.get(0).changes();
+        List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(2);
-        assertThat(changes.get(0)).isInstanceOf(ChangeEntry.MediaChange.class);
+        assertThat(changes.getFirst()).isInstanceOf(ChangeEntry.MediaChange.class);
         assertThat(((ChangeEntry.FieldChange) changes.get(1)).to()).isEqualTo("Electronics");
     }
 
@@ -99,7 +97,7 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        assertThat(result.get(0)).isSameAs(item);
+        assertThat(result.getFirst()).isSameAs(item);
     }
 
     @Test
@@ -114,9 +112,9 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        List<ChangeEntry> changes = result.get(0).changes();
+        List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(1);
-        assertThat(((ChangeEntry.FieldChange) changes.get(0)).to()).isEqualTo("Electronics");
+        assertThat(((ChangeEntry.FieldChange) changes.getFirst()).to()).isEqualTo("Electronics");
     }
 
     @Test
@@ -128,9 +126,9 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        List<ChangeEntry> changes = result.get(0).changes();
+        List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(2);
-        assertThat(changes.get(0)).isInstanceOf(ChangeEntry.MediaChange.class);
+        assertThat(changes.getFirst()).isInstanceOf(ChangeEntry.MediaChange.class);
         assertThat(((ChangeEntry.FieldChange) changes.get(1)).to()).isEqualTo("1");
     }
 
@@ -142,9 +140,9 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
 
-        List<ChangeEntry> changes = result.get(0).changes();
+        List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(1);
-        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.get(0);
+        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.getFirst();
         assertThat(mediaChange.before()).isNull();
         assertThat(mediaChange.after()).isEqualTo("—");
     }
@@ -157,9 +155,9 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
 
-        List<ChangeEntry> changes = result.get(0).changes();
+        List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(1);
-        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.get(0);
+        ChangeEntry.MediaChange mediaChange = (ChangeEntry.MediaChange) changes.getFirst();
         assertThat(mediaChange.before()).isNull();
         assertThat(mediaChange.after()).isEqualTo("—");
     }
@@ -177,7 +175,7 @@ class AdvertisementEnrichServiceTest {
         List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
 
         verify(attachmentAuditHook, never()).getChangesBySnapshotId(any());
-        assertThat(result.get(0)).isSameAs(item);
+        assertThat(result.getFirst()).isSameAs(item);
     }
 
     @Test
@@ -192,8 +190,8 @@ class AdvertisementEnrichServiceTest {
 
         List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
 
-        assertThat(result.get(0).changes()).hasSize(1);
-        assertThat(result.get(0).changes().get(0)).isInstanceOf(ChangeEntry.MediaChange.class);
+        assertThat(result.getFirst().changes()).hasSize(1);
+        assertThat(result.getFirst().changes().getFirst()).isInstanceOf(ChangeEntry.MediaChange.class);
     }
 
     // ── getMediaStateForSnapshot() ───────────────────────────────────────────────────────────

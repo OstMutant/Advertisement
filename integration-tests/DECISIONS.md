@@ -467,3 +467,40 @@ tests.
 - Explicitly out of scope (per the originating issue): a GitHub Actions workflow itself — this
   repo still has no `.github/workflows/`; the CI-environment guard added here only protects a
   *future* one from a specific copy-paste mistake, it doesn't introduce CI.
+
+---
+
+## ADR-011: Explicit `junit-jupiter-api` compile-scope dependency — required for `AbstractPostgresIntegrationTest`'s `@Tag`
+**Status:** Accepted
+
+**Context:** While migrating off the deprecated `org.testcontainers.containers.PostgreSQLContainer`
+(replaced by the non-generic `org.testcontainers.postgresql.PostgreSQLContainer` in Testcontainers
+2.0.5, part of improvement-115's cleanup pass), `bash scripts/integration-tests.sh --sandbox smoke`
+failed to even compile — `AbstractPostgresIntegrationTest.java` (in `src/main/java`, using
+`org.junit.jupiter.api.Tag`) hit `package org.junit.jupiter.api does not exist`.
+
+Confirmed directly, twice, that this predates the Testcontainers migration and is not something it
+caused: running the exact same sanctioned script against a `git stash`-clean checkout of this
+module (before any of this session's edits) reproduces the identical compile failure. `mvn
+dependency:tree` on the unmodified `pom.xml` showed why: `junit-jupiter-api:6.0.3` resolves
+transitively to **`runtime`** scope (via `junit-jupiter:test` → `junit-jupiter-api:runtime`), not
+`compile` or `test` — Maven's main-compile phase only sees `compile`/`provided` scope, so
+`src/main/java` code using JUnit annotations has never had it visible on that classpath in this
+dependency-version combination (JUnit 6.0.3, a recent major bump). `mvn test`'s test-compile phase
+runs *after* main-compile in the lifecycle, so this failure was unconditional — no exclusion or
+`--sandbox` flag route around it.
+
+**Decision:** Added an explicit `org.junit.jupiter:junit-jupiter-api` dependency (default `compile`
+scope, no version — inherited from the Spring Boot BOM) to `integration-tests/pom.xml`, immediately
+after `spring-boot-starter-test`. Verified via `dependency:tree` that this resolves the same
+`6.0.3` artifact at `compile` scope, then reran the full `bash scripts/integration-tests.sh
+--sandbox` suite: 127/127 green.
+
+**Consequences:**
+- Any future `src/main/java` class in this module that uses a JUnit Jupiter annotation (mirroring
+  `AbstractPostgresIntegrationTest`'s `@Tag` placement rationale — see ADR-010) can rely on
+  `junit-jupiter-api` being compile-visible without rediscovering this scope gap.
+- This is specifically about the *API* annotations package; test execution engines
+  (`junit-jupiter-engine`, `junit-platform-*`) remain correctly `test`-scoped via
+  `spring-boot-starter-test`/`testcontainers-junit-jupiter` — only the annotation package needed
+  promoting.

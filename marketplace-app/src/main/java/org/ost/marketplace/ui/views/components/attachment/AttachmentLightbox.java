@@ -10,7 +10,6 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.dom.Element;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.RequiredArgsConstructor;
-import lombok.Value;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
@@ -29,9 +28,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
     private static final String CLICK_EVENT      = "click";
     private static final String STOP_PROPAGATION = "event.stopPropagation()";
 
-    @Value
-    public static class Parameters {
-        AttachmentItemDto attachment;
+    public record Parameters(AttachmentItemDto attachment) {
     }
 
     private final transient I18nService i18nService;
@@ -42,7 +39,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
     @Override
     public AttachmentLightbox configure(Parameters p) {
         addClassName("attachment-lightbox");
-        AttachmentItemDto attachment = p.getAttachment();
+        AttachmentItemDto attachment = p.attachment();
 
         UiIconButton closeBtn = new UiIconButton(i18nService.get(ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP), VaadinIcon.CLOSE.create());
         closeBtn.addClassName("card-lightbox__close");
@@ -51,7 +48,7 @@ public class AttachmentLightbox extends Div implements Configurable<AttachmentLi
         String ct = attachment.contentType();
         if (AttachmentMediaContentType.isEmbedded(ct)) {
             IFrame iframe = buildIFrame(attachment);
-            closeAction = () -> { iframe.setSrc("about:blank"); removeFromParent(); };
+            closeAction = () -> { iframe.setUnsafeSrc("about:blank"); removeFromParent(); };
             addClickListener(_ -> close());
             add(closeBtn, iframe);
         } else if (AttachmentMediaContentType.isUploadedVideo(ct)) {

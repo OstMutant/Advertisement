@@ -66,7 +66,7 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     }
 
     @Override
-    public String resolveDisplayName(@NonNull EntityType entityType, @NonNull AuditableSnapshot snapshot) {
+    public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
         return snapshot.displayName().orElse("");
     }
 }

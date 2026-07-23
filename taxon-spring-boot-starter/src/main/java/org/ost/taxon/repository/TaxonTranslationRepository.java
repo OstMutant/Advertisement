@@ -65,9 +65,4 @@ public class TaxonTranslationRepository {
                          .list();
     }
 
-    public void deleteAllByTaxonId(@NonNull Long taxonId) {
-        jdbcClient.sql("DELETE FROM taxon_translation WHERE taxon_id = :taxonId")
-                  .paramSource(new MapSqlParameterSource("taxonId", taxonId))
-                  .update();
-    }
 }

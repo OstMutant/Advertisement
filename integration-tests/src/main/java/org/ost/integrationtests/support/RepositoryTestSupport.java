@@ -98,7 +98,7 @@ public class RepositoryTestSupport {
         }
 
         @Override
-        public Optional<Long> getCurrentAuditor() {
+        public @org.jspecify.annotations.NonNull Optional<Long> getCurrentAuditor() {
             return Optional.ofNullable(currentUserId);
         }
     }

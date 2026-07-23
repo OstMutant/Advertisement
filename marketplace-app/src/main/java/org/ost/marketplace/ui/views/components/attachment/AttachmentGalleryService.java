@@ -55,11 +55,7 @@ public class AttachmentGalleryService {
         void loadFromSnapshotId(Long snapshotId);
     }
 
-    private static final class Handle implements FormHandle {
-        private final AttachmentGallery gallery;
-
-        Handle(AttachmentGallery gallery) { this.gallery = gallery; }
-
+    private record Handle(AttachmentGallery gallery) implements FormHandle {
         @Override public Component getComponent() { return gallery; }
         @Override public Long commit(@NonNull EntityRef entity) {
             return gallery.commitTempUploads(entity.entityType(), entity.entityId());

@@ -40,10 +40,9 @@ public class AuditReadService {
         List<AuditLogProjection> rows = withSameTypePrevSnapshot(
                 repository.findRows(entityType, entityId, showAll ? null : currentUserId, ENTITY_ACTIVITY_MAX_ROWS));
         List items = rows.stream().map(this::toActivityItem).toList();
-        EntityRef entityRef = new EntityRef(entityType, entityId);
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
             if (hook.entityType() == entityType) {
-                items = hook.enrichActivity(entityRef, items);
+                items = hook.enrichActivity(items);
             }
         }
         return items;
@@ -58,9 +57,8 @@ public class AuditReadService {
     @SuppressWarnings({"unchecked", "rawtypes"})
     public List<AuditTimelineItemDto<AuditableSnapshot>> getTimelinePage(AuditTimelineFilterDto filter, Sort sort, int page, int size) {
         List items = repository.findTimeline(filter, sort, page, size).stream().map(this::toTimelineItem).toList();
-        List<EntityRef> noSubjects = List.of();
         for (AuditActivityEnrichHook hook : activityEnrichHooks) {
-            items = hook.merge(noSubjects, items);
+            items = hook.merge(items);
         }
         return items;
     }
@@ -102,7 +100,7 @@ public class AuditReadService {
             AuditableSnapshot snap = row.snapshot();
             AuditableSnapshot prevSameType = snap != null ? lastByType.get(snap.getClass()) : null;
             if (snap != null) lastByType.put(snap.getClass(), snap);
-            result.add(0, new AuditLogProjection(row.id(), row.entityType(), row.entityId(), row.actionType(),
+            result.addFirst(new AuditLogProjection(row.id(), row.entityType(), row.entityId(), row.actionType(),
                     snap, row.actorId(), row.createdAt(), row.version(), row.prevId(), prevSameType));
         }
         return result;

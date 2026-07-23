@@ -17,7 +17,7 @@ import java.util.List;
  */
 public interface AuditActivityEnrichHook<T extends AuditableSnapshot> {
     EntityType entityType();
-    List<AuditTimelineItemDto<T>> merge(@NonNull List<EntityRef> subjects, @NonNull List<AuditTimelineItemDto<T>> base);
-    default List<AuditActivityItemDto<T>> enrichActivity(@NonNull EntityRef entityRef, @NonNull List<AuditActivityItemDto<T>> items) { return items; }
+    List<AuditTimelineItemDto<T>> merge(@NonNull List<AuditTimelineItemDto<T>> base);
+    default List<AuditActivityItemDto<T>> enrichActivity(@NonNull List<AuditActivityItemDto<T>> items) { return items; }
     default String getMediaStateForSnapshot(@NonNull EntityRef ref, @NonNull Long snapshotId) { return null; }
 }

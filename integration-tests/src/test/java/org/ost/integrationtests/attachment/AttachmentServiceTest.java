@@ -120,7 +120,7 @@ class AttachmentServiceTest {
     }
 
     @Test
-    void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() throws IOException {
+    void upload_noCurrentActor_throwsInsteadOfSilentlySkippingSnapshot() {
         when(storageService.upload(anyString(), eq("photo.jpg"), eq(inputStream), eq(100L), eq("image/jpeg")))
                 .thenReturn("final/photo.jpg");
         when(attachmentRepository.save(any())).thenReturn(Attachment.builder()

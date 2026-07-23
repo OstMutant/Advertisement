@@ -37,16 +37,11 @@ public enum I18nKey {
     SIGNUP_BUTTON_SUBMIT("signup.button.submit"),
     SIGNUP_BUTTON_CANCEL("signup.button.cancel"),
     SIGNUP_SUCCESS("signup.success"),
-    SIGNUP_ERROR_NAME_REQUIRED("signup.error.name.required"),
-    SIGNUP_ERROR_EMAIL_INVALID("signup.error.email.invalid"),
     SIGNUP_ERROR_EMAIL_EXISTS("signup.error.email.exists"),
-    SIGNUP_ERROR_PASSWORD_SHORT("signup.error.password.short"),
     SIGNUP_ERROR_TOO_MANY_ATTEMPTS("signup.error.too.many.attempts"),
 
     // === User Dialog ===
-    USER_DIALOG_TITLE("user.dialog.title"),
     USER_DIALOG_FIELD_ID_LABEL("user.dialog.field.id.label"),
-    USER_DIALOG_FIELD_EMAIL_LABEL("user.dialog.field.email.label"),
     USER_DIALOG_FIELD_CREATED_LABEL("user.dialog.field.created.label"),
     USER_DIALOG_FIELD_UPDATED_LABEL("user.dialog.field.updated.label"),
     USER_DIALOG_FIELD_NAME_LABEL("user.dialog.field.name.label"),
@@ -67,9 +62,6 @@ public enum I18nKey {
     // === Advertisement Overlay ===
     ADVERTISEMENT_OVERLAY_TITLE_NEW("advertisement.overlay.title.new"),
     ADVERTISEMENT_OVERLAY_TITLE_EDIT("advertisement.overlay.title.edit"),
-    ADVERTISEMENT_OVERLAY_FIELD_CREATED("advertisement.overlay.field.created"),
-    ADVERTISEMENT_OVERLAY_FIELD_UPDATED("advertisement.overlay.field.updated"),
-    ADVERTISEMENT_OVERLAY_FIELD_AUTHOR("advertisement.overlay.field.author"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
@@ -106,16 +98,6 @@ public enum I18nKey {
     USER_VIEW_NOTIFICATION_DELETED("user.view.notification.deleted"),
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
-
-    // UserViewDialog
-    USER_VIEW_DIALOG_TITLE("user.view.dialog.title"),
-    USER_VIEW_DIALOG_FIELD_ID("user.view.dialog.field.id"),
-    USER_VIEW_DIALOG_FIELD_NAME("user.view.dialog.field.name"),
-    USER_VIEW_DIALOG_FIELD_EMAIL("user.view.dialog.field.email"),
-    USER_VIEW_DIALOG_FIELD_ROLE("user.view.dialog.field.role"),
-    USER_VIEW_DIALOG_FIELD_CREATED("user.view.dialog.field.created"),
-    USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
-    USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
 
     // === User Sort ===
     USER_SORT_ID("user.sort.id"),
@@ -173,14 +155,10 @@ public enum I18nKey {
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
-    ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
     ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE("advertisement.card.notification.media.unavailable"),
-
-    // === Advertisement Description Dialog ===
-    ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
 
     // === Advertisement Empty State ===
     ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
@@ -203,14 +181,10 @@ public enum I18nKey {
     AUDIT_HISTORY_EMPTY("audit.history.empty"),
     AUDIT_HISTORY_CURRENT_STATE("audit.history.current.state"),
     AUDIT_HISTORY_RESTORE("audit.history.restore"),
-    AUDIT_ACTIVITY_EMPTY("audit.activity.empty"),
-    AUDIT_ACTIVITY_CURRENT_STATE("audit.activity.current.state"),
-    AUDIT_ACTIVITY_RESTORE("audit.activity.restore"),
     AUDIT_ACTIVITY_ACTION_CREATED("audit.activity.action.created"),
     AUDIT_ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
     AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
-    AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
     AUDIT_ACTOR_DELETED_NAME("audit.actor.deleted.name"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
@@ -296,32 +270,11 @@ public enum I18nKey {
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
-    ACTIVITY_PROFILE_TAB("activity.profile.tab"),
     USER_ACTIVITY_TAB("user.activity.tab"),
     SETTINGS_ACTIVITY_TAB("settings.activity.tab"),
-    TIMELINE_TAB("timeline.tab"),
-    ACTIVITY_SECTION_TITLE("activity.section.title"),
-    ACTIVITY_ACTION_CREATED("activity.action.created"),
-    ACTIVITY_ACTION_UPDATED("activity.action.updated"),
-    ACTIVITY_ACTION_DELETED("activity.action.deleted"),
-    ACTIVITY_ACTION_RESTORED("activity.action.restored"),
-    ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
     // === Advertisement History ===
     ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
-    ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
-    ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),
-    ADVERTISEMENT_RESTORE_CONFIRM_BUTTON("advertisement.restore.confirm.button"),
-    ADVERTISEMENT_RESTORE_CONFIRM_CANCEL("advertisement.restore.confirm.cancel"),
-
-    // === Settings History ===
-    SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
-    SETTINGS_RESTORE_CONFIRM_TITLE("settings.restore.confirm.title"),
-
-    // === Restore Confirm ===
-    ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),
-    ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED("advertisement.restore.confirm.desc.changed"),
-    ADVERTISEMENT_RESTORE_NO_CHANGE("advertisement.restore.no.change"),
 
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
@@ -337,10 +290,6 @@ public enum I18nKey {
     CHANGES_SETTING_ADS_PAGE_SIZE("audit.changes.setting.adsPageSize"),
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
-
-    // === Taxon / Category ===
-    TAXON_CATEGORY_ASSIGNED("taxon.category.assigned"),
-    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned"),
 
     // === Reference Data tab ===
     REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),

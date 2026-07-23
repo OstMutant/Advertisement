@@ -27,12 +27,4 @@ public class DialogLayout extends VerticalLayout {
     public void addFormContent(Component... components) {
         form.add(components);
     }
-
-    public void addScrollContent(Component... components) {
-        scrollContainer.add(components);
-    }
-
-    public void addBottomContent(Component... components) {
-        bottom.add(components);
-    }
 }

@@ -10,9 +10,8 @@ import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
 
 public final class ConfirmActionDialog extends BaseDialog {
 
-    private final DialogLayout layout = new DialogLayout();
-
     public ConfirmActionDialog(String title, String message, String confirmLabel, String cancelLabel, Runnable onConfirm) {
+        DialogLayout layout = new DialogLayout();
         buildLayout(layout);
         setHeaderTitle(title);
 

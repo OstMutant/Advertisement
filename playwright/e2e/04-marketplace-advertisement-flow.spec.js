@@ -40,12 +40,12 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, two category rows, categories text and view chips', async () => {
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
     await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'] });
 
-    await test.step('attachment lightbox — play icon visible, video src valid', async () => {
+    await test.step('attachment lightbox — play icon visible, video src valid, close button works', async () => {
       await page.locator('.advertisement-card')
         .filter({ has: page.locator('.advertisement-title', { hasText: CREATE.enAd.title }) })
         .first().click();
@@ -59,8 +59,19 @@ test.describe('Advertisement flow', () => {
       const src = await videoEl.getAttribute('src');
       expect(src).toBeTruthy();
       await screenshot(page, 'adv-useren-create-attachment-lightbox');
-      await page.evaluate(() => document.querySelector('.attachment-lightbox .card-lightbox__close')?.click());
-      await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 }).catch(() => {});
+      await page.locator('.attachment-lightbox .card-lightbox__close').click();
+      await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
+    });
+
+    await test.step('attachment lightbox — YouTube clip closes via the close button (not just Escape)', async () => {
+      // YouTube is the 1st gallery item (YouTube=0, image=1, WebM=2)
+      await page.locator('.attachment-gallery__item').nth(0).waitFor({ timeout: 5000 });
+      await page.locator('.attachment-gallery__item').nth(0).click();
+      await page.locator('.attachment-lightbox').waitFor({ timeout: 5000 });
+      await expect(page.locator('.attachment-lightbox iframe')).toBeVisible();
+      await screenshot(page, 'adv-useren-create-attachment-lightbox-youtube');
+      await page.locator('.attachment-lightbox .card-lightbox__close').click();
+      await page.locator('.attachment-lightbox').waitFor({ state: 'detached', timeout: 5000 });
       await closeOverlay(page);
     });
 

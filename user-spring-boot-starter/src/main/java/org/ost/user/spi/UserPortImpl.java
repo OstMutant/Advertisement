@@ -84,12 +84,6 @@ public class UserPortImpl implements UserPort {
     }
 
     @Override
-    @Transactional
-    public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
-        return userService.restoreToSnapshot(userId, snapshotId, actingUserId);
-    }
-
-    @Override
     public Optional<UserDto> findByEmail(@NonNull String email) {
         return userService.findDtoByEmail(email);
     }

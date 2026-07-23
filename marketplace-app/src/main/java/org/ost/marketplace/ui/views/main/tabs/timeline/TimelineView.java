@@ -16,7 +16,6 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;

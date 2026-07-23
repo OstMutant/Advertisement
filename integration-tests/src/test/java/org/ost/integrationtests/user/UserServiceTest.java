@@ -68,7 +68,6 @@ class UserServiceTest {
     private AuditPort auditPort;
 
     private ObjectProvider<AuditPort> auditPortProvider;
-    private ComponentFactory<AuditPort> auditPortFactory;
 
     private UserService userService;
 
@@ -76,7 +75,7 @@ class UserServiceTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         auditPortProvider = mock(ObjectProvider.class);
-        auditPortFactory = new ComponentFactory<>(auditPortProvider);
+        ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
         userService = new UserService(userRepository, passwordEncoder, auditPortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");

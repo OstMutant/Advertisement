@@ -472,3 +472,54 @@ this record's own fields).
 
 **Consequences:** `UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` no longer need
 a `UserPort` dependency at all for this method — removed the now-unused field from both.
+
+---
+
+## ADR-022: Dead SPI parameters and methods removed — `AuditPort`, `AuditActivityEnrichHook`, `AuditDomainHook`, `UserPort`, `AttachmentPort`
+
+**Status:** Accepted
+
+**Context:** [improvement-115](../backlog/issues/improvement-115-intellij-inspection-cleanup-pass.md)'s
+dead-code sub-pass found several SPI methods/parameters with zero real consumers across every
+current implementation and call site — not "single implementation that might grow," but params
+threaded through and never read anywhere, or methods with no caller at all:
+
+- `AuditPort.captureUpdate(entityId, before, after, actorId)` — `before` was never read by
+  `DefaultAuditPort` (only `after` gets persisted; diffing happens at read time via
+  `AuditableSnapshot.diff()` against the previous log row, per `audit-spring-boot-starter/CLAUDE.md`).
+  Every caller (`AdvertisementSaveService`, `TaxonService`, `UserService` ×2, `UserSettingsService`)
+  was computing/fetching a "before" snapshot for this one unused argument.
+- `AuditActivityEnrichHook.merge(subjects, base)` / `.enrichActivity(entityRef, items)` — both
+  `subjects`/`entityRef` were dead-forwarded from `AuditReadService` (`List<EntityRef> noSubjects
+  = List.of()` — always empty) to the sole implementation (`ActivityEnrichHookImpl`), which
+  ignored them.
+- `AuditDomainHook.resolveDisplayName(entityType, snapshot)` — `entityType` unused in the sole
+  implementation (`AuditDomainHookImpl`); `AuditableSnapshot.displayName()` already resolves
+  per-type display logic polymorphically, making the extra parameter redundant.
+- `UserPort.restoreToSnapshot()` (+ `UserService.restoreToSnapshot()`/`applyUserRestore()`) — no UI
+  caller exists; both `AdvertisementFormOverlayModeHandler` and `UserFormOverlayModeHandler`'s
+  restore-from-activity flows fetch the snapshot directly via `AuditPort.getSnapshotContent()` and
+  populate the edit form locally, letting the user's own "Save" click persist it — neither goes
+  through this port method. `UserServiceRestoreTest.java` (its only caller, existing purely to
+  test it) was deleted alongside it.
+- `AttachmentPort.getMediaSummary(EntityRef)` (single-entity) — every real caller already uses the
+  bulk `getMediaSummaries(EntityType, Set<Long>)` (see ADR-035 in `marketplace-app/DECISIONS.md`).
+  `AttachmentRepository.loadMediaStats(EntityType, Long)`, the repository method it delegated to,
+  was kept — it has its own direct repository-level test coverage independent of this port method.
+
+**Decision:** Removed each dead parameter/method from the SPI interface, its implementation(s),
+and every call site (compiler-verified — no call site could silently keep passing a stale value).
+Not treated as "maybe a future entity type needs `subjects`" speculative API surface: each was
+already threaded through a real caller today and provably unused end-to-end, not merely
+single-implementation.
+
+**Consequences:**
+- `AdvertisementSaveService.save()`'s update branch still computes its own `before` snapshot
+  locally (needed for the `attachmentSnapshotId` fallback and the concurrent-delete guard added in
+  the same pass — see that file) — only the `AuditPort.captureUpdate` argument was dropped, not
+  the local computation.
+- `TaxonService.update()` no longer fetches `beforeTranslations`/`beforeSnapshot` at all (was
+  otherwise unused after the arg removal); `UserSettingsService.save()` no longer calls
+  `repository.load(userId)` for the same reason.
+- If a genuine future need for a "before" snapshot at audit-write time arises, re-add the
+  parameter then with a concrete consumer — do not restore it preemptively.

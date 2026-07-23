@@ -60,7 +60,7 @@ class TaxonAssignmentRepositoryTest extends AbstractPostgresIntegrationTest {
 
         var assignments = assignmentRepository.findAllByEntity(EntityType.ADVERTISEMENT.name(), 1L);
         assertThat(assignments).extracting(TaxonAssignment::getTaxonId).containsExactly(taxonId);
-        assertThat(assignments.get(0).getAssignedBy()).isEqualTo(42L);
+        assertThat(assignments.getFirst().getAssignedBy()).isEqualTo(42L);
     }
 
     @Test

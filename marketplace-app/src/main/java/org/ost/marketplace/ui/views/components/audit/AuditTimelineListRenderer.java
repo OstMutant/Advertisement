@@ -48,7 +48,7 @@ public class AuditTimelineListRenderer {
             displayNames.computeIfAbsent(item.entityRef().entityId(), _ -> {
                     AuditableSnapshot snapshot = item.snapshotData();
                     return snapshot != null
-                            ? auditDomainHook.resolveDisplayName(item.entityRef().entityType(), snapshot)
+                            ? auditDomainHook.resolveDisplayName(snapshot)
                             : "";
                 });
             byType.computeIfAbsent(item.entityRef().entityType(), _ -> new HashSet<>()).add(item.entityRef().entityId());

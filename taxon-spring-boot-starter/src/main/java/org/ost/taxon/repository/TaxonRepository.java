@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -116,19 +117,10 @@ public class TaxonRepository {
                   .update();
     }
 
-    public long countByType(@NonNull TaxonType type) {
-        return jdbcClient.sql("SELECT COUNT(*) FROM taxon WHERE type = :type AND deleted_at IS NULL")
-                         .paramSource(new MapSqlParameterSource("type", type.name()))
-                         .query(Long.class)
-                         .single();
-    }
-
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
-        return jdbcClient.sql("SELECT id FROM taxon WHERE id IN (:ids)")
+        return new HashSet<>(jdbcClient.sql("SELECT id FROM taxon WHERE id IN (:ids)")
                          .paramSource(new MapSqlParameterSource("ids", ids))
                          .query(Long.class)
-                         .list()
-                         .stream()
-                         .collect(java.util.stream.Collectors.toSet());
+                         .list());
     }
 }

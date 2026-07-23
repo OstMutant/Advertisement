@@ -1,11 +1,11 @@
 package org.ost.query.filter;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * SQL comparison operators used by {@link SqlCondition} to format WHERE clause fragments.
  * Each variant holds a printf-style template: {@code %s} is the SQL expression, {@code :%s} the named param.
  */
-import lombok.RequiredArgsConstructor;
-
 @RequiredArgsConstructor
 enum SqlOperator {
     EQUALS          ("%s = :%s"),

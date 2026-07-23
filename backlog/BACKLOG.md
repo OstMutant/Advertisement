@@ -31,36 +31,37 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 ### At a glance
 
-| Batch | Tier | Issues (in execution order) | One pass = |
+Reprioritized 2026-07-23 at explicit user request: improvement-072 promoted to the top (sole
+priority item); everything else demoted to "nice to have," parked at the bottom with no internal
+ranking beyond what's already listed.
+
+| Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
-| — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 114, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
+| **Top** | 🔵 | 072 | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision |
+| Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
 
-### Batch K ⚪ — Playwright seeding infrastructure (sequenced pair)
+### Top priority — improvement-072
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) | New | Test-only, dev-gated REST endpoints for Playwright seeding |
-| [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | Migrated | Service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
+| [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md) | Still open | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision |
 
-One pass because: 035 is blocked solely on 073 — doing them back-to-back removes the blocker
-churn (endpoints first, spec-05 seeding on top).
+### Nice to have — no internal priority order
 
-### Standalone — no one-pass partner
-
-| Issue | Origin | What | Tier |
-|---|---|---|---|
-| [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch | 🟡 |
-| [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging | 🔵 |
-| [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 | 🔵 |
-| [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry | 🔵 |
-| [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md) | Still open | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision | 🔵 |
-| [improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) | New (found running Sonar) | SonarQube's `new_coverage` quality gate condition always reads 0% — JaCoCo never wired into the scan | 🔵 |
-| [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) | ⚪ |
-| [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved | ⚪ |
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated | Playwright seeding infrastructure (sequenced pair — 035 unblocks on 073), then service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
+| [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch |
+| [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
+| [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 |
+| [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry |
+| [improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) | New (found running Sonar) | SonarQube's `new_coverage` quality gate condition always reads 0% — JaCoCo never wired into the scan |
+| [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) |
+| [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
+| [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
 
 ---
 

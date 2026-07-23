@@ -42,8 +42,6 @@ import org.springframework.context.annotation.Scope;
 import java.util.Arrays;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
-import static org.ost.marketplace.services.i18n.I18nKey.FORM_DISCARD_CHANGES;
-import static org.ost.marketplace.services.i18n.I18nKey.FORM_RESTORE_BANNER;
 
 @SpringComponent
 @Scope("prototype")
@@ -128,10 +126,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         layout.setContent(content);
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
         updateButtons(false);
-    }
-
-    public Long getSavedUserId() {
-        return params.getUser().id();
     }
 
     public boolean save() {

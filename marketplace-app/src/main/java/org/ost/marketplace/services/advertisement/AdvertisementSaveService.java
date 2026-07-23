@@ -65,8 +65,10 @@ public class AdvertisementSaveService {
 
             if (isNew) {
                 auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
+            } else if (before != null) {
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
             } else {
-                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, before, after, actorId));
+                log.warn("Advertisement {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
             }
             log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
                     savedId, isNew, catIds.size());

@@ -48,7 +48,7 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     @Transactional
-    public void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot before, @NonNull AuditableSnapshot after, @NonNull Long actorId) {
+    public void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot after, @NonNull Long actorId) {
         log.info("Audit capture: UPDATED {} id={}", after.entityType(), entityId);
         auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
                 after, resolveActor(actorId));

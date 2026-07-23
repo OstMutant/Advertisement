@@ -2,6 +2,7 @@ package org.ost.integrationtests.audit;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import lombok.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.ost.audit.config.AuditAutoConfiguration;
@@ -102,24 +103,24 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
         AuditDomainHook auditDomainHook() {
             return new AuditDomainHook() {
                 @Override
-                public Map<Long, String> resolveNames(Set<Long> actorIds) {
+                public Map<Long, String> resolveNames(@NonNull Set<Long> actorIds) {
                     return Map.of();
                 }
 
                 @Override
-                public Set<Long> findExisting(EntityType entityType, Set<Long> entityIds) {
+                public Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
                     return Set.of();
                 }
 
                 @Override
-                public String resolveDisplayName(EntityType entityType, AuditableSnapshot snapshot) {
+                public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
                     return "";
                 }
 
                 @Override
                 @SuppressWarnings("unchecked")
                 public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
-                        AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
+                        @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
                     return Optional.of((AuditSnapshotContentDto<T>) content);
                 }
             };

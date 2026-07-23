@@ -6,7 +6,6 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -55,10 +54,6 @@ public class TimeZoneUtil {
             return session.getLocale();
         }
         return Locale.getDefault();
-    }
-
-    public static Instant toInstant(LocalDate date) {
-        return date != null ? date.atStartOfDay(ZoneId.of(getClientTimeZoneId())).toInstant() : null;
     }
 
     public static Instant toInstant(LocalDateTime dateTime) {

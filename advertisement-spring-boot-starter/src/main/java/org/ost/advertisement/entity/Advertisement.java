@@ -33,6 +33,4 @@ public class Advertisement {
 
     @Version
     Long version;
-
-    public boolean isNew() { return id == null; }
 }

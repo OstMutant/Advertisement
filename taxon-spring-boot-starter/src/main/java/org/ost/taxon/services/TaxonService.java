@@ -61,8 +61,6 @@ public class TaxonService {
         validateTranslations(translations);
         Taxon existing = taxonRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Taxon not found: " + id));
-        List<TaxonTranslation> beforeTranslations = translationRepository.findAllByTaxonId(id);
-        TaxonSnapshotDto beforeSnapshot = buildSnapshotFromTranslations(beforeTranslations);
         Taxon updated = Taxon.builder()
                 .id(existing.getId())
                 .type(existing.getType())
@@ -79,7 +77,7 @@ public class TaxonService {
         translationRepository.saveAll(id, toEntities(id, translations));
         TaxonSnapshotDto afterSnapshot = buildSnapshotFromData(translations);
         if (actorId != null) {
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(id, beforeSnapshot, afterSnapshot, actorId));
+            auditPortFactory.ifAvailable(p -> p.captureUpdate(id, afterSnapshot, actorId));
         }
         return updated;
     }

@@ -70,7 +70,7 @@ class ArchitectureRulesTest {
 
     @ArchTest
     static final ArchRule no_optional_method_parameters =
-            noClasses().should(new ArchCondition<JavaClass>("not declare Optional method parameters") {
+            noClasses().should(new ArchCondition<>("not declare Optional method parameters") {
                 @Override
                 public void check(JavaClass javaClass, com.tngtech.archunit.lang.ConditionEvents events) {
                     for (JavaMethod method : javaClass.getMethods()) {
