@@ -45,7 +45,7 @@ async function runLogoutFlow(page, expect) {
   await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 8000 });
   await screenshot(page, 'auth-logout-confirm-dialog');
 
-  await page.getByRole('button', { name: /^yes$|^так$/i }).click();
+  await page.getByRole('button', { name: /^log out$|^вийти$/i }).last().click();
 
   await expect(page.locator('.header-settings-button')).not.toBeVisible({ timeout: 8000 });
   await expect(page.locator('vaadin-button').filter({ hasText: /log in|увійти/i }).first()).toBeVisible({ timeout: 5000 });

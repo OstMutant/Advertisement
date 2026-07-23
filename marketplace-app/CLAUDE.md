@@ -93,13 +93,15 @@ Translation keys — single consolidated enum:
 
 `@EnableMethodSecurity` is active. **Never put `@PreAuthorize` at class level on service beans.** Vaadin initializes view beans on the first HTTP request before the user authenticates; a class-level annotation causes an `AuthorizationDeniedException` during view wiring, preventing any view from loading.
 
-- Method-level `@PreAuthorize` is fine for future REST controller endpoints.
+- Method-level `@PreAuthorize` is fine for REST controller endpoints.
 - Services (`AdvertisementService`, `ActivityService`, etc.) intentionally have no `@PreAuthorize`.
-- `/health` is intentionally public (load balancer probe).
+- `rest/HealthController` (`GET /health`) is this app's one existing non-Vaadin REST controller —
+  intentionally public (load balancer probe), with its own explicit
+  `requestMatchers("/health").permitAll()` rule in `SecurityConfig`, ahead of the catch-all (see
+  next bullet). Any *new* non-Vaadin REST controller must add the same kind of explicit rule for
+  its own path prefix, following this precedent.
 - `SecurityConfig` uses `anyRequest().permitAll()` at the URL layer — deny-by-default does not
-  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025). Any future
-  non-Vaadin REST controller must add its own explicit `requestMatchers(...)` rule ahead of the
-  catch-all.
+  apply to this app's single-route Vaadin SPA model (see `DECISIONS.md` ADR-025).
 - Login (`AuthService.login()`) and registration (`UserPort.register()` → `UserService.register()`)
   are rate-limited via an in-memory Caffeine cache (5 attempts / 15 min), counting only real
   failures — never successes (see `DECISIONS.md` ADR-026).
@@ -112,7 +114,6 @@ Translation keys — single consolidated enum:
 ## Naming Conventions
 
 ### Class suffixes
-- `*Projection` — SQL query object that owns its SQL (text block) and `mapRow()`. Lives in `repository/*`.
 - `*Service` — stateless business logic. Lives in `services/` or `ui/views/services/` (UI-layer services).
 - `*Panel` — Spring bean that assembles a Vaadin UI subtree (returns `Div`/component). Lives in `ui/views/components/`.
 - `*Util` — static-only utility class (`@NoArgsConstructor(access = PRIVATE)`). Lives in `ui/views/utils/`.
@@ -124,13 +125,16 @@ Translation keys — single consolidated enum:
 
 ### Package structure
 - `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
-- `services/audit/` — audit snapshot DTOs, diff engine, `@AuditedField` annotation
-- `services/auth/` — authentication context (`AuthContextService`)
+- `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementEnrichService` — category-name resolution for audit diffs)
+- `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`
-- `services/security/` — security beans (`AccessEvaluator`, `RoleChecker`, `OwnershipChecker`, etc.)
-- `repository/activity/` — activity feed SQL repositories + projections
+- `services/security/` — `AccessEvaluator` (role/ownership checks live in user-spring-boot-starter's `org.ost.user.security` — `RoleChecker`, `OwnershipChecker`)
+- `spi/` — hook implementations (`CurrentActorHookImpl`, `AuditDomainHookImpl`, `*ActivityFieldsHookImpl`, `ActivityEnrichHookImpl`)
+- `rest/` — non-Vaadin REST controllers (`HealthController` only today)
 - `ui/core/` — `Configurable<T,P>`, `Initialization<T>`, `UiComponentFactory<T>`, `PaginationDefaults`
 - `ui/dto/` — `Identifiable` and other shared UI DTOs
+- `ui/mappers/` — UI-form ↔ DTO mappers (`AdvertisementMapper`, `UserMapper`, `*FilterMapper`)
+- `ui/query/` — query-bar infrastructure (`QueryBlock`, `QueryStatusBar`, `filter/`, `sort/`, `elements/`, `utils/`)
 - `ui/views/components/` — reusable Vaadin UI components (incl. `audit/`, `attachment/`, `fields/` subpackages). `fields/` contains `QuillEditor` (rich-text web component wrapping Quill v2) and standard field wrappers.
 - `ui/views/utils/` — pure static utilities only (`*Util` classes)
 - `ui/views/services/` — UI-layer Spring services; `*Binding` beans live in the same subpackage as the service they support

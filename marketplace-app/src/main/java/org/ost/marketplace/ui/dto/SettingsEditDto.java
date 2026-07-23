@@ -13,4 +13,5 @@ public class SettingsEditDto implements EditDto {
     private Integer adsPageSize;
     private Integer usersPageSize;
     private Integer timelinePageSize;
+    private long    version;
 }

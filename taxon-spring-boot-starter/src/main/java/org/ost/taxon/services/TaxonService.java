@@ -68,6 +68,7 @@ public class TaxonService {
                 .type(existing.getType())
                 .code(existing.getCode())
                 .deletedAt(existing.getDeletedAt())
+                .deletedBy(existing.getDeletedBy())
                 .createdAt(existing.getCreatedAt())
                 .createdBy(existing.getCreatedBy())
                 .updatedAt(Instant.now())
@@ -117,10 +118,6 @@ public class TaxonService {
         return taxonRepository.findByIds(ids);
     }
 
-    public Optional<Taxon> findByCode(@NonNull TaxonType type, @NonNull String code) {
-        return taxonRepository.findByTypeAndCode(type, code);
-    }
-
     public List<TaxonTranslation> getTranslations(@NonNull Long taxonId) {
         return translationRepository.findAllByTaxonId(taxonId);
     }
@@ -154,6 +151,7 @@ public class TaxonService {
                 .toList();
     }
 
+    // hardcoded en/uk, not a supportedLocales() loop -- TaxonSnapshotDto has a fixed 4-field shape
     private TaxonSnapshotDto buildSnapshotFromData(Map<Locale, TaxonTranslationData> translations) {
         TaxonTranslationData en = translations.get(Locale.ENGLISH);
         TaxonTranslationData uk = translations.get(Locale.forLanguageTag("uk"));
@@ -164,6 +162,7 @@ public class TaxonService {
                 uk != null ? uk.description() : null);
     }
 
+    // hardcoded en/uk, not a supportedLocales() loop -- TaxonSnapshotDto has a fixed 4-field shape
     private TaxonSnapshotDto buildSnapshotFromTranslations(List<TaxonTranslation> translations) {
         String nameEn = null, descEn = null, nameUk = null, descUk = null;
         for (TaxonTranslation t : translations) {

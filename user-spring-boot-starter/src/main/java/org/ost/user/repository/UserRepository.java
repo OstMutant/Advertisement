@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.ost.platform.user.dto.UserFilterDto.Fields.*;
@@ -83,22 +84,44 @@ public class UserRepository {
                 UserDto.Fields.createdAt, "u.created_at",
                 UserDto.Fields.updatedAt, "u.updated_at",
                 UserDto.Fields.locale,    "u.locale"));
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s%s%s"
-                .formatted(FILTER.build(params, filter, " WHERE "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s%s%s"
+                .formatted(FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).list();
     }
 
     public Long countByFilter(@NonNull UserFilterDto filter) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT COUNT(*) FROM user_information u%s".formatted(FILTER.build(params, filter, " WHERE "));
+        String sql = "SELECT COUNT(*) FROM user_information u WHERE u.deleted_at IS NULL%s".formatted(FILTER.build(params, filter, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(Long.class).single();
     }
 
     public Optional<User> findByEmail(@NonNull String email) {
         var params = new MapSqlParameterSource();
-        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u%s"
-                .formatted(EMAIL_FILTER.build(params, email, " WHERE "));
+        String sql = "SELECT id, name, email, role, password_hash, created_at, updated_at, locale, version FROM user_information u WHERE u.deleted_at IS NULL%s"
+                .formatted(EMAIL_FILTER.build(params, email, " AND "));
         return jdbcClient.sql(sql).paramSource(params).query(ROW_MAPPER).optional();
+    }
+
+    public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId) {
+        jdbcClient.sql("UPDATE user_information SET deleted_at = NOW(), deleted_by = :deletedBy WHERE id = :id AND deleted_at IS NULL")
+                  .paramSource(new MapSqlParameterSource()
+                          .addValue("id",        id)
+                          .addValue("deletedBy", deletedByUserId))
+                  .update();
+    }
+
+    public Set<Long> findDeletedIds(@NonNull Long[] ids) {
+        return Set.copyOf(jdbcClient.sql("SELECT id FROM user_information WHERE id = ANY(:ids) AND deleted_at IS NOT NULL")
+                .paramSource(new MapSqlParameterSource("ids", ids))
+                .query(Long.class)
+                .list());
+    }
+
+    public List<Long> findIdsDeletedOlderThan(int days) {
+        return jdbcClient.sql("SELECT id FROM user_information WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)")
+                .paramSource(new MapSqlParameterSource("days", days))
+                .query(Long.class)
+                .list();
     }
 
     public void updateProfile(@NonNull UserProfileDto dto) {

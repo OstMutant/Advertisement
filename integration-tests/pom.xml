@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.ost</groupId>
+        <artifactId>advertisement-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>integration-tests</artifactId>
+    <packaging>jar</packaging>
+    <name>Integration Tests</name>
+    <description>
+        Sole home for every Testcontainers-based repository test and its supporting fixtures,
+        across every domain starter. Domain starters (advertisement/audit/attachment/user/taxon
+        -spring-boot-starter) never carry test code for this purpose themselves — this module
+        depends on whichever starters it needs to test (compile scope; it is never shipped or
+        deployed, so this does not violate the "starters must not depend on each other" rule,
+        which governs production runtime composability, not test-time verification). One
+        canonical fixture (e.g. UserTestFixtures) is reused by every repository test that needs
+        it, instead of duplicating fixture logic per starter.
+    </description>
+
+    <properties>
+        <!-- Excluded by default so a plain `mvn test`/`mvn install` from the repo root never
+             requires a reachable Docker daemon (improvement-047). Every Docker-backed test class
+             inherits @Tag("testcontainers") from AbstractPostgresIntegrationTest. run.sh (the
+             sanctioned way to run these tests) overrides this back to empty via
+             -Dsurefire.excludedGroups=. -->
+        <surefire.excludedGroups>testcontainers</surefire.excludedGroups>
+    </properties>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>platform-commons</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>advertisement-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>user-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>taxon-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>audit-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.ost</groupId>
+            <artifactId>attachment-spring-boot-starter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-testcontainers</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-postgresql</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers-junit-jupiter</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-liquibase</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+        </dependency>
+
+        <!-- UserAutoConfiguration declares a securityContextRepository() bean
+             (HttpSessionSecurityContextRepository) whose constructor references
+             jakarta.servlet.http.HttpServletResponse. This module has no servlet container and
+             never needs one — the API jar alone satisfies class loading. -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <excludedGroups>${surefire.excludedGroups}</excludedGroups>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>

@@ -4,7 +4,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
-import org.ost.platform.user.spi.UserPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditActivityFieldsHook;
@@ -19,7 +18,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class UserSettingsActivityFieldsHookImpl implements AuditActivityFieldsHook {
 
-    private final UserPort userPort;
     private final I18nService i18n;
 
     @Override
@@ -29,7 +27,7 @@ public class UserSettingsActivityFieldsHookImpl implements AuditActivityFieldsHo
 
     @Override
     public List<ChangeEntry> expandFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
-        return userPort.expandActivityFields(item);
+        return item.expandedChanges();
     }
 
     @Override

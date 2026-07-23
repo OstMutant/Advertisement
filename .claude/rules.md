@@ -8,18 +8,34 @@ Before executing any tool call — re-read this entire file. No exceptions.
 > `git add` runs automatically after every file change — commit does NOT.
 > Violating this rule has happened multiple times. No exceptions.
 
+> ## ⛔ Code comments: one line or none, never an issue/ticket number
+> Every code comment (production code and test code alike) is either **one line** or **not
+> written at all**. Never a multi-line block explaining background/rationale in full — that
+> belongs in the issue file, ADR, or commit message. Also never mention an issue/ticket number
+> (`improvement-NNN`, etc.) inside a code comment — it looks bad and rots as issues get renumbered
+> or archived; that traceability belongs in the commit message, not the code. Write the one-line,
+> number-free version on the first pass; do not wait to be told to fix it. Violating this rule has
+> happened repeatedly.
+
 ## Approval Rule
 **Every action must be approved by the user before execution — no exceptions.**
 
-Before doing anything, generate and present a detailed prompt — the exact instruction you would give yourself to execute the action. This prompt must include:
-- Full file paths
-- Exact changes (method signatures, SQL, config values, field names)
-- Any side-effects or follow-up steps
+Before doing anything, present the plan in two layers, in this order:
 
-Present the prompt, then **STOP and wait for explicit confirmation** before executing.
+1. **Plain-language layer (first):** why this is being done and what the outcome will be, in
+   words a non-technical reader could follow — no file paths, no method signatures yet.
+2. **Technical layer (after):** the exact instruction you would give yourself to execute the
+   action — full file paths, exact changes (method signatures, SQL, config values, field names),
+   any side-effects or follow-up steps.
+
+Present both layers, then **STOP and wait for explicit confirmation** before executing.
 
 Example format:
-> "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
+> Plain-language: "The activity tab shows the wrong reviewer, so admins can't tell who actually
+> approved a change. Fixing it so the correct reviewer's name always shows."
+>
+> Technical: "Edit `/full/path/File.java`: replace method `getMediaActivity(Long userId)` with
+> `merge(Long userId, List<ActivityItemDto> baseItems)` — do it?"
 
 Wait for explicit confirmation before making any change.
 
@@ -36,6 +52,15 @@ Wait for explicit confirmation before making any change.
 
 ## Language
 All repository content must be in **English**: code comments, Javadoc, README files, commit messages, Playwright test descriptions, and any other text checked into the repository.
+
+## `.bat` files — ASCII only, no em-dashes or other Unicode punctuation
+`cmd.exe` reads `.bat` files in a legacy codepage, not UTF-8. A multi-byte UTF-8 character (em-dash
+`—`, smart quotes, etc.) anywhere in the file — even inside a `::`/`REM` comment — can corrupt
+`cmd.exe`'s own batch-label parsing, producing `The system cannot find the batch label specified`
+errors on real Windows for labels that objectively exist in the file (confirmed directly: an
+em-dash added to a comment in `scripts/collect-code.bat` broke `call :FindFiles`/`call :CountFiles`
+elsewhere in the same file). Use plain ASCII `-`/`--` instead of `—`/`–` in every `.bat` file,
+including comments. Not an issue in `.sh` files (bash reads UTF-8 natively).
 
 ## Test Coverage After Bug Fixes
 After fixing a bug, cover all affected flows with Playwright tests before marking the task complete.
@@ -61,9 +86,30 @@ Always use project scripts — never raw docker/mvn commands:
 
 ## Issue Lifecycle
 
-When an issue in `features/issues/` is resolved (fix is implemented and committed):
-- Move the file to `features/completed/issues/` — **immediately, in the same operation as the fix**
-- Do not leave resolved issues in `features/issues/`
+When filing a **new** issue in `backlog/issues/`:
+- Always assign a `**Priority:**` line in the issue file itself — never leave it blank/TBD.
+- Always add it to `backlog/BACKLOG.md`'s Priority order table at a ranked position (not just the
+  "Still open" listing table) in the same operation — a new issue is never left unranked pending
+  future triage. See `backlog/BACKLOG.md`'s "Maintenance rules".
+
+When an issue in `backlog/issues/` is resolved (fix is implemented and committed):
+- Move the file to `backlog/completed/issues/` — **immediately, in the same operation as the fix**
+- Do not leave resolved issues in `backlog/issues/`
+- Remove its row from `backlog/BACKLOG.md` and add a one-line `✅ Done` entry to
+  `backlog/completed/BACKLOG-ARCHIVE.md` under the relevant wave — same operation, see
+  `backlog/BACKLOG.md`'s "Maintenance rules"
+
+## Definition of Done
+A feature or fix is not complete until all of the following hold:
+- The relevant full test suite is green: `bash scripts/unit-tests.sh` + `bash scripts/integration-
+  tests.sh --sandbox` always; the full Playwright `e2e --full --ux` scenario too whenever the
+  change touches UI-visible behavior. `bash scripts/ci.sh` (`/ci`) runs this whole chain
+  (unit → integration → e2e → Sonar) in one pass when a single command is preferred over running
+  each stage separately.
+- `DECISIONS.md` (the relevant module's) is updated if the change is architectural — a new
+  decision, or an annotation to an existing one it supersedes.
+- The issue file is moved from `backlog/issues/` to `backlog/completed/issues/`, its `BACKLOG.md`
+  row removed, and a `✅ Done` entry added to `BACKLOG-ARCHIVE.md` — see "Issue Lifecycle" above.
 
 ## After Interruption
 After any [Request interrupted by user] — full stop. No further tool calls, no continuation, no fixes.

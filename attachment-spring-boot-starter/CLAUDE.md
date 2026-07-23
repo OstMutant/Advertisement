@@ -34,13 +34,14 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 - No Vaadin dependency. No UI code here. UI components (`AttachmentGallery`, `CardMediaLightbox`) live in `marketplace-app`.
 - `AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook` live in `platform-commons`.
 - UI components in marketplace-app MUST degrade gracefully via `ObjectProvider.ifAvailable()` when this starter is absent.
-- `@EnableJdbcRepositories(basePackages = "org.ost.attachment")` declared in `AttachmentAutoConfiguration`.
+- `@EnableJdbcRepositories(basePackages = "org.ost.attachment.repository")` declared in `AttachmentAutoConfiguration`.
 - Storage (`StorageService` and its S3 implementation) lives in `org.ost.attachment.services` — not in marketplace-app.
 - `AttachmentPort.getMediaSummary(EntityRef)` (single-entity) and `.getMediaSummaries(EntityType,
-  Set<Long>)` (bulk) both compute the "main attachment" the same way: the earliest-created,
-  non-deleted attachment for the entity, via `AttachmentRepository.loadMediaStats()` (single) /
-  `.loadMediaStats(EntityType, Set<Long>)` (bulk, Postgres `ROW_NUMBER() OVER (PARTITION BY
-  entity_id ORDER BY created_at ASC)`). The bulk variant exists so consumers (e.g.
+  Set<Long>)` (bulk) both compute the "main attachment" the same way: the earliest-created (id as
+  tiebreak on tied `created_at` — improvement-091), non-deleted attachment for the entity, via
+  `AttachmentRepository.loadMediaStats()` (single) / `.loadMediaStats(EntityType, Set<Long>)`
+  (bulk, Postgres `ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC, id ASC)`).
+  The bulk variant exists so consumers (e.g.
   `AdvertisementService.enrichWithMediaSummary()`) never cache media data on their own entity's
   row — one bulk query per list render instead of a stored, sync-triggered column. See
   `marketplace-app/DECISIONS.md` ADR-035.

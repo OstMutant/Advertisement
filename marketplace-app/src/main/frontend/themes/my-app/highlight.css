@@ -16,34 +16,34 @@
 }
 
 .highlight-dirty {
-    outline:        2px solid #f59e0b !important;
+    outline:        2px solid var(--app-status-warning-accent) !important;
     outline-offset: -2px;
 }
 
 .highlight-changed {
-    outline:        2px solid #3b82f6 !important;
+    outline:        2px solid var(--app-accent-primary) !important;
     outline-offset: -2px;
 }
 
 .highlight-invalid {
-    outline:        2px solid #ef4444 !important;
+    outline:        2px solid var(--app-status-danger-outline) !important;
     outline-offset: -2px;
 }
 
 /* Background tint + left accent only for input fields, not buttons */
 :not(vaadin-button).highlight-dirty {
-    background-color: rgba(245, 158, 11, 0.06) !important;
-    box-shadow:       inset 3px 0 0 #f59e0b !important;
+    background-color: rgba(var(--app-status-warning-accent-rgb), 0.06) !important;
+    box-shadow:       inset 3px 0 0 var(--app-status-warning-accent) !important;
 }
 
 :not(vaadin-button).highlight-changed {
-    background-color: rgba(59, 130, 246, 0.07) !important;
-    box-shadow:       inset 3px 0 0 #3b82f6 !important;
+    background-color: rgba(var(--app-accent-primary-rgb), 0.07) !important;
+    box-shadow:       inset 3px 0 0 var(--app-accent-primary) !important;
 }
 
 :not(vaadin-button).highlight-invalid {
-    background-color: rgba(239, 68, 68, 0.06) !important;
-    box-shadow:       inset 3px 0 0 #ef4444 !important;
+    background-color: rgba(var(--app-status-danger-outline-rgb), 0.06) !important;
+    box-shadow:       inset 3px 0 0 var(--app-status-danger-outline) !important;
 }
 
 /* Suppress inner outlines for composite fields like QueryDateTimeField */

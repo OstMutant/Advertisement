@@ -24,15 +24,16 @@ public class LogoutDialog extends ConfirmDialog {
     @PostConstruct
     private void initDialog() {
         setText(i18n.get(LOGOUT_CONFIRM_TEXT));
-        setConfirmButton(i18n.get(LOGOUT_CONFIRM_YES), _ -> handleLogout());
+        setConfirmButton(i18n.get(HEADER_LOGOUT), _ -> handleLogout());
         setCancelButton(i18n.get(LOGOUT_CONFIRM_CANCEL), _ -> close());
     }
 
     private void handleLogout() {
         UI ui = UI.getCurrent();
+        // Must run before logout() invalidates the session this UI-scoped bean depends on.
+        vaadinLocaleProvider.refreshCurrentLocale(ui);
         authService.logout();
         close();
-        vaadinLocaleProvider.refreshCurrentLocale(ui);
         ui.getPage().reload();
     }
 }

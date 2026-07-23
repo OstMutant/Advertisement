@@ -35,7 +35,7 @@ advertisement.spi  — AdvertisementPort
 
 taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto, CategoryChangeSnapshotDto
 taxon.model    — TaxonType
-taxon.spi      — TaxonPort, TaxonAuditHook
+taxon.spi      — TaxonPort
 ```
 
 **Consequences:** `core.i18n`, `ui`, `attachment.event`, `attachment.storage` packages removed —
@@ -79,8 +79,7 @@ strategy.
 
 Current `*Port` interfaces: `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort`.
 Current `*Hook` interfaces: `CurrentActorHook`, `AuditDomainHook`, `AuditActivityFieldsHook`,
-`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`,
-`TaxonAuditHook`.
+`AuditActivityEnrichHook`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`.
 
 **Consequences:**
 - New suffixes require a DECISIONS.md entry. Existing suffixes must not be repurposed.
@@ -208,7 +207,7 @@ record a taxonomy assignment event — restoring to that "snapshot" makes no dom
 overrider), leaving every implementation on the default `true`; snapshot-cleanup then removed
 `isRestorable()` (and the analogous `isVisible()`) from `AuditableSnapshot` entirely as dead
 code. If a metadata/event snapshot type ever reappears, reintroduce the flag with it — do not
-add it preemptively. See `features/completed/snapshot-cleanup/SPEC.md`.
+add it preemptively. See `backlog/completed/issues/feature-006-snapshot-cleanup.md`.
 
 ---
 
@@ -237,14 +236,19 @@ The starter speaks SPI and only SPI.
 ---
 
 ## ADR-011: Audit decoupled from attachment via AuditActivityEnrichHook
-**Status:** Accepted
+**Status:** Accepted — see `audit-spring-boot-starter/DECISIONS.md` ADR-010 for the same decision
+from the audit starter's side (corrected together, 2026-07-16 — the two entries had drifted to
+describe different, both-inaccurate mechanisms with no cross-reference between them)
 
 **Context:** The audit starter called `AttachmentAuditHook` (an `attachment.spi` interface) directly
 — starter-to-starter coupling. Marketplace is the correct orchestrator.
 
-**Decision:** `AuditActivityEnrichHook` SPI added to `audit.spi`. Audit starter calls it via
-`ObjectProvider`. Marketplace implements `ActivityEnrichHookImpl`, which delegates to
-`ObjectProvider<AttachmentAuditHook>`.
+**Decision (corrected 2026-07-16):** `AuditActivityEnrichHook` SPI added to `audit.spi`.
+`AuditReadService` (audit starter) injects it as `List<AuditActivityEnrichHook>` — a plain
+required field per ADR-012's rule, not `ObjectProvider`. Marketplace implements
+`ActivityEnrichHookImpl`, which delegates directly to `AdvertisementEnrichService` — it has no
+`ObjectProvider<AttachmentAuditHook>` reference at all; that class doesn't call into the
+attachment starter through this hook.
 
 **Consequences:** Audit starter must never import from `attachment.*` packages. Any enrichment
 from outside the audit domain flows through a hook in `audit.spi`.
@@ -266,6 +270,15 @@ Using `ObjectProvider` in a starter implies the hook is optional, which is archi
 **Consequences:**
 - `private final CurrentActorHook currentActorHook;` — correct inside a starter.
 - `private final ObjectProvider<AuditPort> auditPort;` — correct inside marketplace-app.
+- **Documented exception (found 2026-07-16, not previously noted):** `AttachmentService`
+  (attachment-spring-boot-starter) injects `AttachmentMediaChangeHook` as
+  `ObjectProvider<AttachmentMediaChangeHook>`, not a plain required field — its own javadoc calls
+  this intentional ("Optional — attachment-starter injects via `ObjectProvider`"). This is a real,
+  live exception to this ADR's rule, not a violation to silently fix — `AttachmentMediaChangeHook`
+  currently has zero implementations anywhere (the old `MediaChangeHookImpl` was deleted, see
+  ADR-035 in `marketplace-app/DECISIONS.md`), so a required field would fail to autowire. Whether
+  to keep this exception long-term or restore a listener is a decision for whoever revisits that
+  hook, not something to resolve via documentation alone.
 
 ---
 
@@ -295,7 +308,10 @@ subject shape. Rejected: keeping `userId` aliases — would perpetuate user-doma
 **Decision (superseded):** `AuditUiPort`, `AuditActivityRowHook`, and `AuditHistoryRowActionsHook`
 removed from platform-commons (2026-06-15). All Vaadin UI lives in marketplace-app — UI ports/hooks
 are unnecessary indirection with no cross-module consumer. Marketplace UI components use
-`AuditSnapshotBinder` directly via `ComponentFactory<AuditPort>`.
+`OverlayFormBinder` directly via `ComponentFactory<AuditPort>` (corrected 2026-07-16 —
+`AuditSnapshotBinder`, named here originally, does not exist anywhere in the codebase; this exact
+staleness was already caught and fixed once in `audit-spring-boot-starter/DECISIONS.md` ADR-008
+but the correction was never propagated to this entry).
 
 **Consequences:** Do not re-introduce `AuditUiPort` or `AttachmentGalleryPort`.
 
@@ -331,14 +347,14 @@ fitting naturally on the existing `UserPort`.
 ---
 
 ## ADR-017: Taxon SPI contracts added — TaxonPort and TaxonAuditHook
-**Status:** Accepted (done 2026-06-26)
+**Status:** Accepted (done 2026-06-26); `TaxonAuditHook` half **removed** 2026-07-17 (see note below)
 
 **Context:** Introduction of `taxon-spring-boot-starter` required new cross-module contracts. UI and
 services in marketplace-app must reach taxon functionality without importing starter internals.
 
 **Decision:** Two new SPI interfaces added to `platform-commons`:
 - `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
-- `TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change
+- ~~`TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change~~
 
 New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`.
 New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding a value is a release-level change).
@@ -346,6 +362,13 @@ New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding
 **Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
 audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
 updates — used by `AuditPort.captureRestore()` and written to `audit_log.action_type`.
+
+**Note (2026-07-17, improvement-058):** `TaxonAuditHook` was removed entirely — it never gained an
+implementation, and both of its call sites already sit inside an advertisement save/delete that
+produces its own audit snapshot, making a separate assignment-event trail redundant. `TaxonPort`
+itself is unaffected and remains as originally decided (minus `assign()`/`unassign()`/
+`findByCode()`, also removed as zero-caller dead API surface in the same pass). See
+`marketplace-app/DECISIONS.md` ADR-019 and ADR-043 for the full resolution.
 
 ---
 
@@ -393,4 +416,59 @@ starter's repository to throw `OptimisticLockingFailureException`.
 - See `marketplace-app/DECISIONS.md` ADR-029 for the full cross-module design (why `@Version` on
   the entity is not enough by itself, the manual guard needed for `User`, and the UI conflict
   handling).
-- → [improvement-015-optimistic-locking](../features/completed/issues/improvement-015-optimistic-locking.md)
+- → [improvement-015-optimistic-locking](../backlog/completed/issues/improvement-015-optimistic-locking.md)
+
+---
+
+## ADR-020: `AuditTimelineFilterDto.actorId` (`Long`) → `actorIds` (`Set<Long>`)
+
+**Status:** Accepted
+
+**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
+— the Timeline actor filter needed to match "any of N selected actors" in one query instead of one
+actor at a time. `actorId` was the only scalar field on this DTO; `entityTypes`/`actionTypes`
+already use the `Set<T>` shape this change brings `actorIds` in line with.
+
+**Decision:** Renamed and retyped the field. Every consumer updated in the same change: `AuditLogRepository`'s
+binding (`equalsTo` → `anyOf`, see `query-lib/DECISIONS.md` ADR-005), `TimelineFilterMeta.ACTOR`
+(`UserDto → Long` mapping became `Set<UserDto> → Set<Long>`), and `TimelineView.refresh()`'s
+non-privileged-viewer self-scoping (`.actorId(userId)` → `.actorIds(Set.of(userId))`) — the latter
+needed an explicit null guard (`Set.of(null)` throws `NullPointerException`, unlike a plain
+`Long`-typed builder setter accepting `null` silently), caught via a full Playwright run that
+failed application startup entirely until fixed.
+
+**Consequences:** No other module reads or writes this field outside `audit-spring-boot-starter`
+and `marketplace-app`'s timeline package — confirmed by a full-repo grep before making the change,
+so this is a clean rename with no compatibility shim needed.
+
+---
+
+## ADR-021: `AuditTimelineItemDto.expandedChanges()` — a narrow, documented exception to "`*.dto` has no behavior"
+
+**Status:** Accepted
+
+**Context:** [improvement-104](../backlog/completed/issues/improvement-104-expandactivityfields-feature-envy.md)
+— the same three-line "if there's a snapshot, expand the changes against it; otherwise return the
+changes as-is" check was independently copy-pasted four times: inline in
+`TaxonActivityFieldsHookImpl` and `AdvertisementActivityFieldsHookImpl` (marketplace-app), and
+routed through `UserService.expandActivityFields()` → `UserPort.expandActivityFields()` for
+`UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` — despite nothing about the
+logic being user-domain-specific. It operates purely on `AuditTimelineItemDto`'s own
+`snapshotData()`/`changes()` fields.
+
+**Decision:** Added `expandedChanges()` as a default-shaped instance method directly on
+`AuditTimelineItemDto` (`platform-commons/*.dto`), and deleted `UserService
+.expandActivityFields()` / `UserPort.expandActivityFields()` / `UserPortImpl
+.expandActivityFields()` entirely — all four call sites now read `item.expandedChanges()`. This is
+a `*.dto` class gaining a method, which `platform-commons/CLAUDE.md`'s package-semantics rule
+forbids ("`*.dto` — plain value objects with no behavior"). Justified as a narrow exception: the
+same file already has an identically-shaped precedent (`withChanges()`, a wither over the record's
+own fields), and the method calls no service, holds no dependency, and branches only on the
+record's own fields — the same "pure derivation" spirit that lets `diff()` live on
+`AuditableSnapshot` (a `*.api` marker, not `*.dto`, but the same category of exception). See
+`platform-commons/CLAUDE.md`'s "Narrow exception" note under Package Semantics for the boundary
+this does not extend past (no service calls, no cross-DTO production, no domain branching beyond
+this record's own fields).
+
+**Consequences:** `UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` no longer need
+a `UserPort` dependency at all for this method — removed the now-unused field from both.

@@ -31,8 +31,14 @@ public record SqlCondition<R>(
         return operator.formatClause(sqlExpression, filterProperty);
     }
 
+    // Escapes LIKE metacharacters before wrapping -- see SqlOperator.LIKE_IGNORE_CASE's ESCAPE '\'.
+    // Backslash must be escaped first, or the backslashes added for %/_ below would themselves
+    // get re-escaped into a wrong pattern.
     public static SqlCondition<String> like(SqlFilterMapping filterMapping, String value) {
-        return applyIfPresent(filterMapping, value, SqlOperator.LIKE_IGNORE_CASE, v -> "%" + v + "%");
+        return applyIfPresent(filterMapping, value, SqlOperator.LIKE_IGNORE_CASE, v -> {
+            String escaped = v.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+            return "%" + escaped + "%";
+        });
     }
 
     public static SqlCondition<String> equalsTo(SqlFilterMapping filterMapping, String value) {
@@ -65,6 +71,15 @@ public record SqlCondition<R>(
             return null;
         }
         return applyIfPresent(filterMapping, values, SqlOperator.IN, v -> v.stream().map(Enum::name).toList());
+    }
+
+    // Array bind via = ANY(), not IN(:set) -- avoids unbounded placeholder expansion for
+    // potentially large id sets (unlike inSet() above, whose enum cardinality is always small).
+    public static SqlCondition<Long[]> anyOf(SqlFilterMapping filterMapping, Set<Long> values) {
+        if (CollectionUtils.isEmpty(values)) {
+            return null;
+        }
+        return applyIfPresent(filterMapping, values, SqlOperator.ANY_OF, v -> v.toArray(new Long[0]));
     }
 
     private static <I1, R1> SqlCondition<R1> applyIfPresent(SqlFilterMapping filterMapping, I1 value,

@@ -1,10 +1,10 @@
 package org.ost.marketplace.ui.query.elements.fields;
 
 import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.customfield.CustomField;
 import com.vaadin.flow.component.dialog.Dialog;
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -19,19 +19,27 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Initialization;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.spi.UserPort;
 import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort;
 
+import java.util.LinkedHashSet;
+import java.util.Set;
+
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_FILTER_ACTOR;
 import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_ACTOR;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_CLEAR_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_OPEN_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_REMOVE_TOOLTIP;
+import static org.ost.marketplace.services.i18n.I18nKey.USER_PICKER_SEARCH_TOOLTIP;
 
 @SpringComponent
 @Scope("prototype")
 @RequiredArgsConstructor
-public class UserPickerField extends CustomField<UserDto>
+public class UserPickerField extends CustomField<Set<UserDto>>
         implements Initialization<UserPickerField> {
 
     private static final String PLACEHOLDER_CSS = "user-picker-placeholder";
@@ -39,49 +47,86 @@ public class UserPickerField extends CustomField<UserDto>
     private final transient UserPort    userPort;
     private final transient I18nService i18nService;
 
-    private UserDto currentValue;
-    private Span    displaySpan;
-    private Button  clearButton;
+    private Set<UserDto> currentValue = new LinkedHashSet<>();
+    private Div    chipsContainer;
+    private Span   placeholderSpan;
+    private Button clearButton;
 
     @PostConstruct
     @Override
     public UserPickerField init() {
         addClassName("user-picker-field");
 
-        displaySpan = new Span(i18nService.get(TIMELINE_FILTER_ACTOR));
-        displaySpan.addClassName(PLACEHOLDER_CSS);
+        chipsContainer = new Div();
+        chipsContainer.addClassName("user-picker-chips");
 
-        clearButton = new Button(VaadinIcon.CLOSE_SMALL.create());
+        placeholderSpan = new Span(i18nService.get(TIMELINE_FILTER_ACTOR));
+        placeholderSpan.addClassName(PLACEHOLDER_CSS);
+        chipsContainer.add(placeholderSpan);
+
+        clearButton = new UiIconButton(i18nService.get(USER_PICKER_CLEAR_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
         clearButton.addClassName("user-picker-clear");
         clearButton.setVisible(false);
         clearButton.addClickListener(e -> clearValue());
 
-        Button openButton = new Button(VaadinIcon.SEARCH.create());
+        Button openButton = new UiIconButton(i18nService.get(USER_PICKER_OPEN_TOOLTIP), VaadinIcon.SEARCH.create());
         openButton.addClassName("user-picker-open");
         openButton.addClickListener(e -> openDialog());
 
-        HorizontalLayout layout = new HorizontalLayout(displaySpan, clearButton, openButton);
+        HorizontalLayout layout = new HorizontalLayout(chipsContainer, clearButton, openButton);
+        layout.addClassName("user-picker-layout");
         layout.setAlignItems(FlexComponent.Alignment.CENTER);
         layout.setPadding(false);
+        layout.setSpacing(false);
         add(layout);
 
         return this;
     }
 
     private void clearValue() {
-        currentValue = null;
-        displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
-        displaySpan.addClassName(PLACEHOLDER_CSS);
-        clearButton.setVisible(false);
-        setModelValue(null, true);
+        applyValue(new LinkedHashSet<>());
     }
 
     private void selectUser(UserDto user) {
-        currentValue = user;
-        displaySpan.setText(user.name());
-        displaySpan.removeClassName(PLACEHOLDER_CSS);
+        Set<UserDto> updated = new LinkedHashSet<>(currentValue);
+        updated.removeIf(u -> u.id().equals(user.id()));
+        updated.add(user);
+        applyValue(updated);
+    }
+
+    private void removeUser(UserDto user) {
+        Set<UserDto> updated = new LinkedHashSet<>(currentValue);
+        updated.removeIf(u -> u.id().equals(user.id()));
+        applyValue(updated);
+    }
+
+    private void applyValue(Set<UserDto> updated) {
+        currentValue = updated;
+        renderChips();
+        setModelValue(Set.copyOf(updated), true);
+    }
+
+    private void renderChips() {
+        chipsContainer.removeAll();
+        if (currentValue.isEmpty()) {
+            chipsContainer.add(placeholderSpan);
+            clearButton.setVisible(false);
+            return;
+        }
+        currentValue.forEach(user -> chipsContainer.add(buildChip(user)));
         clearButton.setVisible(true);
-        setModelValue(user, true);
+    }
+
+    private Div buildChip(UserDto user) {
+        Span nameSpan = new Span(user.name());
+        nameSpan.addClassName("user-picker-chip-name");
+        Button removeButton = new UiIconButton(i18nService.get(USER_PICKER_REMOVE_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
+        removeButton.addClassName("user-picker-chip-remove");
+        removeButton.addClickListener(e -> removeUser(user));
+
+        Div chip = new Div(nameSpan, removeButton);
+        chip.addClassName("user-picker-chip");
+        return chip;
     }
 
     private void openDialog() {
@@ -101,9 +146,9 @@ public class UserPickerField extends CustomField<UserDto>
         grid.setHeight("300px");
 
         CallbackDataProvider<UserDto, String> dataProvider = DataProvider.fromFilteringCallbacks(
-                query -> userPort.getFiltered(
+                query -> userPort.getFilteredByOffset(
                         UserFilterDto.builder().name(query.getFilter().orElse(null)).build(),
-                        query.getOffset() / Math.max(1, query.getLimit()),
+                        query.getOffset(),
                         query.getLimit(),
                         Sort.by(Sort.Order.asc("name"))).stream(),
                 query -> userPort.count(
@@ -112,9 +157,8 @@ public class UserPickerField extends CustomField<UserDto>
         ConfigurableFilterDataProvider<UserDto, Void, String> filterable = dataProvider.withConfigurableFilter();
         grid.setItems(filterable);
 
-        Button searchButton = new Button(VaadinIcon.SEARCH.create(),
-                e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
-        searchButton.addThemeVariants(ButtonVariant.LUMO_ICON, ButtonVariant.LUMO_TERTIARY_INLINE);
+        Button searchButton = new UiIconButton(i18nService.get(USER_PICKER_SEARCH_TOOLTIP), VaadinIcon.SEARCH.create(), true);
+        searchButton.addClickListener(e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
         searchField.setSuffixComponent(searchButton);
 
         searchField.addValueChangeListener(e ->
@@ -135,21 +179,18 @@ public class UserPickerField extends CustomField<UserDto>
     }
 
     @Override
-    protected UserDto generateModelValue() {
-        return currentValue;
+    protected Set<UserDto> generateModelValue() {
+        return Set.copyOf(currentValue);
     }
 
     @Override
-    protected void setPresentationValue(UserDto value) {
-        currentValue = value;
-        if (value == null) {
-            displaySpan.setText(i18nService.get(TIMELINE_FILTER_ACTOR));
-            displaySpan.addClassName(PLACEHOLDER_CSS);
-            clearButton.setVisible(false);
-        } else {
-            displaySpan.setText(value.name());
-            displaySpan.removeClassName(PLACEHOLDER_CSS);
-            clearButton.setVisible(true);
-        }
+    protected void setPresentationValue(Set<UserDto> value) {
+        currentValue = value == null ? new LinkedHashSet<>() : new LinkedHashSet<>(value);
+        renderChips();
+    }
+
+    @Override
+    public Set<UserDto> getEmptyValue() {
+        return Set.of();
     }
 }

@@ -10,7 +10,6 @@ import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.component.timepicker.TimePicker;
 import com.vaadin.flow.router.Route;
 import jakarta.annotation.PostConstruct;
@@ -18,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
-import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
+import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.views.main.header.HeaderBar;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementsView;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.ReferenceDataView;
@@ -44,8 +43,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.MAIN_TAB_USERS;
 @Uses(DatePicker.class)
 @Uses(TimePicker.class)
 @Uses(QueryDateTimeField.class)
-@Uses(NumberField.class)
-@Uses(QueryNumberField.class)
+@Uses(QueryLongField.class)
 public class MainView extends VerticalLayout {
 
     private final transient HeaderBar headerBar;

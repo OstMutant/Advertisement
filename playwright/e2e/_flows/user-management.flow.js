@@ -45,8 +45,9 @@ async function runOpenUserEditViaViewFlow(page, email) {
 
 async function runOpenUserEditViaListFlow(page, email) {
   await runFilterUserByEmailFlow(page, email);
-  await page.locator('vaadin-button[title="Edit"], vaadin-button[title="Редагувати"]').first().waitFor({ timeout: 5000 });
-  await page.locator('vaadin-button[title="Edit"], vaadin-button[title="Редагувати"]').first().click();
+  const editButton = page.locator('.user-grid-actions vaadin-button[title="Edit"], .user-grid-actions vaadin-button[title="Редагувати"]').first();
+  await editButton.waitFor({ timeout: 5000 });
+  await editButton.click();
   await page.locator('.user-overlay.overlay--visible').waitFor({ timeout: 5000 });
   await page.locator('.user-overlay vaadin-combo-box').waitFor({ timeout: 5000 });
   await screenshot(page, 'user-management-promote-dialog-opened');

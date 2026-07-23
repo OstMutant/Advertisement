@@ -16,7 +16,6 @@ public enum I18nKey {
 
     // === Logout Confirm ===
     LOGOUT_CONFIRM_TEXT("logout.confirm.text"),
-    LOGOUT_CONFIRM_YES("logout.confirm.yes"),
     LOGOUT_CONFIRM_CANCEL("logout.confirm.cancel"),
 
     // === Login ===
@@ -133,10 +132,12 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON("advertisement.view.confirm.cancel.button"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
+    ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
 
     // === User Filter ===
     USER_FILTER_ID_MIN("user.filter.id.min"),
     USER_FILTER_ID_MAX("user.filter.id.max"),
+    USER_FILTER_ID_INVALID_NUMBER("user.filter.id.invalid.number"),
     USER_FILTER_NAME_PLACEHOLDER("user.filter.name.placeholder"),
     USER_FILTER_EMAIL_PLACEHOLDER("user.filter.email.placeholder"),
     USER_FILTER_ROLE_ANY("user.filter.role.any"),
@@ -176,6 +177,7 @@ public enum I18nKey {
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
+    ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE("advertisement.card.notification.media.unavailable"),
 
     // === Advertisement Description Dialog ===
     ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
@@ -191,6 +193,11 @@ public enum I18nKey {
     ATTACHMENT_GALLERY_MAX_ITEMS("attachment.gallery.max.items"),
     ATTACHMENT_VIDEO_PLACEHOLDER("attachment.video.placeholder"),
     ATTACHMENT_VIDEO_INVALID("attachment.video.invalid"),
+    ATTACHMENT_LIGHTBOX_CLOSE_TOOLTIP("attachment.lightbox.close.tooltip"),
+    ATTACHMENT_LIGHTBOX_PREV_TOOLTIP("attachment.lightbox.prev.tooltip"),
+    ATTACHMENT_LIGHTBOX_NEXT_TOOLTIP("attachment.lightbox.next.tooltip"),
+    ATTACHMENT_VIDEO_ADD_TOOLTIP("attachment.video.add.tooltip"),
+    ATTACHMENT_GALLERY_REMOVE_TOOLTIP("attachment.gallery.remove.tooltip"),
 
     // === Audit ===
     AUDIT_HISTORY_EMPTY("audit.history.empty"),
@@ -204,6 +211,7 @@ public enum I18nKey {
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
     AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
     AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
+    AUDIT_ACTOR_DELETED_NAME("audit.actor.deleted.name"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
     AUDIT_CHANGES_BULLET("audit.changes.bullet"),
@@ -217,6 +225,9 @@ public enum I18nKey {
     // Unified Actions
     ACTIONS_APPLY_TOOLTIP("actions.apply.tooltip"),
     ACTIONS_CLEAR_TOOLTIP("actions.clear.tooltip"),
+
+    // === Notifications ===
+    NOTIFICATION_CLOSE_TOOLTIP("notification.close.tooltip"),
 
     // === Main Tabs ===
     MAIN_TAB_ADVERTISEMENTS("main.tab.advertisements"),
@@ -234,6 +245,12 @@ public enum I18nKey {
     TIMELINE_FILTER_TIME_END("timeline.filter.time.end"),
     TIMELINE_SORT_CREATED_AT("timeline.sort.createdAt"),
     TIMELINE_SORT_ACTOR("timeline.sort.actor"),
+
+    // === User Picker Field ===
+    USER_PICKER_CLEAR_TOOLTIP("user.picker.clear.tooltip"),
+    USER_PICKER_OPEN_TOOLTIP("user.picker.open.tooltip"),
+    USER_PICKER_SEARCH_TOOLTIP("user.picker.search.tooltip"),
+    USER_PICKER_REMOVE_TOOLTIP("user.picker.remove.tooltip"),
 
     // === Pagination ===
     PAGINATION_FIRST("pagination.first"),

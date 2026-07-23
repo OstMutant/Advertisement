@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -12,10 +13,13 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Types;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+@Slf4j
 @Repository
 @RequiredArgsConstructor
 @SuppressWarnings("java:S1192")
@@ -75,6 +79,13 @@ public class AttachmentSnapshotRepository {
                 : Optional.of(objectMapper.readValue(json.get(), new TypeReference<>() {}));
     }
 
+    // pure age-based purge -- snapshot rows are just historical bookkeeping
+    public int deleteOlderThan(int days) {
+        return jdbcClient.sql("DELETE FROM attachment_snapshot WHERE created_at < NOW() - MAKE_INTERVAL(days => :days)")
+                         .paramSource(new MapSqlParameterSource("days", days))
+                         .update();
+    }
+
     public Optional<Long> findLatestId(@NonNull EntityType entityType, @NonNull Long entityId) {
         return jdbcClient.sql("""
                         SELECT id FROM attachment_snapshot
@@ -92,9 +103,15 @@ public class AttachmentSnapshotRepository {
         try {
             java.sql.Array arr = rs.getArray("attachment_urls");
             if (arr == null) return List.of();
-            String[] arr2 = (String[]) arr.getArray();
-            return arr2 == null ? List.of() : List.of(arr2);
-        } catch (Exception _) {
+            List<String> urls = new ArrayList<>();
+            try (ResultSet arrRs = arr.getResultSet()) {
+                while (arrRs.next()) {
+                    urls.add(arrRs.getString(2));
+                }
+            }
+            return urls;
+        } catch (SQLException e) { //NOSONAR java:S7467 -- e.getMessage() is used
+            log.warn("Failed to read attachment_urls array: {}", e.getMessage());
             return List.of();
         }
     }

@@ -24,6 +24,7 @@ import org.ost.marketplace.ui.views.main.tabs.timeline.query.TimelineQueryBlock;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 
 import java.util.List;
+import java.util.Set;
 
 @Slf4j
 @SpringComponent
@@ -87,6 +88,14 @@ public class TimelineView extends VerticalLayout {
             return;
         }
 
+        Long currentUserId = access.getCurrentUserId();
+        if (!access.canView() && currentUserId == null) {
+            // fail closed -- empty actorIds would mean "no restriction", not "nothing"
+            feed.removeAll();
+            paginationBar.setTotalCount(0);
+            return;
+        }
+
         int page = paginationBar.getCurrentPage();
         int size = paginationBar.getPageSize();
 
@@ -94,7 +103,7 @@ public class TimelineView extends VerticalLayout {
         AuditTimelineFilterDto baseFilter = queryBlock.getFilterProcessor().getOriginalFilter();
         AuditTimelineFilterDto filter = access.canView()
                 ? baseFilter
-                : baseFilter.toBuilder().actorId(access.getCurrentUserId()).build();
+                : baseFilter.toBuilder().actorIds(Set.of(currentUserId)).build();
 
         try {
             List<AuditTimelineItemDto<AuditableSnapshot>> items = auditPort.getTimelinePage(

@@ -5,8 +5,6 @@ import com.vaadin.flow.component.dependency.Uses;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.component.upload.Upload;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
@@ -37,6 +35,7 @@ import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHa
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.components.overlay.OverlayLayout;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -84,27 +83,22 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
     private final ComponentFactory<AuditPort>                                  auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>                       auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                             cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
-    private final UiTextField                                                  titleField;
-    private final UiPrimaryButton                                              saveButton;
-    private final UiTertiaryButton                                             discardButton;
     private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
     private final LocaleProvider                                               localeProvider;
 
     private QuillEditor descriptionField;
+    private UiTextField titleField;
 
     private Parameters                        params;
-    private boolean                           isCreate;
     @Getter
     private Long                              savedId;
     @Getter
     private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
-    private Tabs                              formTabs;
-    private Tab                               editTab;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
-    private List<TaxonDto>                    availableCategories = List.of();
+    private UiPrimaryButton                   saveButton;
+    private UiTertiaryButton                  discardButton;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -114,14 +108,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     @Override
     public void activate(OverlayLayout layout) {
-        this.isCreate = params.getAd() == null;
+        boolean isCreate = params.getAd() == null;
 
-        titleField.configure(UiTextField.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .maxLength(255)
-                .required(true)
-                .build());
+        titleField = new UiTextField(getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE), getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE),
+                255, true, ADVERTISEMENT_OVERLAY_FIELD_TITLE.toTestId());
 
         descriptionField = new QuillEditor();
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
@@ -129,7 +119,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
 
-        availableCategories = taxonPortFactory.findIfAvailable()
+        List<TaxonDto> availableCategories = taxonPortFactory.findIfAvailable()
                 .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
                 .orElse(List.of());
         if (!availableCategories.isEmpty()) {
@@ -144,7 +134,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         AdvertisementEditDto dto = isCreate
                 ? new AdvertisementEditDto()
                 : mapper.toAdvertisementEdit(params.getAd());
-        buildBinder(dto);
+        buildBinder(dto, availableCategories);
 
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
@@ -176,37 +166,29 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         }
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
-                .build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_SAVE));
+        UiIconButton closeBtn = new UiIconButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
-        discardButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(FORM_DISCARD_CHANGES)
-                .build());
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
         discardButton.addClickListener(_ -> discardChanges());
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
 
         updateButtons(false);
 
-        Div tabbedContent = isCreate ? content : auditPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getAd().getOwnerUserId()))
-                .map(_ -> {
-                    editTab = new Tab(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC));
-                    Tab activityTab = new Tab(getValue(ADVERTISEMENT_ACTIVITY_TAB));
-                    formTabs = new Tabs(editTab, activityTab);
-                    formTabs.addClassName("adv-form-tabs");
-                    Div result = buildTabbedContent(formTabs, editTab, content, this::buildActivityContent);
-                    tabbedSecondaryContent.addClassName("entity-activity-content");
-                    return result;
-                })
-                .orElse(content);
+        Div tabbedContent = buildContentWithActivity(ActivityTabParams.builder()
+                .canOperate(!isCreate && access.canOperate(params.getAd().getOwnerUserId()))
+                .isCreateMode(isCreate)
+                .editTabLabel(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC))
+                .activityTabLabel(getValue(ADVERTISEMENT_ACTIVITY_TAB))
+                .tabsCssClass("adv-form-tabs")
+                .secondaryContentCssClass("entity-activity-content")
+                .editContent(content)
+                .auditPortFactory(auditPortFactory)
+                .activityContentLoader(this::buildActivityContent)
+                .build());
         layout.setContent(tabbedContent);
     }
 
@@ -304,9 +286,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private void updateButtons(boolean hasChanges) {
         saveButton.setEnabled(hasChanges);
         discardButton.setEnabled(hasChanges);
+        BeforeUnloadUtil.sync(hasChanges);
     }
 
-    private void buildBinder(AdvertisementEditDto dto) {
+    private void buildBinder(AdvertisementEditDto dto, List<TaxonDto> availableCategories) {
         binder = formBinderFactory.build(
                 OverlayFormBinder.Parameters.<AdvertisementEditDto>builder()
                         .clazz(AdvertisementEditDto.class)

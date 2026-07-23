@@ -5,83 +5,40 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
-import lombok.extern.slf4j.Slf4j;
-import org.ost.marketplace.services.i18n.I18nKey;
-import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
-import jakarta.annotation.PostConstruct;
-import org.springframework.context.annotation.Scope;
 
-@Slf4j
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor
-public final class ConfirmActionDialog extends BaseDialog
-        implements Configurable<ConfirmActionDialog, ConfirmActionDialog.Parameters>, I18nParams {
+public final class ConfirmActionDialog extends BaseDialog {
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull I18nKey  titleKey;
-        @NonNull String   message;
-        @NonNull I18nKey  confirmKey;
-        @NonNull I18nKey  cancelKey;
-        @NonNull Runnable onConfirm;
-    }
+    private final DialogLayout layout = new DialogLayout();
 
-    // -------------------------------------------------------------------------
-
-    @Getter
-    private final transient I18nService                          i18nService;
-    private final           DialogLayout                         layout;
-    private final transient UiComponentFactory<UiPrimaryButton>    primaryButtonFactory;
-    private final transient UiComponentFactory<UiTertiaryButton>   tertiaryButtonFactory;
-
-    @Override
-    @PostConstruct
-    protected void buildLayout() {
-        super.buildLayout(layout);
-    }
-
-    @Override
-    public ConfirmActionDialog configure(Parameters p) {
-        setHeaderTitle(getValue(p.getTitleKey()));
+    public ConfirmActionDialog(String title, String message, String confirmLabel, String cancelLabel, Runnable onConfirm) {
+        buildLayout(layout);
+        setHeaderTitle(title);
 
         Icon warningIcon = VaadinIcon.WARNING.create();
         warningIcon.addClassName("dialog-confirm-icon");
 
-        Paragraph body = new Paragraph(p.getMessage());
+        Paragraph body = new Paragraph(message);
         body.addClassName("dialog-confirm-text");
 
         Div bodyWrapper = new Div(warningIcon, body);
         bodyWrapper.addClassName("dialog-confirm-body");
         layout.addFormContent(bodyWrapper);
 
-        UiPrimaryButton confirmButton = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(p.getConfirmKey()).build());
+        UiPrimaryButton confirmButton = new UiPrimaryButton(confirmLabel);
         confirmButton.addThemeVariants(ButtonVariant.LUMO_ERROR);
         confirmButton.addClickListener(_ -> {
             try {
-                p.getOnConfirm().run();
+                onConfirm.run();
             } finally {
                 close();
             }
         });
 
-        UiTertiaryButton cancelButton = tertiaryButtonFactory.build(
-                UiTertiaryButton.Parameters.builder().labelKey(p.getCancelKey()).build());
+        UiTertiaryButton cancelButton = new UiTertiaryButton(cancelLabel);
         cancelButton.addClickListener(_ -> close());
 
         getFooter().add(confirmButton, cancelButton);
-        return this;
     }
 }

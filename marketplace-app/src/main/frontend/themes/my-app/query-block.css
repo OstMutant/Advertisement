@@ -6,7 +6,7 @@
     align-items: center;
     gap:         12px;
     padding:     12px 0;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--app-surface-muted);
 }
 
 .query-inline-row:last-of-type {
@@ -20,7 +20,7 @@
     min-width:        145px;
     flex-shrink:      0;
     background:       rgba(239, 246, 255, 0.9);
-    border:           1px solid #dbeafe;
+    border:           1px solid var(--app-accent-primary-bg);
     border-radius:    8px;
     padding:          5px 10px;
 }
@@ -28,7 +28,7 @@
 .query-inline-label-sort span {
     font-size:   0.8rem;
     font-weight: 600;
-    color:       #2563eb;
+    color:       var(--app-accent-primary-bold);
     white-space: nowrap;
 }
 
@@ -97,6 +97,6 @@
 .query-action-block {
     padding-top: 12px;
     margin-top:  4px;
-    border-top:  1px solid #e2e8f0;
+    border-top:  1px solid var(--app-border-default);
     width:       100%;
 }

@@ -7,6 +7,7 @@ import org.ost.platform.core.model.EntityType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -30,5 +31,14 @@ public interface AuditableSnapshot {
 
     static <S extends AuditableSnapshot, T> T field(S snapshot, Function<S, T> getter) {
         return snapshot != null ? getter.apply(snapshot) : null;
+    }
+
+    static void diffField(List<ChangeEntry> changes, String key, String prev, String curr) {
+        if (!Objects.equals(prev, curr)) changes.add(new ChangeEntry.FieldChange(key, prev, curr));
+    }
+
+    static void diffField(List<ChangeEntry> changes, String key, Integer prev, int curr) {
+        if (prev == null || prev != curr)
+            changes.add(new ChangeEntry.FieldChange(key, prev == null ? null : String.valueOf(prev), String.valueOf(curr)));
     }
 }

@@ -9,13 +9,15 @@ import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
 import org.ost.marketplace.ui.query.filter.ValidationPredicates;
 import org.ost.marketplace.ui.query.filter.ValidationService;
+import org.springframework.util.CollectionUtils;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Set;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
-import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorId;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorIds;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actionTypes;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.entityTypes;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.fromDate;
@@ -28,17 +30,18 @@ public class TimelineFilterMeta {
     private static final BiPredicate<ValidationService<AuditTimelineFilterDto>, AuditTimelineFilterDto> dateValid =
             ValidationPredicates.range(fromDate, toDate);
 
-    public static final FilterFieldMeta<UserDto, AuditTimelineFilterDto, Long> ACTOR =
-            FilterFieldMeta.of(actorId, AuditTimelineFilterDto::getActorId,
-                    (dto, v) -> dto.setActorId(v != null ? v.id() : null));
+    public static final FilterFieldMeta<Set<UserDto>, AuditTimelineFilterDto, Set<Long>> ACTOR =
+            FilterFieldMeta.of(actorIds, AuditTimelineFilterDto::getActorIds,
+                    (dto, v) -> dto.setActorIds(CollectionUtils.isEmpty(v) ? null
+                            : v.stream().map(UserDto::id).collect(Collectors.toSet())));
 
     public static final FilterFieldMeta<Set<EntityType>, AuditTimelineFilterDto, Set<EntityType>> ENTITY_TYPES =
             FilterFieldMeta.of(entityTypes, AuditTimelineFilterDto::getEntityTypes,
-                    (dto, v) -> dto.setEntityTypes(v == null || v.isEmpty() ? null : v));
+                    (dto, v) -> dto.setEntityTypes(CollectionUtils.isEmpty(v) ? null : v));
 
     public static final FilterFieldMeta<Set<ActionType>, AuditTimelineFilterDto, Set<ActionType>> ACTION_TYPES =
             FilterFieldMeta.of(actionTypes, AuditTimelineFilterDto::getActionTypes,
-                    (dto, v) -> dto.setActionTypes(v == null || v.isEmpty() ? null : v));
+                    (dto, v) -> dto.setActionTypes(CollectionUtils.isEmpty(v) ? null : v));
 
     public static final FilterFieldMeta<LocalDateTime, AuditTimelineFilterDto, Instant> FROM_DATE =
             FilterFieldMeta.of(fromDate, AuditTimelineFilterDto::getFromDate,

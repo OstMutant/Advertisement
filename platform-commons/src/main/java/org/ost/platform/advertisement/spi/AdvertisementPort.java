@@ -19,11 +19,13 @@ public interface AdvertisementPort {
 
     Optional<AdvertisementInfoDto> findById(@NonNull Long id);
 
-    Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actingUserId);
+    Long save(@NonNull AdvertisementSaveDto dto);
 
     /** {@code version} must be the value the caller last read; a stale value throws
      *  {@link org.springframework.dao.OptimisticLockingFailureException}. */
     void delete(@NonNull Long id, @NonNull Long actingUserId, Long version);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
+
+    List<AdvertisementInfoDto> findByCreator(@NonNull Long userId);
 }

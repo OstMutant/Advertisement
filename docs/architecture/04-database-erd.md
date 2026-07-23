@@ -24,16 +24,13 @@ erDiagram
     ADVERTISEMENT {
         bigint id PK
         varchar title
-        text description
-        bigint created_by_user_id FK
-        bigint last_modified_by_user_id FK
-        bigint deleted_by_user_id FK
+        varchar description
+        bigint created_by FK
+        bigint updated_by FK
+        bigint deleted_by FK
         timestamp created_at
         timestamp updated_at
         timestamp deleted_at
-        varchar media_url
-        varchar media_content_type
-        int media_count
         bigint version
     }
     
@@ -148,32 +145,30 @@ erDiagram
 |--------|------|-------------|-------|
 | `id` | BIGSERIAL | PK | Auto-increment |
 | `title` | VARCHAR(255) | NOT NULL | Advertisement title |
-| `description` | TEXT | | Full description (nullable) |
-| `created_by_user_id` | BIGINT | NOT NULL, FK → user_information.id (RESTRICT) | Creator |
-| `last_modified_by_user_id` | BIGINT | FK → user_information.id (SET NULL) | Last editor |
-| `deleted_by_user_id` | BIGINT | FK → user_information.id (SET NULL) | Who soft-deleted |
+| `description` | VARCHAR(20000) | | Full description (nullable, sanitized HTML) |
+| `created_by` | BIGINT | NOT NULL, FK → user_information.id (RESTRICT) | Creator (no `_user_id` suffix — ADR-034) |
+| `updated_by` | BIGINT | FK → user_information.id (SET NULL) | Last editor |
+| `deleted_by` | BIGINT | FK → user_information.id (SET NULL) | Who soft-deleted |
 | `created_at` | TIMESTAMP WITH TIME ZONE | NOT NULL, DEFAULT NOW() | Creation timestamp |
 | `updated_at` | TIMESTAMP WITH TIME ZONE | | Last modification time |
 | `deleted_at` | TIMESTAMP WITH TIME ZONE | | Soft-delete timestamp (NULL = active) |
-| `media_url` | VARCHAR(1024) | | Featured image URL (from attachment module) |
-| `media_content_type` | VARCHAR(127) | | MIME type of featured image (e.g., 'image/jpeg') |
-| `media_count` | INT | NOT NULL, DEFAULT 0 | Count of attached images |
 | `version` | BIGINT | NOT NULL, DEFAULT 0 | Optimistic-lock counter (`@Version`, checked natively via `CrudRepository.save()`; see `marketplace-app/DECISIONS.md` ADR-029) |
 
 **Foreign Keys:**
-- `fk_advertisement_created_by`: created_by_user_id → user_information.id (ON DELETE RESTRICT)
-- `fk_advertisement_modified_by`: last_modified_by_user_id → user_information.id (ON DELETE SET NULL)
-- `fk_advertisement_deleted_by`: deleted_by_user_id → user_information.id (ON DELETE SET NULL)
+- `fk_advertisement_created_by`: created_by → user_information.id (ON DELETE RESTRICT)
+- `fk_advertisement_modified_by`: updated_by → user_information.id (ON DELETE SET NULL)
+- `fk_advertisement_deleted_by`: deleted_by → user_information.id (ON DELETE SET NULL)
 
 **Indexes:**
 - `idx_advertisement_title` (title)
 - `idx_advertisement_created_at` (created_at)
-- `idx_advertisement_created_by` (created_by_user_id)
+- `idx_advertisement_created_by` (created_by)
 - `idx_advertisement_deleted_at` (deleted_at) — supports soft-delete queries
 
 **Notes:**
 - Supports soft-delete: deleted_at IS NULL identifies active records
-- media_url/media_count updated by attachment module via hook
+- No denormalized attachment columns — media summaries are computed at read time from the
+  `attachment` table via `AttachmentPort.getMediaSummaries()` (ADR-035)
 - Audit events recorded separately in audit_log table
 
 ---
@@ -340,7 +335,7 @@ erDiagram
 ```
 1. User submits form in marketplace-app
 2. AdvertisementPort.save(AdvertisementSaveDto)
-   → INSERT INTO advertisement (title, description, created_by_user_id, created_at)
+   → INSERT INTO advertisement (title, description, created_by, created_at)
    → RETURNS Long id
 3. AuditPort.captureCreation(id, snapshot, actorId)
    → INSERT INTO audit_log (entity_type='ADVERTISEMENT', entity_id=id, action_type='CREATE', snapshot_data={...}, actor_id)
@@ -352,8 +347,9 @@ erDiagram
 2. AttachmentPort.upload(entityType='ADVERTISEMENT', entityId=advId, file)
    → StorageService uploads to S3
    → INSERT INTO attachment (entity_type='ADVERTISEMENT', entity_id=advId, url, filename, content_type, size, created_at)
-3. Calls AttachmentMediaChangeHook.onChange('ADVERTISEMENT', advId)
-   → Advertisement updates: UPDATE advertisement SET media_url=..., media_count=... WHERE id=advId
+3. Fires AttachmentMediaChangeHook.onChange('ADVERTISEMENT', advId)
+   → no implementation registered — nothing is written to advertisement (ADR-035);
+     list/detail views resolve media summaries at read time via AttachmentPort.getMediaSummaries()
 4. AuditPort.captureUpdate(advId, before, after, actorId)
    → INSERT INTO audit_log (entity_type='ADVERTISEMENT', entity_id=advId, action_type='UPDATE', ...)
 5. Also: INSERT INTO attachment_snapshot (entity_type, entity_id, attachment_urls=ARRAY[...], ...)

@@ -4,7 +4,8 @@ import com.vaadin.flow.component.dialog.Dialog;
 
 public abstract class BaseDialog extends Dialog {
 
-    protected abstract void buildLayout();
+    protected void buildLayout() {
+    }
 
     protected void buildLayout(DialogLayout layout) {
         setDraggable(false);

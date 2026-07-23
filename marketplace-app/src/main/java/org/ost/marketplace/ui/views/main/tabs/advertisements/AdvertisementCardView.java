@@ -14,7 +14,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
-import org.ost.platform.advertisement.spi.AdvertisementPort;
+import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -56,13 +56,10 @@ public class AdvertisementCardView extends HorizontalLayout
     @Getter
     private final transient I18nService                               i18nService;
     private final transient NotificationService                       notificationService;
-    private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
+    private final transient AdvertisementSaveService                    advertisementSaveService;
     private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
     private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
-    private final transient UiComponentFactory<EditActionButton>         editButtonFactory;
-    private final transient UiComponentFactory<DeleteActionButton>       deleteButtonFactory;
-    private final transient UiComponentFactory<ConfirmActionDialog>      confirmDialogFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
 
@@ -119,8 +116,9 @@ public class AdvertisementCardView extends HorizontalLayout
             wrapper.add(badge);
         }
         wrapper.getElement().addEventListener(CLICK_EVENT, _ ->
-                attachmentPortFactory.ifAvailable(_ ->
-                        galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())))
+                attachmentPortFactory.findIfAvailable().ifPresentOrElse(
+                        _ -> galleryServiceFactory.get().openMediaLightbox(new EntityRef(EntityType.ADVERTISEMENT, ad.getId())),
+                        () -> notificationService.error(ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE))
         ).addEventData(STOP_PROPAGATION);
         return wrapper;
     }
@@ -179,8 +177,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private AdvertisementCardMetaPanel createMetaPanel(AdvertisementInfoDto ad) {
-        boolean neverEdited = ad.getUpdatedAt() == null
-                || ad.getUpdatedAt().equals(ad.getCreatedAt());
+        boolean neverEdited = ad.getUpdatedAt().equals(ad.getCreatedAt());
 
         return metaPanelFactory.build(AdvertisementCardMetaPanel.Parameters.builder()
                 .authorName(ad.getCreatedByUserName() != null ? ad.getCreatedByUserName() : "—")
@@ -204,50 +201,34 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button edit = editButtonFactory.build(
-                EditActionButton.Parameters.builder()
-                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT))
-                        .onClick(() -> overlay.openForEdit(ad, onChanged))
-                        .small(true)
-                        .cssClassName("advertisement-edit")
-                        .build()
-        );
+        Button edit = new EditActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT),
+                () -> overlay.openForEdit(ad, onChanged), "advertisement-edit", true);
         edit.setVisible(visible);
-        edit.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return edit;
     }
 
     private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
-        Button delete = deleteButtonFactory.build(
-                DeleteActionButton.Parameters.builder()
-                        .tooltip(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE))
-                        .onClick(() -> confirmAndDelete(ad, onChanged))
-                        .small(true)
-                        .cssClassName("advertisement-delete")
-                        .build()
-        );
+        Button delete = new DeleteActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE),
+                () -> confirmAndDelete(ad, onChanged), "advertisement-delete", true);
         delete.setVisible(visible);
-        delete.getElement().addEventListener(CLICK_EVENT, _ -> {}).addEventData(STOP_PROPAGATION);
         return delete;
     }
 
     private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()))
-                        .confirmKey(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON)
-                        .cancelKey(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON)
-                        .onConfirm(() -> {
-                            try {
-                                advertisementPortFactory.ifAvailable(p -> p.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion()));
-                                notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
-                                onChanged.run();
-                            } catch (Exception _) {
-                                notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
-                            }
-                        })
-                        .build()
+        new ConfirmActionDialog(
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_BUTTON),
+                getValue(ADVERTISEMENT_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        advertisementSaveService.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion());
+                        notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
+                        onChanged.run();
+                    } catch (Exception _) {
+                        notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
+                    }
+                }
         ).open();
     }
 }

@@ -26,10 +26,13 @@ advertisement-parent (root pom)
 ├── user-spring-boot-starter          — User domain: entity, service, security, UserPortImpl (auto-configured starter)
 ├── advertisement-spring-boot-starter — Advertisement domain: entity, service, AdvertisementPortImpl (auto-configured starter)
 ├── taxon-spring-boot-starter         — Taxonomy domain: taxon/category/tag management, TaxonPort (auto-configured starter)
+├── integration-tests                 — Testcontainers repository tests + fixtures for every starter (test-only, never shipped)
 └── marketplace-app                   — main Vaadin application (all UI)
 ```
 
 **query-lib** is a plain Java SQL helper library (no Spring Boot autoconfiguration). Provides `SqlFilterBuilder`, `OrderByBuilder` (`org.ost.query.filter/sort`) used directly by repositories as `private static final` constants.
+
+**integration-tests** is the sole home for Testcontainers-based repository tests and their fixtures (`AbstractPostgresIntegrationTest` — shared singleton Testcontainers Postgres instance). Domain starters never carry test code for this purpose themselves — it depends on whichever starters it needs to test (`advertisement-spring-boot-starter`, `user-spring-boot-starter`, `platform-commons`, ...), which is safe only because this module is never shipped or deployed (see `integration-tests/CLAUDE.md` for the full rationale). Requires a reachable Docker daemon; never runs inside `deploy.sh`'s Docker build stage (see `scripts/CLAUDE.md`).
 
 **platform-commons** defines the cross-module contracts, organized into semantic packages:
 - `core.*` — shared by all modules: `core.model` (enums: `ActionType`, `ChangeEntry`, `EntityType`), `core.config` (`CleanupProperties`), `core.spi` (`CurrentActorHook`), `core.validation` (`ValidRange`)
@@ -37,7 +40,7 @@ advertisement-parent (root pom)
 - `attachment.*` — `attachment.spi` (`AttachmentPort`, `AttachmentMediaChangeHook`, `AttachmentAuditHook`), `attachment.dto` (`AttachmentMediaSummaryDto`, `AttachmentItemDto`, `TempAttachmentDto`), `attachment.model` (`AttachmentMediaContentType`)
 - `user.*` — `user.spi` (`UserPort`, `AuthenticatedPrincipal`, `UserSettingsChangedHook`), `user.dto` (`UserDto`, `UserFilterDto`, `UserProfileDto`, `UserSettingsDto`, `UserSnapshotDto`, `SettingsSnapshotDto`, `SignUpDto`), `user.model` (`Role`)
 - `advertisement.*` — `advertisement.spi` (`AdvertisementPort`), `advertisement.dto` (`AdvertisementInfoDto`, `AdvertisementFilterDto`, `AdvertisementSaveDto`, `AdvertisementSnapshotDto`)
-- `taxon.*` — `taxon.spi` (`TaxonPort`, `TaxonAuditHook`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
+- `taxon.*` — `taxon.spi` (`TaxonPort`), `taxon.dto` (`TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`), `taxon.model` (`TaxonType`)
 
 → Package semantics (`api` vs `spi` vs `dto`) and SPI naming conventions: @platform-commons/CLAUDE.md
 
@@ -58,7 +61,7 @@ advertisement-parent (root pom)
 1. **Explicit over implicit:** Avoid hidden framework magic. If simple Java code works, use it.
 2. **UI is a monolith:** All Vaadin UI code lives in `marketplace-app`. Decoupling is required only at the **service ↔ UI boundary** (starters vs marketplace-app). Within `marketplace-app`, UI components may freely reference each other — no ports, no hooks, no indirection needed between UI classes.
 3. **Strict Boundaries:** The UI layer MUST NOT call Repositories directly. Always go through `UserPort` or `AdvertisementPort`.
-3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.storage`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
+3. **Modular Storage:** `StorageService` and its implementations live in `attachment-spring-boot-starter` (`org.ost.attachment.services`). UI components MUST degrade gracefully via `ObjectProvider.ifAvailable()` when the attachment starter is absent from the classpath.
 4. **Validation:** Use declarative validation rules in DTOs.
 5. **Database Changes:** Schema MUST only be modified via Liquibase scripts in `db/changelog/changes`.
 
@@ -88,6 +91,8 @@ Reference implementations: `UserRepository` in user-spring-boot-starter, `Advert
 
 → query-lib SQL API (SqlFilterBuilder, SqlCondition, OrderByBuilder): @query-lib/CLAUDE.md
 
+→ integration-tests (Testcontainers repository tests + fixtures, why domain starters stay test-code-free): @integration-tests/CLAUDE.md
+
 ---
 
 → UI Component Patterns (Configurable beans, I18n, Security, Naming, Package structure): @marketplace-app/CLAUDE.md
@@ -116,6 +121,9 @@ docker-compose -f scripts/infra/docker-compose.db.yml -f scripts/infra/docker-co
 - `/sonar` — run SonarQube analysis
 - `/decision <module> — <title>` — record architectural decision
 - `/sync-docs [ref]` — sync architecture docs with code (default: origin/main); **run manually** after significant changes (new module, new SPI, schema changes) — not triggered automatically
+- `/run-all-tests [--unit "..."] [--integration "..."] [--playwright "..."] [--background]` — run unit-tests → integration-tests sequentially plus Playwright in parallel; see `scripts/DECISIONS.md` ADR-004
+- `/ci [flags]` — run the isolated local CI runner (unit+integration+e2e+sonar by default, backgrounded); see `scripts/ci/README.md`/`DECISIONS.md`
+- `/feature <title>` — scaffold a new `backlog/issues/<prefix>-NNN-<slug>.md` from the standard template and rank it in `BACKLOG.md`'s priority table (improvement-034)
 
 ---
 
@@ -129,8 +137,12 @@ Significant decisions are recorded in per-module `DECISIONS.md` files:
 - `/app/query-lib/DECISIONS.md`
 - `/app/playwright/DECISIONS.md`
 - `/app/scripts/DECISIONS.md`
+- `/app/integration-tests/DECISIONS.md`
+- `/app/taxon-spring-boot-starter/DECISIONS.md`
 
-Note: `user-spring-boot-starter`, `advertisement-spring-boot-starter`, and `taxon-spring-boot-starter` have no `DECISIONS.md` — their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and `platform-commons/DECISIONS.md` (port interfaces).
+Note: `user-spring-boot-starter` and `advertisement-spring-boot-starter` have no `DECISIONS.md` —
+their key decisions are recorded in `marketplace-app/DECISIONS.md` (domain extraction) and
+`platform-commons/DECISIONS.md` (port interfaces).
 
 **Rules:**
 - Record any new substantial architectural or technical decision there immediately — before the conversation ends.

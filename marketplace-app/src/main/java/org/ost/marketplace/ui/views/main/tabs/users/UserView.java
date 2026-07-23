@@ -15,6 +15,7 @@ import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.user.UserDeleteService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
@@ -38,12 +39,12 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class UserView extends VerticalLayout {
 
     private final transient UserPort                               userPort;
+    private final transient UserDeleteService                      userDeleteService;
     private final transient AccessEvaluator                        access;
     private final transient I18nService                            i18n;
     private final transient NotificationService                    notificationService;
     private final QueryStatusBar<UserFilterDto>                    queryStatusBar;
     private final transient UiComponentFactory<UserGridConfigurator> gridConfiguratorFactory;
-    private final transient UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
     private final UserOverlay                                      overlay;
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
@@ -123,24 +124,22 @@ public class UserView extends VerticalLayout {
     }
 
     private void confirmAndDelete(UserDto user) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(USER_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.id()))
-                        .confirmKey(USER_VIEW_CONFIRM_DELETE_BUTTON)
-                        .cancelKey(USER_VIEW_CONFIRM_CANCEL_BUTTON)
-                        .onConfirm(() -> {
-                            try {
-                                if (access.canNotDelete(user.id())) return;
-                                userPort.delete(user.id());
-                                notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
-                                refresh();
-                            } catch (Exception e) {
-                                log.error("Error deleting user id={}", user.id(), e);
-                                notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
-                            }
-                        })
-                        .build()
+        new ConfirmActionDialog(
+                i18n.get(USER_VIEW_CONFIRM_DELETE_TITLE),
+                i18n.get(USER_VIEW_CONFIRM_DELETE_TEXT, user.name(), user.id()),
+                i18n.get(USER_VIEW_CONFIRM_DELETE_BUTTON),
+                i18n.get(USER_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        if (access.canNotDelete(user.id())) return;
+                        userDeleteService.delete(user.id(), access.getCurrentUserId());
+                        notificationService.success(USER_VIEW_NOTIFICATION_DELETED);
+                        refresh();
+                    } catch (Exception e) {
+                        log.error("Error deleting user id={}", user.id(), e);
+                        notificationService.error(USER_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
+                    }
+                }
         ).open();
     }
 

@@ -28,11 +28,11 @@ const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
   fillText, fillNumber, fillRole, fillCategory,
-  getTotalCount,
+  getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
 const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./_flows/settings.flow');
-const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
+const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
 const { runCreateCategoryFlow } = require('./_flows/category.flow');
 
@@ -43,9 +43,14 @@ const USER_BLOCK = '.user-query-block';
 const ADV_ITEM   = '.advertisement-card';
 const USER_ITEM  = '.user-grid-name';
 
-const SEED_COUNT = 50;
+const SEED_COUNT = 60;
 // Distinct from spec-03 categories (Electronics, Vehicles) to avoid duplicates in e2e suite mode.
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
+
+// Same generation formula as spec 03's MAX_NAME_100 (maxEn's 100-char boundary name) — used as
+// the timeline actor filter's second pick below so the actor chip's own truncation gets exercised
+// by a real maximum-length name, not just short "Seed User N" labels.
+const MAX_ACTOR_NAME = 'MaxBoundaryUserNameForValidationTest'.repeat(3).substring(0, 100);
 
 const SEED_CATEGORIES = [
   { nameEn: 'Clothing',  descriptionEn: 'Clothes, fashion and apparel.',        nameUk: 'Одяг',    descriptionUk: 'Одяг, мода та аксесуари.' },
@@ -86,7 +91,7 @@ async function ensureAdminEn(page) {
     // Already exists — log out so tests start from logged-out state.
     await page.locator('.header-logout-button').click();
     await page.locator('vaadin-confirm-dialog-overlay[opened]:not([opening])').waitFor({ state: 'attached', timeout: 5000 });
-    await page.getByRole('button', { name: /^yes$|^так$/i }).click();
+    await page.getByRole('button', { name: /^log out$|^вийти$/i }).last().click();
     await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
   } else {
     // Login failed — adminEn doesn't exist yet; close dialog and sign them up.
@@ -145,7 +150,7 @@ test.describe('Seed data and query validation', () => {
     for (let i = 1; i <= SEED_COUNT; i++) {
       await createAdvertisementBulk(page, { ...seedAd(i), category: CATEGORIES[(i - 1) % CATEGORIES.length] });
     }
-    // Force a full page reload to clear 50 stale advertisement overlay DOM elements before logout.
+    // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
     // Without this, SPA-style logout/login preserves the stale DOM, which causes Vaadin to
     // re-activate a stale overlay when the category filter combo fires a server sync event.
     await page.reload();
@@ -171,7 +176,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'adv-filter-title-exact');
     await clearFilter(page, ADV_BLOCK);
 
-    // ── title partial match → 50 results ─────────────────────────────────────
+    // ── title partial match → 60 results ─────────────────────────────────────
     await fillText(page, ADV_BLOCK, 'Title', 'Seed');
     await applyFilter(page, ADV_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -193,21 +198,21 @@ test.describe('Seed data and query validation', () => {
       block: ADV_BLOCK, sortCol: 'Title', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'all', filter: { field: 'Title', value: 'Seed' } },
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
     await verifySortColumn(page, {
       block: ADV_BLOCK, sortCol: 'Created At', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'Updated At', filter: { field: 'Title', value: 'Seed' } },
       startDesc: true,
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
     await verifySortColumn(page, {
       block: ADV_BLOCK, sortCol: 'Updated At', itemSelector: ADV_ITEM,
       assertSelector: `${ADV_ITEM} .advertisement-title`,
       setup: { reset: 'Created At', filter: { field: 'Title', value: 'Seed' } },
       startDesc: true,
-      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 50', prefix: 'adv',
+      firstAsc: 'Seed Advertisement 01', firstDesc: 'Seed Advertisement 60', prefix: 'adv',
     });
 
     // ── pagination ────────────────────────────────────────────────────────────
@@ -222,7 +227,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 4: user filters, sort, pagination ────────────────────────────────
 
-  test('users — email, role and date filters, column sort, pagination', async () => {
+  test('users — email, role and date filters, invalid fractional ID input, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Users' }).first().click();
@@ -238,7 +243,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-email-exact');
     await clearFilter(page, USER_BLOCK);
 
-    // ── email partial match → 50 results ─────────────────────────────────────
+    // ── email partial match → 60 results ─────────────────────────────────────
     await fillText(page, USER_BLOCK, 'Email', 'seed.user');
     await applyFilter(page, USER_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -252,7 +257,7 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-email-no-results');
     await clearFilter(page, USER_BLOCK);
 
-    // ── name partial match → 50 results ──────────────────────────────────────
+    // ── name partial match → 60 results ──────────────────────────────────────
     await fillText(page, USER_BLOCK, 'Name', 'Seed');
     await applyFilter(page, USER_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT}`, { timeout: 8000 });
@@ -282,6 +287,16 @@ test.describe('Seed data and query validation', () => {
     await screenshot(page, 'user-filter-id-range');
     await clearFilter(page, USER_BLOCK);
 
+    // ── ID filter fractional input — flagged invalid, not silently truncated (improvement-061) ──
+    const idMinInput = getRow(page, USER_BLOCK, 'ID').locator('.query-number input').first();
+    const idMinField = getRow(page, USER_BLOCK, 'ID').locator('.query-number').first();
+    await idMinInput.fill('1.5');
+    await expect(idMinField).toHaveAttribute('invalid', '', { timeout: 5000 });
+    await screenshot(page, 'user-filter-id-fractional-invalid');
+    await idMinInput.fill('1');
+    await expect(idMinField).not.toHaveAttribute('invalid', '', { timeout: 5000 });
+    await clearFilter(page, USER_BLOCK);
+
     // ── date range filters (created/updated today + boundary cases) ──────────
     await verifyDateRangeFilters(page, USER_BLOCK, 'user', SEED_COUNT);
 
@@ -290,19 +305,19 @@ test.describe('Seed data and query validation', () => {
       block: USER_BLOCK, sortCol: 'Name', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'all', filter: { field: 'Name', value: 'Seed' } },
-      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 60', prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'Email', itemSelector: USER_ITEM,
       assertSelector: '.user-grid-email',
       setup: { reset: 'clearAll', filter: { field: 'Email', value: 'seed.user' } },
-      firstAsc: 'seed.user01@example.com', firstDesc: 'seed.user50@example.com', prefix: 'user',
+      firstAsc: 'seed.user01@example.com', firstDesc: 'seed.user60@example.com', prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'ID', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'clearAll', filter: { field: 'Name', value: 'Seed' } },
-      firstAsc: 'Seed User 01', firstDesc: 'Seed User 50', prefix: 'user',
+      firstAsc: 'Seed User 01', firstDesc: 'Seed User 60', prefix: 'user',
     });
     // ADMIN < USER alphabetically: ASC → adminEn (ADMIN) first; DESC → seed users (USER) first.
     await verifySortColumn(page, {
@@ -322,14 +337,14 @@ test.describe('Seed data and query validation', () => {
       assertSelector: USER_ITEM,
       setup: { reset: 'Updated At', filter: { field: 'Name', value: 'Seed' } },
       startDesc: true,
-      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (49|50)/, prefix: 'user',
+      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (59|60)/, prefix: 'user',
     });
     await verifySortColumn(page, {
       block: USER_BLOCK, sortCol: 'Updated At', itemSelector: USER_ITEM,
       assertSelector: USER_ITEM,
       setup: { reset: 'Created At', filter: { field: 'Name', value: 'Seed' } },
       startDesc: true,
-      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (49|50)/, prefix: 'user',
+      firstAsc: /Seed User 0[12]/, firstDesc: /Seed User (59|60)/, prefix: 'user',
     });
 
     // ── pagination ────────────────────────────────────────────────────────────
@@ -433,7 +448,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 6: timeline filter and pagination ────────────────────────────────
 
-  test('adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination', async () => {
+  test('adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination', async () => {
     test.setTimeout(3 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
 
@@ -473,15 +488,40 @@ test.describe('Seed data and query validation', () => {
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     await assertAllRowsHaveAction(page, expect, 'updated', 'timeline-filter-action-updated');
 
-    // Filter by actor (adminEn) — result count must be less than unfiltered total
+    // Filter by actor — result count must be less than unfiltered total. Target the last
+    // name-sorted "Seed User" (not adminEn, which sorts near the top and would never exercise
+    // the picker grid's second data-provider page — see improvement-056).
     await clearFilter(page, TIMELINE_BLOCK);
-    await fillActorPicker(page, TEST_USERS.adminEn.name);
+    await fillActorPicker(page, 'Seed User 60');
     await applyFilter(page, TIMELINE_BLOCK);
     await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
     const actorFilteredCount = await getTotalCount(page);
     expect(actorFilteredCount).toBeGreaterThan(0);
     expect(actorFilteredCount).toBeLessThan(total);
+    expect(await actorChipCount(page)).toBe(1);
     await screenshot(page, 'timeline-filter-actor-adminen');
+
+    // Picking a second actor adds to the selection (not replace) — two chips, result count
+    // grows to cover "any of the selected actors" via = ANY(), not just the first pick. Uses
+    // maxEn's 100-char boundary name (not another short "Seed User N") so the chip's own
+    // max-width/ellipsis truncation gets exercised by a real maximum-length actor name.
+    await fillActorPicker(page, MAX_ACTOR_NAME, { useSearch: true });
+    expect(await actorChipCount(page)).toBe(2);
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    const twoActorsCount = await getTotalCount(page);
+    expect(twoActorsCount).toBeGreaterThanOrEqual(actorFilteredCount);
+    expect(twoActorsCount).toBeLessThan(total);
+    await screenshot(page, 'timeline-filter-actor-two-selected');
+
+    // Removing one chip shrinks the selection back to a single actor and the result count
+    // back down to the single-actor value.
+    await removeActorChip(page, MAX_ACTOR_NAME);
+    expect(await actorChipCount(page)).toBe(1);
+    await applyFilter(page, TIMELINE_BLOCK);
+    await page.locator('.activity-feed .activity-feed-row').first().waitFor({ timeout: 8000 });
+    expect(await getTotalCount(page)).toBe(actorFilteredCount);
+    await screenshot(page, 'timeline-filter-actor-chip-removed');
 
     // Clear and verify pagination navigates correctly
     await clearFilter(page, TIMELINE_BLOCK);

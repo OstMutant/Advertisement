@@ -1,4 +1,5 @@
 .card-lightbox [part="overlay"] {
+    position: relative;
     background: rgba(0, 0, 0, 0.92);
     box-shadow: none;
     border-radius: 0;
@@ -96,11 +97,11 @@
     max-height: 75vh;
     border-radius: var(--lumo-border-radius-m);
     outline: none;
-    background: #000;
+    background: var(--app-overlay-backdrop);
 }
 
 .card-lightbox__close {
-    position: fixed;
+    position: absolute;
     top: 16px;
     right: 16px;
     z-index: 9999;

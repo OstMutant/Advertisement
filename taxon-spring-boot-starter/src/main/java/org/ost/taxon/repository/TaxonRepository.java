@@ -131,17 +131,4 @@ public class TaxonRepository {
                          .stream()
                          .collect(java.util.stream.Collectors.toSet());
     }
-
-    public Optional<Taxon> findByTypeAndCode(@NonNull TaxonType type, @NonNull String code) {
-        return jdbcClient.sql("""
-                        SELECT id, type, code, deleted_at, deleted_by, created_at, updated_at, created_by, updated_by, version
-                        FROM taxon
-                        WHERE type = :type AND code = :code
-                        """)
-                         .paramSource(new MapSqlParameterSource()
-                                 .addValue("type", type.name())
-                                 .addValue("code", code))
-                         .query(ROW_MAPPER)
-                         .optional();
-    }
 }

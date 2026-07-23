@@ -1,0 +1,76 @@
+# improvement-066: `UserSettingsRepository.save()` has no optimistic-locking version check — settings from two tabs silently clobber each other
+
+**Type:** improvement — data-integrity bug. Found via direct code review, verified against current
+source (2026-07-16).
+**Module:** `user-spring-boot-starter` (`repository/UserSettingsRepository.java`).
+**Priority:** medium-high — a real, silent data-loss bug (last-write-wins across concurrent tabs
+with no warning), consistent with the "optimistic locking everywhere" principle already applied to
+every other mutable entity in this codebase.
+**When:** independent, no blockers.
+
+## Problem
+
+`UserSettingsRepository.save()`:
+```java
+jdbcClient.sql("UPDATE user_information SET settings = :settings::jsonb WHERE id = :userId")
+```
+updates the `settings` JSONB column with **no version check at all**. `ADR-029` established
+`version`-column optimistic locking for `advertisement`, `user_information` (name/role, via
+`UserProfileCrudRepository`), and `taxon` — but the settings JSONB column goes through this
+separate, narrower repository/path that was never brought into that scheme.
+
+Concretely: a user opens Settings in two browser tabs, changes "Ads per page" in the first tab and
+saves, then changes "Timeline per page" in the second tab (still holding the settings state from
+before the first tab's save) and saves — the second save's `UPDATE` overwrites the **entire** JSONB
+blob with its own stale copy, silently discarding the first tab's "Ads per page" change. No error,
+no conflict notification — the exact failure mode `ADR-029` was written to prevent everywhere else.
+
+## Suggested fix
+
+Add `AND version = :version` to the `UPDATE` statement (mirroring the pattern already used for
+`advertisement`/`taxon`/`user_information` name-role updates), check the affected-row count, and
+throw `OptimisticLockingFailureException` on a mismatch (0 rows updated) — the same exception type
+`ADR-029` already standardized on so the UI's existing conflict-handling path (dedicated
+notification, no auto-reload) picks it up without new UI code. Requires adding a `version` column
+tracked alongside `settings` if `user_information.version` (the name/role one) isn't safe to share
+across two independently-editable parts of the same row — needs a decision on whether settings
+gets its own version column or reuses the row's existing one (reusing it would mean a settings save
+and a profile-name save in two tabs would also conflict with each other, which may or may not be
+desired).
+
+## Related
+
+- `marketplace-app/DECISIONS.md` ADR-029 — the optimistic-locking scheme this issue extends to a
+  path it missed.
+- `user-spring-boot-starter/CLAUDE.md` — documents the existing `UserProfileUpdate`/
+  `UserProfileCrudRepository` narrow-entity pattern `ADR-029` already established for a different
+  part of the same `user_information` row.
+
+## Resolution (2026-07-17)
+
+Went with neither option floated in "Suggested fix" above (a shared `user_information.version` nor
+a dedicated new SQL column) — the version lives **inside the `settings` JSONB blob itself**, since
+`UserSettingsRepository.save()`/`load()` already serialize/deserialize the whole
+`UserSettingsDto` directly into/from that one column:
+
+- `UserSettingsDto` (`platform-commons`) gained a `long version` field.
+- `UserSettingsRepository.save()`: increments `version` on the DTO being written, and the `UPDATE`
+  now reads `WHERE id = :userId AND (settings->>'version')::bigint = :expectedVersion` — 0 affected
+  rows throws `OptimisticLockingFailureException`, same as every other mutable entity (ADR-029).
+  `load()` needed no change — `version` round-trips through normal Jackson deserialization once the
+  DTO field existed.
+- UI (`SettingsEditDto`, `SettingsFormModeHandler`): `version` threaded through every lifecycle path
+  (`activate`, `save`, `discardChanges`, `handleRestoreFromActivity`, `loadRestored`) so a stale
+  value is never silently re-derived — same discipline ADR-029 already requires for
+  `Advertisement`/`Taxon`.
+- Schema default (`01-user-schema.xml`'s `settings` column `defaultValue`) updated to include
+  `"version":0` so freshly-registered users start at version 0 instead of a missing key (which
+  would make `(settings->>'version')::bigint` throw/never match). **Not in production** — the dev
+  DB's live column default was fixed directly via `ALTER TABLE ... ALTER COLUMN settings SET
+  DEFAULT ...`, no new Liquibase changeset added (would be required before any real deploy).
+- Covered by `integration-tests/.../user/UserSettingsRepositoryTest` (3 cases: fresh user starts at
+  version 0, stale-version save throws, current-version save succeeds and increments) — verified
+  against real Postgres. Full Playwright e2e suite (48/48) re-run as a pure regression check —
+  no new Playwright assertions added, per explicit direction that the dry test coverage above is
+  sufficient.
+- See `marketplace-app/DECISIONS.md` ADR-044 for the full design writeup and rejected alternatives.

@@ -25,11 +25,17 @@ NOT ALLOWED:
 
 Sub-packages inside each subsystem namespace carry distinct roles:
 
-- `*.api` — what **marketplace contributes to the starter**: marker interfaces (`AuditableSnapshot`) and annotations (`@AuditedField`) that marketplace places on its own classes so the starter can read them. Only `audit.*` has an `api` package; other subsystems need no marker contracts from marketplace.
+- `*.api` — what **marketplace contributes to the starter**: marker interfaces (`AuditableSnapshot`) that marketplace places on its own classes so the starter can read them. Only `audit.*` has an `api` package; other subsystems need no marker contracts from marketplace.
 - `*.spi` — **extension points between modules** with **no Vaadin dependency**: interfaces declaring a callback boundary for domain data, events, and commands. Who calls vs. who implements varies by suffix (see table below).
 - `*.dto` — **data carriers** crossing the module boundary: plain value objects with no behavior, named with the `Dto` suffix.
 
 **Rule:** do not add behavior to `*.dto` classes; do not add Spring annotations to `*.api` markers; do not put data records in `*.spi`. Non-UI consumers can depend on `*.spi` and `*.dto` without pulling Vaadin onto their classpath.
+
+**Narrow exception:** a pure derivation over a `*.dto` record's own fields, with no external
+dependencies (e.g. `AuditTimelineItemDto.withChanges()`/`.expandedChanges()`), is allowed — it's
+not business logic, just a convenience view of data the record already carries. Do not stretch
+this to anything that calls another service, branches on domain state beyond the record's own
+fields, or produces a different DTO type. See `platform-commons/DECISIONS.md`.
 
 ## SPI Interface Naming
 
@@ -38,7 +44,7 @@ All cross-module extension points live in `platform-commons/*.spi`. The suffix e
 | Suffix | Caller → Implementor | Semantic role | Examples |
 |--------|----------------------------------|---------------|---------|
 | `*Port` | marketplace → starter | marketplace calls the starter (commands, queries) | `AuditPort`, `AttachmentPort`, `UserPort`, `AdvertisementPort`, `TaxonPort` |
-| `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook`, `UserSettingsChangedHook`, `TaxonAuditHook` |
+| `*Hook` | starter → marketplace | starter calls back for domain data, events, or contributions | `CurrentActorHook`, `AttachmentMediaChangeHook`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook`, `AttachmentAuditHook`, `UserSettingsChangedHook` |
 
 **Rule:** do not introduce new suffixes without updating this table and adding a `platform-commons/DECISIONS.md` entry. Existing suffixes must not be repurposed for a different direction or role.
 

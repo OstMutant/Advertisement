@@ -127,9 +127,10 @@ graph TB
 - `Advertisement` entity (table: `advertisement`)
   - `id` (BIGINT PK)
   - `title`, `description` (VARCHAR/TEXT)
-  - `created_by_user_id`, `last_modified_by_user_id`, `deleted_by_user_id` (FK to user_information)
+  - `created_by`, `updated_by`, `deleted_by` (actor references, no `_user_id` suffix — ADR-034)
   - `created_at`, `updated_at`, `deleted_at` (soft delete support)
-  - `media_url`, `media_content_type`, `media_count` (attachment metadata)
+  - no denormalized attachment columns — media summaries are computed at read time via
+    `AttachmentPort.getMediaSummaries()` (ADR-035)
 
 **Key Services:**
 - `AdvertisementService` — create, update, delete, ownership checks, soft-delete
@@ -137,13 +138,14 @@ graph TB
 
 **Contract:**
 - `AdvertisementPort` — marketplace calls starter for CRUD + filtering
-- `MediaChangeHook` — attachment domain tells advertisement when media changes
 - `AdvertisementActivityFieldsHook` — marketplace enriches audit activity with advertisement field labels
 
 **Cross-Domain Dependencies:**
 - Calls `AuditPort` to capture entity changes (via Spring hooks)
-- Calls `AttachmentPort.onMediaChanged()` when advertisement media updates
-- Optional dependencies on audit and attachment starters
+- Calls `AttachmentPort.getMediaSummaries()` at read time for media-summary enrichment
+  (`enrichWithMediaSummary()`), `UserPort.findByIds()` for author name/email enrichment, and
+  `TaxonPort` for category assignment/enrichment
+- Optional dependencies on audit, attachment, user, and taxon starters (all via `ComponentFactory`)
 
 ---
 
@@ -166,7 +168,7 @@ graph TB
 **Key Services:**
 - `DefaultAuditPort` — entry point for all audit operations
 - `AuditReadService` — query audit_log, build activity feeds, timeline queries
-- `AuditDiffService` — compute field-level diffs between snapshots (uses `@AuditedField` markers)
+- Diffs are computed at read time by `AuditReadService` via `AuditableSnapshot.diff()` on snapshot pairs — no separate diff service or field-marker annotation exists
 
 **Contract:**
 - `AuditPort` — marketplace calls starter to capture events and query history
@@ -204,12 +206,13 @@ graph TB
 
 **Contract:**
 - `AttachmentPort` — marketplace calls starter for file operations
-- `AttachmentMediaChangeHook` — notify advertisement when media changes
+- `AttachmentMediaChangeHook` — fired on every media change; currently has no implementation
+  (a valid, gracefully-degraded state for this optional SPI — ADR-035)
 - `AttachmentAuditHook` — request audit records for media snapshots
 
 **Cross-Domain Dependencies:**
 - Calls `AuditPort` to capture file changes
-- Calls `AttachmentMediaChangeHook` to notify advertisement of media changes
+- Fires `AttachmentMediaChangeHook` on media changes (no receiver today — ADR-035)
 - Optional dependency on audit starter
 
 ---
@@ -233,10 +236,14 @@ graph TB
 
 **Contract:**
 - `TaxonPort` (`platform-commons`) — marketplace calls starter for CRUD, assignment management, and batched queries
-- `TaxonAuditHook` (`platform-commons`) — starter fires when assignments change; marketplace records to audit log via `TaxonActivityService`
 
 **Cross-Domain Dependencies:**
-- `TaxonAuditHook` calls back to marketplace; `TaxonAuditHookImpl` delegates to `TaxonActivityService` which writes to audit log via `AuditPort`
+- Category assignment changes are not independently recorded to `audit_log` (`TaxonAuditHook` was
+  removed entirely in improvement-058 — zero implementations, and both call sites already sit
+  inside an advertisement save/delete that produces its own audit snapshot). The advertisement's
+  own snapshot (`AdvertisementSnapshotDto.categoryIds`) captures the change instead, with
+  `AdvertisementEnrichService` resolving raw taxon ids to display names via `TaxonPort.findByIds()`
+  at read time.
 - Advertisement domain uses `TaxonPort.findEntityIdsWithAnyTaxon()` to filter by category without a direct SQL JOIN to `taxon_assignment`
 
 ---
@@ -248,7 +255,7 @@ graph TB
 1. **SPI Interfaces** (`*.spi`) — Ports and Hooks for cross-domain communication
 2. **Data Transfer Objects** (`*.dto`) — Cross-domain value objects (no behavior)
 3. **Core Models** (`core.model`) — Enums and markers used across domains
-4. **API Annotations** (`audit.api`) — `@AuditableSnapshot`, `@AuditedField` for marketplace to mark auditable entities
+4. **API Markers** (`audit.api`) — the `AuditableSnapshot` interface marketplace implements on its snapshot DTOs
 5. **Utility** (`attachment.util`) — Shared helpers like `YoutubeUtil`
 
 **Key Classes:**
@@ -274,9 +281,12 @@ When marketplace creates an advertisement:
 When user uploads a photo to an advertisement:
 1. Marketplace calls `AttachmentPort.upload(...)`
 2. Attachment starter stores file in S3
-3. Attachment starter calls `AttachmentMediaChangeHook.onChange(ADVERTISEMENT, advId)`
-4. Advertisement domain receives callback, updates media_count, media_url
-5. Attachment starter calls `AuditPort.captureUpdate(...)` for media snapshot
+3. Attachment starter fires `AttachmentMediaChangeHook.onChange(ADVERTISEMENT, advId)` — no
+   implementation is registered today, so the event is dropped (ADR-035)
+4. Attachment starter calls `AuditPort.captureUpdate(...)` for media snapshot
+5. Advertisement lists/detail views get media summaries at read time via
+   `AdvertisementService.enrichWithMediaSummary()` → `AttachmentPort.getMediaSummaries()` —
+   nothing is stored on the `advertisement` row
 
 ### Pattern 3: Activity Feed Enrichment
 When marketplace queries advertisement activity:
@@ -297,6 +307,12 @@ Each domain can be:
 - **Evolved independently** (internal changes don't affect other modules)
 
 **Exception:** marketplace-app depends on all starters and orchestrates UI/views.
+
+**Test-only exception:** `integration-tests` (not a business domain — see `integration-tests/CLAUDE.md`)
+is the one module allowed a real `compile`-scope dependency on more than one starter at a time
+(`advertisement-spring-boot-starter` + `user-spring-boot-starter` today), because it verifies real
+SQL against a real Postgres (via Testcontainers) rather than mocking the Port interface. Safe only
+because the module itself is never shipped, deployed, or depended upon by anything else.
 
 ---
 

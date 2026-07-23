@@ -30,13 +30,16 @@ async function waitForVaadin(page) {
   }, { timeout: 8000 });
 }
 
+// Scoped to .query-action-block (the Apply/Clear button wrapper QueryActionBlock adds around
+// itself) rather than the whole blockSelector -- fields inside the block (e.g. UserPickerField's
+// own clear button) can carry a title containing "Apply"/"Clear" too, which would otherwise match.
 async function applyFilter(page, blockSelector) {
-  await page.locator(`${blockSelector} vaadin-button[title*="Apply"]`).click();
+  await page.locator(`${blockSelector} .query-action-block vaadin-button[title*="Apply"]`).click();
   await waitForVaadin(page);
 }
 
 async function clearFilter(page, blockSelector) {
-  await page.locator(`${blockSelector} vaadin-button[title*="Clear"]`).click();
+  await page.locator(`${blockSelector} .query-action-block vaadin-button[title*="Clear"]`).click();
   await waitForVaadin(page);
 }
 
@@ -283,9 +286,10 @@ async function verifyPagination(page, prefix, total) {
 
 module.exports = {
   openQueryPanel, closeQueryPanel,
-  applyFilter, clearFilter,
+  applyFilter, clearFilter, waitForVaadin,
   clickSort, resetDefaultSorts,
   fillText, fillNumber, fillRole, fillCategory, setDateRange,
+  getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,

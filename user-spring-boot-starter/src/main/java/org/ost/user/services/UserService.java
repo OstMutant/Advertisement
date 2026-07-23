@@ -6,12 +6,9 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
-import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
@@ -22,8 +19,10 @@ import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.model.Role;
 import org.ost.user.entity.User;
+import org.ost.query.sort.OffsetPageable;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -66,6 +65,10 @@ public class UserService {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
     }
 
+    public List<UserDto> getFilteredByOffset(@Valid @NonNull UserFilterDto filter, long offset, int limit, @NonNull Sort sort) {
+        return repository.findByFilter(filter, new OffsetPageable(offset, limit, sort)).stream().map(this::toDto).toList();
+    }
+
     public int count(@Valid @NonNull UserFilterDto filter) {
         return repository.countByFilter(filter).intValue();
     }
@@ -88,9 +91,30 @@ public class UserService {
     }
 
     @Transactional
-    public void delete(@NonNull Long userId) {
+    public void delete(@NonNull Long userId, @NonNull Long actingUserId) {
         log.info("User delete: id={}", userId);
-        repository.deleteById(userId);
+        User before = repository.findById(userId).orElseThrow();
+        repository.softDelete(userId, actingUserId);
+        auditPortFactory.ifAvailable(p -> p.captureDeletion(userId, toSnapshot(before), actingUserId));
+    }
+
+    public Set<Long> findDeletedIds(@NonNull Set<Long> ids) {
+        return repository.findDeletedIds(ids.toArray(new Long[0]));
+    }
+
+    // per-row, not one bulk statement -- an FK-blocked row is skipped, not fatal to the batch
+    public void cleanup(int retentionDays) {
+        List<Long> candidates = repository.findIdsDeletedOlderThan(retentionDays);
+        int purged = 0;
+        for (Long id : candidates) {
+            try {
+                repository.deleteById(id);
+                purged++;
+            } catch (DataIntegrityViolationException e) {
+                log.warn("Skipped purging user {} - still referenced elsewhere, will retry next run", id);
+            }
+        }
+        log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
     }
 
     @Transactional
@@ -181,12 +205,6 @@ public class UserService {
     public Map<Long, UserDto> findByIds(@NonNull Set<Long> ids) {
         return repository.findByIds(ids.toArray(new Long[0])).stream()
                 .collect(Collectors.toMap(User::getId, this::toDto));
-    }
-
-    public List<ChangeEntry> expandActivityFields(@NonNull AuditTimelineItemDto<AuditableSnapshot> item) {
-        return item.snapshotData() != null
-                ? item.snapshotData().expandWithChanges(item.changes())
-                : item.changes();
     }
 
     private UserDto toDto(User user) {

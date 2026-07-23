@@ -35,5 +35,5 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 
 - No Vaadin dependency. No UI code here.
 - `AuditPort`, `AuditDomainHook`, `AuditActivityFieldsHook`, `AuditActivityEnrichHook` live in `platform-commons` — the starter implements them, marketplace-app calls/wires them.
-- `@EnableJdbcRepositories(basePackages = "org.ost.audit")` declared in `AuditAutoConfiguration` — required because marketplace's `@SpringBootApplication` scan covers only `org.ost.marketplace`.
+- `@EnableJdbcRepositories(basePackages = "org.ost.audit.repository")` declared in `AuditAutoConfiguration` — required because marketplace's `@SpringBootApplication` scan covers only `org.ost.marketplace`.
 - `DefaultAuditPort` and all `*HookImpl` classes are pure delegation — no business logic, no JSON parsing, no conditionals beyond routing. Logic belongs in services.

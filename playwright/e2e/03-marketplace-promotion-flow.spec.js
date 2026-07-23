@@ -5,6 +5,9 @@ const { runNavigateToUsersTabFlow, runPromoteUserFlow, runOpenUserEditViaListFlo
 const { openTimelineTab, assertFeedHasRow, assertTimelineHasRows } = require('./_flows/timeline.flow');
 const { runSignUpFlow } = require('./_flows/signup.flow');
 const { loginBulk, logoutBulk } = require('./_flows/seed.flow');
+const { runCreateSimpleAdvertisementFlow } = require('./_flows/delete.flow');
+const { cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList } = require('./_flows/advertisement.flow');
+const { selectCategoryInAdForm, assertViewOverlayHasDeletedCategory, assertActivityDiffHasStruckThroughCategory } = require('./_flows/category.flow');
 
 // Section 3 helpers — taxon management
 async function openRefDataTab(page) {
@@ -242,7 +245,7 @@ test.describe('Promotion flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity', async () => {
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -322,6 +325,19 @@ test.describe('Promotion flow', () => {
       await screenshot(page, 'taxon-06-timeline-all-fields-in-diff');
     });
 
+    const STRIKETHROUGH_AD_TITLE = 'Electronics Strikethrough Test Ad';
+
+    await test.step('assign Electronics to a fresh advertisement — baseline before delete', async () => {
+      await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).click();
+      await runCreateSimpleAdvertisementFlow(page, { title: STRIKETHROUGH_AD_TITLE, description: 'Category strikethrough test ad.', screenshotPrefix: 'taxon-08-strike-ad-create' });
+      const overlay = await openCardOverlay(page, cardByTitle(page, STRIKETHROUGH_AD_TITLE), 'taxon-08-strike-ad');
+      await switchToEditMode(page, overlay, 'taxon-08-strike-ad');
+      await selectCategoryInAdForm(page, overlay, CAT1.nameEn);
+      await saveAndWaitForIdle(page, expect, overlay, 'taxon-08-strike-ad-category-assigned');
+      await closeOverlayToList(page, overlay);
+      await openRefDataTab(page);
+    });
+
     await test.step('delete Electronics and restore — deleted and restore events recorded in overlay activity', async () => {
       await openRefDataTab(page);
 
@@ -345,6 +361,18 @@ test.describe('Promotion flow', () => {
       await expect(page.locator('.taxon-row-wrapper').filter({ has: page.locator('.taxon-deleted-badge') })
         .filter({ has: page.locator('.taxon-row-name', { hasText: CAT1.nameEn }) })).toBeVisible({ timeout: 5000 });
       await screenshot(page, 'taxon-07-electronics-deleted');
+
+      // Advertisement view and activity diff must now render the deleted category struck through
+      // (improvement-008/101) instead of dropping it or showing a bare id.
+      await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).click();
+      const adOverlay = await openCardOverlay(page, cardByTitle(page, STRIKETHROUGH_AD_TITLE), 'taxon-07-strike-ad-view');
+      await assertViewOverlayHasDeletedCategory(page, expect, adOverlay, CAT1.nameEn, 'taxon-07-strike-ad-view-chip-deleted');
+      await switchToEditMode(page, adOverlay);
+      const adActivityList = await openActivityTab(adOverlay);
+      const catChangeRow = adActivityList.locator('.entity-activity-row').filter({ hasText: CAT1.nameEn }).first();
+      await assertActivityDiffHasStruckThroughCategory(page, expect, catChangeRow.locator('.entity-activity-changes'), CAT1.nameEn, 'taxon-07-strike-ad-activity-diff-deleted');
+      await closeOverlayToList(page, adOverlay);
+      await openRefDataTab(page);
 
       // Restore
       const deletedRow = page.locator('.taxon-row-wrapper')
@@ -392,6 +420,11 @@ const MAX_EMAIL_EN   = `max-boundary-en-${_emailLocal}@${_emailSeg1}.${_emailSeg
 const MAX_EMAIL_UK   = `max-boundary-uk-${_emailLocal}@${_emailSeg1}.${_emailSeg2}.${_emailSeg3}`;
 const MAX_EN         = { name: MAX_NAME_100, email: MAX_EMAIL_EN, password: 'password' };
 const MAX_UK         = { name: MAX_NAME_100, email: MAX_EMAIL_UK, password: 'password' };
+
+// 255 chars — the name field's actual max (VARCHAR(255), maxLength(255) on the form) — one of
+// the 10 boundary categories uses this instead of a short "Boundary-XX" label so spec 04's
+// category-chip assertions exercise a genuinely long name, not just a short placeholder.
+const MAX_CATEGORY_NAME = 'Max Boundary Category Name Test '.repeat(8).substring(0, 255);
 
 test.describe('Max-boundary users and categories', () => {
   test.skip(!process.env.PW_FULL, 'Skipped by default — run with --full for boundary tests');
@@ -447,7 +480,7 @@ test.describe('Max-boundary users and categories', () => {
     await loginBulk(page, TEST_USERS.adminEn);
     await openRefDataTab(page);
     for (let i = 1; i <= 10; i++) {
-      const label = `Boundary-${String(i).padStart(2, '0')}`;
+      const label = i === 1 ? MAX_CATEGORY_NAME : `Boundary-${String(i).padStart(2, '0')}`;
       await createCategory(page, { nameEn: label, descEn: `Boundary category ${i}`, nameUk: label, descUk: `Гранична категорія ${i}` });
     }
     await screenshot(page, 'max-05-boundary-categories-seeded');

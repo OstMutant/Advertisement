@@ -64,3 +64,98 @@ every repository would need per-field null checks.
 are null-safe. A null filter value silently skips the condition.
 
 **Consequences:** Callers do not need null guards before building filter conditions.
+
+---
+
+## ADR-005: `SqlOperator.ANY_OF` / `SqlCondition.anyOf(Set<Long>)` — a second `IN`-shaped operator, for id sets specifically
+
+**Status:** Accepted
+
+**Context:** [improvement-075](../backlog/completed/issues/improvement-075-timeline-actor-filter-multi-select.md)
+needed the Timeline actor filter to match "any of N selected user ids" — `Set<Long>` — against
+`audit_log.actor_id`. `SqlCondition.inSet()` (ADR-004's sibling) already covers "match any of a
+set," but is typed `<E extends Enum<E>>` and hardcodes `Enum::name` as its value mapper — it
+cannot take a `Set<Long>` as-is, and a same-named overload isn't possible: `Set<E>` and `Set<Long>`
+erase to the same raw `Set` parameter type, so `inSet(SqlFilterMapping, Set<Long>)` would be a
+compile-time erasure clash against the existing generic method, not a valid overload. Separately,
+`inSet()`'s `IN (:param)` template (`SqlOperator.IN`) is safe for enum sets (fixed, tiny
+cardinality — 4 `EntityType` values, a handful of `ActionType` values) but is exactly the unbounded
+-placeholder-expansion shape improvement-054/067 already fixed twice elsewhere in this session for
+`Set<Long>`-typed id filters, whose cardinality is caller-controlled and not bounded the same way.
+
+**Decision:** New `SqlOperator.ANY_OF` (`"%s = ANY(:%s)"`) and `SqlCondition.anyOf(SqlFilterMapping,
+Set<Long>)` (array-bind via `.toArray(new Long[0])`, matching every other `= ANY()` call site in
+this codebase) — a distinct name and operator, not an `inSet` overload, for the two reasons above:
+the erasure clash, and the deliberate operator difference (`= ANY()`, not `IN`) for an
+unbounded-cardinality `Set<Long>` versus `inSet()`'s small, fixed-cardinality enum sets. This is a
+narrow, justified exception to ADR-003's API freeze — same shape as the `PaginationSqlBuilder`
+amendment already logged there: reuses the existing `SqlCondition`/`SqlOperator` machinery
+directly, adds no new abstraction layer, and closes a real gap (no existing factory method could
+express this) rather than generalizing speculatively.
+
+**Consequences:**
+- `AuditLogRepository`'s `actorId`/`equalsTo` binding became `actorIds`/`anyOf` — `AuditTimelineFilterDto.actorId
+  (Long)` → `actorIds (Set<Long>)`, matching the DTO's existing `entityTypes`/`actionTypes` shape.
+- New `SqlConditionTest`/`SqlOperatorTest` cases cover `anyOf`/`ANY_OF` (non-empty, empty, null —
+  same three-case shape as `inSet`'s own tests) plus a real-Postgres `AuditLogRepositoryTest` case
+  proving `= ANY()` actually matches "any of N selected actors," not just a unit-level formatting
+  check.
+- Any *future* `Set<Long>`-typed filter needing "match any of" should reach for `anyOf()` directly,
+  not reintroduce `IN (:set)` — this is now the established pattern for unbounded-cardinality id
+  sets in query-lib, the same role `= ANY()` array-bind already plays for repository-level bulk
+  lookups outside this library (`AttachmentRepository.findExistingUrls()`, `deleteByUrls()`, etc.).
+
+---
+
+## ADR-006: `anyOf`/`inSet` empty-input null (= "no restriction") must never back an access-narrowing predicate
+
+**Status:** Accepted
+
+**Context:** [improvement-106](../backlog/completed/issues/improvement-106-timeline-non-admin-empty-actorids-fail-open.md) —
+`TimelineView` built a non-admin's "restrict to my own activity" filter as `actorIds(Set.of())`
+when the current user id wasn't resolvable yet. `SqlCondition.anyOf()` returns `null` on an empty
+set, `SqlFilterBuilder` drops `null` conditions, so the predicate vanished and the non-admin saw
+every actor's activity — fail-open, not fail-closed.
+
+**Decision:** `anyOf()`/`inSet()`'s "empty input → no predicate" behavior stays as-is (correct for
+their actual purpose: an optional, user-facing multi-select filter, where "nothing selected" means
+"don't restrict"). No `mustMatchSomething` variant was added — the caller in question
+(`TimelineView`) never has a genuine optional-filter use for `actorIds` when narrowing for
+non-admins; it's a mandatory security parameter with a different, incompatible empty-input meaning
+overloaded onto the same field. Fixed at the call site instead: `TimelineView.refresh()` fails
+closed (empty feed, no query) when a non-admin's actor id isn't resolvable, so `anyOf()` is never
+invoked with an empty security-narrowing set at all.
+
+**Consequences:**
+- **Rule for all future callers:** `anyOf`/`inSet` must never be handed an empty set to express
+  "must match nothing" — they can't distinguish that from "no filter." Any access-narrowing
+  predicate must guarantee a non-empty value upstream (or skip the query outright), never rely on
+  the SQL layer to do it.
+- If a genuine "must match nothing on empty" predicate is ever needed by more than one caller, add
+  a dedicated method then (e.g. `= ANY('{}'::bigint[])`, always false) — not by changing `anyOf`'s
+  existing semantics, which the admin/optional-filter path still correctly depends on.
+
+---
+
+## ADR-007: `SqlCondition.like()` escapes `%`/`_`/`\` before wrapping
+
+**Status:** Accepted
+
+**Context:** [improvement-108](../backlog/completed/issues/improvement-108-ilike-wildcard-not-escaped.md)
+— `like()` wrapped the caller's raw value in `%…%` with no escaping. Postgres `ILIKE` treats `%`
+and `_` as wildcards and `\` as its escape character, so a search term containing any of them
+(`"100%"`, `"user_name"`, a trailing `\`) silently matched the wrong rows instead of the literal
+text — not SQL injection (values are bound as parameters), but wildcard-semantics leakage into
+every text filter in the app (advertisement title, user name/email).
+
+**Decision:** Escape the value inside `like()` itself — `\` first (so the escape character doesn't
+get folded into the `%`/`_` escapes added after it), then `%`, then `_` — and declare
+`SqlOperator.LIKE_IGNORE_CASE`'s explicit `ESCAPE '\'` clause so Postgres knows which character is
+the escape marker. Fixed once, centrally, in `query-lib` — every consumer (any domain's
+`*FilterDto`) benefits without its own change.
+
+**Consequences:**
+- `SqlConditionTest`/`SqlOperatorTest` cover `%`/`_`/`\`/mixed inputs and the new clause text.
+- Considered a regex-based one-liner (`value.replaceAll("([%_\\\\])", "\\\\$1")`) as a more compact
+  equivalent — kept the three sequential `.replace()` calls instead, since the ordering constraint
+  (backslash must go first) is more visible spelled out than folded into one regex alternation.

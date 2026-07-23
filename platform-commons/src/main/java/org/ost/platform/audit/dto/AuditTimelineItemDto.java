@@ -17,10 +17,16 @@ public record AuditTimelineItemDto<T extends AuditableSnapshot>(
         Instant           createdAt,
         List<ChangeEntry> changes,
         Long              changedByActorId,
-        T                 snapshotData
+        T                 snapshotData,
+        T                 prevSnapshotData
 ) {
     public AuditTimelineItemDto<T> withChanges(List<ChangeEntry> newChanges) {
         return new AuditTimelineItemDto<>(snapshotId, entityRef, actionType,
-                createdAt, newChanges, changedByActorId, snapshotData);
+                createdAt, newChanges, changedByActorId, snapshotData, prevSnapshotData);
+    }
+
+    // Pure derivation over this record's own fields -- same exception class as withChanges() above.
+    public List<ChangeEntry> expandedChanges() {
+        return snapshotData != null ? snapshotData.expandWithChanges(changes) : changes;
     }
 }

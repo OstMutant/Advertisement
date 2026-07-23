@@ -43,7 +43,7 @@ bash /app/playwright/run.sh 01-marketplace-empty-flow --ux  # single spec file, 
 ### Vaadin-specific notes
 - Vaadin uses Shadow DOM — always fill via inner input: `vaadin-text-field input`, `vaadin-text-area textarea`, `vaadin-email-field input`, `vaadin-password-field input`
 - Overlays/dialogs have class `.advertisement-overlay` — scope selectors inside it to avoid hitting main page buttons
-- Playwright version must match image: `playwright@1.52.0` + `mcr.microsoft.com/playwright:v1.52.0-jammy`
+- Playwright version must match image: `playwright@1.61.1` + `mcr.microsoft.com/playwright:v1.61.1-jammy`
 - `IFrame.setSrc()` / `.setProperty()` are silently ignored post-render — use `Page.executeJs()` + `setAttribute()` instead
 
 ### Helper organization rules

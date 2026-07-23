@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -34,16 +35,10 @@ public record SettingsSnapshotDto(
     @Override
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         SettingsSnapshotDto prev = previous instanceof SettingsSnapshotDto p ? p : null;
-        Integer prevAds      = field(prev, SettingsSnapshotDto::adsPageSize);
-        Integer prevUsers    = field(prev, SettingsSnapshotDto::usersPageSize);
-        Integer prevTimeline = field(prev, SettingsSnapshotDto::timelinePageSize);
         List<ChangeEntry> changes = new ArrayList<>();
-        if (prev == null || prev.adsPageSize() != adsPageSize())
-            changes.add(new FieldChange(Fields.adsPageSize,   prevAds   == null ? null : String.valueOf(prevAds),   String.valueOf(adsPageSize())));
-        if (prev == null || prev.usersPageSize() != usersPageSize())
-            changes.add(new FieldChange(Fields.usersPageSize, prevUsers == null ? null : String.valueOf(prevUsers), String.valueOf(usersPageSize())));
-        if (prev == null || prev.timelinePageSize() != timelinePageSize())
-            changes.add(new FieldChange(Fields.timelinePageSize, prevTimeline == null ? null : String.valueOf(prevTimeline), String.valueOf(timelinePageSize())));
+        diffField(changes, Fields.adsPageSize,      field(prev, SettingsSnapshotDto::adsPageSize),      adsPageSize());
+        diffField(changes, Fields.usersPageSize,    field(prev, SettingsSnapshotDto::usersPageSize),    usersPageSize());
+        diffField(changes, Fields.timelinePageSize, field(prev, SettingsSnapshotDto::timelinePageSize), timelinePageSize());
         return changes;
     }
 

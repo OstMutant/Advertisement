@@ -29,7 +29,6 @@ graph TD
         CurrentActorHook["CurrentActorHook<br/>(core.spi)"]
         
         TaxonPort["TaxonPort<br/>(taxon.spi)"]
-        TaxonAuditHook["TaxonAuditHook<br/>(taxon.spi)"]
     end
     
     subgraph AUD["audit-spring-boot-starter"]
@@ -47,7 +46,6 @@ graph TD
     
     subgraph ADV["advertisement-spring-boot-starter"]
         AdvertisementPortImpl["AdvertisementPortImpl<br/>(spi)"]
-        MediaChangeHookImpl["MediaChangeHookImpl<br/>(spi)"]
     end
     
     subgraph TAX["taxon-spring-boot-starter"]
@@ -61,7 +59,6 @@ graph TD
         UserActivityFieldsHookImpl["UserActivityFieldsHookImpl<br/>(spi)"]
         UserSettingsActivityFieldsHookImpl["UserSettingsActivityFieldsHookImpl<br/>(spi)"]
         ActivityEnrichHookImpl["ActivityEnrichHookImpl<br/>(spi)"]
-        TaxonAuditHookImpl["TaxonAuditHookImpl<br/>(spi)"]
         TaxonActivityFieldsHookImpl["TaxonActivityFieldsHookImpl<br/>(spi)"]
         SettingsPaginationService["SettingsPaginationService<br/>(pagination)"]
     end
@@ -76,7 +73,6 @@ graph TD
     
     AttachmentPort -->|implemented by| DefaultAttachmentPort
     AttachmentAuditHook -->|implemented by| AttachmentAuditHookImpl
-    AttachmentMediaChangeHook -->|implemented by| MediaChangeHookImpl
     
     UserPort -->|implemented by| UserPortImpl
     UserSettingsChangedHook -->|implemented by| SettingsPaginationService
@@ -86,7 +82,6 @@ graph TD
     CurrentActorHook -->|implemented by| CurrentActorHookImpl
     
     TaxonPort -->|implemented by| DefaultTaxonPort
-    TaxonAuditHook -->|implemented by| TaxonAuditHookImpl
 ```
 
 ## SPI Interface Details
@@ -105,7 +100,7 @@ graph TD
 | Interface | Location | Direction | Implementation | Purpose |
 |-----------|----------|-----------|-----------------|---------|
 | **AttachmentPort** | `org.ost.platform.attachment.spi` | marketplace → starter | `org.ost.attachment.spi.DefaultAttachmentPort` | Upload, delete, query, restore attachments; manage snapshots |
-| **AttachmentMediaChangeHook** | `org.ost.platform.attachment.spi` | starter → marketplace | `org.ost.advertisement.spi.MediaChangeHookImpl` | Callback: attachment module notifies marketplace when media changes |
+| **AttachmentMediaChangeHook** | `org.ost.platform.attachment.spi` | starter → marketplace | *(none — fires from `AttachmentService` on every media change but currently has no implementation; a valid, gracefully-degraded state for this optional SPI — see `marketplace-app/DECISIONS.md` ADR-035)* | Callback: attachment module notifies interested modules when media changes |
 | **AttachmentAuditHook** | `org.ost.platform.attachment.spi` | starter → marketplace | `org.ost.attachment.spi.AttachmentAuditHookImpl` | Callback: attachment module requests audit records for media snapshots |
 
 ### User Subsystem
@@ -120,14 +115,13 @@ graph TD
 
 | Interface | Location | Direction | Implementation | Purpose |
 |-----------|----------|-----------|-----------------|---------|
-| **AdvertisementPort** | `org.ost.platform.advertisement.spi` | marketplace → starter | `org.ost.advertisement.spi.AdvertisementPortImpl` | CRUD advertisements, query filters, ownership checks, media notifications |
+| **AdvertisementPort** | `org.ost.platform.advertisement.spi` | marketplace → starter | `org.ost.advertisement.spi.AdvertisementPortImpl` | CRUD advertisements, query filters, ownership checks |
 
 ### Taxon (Reference Data) Subsystem
 
 | Interface | Location | Direction | Implementation | Purpose |
 |-----------|----------|-----------|-----------------|---------|
 | **TaxonPort** | `org.ost.platform.taxon.spi` | marketplace → starter | `org.ost.taxon.services.DefaultTaxonPort` | Manage taxonomies (categories, tags); query; translations |
-| **TaxonAuditHook** | `org.ost.platform.taxon.spi` | starter → marketplace | `org.ost.marketplace.spi.TaxonAuditHookImpl` | Callback: taxon module notifies marketplace of taxon changes for audit |
 
 ### Core / Platform
 
@@ -142,7 +136,7 @@ All implementations follow these patterns:
 ### Port Implementation (`*PortImpl`, `Default*Port`)
 - **Location:** Same module as the port interface
 - **Pattern:** Pure delegation to service methods — no business logic
-- **Example:** `org.ost.audit.services.DefaultAuditPort` delegates all methods to `AuditLogRepository`, `AuditReadService`, `AuditDiffService`
+- **Example:** `org.ost.audit.services.DefaultAuditPort` delegates all methods to `AuditLogRepository` and `AuditReadService`
 
 ### Hook Implementation (`*HookImpl`)
 - **Location:** Service module that implements the hook
@@ -178,9 +172,11 @@ marketplace-app (UI)
       ↓
   calls AttachmentMediaChangeHook.onChange()
       ↓
-  org.ost.advertisement.spi.MediaChangeHookImpl
-      ↓
-  updates advertisement media_count, media_url
+  (no implementation registered — the event is dropped; see ADR-035)
+
+Media summaries are never stored on the advertisement row. They are computed at read time:
+AdvertisementService.enrichWithMediaSummary() → AttachmentPort.getMediaSummaries()
+(bulk lookup over the attachment table, one query per list render).
 ```
 
 ### Example 3: Enrich Audit Activity
@@ -221,10 +217,8 @@ marketplace-app (viewing activity feed)
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/UserSettingsActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/ActivityEnrichHookImpl.java`
-- `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonAuditHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/spi/TaxonActivityFieldsHookImpl.java`
 - `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 
 **Hook Implementations (starters):**
-- `/app/advertisement-spring-boot-starter/src/main/java/org/ost/advertisement/spi/MediaChangeHookImpl.java`
 - `/app/attachment-spring-boot-starter/src/main/java/org/ost/attachment/spi/AttachmentAuditHookImpl.java`

@@ -2,6 +2,50 @@
 setlocal
 cd /d "%~dp0.."
 
+goto :main
+
+:: ==========================================
+::                FUNCTIONS
+:: ==========================================
+:: Defined before :main (and before any call site) so cmd.exe never has to seek forward
+:: through the file to resolve a label on first use - combined with `setlocal`, a call to a
+:: label defined later in the file has been observed to silently no-op on its very first
+:: invocation only, with every later call to the same label working correctly. Backward
+:: references (label already passed while reading the file) do not have this problem.
+
+:FindFiles
+:: Recursively searches for files and filters out system/generated folders.
+:: Also excludes collect-code.bat itself: dumping its own content via `type` while cmd.exe is
+:: still mid-execution of that same file is a known-fragile self-read pattern in cmd.exe and can
+:: silently truncate the output - this script's source is always available locally anyway, no
+:: need to have it re-dump itself into all-code.txt.
+for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\ \\integration-tests\\reports\\ \\ci\\reports\\ \\unit-tests\\reports\\ \\run-all-tests\\reports\\ \\sonar\\report\\ collect-code\.bat" ') do (
+    echo %%A >> "%FILE_LIST%"
+)
+goto :EOF
+
+:CountFiles
+:: Counts the number of occurrences in the temp list by extension/name
+set "count=0"
+for /f %%A in ('type "%FILE_LIST%" 2^>nul ^| find /C /I "%~1"') do set "count=%%A"
+echo %~2: %count%
+goto :EOF
+
+:CheckRootFile
+:: Checks the physical presence of a file in the current directory
+if exist "%~1" (
+    echo [YES] %~1
+) else (
+    echo [NO]  %~1
+)
+goto :EOF
+
+:: ==========================================
+::                  MAIN
+:: ==========================================
+
+:main
+
 :: Output file name
 set "OUT=all-code.txt"
 echo Preparing %OUT%...
@@ -27,7 +71,7 @@ call :FindFiles "*.sh"
 call :FindFiles "*.md"
 
 :: 3. Add specific root-level files
-for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat mvnw mvnw.cmd scripts\infra\docker-compose.app.yml scripts\infra\docker-compose.db.yml scripts\infra\docker-compose.minio.yml) do (
+for %%F in (README.md CLAUDE.md Dockerfile Dockerfile.ai lombok.config mvn.bat mvnw mvnw.cmd .env scripts\infra\docker-compose.app.yml scripts\infra\docker-compose.db.yml scripts\infra\docker-compose.minio.yml) do (
     if exist "%%F" echo %%~dpnxF >> "%FILE_LIST%"
 )
 
@@ -76,6 +120,7 @@ call :CheckRootFile "README.md"
 call :CheckRootFile "CLAUDE.md"
 call :CheckRootFile "Dockerfile"
 call :CheckRootFile "Dockerfile.ai"
+call :CheckRootFile ".env"
 call :CheckRootFile "scripts\infra\docker-compose.app.yml"
 call :CheckRootFile "scripts\infra\docker-compose.db.yml"
 call :CheckRootFile "scripts\infra\docker-compose.minio.yml"
@@ -87,31 +132,4 @@ del "%FILE_LIST%"
 
 echo.
 echo Done! All code saved to %OUT%.
-goto :EOF
-
-:: ==========================================
-::                FUNCTIONS
-:: ==========================================
-
-:FindFiles
-:: Recursively searches for files and filters out system/generated folders
-for /f "delims=" %%A in ('dir /S /B "%~1" 2^>nul ^| findstr /V /I "\\target\\ \\node_modules\\ \\.git\\ \\.idea\\ \\.claude\\ \\generated\\ \\frontend\\generated\\ \\private\\ \\pw-report\\" ') do (
-    echo %%A >> "%FILE_LIST%"
-)
-goto :EOF
-
-:CountFiles
-:: Counts the number of occurrences in the temp list by extension/name
-set "count=0"
-for /f %%A in ('type "%FILE_LIST%" 2^>nul ^| find /C /I "%~1"') do set "count=%%A"
-echo %~2: %count%
-goto :EOF
-
-:CheckRootFile
-:: Checks the physical presence of a file in the current directory
-if exist "%~1" (
-    echo [YES] %~1
-) else (
-    echo [NO]  %~1
-)
 goto :EOF

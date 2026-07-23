@@ -43,10 +43,10 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     private final InstantFormatter              formatter;
     private final AuditChangeFormatter          changeFormatter;
     private final List<AuditActivityFieldsHook> fieldsProviderList;
-    private final List<AuditActivityEnrichHook> enrichHookList;
+    private final List<AuditActivityEnrichHook<?>> enrichHookList;
 
     private Map<EntityType, AuditActivityFieldsHook> fieldsProviders;
-    private Map<EntityType, AuditActivityEnrichHook> enrichHooks;
+    private Map<EntityType, AuditActivityEnrichHook<?>> enrichHooks;
 
     @Override
     @PostConstruct
@@ -106,7 +106,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     private Div buildActivityFieldsList(AuditTimelineItemDto<AuditableSnapshot> item) {
-        AuditActivityEnrichHook enrichHook = enrichHooks.get(item.entityRef().entityType());
+        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(item.entityRef().entityType());
         if (enrichHook != null) {
             Long attachmentSnapshotId = item.snapshotData() instanceof AdvertisementSnapshotDto s
                     ? s.attachmentSnapshotId() : null;
@@ -138,7 +138,7 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
     }
 
     Div buildActivityFieldsList(AuditActivityItemDto<? extends AuditableSnapshot> h, EntityRef ref) {
-        AuditActivityEnrichHook enrichHook = enrichHooks.get(ref.entityType());
+        AuditActivityEnrichHook<?> enrichHook = enrichHooks.get(ref.entityType());
         Long attachmentSnapshotId = h.snapshotData() instanceof AdvertisementSnapshotDto s
                 ? s.attachmentSnapshotId() : null;
         Supplier<String> mediaLookup = (enrichHook != null && attachmentSnapshotId != null)

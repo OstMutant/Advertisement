@@ -252,7 +252,9 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, screenshotName: 'timeline-adminen-edit-ad' });
+    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name
+    // (improvement-058) instead of showing the raw taxon id.
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -392,7 +394,12 @@ const MAX_DESC_EN     = 'This advertisement tests maximum boundary values for al
 const MAX_DESC_EN_V2  = 'Max boundary EN advertisement description edited with all content. '.repeat(31).substring(0, 2000);
 const MAX_DESC_UK     = 'This advertisement tests maximum boundary values for all content fields. (UK) '.repeat(27).substring(0, 2000);
 const MAX_DESC_UK_V2  = 'Max boundary UK advertisement description edited with all content. '.repeat(31).substring(0, 2000);
-const BOUNDARY_CATS   = Array.from({ length: 10 }, (_, i) => `Boundary-${String(i + 1).padStart(2, '0')}`);
+// Category #1 uses the same 255-char max-length name spec 03's boundary-category seed test
+// creates it with (VARCHAR(255)/maxLength(255) on the form) instead of a short "Boundary-01"
+// label, so the category-chip assertions below exercise a genuinely long name.
+const MAX_CATEGORY_NAME = 'Max Boundary Category Name Test '.repeat(8).substring(0, 255);
+const BOUNDARY_CATS   = Array.from({ length: 10 }, (_, i) =>
+    i === 0 ? MAX_CATEGORY_NAME : `Boundary-${String(i + 1).padStart(2, '0')}`);
 const _emailLocal     = '0'.repeat(48);
 const _emailSeg1      = 'max-domain-seg1-' + '0'.repeat(47);
 const _emailSeg2      = 'max-domain-seg2-' + '0'.repeat(47);

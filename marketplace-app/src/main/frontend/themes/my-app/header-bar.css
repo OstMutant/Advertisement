@@ -5,8 +5,8 @@
   justify-content: space-between;
   align-items: center;
   box-sizing: border-box;
-  background: #ffffff;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--app-surface-white);
+  border-bottom: 1px solid var(--app-border-default);
   box-shadow: 0 1px 4px rgba(0,0,0,0.04);
 }
 
@@ -28,7 +28,7 @@
 .header-logo-name {
   font-size: 1.15rem;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--app-text-primary);
   letter-spacing: -0.02em;
   user-select: none;
 }
@@ -55,7 +55,7 @@
 /* "Увійшли як: ..." label — smaller and muted */
 .header-auth-row span {
   font-size: 0.78rem;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   letter-spacing: 0.01em;
   max-width: 260px;
   overflow: hidden;

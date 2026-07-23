@@ -2,6 +2,7 @@ package org.ost.attachment.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.ost.attachment.entities.Attachment;
 import org.ost.attachment.repository.AttachmentMediaChange;
 import org.ost.attachment.repository.AttachmentRepository;
 import org.ost.attachment.repository.AttachmentSnapshotRepository;
@@ -12,9 +13,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -36,12 +39,13 @@ public class AttachmentSnapshotService {
         Optional<List<String>> prevOpt = attachmentSnapshotRepository.getPrevUrls(entityType, entityId);
         if (prevOpt.isEmpty()) {
             if (currentUrls.isEmpty()) return Optional.empty();
-            List<String> currNames = currentUrls.stream().map(AttachmentSnapshotService::filename).toList();
+            Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, currentUrls);
+            List<String> currNames = currentUrls.stream().map(u -> filename(u, urlToFilename)).toList();
             attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]),
                     List.of(new AttachmentMediaChange(null, currNames)), actorId);
             return attachmentSnapshotRepository.findLatestId(entityType, entityId);
         }
-        AttachmentMediaChange diff = buildDiff(prevOpt.get(), currentUrls);
+        AttachmentMediaChange diff = buildDiff(entityType, entityId, prevOpt.get(), currentUrls);
         if (diff == null) return Optional.empty();
         attachmentSnapshotRepository.insert(entityType, entityId, currentUrls.toArray(new String[0]), List.of(diff), actorId);
         return attachmentSnapshotRepository.findLatestId(entityType, entityId);
@@ -59,7 +63,10 @@ public class AttachmentSnapshotService {
 
     public String getMediaStateForSnapshot(EntityType entityType, Long entityId, Long snapshotId) {
         return attachmentSnapshotRepository.getUrlsById(snapshotId)
-                .map(l -> l.stream().map(AttachmentSnapshotService::filename).collect(Collectors.joining(", ")))
+                .map(urls -> {
+                    Map<String, String> urlToFilename = resolveFilenames(entityType, entityId, urls);
+                    return urls.stream().map(u -> filename(u, urlToFilename)).collect(Collectors.joining(", "));
+                })
                 .orElse("");
     }
 
@@ -84,16 +91,30 @@ public class AttachmentSnapshotService {
                 .toList();
     }
 
-    private static AttachmentMediaChange buildDiff(List<String> prev, List<String> curr) {
-        List<String> prevNames = prev.stream().map(AttachmentSnapshotService::filename).toList();
-        List<String> currNames = curr.stream().map(AttachmentSnapshotService::filename).toList();
+    private AttachmentMediaChange buildDiff(EntityType entityType, Long entityId, List<String> prev, List<String> curr) {
+        Map<String, String> urlToFilename = resolveFilenames(entityType, entityId,
+                Stream.concat(prev.stream(), curr.stream()).distinct().toList());
+        List<String> prevNames = prev.stream().map(u -> filename(u, urlToFilename)).toList();
+        List<String> currNames = curr.stream().map(u -> filename(u, urlToFilename)).toList();
         return Objects.equals(prevNames, currNames) ? null : new AttachmentMediaChange(prevNames, currNames);
     }
 
-    private static String filename(String url) {
+    // Keyed by url, not filename -- duplicate original filenames across attachments can't collide.
+    // findByEntityAndUrls() doesn't filter deleted_at, so a soft-deleted row and a newly re-added
+    // row can legitimately share the same url (e.g. a YouTube video removed then re-added) --
+    // merge function keeps either name rather than letting Collectors.toMap throw.
+    private Map<String, String> resolveFilenames(EntityType entityType, Long entityId, List<String> urls) {
+        if (urls.isEmpty()) return Map.of();
+        return attachmentRepository.findByEntityAndUrls(entityType, entityId, urls.toArray(new String[0])).stream()
+                .collect(Collectors.toMap(Attachment::getUrl, Attachment::getFilename, (a, b) -> a));
+    }
+
+    private static String filename(String url, Map<String, String> urlToFilename) {
         if (url == null || url.isBlank()) return "";
         String ytId = YoutubeUtil.extractId(url);
         if (ytId != null) return YoutubeUtil.filename(ytId);
+        String resolved = urlToFilename.get(url);
+        if (resolved != null) return resolved;
         int i = url.lastIndexOf('/');
         return i >= 0 ? url.substring(i + 1) : url;
     }

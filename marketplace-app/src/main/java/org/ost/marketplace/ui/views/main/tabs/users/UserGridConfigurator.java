@@ -13,7 +13,6 @@ import lombok.*;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
@@ -41,8 +40,6 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
 
     @Getter
     private final I18nService                             i18nService;
-    private final UiComponentFactory<EditActionButton>   editButtonFactory;
-    private final UiComponentFactory<DeleteActionButton> deleteButtonFactory;
 
     @Override
     public UserGridConfigurator configure(Parameters p) {
@@ -87,18 +84,8 @@ public class UserGridConfigurator implements Configurable<UserGridConfigurator, 
                 .setHeader(getHeader(getValue(USER_VIEW_HEADER_UPDATED)));
 
         grid.addColumn(new ComponentRenderer<>(user -> {
-                    Button edit = editButtonFactory.build(
-                            EditActionButton.Parameters.builder()
-                                    .tooltip(getValue(USER_VIEW_BUTTON_EDIT))
-                                    .onClick(() -> p.getOnEdit().accept(user))
-                                    .build()
-                    );
-                    Button delete = deleteButtonFactory.build(
-                            DeleteActionButton.Parameters.builder()
-                                    .tooltip(getValue(USER_VIEW_BUTTON_DELETE))
-                                    .onClick(() -> p.getOnDelete().accept(user))
-                                    .build()
-                    );
+                    Button edit = new EditActionButton(getValue(USER_VIEW_BUTTON_EDIT), () -> p.getOnEdit().accept(user));
+                    Button delete = new DeleteActionButton(getValue(USER_VIEW_BUTTON_DELETE), () -> p.getOnDelete().accept(user));
                     HorizontalLayout layout = new HorizontalLayout(edit, delete);
                     layout.addClassName("user-grid-actions");
                     return layout;

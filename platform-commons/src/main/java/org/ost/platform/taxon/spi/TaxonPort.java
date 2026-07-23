@@ -19,12 +19,6 @@ import java.util.Set;
  */
 public interface TaxonPort {
 
-    /** Assigns a taxon entry to an entity (idempotent). */
-    void assign(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long taxonId);
-
-    /** Removes a taxon assignment (no-op if absent). */
-    void unassign(@NonNull EntityType entityType, @NonNull Long entityId, @NonNull Long taxonId);
-
     /** Replaces all taxon assignments for an entity with the given set in one transaction. */
     void replaceAssignments(@NonNull EntityType entityType, @NonNull Long entityId,
                             @NonNull Set<Long> taxonIds);
@@ -53,10 +47,6 @@ public interface TaxonPort {
      * Empty input set → empty result.
      */
     Map<Long, TaxonDto> findByIds(@NonNull Set<Long> taxonIds, @NonNull Locale locale);
-
-    /** Resolves a well-known entry by its stable code. */
-    Optional<TaxonDto> findByCode(@NonNull TaxonType type, @NonNull String code,
-                                  @NonNull Locale locale);
 
     /**
      * Returns the set of entity ids that have AT LEAST ONE of the given taxons assigned.

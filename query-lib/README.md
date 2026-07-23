@@ -82,7 +82,9 @@ OrderByBuilder.build(sort, SORT_MAP)
 // → " ORDER BY a.created_at DESC NULLS LAST"  or  ""
 ```
 
-Converts camelCase property names to snake_case before lookup. Unknown sort properties are silently skipped.
+Looks up each `Sort.Order`'s property directly in the alias map — no case conversion happens.
+Map keys must be the exact camelCase DTO field name (e.g. via `SomeDto.Fields.xyz`), not a
+hand-converted snake_case string. Unknown sort properties are silently skipped.
 
 ---
 

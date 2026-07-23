@@ -40,18 +40,18 @@
 .empty-state-icon {
   width: 52px;
   height: 52px;
-  color: #cbd5e1;
+  color: var(--app-border-subtle);
 }
 
 .empty-state-title {
   font-size: 1.1rem;
   font-weight: 600;
-  color: #64748b;
+  color: var(--app-text-muted);
 }
 
 .empty-state-hint {
   font-size: 0.875rem;
-  color: #94a3b8;
+  color: var(--app-text-muted);
 }
 
 /* Card entrance animation */

@@ -49,8 +49,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     @Getter
     private final I18nService                                       i18nService;
     private final OverlayAdvertisementMetaPanel                     metaPanel;
-    private final UiPrimaryButton                                   editButton;
-    private final UiIconButton                                      closeButton;
     private final ComponentFactory<AttachmentPort>                  attachmentPortFactory;
     private final UiComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final ComponentFactory<TaxonPort>                       taxonPortFactory;
@@ -84,9 +82,13 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
             if (!cats.isEmpty()) {
                 Div categoriesRow = new Div();
                 categoriesRow.addClassName("advertisement-categories-chips");
+                categoriesRow.getElement().setAttribute("role", "list");
+                categoriesRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
                 cats.forEach(cat -> {
                     Span chip = new Span(cat.getName());
                     chip.addClassName("advertisement-category-chip");
+                    if (cat.isDeleted()) chip.addClassName("advertisement-category-chip--deleted");
+                    chip.getElement().setAttribute("role", "listitem");
                     categoriesRow.add(chip);
                 });
                 textCard.add(categoriesRow);
@@ -104,13 +106,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected Div buildHeaderActions() {
-        editButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_CARD_BUTTON_EDIT)
-                .build());
-        closeButton.configure(UiIconButton.Parameters.builder()
-                .labelKey(MAIN_TAB_ADVERTISEMENTS)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        UiPrimaryButton editButton = new UiPrimaryButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT));
+        UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_ADVERTISEMENTS), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd().getOwnerUserId()));

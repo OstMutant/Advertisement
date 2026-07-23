@@ -64,14 +64,51 @@ tracked via an ADR entry here.
 ---
 
 ## ADR-004: TaxonAuditHook fires per assignment change, not per batch
-**Status:** Accepted (done 2026-06-26)
+**Status:** Superseded 2026-07-17 (improvement-058) — `TaxonAuditHook` removed entirely
 
 **Context:** `TaxonAssignmentService.replaceAssignments()` processes a diff between old and new
 assignment sets. The diff may add N items and remove M items in a single call.
 
-**Decision:** `TaxonAuditHook.onAssignmentChanged()` is called once per individual add/remove
-operation inside the diff loop — not once per batch. This produces one `audit_log` row per taxon
-assignment change, giving fine-grained history.
+**Original decision (no longer in effect):** `TaxonAuditHook.onAssignmentChanged()` was called once
+per individual add/remove operation inside the diff loop — not once per batch. This produced one
+`audit_log` row per taxon assignment change, giving fine-grained history.
 
-**Consequences:** A batch of 5 adds + 3 removes produces 8 audit_log entries. This is intentional
-for full audit traceability. If performance becomes a concern, consider a batch hook variant.
+**Why superseded:** `TaxonAuditHook` never gained an implementation, and both of its call sites
+(both routed through an advertisement save or delete) already sit inside a flow that produces its
+own audit snapshot covering the same net information. The per-change firing granularity this ADR
+designed for was never actually consumed by anything. Removed rather than implemented — see
+`marketplace-app/DECISIONS.md` ADR-019 and ADR-043, `platform-commons/DECISIONS.md` ADR-017's note.
+`TaxonAssignmentService.replaceAssignments()` still computes the same add/remove diff internally
+(needed for the `INSERT`/`DELETE` statements themselves) — only the per-item hook call was removed.
+
+---
+
+## ADR-005: `TaxonRepository.findByIds()` now returns soft-deleted rows too
+**Status:** Accepted (done 2026-07-21)
+
+**Context:** improvement-045 originally added a `deleted_at IS NULL` filter to `findByIds()` to
+match every other query in the class. This had a real, unintended side effect: `DefaultTaxonPort`'s
+only caller of this method — `indexById()`, feeding both `getForEntity()` (advertisement view
+overlay's category chips) and the port-level `findByIds()` (used by `AdvertisementEnrichService`
+to resolve category names in audit diffs) — could never see a soft-deleted category at all. In
+practice this meant: (1) a category soft-deleted while still assigned to an advertisement silently
+vanished from that advertisement's view overlay instead of showing struck-through, and (2) audit
+diffs referencing that category rendered a bare numeric id instead of its name, since the name
+could never be resolved (verified directly: the SQL filter, not a resolution failure elsewhere, was
+the root cause — improvement-008/101).
+
+**Decision:** Removed `AND deleted_at IS NULL` from `TaxonRepository.findByIds()`'s SQL. The
+existing `activeOnly` boolean already threaded through `DefaultTaxonPort.resolveDtos()`/
+`buildDtoIndex()` now does real work instead of being permanently moot: `getForEntity()` passes
+`false` (deleted categories now surface, tagged via `TaxonDto.deleted`, so the UI can render them
+struck-through); every other caller (`getForEntities()`, `getAllByType()`, the port-level
+`findByIds()`) is unaffected in net behavior — `getForEntities()`/`getForEntity()` bulk-listing
+callers still pass/effectively resolve to active-only where that was already the case, and the
+port-level `findByIds()` already passed `activeOnly=false`, so it now correctly resolves
+soft-deleted taxon names instead of silently omitting them from the result map.
+
+**Consequences:** Any *new* caller of `TaxonRepository.findByIds()` (directly or via
+`DefaultTaxonPort.indexById()`) must explicitly decide and pass its own `activeOnly` filtering
+intent — the method itself is now a plain by-id lookup with no built-in soft-delete exclusion.
+`TaxonRepositoryTest.findByIds_excludesSoftDeletedRows` (improvement-045) was rewritten to
+`findByIds_includesSoftDeletedRows`, asserting the new contract.

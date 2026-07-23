@@ -12,6 +12,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.ost.platform.audit.api.AuditableSnapshot.diffField;
 import static org.ost.platform.audit.api.AuditableSnapshot.field;
 import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -38,13 +39,9 @@ public record AdvertisementSnapshotDto(
     public List<ChangeEntry> diff(AuditableSnapshot previous) {
         AdvertisementSnapshotDto prev = previous instanceof AdvertisementSnapshotDto p ? p : null;
         List<ChangeEntry> changes = new ArrayList<>();
-        String prevTitle   = field(prev, AdvertisementSnapshotDto::title);
-        String prevDesc    = field(prev, AdvertisementSnapshotDto::description);
+        diffField(changes, Fields.title,       field(prev, AdvertisementSnapshotDto::title),       title());
+        diffField(changes, Fields.description, field(prev, AdvertisementSnapshotDto::description), description());
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
-        if (!Objects.equals(prevTitle, title()))
-            changes.add(new FieldChange(Fields.title, prevTitle, title()));
-        if (!Objects.equals(prevDesc, description()))
-            changes.add(new FieldChange(Fields.description, prevDesc, description()));
         if (!Objects.equals(prevIds, categoryIds()))
             changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
         return changes;

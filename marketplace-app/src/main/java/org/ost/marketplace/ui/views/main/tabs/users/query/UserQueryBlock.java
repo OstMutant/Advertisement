@@ -7,15 +7,13 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.user.dto.UserFilterDto;
 import org.ost.platform.user.model.Role;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.QueryBlock;
-import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
+import org.ost.marketplace.ui.query.elements.fields.QueryLongField;
 import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
-import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
-import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -33,105 +31,55 @@ public class UserQueryBlock extends QueryBlock<UserFilterDto> {
     @Qualifier("userSortProcessor")
     private final transient SortProcessor                  sortProcessor;
 
-    private final transient UiComponentFactory<QueryTextField>                    textFieldFactory;
-    private final transient UiComponentFactory<QueryNumberField>                  numberFieldFactory;
-    private final transient UiComponentFactory<QueryDateTimeField>                dateTimeFieldFactory;
-    private final transient UiComponentFactory<QueryMultiSelectComboField<Role>>  roleComboFactory;
-    private final transient UiComponentFactory<QueryInlineRow>                    inlineRowFactory;
-    private final transient UiComponentFactory<SortIcon>                          sortIconFactory;
+    private final transient I18nService                                            i18nService;
 
     @Getter
-    private final QueryActionBlock queryActionBlock;
+    private QueryActionBlock queryActionBlock;
 
     @PostConstruct
     private void initLayout() {
+        queryActionBlock = new QueryActionBlock(i18nService);
         addClassName("user-query-block");
         setVisible(false);
 
         // Id row
-        QueryNumberField idMinField = numberFieldFactory.build(
-                QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MIN).build());
-        QueryNumberField idMaxField = numberFieldFactory.build(
-                QueryNumberField.Parameters.builder().placeholderKey(USER_FILTER_ID_MAX).build());
-        SortIcon idSort = sortIconFactory.get();
-        QueryInlineRow idRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_ID).sortIcon(idSort)
-                        .filterField(idMinField).filterField(idMaxField).build());
+        QueryLongField idMinField = new QueryLongField(
+                i18nService.get(USER_FILTER_ID_MIN), i18nService.get(USER_FILTER_ID_INVALID_NUMBER));
+        QueryLongField idMaxField = new QueryLongField(
+                i18nService.get(USER_FILTER_ID_MAX), i18nService.get(USER_FILTER_ID_INVALID_NUMBER));
+        filterRow(i18nService, i18nService.get(USER_SORT_ID), idMinField, idMaxField,
+                UserSortMeta.ID, UserFilterMeta.ID_MIN, UserFilterMeta.ID_MAX);
 
         // Name row
-        QueryTextField nameField = textFieldFactory.build(
-                QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_NAME_PLACEHOLDER).build());
-        SortIcon nameSort = sortIconFactory.get();
-        QueryInlineRow nameRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_NAME).sortIcon(nameSort).filterField(nameField).build());
+        QueryTextField nameField = new QueryTextField(i18nService.get(USER_FILTER_NAME_PLACEHOLDER));
+        filterRow(i18nService, i18nService.get(USER_SORT_NAME), nameField, UserSortMeta.NAME, UserFilterMeta.NAME);
 
         // Email row
-        QueryTextField emailField = textFieldFactory.build(
-                QueryTextField.Parameters.builder().placeholderKey(USER_FILTER_EMAIL_PLACEHOLDER).build());
-        SortIcon emailSort = sortIconFactory.get();
-        QueryInlineRow emailRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_EMAIL).sortIcon(emailSort).filterField(emailField).build());
+        QueryTextField emailField = new QueryTextField(i18nService.get(USER_FILTER_EMAIL_PLACEHOLDER));
+        filterRow(i18nService, i18nService.get(USER_SORT_EMAIL), emailField, UserSortMeta.EMAIL, UserFilterMeta.EMAIL);
 
         // Role row
-        QueryMultiSelectComboField<Role> roleField = roleComboFactory.build(
-                QueryMultiSelectComboField.Parameters.<Role>builder()
-                        .placeholderKey(USER_FILTER_ROLE_ANY).items(Role.values()).build());
-        SortIcon roleSort = sortIconFactory.get();
-        QueryInlineRow roleRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_ROLE).sortIcon(roleSort).filterField(roleField).build());
+        QueryMultiSelectComboField<Role> roleField =
+                new QueryMultiSelectComboField<>(i18nService.get(USER_FILTER_ROLE_ANY), Role.values());
+        filterRow(i18nService, i18nService.get(USER_SORT_ROLE), roleField, UserSortMeta.ROLE, UserFilterMeta.ROLES);
 
         // Created date row
-        QueryDateTimeField createdStart = dateTimeFieldFactory.build(
-                QueryDateTimeField.Parameters.builder()
-                        .datePlaceholderKey(USER_FILTER_DATE_CREATED_START)
-                        .timePlaceholderKey(USER_FILTER_TIME_CREATED_START).build());
-        QueryDateTimeField createdEnd = dateTimeFieldFactory.build(
-                QueryDateTimeField.Parameters.builder()
-                        .datePlaceholderKey(USER_FILTER_DATE_CREATED_END)
-                        .timePlaceholderKey(USER_FILTER_TIME_CREATED_END).isEnd(true).build());
-        SortIcon createdSort = sortIconFactory.get();
-        QueryInlineRow createdRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_CREATED).sortIcon(createdSort)
-                        .filterField(createdStart).filterField(createdEnd).build());
+        QueryDateTimeField createdStart = new QueryDateTimeField(
+                i18nService.get(USER_FILTER_DATE_CREATED_START), i18nService.get(USER_FILTER_TIME_CREATED_START), false);
+        QueryDateTimeField createdEnd = new QueryDateTimeField(
+                i18nService.get(USER_FILTER_DATE_CREATED_END), i18nService.get(USER_FILTER_TIME_CREATED_END), true);
+        filterRow(i18nService, i18nService.get(USER_SORT_CREATED), createdStart, createdEnd,
+                UserSortMeta.CREATED_AT, UserFilterMeta.CREATED_AT_START, UserFilterMeta.CREATED_AT_END);
 
         // Updated date row
-        QueryDateTimeField updatedStart = dateTimeFieldFactory.build(
-                QueryDateTimeField.Parameters.builder()
-                        .datePlaceholderKey(USER_FILTER_DATE_UPDATED_START)
-                        .timePlaceholderKey(USER_FILTER_TIME_UPDATED_START).build());
-        QueryDateTimeField updatedEnd = dateTimeFieldFactory.build(
-                QueryDateTimeField.Parameters.builder()
-                        .datePlaceholderKey(USER_FILTER_DATE_UPDATED_END)
-                        .timePlaceholderKey(USER_FILTER_TIME_UPDATED_END).isEnd(true).build());
-        SortIcon updatedSort = sortIconFactory.get();
-        QueryInlineRow updatedRow = inlineRowFactory.build(
-                QueryInlineRow.Parameters.builder()
-                        .labelKey(USER_SORT_UPDATED).sortIcon(updatedSort)
-                        .filterField(updatedStart).filterField(updatedEnd).build());
+        QueryDateTimeField updatedStart = new QueryDateTimeField(
+                i18nService.get(USER_FILTER_DATE_UPDATED_START), i18nService.get(USER_FILTER_TIME_UPDATED_START), false);
+        QueryDateTimeField updatedEnd = new QueryDateTimeField(
+                i18nService.get(USER_FILTER_DATE_UPDATED_END), i18nService.get(USER_FILTER_TIME_UPDATED_END), true);
+        filterRow(i18nService, i18nService.get(USER_SORT_UPDATED), updatedStart, updatedEnd,
+                UserSortMeta.UPDATED_AT, UserFilterMeta.UPDATED_AT_START, UserFilterMeta.UPDATED_AT_END);
 
-        add(idRow, nameRow, emailRow, roleRow, createdRow, updatedRow, queryActionBlock);
-
-        sortProcessor.register(UserSortMeta.ID,         idSort,      queryActionBlock);
-        sortProcessor.register(UserSortMeta.NAME,       nameSort,    queryActionBlock);
-        sortProcessor.register(UserSortMeta.EMAIL,      emailSort,   queryActionBlock);
-        sortProcessor.register(UserSortMeta.ROLE,       roleSort,    queryActionBlock);
-        sortProcessor.register(UserSortMeta.CREATED_AT, createdSort, queryActionBlock);
-        sortProcessor.register(UserSortMeta.UPDATED_AT, updatedSort, queryActionBlock);
-
-        filterProcessor.register(UserFilterMeta.ID_MIN,           idMinField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ID_MAX,           idMaxField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.NAME,             nameField,    queryActionBlock);
-        filterProcessor.register(UserFilterMeta.EMAIL,            emailField,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.ROLES,            roleField,    queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_START, createdStart, queryActionBlock);
-        filterProcessor.register(UserFilterMeta.CREATED_AT_END,   createdEnd,   queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_START, updatedStart, queryActionBlock);
-        filterProcessor.register(UserFilterMeta.UPDATED_AT_END,   updatedEnd,   queryActionBlock);
+        add(queryActionBlock);
     }
 
 }

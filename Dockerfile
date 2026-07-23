@@ -15,6 +15,7 @@ COPY user-spring-boot-starter/pom.xml user-spring-boot-starter/
 COPY advertisement-spring-boot-starter/pom.xml advertisement-spring-boot-starter/
 COPY taxon-spring-boot-starter/pom.xml taxon-spring-boot-starter/
 COPY marketplace-app/pom.xml marketplace-app/
+COPY integration-tests/pom.xml integration-tests/
 
 # Download dependencies (this layer is cached until pom.xml changes)
 RUN chmod +x mvnw && sed -i 's/\r//' mvnw

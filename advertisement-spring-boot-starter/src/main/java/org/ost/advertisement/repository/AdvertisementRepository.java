@@ -68,6 +68,16 @@ public class AdvertisementRepository {
                 .query(ROW_MAPPER).optional();
     }
 
+    public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
+        return jdbcClient.sql("""
+                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
+                        FROM advertisement a
+                        WHERE a.created_by = :userId AND a.deleted_at IS NULL
+                        """)
+                .paramSource(new MapSqlParameterSource("userId", userId))
+                .query(ROW_MAPPER).list();
+    }
+
     public List<AdvertisementInfoDto> findByFilter(@NonNull AdvertisementFilterDto filter, @NonNull Pageable pageable,
                                                     Set<Long> allowedIds) {
         var params = new MapSqlParameterSource();
@@ -94,8 +104,16 @@ public class AdvertisementRepository {
 
     private static String buildIdClause(MapSqlParameterSource params, Set<Long> ids) {
         if (ids == null) return "";
-        params.addValue("allowedIds", ids);
-        return " AND a.id IN (:allowedIds)";
+        // A Set bound to IN (:allowedIds) makes Spring expand it into one "?" placeholder per
+        // element -- unbounded (improvement-050 item 2: a popular category could produce tens of
+        // thousands of them, hitting real parameter-count limits and defeating query-plan
+        // caching, since the SQL text itself changes shape with every different-sized set).
+        // Binding a plain array instead (not a Collection) makes Spring pass it through as a
+        // single JDBC parameter, same as the existing findExistingIds() below -- Postgres binds
+        // it natively as one bigint[] value, so the query text never changes shape regardless of
+        // how many ids are in it.
+        params.addValue("allowedIds", ids.toArray(new Long[0]));
+        return " AND a.id = ANY(:allowedIds)";
     }
 
     public void softDelete(@NonNull Long id, @NonNull Long deletedByUserId, Long version) {

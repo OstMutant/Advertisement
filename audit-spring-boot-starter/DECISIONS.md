@@ -170,15 +170,19 @@ in `marketplace-app/JacksonConfig` via `@PostConstruct registerAuditSnapshotSubt
 ---
 
 ## ADR-010: Audit decoupled from attachment via AuditActivityEnrichHook
-**Status:** Accepted
+**Status:** Accepted — see `platform-commons/DECISIONS.md` ADR-011 for the SPI-side counterpart
+of the same decision (corrected together, 2026-07-16)
 
 **Context:** The audit starter called `AttachmentAuditHook` (an `attachment.spi` interface)
 directly — starter-to-starter coupling. Marketplace is the correct orchestrator.
 
 **Decision:** `AttachmentAuditHook` removed from audit-starter. New `AuditActivityEnrichHook`
-SPI (`audit.spi`) replaces the direct attachment calls with domain-neutral method names
-(`getAdditionalChanges`, `matchesCurrent`). Marketplace implements `ActivityEnrichHookImpl`.
-Required hook injections now use plain required fields, not `ObjectProvider`.
+SPI (`audit.spi`) replaces the direct attachment calls with domain-neutral methods — current
+signature (corrected 2026-07-16, originally listed `getAdditionalChanges`/`matchesCurrent`, which
+do not exist anywhere in the codebase): `entityType()`, `merge(...)`, `enrichActivity(...)`,
+`getMediaStateForSnapshot(EntityRef, Long)`. Marketplace implements `ActivityEnrichHookImpl`.
+`AuditReadService` injects the hook list as a plain required field
+(`List<AuditActivityEnrichHook>`), not `ObjectProvider`.
 
 **Consequences:** Audit starter must never import from `attachment.*` packages.
 
@@ -437,8 +441,50 @@ All restore-capable services (currently `TaxonService.restore()`) use `captureRe
 
 ---
 
+## ADR-025: `AuditAutoConfiguration` self-registers `CleanupProperties`
+**Status:** Accepted (done 2026-07-15)
+
+**Context:** `AuditCleanupService` directly injects `CleanupProperties` (`platform-commons`,
+`@ConfigurationProperties(prefix = "app.cleanup")`), but `AuditAutoConfiguration` never declared
+`@EnableConfigurationProperties(CleanupProperties.class)` for it — unlike
+`AdvertisementAutoConfiguration`/`AttachmentAutoConfiguration` (each self-declares it because each
+directly consumes it in its own `*CleanupScheduler` bean) and `TaxonAutoConfiguration` (same
+pattern, for `TaxonProperties`). This worked silently in every context observed so far only because
+`advertisement-spring-boot-starter` or `attachment-spring-boot-starter` — both of which do
+self-declare it — happened to always be present alongside `audit-spring-boot-starter` (true in
+production: `marketplace-app/Application.java` also declares it, redundantly but harmlessly).
+Surfaced directly by `integration-tests/DECISIONS.md` ADR-009: switching that module's shared test
+config away from `@EnableAutoConfiguration` (which had been implicitly cascading in whichever
+starter's `@EnableConfigurationProperties` declaration happened to be on the classpath) to an
+explicit `@ImportAutoConfiguration` allow-list removed that accidental cover, and
+`UserServiceRestoreTest` — which boots `AuditAutoConfiguration` alone, with neither
+Advertisement nor Attachment present — failed: `Parameter 1 of constructor in AuditCleanupService
+required a bean of type CleanupProperties that could not be found`. A genuine, if previously
+untriggered, production risk: any deployment running `audit-spring-boot-starter` without
+`advertisement`/`attachment-spring-boot-starter` present would have hit the exact same failure.
+
+**Decision:** Add `@EnableConfigurationProperties(CleanupProperties.class)` directly to
+`AuditAutoConfiguration`, matching the self-sufficiency pattern every other `*CleanupScheduler`-
+owning starter already follows. Not a workaround in test configuration — the fix belongs in the
+starter that actually owns the consuming bean.
+
+**Consequences:**
+- `AuditAutoConfiguration` is now self-sufficient regardless of which other starters are present on
+  the classpath, matching `AdvertisementAutoConfiguration`/`AttachmentAutoConfiguration`/
+  `TaxonAutoConfiguration`'s existing pattern — no new asymmetry introduced, an existing one closed.
+- `CleanupProperties` is still declared in up to four places total (Advertisement, Attachment,
+  Audit, and redundantly in `marketplace-app/Application.java`) — safe, since
+  `@EnableConfigurationProperties` is idempotent across multiple declarations of the same class,
+  but worth knowing before assuming a single canonical registration point exists.
+- Verified: two consecutive full `bash scripts/integration-tests.sh --sandbox` runs, 41/41 green
+  both times, after also reinstalling this starter to `~/.m2` (it was missing from
+  `integration-tests/run.sh`'s `STARTER_MODULES` staleness-check list — added in the same change,
+  see `integration-tests/DECISIONS.md` ADR-009).
+
+---
+
 ## Deferred backlog
 
-→ [improvement-002-snapshot-schema-versioning](../features/issues/improvement-002-snapshot-schema-versioning.md)
+→ [improvement-002-snapshot-schema-versioning](../backlog/issues/improvement-002-snapshot-schema-versioning.md)
 
-→ [improvement-003-deferred-performance](../features/issues/improvement-003-deferred-performance.md)
+→ [improvement-003-deferred-performance](../backlog/issues/improvement-003-deferred-performance.md)

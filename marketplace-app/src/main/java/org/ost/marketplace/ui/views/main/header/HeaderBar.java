@@ -1,6 +1,5 @@
 package org.ost.marketplace.ui.views.main.header;
 
-import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.html.Span;
@@ -13,6 +12,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.auth.AuthContextService;
+import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.main.header.dialogs.LoginDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.LogoutDialog;
 import org.ost.marketplace.ui.views.main.header.dialogs.SignUpDialog;
@@ -82,30 +82,30 @@ public class HeaderBar extends HorizontalLayout {
         return authRow;
     }
 
-    private Button createSettingsButton() {
-        Button button = new Button(i18n.get(HEADER_SETTINGS), VaadinIcon.COG.create(),
-                _ -> settingsOverlay.openSettings());
+    private UiPrimaryButton createSettingsButton() {
+        UiPrimaryButton button = new UiPrimaryButton(i18n.get(HEADER_SETTINGS), VaadinIcon.COG.create());
+        button.addClickListener(_ -> settingsOverlay.openSettings());
         button.addClassName("header-settings-button");
         return button;
     }
 
-    private Button createLoginButton() {
-        Button loginButton = new Button(i18n.get(HEADER_LOGIN), VaadinIcon.SIGN_IN.create(),
-                _ -> loginDialog.open());
+    private UiPrimaryButton createLoginButton() {
+        UiPrimaryButton loginButton = new UiPrimaryButton(i18n.get(HEADER_LOGIN), VaadinIcon.SIGN_IN.create());
+        loginButton.addClickListener(_ -> loginDialog.open());
         loginButton.addClassName("header-login-button");
         return loginButton;
     }
 
-    private Button createSignUpButton() {
-        Button signUpButton = new Button(i18n.get(HEADER_SIGNUP), VaadinIcon.USER.create(),
-                _ -> signUpDialog.open());
+    private UiPrimaryButton createSignUpButton() {
+        UiPrimaryButton signUpButton = new UiPrimaryButton(i18n.get(HEADER_SIGNUP), VaadinIcon.USER.create());
+        signUpButton.addClickListener(_ -> signUpDialog.open());
         signUpButton.addClassName("header-signup-button");
         return signUpButton;
     }
 
-    private Button createLogoutButton() {
-        Button logoutButton = new Button(i18n.get(HEADER_LOGOUT), VaadinIcon.SIGN_OUT.create(),
-                _ -> logoutDialog.open());
+    private UiPrimaryButton createLogoutButton() {
+        UiPrimaryButton logoutButton = new UiPrimaryButton(i18n.get(HEADER_LOGOUT), VaadinIcon.SIGN_OUT.create());
+        logoutButton.addClickListener(_ -> logoutDialog.open());
         logoutButton.addClassName("header-logout-button");
         return logoutButton;
     }

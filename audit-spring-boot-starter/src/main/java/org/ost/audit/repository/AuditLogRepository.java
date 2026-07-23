@@ -31,13 +31,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actionTypes;
-import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorId;
+import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.actorIds;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.entityTypes;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.fromDate;
 import static org.ost.platform.audit.dto.AuditTimelineFilterDto.Fields.toDate;
 import static org.ost.query.filter.SqlCondition.after;
+import static org.ost.query.filter.SqlCondition.anyOf;
 import static org.ost.query.filter.SqlCondition.before;
-import static org.ost.query.filter.SqlCondition.equalsTo;
 import static org.ost.query.filter.SqlCondition.inSet;
 
 /**
@@ -63,7 +63,7 @@ public class AuditLogRepository {
     private static final Map<String, String> SORT_ALIASES = Map.of(AuditTimelineItemDto.Fields.createdAt, "al.created_at");
 
     private static final SqlFilterBuilder<AuditTimelineFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(actorId,     "al.actor_id",    (m, v) -> equalsTo(m, v.getActorId())),
+            SqlBoundFilter.of(actorIds,    "al.actor_id",    (m, v) -> anyOf(m, v.getActorIds())),
             SqlBoundFilter.of(entityTypes, "al.entity_type", (m, v) -> inSet(m, v.getEntityTypes())),
             SqlBoundFilter.of(actionTypes, "al.action_type", (m, v) -> inSet(m, v.getActionTypes())),
             SqlBoundFilter.of(fromDate,    "al.created_at",  (m, v) -> after(m, v.getFromDate())),
@@ -127,33 +127,22 @@ public class AuditLogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("limit",  size)
                 .addValue("offset", (long) page * size);
-        String innerOrderBy = OrderByBuilder.build(sort, SORT_ALIASES);
-        if (innerOrderBy.isBlank()) innerOrderBy = " ORDER BY al.created_at DESC";
-        String outerOrderBy = innerOrderBy.replace("al.", "f.");
+        String orderBy = OrderByBuilder.build(sort, SORT_ALIASES);
+        if (orderBy.isBlank()) orderBy = " ORDER BY al.created_at DESC";
         String sql = """
-                        WITH filtered AS (
-                            SELECT al.id, al.entity_type, al.entity_id, al.action_type, al.actor_id, al.created_at,
-                                   al.snapshot_data::text AS snapshot_data
-                            FROM audit_log al
-                            WHERE 1=1%s
-                            %s
-                            LIMIT :limit OFFSET :offset
+                        WITH numbered AS (
+                            SELECT id, entity_type, entity_id, action_type, actor_id, created_at,
+                                   snapshot_data::text                                                                       AS snapshot_data,
+                                   ROW_NUMBER() OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id)          AS version,
+                                   LAG(id)                  OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id) AS prev_id,
+                                   LAG(snapshot_data::text) OVER (PARTITION BY entity_type, entity_id ORDER BY created_at, id) AS prev_snapshot_data
+                            FROM audit_log
                         )
-                        SELECT f.*,
-                               (SELECT COUNT(*) FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at <= f.created_at)::int AS version,
-                               (SELECT id FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at < f.created_at
-                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_id,
-                               (SELECT snapshot_data::text FROM audit_log b
-                                WHERE b.entity_type = f.entity_type AND b.entity_id = f.entity_id
-                                  AND b.created_at < f.created_at
-                                ORDER BY b.created_at DESC LIMIT 1)      AS prev_snapshot_data
-                        FROM filtered f
+                        SELECT * FROM numbered al
+                        WHERE 1=1%s
                         %s
-                        """.formatted(FILTER.build(params, filter, " AND "), innerOrderBy, outerOrderBy);
+                        LIMIT :limit OFFSET :offset
+                        """.formatted(FILTER.build(params, filter, " AND "), orderBy);
         return jdbcClient.sql(sql).paramSource(params).query(projectionMapper).list();
     }
 
@@ -170,7 +159,7 @@ public class AuditLogRepository {
         return jdbcClient.sql("""
                         SELECT snapshot_data::text FROM audit_log
                         WHERE entity_type = :entityType AND entity_id = :entityId
-                        ORDER BY created_at DESC LIMIT 1
+                        ORDER BY created_at DESC, id DESC LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
                                  .addValue("entityType", entityType.name())
@@ -186,7 +175,7 @@ public class AuditLogRepository {
                                (SELECT COUNT(*) FROM audit_log b
                                 WHERE b.entity_type = a.entity_type
                                   AND b.entity_id   = a.entity_id
-                                  AND b.created_at <= a.created_at)::int AS version
+                                  AND (b.created_at, b.id) <= (a.created_at, a.id))::int AS version
                         FROM audit_log a
                         WHERE a.id = :id AND a.entity_type = :entityType
                         """)

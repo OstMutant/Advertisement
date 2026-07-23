@@ -8,7 +8,7 @@
 
 .reference-data-sub-tabs {
   padding: 0 1rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--app-border-default);
   flex-shrink: 0;
 }
 
@@ -40,8 +40,8 @@
 
 /* Chip */
 .taxon-row-wrapper {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
+  background: var(--app-surface-white);
+  border: 1px solid var(--app-border-default);
   border-radius: 20px;
   padding: 4px 10px 4px 14px;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -52,18 +52,18 @@
 
 .taxon-row-wrapper:hover {
   box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  border-color: #c7d2e0;
+  border-color: var(--app-border-accent);
 }
 
 /* Deleted rows — muted style, no hover */
 .taxon-row-wrapper:has(.taxon-row-deleted) {
-  background: #f8fafc;
+  background: var(--app-surface-subtle);
   border-style: dashed;
 }
 
 .taxon-row-wrapper:has(.taxon-row-deleted):hover {
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-  border-color: #e2e8f0;
+  border-color: var(--app-border-default);
 }
 
 .taxon-row {
@@ -73,18 +73,22 @@
 .taxon-row-name {
   font-size: 1rem;
   font-weight: 600;
-  color: #3b82f6;
+  color: var(--app-accent-primary);
   cursor: pointer;
   transition: color 0.15s ease;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .taxon-row-name:hover {
-  color: #1d4ed8;
+  color: var(--app-accent-primary-strong);
   text-decoration: underline;
 }
 
 .taxon-row-deleted {
-  color: #94a3b8 !important;
+  color: var(--app-text-muted) !important;
   text-decoration: line-through !important;
   cursor: default !important;
 }
@@ -92,8 +96,8 @@
 .taxon-deleted-badge {
   font-size: 0.72rem;
   font-weight: 500;
-  color: #94a3b8;
-  background: #f1f5f9;
+  color: var(--app-text-muted);
+  background: var(--app-surface-muted);
   border-radius: 20px;
   padding: 2px 8px;
   white-space: nowrap;
@@ -101,7 +105,7 @@
 
 .taxon-row-count {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   white-space: nowrap;
 }
 
@@ -148,7 +152,7 @@
   display: block;
   text-align: center;
   padding: 48px 16px;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   font-size: 0.95rem;
 }
 
@@ -158,13 +162,13 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--app-text-muted);
   margin: 16px 0 6px;
   padding: 0;
 }
 
 .taxon-locale-content + .taxon-locale-label {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--app-border-default);
   padding-top: 16px;
 }
 
@@ -173,12 +177,12 @@
   font-size: 1.15rem;
   font-weight: 600;
   margin: 12px 0 6px;
-  color: #1e293b;
+  color: var(--app-text-primary);
 }
 
 .taxon-view-description {
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--app-text-muted);
   line-height: 1.6;
   display: block;
   white-space: pre-wrap;

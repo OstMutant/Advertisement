@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +24,8 @@ import java.util.stream.Collectors;
 public class AttachmentRepository {
 
     public record MediaStats(String mainUrl, String mainContentType, int count) {}
+
+    public record DeletableAttachment(String url, String contentType) {}
 
     private static final RowMapper<Attachment> ROW_MAPPER = (rs, _) -> {
         String typeName = rs.getString("entity_type");
@@ -141,21 +145,32 @@ public class AttachmentRepository {
                          .list();
     }
 
-    public List<String> findUrlsDeletedOlderThan(int days) {
+    // includes videos too -- cleanup service decides which get an S3 delete
+    public List<DeletableAttachment> findUrlsDeletedOlderThan(int days) {
         return jdbcClient.sql("""
-                        SELECT url FROM attachment
+                        SELECT url, content_type FROM attachment
                         WHERE deleted_at < NOW() - MAKE_INTERVAL(days => :days)
-                          AND content_type NOT IN ('video/youtube', 'video/embed')
                         """)
                          .paramSource(new MapSqlParameterSource("days", days))
+                         .query((rs, _) -> new DeletableAttachment(rs.getString("url"), rs.getString("content_type")))
+                         .list();
+    }
+
+    // re-checks deleted_at + RETURNING url so a concurrently-restored row survives
+    public List<String> deleteByUrls(@NonNull List<String> urls) {
+        // Array bind, not a List -- avoids IN(:list)'s unbounded placeholder expansion (improvement-054).
+        return jdbcClient.sql("DELETE FROM attachment WHERE url = ANY(:urls) AND deleted_at IS NOT NULL RETURNING url")
+                         .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
                          .query(String.class)
                          .list();
     }
 
-    public int deleteByUrls(@NonNull List<String> urls) {
-        return jdbcClient.sql("DELETE FROM attachment WHERE url IN (:urls)")
-                         .paramSource(new MapSqlParameterSource("urls", urls))
-                         .update();
+    // Subset of urls that have a matching row (active or soft-deleted) -- used by the orphan sweep.
+    public Set<String> findExistingUrls(@NonNull Collection<String> urls) {
+        return new HashSet<>(jdbcClient.sql("SELECT url FROM attachment WHERE url = ANY(:urls)")
+                         .paramSource(new MapSqlParameterSource("urls", urls.toArray(new String[0])))
+                         .query(String.class)
+                         .list());
     }
 
     public MediaStats loadMediaStats(@NonNull EntityType entityType, @NonNull Long entityId) {
@@ -163,7 +178,7 @@ public class AttachmentRepository {
                         SELECT url, content_type, COUNT(*) OVER () AS total_count
                         FROM attachment
                         WHERE entity_type = :entityType AND entity_id = :entityId AND deleted_at IS NULL
-                        ORDER BY created_at ASC
+                        ORDER BY created_at ASC, id ASC
                         LIMIT 1
                         """)
                          .paramSource(new MapSqlParameterSource()
@@ -179,7 +194,7 @@ public class AttachmentRepository {
                         SELECT entity_id, url, content_type, cnt FROM (
                             SELECT entity_id, url, content_type,
                                    COUNT(*) OVER (PARTITION BY entity_id) AS cnt,
-                                   ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC) AS rn
+                                   ROW_NUMBER() OVER (PARTITION BY entity_id ORDER BY created_at ASC, id ASC) AS rn
                             FROM attachment
                             WHERE entity_type = :entityType AND entity_id = ANY(:entityIds) AND deleted_at IS NULL
                         ) ranked

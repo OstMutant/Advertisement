@@ -127,6 +127,50 @@ scripts\playwright.bat e2e --ux         # Windows
 
 ---
 
+## unit-tests.sh / unit-tests.bat
+
+Run plain JUnit 5 unit tests — no Docker, no Testcontainers, no real database (`query-lib`,
+`marketplace-app`'s non-UI service layer). Delegates to `scripts/unit-tests/run.sh`.
+
+```bash
+bash scripts/unit-tests.sh                       # all plain unit tests (query-lib + marketplace-app)
+bash scripts/unit-tests.sh marketplace-app       # one module only
+bash scripts/unit-tests.sh AccessEvaluatorTest   # one test class by name
+scripts\unit-tests.bat                           # Windows
+```
+
+Reports after each run: `scripts/unit-tests/reports/run.log` (full output) and
+`scripts/unit-tests/reports/surefire/<module>/` (pass/fail per test class, split by module). For
+Testcontainers-based repository tests against a real Postgres, use `integration-tests.sh` below
+instead.
+
+---
+
+## integration-tests.sh / integration-tests.bat
+
+Run Testcontainers-based repository tests + fixtures (module `integration-tests` — owns every
+such test for every starter, so starters carry none themselves). Delegates to
+`integration-tests/run.sh`.
+
+```bash
+bash scripts/integration-tests.sh                          # all integration tests
+bash scripts/integration-tests.sh smoke                    # just PostgresContainerSmokeTest
+bash scripts/integration-tests.sh AdvertisementRepositoryTest  # one class by name
+bash scripts/integration-tests.sh --sandbox smoke          # + this sandbox's Docker workarounds
+bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check
+scripts\integration-tests.bat --sandbox                    # Windows
+```
+
+Reports after each run: `integration-tests/reports/run.log` (full output) and
+`integration-tests/reports/surefire/` (pass/fail per test class). `--sandbox` is only needed in
+the claude-dev sandbox (dynamic Testcontainers ports aren't reachable there) — omit it on a normal
+developer machine. `run.sh` auto-detects whether the starter modules it depends on changed since
+their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min walking the full
+reactor every time) — no manual flag needed. `--no-check` skips that detection entirely, testing
+against whatever's already in `~/.m2`; see `integration-tests/CLAUDE.md` for the full rule.
+
+---
+
 ## sonar.sh / sonar.bat
 
 Run SonarQube analysis. Starts SonarQube automatically if not running. Delegates to `scripts/sonar/run.sh`.

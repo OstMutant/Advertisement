@@ -20,7 +20,7 @@
 
 **File:** `/app/user-spring-boot-starter/src/main/java/org/ost/user/spi/UserPortImpl.java`
 
-→ [violation-004-userportimpl-mapping-logic](../../features/completed/issues/violation-004-userportimpl-mapping-logic.md) (completed)
+→ [violation-004-userportimpl-mapping-logic](../../backlog/completed/issues/violation-004-userportimpl-mapping-logic.md) (completed)
 
 ---
 
@@ -105,7 +105,7 @@ Advertisement entity has foreign key to user_information:
 -- /app/advertisement-spring-boot-starter/src/main/resources/db/advertisement-changelog/changes/01-advertisement-schema.xml
 ALTER TABLE advertisement
 ADD CONSTRAINT fk_advertisement_created_by
-FOREIGN KEY (created_by_user_id)
+FOREIGN KEY (created_by)
 REFERENCES user_information(id) ON DELETE RESTRICT;
 ```
 
@@ -141,7 +141,7 @@ resized every other logged-in user's live grid.
 
 **File:** `/app/marketplace-app/src/main/java/org/ost/marketplace/ui/views/services/pagination/SettingsPaginationService.java`
 
-→ [improvement-018](../../features/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md) (completed)
+→ [improvement-018](../../backlog/completed/issues/improvement-018-settings-pagination-cross-session-bleed.md) (completed)
 
 ---
 
@@ -176,7 +176,7 @@ instantiation and throws `UnsatisfiedDependencyException`. Attachment and audit 
 therefore effectively mandatory today, despite `<optional>true</optional>` in
 advertisement-spring-boot-starter's pom.xml.
 
-→ Tracked in [improvement-011](../../features/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
+→ Tracked in [improvement-011](../../backlog/issues/improvement-011-unguarded-port-injection-in-ui-components.md)
 with two resolution options (make degradation real via `ComponentFactory` +
 `@ConditionalOnBean`, or drop `<optional>` and the degradation clause).
 

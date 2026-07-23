@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-14 · 48 passed · 0 failed · 0 skipped · 48 total
+Last updated: 2026-07-23 · 49 passed · 0 failed · 0 skipped · 49 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -36,7 +36,7 @@ Last updated: 2026-07-14 · 48 passed · 0 failed · 0 skipped · 48 total
 - [x] Promotion flow › moderatorUk — first login in English, switches to Ukrainian locale
 - [x] Promotion flow › adminEn edits userEn name — activity diff, grid updated, restore reverts name, userEn relogin after edit
 - [x] Promotion flow › adminEn creates categories Electronics and Vehicles — both in list, create discard clears form
-- [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity
+- [x] Promotion flow › adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted
 - [x] Max-boundary users and categories › maxEn signs up — 100-char name accepted, admin verifies user created
 - [x] Max-boundary users and categories › maxUk signs up — 100-char name accepted, admin verifies user created
 - [x] Max-boundary users and categories › adminEn seeds 10 boundary categories — for max category selection in spec 04
@@ -63,16 +63,21 @@ Last updated: 2026-07-14 · 48 passed · 0 failed · 0 skipped · 48 total
 ## e2e/05-seed-filter-sort-pagination.spec.js
 
 **› e2e/05-seed-filter-sort-pagination.spec.js**
-- [x] Seed data and query validation › seed 50 users — parallel signup
-- [x] Seed data and query validation › adminEn seeds 50 advertisements — five categories
+- [x] Seed data and query validation › seed 60 users — parallel signup
+- [x] Seed data and query validation › adminEn seeds 60 advertisements — five categories
 - [x] Seed data and query validation › advertisements — title, date and category filters, column sort, pagination
-- [x] Seed data and query validation › users — email, role and date filters, column sort, pagination
+- [x] Seed data and query validation › users — email, role and date filters, invalid fractional ID input, column sort, pagination
 - [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
-- [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, actor filter, pagination
+- [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination
 
 ## e2e/06-marketplace-delete-flow.spec.js
 
 **› e2e/06-marketplace-delete-flow.spec.js**
 - [x] Delete flow › userEn deletes advertisement — cancel keeps card, confirm removes card and shrinks list
 - [x] Delete flow › adminEn deletes user — cancel keeps row, confirm removes row and shrinks grid
+
+## e2e/07-accessibility.spec.js
+
+**› e2e/07-accessibility.spec.js**
+- [x] Accessibility — icon-only controls have accessible names › adminEn — no unlabeled icon-only buttons across all main tabs
 

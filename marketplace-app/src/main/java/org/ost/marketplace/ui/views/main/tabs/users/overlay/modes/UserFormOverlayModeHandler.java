@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.main.tabs.users.overlay.modes;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.data.validator.StringLengthValidator;
 import com.vaadin.flow.data.value.ValueChangeMode;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -27,6 +25,7 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.BeforeUnloadUtil;
 import org.ost.marketplace.ui.views.components.fields.UiComboBox;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.buttons.UiTertiaryButton;
@@ -69,17 +68,14 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private final UiComponentFactory<OverlayFormBinder<UserEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                        auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>             auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                   cancelButtonFactory;
-    private final UiTextField                                           nameField;
-    private final UiComboBox<Role>                                      roleComboBox;
-    private final UiPrimaryButton                                       saveButton;
-    private final UiTertiaryButton                                      discardButton;
 
     private Parameters params;
-    private Tabs       formTabs;
-    private Tab        editTab;
     @Getter
     private UserDto    savedUser;
+    private UiPrimaryButton  saveButton;
+    private UiTertiaryButton discardButton;
+    private UiTextField     nameField;
+    private UiComboBox<Role> roleComboBox;
 
     @Override
     public UserFormOverlayModeHandler configure(Parameters p) {
@@ -89,27 +85,15 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     @Override
     public void activate(OverlayLayout layout) {
-        nameField.configure(UiTextField.Parameters.builder()
-                .labelKey(USER_DIALOG_FIELD_NAME_LABEL)
-                .placeholderKey(USER_DIALOG_FIELD_NAME_PLACEHOLDER)
-                .maxLength(255)
-                .required(true)
-                .build());
+        nameField = new UiTextField(getValue(USER_DIALOG_FIELD_NAME_LABEL), getValue(USER_DIALOG_FIELD_NAME_PLACEHOLDER),
+                255, true, USER_DIALOG_FIELD_NAME_LABEL.toTestId());
 
-        roleComboBox.configure(UiComboBox.Parameters.<Role>builder()
-                .labelKey(USER_DIALOG_FIELD_ROLE_LABEL)
-                .items(Arrays.asList(Role.values()))
-                .required(true)
-                .build());
+        roleComboBox = new UiComboBox<>(getValue(USER_DIALOG_FIELD_ROLE_LABEL), Arrays.asList(Role.values()),
+                true, USER_DIALOG_FIELD_ROLE_LABEL.toTestId());
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_SAVE).build());
-        discardButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(FORM_DISCARD_CHANGES).build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(USER_DIALOG_BUTTON_CANCEL)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(USER_DIALOG_BUTTON_SAVE));
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
+        UiIconButton closeBtn = new UiIconButton(getValue(USER_DIALOG_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());
@@ -129,18 +113,17 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
         Div editContent = new Div(fieldsCard);
 
-        Div content = auditPortFactory.findIfAvailable()
-                .filter(_ -> access.canOperate(params.getUser().id()))
-                .map(_ -> {
-                    editTab = new Tab(getValue(USER_DIALOG_SECTION_LABEL));
-                    Tab activityTab = new Tab(getValue(USER_ACTIVITY_TAB));
-                    formTabs = new Tabs(editTab, activityTab);
-                    formTabs.addClassName("user-form-tabs");
-                    Div result = buildTabbedContent(formTabs, editTab, editContent, this::buildActivityContent);
-                    tabbedSecondaryContent.addClassName("activity-feed-content");
-                    return result;
-                })
-                .orElse(editContent);
+        Div content = buildContentWithActivity(ActivityTabParams.builder()
+                .canOperate(access.canOperate(params.getUser().id()))
+                .isCreateMode(false)
+                .editTabLabel(getValue(USER_DIALOG_SECTION_LABEL))
+                .activityTabLabel(getValue(USER_ACTIVITY_TAB))
+                .tabsCssClass("user-form-tabs")
+                .secondaryContentCssClass("activity-feed-content")
+                .editContent(editContent)
+                .auditPortFactory(auditPortFactory)
+                .activityContentLoader(this::buildActivityContent)
+                .build());
 
         layout.setContent(content);
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
@@ -174,7 +157,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private com.vaadin.flow.component.Component buildActivityContent() {
         return auditActivityPanelFactory.build(AuditActivityPanel.Parameters.builder()
                 .entityRef(new EntityRef(EntityType.USER, params.getUser().id()))
-                .userId(params.getUser().id())
+                .userId(access.getCurrentUserId())
                 .isPrivileged(access.isPrivileged())
                 .canOperate(access.canOperate(params.getUser().id()))
                 .onRestoreRequested(this::handleRestoreFromActivity)
@@ -216,6 +199,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
     private void updateButtons(boolean hasChanges) {
         saveButton.setEnabled(hasChanges);
         discardButton.setEnabled(hasChanges);
+        BeforeUnloadUtil.sync(hasChanges);
     }
 
     private void buildBinder(UserEditDto dto) {

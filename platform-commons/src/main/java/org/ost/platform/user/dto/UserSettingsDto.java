@@ -8,7 +8,7 @@ import lombok.Value;
 import lombok.experimental.FieldNameConstants;
 
 @Value
-@Builder
+@Builder(toBuilder = true)
 @FieldNameConstants
 @JsonDeserialize(builder = UserSettingsDto.UserSettingsDtoBuilder.class)
 public class UserSettingsDto {
@@ -23,11 +23,14 @@ public class UserSettingsDto {
     @Builder.Default
     int timelinePageSize = 20;
 
+    long version;
+
     public static UserSettingsDto defaultSettings() {
         return UserSettingsDto.builder()
                 .adsPageSize(20)
                 .usersPageSize(20)
                 .timelinePageSize(20)
+                .version(0)
                 .build();
     }
 

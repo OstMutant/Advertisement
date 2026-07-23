@@ -29,7 +29,7 @@ Starters own their own Liquibase changelogs — never merge into a shared file.
 
 - No Vaadin dependency. No UI code here.
 - `AdvertisementPort` lives in `platform-commons`.
-- `@EnableJdbcRepositories(basePackages = "org.ost.advertisement")` declared in `AdvertisementAutoConfiguration`.
+- `@EnableJdbcRepositories(basePackages = "org.ost.advertisement.repository")` declared in `AdvertisementAutoConfiguration`.
 - `AdvertisementPortImpl` is pure delegation — no business logic inside the port.
 - `AdvertisementService` depends on `ComponentFactory<TaxonPort>` — category assignment is optional (guard via `taxonPortFactory.ifAvailable(...)`).
 - `AdvertisementService` also depends on `ComponentFactory<UserPort>` for author name/email

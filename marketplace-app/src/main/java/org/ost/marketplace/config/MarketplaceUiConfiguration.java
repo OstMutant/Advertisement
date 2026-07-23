@@ -2,6 +2,9 @@ package org.ost.marketplace.config;
 
 import jakarta.validation.Validator;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGallery;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentLightbox;
+import org.ost.marketplace.ui.views.components.attachment.AttachmentThumbnail;
+import org.ost.marketplace.ui.views.components.attachment.CardLightboxViewer;
 import org.ost.marketplace.ui.views.components.attachment.CardMediaLightbox;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityListRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditActivityPanel;
@@ -10,14 +13,7 @@ import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineRowRenderer;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
-import org.ost.marketplace.ui.query.elements.SortIcon;
-import org.ost.marketplace.ui.query.elements.SvgIcon;
-import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.UserPickerField;
-import org.ost.marketplace.ui.query.elements.fields.QueryMultiSelectComboField;
-import org.ost.marketplace.ui.query.elements.fields.QueryNumberField;
-import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
-import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
 import org.ost.marketplace.ui.query.filter.ValidationService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -80,46 +76,25 @@ public class MarketplaceUiConfiguration {
         return new UiComponentFactory<>(p);
     }
 
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<CardLightboxViewer> cardLightboxViewerFactory(ObjectProvider<CardLightboxViewer> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<AttachmentThumbnail> attachmentThumbnailFactory(ObjectProvider<AttachmentThumbnail> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<AttachmentLightbox> attachmentLightboxFactory(ObjectProvider<AttachmentLightbox> p) {
+        return new UiComponentFactory<>(p);
+    }
+
     // ── Query UI factories ────────────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<QueryTextField> queryTextFieldFactory(ObjectProvider<QueryTextField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<QueryDateTimeField> queryDateTimeFieldFactory(ObjectProvider<QueryDateTimeField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<QueryNumberField> queryNumberFieldFactory(ObjectProvider<QueryNumberField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    @SuppressWarnings("rawtypes")
-    public UiComponentFactory<QueryMultiSelectComboField> queryMultiSelectComboFieldFactory(ObjectProvider<QueryMultiSelectComboField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
     public UiComponentFactory<UserPickerField> userPickerFieldFactory(ObjectProvider<UserPickerField> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<QueryInlineRow> queryInlineRowFactory(ObjectProvider<QueryInlineRow> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<SortIcon> sortIconFactory(ObjectProvider<SortIcon> p) {
-        return new UiComponentFactory<>(p);
-    }
-
-    @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<SvgIcon> svgIconFactory(ObjectProvider<SvgIcon> p) {
         return new UiComponentFactory<>(p);
     }
 }

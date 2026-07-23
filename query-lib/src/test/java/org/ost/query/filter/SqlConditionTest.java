@@ -22,12 +22,36 @@ class SqlConditionTest {
         assertThat(condition).isNotNull();
         assertThat(condition.value()).isEqualTo("%hello%");
         assertThat(condition.operator()).isEqualTo(SqlOperator.LIKE_IGNORE_CASE);
-        assertThat(condition.getConditionClause()).isEqualTo("a.title ILIKE :title");
+        assertThat(condition.getConditionClause()).isEqualTo("a.title ILIKE :title ESCAPE '\\'");
     }
 
     @Test
     void like_null_returnsNull() {
         assertThat(SqlCondition.like(MAPPING, null)).isNull();
+    }
+
+    @Test
+    void like_percentInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "100%");
+        assertThat(condition.value()).isEqualTo("%100\\%%");
+    }
+
+    @Test
+    void like_underscoreInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "a_b");
+        assertThat(condition.value()).isEqualTo("%a\\_b%");
+    }
+
+    @Test
+    void like_backslashInValue_isEscaped() {
+        var condition = SqlCondition.like(MAPPING, "a\\b");
+        assertThat(condition.value()).isEqualTo("%a\\\\b%");
+    }
+
+    @Test
+    void like_mixedMetacharacters_areAllEscaped() {
+        var condition = SqlCondition.like(MAPPING, "50%_off\\now");
+        assertThat(condition.value()).isEqualTo("%50\\%\\_off\\\\now%");
     }
 
     // ── equalsTo ──────────────────────────────────────────────────────────────
@@ -112,6 +136,27 @@ class SqlConditionTest {
     void inSet_nullSet_returnsNull() {
         Set<Role> roles = null;
         assertThat(SqlCondition.inSet(MAPPING, roles)).isNull();
+    }
+
+    // ── anyOf ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void anyOf_nonEmpty_returnsConditionWithArrayValueAndAnyOfOperator() {
+        var condition = SqlCondition.anyOf(MAPPING, Set.of(1L, 2L, 3L));
+        assertThat(condition).isNotNull();
+        assertThat(condition.operator()).isEqualTo(SqlOperator.ANY_OF);
+        assertThat(condition.value()).containsExactlyInAnyOrder(1L, 2L, 3L);
+        assertThat(condition.getConditionClause()).isEqualTo("a.title = ANY(:title)");
+    }
+
+    @Test
+    void anyOf_emptySet_returnsNull() {
+        assertThat(SqlCondition.anyOf(MAPPING, Set.of())).isNull();
+    }
+
+    @Test
+    void anyOf_nullSet_returnsNull() {
+        assertThat(SqlCondition.anyOf(MAPPING, null)).isNull();
     }
 
     // ── getConditionClause ────────────────────────────────────────────────────

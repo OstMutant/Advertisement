@@ -20,7 +20,7 @@ import java.util.Set;
 @ValidRange(start = "fromDate", end = "toDate", message = "fromDate must not be after toDate")
 public class AuditTimelineFilterDto {
 
-    private Long actorId;
+    private Set<Long> actorIds;
     private Set<EntityType> entityTypes;
     private Set<ActionType> actionTypes;
     private Instant fromDate;

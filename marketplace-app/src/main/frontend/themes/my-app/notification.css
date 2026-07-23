@@ -1,0 +1,10 @@
+/* Close button icon color must track the notification's own text color (white for LUMO_ERROR/
+   LUMO_SUCCESS variants), not UiIconButton's default tertiary-theme icon color (Lumo primary
+   blue) -- otherwise it reads as a mismatched blue icon on a red/green background. */
+.notification-close-btn {
+    color: var(--app-surface-white);
+}
+
+.notification-close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+}

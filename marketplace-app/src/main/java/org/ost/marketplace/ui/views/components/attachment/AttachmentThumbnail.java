@@ -6,44 +6,55 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Image;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.spring.annotation.SpringComponent;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.dto.TempAttachmentDto;
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
 import org.ost.platform.attachment.util.YoutubeUtil;
+import org.springframework.context.annotation.Scope;
 
-class AttachmentThumbnail extends Div {
+import static org.ost.marketplace.services.i18n.I18nKey.*;
 
-    private AttachmentThumbnail() {
+@SpringComponent
+@Scope("prototype")
+@RequiredArgsConstructor
+public class AttachmentThumbnail extends Div {
+
+    private final transient I18nService i18nService;
+
+    @PostConstruct
+    void init() {
         addClassName("attachment-gallery__item");
     }
 
-    static AttachmentThumbnail forView(AttachmentItemDto a, Runnable onClick) {
-        AttachmentThumbnail t = new AttachmentThumbnail();
+    AttachmentThumbnail configureForView(AttachmentItemDto a, Runnable onClick) {
         Image img = buildImage(a.contentType(), a.url(), a.filename());
         img.addClickListener(_ -> onClick.run());
-        t.add(img);
+        add(img);
         if (AttachmentMediaContentType.isVideo(a.contentType())) {
             Icon play = playIcon();
             play.addClickListener(_ -> onClick.run());
-            t.add(play);
+            add(play);
         }
-        return t;
+        return this;
     }
 
-    static AttachmentThumbnail forEdit(AttachmentItemDto a, Runnable onDelete) {
-        AttachmentThumbnail t = new AttachmentThumbnail();
-        t.add(buildImage(a.contentType(), a.url(), a.filename()));
-        if (AttachmentMediaContentType.isVideo(a.contentType())) t.add(playIcon());
-        t.add(deleteButton(t, onDelete));
-        return t;
+    AttachmentThumbnail configureForEdit(AttachmentItemDto a, Runnable onDelete) {
+        add(buildImage(a.contentType(), a.url(), a.filename()));
+        if (AttachmentMediaContentType.isVideo(a.contentType())) add(playIcon());
+        add(deleteButton(onDelete));
+        return this;
     }
 
-    static AttachmentThumbnail forTemp(TempAttachmentDto temp, Runnable onDelete) {
-        AttachmentThumbnail t = new AttachmentThumbnail();
-        t.add(buildImage(temp.contentType(), temp.tempUrl(), temp.filename()));
-        if (AttachmentMediaContentType.isVideo(temp.contentType())) t.add(playIcon());
-        t.add(deleteButton(t, onDelete));
-        return t;
+    AttachmentThumbnail configureForTemp(TempAttachmentDto temp, Runnable onDelete) {
+        add(buildImage(temp.contentType(), temp.tempUrl(), temp.filename()));
+        if (AttachmentMediaContentType.isVideo(temp.contentType())) add(playIcon());
+        add(deleteButton(onDelete));
+        return this;
     }
 
     private static Image buildImage(String contentType, String url, String alt) {
@@ -52,13 +63,14 @@ class AttachmentThumbnail extends Div {
         return img;
     }
 
-    private static Button deleteButton(Div self, Runnable onDelete) {
-        Button btn = new Button(VaadinIcon.CLOSE_SMALL.create(), _ -> {
-            self.removeFromParent();
+    private Button deleteButton(Runnable onDelete) {
+        UiIconButton btn = new UiIconButton(i18nService.get(ATTACHMENT_GALLERY_REMOVE_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
+        btn.addThemeVariants(ButtonVariant.LUMO_ERROR);
+        btn.addClassName("attachment-gallery__delete-btn");
+        btn.addClickListener(_ -> {
+            this.removeFromParent();
             onDelete.run();
         });
-        btn.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_ICON);
-        btn.addClassName("attachment-gallery__delete-btn");
         return btn;
     }
 
