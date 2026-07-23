@@ -4,11 +4,7 @@ import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.shared.Registration;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
-import org.ost.marketplace.ui.core.Initialization;
-import org.springframework.context.annotation.Scope;
+import org.ost.marketplace.services.i18n.I18nService;
 
 import java.util.Objects;
 
@@ -16,10 +12,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.ACTIONS_APPLY_TOOLTIP;
 import static org.ost.marketplace.services.i18n.I18nKey.ACTIONS_CLEAR_TOOLTIP;
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDirtyOrClean;
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor
-public class QueryActionBlock extends HorizontalLayout implements QueryActionBlockHandler, Initialization<QueryActionBlock> {
+public class QueryActionBlock extends HorizontalLayout implements QueryActionBlockHandler {
 
     private final QueryActionButton applyButton;
     private final QueryActionButton clearButton;
@@ -27,26 +20,14 @@ public class QueryActionBlock extends HorizontalLayout implements QueryActionBlo
     private Registration applyButtonListener;
     private Registration clearButtonListener;
 
-    @Override
-    @PostConstruct
-    public QueryActionBlock init() {
-        applyButton.configure(QueryActionButton.Parameters.builder()
-                .svgPath("apply.svg")
-                .tooltipKey(ACTIONS_APPLY_TOOLTIP)
-                .variant(ButtonVariant.LUMO_PRIMARY)
-                .build());
-
-        clearButton.configure(QueryActionButton.Parameters.builder()
-                .svgPath("clear.svg")
-                .tooltipKey(ACTIONS_CLEAR_TOOLTIP)
-                .variant(ButtonVariant.LUMO_TERTIARY)
-                .build());
+    public QueryActionBlock(I18nService i18nService) {
+        applyButton = new QueryActionButton("apply.svg", i18nService.get(ACTIONS_APPLY_TOOLTIP), ButtonVariant.LUMO_PRIMARY);
+        clearButton = new QueryActionButton("clear.svg", i18nService.get(ACTIONS_CLEAR_TOOLTIP), ButtonVariant.LUMO_TERTIARY);
 
         add(applyButton, clearButton);
         addClassName("query-action-block");
         setSpacing(false);
         setJustifyContentMode(FlexComponent.JustifyContentMode.START);
-        return this;
     }
 
     public void addEventListener(Runnable onApply, Runnable onClear) {

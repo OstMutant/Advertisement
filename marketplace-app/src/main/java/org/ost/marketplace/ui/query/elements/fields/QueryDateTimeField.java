@@ -1,57 +1,33 @@
 package org.ost.marketplace.ui.query.elements.fields;
-import org.ost.marketplace.services.i18n.I18nKey;
 
 import com.vaadin.flow.component.customfield.CustomField;
 import com.vaadin.flow.component.datepicker.DatePicker;
 import com.vaadin.flow.component.orderedlayout.FlexComponent.Alignment;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.timepicker.TimePicker;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
-import lombok.*;
-
-import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.Configurable;
-
-import org.ost.marketplace.ui.core.Initialization;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
-import org.springframework.context.annotation.Scope;
 
-import java.time.*;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 import static org.ost.marketplace.ui.query.utils.HighlighterUtil.setDefaultBorder;
 
-@SpringComponent
-@Scope("prototype")
-@SuppressWarnings("java:S110")
-public class QueryDateTimeField extends CustomField<LocalDateTime>
-        implements Configurable<QueryDateTimeField, QueryDateTimeField.Parameters>, Initialization<QueryDateTimeField> {
+public class QueryDateTimeField extends CustomField<LocalDateTime> {
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull I18nKey datePlaceholderKey;
-        @NonNull I18nKey timePlaceholderKey;
-        boolean          isEnd;
-    }
-
-    @Getter
-    private final transient I18nService i18nService;
-
-    private boolean isEnd;
+    private final boolean isEnd;
 
     private final DatePicker datePicker = new DatePicker();
     private final TimePicker timePicker = new TimePicker();
 
-    public QueryDateTimeField(I18nService i18nService) {
-        this.i18nService = i18nService;
-    }
+    public QueryDateTimeField(String datePlaceholder, String timePlaceholder, boolean isEnd) {
+        this.isEnd = isEnd;
 
-    @Override
-    @PostConstruct
-    public QueryDateTimeField init() {
         datePicker.setClearButtonVisible(true);
         timePicker.setClearButtonVisible(true);
+        datePicker.setPlaceholder(datePlaceholder);
+        timePicker.setPlaceholder(timePlaceholder);
 
         datePicker.addClassName("query-datetime-date");
         timePicker.addClassName("query-datetime-time");
@@ -64,15 +40,6 @@ public class QueryDateTimeField extends CustomField<LocalDateTime>
         layout.addClassName("query-datetime-layout");
 
         add(layout);
-        return this;
-    }
-
-    @Override
-    public QueryDateTimeField configure(Parameters p) {
-        this.isEnd = p.isEnd();
-        datePicker.setPlaceholder(i18nService.get(p.getDatePlaceholderKey()));
-        timePicker.setPlaceholder(i18nService.get(p.getTimePlaceholderKey()));
-        return this;
     }
 
     @Override

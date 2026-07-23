@@ -83,15 +83,12 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private final UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>>  formBinderFactory;
     private final ComponentFactory<AuditPort>                                  auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>                       auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                             cancelButtonFactory;
     private final OverlayAdvertisementMetaPanel                                metaPanel;
-    private final UiTextField                                                  titleField;
-    private final UiPrimaryButton                                              saveButton;
-    private final UiTertiaryButton                                             discardButton;
     private final ComponentFactory<TaxonPort>                                  taxonPortFactory;
     private final LocaleProvider                                               localeProvider;
 
     private QuillEditor descriptionField;
+    private UiTextField titleField;
 
     private Parameters                        params;
     @Getter
@@ -100,6 +97,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
+    private UiPrimaryButton                   saveButton;
+    private UiTertiaryButton                  discardButton;
 
     @Override
     public AdvertisementFormOverlayModeHandler configure(Parameters p) {
@@ -111,12 +110,8 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     public void activate(OverlayLayout layout) {
         boolean isCreate = params.getAd() == null;
 
-        titleField.configure(UiTextField.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .placeholderKey(ADVERTISEMENT_OVERLAY_FIELD_TITLE)
-                .maxLength(255)
-                .required(true)
-                .build());
+        titleField = new UiTextField(getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE), getValue(ADVERTISEMENT_OVERLAY_FIELD_TITLE),
+                255, true, ADVERTISEMENT_OVERLAY_FIELD_TITLE.toTestId());
 
         descriptionField = new QuillEditor();
         descriptionField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION));
@@ -171,20 +166,13 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             content.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         }
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_SAVE)
-                .build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_SAVE));
+        UiIconButton closeBtn = new UiIconButton(getValue(ADVERTISEMENT_OVERLAY_BUTTON_CANCEL), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         closeBtn.addClickListener(_ -> params.getOnCancel().run());
 
-        discardButton.configure(UiTertiaryButton.Parameters.builder()
-                .labelKey(FORM_DISCARD_CHANGES)
-                .build());
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
         discardButton.addClickListener(_ -> discardChanges());
         layout.setHeaderActions(new Div(saveButton, discardButton, closeBtn));
 

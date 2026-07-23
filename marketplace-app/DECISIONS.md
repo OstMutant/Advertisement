@@ -1320,7 +1320,7 @@ itself around its own Apply/Clear buttons — rather than the wider block select
   e2e --full --ux` run — 48/48 green each time.
 - `marketplace-app/CLAUDE.md`'s "Configurable prototype beans" pattern now has three more
   real-world instances of the "promote a plain class to a bean solely to inject a `UiComponentFactory`"
-  shape — if [improvement-025](../backlog/issues/improvement-025-leaf-ui-components-plain-classes.md)
+  shape — if [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
   (leaf widgets → plain classes) is picked up later, these three new beans
   (`AttachmentLightbox`/`CardLightboxViewer`/`AttachmentThumbnail`) become new candidates for
   reverting back to plain classes once `UiIconButton` itself stops being a Spring bean — flagged
@@ -2117,3 +2117,244 @@ advertisement/taxon.
   without a starter-to-starter dependency.
 - No "restore a deleted user" UI was added — out of scope for this issue; the soft-delete only
   exists to preserve the audit trail and support the cascade/cleanup ordering above.
+
+---
+
+## ADR-052: Leaf UI buttons converted from `@SpringComponent` prototype beans to plain classes (Batch 1)
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+— `UiPrimaryButton`, `UiTertiaryButton`, `UiIconButton`, `DeleteActionButton`, `EditActionButton`,
+`OverlayBreadcrumbBackButton` were all `@SpringComponent @Scope("prototype")` beans implementing
+`Configurable`/`Initialization`, even though their only real dependency was `I18nService`, used
+solely to resolve a label string at construction time — exactly the case
+`marketplace-app/CLAUDE.md`'s "When NOT to use Configurable" rule already called out. Every parent
+`ModeHandler`/`View` had to constructor-inject a `UiComponentFactory<T>` per widget just for this.
+
+**Decision:** Converted all six to plain classes with constructors taking already-resolved
+`String`/`Icon`/`Runnable` values; i18n resolution moved to the call site (`i18n.get(key)` before
+constructing). `BaseActionButton.applyConfig(BaseConfig)` (an interface used only by
+`DeleteActionButton`/`EditActionButton`) simplified to a plain
+`applyConfig(String tooltip, Runnable onClick, String cssClassName)` — the `BaseConfig` interface
+had no other consumer once its two implementers stopped needing an object shape at all. Handlers
+whose button fields were previously constructor-injected Spring beans (`SettingsFormModeHandler`,
+`AdvertisementFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `UserFormOverlayModeHandler`
+— each holding a `saveButton`/`discardButton` pair read across `activate()` and a later
+`updateButtons()` call) keep them as plain mutable fields instead, constructed once in `activate()`.
+Removed the now-empty `UiComponentFactory<T>` `@Bean` declarations from `ComponentFactoryConfig`
+for all six types.
+
+**Consequences:**
+- `UserFormOverlayModeHandler`'s constructor dropped from 13 to 10 parameters (the `cancelButtonFactory`,
+  `saveButton`, `discardButton` fields it previously took as Spring-injected beans).
+- Found and fixed an unrelated pre-existing bug while chasing a Playwright failure this batch
+  exposed: `LogoutDialog.handleLogout()` called `authService.logout()` (which invalidates the
+  HTTP session) *before* `vaadinLocaleProvider.refreshCurrentLocale(ui)` — a `@UIScope` bean read
+  immediately after, throwing `ScopeNotActiveException` and also silently falling back to the
+  default locale instead of the departing user's, since `authContextService.getCurrentUser()` was
+  already cleared. Reordered so the locale refresh runs first. Not a regression from this batch's
+  changes (neither `LogoutDialog` nor its dependencies were touched) — plain-class button
+  construction is faster than the Spring prototype-bean path it replaced, and the timing shift
+  apparently made this pre-existing race surface reliably where it previously didn't.
+- Remaining phases (fields, structural/no-dep components, `ConfirmActionDialog`) tracked as
+  Batch 2-4 in the same issue; not done in this PR.
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49) — the last one needed the `LogoutDialog` fix above to go green.
+
+---
+
+## ADR-053: Leaf UI fields converted from `@SpringComponent` prototype beans to plain classes (Batch 2)
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 2 — same rationale as ADR-052 (Batch 1, buttons), applied to `UiTextField`, `UiTextArea`,
+`UiEmailField`, `UiPasswordField`, `UiComboBox<T>`, `UiLabeledField`.
+
+**Decision:** Converted all six to plain classes. Unlike the buttons in Batch 1, these fields carry
+a `data-testid` attribute derived from `I18nKey.toTestId()` inside the old `configure()` — 61
+Playwright selectors depend on this staying byte-identical, so each new constructor takes the
+already-computed test id as an explicit `String testId` parameter (e.g.
+`new UiTextField(label, placeholder, maxLength, required, testId)`), computed at the call site via
+`SOME_KEY.toTestId()`, same value as before. `UiLabeledField` never set a `data-testid` in the
+first place — confirmed by reading its old `configure()` before converting, not assumed.
+
+Handlers whose field instances were previously constructor-injected Spring beans, read again later
+from a separate `buildBinder()` method (`AdvertisementFormOverlayModeHandler.titleField`,
+`UserFormOverlayModeHandler.nameField`/`roleComboBox`), keep them as plain mutable fields
+constructed once in `activate()` — same shape as Batch 1's `saveButton`/`discardButton`.
+`TaxonFormOverlayModeHandler`'s four locale fields (`nameEnField`/`descriptionEnField`/
+`nameUkField`/`descriptionUkField`) went further, becoming local variables of `activate()` entirely
+— verified by tracing every read: all four are only ever accessed through the `localeFields` list
+(a `LocaleField` record wrapping each pair), which *is* still a class field read from
+`buildBinder()`/`copyLocaleFields()`/etc., so the raw field references themselves never need to
+outlive `activate()`.
+
+**Consequences:**
+- Removed the `uiTextFieldFactory`/`uiEmailFieldFactory`/`uiPasswordFieldFactory`/
+  `uiLabeledFieldFactory` `@Bean` declarations from `ComponentFactoryConfig` (`UiTextArea`/
+  `UiComboBox` never had one — their sole two consumers already used direct field injection, the
+  same pattern Batch 1 found for `saveButton`/`discardButton`).
+- Verified with unit-tests (72/72), integration-tests (127/127), and Playwright e2e --full --ux
+  (49/49) — no `data-testid`-dependent selector broke.
+- Remaining phases (structural/no-dep components, `ConfirmActionDialog`) tracked as Batch 3-4 in
+  the same issue; not done in this PR.
+
+---
+
+## ADR-054: Structural leaf components (`EmptyStateView`, `DialogLayout`, `OverlayLayout`) converted to plain classes (Batch 3); `PaginationBar` deliberately kept a Spring bean
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 3 — same rationale as ADR-052/ADR-053 (Batches 1-2), applied to the remaining structural
+components with zero real service dependencies: `EmptyStateView`, `DialogLayout`, `OverlayLayout`.
+`PaginationBar` was also a Batch 3 candidate on paper (constructor already reduced to just
+`I18nService` back in Batch 1) but was deliberately excluded after review: it is read from a
+separately-invoked `refresh()` method in three different `View` classes
+(`AdvertisementsView`/`TimelineView`/`UserView`), and `TimelineViewTest` already mocks it as an
+injected collaborator through the constructor. Converting it would force `TimelineView` to gain a
+new `I18nService` constructor parameter purely to build its own `PaginationBar` internally, and
+would require rewriting the existing test to swap a mock into the field via reflection post-
+construction — a materially bigger and riskier change than this batch's other three, and not the
+"leaf without dependencies" case the issue is about. Decision, made explicitly with the user: leave
+`PaginationBar` a `@SpringComponent @Scope("prototype")` bean permanently, not deferred further.
+
+**Decision:** Converted `EmptyStateView`, `DialogLayout`, `OverlayLayout` to plain classes,
+folding their old `init()`/`configure()` split into a single constructor:
+- `EmptyStateView(VaadinIcon icon, String title, String hint)` — `AdvertisementsView.buildEmptyState()`
+  now calls `new EmptyStateView(...)` directly instead of `emptyStateFactory.build(Parameters...)`.
+- `DialogLayout()` — no-arg constructor; its three consumers (`ConfirmActionDialog`, `LoginDialog`,
+  `SignUpDialog`) changed their `private final DialogLayout layout;` field to
+  `= new DialogLayout()`, which Lombok's `@RequiredArgsConstructor` on those three classes
+  automatically excludes from the generated constructor once it has an initializer.
+- `OverlayLayout()` — no-arg constructor; its sole factory-based consumer,
+  `EntityOverlaySupport.createLayout()`, now calls `new OverlayLayout()` directly instead of
+  `overlayLayoutFactory.get()`.
+
+Removed the now-empty `emptyStateViewFactory`/`overlayLayoutFactory` `@Bean` declarations from
+`ComponentFactoryConfig`. `ConfirmActionDialog`/`LoginDialog`/`SignUpDialog`/`EntityOverlaySupport`
+themselves remain Spring beans — only the leaf `DialogLayout`/`OverlayLayout` types they hold
+changed.
+
+**Consequences:**
+- No test constructs any of these three types directly or mocks them — verified by grep before
+  converting, so no test changes were needed this batch (unlike Batch 1/2's button/field fixups).
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49).
+- Remaining phase (`ConfirmActionDialog` itself) tracked as Batch 4 in the same issue; not done in
+  this PR. `PaginationBar` is no longer tracked as a remaining phase — see decision above.
+
+---
+
+## ADR-055: `ConfirmActionDialog` converted to a plain class (Batch 4, final) — closes improvement-025; unrelated Playwright flake fixed in `fillActorPicker`'s search path
+
+**Status:** Accepted
+
+**Context:** [improvement-025](../backlog/completed/issues/improvement-025-leaf-ui-components-plain-classes.md)
+Batch 4, the last phase — `ConfirmActionDialog`'s only real dependency was `I18nService`, used
+solely to resolve `titleKey`/`confirmKey`/`cancelKey` (typed `I18nKey`) into display strings at
+`configure()` time; its `message` field was already a plain resolved `String` at every call site.
+
+**Decision:** Converted to a plain class:
+`ConfirmActionDialog(String title, String message, String confirmLabel, String cancelLabel, Runnable onConfirm)`,
+folding the old `@PostConstruct buildLayout()` + `configure(Parameters)` split into one constructor
+that calls `buildLayout(layout)` directly. `I18nKey → String` resolution moved to each of the four
+call sites (`AdvertisementCardView`/`TaxonManagementView`/`UserView`/`EntityOverlaySupport`), all of
+which already had `I18nService` on hand (either via `I18nParams.getValue()` or a direct `i18n`
+field) — same move Batch 1/2 made for buttons/fields. `BaseDialog.buildLayout()` (the niladic
+lifecycle hook, previously `abstract` and required by every subclass purely as an `@PostConstruct`
+target) changed to a no-op default method — `LoginDialog`/`SignUpDialog` still override and
+`@PostConstruct`-annotate it (they remain Spring beans, holding real dependencies like `AuthService`/
+`UserPort`), but `ConfirmActionDialog` no longer needs to implement it at all, since it calls
+`buildLayout(layout)` inline in its own constructor.
+
+Removed the now-empty `confirmActionDialogFactory` `@Bean` from `ComponentFactoryConfig`. No test
+constructs or mocks `ConfirmActionDialog` directly — verified by grep, no test changes needed.
+
+**Unrelated bug found and fixed along the way:** the first full Playwright verification run for
+this batch reproduced a pre-existing flake 3/3 times, including once against a freshly-reset
+database (`deploy.sh --reset`), ruling out stale-seed-data accumulation — confirmed the failure was
+unrelated to this batch's code by grepping `UserPickerField`'s imports (it builds its picker dialog
+from a raw `com.vaadin.flow.component.dialog.Dialog`, never `BaseDialog`/`DialogLayout`/
+`ConfirmActionDialog`). Root cause traced via the failure's stack trace and Playwright's
+`error-context.md` page snapshot to `fillActorPicker(page, MAX_ACTOR_NAME, { useSearch: true })` in
+`playwright/e2e/_flows/timeline.flow.js:143` — the `useSearch` branch (added in ADR-048 specifically
+to sidestep a virtualized-grid clipped-row race when two users, `maxEn`/`maxUk`, share an identical
+100-char boundary name) fills the picker dialog's search field and clicks its search button, but
+never waited for the resulting server-side filter round-trip before looking up the target cell —
+`cell.first().waitFor()` could grab a pre-filter row that then got detached mid-action once the
+async-filtered grid re-rendered, timing out `scrollIntoViewIfNeeded()`. Fixed by adding
+`await waitForVaadin(page);` (already imported from `filter.flow.js`, already used elsewhere in this
+same file for an analogous post-click server round-trip) right after the search button click.
+Verified fixed twice in a row: 49/49 full e2e passes, back to back.
+
+**Consequences:**
+- **improvement-025 fully closed** — all four batches done. Issue moved to
+  `backlog/completed/issues/`; `BACKLOG.md` row removed; `BACKLOG-ARCHIVE.md` entry added.
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49, confirmed twice consecutively after the `fillActorPicker` fix).
+
+---
+
+## ADR-056: `ui/query/elements/*` leaf UI components converted from `@SpringComponent` prototype beans to plain classes — sibling refactor to improvement-025, applied to the query/filter-bar tree
+
+**Status:** Accepted
+
+**Context:** [improvement-113](../backlog/completed/issues/improvement-113-query-elements-leaf-components-plain-classes.md)
+— a post-improvement-025 audit found the identical `@SpringComponent @Scope("prototype") +
+Configurable + Initialization` anti-pattern still present, untouched, in the entire
+`ui/query/elements/*` tree (the query-bar/filter-panel widget hierarchy), which improvement-025
+never covered. 8 of the remaining 21 `@Bean` declarations in `MarketplaceUiConfiguration` existed
+solely for this family.
+
+**Decision:** Converted in 6 dependency-ordered batches, each independently compiled and verified:
+
+1. **Dead code removal:** `QueryComboField<T>` and `QueryNumberField` deleted outright — both had
+   zero real construction sites anywhere in the app (confirmed by grep, not assumed), the latter
+   kept alive only by its own now-removed `@Bean` and a defensive `@Uses(QueryNumberField.class)` /
+   `@Uses(NumberField.class)` in `MainView.java` (also removed).
+2. **`SvgIcon`:** zero dependencies, `new SvgIcon(String resourcePath)`.
+3. **`SortIcon`:** the one real exception to the "resolve once, pass a `String`" template used
+   everywhere else in this issue and in improvement-025 — it re-resolves its tooltip *dynamically*
+   every time the user cycles NEUTRAL→ASC→DESC (`switchIcon()`), not just once at construction, so a
+   single pre-resolved `String` can't represent it. Resolved the same way `PaginationBar` already
+   does for this exact shape: `SortIcon(I18nService i18nService)` keeps `i18nService` as a plain
+   field and calls `.get()` internally whenever direction changes — a plain object holding a
+   reference to an already-existing singleton bean, nothing here requires `SortIcon` itself to be
+   Spring-managed. This decision was discussed and confirmed with the user before implementation.
+   Cascaded into `QueryBlock.filterRow()`'s two `SortIcon`-building overloads (swapped
+   `UiComponentFactory<SortIcon> sortIconFactory` for a plain `I18nService i18nService` parameter).
+4. **`QueryActionButton` + `QueryActionBlock`:** `QueryActionButton` takes a pre-built `SvgIcon` +
+   resolved `String` tooltip + `ButtonVariant`. `QueryActionBlock` becomes
+   `new QueryActionBlock(I18nService i18nService)`, building its two buttons (and their `SvgIcon`s)
+   internally with the two fixed, always-known tooltip keys (`ACTIONS_APPLY_TOOLTIP`/
+   `ACTIONS_CLEAR_TOOLTIP`) — never parameterized per call site to begin with.
+5. **`QueryInlineRow`:** takes a resolved `String label` instead of `I18nKey labelKey`. Cascaded
+   into `QueryBlock.filterRow()`'s `I18nKey labelKey` parameter (→ `String label`, resolved by the
+   caller) across all three overloads, and into `TimelineQueryBlock`'s one call site that built a
+   `QueryInlineRow` directly (the actor-picker row), bypassing `filterRow()` entirely.
+6. **Remaining simple fields:** `QueryTextField`, `QueryLongField`, `QueryDateTimeField`,
+   `QueryMultiSelectComboField<T>` — all straightforward "resolve once, pass a `String`"
+   conversions, same shape as improvement-025 Batch 2.
+
+`AdvertisementQueryBlock`/`TimelineQueryBlock`/`UserQueryBlock` (the three concrete `QueryBlock<T>`
+subclasses) lost every `UiComponentFactory<T>` field this family required — `TimelineQueryBlock`
+and `UserQueryBlock` gained a plain `I18nService i18nService` field in its place (`AdvertisementQueryBlock`
+already had one, for an unrelated manual categories combo). `QueryActionBlock`'s field on each
+subclass changed from constructor-injected to built once in `initLayout()`
+(`new QueryActionBlock(i18nService)`), since it's no longer a bean.
+
+**Consequences:**
+- No test constructs or mocks any of these nine converted types directly — verified by grep before
+  converting, so no test changes were needed.
+- Removed 8 now-empty `@Bean` declarations from `MarketplaceUiConfiguration`
+  (`queryTextFieldFactory`, `queryDateTimeFieldFactory`, `queryNumberFieldFactory`,
+  `queryLongFieldFactory`, `queryMultiSelectComboFieldFactory`, `queryInlineRowFactory`,
+  `sortIconFactory`, `svgIconFactory`); `userPickerFieldFactory` stays (`UserPickerField` was out of
+  scope for this issue — a `CustomField` with a real dialog/grid dependency, not a leaf widget).
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49, first try, no `fillActorPicker` flake recurrence).
+- `improvement-113` fully closed — issue moved to `backlog/completed/issues/`; `BACKLOG.md`/
+  `BACKLOG-ARCHIVE.md` updated.

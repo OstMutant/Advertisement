@@ -3,15 +3,9 @@ package org.ost.marketplace.ui.views.components.overlay;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
 import lombok.Getter;
-import org.ost.marketplace.ui.core.Initialization;
-import org.springframework.context.annotation.Scope;
 
-@SpringComponent
-@Scope("prototype")
-public class OverlayLayout extends Div implements Initialization<OverlayLayout> {
+public class OverlayLayout extends Div {
 
     @Getter
     private final Span breadcrumbCurrent = new Span();
@@ -20,9 +14,7 @@ public class OverlayLayout extends Div implements Initialization<OverlayLayout> 
     private final Div headerActions  = new Div();
     private final Div body           = new Div();
 
-    @Override
-    @PostConstruct
-    public OverlayLayout init() {
+    public OverlayLayout() {
         addClassName("overlay__inner");
 
         breadcrumbSlot.addClassName("overlay__breadcrumb-back-slot");
@@ -40,7 +32,6 @@ public class OverlayLayout extends Div implements Initialization<OverlayLayout> 
         header.addClassName("overlay__header");
 
         add(header, body);
-        return this;
     }
 
     public void setBreadcrumbButton(Component button) {

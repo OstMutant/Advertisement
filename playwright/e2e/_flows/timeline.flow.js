@@ -141,6 +141,9 @@ async function fillActorPicker(page, userName, { useSearch = false } = {}) {
     // the query panel behind it uses combo-boxes/date fields, not a plain text field).
     await page.locator('vaadin-text-field input').fill(userName);
     await page.locator('vaadin-text-field vaadin-button').click();
+    // The search is a server-side filter round-trip -- without this, the cell lookup below can
+    // grab a pre-filter row that gets detached mid-action once the filtered grid re-renders.
+    await waitForVaadin(page);
   } else {
     // The grid virtualizes rows and lazy-loads beyond its first data-provider page (Vaadin's
     // default page size is 50) — a target further down the name-sorted list won't be in the DOM

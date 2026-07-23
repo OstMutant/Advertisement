@@ -44,9 +44,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     private final AccessEvaluator                                   access;
     @Getter
     private final I18nService                                       i18nService;
-    private final UiComponentFactory<UiPrimaryButton>  primaryButtonFactory;
-    private final UiComponentFactory<UiIconButton>     iconButtonFactory;
-    private final UiComponentFactory<UiLabeledField>   labeledFieldFactory;
 
     private Parameters params;
 
@@ -112,13 +109,8 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
     @Override
     protected Div buildHeaderActions() {
-        UiPrimaryButton editButton = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder().labelKey(USER_VIEW_BUTTON_EDIT).build());
-        UiIconButton closeButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder()
-                        .labelKey(MAIN_TAB_USERS)
-                        .icon(VaadinIcon.CLOSE.create())
-                        .build());
+        UiPrimaryButton editButton = new UiPrimaryButton(getValue(USER_VIEW_BUTTON_EDIT));
+        UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_USERS), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getUser().id()));
@@ -126,10 +118,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     }
 
     private UiLabeledField field(I18nKey labelKey, String value) {
-        return labeledFieldFactory.build(
-                UiLabeledField.Parameters.builder()
-                        .labelKey(labelKey)
-                        .value(value)
-                        .build());
+        return new UiLabeledField(getValue(labelKey), value);
     }
 }

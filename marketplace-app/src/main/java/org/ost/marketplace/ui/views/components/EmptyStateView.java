@@ -4,50 +4,22 @@ import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
-import lombok.AccessLevel;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Value;
-import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.core.Initialization;
-import org.springframework.context.annotation.Scope;
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class EmptyStateView extends VerticalLayout
-        implements Configurable<EmptyStateView, EmptyStateView.Parameters>, Initialization<EmptyStateView> {
+public class EmptyStateView extends VerticalLayout {
 
-    @Value
-    @lombok.Builder
-    public static class Parameters {
-        @NonNull VaadinIcon icon;
-        @NonNull String     title;
-        @NonNull String     hint;
-    }
-
-    @Override
-    @PostConstruct
-    public EmptyStateView init() {
+    public EmptyStateView(VaadinIcon icon, String title, String hint) {
         addClassName("empty-state");
         setAlignItems(Alignment.CENTER);
-        return this;
-    }
 
-    @Override
-    public EmptyStateView configure(Parameters p) {
-        Icon icon = p.getIcon().create();
-        icon.addClassName("empty-state-icon");
+        Icon iconComponent = icon.create();
+        iconComponent.addClassName("empty-state-icon");
 
-        Span title = new Span(p.getTitle());
-        title.addClassName("empty-state-title");
+        Span titleSpan = new Span(title);
+        titleSpan.addClassName("empty-state-title");
 
-        Span hint = new Span(p.getHint());
-        hint.addClassName("empty-state-hint");
+        Span hintSpan = new Span(hint);
+        hintSpan.addClassName("empty-state-hint");
 
-        add(icon, title, hint);
-        return this;
+        add(iconComponent, titleSpan, hintSpan);
     }
 }

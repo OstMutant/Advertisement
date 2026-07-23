@@ -15,7 +15,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
-@SuppressWarnings("java:S110")
+@SuppressWarnings({"java:S110", "java:S2065"})
 public class SettingsOverlay extends AbstractEntityOverlay<SettingsFormModeHandler> {
 
     @Getter private final transient EntityOverlaySupport support;

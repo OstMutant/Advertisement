@@ -41,9 +41,7 @@ public class AdvertisementsView extends VerticalLayout {
 
     private final transient ComponentFactory<AdvertisementPort>         advertisementPortFactory;
     private final transient AdvertisementOverlay                      overlay;
-    private final transient UiComponentFactory<UiPrimaryButton>         primaryButtonFactory;
     private final transient UiComponentFactory<AdvertisementCardView>   cardViewFactory;
-    private final transient UiComponentFactory<EmptyStateView>          emptyStateFactory;
     private final transient I18nService                               i18n;
     private final transient AccessEvaluator                           access;
     private final transient LocaleProvider                            localeProvider;
@@ -126,11 +124,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private UiPrimaryButton buildAddButton() {
-        UiPrimaryButton button = primaryButtonFactory.build(
-                UiPrimaryButton.Parameters.builder()
-                        .labelKey(ADVERTISEMENT_SIDEBAR_BUTTON_ADD)
-                        .icon(VaadinIcon.PLUS.create())
-                        .build());
+        UiPrimaryButton button = new UiPrimaryButton(i18n.get(ADVERTISEMENT_SIDEBAR_BUTTON_ADD), VaadinIcon.PLUS.create());
         button.addClassName("add-advertisement-button");
         button.addClickListener(_ -> overlay.openForCreate(this::refresh));
         button.setVisible(access.isLoggedIn());
@@ -173,11 +167,7 @@ public class AdvertisementsView extends VerticalLayout {
     }
 
     private EmptyStateView buildEmptyState() {
-        return emptyStateFactory.build(
-                EmptyStateView.Parameters.builder()
-                        .icon(VaadinIcon.CLIPBOARD_TEXT)
-                        .title(i18n.get(ADVERTISEMENT_EMPTY_TITLE))
-                        .hint(i18n.get(ADVERTISEMENT_EMPTY_HINT))
-                        .build());
+        return new EmptyStateView(VaadinIcon.CLIPBOARD_TEXT,
+                i18n.get(ADVERTISEMENT_EMPTY_TITLE), i18n.get(ADVERTISEMENT_EMPTY_HINT));
     }
 }

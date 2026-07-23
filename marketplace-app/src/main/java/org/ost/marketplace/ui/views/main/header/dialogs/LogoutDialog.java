@@ -30,9 +30,10 @@ public class LogoutDialog extends ConfirmDialog {
 
     private void handleLogout() {
         UI ui = UI.getCurrent();
+        // Must run before logout() invalidates the session this UI-scoped bean depends on.
+        vaadinLocaleProvider.refreshCurrentLocale(ui);
         authService.logout();
         close();
-        vaadinLocaleProvider.refreshCurrentLocale(ui);
         ui.getPage().reload();
     }
 }

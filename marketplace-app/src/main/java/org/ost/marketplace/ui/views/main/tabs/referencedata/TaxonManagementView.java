@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
@@ -38,9 +37,6 @@ public class TaxonManagementView extends Div {
     private final NotificationService                      notificationService;
     private final AccessEvaluator                          access;
     private final TaxonOverlay                             overlay;
-    private final UiComponentFactory<ConfirmActionDialog>  confirmDialogFactory;
-    private final UiComponentFactory<UiIconButton>         iconButtonFactory;
-    private final UiComponentFactory<UiPrimaryButton>      primaryButtonFactory;
 
     private Div listContainer;
 
@@ -59,11 +55,7 @@ public class TaxonManagementView extends Div {
         try {
             listContainer.removeAll();
 
-            UiPrimaryButton addBtn = primaryButtonFactory.build(
-                    UiPrimaryButton.Parameters.builder()
-                            .labelKey(REFERENCE_DATA_BUTTON_ADD)
-                            .icon(VaadinIcon.PLUS.create())
-                            .build());
+            UiPrimaryButton addBtn = new UiPrimaryButton(i18n.get(REFERENCE_DATA_BUTTON_ADD), VaadinIcon.PLUS.create());
             addBtn.addClassName("taxon-add-button");
             addBtn.addClickListener(_ -> overlay.openForCreate(this::refresh));
             listContainer.add(addBtn);
@@ -125,23 +117,14 @@ public class TaxonManagementView extends Div {
         actions.addClassName("taxon-row-actions");
 
         if (isDeleted) {
-            UiIconButton restoreBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_RESTORE)
-                    .icon(VaadinIcon.ARROW_BACKWARD.create())
-                    .build());
+            UiIconButton restoreBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_RESTORE), VaadinIcon.ARROW_BACKWARD.create());
             restoreBtn.addClickListener(e -> doRestore(taxon));
             actions.add(restoreBtn);
         } else {
-            UiIconButton editBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_EDIT)
-                    .icon(VaadinIcon.PENCIL.create())
-                    .build());
+            UiIconButton editBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_EDIT), VaadinIcon.PENCIL.create());
             editBtn.addClickListener(e -> overlay.openForEdit(taxon, this::refresh));
 
-            UiIconButton deleteBtn = iconButtonFactory.build(UiIconButton.Parameters.builder()
-                    .labelKey(TAXON_VIEW_TOOLTIP_DELETE)
-                    .icon(VaadinIcon.TRASH.create())
-                    .build());
+            UiIconButton deleteBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_DELETE), VaadinIcon.TRASH.create());
             deleteBtn.addClickListener(e -> confirmAndDelete(taxon));
 
             actions.add(editBtn, deleteBtn);
@@ -150,23 +133,21 @@ public class TaxonManagementView extends Div {
     }
 
     private void confirmAndDelete(TaxonDto taxon) {
-        confirmDialogFactory.build(
-                ConfirmActionDialog.Parameters.builder()
-                        .titleKey(TAXON_VIEW_CONFIRM_DELETE_TITLE)
-                        .message(i18n.get(TAXON_VIEW_CONFIRM_DELETE_TEXT, taxon.getName()))
-                        .confirmKey(TAXON_VIEW_CONFIRM_DELETE_BUTTON)
-                        .cancelKey(TAXON_VIEW_CONFIRM_CANCEL_BUTTON)
-                        .onConfirm(() -> {
-                            try {
-                                taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId(), access.getCurrentUserId(), taxon.getVersion()));
-                                notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
-                                refresh();
-                            } catch (Exception e) {
-                                log.error("Error deleting taxon id={}", taxon.getId(), e);
-                                notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
-                            }
-                        })
-                        .build()
+        new ConfirmActionDialog(
+                i18n.get(TAXON_VIEW_CONFIRM_DELETE_TITLE),
+                i18n.get(TAXON_VIEW_CONFIRM_DELETE_TEXT, taxon.getName()),
+                i18n.get(TAXON_VIEW_CONFIRM_DELETE_BUTTON),
+                i18n.get(TAXON_VIEW_CONFIRM_CANCEL_BUTTON),
+                () -> {
+                    try {
+                        taxonPortFactory.ifAvailable(p -> p.softDelete(taxon.getId(), access.getCurrentUserId(), taxon.getVersion()));
+                        notificationService.success(TAXON_VIEW_NOTIFICATION_DELETED);
+                        refresh();
+                    } catch (Exception e) {
+                        log.error("Error deleting taxon id={}", taxon.getId(), e);
+                        notificationService.error(TAXON_VIEW_NOTIFICATION_DELETE_ERROR, e.getMessage());
+                    }
+                }
         ).open();
     }
 

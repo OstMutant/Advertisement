@@ -8,6 +8,16 @@ brings 14+ classes into line with an already-written rule this codebase does not
 **When:** independent, no blockers — recommended to execute in phased batches (see Suggested fix),
 not as one large PR
 
+**Progress:** DONE 2026-07-22 — all four batches complete. Batch 1 (buttons: `UiPrimaryButton`,
+`UiTertiaryButton`, `UiIconButton`, `DeleteActionButton`, `EditActionButton`,
+`OverlayBreadcrumbBackButton`) — see `marketplace-app/DECISIONS.md` ADR-052. Batch 2 (fields:
+`UiTextField`, `UiTextArea`, `UiEmailField`, `UiPasswordField`, `UiComboBox`, `UiLabeledField`) —
+see ADR-053. Batch 3 (structural/no-dep: `EmptyStateView`, `DialogLayout`, `OverlayLayout`) — see
+ADR-054. `PaginationBar` was reviewed as part of Batch 3 and deliberately kept a Spring bean
+permanently (not deferred) — see ADR-054 for why. Batch 4 (`ConfirmActionDialog`) — see ADR-055,
+which also records an unrelated pre-existing Playwright flake found and fixed in
+`fillActorPicker`'s `useSearch` path during this batch's verification.
+
 ## Problem
 
 `marketplace-app/CLAUDE.md` already states the rule these classes should follow:
@@ -206,10 +216,10 @@ batches with a full Playwright run after each, not all ~17 classes in one PR:
    blast radius, easiest to verify visually.
 2. **Batch 2 — fields:** `UiTextField`, `UiTextArea`, `UiEmailField`, `UiPasswordField`,
    `UiComboBox`, `UiLabeledField`.
-3. **Batch 3 — structural/no-dep:** `EmptyStateView`, `DialogLayout`, `OverlayLayout`,
-   `PaginationBar` (the two zero-dependency layout classes and the already-plain-constructor
-   `PaginationBar` are the lowest risk in the whole set and could even move to Batch 1 if
-   preferred).
+3. **Batch 3 — structural/no-dep:** `EmptyStateView`, `DialogLayout`, `OverlayLayout` — done.
+   `PaginationBar` was reviewed here too but kept a Spring bean permanently: unlike the other
+   three, it's read from a separately-invoked `refresh()` in three `View` classes and already has
+   a test mocking it as an injected collaborator — see ADR-054.
 4. **Batch 4 — `ConfirmActionDialog`:** handled last and separately, once its two button
    dependencies (Batch 1) are already converted, since its own conversion depends on theirs.
 

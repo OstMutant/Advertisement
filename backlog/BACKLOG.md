@@ -33,21 +33,11 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 | Batch | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **J** | 🔵 | 025 | leaf UI components — its own 4-phase program, don't merge with F |
 | **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
-| — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
+| — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 114, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Batch J 🔵 — leaf UI components (its own multi-phase program)
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-025](issues/improvement-025-leaf-ui-components-plain-classes.md) | Still open | Convert ~17 stateless leaf UI widgets from `@SpringComponent` beans to plain Java classes |
-
-Already internally batched by its own plan: 4 phased conversion batches with a full e2e run after
-each — do not merge with Batch F.
 
 ### Batch K ⚪ — Playwright seeding infrastructure (sequenced pair)
 
@@ -68,6 +58,7 @@ churn (endpoints first, spec-05 seeding on top).
 | [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 | 🔵 |
 | [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry | 🔵 |
 | [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md) | Still open | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision | 🔵 |
+| [improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) | New (found running Sonar) | SonarQube's `new_coverage` quality gate condition always reads 0% — JaCoCo never wired into the scan | 🔵 |
 | [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) | ⚪ |
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved | ⚪ |
 

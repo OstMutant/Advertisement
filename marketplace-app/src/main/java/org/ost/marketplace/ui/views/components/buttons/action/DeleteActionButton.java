@@ -2,41 +2,18 @@ package org.ost.marketplace.ui.views.components.buttons.action;
 
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import jakarta.annotation.PostConstruct;
-import lombok.*;
-import org.ost.marketplace.ui.core.Configurable;
-import org.ost.marketplace.ui.core.Initialization;
-import org.springframework.context.annotation.Scope;
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class DeleteActionButton extends BaseActionButton
-        implements Configurable<DeleteActionButton, DeleteActionButton.Parameters>, Initialization<DeleteActionButton> {
+public class DeleteActionButton extends BaseActionButton {
 
-    @Value
-    @lombok.Builder
-    public static class Parameters implements BaseConfig {
-        @NonNull String   tooltip;
-        @NonNull Runnable onClick;
-        String            cssClassName;
-        @lombok.Builder.Default boolean small = false;
+    public DeleteActionButton(String tooltip, Runnable onClick) {
+        this(tooltip, onClick, null, false);
     }
 
-    @Override
-    @PostConstruct
-    public DeleteActionButton init() {
+    public DeleteActionButton(String tooltip, Runnable onClick, String cssClassName, boolean small) {
         setIcon(VaadinIcon.TRASH.create());
-        return this;
-    }
-
-    @Override
-    public DeleteActionButton configure(Parameters p) {
-        addThemeVariants(p.isSmall()
+        addThemeVariants(small
                 ? new ButtonVariant[]{ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR, ButtonVariant.LUMO_SMALL}
                 : new ButtonVariant[]{ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR});
-        applyConfig(p);
-        return this;
+        applyConfig(tooltip, onClick, cssClassName);
     }
 }

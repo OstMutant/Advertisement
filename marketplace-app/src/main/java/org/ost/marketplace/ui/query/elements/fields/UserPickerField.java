@@ -19,7 +19,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.core.Initialization;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.dto.UserFilterDto;
@@ -47,7 +46,6 @@ public class UserPickerField extends CustomField<Set<UserDto>>
 
     private final transient UserPort    userPort;
     private final transient I18nService i18nService;
-    private final transient UiComponentFactory<UiIconButton> iconButtonFactory;
 
     private Set<UserDto> currentValue = new LinkedHashSet<>();
     private Div    chipsContainer;
@@ -66,14 +64,12 @@ public class UserPickerField extends CustomField<Set<UserDto>>
         placeholderSpan.addClassName(PLACEHOLDER_CSS);
         chipsContainer.add(placeholderSpan);
 
-        clearButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(USER_PICKER_CLEAR_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
+        clearButton = new UiIconButton(i18nService.get(USER_PICKER_CLEAR_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
         clearButton.addClassName("user-picker-clear");
         clearButton.setVisible(false);
         clearButton.addClickListener(e -> clearValue());
 
-        Button openButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(USER_PICKER_OPEN_TOOLTIP).icon(VaadinIcon.SEARCH.create()).build());
+        Button openButton = new UiIconButton(i18nService.get(USER_PICKER_OPEN_TOOLTIP), VaadinIcon.SEARCH.create());
         openButton.addClassName("user-picker-open");
         openButton.addClickListener(e -> openDialog());
 
@@ -124,8 +120,7 @@ public class UserPickerField extends CustomField<Set<UserDto>>
     private Div buildChip(UserDto user) {
         Span nameSpan = new Span(user.name());
         nameSpan.addClassName("user-picker-chip-name");
-        Button removeButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(USER_PICKER_REMOVE_TOOLTIP).icon(VaadinIcon.CLOSE_SMALL.create()).build());
+        Button removeButton = new UiIconButton(i18nService.get(USER_PICKER_REMOVE_TOOLTIP), VaadinIcon.CLOSE_SMALL.create());
         removeButton.addClassName("user-picker-chip-remove");
         removeButton.addClickListener(e -> removeUser(user));
 
@@ -162,8 +157,7 @@ public class UserPickerField extends CustomField<Set<UserDto>>
         ConfigurableFilterDataProvider<UserDto, Void, String> filterable = dataProvider.withConfigurableFilter();
         grid.setItems(filterable);
 
-        Button searchButton = iconButtonFactory.build(
-                UiIconButton.Parameters.builder().labelKey(USER_PICKER_SEARCH_TOOLTIP).icon(VaadinIcon.SEARCH.create()).inline(true).build());
+        Button searchButton = new UiIconButton(i18nService.get(USER_PICKER_SEARCH_TOOLTIP), VaadinIcon.SEARCH.create(), true);
         searchButton.addClickListener(e -> filterable.setFilter(searchField.getValue().isBlank() ? null : searchField.getValue()));
         searchField.setSuffixComponent(searchButton);
 

@@ -3,17 +3,11 @@ package org.ost.marketplace.ui.query.elements;
 import com.vaadin.flow.component.ComponentEvent;
 import com.vaadin.flow.component.ComponentEventListener;
 import com.vaadin.flow.component.html.Span;
-import jakarta.annotation.PostConstruct;
-import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 import org.ost.marketplace.services.i18n.I18nService;
 
-import org.ost.marketplace.ui.core.Initialization;
-import com.vaadin.flow.spring.annotation.SpringComponent;
-import org.springframework.context.annotation.Scope;
 import org.springframework.data.domain.Sort.Direction;
 
 import java.util.Arrays;
@@ -23,14 +17,11 @@ import static org.ost.marketplace.services.i18n.I18nKey.SORT_ICON_TOOLTIP;
 
 import org.ost.marketplace.services.i18n.I18nKey;
 
-@SpringComponent
-@Scope("prototype")
-@RequiredArgsConstructor(access = AccessLevel.PRIVATE)
-public class SortIcon extends Span implements Initialization<SortIcon> {
+public class SortIcon extends Span {
 
     @Getter
     private final transient I18nService i18nService;
-    private final SvgIcon icon;
+    private final SvgIcon icon = new SvgIcon(SortIconState.NEUTRAL.getPath());
 
     private Direction currentDirection;
 
@@ -77,16 +68,14 @@ public class SortIcon extends Span implements Initialization<SortIcon> {
         }
     }
 
-    @Override
-    @PostConstruct
-    public SortIcon init() {
+    public SortIcon(I18nService i18nService) {
+        this.i18nService = i18nService;
         addClassName("sort-icon");
         setTitle(i18nService.get(SORT_ICON_TOOLTIP));
         getElement().setAttribute("role", "button");
         getElement().setAttribute("aria-label", i18nService.get(SORT_ICON_TOOLTIP));
         add(icon);
         addClickListener(_ -> cycleDirection());
-        return this;
     }
 
     public void setDirection(Direction direction) {

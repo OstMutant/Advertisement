@@ -60,15 +60,14 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
     private final UiComponentFactory<OverlayFormBinder<SettingsEditDto>> formBinderFactory;
     private final ComponentFactory<AuditPort>                           auditPortFactory;
     private final UiComponentFactory<AuditActivityPanel>                auditActivityPanelFactory;
-    private final UiComponentFactory<UiIconButton>                      cancelButtonFactory;
-    private final UiPrimaryButton                                   saveButton;
-    private final UiTertiaryButton                                  discardButton;
 
-    private Parameters   params;
-    private IntegerField adsPageSizeField;
-    private IntegerField usersPageSizeField;
-    private IntegerField timelinePageSizeField;
-    private Tab          settingsTab;
+    private Parameters       params;
+    private IntegerField     adsPageSizeField;
+    private IntegerField     usersPageSizeField;
+    private IntegerField     timelinePageSizeField;
+    private Tab              settingsTab;
+    private UiPrimaryButton  saveButton;
+    private UiTertiaryButton discardButton;
 
     @Override
     public SettingsFormModeHandler configure(Parameters p) {
@@ -87,12 +86,9 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
                 .version(current.getVersion())
                 .build();
 
-        saveButton.configure(UiPrimaryButton.Parameters.builder().labelKey(SETTINGS_SAVE_BUTTON).build());
-        discardButton.configure(UiTertiaryButton.Parameters.builder().labelKey(FORM_DISCARD_CHANGES).build());
-        UiIconButton closeBtn = cancelButtonFactory.build(UiIconButton.Parameters.builder()
-                .labelKey(HEADER_HOME)
-                .icon(VaadinIcon.CLOSE.create())
-                .build());
+        saveButton = new UiPrimaryButton(getValue(SETTINGS_SAVE_BUTTON));
+        discardButton = new UiTertiaryButton(getValue(FORM_DISCARD_CHANGES));
+        UiIconButton closeBtn = new UiIconButton(getValue(HEADER_HOME), VaadinIcon.CLOSE.create());
 
         wireSaveGuard(saveButton, params.getOnSave());
         discardButton.addClickListener(_ -> discardChanges());
