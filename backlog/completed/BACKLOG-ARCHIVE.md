@@ -1151,3 +1151,22 @@ Final state across all four batches: `UserFormOverlayModeHandler`'s constructor 
 10 parameters; zero Spring/`Configurable`/`Initialization` scaffolding remains on any of the
 converted widgets; unit-tests (72/72, including ArchUnit), integration-tests (127/127), and
 Playwright e2e --full --ux (49/49, confirmed twice) all green on the final batch.
+
+✅ Done (2026-07-23): [improvement-113](issues/improvement-113-query-elements-leaf-components-plain-classes.md)
+(Batch L) — sibling refactor to improvement-025, found during a post-025 audit of the rest of the
+Vaadin UI layer for the same anti-pattern: the entire `ui/query/elements/*` tree (the query-bar/
+filter-panel widgets) still carried `@SpringComponent @Scope("prototype") + Configurable +
+Initialization`, accounting for 8 of the remaining 21 `@Bean` declarations in
+`MarketplaceUiConfiguration`. Converted in 6 dependency-ordered batches: dead-code removal
+(`QueryComboField<T>`, `QueryNumberField` — both had zero real consumers anywhere, deleted rather
+than converted); `SvgIcon` (zero deps); `SortIcon` (the one real exception — re-resolves its
+tooltip dynamically on every direction change, so it keeps `I18nService` as a plain field,
+`PaginationBar`-style, instead of the "resolve once, pass a `String`" template used everywhere
+else — design decision discussed and confirmed with the user before implementation);
+`QueryActionButton`+`QueryActionBlock`; `QueryInlineRow` (cascaded into `QueryBlock.filterRow()`'s
+shared signature, `I18nKey`→`String`); and the remaining simple fields (`QueryTextField`,
+`QueryLongField`, `QueryDateTimeField`, `QueryMultiSelectComboField<T>`). All three domain
+`*QueryBlock` subclasses lost every `UiComponentFactory<T>` field this family required. See
+`marketplace-app/DECISIONS.md` ADR-056. Verified with unit-tests (72/72, including ArchUnit),
+integration-tests (127/127), and Playwright e2e --full --ux (49/49, first try — no recurrence of
+the `fillActorPicker` flake fixed in the improvement-025 Batch 4 entry above).

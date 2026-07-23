@@ -2295,3 +2295,66 @@ Verified fixed twice in a row: 49/49 full e2e passes, back to back.
   `backlog/completed/issues/`; `BACKLOG.md` row removed; `BACKLOG-ARCHIVE.md` entry added.
 - Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
   e2e --full --ux (49/49, confirmed twice consecutively after the `fillActorPicker` fix).
+
+---
+
+## ADR-056: `ui/query/elements/*` leaf UI components converted from `@SpringComponent` prototype beans to plain classes — sibling refactor to improvement-025, applied to the query/filter-bar tree
+
+**Status:** Accepted
+
+**Context:** [improvement-113](../backlog/completed/issues/improvement-113-query-elements-leaf-components-plain-classes.md)
+— a post-improvement-025 audit found the identical `@SpringComponent @Scope("prototype") +
+Configurable + Initialization` anti-pattern still present, untouched, in the entire
+`ui/query/elements/*` tree (the query-bar/filter-panel widget hierarchy), which improvement-025
+never covered. 8 of the remaining 21 `@Bean` declarations in `MarketplaceUiConfiguration` existed
+solely for this family.
+
+**Decision:** Converted in 6 dependency-ordered batches, each independently compiled and verified:
+
+1. **Dead code removal:** `QueryComboField<T>` and `QueryNumberField` deleted outright — both had
+   zero real construction sites anywhere in the app (confirmed by grep, not assumed), the latter
+   kept alive only by its own now-removed `@Bean` and a defensive `@Uses(QueryNumberField.class)` /
+   `@Uses(NumberField.class)` in `MainView.java` (also removed).
+2. **`SvgIcon`:** zero dependencies, `new SvgIcon(String resourcePath)`.
+3. **`SortIcon`:** the one real exception to the "resolve once, pass a `String`" template used
+   everywhere else in this issue and in improvement-025 — it re-resolves its tooltip *dynamically*
+   every time the user cycles NEUTRAL→ASC→DESC (`switchIcon()`), not just once at construction, so a
+   single pre-resolved `String` can't represent it. Resolved the same way `PaginationBar` already
+   does for this exact shape: `SortIcon(I18nService i18nService)` keeps `i18nService` as a plain
+   field and calls `.get()` internally whenever direction changes — a plain object holding a
+   reference to an already-existing singleton bean, nothing here requires `SortIcon` itself to be
+   Spring-managed. This decision was discussed and confirmed with the user before implementation.
+   Cascaded into `QueryBlock.filterRow()`'s two `SortIcon`-building overloads (swapped
+   `UiComponentFactory<SortIcon> sortIconFactory` for a plain `I18nService i18nService` parameter).
+4. **`QueryActionButton` + `QueryActionBlock`:** `QueryActionButton` takes a pre-built `SvgIcon` +
+   resolved `String` tooltip + `ButtonVariant`. `QueryActionBlock` becomes
+   `new QueryActionBlock(I18nService i18nService)`, building its two buttons (and their `SvgIcon`s)
+   internally with the two fixed, always-known tooltip keys (`ACTIONS_APPLY_TOOLTIP`/
+   `ACTIONS_CLEAR_TOOLTIP`) — never parameterized per call site to begin with.
+5. **`QueryInlineRow`:** takes a resolved `String label` instead of `I18nKey labelKey`. Cascaded
+   into `QueryBlock.filterRow()`'s `I18nKey labelKey` parameter (→ `String label`, resolved by the
+   caller) across all three overloads, and into `TimelineQueryBlock`'s one call site that built a
+   `QueryInlineRow` directly (the actor-picker row), bypassing `filterRow()` entirely.
+6. **Remaining simple fields:** `QueryTextField`, `QueryLongField`, `QueryDateTimeField`,
+   `QueryMultiSelectComboField<T>` — all straightforward "resolve once, pass a `String`"
+   conversions, same shape as improvement-025 Batch 2.
+
+`AdvertisementQueryBlock`/`TimelineQueryBlock`/`UserQueryBlock` (the three concrete `QueryBlock<T>`
+subclasses) lost every `UiComponentFactory<T>` field this family required — `TimelineQueryBlock`
+and `UserQueryBlock` gained a plain `I18nService i18nService` field in its place (`AdvertisementQueryBlock`
+already had one, for an unrelated manual categories combo). `QueryActionBlock`'s field on each
+subclass changed from constructor-injected to built once in `initLayout()`
+(`new QueryActionBlock(i18nService)`), since it's no longer a bean.
+
+**Consequences:**
+- No test constructs or mocks any of these nine converted types directly — verified by grep before
+  converting, so no test changes were needed.
+- Removed 8 now-empty `@Bean` declarations from `MarketplaceUiConfiguration`
+  (`queryTextFieldFactory`, `queryDateTimeFieldFactory`, `queryNumberFieldFactory`,
+  `queryLongFieldFactory`, `queryMultiSelectComboFieldFactory`, `queryInlineRowFactory`,
+  `sortIconFactory`, `svgIconFactory`); `userPickerFieldFactory` stays (`UserPickerField` was out of
+  scope for this issue — a `CustomField` with a real dialog/grid dependency, not a leaf widget).
+- Verified with unit-tests (72/72, including ArchUnit), integration-tests (127/127), and Playwright
+  e2e --full --ux (49/49, first try, no `fillActorPicker` flake recurrence).
+- `improvement-113` fully closed — issue moved to `backlog/completed/issues/`; `BACKLOG.md`/
+  `BACKLOG-ARCHIVE.md` updated.

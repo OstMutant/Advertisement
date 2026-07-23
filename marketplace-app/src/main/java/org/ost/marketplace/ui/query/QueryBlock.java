@@ -2,8 +2,7 @@ package org.ost.marketplace.ui.query;
 
 import com.vaadin.flow.component.AbstractField;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import org.ost.marketplace.services.i18n.I18nKey;
-import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.query.elements.SortIcon;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.rows.QueryInlineRow;
@@ -21,30 +20,24 @@ public abstract class QueryBlock<T> extends VerticalLayout {
     public abstract QueryActionBlock getQueryActionBlock();
 
     protected <I, C extends AbstractField<?, I>> void filterRow(
-            UiComponentFactory<QueryInlineRow> rowFactory,
-            I18nKey labelKey, C field, FilterFieldMeta<I, T, ?> filterMeta) {
-        add(rowFactory.build(QueryInlineRow.Parameters.builder()
-                .labelKey(labelKey).filterField(field).build()));
+            String label, C field, FilterFieldMeta<I, T, ?> filterMeta) {
+        add(new QueryInlineRow(label, field));
         getFilterProcessor().register(filterMeta, field, getQueryActionBlock());
     }
 
     protected <I, C extends AbstractField<?, I>> void filterRow(
-            UiComponentFactory<QueryInlineRow> rowFactory, UiComponentFactory<SortIcon> sortIconFactory,
-            I18nKey labelKey, C field, SortFieldMeta sortMeta, FilterFieldMeta<I, T, ?> filterMeta) {
-        SortIcon sortIcon = sortIconFactory.get();
-        add(rowFactory.build(QueryInlineRow.Parameters.builder()
-                .labelKey(labelKey).sortIcon(sortIcon).filterField(field).build()));
+            I18nService i18nService, String label, C field, SortFieldMeta sortMeta, FilterFieldMeta<I, T, ?> filterMeta) {
+        SortIcon sortIcon = new SortIcon(i18nService);
+        add(new QueryInlineRow(label, sortIcon, field));
         getSortProcessor().register(sortMeta, sortIcon, getQueryActionBlock());
         getFilterProcessor().register(filterMeta, field, getQueryActionBlock());
     }
 
     protected <I1, I2, C1 extends AbstractField<?, I1>, C2 extends AbstractField<?, I2>> void filterRow(
-            UiComponentFactory<QueryInlineRow> rowFactory, UiComponentFactory<SortIcon> sortIconFactory,
-            I18nKey labelKey, C1 field1, C2 field2, SortFieldMeta sortMeta,
+            I18nService i18nService, String label, C1 field1, C2 field2, SortFieldMeta sortMeta,
             FilterFieldMeta<I1, T, ?> filterMeta1, FilterFieldMeta<I2, T, ?> filterMeta2) {
-        SortIcon sortIcon = sortIconFactory.get();
-        add(rowFactory.build(QueryInlineRow.Parameters.builder()
-                .labelKey(labelKey).sortIcon(sortIcon).filterField(field1).filterField(field2).build()));
+        SortIcon sortIcon = new SortIcon(i18nService);
+        add(new QueryInlineRow(label, sortIcon, field1, field2));
         getSortProcessor().register(sortMeta, sortIcon, getQueryActionBlock());
         getFilterProcessor().register(filterMeta1, field1, getQueryActionBlock());
         getFilterProcessor().register(filterMeta2, field2, getQueryActionBlock());
