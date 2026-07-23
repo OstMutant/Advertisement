@@ -33,6 +33,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.TIMELINE_SORT_CREATED_AT
 @SpringComponent
 @UIScope
 @RequiredArgsConstructor
+@SuppressWarnings("java:S2065")
 public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
 
     @Getter

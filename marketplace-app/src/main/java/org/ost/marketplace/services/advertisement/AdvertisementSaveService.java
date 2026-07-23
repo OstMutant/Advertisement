@@ -35,6 +35,7 @@ public class AdvertisementSaveService {
     private final ComponentFactory<TaxonPort>         taxonPortFactory;
     private final ComponentFactory<AuditPort>         auditPortFactory;
 
+    @SuppressWarnings("java:S4276")
     public Long save(@NonNull AdvertisementSaveDto dto, @NonNull Long actorId,
                      @NonNull Function<EntityRef, Long> commitGallery) {
         return tx.execute(status -> {

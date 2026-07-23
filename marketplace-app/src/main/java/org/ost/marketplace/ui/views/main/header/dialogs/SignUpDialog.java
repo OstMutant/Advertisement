@@ -81,6 +81,7 @@ public class SignUpDialog extends BaseDialog implements I18nParams {
         getFooter().add(registerButton, cancelButton);
     }
 
+    @SuppressWarnings("java:S7467")
     private void bindFields() {
         binder.setBean(dto);
 
