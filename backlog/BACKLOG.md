@@ -32,15 +32,23 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 ### At a glance
 
 improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
-`completed/BACKLOG-ARCHIVE.md`. Nothing currently ranked above "nice to have"; pick up
-opportunistically until a new top-priority item is designated.
+`completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) promoted to sole
+top priority 2026-07-24 at explicit user request — the community-migration mechanic, both of its
+former blockers (improvement-005, improvement-020) already resolved.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
+| **Top** | 🔵 | 117 | F-01 deep links + Open Graph meta tags — community-migration mechanic, product roadmap Phase 1 |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-117
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-117](issues/improvement-117-f01-deep-links-og-tags.md) | New (from `private/roadmap.md` F-01) | Deep links + OG meta tags — no remaining hard blockers, ready to implement |
 
 ### Nice to have — no internal priority order
 
