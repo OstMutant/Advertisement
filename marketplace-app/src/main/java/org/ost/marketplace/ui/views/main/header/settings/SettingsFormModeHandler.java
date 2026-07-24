@@ -178,7 +178,7 @@ public class SettingsFormModeHandler extends AbstractFormOverlayModeHandler<Sett
 
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
-                port.<SettingsSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER_SETTINGS)
+                port.getSnapshotContent(snapshotId, EntityType.USER_SETTINGS, SettingsSnapshotDto.class)
                         .map(c -> UserSettingsDto.builder()
                                 .adsPageSize(c.snapshotData().adsPageSize())
                                 .usersPageSize(c.snapshotData().usersPageSize())

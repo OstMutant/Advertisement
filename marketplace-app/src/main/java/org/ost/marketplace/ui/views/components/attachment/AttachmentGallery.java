@@ -43,7 +43,7 @@ public class AttachmentGallery extends Div {
 
     private final transient ComponentFactory<AttachmentPort>          attachmentPortFactory;
     private final transient I18nService                               i18n;
-    private final transient UiComponentFactory<AttachmentThumbnail>   thumbnailFactory;
+    private final transient ComponentFactory<AttachmentThumbnail>   thumbnailFactory;
     private final transient UiComponentFactory<AttachmentLightbox>    lightboxFactory;
 
     private transient AttachmentPort attachmentPort;

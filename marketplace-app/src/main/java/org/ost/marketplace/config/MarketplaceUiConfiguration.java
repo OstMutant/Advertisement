@@ -15,6 +15,7 @@ import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.query.elements.fields.UserPickerField;
 import org.ost.marketplace.ui.query.filter.ValidationService;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -40,50 +41,50 @@ public class MarketplaceUiConfiguration {
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AuditTimelineListRenderer> auditActivityListRendererFactory(ObjectProvider<AuditTimelineListRenderer> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AuditActivityListRenderer> auditHistoryListRendererFactory(ObjectProvider<AuditActivityListRenderer> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AuditActivityRowRenderer> auditHistoryRowRendererFactory(ObjectProvider<AuditActivityRowRenderer> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AuditTimelineRowRenderer> auditActivityRowRendererFactory(ObjectProvider<AuditTimelineRowRenderer> p) {
+        return new ComponentFactory<>(p);
     }
 
     // ── Attachment UI factories ───────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AttachmentGalleryService> attachmentGalleryServiceFactory(ObjectProvider<AttachmentGalleryService> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AttachmentGalleryService> attachmentGalleryServiceFactory(ObjectProvider<AttachmentGalleryService> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AttachmentGallery> attachmentGalleryFactory(ObjectProvider<AttachmentGallery> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<CardMediaLightbox> cardMediaLightboxFactory(ObjectProvider<CardMediaLightbox> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<CardLightboxViewer> cardLightboxViewerFactory(ObjectProvider<CardLightboxViewer> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<CardLightboxViewer> cardLightboxViewerFactory(ObjectProvider<CardLightboxViewer> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<AttachmentThumbnail> attachmentThumbnailFactory(ObjectProvider<AttachmentThumbnail> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<AttachmentThumbnail> attachmentThumbnailFactory(ObjectProvider<AttachmentThumbnail> p) {
+        return new ComponentFactory<>(p);
     }
 
     @Bean @ConditionalOnMissingBean
@@ -94,7 +95,7 @@ public class MarketplaceUiConfiguration {
     // ── Query UI factories ────────────────────────────────────────────────────
 
     @Bean @ConditionalOnMissingBean
-    public UiComponentFactory<UserPickerField> userPickerFieldFactory(ObjectProvider<UserPickerField> p) {
-        return new UiComponentFactory<>(p);
+    public ComponentFactory<UserPickerField> userPickerFieldFactory(ObjectProvider<UserPickerField> p) {
+        return new ComponentFactory<>(p);
     }
 }

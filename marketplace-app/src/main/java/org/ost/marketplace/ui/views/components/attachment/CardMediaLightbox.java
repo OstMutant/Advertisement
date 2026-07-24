@@ -7,9 +7,9 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.marketplace.services.i18n.I18nService;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
+import org.ost.platform.core.ComponentFactory;
 import org.springframework.context.annotation.Scope;
 
 import java.util.List;
@@ -22,7 +22,7 @@ import static org.ost.marketplace.services.i18n.I18nKey.*;
 public class CardMediaLightbox {
 
     private final I18nService i18nService;
-    private final UiComponentFactory<CardLightboxViewer> viewerFactory;
+    private final ComponentFactory<CardLightboxViewer> viewerFactory;
 
     public void open(@NonNull List<AttachmentItemDto> attachments, int startIndex) {
         int[] idx = {startIndex};

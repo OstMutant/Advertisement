@@ -24,5 +24,6 @@ public interface AuditDomainHook {
 
     String resolveDisplayName(@NonNull AuditableSnapshot snapshot);
 
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
+            @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass);
 }

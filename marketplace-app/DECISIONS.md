@@ -2406,3 +2406,56 @@ i18n key (both locales).
   (distinct from the Form-side `buildTabbedContent()` pattern in `AbstractFormOverlayModeHandler`,
   which is unrelated and unaffected), re-add it then against a concrete need rather than restoring
   this dead scaffolding.
+
+## ADR-058: `UiComponentFactory<T>` bounded to `T extends Configurable<T, ?>`; non-`Configurable` consumers migrated to plain `ComponentFactory<T>`
+
+**Status:** Accepted
+
+**Context:** [improvement-072](../backlog/issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+item 1 — `UiComponentFactory<T>.build(params)` cast `get()` to `Configurable<T, P>` under
+`@SuppressWarnings("unchecked")` because `UiComponentFactory<T>` had no compile-time guarantee `T`
+was actually `Configurable`. Ten beans in `ComponentFactoryConfig` (`AuditActivityListRenderer`,
+`AuditHistoryListRenderer`, `AuditHistoryRowRenderer`, `AuditActivityRowRenderer`,
+`AttachmentGalleryService`, `AttachmentGallery`'s own `thumbnailFactory` field, `CardMediaLightbox`'s
+`viewerFactory`, `AttachmentThumbnail`, `UserPickerField`, and `AdvertisementCardView`'s/
+`AdvertisementFormOverlayModeHandler`'s/`AdvertisementViewOverlayModeHandler`'s `galleryServiceFactory`)
+were declared `UiComponentFactory<X>` and used only via the inherited `.get()` — none of those `X`
+types implement `Configurable`, contradicting `marketplace-app/CLAUDE.md`'s own rule.
+
+**Decision:**
+1. `UiComponentFactory<T extends Configurable<T, ?>> extends ComponentFactory<T>` — the bound is
+   now enforced at compile time; `build(P params)` no longer needs `@SuppressWarnings("unchecked")`
+   on the cast to `Configurable<T, P>` itself being sound-by-construction for `T`, only the
+   `Configurable<T, P>`-vs-caller's-`P` cast remains (unavoidable — `Configurable<T, ?>`'s own `P`
+   is existential, same shape as `AuditDomainHook.castIfKnown()` before ADR-023).
+2. All ten non-`Configurable` consumers above migrated from `UiComponentFactory<X>` to
+   `ComponentFactory<X>` in both their `@Bean` declaration (`ComponentFactoryConfig`/
+   `MarketplaceUiConfiguration`) and every injection site — matching the pre-existing documented
+   rule exactly, not a new pattern.
+3. `OverlayFormBinder<T extends EditDto>` (a genuine `Configurable` implementor, self-bound generic)
+   could not keep its single shared raw-typed `overlayFormBinderFactory` bean once the
+   `Configurable<T, ?>` bound was added — verified directly that **neither the raw type
+   `OverlayFormBinder` nor the wildcard `OverlayFormBinder<?>`** satisfies
+   `T extends Configurable<T, ?>` (both fail with "type argument ... is not within bounds of
+   type-variable T" — a self-bound recursive generic (`OverlayFormBinder<T> implements
+   Configurable<OverlayFormBinder<T>, ...>`) cannot be named as `OverlayFormBinder<?>` and still
+   satisfy `Configurable<OverlayFormBinder<?>, ?>`, since `OverlayFormBinder<?> != OverlayFormBinder<CAP#1>`
+   from the bound-checker's perspective). Split the one shared bean into four concrete beans in
+   `ComponentFactoryConfig` — `advertisementFormBinderFactory`, `userFormBinderFactory`,
+   `taxonFormBinderFactory`, `settingsFormBinderFactory` — one per `EditDto` subtype actually
+   consumed (`AdvertisementEditDto`, `UserEditDto`, `TaxonEditDto`, `SettingsEditDto`), each properly
+   bounded. The four existing consumer fields (`AdvertisementFormOverlayModeHandler`,
+   `UserFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `SettingsFormModeHandler`) already
+   declared their own concrete `UiComponentFactory<OverlayFormBinder<XEditDto>>` type and needed no
+   change — Spring resolves each to its matching new bean by exact generic type.
+
+**Consequences:**
+- `marketplace-app/CLAUDE.md`'s `UiComponentFactory<T>` vs `ComponentFactory<T>` usage rule is now
+  actually enforced by the compiler, not just documentation — a future consumer that mistakenly
+  injects `UiComponentFactory<X>` for a non-`Configurable` `X` fails to compile instead of silently
+  working via the old unbounded generic.
+- A single shared factory bean for a self-bound generic `Configurable` type serving multiple
+  concrete type parameters (the `OverlayFormBinder` shape) is no longer possible once
+  `UiComponentFactory` is bounded — any *future* domain adding its own `OverlayFormBinder<NewEditDto>`
+  consumer needs its own dedicated `@Bean` method in `ComponentFactoryConfig`, following the same
+  four-beans precedent, not a fifth raw-typed shared one.

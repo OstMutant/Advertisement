@@ -1206,3 +1206,37 @@ down from 127 after deleting `UserServiceRestoreTest.java`'s 2 tests for the rem
 a full Playwright e2e --full --ux run (a first run hit 3 cascading failures traced to one transient
 login timeout in spec 03 skipping fixture-creating tests that spec 04/05 depended on; a full
 re-run confirmed 49/49 green, not a regression).
+
+✅ Done (2026-07-24): [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+— resolved all three generics/type-safety design-debt items. (1) `UiComponentFactory<T extends
+Configurable<T, ?>>` bound enforced at compile time; the 10 non-`Configurable` consumers
+(`AuditActivityListRenderer`, `AuditHistoryListRenderer`, `AuditHistoryRowRenderer`,
+`AuditActivityRowRenderer`, `AttachmentGalleryService`, `AttachmentGallery`'s `thumbnailFactory`,
+`CardMediaLightbox`'s `viewerFactory`, `AttachmentThumbnail`, `UserPickerField`, and the three
+`AdvertisementCardView`/`AdvertisementFormOverlayModeHandler`/`AdvertisementViewOverlayModeHandler`
+`galleryServiceFactory` fields) migrated to plain `ComponentFactory<T>`; `OverlayFormBinder`'s
+single shared raw-typed factory bean split into 4 concrete beans, one per `EditDto` — see
+`marketplace-app/DECISIONS.md` ADR-058. (2) `AuditReadService`'s raw `List`/`AuditActivityEnrichHook`
+dispatch investigated and deliberately kept as-is — verified directly (not just argued) that
+dropping the hook interface's generic parameter to eliminate the dispatch-loop cast only pushes an
+unchecked cast into `AdvertisementEnrichService`, which previously needed none; the raw-type +
+`@SuppressWarnings` idiom is the accepted, pragmatic form for this "runtime-dispatched
+heterogeneous collection" shape — see `platform-commons/DECISIONS.md` ADR-023. (3) `Class<T>
+targetClass` type token added to `AuditPort.getSnapshotContent()`/`AuditDomainHook.castIfKnown()`;
+`AuditDomainHookImpl` now uses `targetClass.cast(...)` in a `try`/`catch (ClassCastException)` —
+zero `instanceof`, zero `switch`, zero `@SuppressWarnings("unchecked")` — see
+`platform-commons/DECISIONS.md` ADR-023. Along the way, `bash scripts/ci.sh`'s e2e/sonar stages
+were found to have no retrievable failure reason once their container was torn down; fixed by
+having both stages write their own `run.log` (`scripts/ci/DECISIONS.md` ADR-006), which then
+surfaced a real, separate root cause for a recurring `e2e` failure — the isolated CI Postgres
+volume was never recreated between runs and had been stuck since before commit `3063048d`
+retrofitted `deleted_at`/`deleted_by` onto an already-applied `01-user-schema` changeset (Liquibase
+never re-runs a recorded changeset); fixed by having `teardown_e2e_stack()` also remove
+`CI_DB_VOLUME`/`CI_MINIO_VOLUME` (ADR-007), scoped as a non-prod fix since this project has no
+deployed database that could hit the same permanent-gap risk. Verified: unit-tests (73/73),
+`bash scripts/ci.sh --sandbox` full chain — unit/integration/e2e all PASSED (e2e was the one that
+surfaced and then confirmed-fixed the Postgres volume issue); `sonar` stage still fails, but solely
+on the pre-existing, separately tracked `new_coverage` gap
+([improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) — JaCoCo was never
+wired into the scanner, unrelated to this issue's changes; `new_violations` and
+`new_duplicated_lines_density` both passed clean).

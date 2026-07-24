@@ -7,10 +7,10 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.dto.AuditTimelineFilterDto;
 import org.ost.platform.core.model.ActionType;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.elements.action.QueryActionBlock;
 import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
@@ -44,7 +44,7 @@ public class TimelineQueryBlock extends QueryBlock<AuditTimelineFilterDto> {
 
     private final transient AccessEvaluator                                            access;
     private final transient I18nService                                                i18nService;
-    private final transient UiComponentFactory<UserPickerField>                        userPickerFactory;
+    private final transient ComponentFactory<UserPickerField>                        userPickerFactory;
 
     @Getter
     private QueryActionBlock queryActionBlock;

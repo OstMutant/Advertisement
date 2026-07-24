@@ -91,6 +91,31 @@ approached (e.g. if `ComponentFactory<T>` vs `UiComponentFactory<T>` usage gets 
 that context is useful before deciding whether the audit-side hook/cast patterns are worth
 touching too).
 
+## Resolution (2026-07-24)
+
+All three items were decided and (where applicable) implemented:
+
+1. **`UiComponentFactory<T extends Configurable<T, ?>>` bound — implemented.** The 10
+   non-`Configurable` consumers migrated to `ComponentFactory<T>`; `OverlayFormBinder`'s single
+   shared raw-typed bean was split into 4 concrete beans (one per `EditDto`). See
+   `marketplace-app/DECISIONS.md` ADR-058.
+2. **`AuditReadService`'s raw `List`/`AuditActivityEnrichHook` dispatch — kept as-is (option b).**
+   Verified directly (not just argued in theory) that no wildcard-capture-helper variant eliminates
+   the cast without moving it somewhere worse: attempting to drop the generic parameter from
+   `AuditActivityEnrichHook<T>` entirely (so the dispatch loop needs zero cast) just pushed an
+   unchecked cast down into `AdvertisementEnrichService`, which previously needed none at all (its
+   methods already received a properly `T`-typed list via the hook interface's own generic
+   parameter). Reverted; the raw-type + `@SuppressWarnings({"unchecked","rawtypes"})` idiom in
+   `AuditReadService.getEntityActivity()`/`getTimelinePage()` is the accepted, pragmatic form for
+   this specific "runtime-dispatched heterogeneous collection" shape.
+3. **`Class<T> targetClass` type token — implemented.** Added to `AuditPort.getSnapshotContent()`
+   and `AuditDomainHook.castIfKnown()`; `AuditDomainHookImpl` now uses `targetClass.cast(...)` in a
+   `try`/`catch (ClassCastException)` — zero `instanceof`, zero `switch`, zero
+   `@SuppressWarnings("unchecked")`. See `platform-commons/DECISIONS.md` ADR-023.
+
+Not yet moved to `backlog/completed/issues/` — pending commit (see `.claude/rules.md` Issue
+Lifecycle: move happens once the fix is implemented **and committed**).
+
 ## Related
 
 - `backlog/issues/improvement-071-taxonformoverlaymodehandler-raw-uicomponentfactory.md` — the one

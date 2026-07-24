@@ -71,9 +71,10 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType) {
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(
+            @NonNull Long snapshotId, @NonNull EntityType entityType, @NonNull Class<T> targetClass) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType)
-                .flatMap(auditDomainHook::castIfKnown);
+                .flatMap(content -> auditDomainHook.castIfKnown(content, targetClass));
     }
 
     // ── read side (UI) ────────────────────────────────────────────────────────

@@ -160,7 +160,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
-                port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
+                port.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
                         .map(AuditSnapshotContentDto::snapshotData)
                         .ifPresent(snapshot -> {
                             UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());

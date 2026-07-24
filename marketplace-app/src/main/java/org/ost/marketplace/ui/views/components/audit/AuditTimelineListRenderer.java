@@ -6,7 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
-import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
@@ -25,7 +25,7 @@ import java.util.Set;
 public class AuditTimelineListRenderer {
 
     private final AuditDomainHook                            auditDomainHook;
-    private final UiComponentFactory<AuditTimelineRowRenderer> rowRendererFactory;
+    private final ComponentFactory<AuditTimelineRowRenderer> rowRendererFactory;
 
     public List<Div> buildRows(List<AuditTimelineItemDto<AuditableSnapshot>> items) {
         AuditTimelineRowRenderer.RowContext ctx = buildRowContext(items);

@@ -31,23 +31,16 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 ### At a glance
 
-Reprioritized 2026-07-23 at explicit user request: improvement-072 promoted to the top (sole
-priority item); everything else demoted to "nice to have," parked at the bottom with no internal
-ranking beyond what's already listed.
+improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
+`completed/BACKLOG-ARCHIVE.md`. Nothing currently ranked above "nice to have"; pick up
+opportunistically until a new top-priority item is designated.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🔵 | 072 | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-072
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md) | Still open | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision |
 
 ### Nice to have — no internal priority order
 

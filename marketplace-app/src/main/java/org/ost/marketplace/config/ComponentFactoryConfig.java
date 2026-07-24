@@ -1,5 +1,9 @@
 package org.ost.marketplace.config;
 
+import org.ost.marketplace.ui.dto.AdvertisementEditDto;
+import org.ost.marketplace.ui.dto.SettingsEditDto;
+import org.ost.marketplace.ui.dto.TaxonEditDto;
+import org.ost.marketplace.ui.dto.UserEditDto;
 import org.ost.marketplace.ui.views.components.overlay.OverlayFormBinder;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.AdvertisementCardView;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementCardMetaPanel;
@@ -21,8 +25,26 @@ import org.springframework.context.annotation.Configuration;
 public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
-    @SuppressWarnings("rawtypes")
-    public UiComponentFactory<OverlayFormBinder> overlayFormBinderFactory(ObjectProvider<OverlayFormBinder> p) {
+    public UiComponentFactory<OverlayFormBinder<AdvertisementEditDto>> advertisementFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<AdvertisementEditDto>> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<OverlayFormBinder<UserEditDto>> userFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<UserEditDto>> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<OverlayFormBinder<TaxonEditDto>> taxonFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<TaxonEditDto>> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<OverlayFormBinder<SettingsEditDto>> settingsFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<SettingsEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 

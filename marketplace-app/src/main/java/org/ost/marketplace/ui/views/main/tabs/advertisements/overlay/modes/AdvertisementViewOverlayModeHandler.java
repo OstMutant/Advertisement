@@ -20,7 +20,6 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
@@ -50,7 +49,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final I18nService                                       i18nService;
     private final OverlayAdvertisementMetaPanel                     metaPanel;
     private final ComponentFactory<AttachmentPort>                  attachmentPortFactory;
-    private final UiComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
+    private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final ComponentFactory<TaxonPort>                       taxonPortFactory;
     private final LocaleProvider                                    localeProvider;
 

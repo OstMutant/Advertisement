@@ -118,10 +118,13 @@ class AuditLogRepositoryTest extends AbstractPostgresIntegrationTest {
                 }
 
                 @Override
-                @SuppressWarnings("unchecked")
                 public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
-                        @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
-                    return Optional.of((AuditSnapshotContentDto<T>) content);
+                        @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass) {
+                    try {
+                        return Optional.of(new AuditSnapshotContentDto<>(targetClass.cast(content.snapshotData()), content.version()));
+                    } catch (ClassCastException _) {
+                        return Optional.empty();
+                    }
                 }
             };
         }

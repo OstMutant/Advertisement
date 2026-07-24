@@ -523,3 +523,47 @@ single-implementation.
   `repository.load(userId)` for the same reason.
 - If a genuine future need for a "before" snapshot at audit-write time arises, re-add the
   parameter then with a concrete consumer — do not restore it preemptively.
+
+## ADR-023: `Class<T> targetClass` type-token added to `AuditPort.getSnapshotContent()` / `AuditDomainHook.castIfKnown()`
+
+**Status:** Accepted
+
+**Context:** [improvement-072](../backlog/issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+item 3 — `AuditDomainHookImpl.castIfKnown()` used a `switch` over the four known snapshot DTO
+types to confirm `content.snapshotData()` was *one of* them, then did an unchecked cast to the
+caller-inferred `T` without ever checking it matched *that specific* `T`. A caller inferring
+`T = TaxonSnapshotDto` when the actual runtime data was `AdvertisementSnapshotDto` would still
+match a `switch` case arm and silently return mismatched-type content.
+
+**Decision:** Added a `@NonNull Class<T> targetClass` parameter to both
+`AuditPort.getSnapshotContent(Long snapshotId, EntityType entityType, Class<T> targetClass)` and
+`AuditDomainHook.castIfKnown(AuditSnapshotContentDto<? extends AuditableSnapshot> content, Class<T>
+targetClass)`. `AuditDomainHookImpl.castIfKnown()` now does `targetClass.cast(content.snapshotData())`
+inside a `try`/`catch (ClassCastException)` — a real, JVM-verified generic downcast via the reified
+`Class<T>` token, with zero `instanceof`, zero `switch`, and zero `@SuppressWarnings("unchecked")`
+(`Class.cast()` is checked by construction; no erasure ambiguity remains once a concrete `Class<T>`
+is in hand). `DefaultAuditPort.getSnapshotContent()` forwards `targetClass` straight through to
+`auditDomainHook.castIfKnown()`. The four UI call sites (`AdvertisementFormOverlayModeHandler`,
+`UserFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `SettingsFormModeHandler`) pass a
+`.class` literal (e.g. `AdvertisementSnapshotDto.class`) instead of the old
+`port.<AdvertisementSnapshotDto>getSnapshotContent(...)` type-witness syntax.
+
+**Consequences:**
+- The four known snapshot DTOs no longer need to be named in `AuditDomainHookImpl` at all — the
+  `switch`'s enumeration of `AdvertisementSnapshotDto`/`UserSnapshotDto`/`SettingsSnapshotDto`/
+  `TaxonSnapshotDto` is gone; adding a fifth snapshot DTO in the future needs no change here.
+- A caller that passes the wrong `Class<T>` for the entity type it queried now gets a caught
+  `ClassCastException` (logged, returns `Optional.empty()`) instead of silently succeeding with
+  mismatched data — closes the actual correctness gap item 3 identified.
+- Item 1 (`UiComponentFactory<T extends Configurable<T, ?>>` bound) and item 3 above are resolved;
+  item 2 (`AuditReadService`'s raw `List`/`AuditActivityEnrichHook` dispatch) was investigated and
+  **deliberately kept as the raw-type + `@SuppressWarnings` idiom** — verified directly (not just
+  in theory) that no wildcard-capture-helper or `Class<T>`-token variant can eliminate the cast
+  there without moving it somewhere worse: the dispatch loop correlates two independently-wildcarded
+  values (a heterogeneous `hook` and a heterogeneous `items` list) whose actual-type relationship is
+  an external runtime invariant (`hook.entityType() == entityType`), not something Java's wildcard
+  capture can express — capture-helper only unifies types when *one* wildcard-typed expression is
+  reused for multiple parameters of the same call, not two independently-wildcarded values. Pushing
+  the reinterpretation down into `AdvertisementEnrichService` (tried and reverted) just moved an
+  unchecked cast into a class that previously needed none, since that class already receives a
+  properly `T`-typed list via the hook interface's own generic parameter.

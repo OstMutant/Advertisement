@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.spi.AuditPort;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.marketplace.ui.core.Configurable;
@@ -41,7 +40,7 @@ public class AuditActivityPanel extends Div
 
     private final transient I18nService                                i18n;
     private final transient ComponentFactory<AuditPort>                auditPortFactory;
-    private final transient UiComponentFactory<AuditActivityListRenderer> listRendererFactory;
+    private final transient ComponentFactory<AuditActivityListRenderer> listRendererFactory;
 
     @Override
     @PostConstruct
