@@ -7,6 +7,9 @@
 **Priority:** high — the sole hard-gate feature blocking product Phase 1 (community migration);
 both of its former blockers are now resolved.
 **When:** independent, no blockers — both dependencies below are already resolved.
+**Status:** ✅ RESOLVED (2026-07-24) — all technical items implemented and verified; the one
+inherently manual, non-automatable item (real-world Facebook/Telegram preview check) carved out
+into [improvement-118](../../issues/improvement-118-f01-real-world-og-preview-verification.md).
 
 ## Problem
 
@@ -93,11 +96,11 @@ Implemented and verified in four passes, each with its own `marketplace-app/DECI
 (`04-marketplace-advertisement-flow.spec.js`, "userEn opens a deep link..."), extended test-step
 by test-step across all four passes. Full e2e suite 50/50 after each pass, unit-tests 73/73.
 
-**Still open — the one item that was never automatable:** share a real `/ads/:id` link into an
-actual Facebook post and a real Telegram chat, confirm the rich preview renders correctly (needs
-a public URL this sandbox doesn't have). Per the day-1 binary gate: if either preview renders
-wrong, switch immediately to a crawler-only `@RestController` fallback instead of debugging
-further — this is the only thing blocking closing this issue.
+**The one item that was never automatable** — sharing a real `/ads/:id` link into an actual
+Facebook post and a real Telegram chat, confirming the rich preview renders correctly — is carved
+out into [improvement-118](../../issues/improvement-118-f01-real-world-og-preview-verification.md),
+since it needs a public URL this sandbox doesn't have and isn't blocked on anything else in this
+issue.
 
 ## Verification plan
 
@@ -117,3 +120,5 @@ further — this is the only thing blocking closing this issue.
   dependency; see its ADR-025 cross-reference for why deny-by-default is not the path here.
 - `backlog/issues/improvement-017-sync-s3-upload-in-request-thread.md` — soft dependency
   (thumbnails), not blocking.
+- `backlog/issues/improvement-118-f01-real-world-og-preview-verification.md` — the one item
+  carved out of this issue (manual real-world Facebook/Telegram preview check).

@@ -32,23 +32,23 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 ### At a glance
 
 improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
-`completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) promoted to sole
-top priority 2026-07-24 at explicit user request — the community-migration mechanic, both of its
-former blockers (improvement-005, improvement-020) already resolved.
+`completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
+2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
+out into improvement-118 (sole remaining top priority).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🔵 | 117 | F-01 deep links + Open Graph meta tags — community-migration mechanic, product roadmap Phase 1 |
+| **Top** | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
 
-### Top priority — improvement-117
+### Top priority — improvement-118
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-117](issues/improvement-117-f01-deep-links-og-tags.md) | New (from `private/roadmap.md` F-01) | Deep links + OG meta tags — no remaining hard blockers, ready to implement |
+| [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable |
 
 ### Nice to have — no internal priority order
 

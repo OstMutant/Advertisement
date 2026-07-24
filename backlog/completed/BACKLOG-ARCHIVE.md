@@ -1240,3 +1240,25 @@ on the pre-existing, separately tracked `new_coverage` gap
 ([improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) — JaCoCo was never
 wired into the scanner, unrelated to this issue's changes; `new_violations` and
 `new_duplicated_lines_density` both passed clean).
+
+✅ Done (2026-07-24): [improvement-117](issues/improvement-117-f01-deep-links-og-tags.md) — F-01
+deep links + Open Graph meta tags, the product roadmap's Phase 1 community-migration mechanic.
+Four passes, each with its own `marketplace-app/DECISIONS.md` ADR: (1) ADR-059 —
+`AdvertisementDeepLinkView` (`@Route("ads")`) + `OgMetaRequestListener`
+(`IndexHtmlRequestListener`, Caffeine-cached) + `HtmlExcerptUtil` extraction; no `SecurityConfig`
+change needed since `/ads/**` was already covered by `anyRequest().permitAll()`. (2) ADR-060 —
+"Share" button (`AppLinkService` + `ShareUtil`: native Web Share API on mobile, clipboard-copy
+fallback on desktop) on both the card and view overlay. (3) ADR-061 — `sitemap.xml`
+(`SitemapController`, pages through the existing `AdvertisementPort` with no new port method,
+genuine new endpoint so it does get its own `SecurityConfig` permit entry); found and fixed an
+unrelated bug while verifying — `deploy.sh` never set `APP_PUBLIC_URL`, so local links pointed at
+the container's internal port instead of the externally-published one. (4) ADR-062 — found a real
+bug via `curl`-based crawler simulation (`twitter:card` used the wrong HTML attribute, `property=`
+instead of Twitter's required `name=`), fixed alongside `og:image` cache-busting versioning,
+JSON-LD `Product` markup, and full browser History API sync (`pushState` on open/close,
+`Back`/`Forward` via `History.setHistoryStateChangeHandler`) — verified with a real
+`page.goBack()` in Playwright. Every item verified via one cumulative, incrementally-extended
+Playwright test; full e2e suite 50/50 after each pass, unit-tests 73/73. The one inherently
+non-automatable item — sharing a real `/ads/:id` link into an actual Facebook post and Telegram
+chat, needs a public URL this sandbox doesn't have — carved out into
+[improvement-118](../issues/improvement-118-f01-real-world-og-preview-verification.md).
