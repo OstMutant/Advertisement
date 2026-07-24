@@ -12,7 +12,7 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.jsoup.Jsoup;
+import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
@@ -76,6 +76,7 @@ public class AdvertisementCardView extends HorizontalLayout
         Runnable             onChanged = p.getOnChanged();
 
         getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
+        getElement().setAttribute("data-ad-id", String.valueOf(ad.getId()));
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
@@ -161,9 +162,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Div createDescription(AdvertisementInfoDto ad) {
-        String html = ad.getDescription();
-        if (html == null || html.isBlank()) return new Div();
-        String text = Jsoup.parse(html).text();
+        String text = HtmlExcerptUtil.plainText(ad.getDescription());
         if (text.isBlank()) return new Div();
 
         Div description = new Div();

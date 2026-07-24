@@ -56,6 +56,27 @@ planning doc; this issue is the trackable, backlog-visible counterpart).
    immediately to a crawler-only `@RestController` (user-agent routing) — no further debate; this
    fallback costs ~100 lines and already has its own explicit permit-list entry either way.
 
+## Progress (2026-07-24)
+
+**Step 1 (day-1 prototype gate) — done.** `AdvertisementDeepLinkView` (`@Route("ads")`,
+`HasUrlParameter<Long>`) + `OgMetaRequestListener` (`config/seo/`) + `HtmlExcerptUtil` extraction —
+see `marketplace-app/DECISIONS.md` ADR-059 for the full design. Verified: real-browser navigation
+to `/ads/:id` opens the correct overlay (new Playwright test, full e2e suite 50/50). No
+`SecurityConfig` change was actually needed (corrected from item 2/5 below — `/ads/**` is already
+covered by the existing `anyRequest().permitAll()`, and this step introduces no new REST endpoint).
+
+**Still open, in this order:**
+- Manual verification (cannot be automated — needs a public URL): share a real `/ads/:id` link
+  into an actual Facebook post and Telegram chat, confirm the rich preview renders correctly. Per
+  the day-1 binary gate, a wrong preview means switching immediately to a crawler-only
+  `@RestController` fallback instead of debugging further.
+- Item 4: "Share" button on card + view overlay.
+- Item 5: `sitemap.xml` servlet (will need its own explicit `requestMatchers` permit entry — this
+  one *is* a genuine new REST endpoint, unlike step 1).
+- Item 6: `og:image` cache-busting versioning (`?v=<updatedAt>`).
+- Item 2's JSON-LD (`Product`/`LocalBusiness`) and browser History API sync (manual open →
+  URL update) were not part of step 1 either — still open.
+
 ## Verification plan
 
 - Playwright: new spec covering the deep-link route (direct navigation to `ads/:id` opens the

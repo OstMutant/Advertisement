@@ -393,6 +393,27 @@ test.describe('Advertisement flow', () => {
 
     await runLogoutFlow(page, expect);
   });
+
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay', async () => {
+    const title = 'Deep Link Test Advertisement';
+    await runFillLoginFormFlow(page, TEST_USERS.userEn);
+    await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
+    await runCreateSimpleAdvertisementFlow(page, { title, description: 'Advertisement used to verify the /ads/:id deep link.', screenshotPrefix: 'adv-deep-link-create' });
+
+    const card = cardByTitle(page, title);
+    await card.first().waitFor({ timeout: 5000 });
+    const adId = await card.first().getAttribute('data-ad-id');
+    expect(adId).toBeTruthy();
+
+    await page.goto(`/ads/${adId}`);
+    const overlay = page.locator('.advertisement-overlay');
+    await overlay.waitFor({ timeout: 10000 });
+    await expect(overlay.locator('.overlay__view-title')).toHaveText(title);
+    await screenshot(page, 'adv-deep-link-opened');
+    await closeOverlay(page);
+
+    await runLogoutFlow(page, expect);
+  });
 });
 
 // ─── Boundary: max-content advertisements (PW_FULL only) ─────────────────────

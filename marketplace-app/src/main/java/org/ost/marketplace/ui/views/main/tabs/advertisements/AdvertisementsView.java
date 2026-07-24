@@ -4,6 +4,7 @@ import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
 import jakarta.annotation.PostConstruct;
@@ -107,6 +108,15 @@ public class AdvertisementsView extends VerticalLayout {
         if (access.isLoggedIn() && isVisible()) {
             overlay.openForCreate(this::refresh);
         }
+    }
+
+    public void openPendingDeepLinkIfAny() {
+        PendingAdvertisementDeepLink pending = VaadinSession.getCurrent().getAttribute(PendingAdvertisementDeepLink.class);
+        if (pending == null) return;
+        VaadinSession.getCurrent().setAttribute(PendingAdvertisementDeepLink.class, null);
+        advertisementPortFactory.findIfAvailable()
+                .flatMap(p -> p.findById(pending.adId()))
+                .ifPresent(ad -> overlay.openForView(ad, this::refresh));
     }
 
     @PreDestroy

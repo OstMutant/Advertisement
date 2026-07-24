@@ -2459,3 +2459,67 @@ types implement `Configurable`, contradicting `marketplace-app/CLAUDE.md`'s own 
   `UiComponentFactory` is bounded — any *future* domain adding its own `OverlayFormBinder<NewEditDto>`
   consumer needs its own dedicated `@Bean` method in `ComponentFactoryConfig`, following the same
   four-beans precedent, not a fifth raw-typed shared one.
+
+## ADR-059: F-01 deep links + Open Graph meta tags — step 1 (prototype gate)
+
+**Status:** Accepted
+
+**Context:** [improvement-117](../backlog/issues/improvement-117-f01-deep-links-og-tags.md) —
+the app was a pure single-route Vaadin SPA (`MainView` at `@Route("")`); opening an advertisement
+was entirely session-state-driven (`AdvertisementOverlay.openForView(AdvertisementInfoDto, ...)`,
+no URL involved). Product roadmap Phase 1 (`private/roadmap.md`, gitignored) needs a stable,
+shareable URL per advertisement that (a) opens the right overlay for a real browser user, and (b)
+renders a rich preview card when the same URL is posted into Facebook/Telegram/Viber (crawlers
+never execute the SPA's JS, so meta tags must be present in the server's raw HTML response).
+
+**Decision:** Two independent mechanisms, deliberately not coupled to each other:
+1. **Real-browser navigation:** `AdvertisementDeepLinkView` (`@Route("ads")`, implements
+   `HasUrlParameter<Long>`) — a trivial, dependency-free view that, on `/ads/{id}`, stores a
+   `PendingAdvertisementDeepLink(Long adId)` record in `VaadinSession` and calls
+   `event.forwardTo("")` (same-navigation-cycle reroute, not a client-side redirect — the
+   `AdvertisementDeepLinkView` itself is never actually rendered). `MainView.init()` calls
+   `AdvertisementsView.openPendingDeepLinkIfAny()` after building tabs, which reads and clears the
+   session attribute and opens the overlay via the existing `AdvertisementPort.findById()` +
+   `AdvertisementOverlay.openForView()` path — no new opening mechanism, reuses what card-click
+   already does.
+2. **Crawler preview:** `OgMetaRequestListener` (`config/seo/`) implements both
+   `VaadinServiceInitListener` (registers itself via `event.addIndexHtmlRequestListener(this)` —
+   Spring-Vaadin auto-detects `VaadinServiceInitListener` beans, no manual wiring) and
+   `IndexHtmlRequestListener` (the standard, Vaadin-documented way to inject server-side `<head>`
+   content per request path, since crawlers only ever read the initial HTML). Matches `^/ads/(\d+)$`
+   against `VaadinRequest.getPathInfo()`, looks up the ad via `ComponentFactory<AdvertisementPort>`
+   (Caffeine-cached 5 min, matching the existing `AuthService` rate-limiter's cache style), and
+   appends `og:title`/`og:description`/`og:url`/`og:type`/`twitter:card`/`og:image` (when present)
+   directly onto the Jsoup `Document` Vaadin already builds for the index page.
+3. `HtmlExcerptUtil.plainText(String html)` (`ui/views/utils/`) extracted from
+   `AdvertisementCardView.createDescription()`'s inline Jsoup call — now the second real consumer
+   (the OG listener needs the exact same HTML→plain-text excerpt for `og:description`), so
+   extraction follows this project's "shared file only once two or more consumers need it" rule
+   rather than duplicating the Jsoup call.
+4. `app.public-base-url` (new config key, `application.yml`, defaults to
+   `http://localhost:8080`, overridable via `APP_PUBLIC_URL` env var in prod) — needed to build the
+   absolute `og:url`; no such app-level (as opposed to S3-storage-level) public URL existed before.
+
+**Explicitly out of scope for this step** (tracked as remaining work inside
+improvement-117, not separate issues): the "Share" button on `AdvertisementCardView`, the
+`sitemap.xml` endpoint, `og:image` cache-busting versioning (`?v=<updatedAt>`) for FB/Telegram's
+per-URL preview cache. This step exists specifically to satisfy the feature spec's own "day-1
+binary prototype gate" — validate real preview rendering in an actual Facebook post/Telegram chat
+before building the rest.
+
+**Consequences:**
+- No `SecurityConfig` change was needed despite the original feature spec assuming one (a
+  deny-by-default hard gate) — verified directly that `/ads/**` is already covered by the existing
+  `anyRequest().permitAll()`, and neither the new Vaadin route nor the `IndexHtmlRequestListener`
+  introduces a new REST endpoint requiring its own `requestMatchers` entry (unlike a future
+  `sitemap.xml` servlet, which will be a genuine new endpoint and will need one, per the
+  `HealthController` precedent).
+- The app is no longer a pure single-route SPA at the Vaadin router level (`AdvertisementDeepLinkView`
+  is a second registered route), though it remains one functionally for every real user — the
+  deep-link route immediately forwards, never rendering its own content. A future `masters/:id`
+  route (product Phase 2) follows the same shape.
+- Verified end-to-end via a new Playwright test (`04-marketplace-advertisement-flow.spec.js`,
+  "userEn opens a deep link") asserting direct navigation to `/ads/:id` opens the correct overlay;
+  full e2e suite 50/50 on a clean re-run. The crawler-preview half (actual OG rendering in a real
+  Facebook/Telegram client) cannot be verified by an automated test — requires a public URL and a
+  manual check, tracked as a follow-up step for whoever deploys this.
