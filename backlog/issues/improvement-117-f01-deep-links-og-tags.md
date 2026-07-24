@@ -77,6 +77,14 @@ covered by the existing `anyRequest().permitAll()`, and this step introduces no 
 - Item 2's JSON-LD (`Product`/`LocalBusiness`) and browser History API sync (manual open →
   URL update) were not part of step 1 either — still open.
 
+**Item 4 ("Share" button) — done (2026-07-24).** `AppLinkService` + `ShareUtil` +
+`ShareActionButton` — see `marketplace-app/DECISIONS.md` ADR-060. Native Web Share API on mobile,
+clipboard-copy fallback on desktop, on both the card and the view overlay. Verified via an
+extended Playwright assertion; full e2e suite 50/50.
+
+**Still open:** item 5 (`sitemap.xml`), item 6 (`og:image` cache-busting), JSON-LD, browser
+History API sync, and the manual real-world FB/Telegram preview check.
+
 ## Verification plan
 
 - Playwright: new spec covering the deep-link route (direct navigation to `ads/:id` opens the

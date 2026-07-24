@@ -55,7 +55,7 @@ Last updated: 2026-07-24 · 50 passed · 0 failed · 0 skipped · 50 total
 - [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check
 - [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
 - [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated
-- [x] Advertisement flow › userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay
+- [x] Advertisement flow › userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link
 - [x] Max-content advertisement boundary › maxEn creates max-content EN advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
 - [x] Max-content advertisement boundary › maxUk creates max-content UK advertisement — 255-char title, 10 categories, YouTube + image + video, lightbox, activity
 - [x] Max-content advertisement boundary › maxEn edits EN max-content advertisement — discard restores 3 items, replace all media with 10-item gallery, 255-char title v2, activity v2, gallery in view and card

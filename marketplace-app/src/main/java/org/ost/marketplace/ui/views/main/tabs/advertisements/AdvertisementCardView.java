@@ -13,10 +13,12 @@ import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
 import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
+import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.platform.core.ComponentFactory;
@@ -27,6 +29,7 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementC
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
+import org.ost.marketplace.ui.views.components.buttons.action.ShareActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
@@ -62,6 +65,7 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
+    private final transient AppLinkService                             appLinkService;
 
     @Override
     @PostConstruct
@@ -193,10 +197,18 @@ public class AdvertisementCardView extends HorizontalLayout
 
         Button edit   = createEditButton(ad, onChanged, canOperate);
         Button delete = createDeleteButton(ad, onChanged, canOperate);
+        Button share  = createShareButton(ad);
 
-        HorizontalLayout actions = new HorizontalLayout(edit, delete);
+        HorizontalLayout actions = new HorizontalLayout(edit, delete, share);
         actions.addClassName("advertisement-actions");
         return actions;
+    }
+
+    private Button createShareButton(AdvertisementInfoDto ad) {
+        return new ShareActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_SHARE),
+                () -> ShareUtil.share(this, appLinkService.advertisementUrl(ad.getId()), ad.getTitle(),
+                        () -> notificationService.success(ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED)),
+                "advertisement-share", true);
     }
 
     private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {

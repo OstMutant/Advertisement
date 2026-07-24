@@ -20,6 +20,9 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
+import org.ost.marketplace.ui.views.services.AppLinkService;
+import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
@@ -52,6 +55,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final ComponentFactory<TaxonPort>                       taxonPortFactory;
     private final LocaleProvider                                    localeProvider;
+    private final AppLinkService                                    appLinkService;
+    private final NotificationService                               notificationService;
 
     private Parameters params;
 
@@ -106,11 +111,15 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     @Override
     protected Div buildHeaderActions() {
         UiPrimaryButton editButton = new UiPrimaryButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT));
+        UiIconButton shareButton = new UiIconButton(getValue(ADVERTISEMENT_CARD_BUTTON_SHARE), VaadinIcon.SHARE.create());
+        shareButton.addClassName("overlay__view-share");
         UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_ADVERTISEMENTS), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
+        shareButton.addClickListener(_ -> ShareUtil.share(shareButton, appLinkService.advertisementUrl(params.getAd().getId()),
+                params.getAd().getTitle(), () -> notificationService.success(ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED)));
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd().getOwnerUserId()));
-        return new Div(editButton, closeButton);
+        return new Div(editButton, shareButton, closeButton);
     }
 
 }

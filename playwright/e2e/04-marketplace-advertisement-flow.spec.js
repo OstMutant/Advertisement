@@ -394,7 +394,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay', async () => {
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link', async () => {
     const title = 'Deep Link Test Advertisement';
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
@@ -410,6 +410,19 @@ test.describe('Advertisement flow', () => {
     await overlay.waitFor({ timeout: 10000 });
     await expect(overlay.locator('.overlay__view-title')).toHaveText(title);
     await screenshot(page, 'adv-deep-link-opened');
+
+    await test.step('share button — copies link to clipboard, shows confirmation notification', async () => {
+      // navigator.share is unavailable in headless Chromium; stub clipboard.writeText so the
+      // fallback branch resolves deterministically without needing OS clipboard permissions.
+      await page.evaluate(() => {
+        navigator.clipboard.writeText = () => Promise.resolve();
+      });
+      await overlay.locator('.overlay__view-share').click();
+      await page.locator('vaadin-notification-card').filter({ hasText: /link copied/i }).first().waitFor({ timeout: 5000 });
+      await screenshot(page, 'adv-deep-link-share-copied');
+      await closeNotification(page);
+    });
+
     await closeOverlay(page);
 
     await runLogoutFlow(page, expect);

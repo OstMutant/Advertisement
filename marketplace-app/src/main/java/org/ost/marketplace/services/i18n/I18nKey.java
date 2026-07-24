@@ -158,7 +158,9 @@ public enum I18nKey {
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
+    ADVERTISEMENT_CARD_BUTTON_SHARE("advertisement.card.button.share"),
     ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE("advertisement.card.notification.media.unavailable"),
+    ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED("advertisement.card.notification.link.copied"),
 
     // === Advertisement Empty State ===
     ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),

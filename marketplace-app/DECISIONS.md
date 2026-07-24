@@ -2523,3 +2523,35 @@ before building the rest.
   full e2e suite 50/50 on a clean re-run. The crawler-preview half (actual OG rendering in a real
   Facebook/Telegram client) cannot be verified by an automated test — requires a public URL and a
   manual check, tracked as a follow-up step for whoever deploys this.
+
+## ADR-060: F-01 "Share" button — native Web Share API with clipboard-copy fallback
+
+**Status:** Accepted
+
+**Context:** [improvement-117](../backlog/issues/improvement-117-f01-deep-links-og-tags.md) item
+4 — a "Share" affordance on both the advertisement card and its view overlay, reusing the `/ads/:id`
+deep link from ADR-059.
+
+**Decision:**
+- `AppLinkService` (`ui/views/services/`) — `advertisementUrl(Long id)`, the single place that
+  builds the `{app.public-base-url}/ads/{id}` shape, reused as-is from ADR-059's config property.
+- `ShareUtil.share(Component, String url, String title, Runnable onCopied)` (`ui/views/utils/`) —
+  the actual JS: tries `navigator.share({title, url})` first (mobile — native OS share sheet),
+  falls back to `navigator.clipboard.writeText(url)` on desktop, and calls `onCopied` (server-side)
+  only when the clipboard-copy path actually resolved, via Vaadin's `PendingJavaScriptResult.then()`
+  callback — no `@ClientCallable` needed, since `executeJs(...).then(...)` already round-trips a
+  resolved JS `Promise` value back to the server.
+- `ShareActionButton` (`ui/views/components/buttons/action/`) — new sibling to
+  `EditActionButton`/`DeleteActionButton`, same `BaseActionButton` shape, `VaadinIcon.SHARE`. Used
+  on `AdvertisementCardView`'s action row. The view overlay (`AdvertisementViewOverlayModeHandler`)
+  uses a plain `UiIconButton` instead (icon-only header action, matching its existing
+  edit/close buttons' shape) rather than `ShareActionButton` — same `ShareUtil.share()` call, just
+  a different button component to match its header's existing style.
+
+**Consequences:**
+- Both call sites share the exact same `ShareUtil`/`AppLinkService` pair — no duplicated
+  clipboard/share-sheet JS, no duplicated URL-building.
+- Verified via a new Playwright assertion (extends the ADR-059 deep-link test): stubs
+  `navigator.clipboard.writeText` before clicking (headless Chromium has no `navigator.share`, so
+  only the fallback path is exercisable in CI) and asserts the "Link copied" notification appears.
+  Full e2e suite 50/50.
