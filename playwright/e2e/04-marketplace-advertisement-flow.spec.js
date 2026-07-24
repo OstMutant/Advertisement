@@ -394,7 +394,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link', async () => {
+  test('userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad', async () => {
     const title = 'Deep Link Test Advertisement';
     await runFillLoginFormFlow(page, TEST_USERS.userEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.userEn);
@@ -424,6 +424,15 @@ test.describe('Advertisement flow', () => {
     });
 
     await closeOverlay(page);
+
+    await test.step('sitemap.xml — valid XML, lists this advertisement\'s deep link', async () => {
+      const response = await page.request.get('/sitemap.xml');
+      expect(response.ok()).toBeTruthy();
+      expect(response.headers()['content-type']).toContain('xml');
+      const body = await response.text();
+      expect(body).toContain('<urlset');
+      expect(body).toContain(`/ads/${adId}</loc>`);
+    });
 
     await runLogoutFlow(page, expect);
   });

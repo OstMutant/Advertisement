@@ -2555,3 +2555,44 @@ deep link from ADR-059.
   `navigator.clipboard.writeText` before clicking (headless Chromium has no `navigator.share`, so
   only the fallback path is exercisable in CI) and asserts the "Link copied" notification appears.
   Full e2e suite 50/50.
+
+## ADR-061: F-01 `sitemap.xml` — paginated port scan, Caffeine-cached; `deploy.sh` now sets `APP_PUBLIC_URL`
+
+**Status:** Accepted
+
+**Context:** [improvement-117](../backlog/issues/improvement-117-f01-deep-links-og-tags.md) item
+5 — a `sitemap.xml` endpoint listing every active advertisement's `/ads/:id` deep link, for search
+engine indexing. Unlike ADR-059's `OgMetaRequestListener` (a listener decorating an existing
+Vaadin-served response), this is a genuine new REST endpoint.
+
+**Decision:**
+- `SitemapController` (`rest/`) — `@GetMapping("/sitemap.xml")`, `produces =
+  MediaType.APPLICATION_XML_VALUE`. Builds the standard sitemaps.org `<urlset>` XML by paging
+  through the existing `AdvertisementPort.getFiltered()` (empty filter, `Sort.by(Fields.id)` —
+  registered as a valid sort alias at the repository level even though not exposed in the UI's
+  `AdvertisementSortMeta`, giving a stable, gap-free pagination key) until an empty page is
+  returned — no new `AdvertisementPort` method needed. Result cached whole (Caffeine, 15 min,
+  single entry) since crawlers hit this in bursts and the full scan cost is the same regardless
+  of caller.
+- `SecurityConfig` — `requestMatchers("/sitemap.xml").permitAll()` added ahead of the catch-all,
+  per the `HealthController` precedent — this *is* a genuine new endpoint (unlike ADR-059's
+  listener, correctly reasoned to need no `SecurityConfig` change at all).
+- Reuses `AppLinkService.advertisementUrl(id)` from ADR-060 for each `<loc>`.
+
+**Bug found and fixed while verifying (unrelated to the endpoint's own logic):**
+`app.public-base-url` defaults to `http://localhost:8080` (`application.yml`), but `deploy.sh`
+publishes the app container's internal port 8080 to host port **8081** (`-p "$APP_PORT":8080`,
+`APP_PORT` defaulting to 8081 — see `scripts/CLAUDE.md`, "port 8081, 8080 reserved for local
+IntelliJ dev server"). Confirmed directly: a local `deploy.sh` run produced `<loc>` entries
+pointing at `localhost:8080`, unreachable from outside the container. Fixed by having `deploy.sh`
+pass `-e APP_PUBLIC_URL="http://localhost:$APP_PORT"` to the app container, mirroring the exact
+pattern already used for `S3_PUBLIC_URL` (`http://localhost:$MINIO_PORT/$S3_BUCKET`) — this also
+correctly follows `APP_PORT` when it's overridden (e.g. `scripts/ci/entrypoint.sh`'s isolated e2e
+stack passing `APP_PORT="$CI_APP_PORT"`), with no separate case needed.
+
+**Consequences:**
+- Any real deployment (Render, etc.) still needs its own `APP_PUBLIC_URL` env var pointing at the
+  actual public domain — `deploy.sh`'s fix only corrects the *local* dev/test case.
+- Verified via a new Playwright assertion (extends the same ADR-059/060 test): `GET /sitemap.xml`
+  returns valid XML containing the just-created test advertisement's `/ads/:id` link. Full e2e
+  suite 50/50.

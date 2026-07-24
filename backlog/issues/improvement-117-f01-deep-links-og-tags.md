@@ -82,8 +82,14 @@ covered by the existing `anyRequest().permitAll()`, and this step introduces no 
 clipboard-copy fallback on desktop, on both the card and the view overlay. Verified via an
 extended Playwright assertion; full e2e suite 50/50.
 
-**Still open:** item 5 (`sitemap.xml`), item 6 (`og:image` cache-busting), JSON-LD, browser
-History API sync, and the manual real-world FB/Telegram preview check.
+**Item 5 (`sitemap.xml`) — done (2026-07-24).** `SitemapController` + `SecurityConfig` permit entry
+— see `marketplace-app/DECISIONS.md` ADR-061. Also found and fixed an unrelated bug while
+verifying: `deploy.sh` never set `APP_PUBLIC_URL`, so locally-generated links pointed at the
+container's internal port (8080) instead of the externally-reachable one (8081). Verified via an
+extended Playwright assertion; full e2e suite 50/50.
+
+**Still open:** item 6 (`og:image` cache-busting), JSON-LD, browser History API sync, and the
+manual real-world FB/Telegram preview check.
 
 ## Verification plan
 

@@ -240,6 +240,7 @@ docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
   -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" \
   -e S3_REGION="$S3_REGION" \
   -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET" \
+  -e APP_PUBLIC_URL="http://localhost:$APP_PORT" \
   -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
   "$APP_IMAGE"
 
