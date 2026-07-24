@@ -2596,3 +2596,72 @@ stack passing `APP_PORT="$CI_APP_PORT"`), with no separate case needed.
 - Verified via a new Playwright assertion (extends the same ADR-059/060 test): `GET /sitemap.xml`
   returns valid XML containing the just-created test advertisement's `/ads/:id` link. Full e2e
   suite 50/50.
+
+## ADR-062: F-01 remaining items — `twitter:card` fix, `og:image` cache-busting, JSON-LD, History API sync
+
+**Status:** Accepted
+
+**Context:** [improvement-117](../backlog/issues/improvement-117-f01-deep-links-og-tags.md)'s
+last four open items, closed together in one pass after manually crawler-simulating
+`GET /ads/:id` (`curl` — no browser JS, exactly what a real bot sees) surfaced a genuine bug in
+ADR-059's original listener: **`twitter:card` was emitted as `<meta property="twitter:card" ...>`
+instead of `<meta name="twitter:card" ...>`** — Twitter's crawler specifically looks for the
+`name=` attribute (unlike Open Graph's `property=`); the tag was silently invalid for Twitter
+Cards, while `og:*` tags (which do use `property=`) were unaffected. Found and fixed without
+needing the user's manual real-world check, by validating the server's raw HTML output directly —
+the one part of "does the crawler see this correctly" that doesn't actually require a public URL
+or a real Facebook/Telegram round-trip.
+
+**Decision:**
+1. **`twitter:card` fix** — `OgMetaRequestListener` now has a separate `addTwitterMeta()` helper
+   using `attr("name", ...)`, distinct from `addMeta()`'s `attr("property", ...)` used for `og:*`
+   tags. Twitter's own spec says it falls back to `og:title`/`og:description`/`og:image` for
+   anything not `twitter:`-prefixed, so no other `twitter:*` tags were needed.
+2. **`og:image` cache-busting** — `versionedImageUrl(ad)` appends `?v=<updatedAt-epoch-second>`
+   (or `&v=...` if the URL already has a query string) to `AdvertisementInfoDto.getMediaUrl()`.
+   Editing an ad's photo changes `updatedAt`, changes the query string, and FB/Telegram's
+   per-URL preview cache treats it as a new image — no manual "poke the Sharing Debugger" step
+   needed after an edit.
+3. **JSON-LD** — a `<script type="application/ld+json">` `Product` block (`@context`, `@type`,
+   `name`, `description`, `url`, `image`) alongside the `og:*`/`twitter:` meta tags, built via a
+   local `private static final ObjectMapper JSON = new ObjectMapper()` (not a Spring-managed bean
+   — this project's named `auditObjectMapper`/`userSettingsObjectMapper` beans would need an
+   explicit `@Qualifier` per this project's "no `@Primary`" convention, unnecessary overhead for
+   this narrow, dependency-free use). Serialized via `@SneakyThrows` over
+   `writeValueAsString(Map<String,Object>)` — a plain string map cannot actually throw
+   `JsonProcessingException`, so silently swallowing it or declaring a checked throws on an
+   `IndexHtmlRequestListener` callback would both be worse than letting a genuinely-impossible
+   failure surface as an unchecked one. Written as a raw `org.jsoup.nodes.DataNode` (not
+   `.text(...)`), since Jsoup only skips HTML-entity-escaping for `<script>`/`<style>` content via
+   `DataNode` — plain `.text()` would have corrupted the JSON by escaping its quotes.
+4. **History API sync** — `AdvertisementOverlay.openForView()` now calls
+   `UI.getCurrent().getPage().getHistory().pushState(null, "ads/" + id)`; `closeToList()` is
+   overridden to `pushState(null, "")` before delegating to `BaseOverlay`'s real close logic (this
+   correctly intercepts every path that closes the overlay — the breadcrumb back button, in
+   `AbstractEntityOverlay.buildContent()`, is wired via `this::closeToList`, which resolves
+   virtually to the override). Browser Back/Forward is handled via
+   `History.setHistoryStateChangeHandler(...)`, registered once in `@PostConstruct` (safe for a
+   `@UIScope` bean — Spring only constructs it once a UI context is already active): if the new
+   location isn't under `ads/` and the overlay is currently open in VIEW mode, it closes without
+   re-pushing history (calls `super.closeToList()` directly — `super` inside a lambda correctly
+   resolves to the enclosing class's superclass, this is not an anonymous-class `this`).
+
+**Known limitation, deliberately not addressed:** Vaadin's `History` API is a single-handler slot
+(`setHistoryStateChangeHandler`, not an `addListener`-style multi-registration) — `AdvertisementOverlay`
+registering its own handler will silently overwrite any other overlay's handler on the same `UI`.
+Harmless today (no other domain has a deep-link route yet), but the *next* domain to add one
+(`masters/:id`, product Phase 2) cannot just copy this pattern — it needs a shared per-UI history
+dispatcher that all deep-linkable overlays register into, not each calling
+`setHistoryStateChangeHandler` independently.
+
+**Consequences:**
+- All four items verified in one Playwright test extension: a raw `page.request.get('/ads/:id')`
+  (no browser JS — the actual crawler-facing HTML) asserts `twitter:card` uses `name=` and a
+  `Product` JSON-LD block is present; a real card click + `page.goBack()` asserts the URL updates
+  to `/ads/:id` and back-navigation closes the overlay and returns to `/`. Full e2e suite 50/50.
+- `og:image` versioning was verified manually via `curl` too (`?v=<epoch>` present) since the
+  Playwright test's own throwaway ad has no attached media — not worth the added test complexity
+  of uploading media inside that same test just for this one assertion.
+- With this, every item from the original F-01 spec is done except the one that was never
+  automatable in the first place: sharing a real `/ads/:id` link into an actual Facebook post and
+  Telegram chat, which needs a public URL this sandbox doesn't have.

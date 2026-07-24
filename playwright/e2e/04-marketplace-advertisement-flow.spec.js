@@ -434,6 +434,27 @@ test.describe('Advertisement flow', () => {
       expect(body).toContain(`/ads/${adId}</loc>`);
     });
 
+    await test.step('crawler-facing HTML — og:title/description/url, twitter:card uses name= not property=, JSON-LD Product block present', async () => {
+      const response = await page.request.get(`/ads/${adId}`);
+      expect(response.ok()).toBeTruthy();
+      const html = await response.text();
+      expect(html).toContain(`<meta property="og:title" content="${title}">`);
+      expect(html).toContain('<meta property="og:type" content="product">');
+      expect(html).toContain('<meta name="twitter:card" content="summary_large_image">');
+      expect(html).not.toContain('property="twitter:card"');
+      expect(html).toMatch(/<script type="application\/ld\+json">\{.*"@type":"Product".*\}<\/script>/);
+    });
+
+    await test.step('card click — updates URL to /ads/:id, browser Back closes overlay and returns to /', async () => {
+      await card.first().click();
+      await overlay.waitFor({ timeout: 10000 });
+      await expect(page).toHaveURL(new RegExp(`/ads/${adId}$`));
+      await page.goBack();
+      await overlay.waitFor({ state: 'hidden', timeout: 10000 });
+      await expect(page).toHaveURL(/\/$/);
+      await screenshot(page, 'adv-deep-link-history-back');
+    });
+
     await runLogoutFlow(page, expect);
   });
 });

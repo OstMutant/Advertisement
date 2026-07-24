@@ -56,40 +56,48 @@ planning doc; this issue is the trackable, backlog-visible counterpart).
    immediately to a crawler-only `@RestController` (user-agent routing) — no further debate; this
    fallback costs ~100 lines and already has its own explicit permit-list entry either way.
 
-## Progress (2026-07-24)
+## Progress — all technical items done (2026-07-24)
 
-**Step 1 (day-1 prototype gate) — done.** `AdvertisementDeepLinkView` (`@Route("ads")`,
-`HasUrlParameter<Long>`) + `OgMetaRequestListener` (`config/seo/`) + `HtmlExcerptUtil` extraction —
-see `marketplace-app/DECISIONS.md` ADR-059 for the full design. Verified: real-browser navigation
-to `/ads/:id` opens the correct overlay (new Playwright test, full e2e suite 50/50). No
-`SecurityConfig` change was actually needed (corrected from item 2/5 below — `/ads/**` is already
-covered by the existing `anyRequest().permitAll()`, and this step introduces no new REST endpoint).
+Implemented and verified in four passes, each with its own `marketplace-app/DECISIONS.md` ADR:
 
-**Still open, in this order:**
-- Manual verification (cannot be automated — needs a public URL): share a real `/ads/:id` link
-  into an actual Facebook post and Telegram chat, confirm the rich preview renders correctly. Per
-  the day-1 binary gate, a wrong preview means switching immediately to a crawler-only
-  `@RestController` fallback instead of debugging further.
-- Item 4: "Share" button on card + view overlay.
-- Item 5: `sitemap.xml` servlet (will need its own explicit `requestMatchers` permit entry — this
-  one *is* a genuine new REST endpoint, unlike step 1).
-- Item 6: `og:image` cache-busting versioning (`?v=<updatedAt>`).
-- Item 2's JSON-LD (`Product`/`LocalBusiness`) and browser History API sync (manual open →
-  URL update) were not part of step 1 either — still open.
+1. **Step 1 (day-1 prototype gate) — ADR-059.** `AdvertisementDeepLinkView` (`@Route("ads")`,
+   `HasUrlParameter<Long>`) stores the requested id in `VaadinSession` and forwards to root;
+   `AdvertisementsView.openPendingDeepLinkIfAny()` (called from `MainView.init()`) opens the
+   existing overlay for it. `OgMetaRequestListener` (`config/seo/`) injects `og:*` meta tags into
+   the server-rendered `index.html` for `/ads/:id` requests (Caffeine-cached 5 min).
+   `HtmlExcerptUtil` extracted from `AdvertisementCardView`'s inline Jsoup call. No
+   `SecurityConfig` change needed — `/ads/**` was already covered by `anyRequest().permitAll()`,
+   and this introduces no new REST endpoint.
+2. **"Share" button — ADR-060.** `AppLinkService` (builds the absolute `/ads/:id` URL) +
+   `ShareUtil` (native Web Share API on mobile, clipboard-copy fallback on desktop) +
+   `ShareActionButton`, wired into both `AdvertisementCardView` and
+   `AdvertisementViewOverlayModeHandler`.
+3. **`sitemap.xml` — ADR-061.** `SitemapController` pages through the existing
+   `AdvertisementPort.getFiltered()` (no new port method), Caffeine-cached 15 min; genuine new
+   REST endpoint, so it *does* get its own `SecurityConfig` permit entry. Found and fixed a real,
+   unrelated bug while verifying: `deploy.sh` never set `APP_PUBLIC_URL`, so locally-generated
+   links pointed at the container's internal port (8080) instead of the externally-reachable one
+   (8081) `deploy.sh` itself publishes to.
+4. **`twitter:card` fix, `og:image` cache-busting, JSON-LD, History API sync — ADR-062.** Found a
+   real bug myself (no manual check needed) by crawler-simulating `GET /ads/:id` via `curl`:
+   `twitter:card` was emitted with the wrong HTML attribute (`property=` instead of the
+   Twitter-required `name=`). Fixed alongside the three remaining spec items: `og:image` now
+   carries a `?v=<updatedAt-epoch>` cache-busting query param; a `Product` JSON-LD block is
+   injected; `AdvertisementOverlay` now syncs browser history (`pushState` on open/close,
+   `History.setHistoryStateChangeHandler` for Back/Forward) — verified with a real
+   `page.goBack()` in Playwright, not just a same-page assertion. Known limitation recorded in
+   ADR-062: Vaadin's `History` API is a single-handler slot per `UI`, so a *second* domain adding
+   its own deep-link route later cannot just copy this pattern independently.
 
-**Item 4 ("Share" button) — done (2026-07-24).** `AppLinkService` + `ShareUtil` +
-`ShareActionButton` — see `marketplace-app/DECISIONS.md` ADR-060. Native Web Share API on mobile,
-clipboard-copy fallback on desktop, on both the card and the view overlay. Verified via an
-extended Playwright assertion; full e2e suite 50/50.
+**Verification, cumulative:** every item above lands in the same Playwright test
+(`04-marketplace-advertisement-flow.spec.js`, "userEn opens a deep link..."), extended test-step
+by test-step across all four passes. Full e2e suite 50/50 after each pass, unit-tests 73/73.
 
-**Item 5 (`sitemap.xml`) — done (2026-07-24).** `SitemapController` + `SecurityConfig` permit entry
-— see `marketplace-app/DECISIONS.md` ADR-061. Also found and fixed an unrelated bug while
-verifying: `deploy.sh` never set `APP_PUBLIC_URL`, so locally-generated links pointed at the
-container's internal port (8080) instead of the externally-reachable one (8081). Verified via an
-extended Playwright assertion; full e2e suite 50/50.
-
-**Still open:** item 6 (`og:image` cache-busting), JSON-LD, browser History API sync, and the
-manual real-world FB/Telegram preview check.
+**Still open — the one item that was never automatable:** share a real `/ads/:id` link into an
+actual Facebook post and a real Telegram chat, confirm the rich preview renders correctly (needs
+a public URL this sandbox doesn't have). Per the day-1 binary gate: if either preview renders
+wrong, switch immediately to a crawler-only `@RestController` fallback instead of debugging
+further — this is the only thing blocking closing this issue.
 
 ## Verification plan
 

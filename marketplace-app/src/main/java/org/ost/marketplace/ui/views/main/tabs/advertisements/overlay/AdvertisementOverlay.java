@@ -1,7 +1,9 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements.overlay;
 
+import com.vaadin.flow.component.UI;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -35,11 +37,24 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
         OverlaySession withAd(AdvertisementInfoDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
     }
 
+    private static final String LIST_PATH = "";
+    private static final String AD_PATH_PREFIX = "ads/";
+
     @Getter private final EntityOverlaySupport  support;
     private final UiComponentFactory<AdvertisementViewOverlayModeHandler> viewModeHandlerFactory;
     private final UiComponentFactory<AdvertisementFormOverlayModeHandler> formModeHandlerFactory;
 
     private OverlaySession session;
+
+    @PostConstruct
+    private void registerHistoryListener() {
+        UI.getCurrent().getPage().getHistory().setHistoryStateChangeHandler(event -> {
+            boolean onAdPath = event.getLocation().getPath().startsWith(AD_PATH_PREFIX);
+            if (!onAdPath && session != null && session.mode() == Mode.VIEW && hasClassName("overlay--visible")) {
+                super.closeToList();
+            }
+        });
+    }
 
     @Override protected String    getOverlayCssClass()    { return "advertisement-overlay"; }
     @Override protected I18nKey   getBreadcrumbLabelKey() { return MAIN_TAB_ADVERTISEMENTS; }
@@ -77,6 +92,7 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     public void openForView(AdvertisementInfoDto ad, Runnable onChanged) {
         ensureInitialized();
         openSession(new OverlaySession(Mode.VIEW, ad, onChanged, false));
+        UI.getCurrent().getPage().getHistory().pushState(null, AD_PATH_PREFIX + ad.getId());
     }
 
     public void openForCreate(Runnable onSaved) {
@@ -134,5 +150,11 @@ public class AdvertisementOverlay extends AbstractEntityOverlay<AdvertisementFor
     private void closeAndRefresh() {
         session.onSaved().run();
         closeToList();
+    }
+
+    @Override
+    protected void closeToList() {
+        UI.getCurrent().getPage().getHistory().pushState(null, LIST_PATH);
+        super.closeToList();
     }
 }
