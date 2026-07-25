@@ -34,25 +34,16 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
 `completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
 2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
-out into improvement-118. **improvement-120 promoted to sole top priority 2026-07-25** — last
-hard SQL-level FK coupling between starters, cheapest to fix before the DB ever reaches
-production.
+out into improvement-118. improvement-120 completed 2026-07-25 — see `completed/BACKLOG-ARCHIVE.md`.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🔴 | 120 | `advertisement` → `user_information` hard FK coupling — edit `01-advertisement-schema.xml` in place (pre-prod, no incremental changeset), close the `UserService.cleanup()` safety-net gap the FK currently covers |
 | Top | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL |
 | High | 🟡 | 119 | F-02 city dictionary + geo filter — product roadmap Phase 1, item #2; taxon-assignment reuse (no schema change), new `City*` admin classes by analogy, city chip/badge/filter on advertisements |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-120
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-120](issues/improvement-120-advertisement-user-hard-fk-coupling.md) | New (found during F-02 planning review) | Remove the last hard SQL FK coupling between starters (`advertisement` → `user_information`, 3 constraints); close the retention-cleanup safety-net gap it currently covers |
 
 ### Top priority — improvement-118
 

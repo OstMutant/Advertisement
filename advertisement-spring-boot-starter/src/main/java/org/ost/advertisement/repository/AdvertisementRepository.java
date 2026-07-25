@@ -143,4 +143,17 @@ public class AdvertisementRepository {
                 .list();
     }
 
+    public Set<Long> findOwnerIds(@NonNull Set<Long> userIds) {
+        return Set.copyOf(jdbcClient.sql("SELECT DISTINCT created_by FROM advertisement WHERE created_by = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource("ids", userIds.toArray(new Long[0])))
+                .query(Long.class)
+                .list());
+    }
+
+    public void clearActorReferences(@NonNull Set<Long> userIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", userIds.toArray(new Long[0]));
+        jdbcClient.sql("UPDATE advertisement SET updated_by = NULL WHERE updated_by = ANY(:ids)").paramSource(params).update();
+        jdbcClient.sql("UPDATE advertisement SET deleted_by = NULL WHERE deleted_by = ANY(:ids)").paramSource(params).update();
+    }
+
 }

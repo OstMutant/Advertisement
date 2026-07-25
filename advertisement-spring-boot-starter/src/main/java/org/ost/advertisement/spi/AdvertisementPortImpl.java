@@ -59,4 +59,15 @@ public class AdvertisementPortImpl implements AdvertisementPort {
     public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
         return service.findByCreator(userId);
     }
+
+    @Override
+    public Set<Long> findOwnerIds(@NonNull Set<Long> userIds) {
+        return service.findOwnerIds(userIds);
+    }
+
+    @Override
+    @Transactional
+    public void clearActorReferences(@NonNull Set<Long> userIds) {
+        service.clearActorReferences(userIds);
+    }
 }

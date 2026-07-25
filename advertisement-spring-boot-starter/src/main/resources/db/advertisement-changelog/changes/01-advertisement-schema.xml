@@ -31,30 +31,6 @@
             </column>
         </createTable>
 
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="created_by"
-                constraintName="fk_advertisement_created_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="RESTRICT"/>
-
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="updated_by"
-                constraintName="fk_advertisement_modified_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="SET NULL"/>
-
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="deleted_by"
-                constraintName="fk_advertisement_deleted_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="SET NULL"/>
-
         <createIndex indexName="idx_advertisement_title" tableName="advertisement">
             <column name="title"/>
         </createIndex>

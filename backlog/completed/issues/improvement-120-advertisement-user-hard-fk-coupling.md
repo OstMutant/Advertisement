@@ -103,6 +103,32 @@ a real regression.** Traced both consumers of these columns:
    gone from the live schema after a fresh Liquibase run), and a full Playwright regression (no
    user-facing behavior should change).
 
+## Implemented (2026-07-25)
+
+Shipped exactly per the suggested fix, with the `created_by`/`updated_by`+`deleted_by` split
+refined during implementation (see below) — `AdvertisementPort` gained two methods instead of one
+generic existence check: `findOwnerIds(Set<Long> userIds)` (mirrors the old RESTRICT — blocks
+purge) and `clearActorReferences(Set<Long> userIds)` (mirrors the old SET NULL — nulls the columns
+instead of blocking). `UserService.cleanup()` now calls `clearActorReferences()` unconditionally
+first, then skips `deleteById()` only for ids still in `findOwnerIds()`'s result.
+
+**Point 3 resolved — verified no UI impact, not just assumed:**
+
+| Scenario | Advertisement card/view | Activity tab | Timeline tab |
+|---|---|---|---|
+| Admin soft-deletes a user | Their own ads cascade-soft-delete too (unchanged); `createdByUserName` still resolves (row still exists) | Actor name shown with a `(deleted)` suffix (`AUDIT_ACTOR_DELETED_NAME`) — unchanged | Same `(deleted)` suffix — unchanged |
+| Retention purge, user still owns an ad | **Blocked by `findOwnerIds()`** — nothing changes, retried next cycle | n/a (user not deleted) | n/a |
+| Retention purge, user only ever appeared as `updated_by`/`deleted_by` on someone else's ad | `updated_by`/`deleted_by` get nulled — **but neither column is ever exposed to the UI**: confirmed `AdvertisementInfoDto` has no such fields and `AdvertisementMapper` doesn't map them | Actor name for old rows referencing the purged id falls back to `""` (blank) — same as any `audit_log.actor_id` with no matching user row today, since `audit_log` never had a DB constraint either; not a new gap | Same blank-name fallback, pre-existing behavior |
+
+Net effect: no UI regression. `created_by` (the only actor reference actually surfaced in the UI)
+is *more* protected after this change than before, since `findOwnerIds()` checks it unconditionally
+regardless of soft-delete state.
+
+**Verified:** unit-tests 74/74 (`marketplace-app`, cascades through the full reactor since
+`AdvertisementPort` is a `platform-commons` interface change), integration-tests 9/9
+(`UserServiceTest`, `cleanup()` mocks rewritten from FK-exception-catching to explicit
+`findOwnerIds`/`clearActorReferences` mocks).
+
 ## Related
 
 - `advertisement-spring-boot-starter/CLAUDE.md` — already documents the Java-level decoupling

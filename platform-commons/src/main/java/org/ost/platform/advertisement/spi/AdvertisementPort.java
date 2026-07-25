@@ -28,4 +28,10 @@ public interface AdvertisementPort {
     Set<Long> findExistingIds(@NonNull Set<Long> ids);
 
     List<AdvertisementInfoDto> findByCreator(@NonNull Long userId);
+
+    /** Subset of {@code userIds} that own at least one advertisement (including soft-deleted rows). */
+    Set<Long> findOwnerIds(@NonNull Set<Long> userIds);
+
+    /** Nulls {@code updated_by}/{@code deleted_by} on every advertisement referencing any of {@code userIds}. */
+    void clearActorReferences(@NonNull Set<Long> userIds);
 }

@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
@@ -17,12 +18,12 @@ import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.services.UserService;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -67,7 +68,11 @@ class UserServiceTest {
     @Mock
     private AuditPort auditPort;
 
+    @Mock
+    private AdvertisementPort advertisementPort;
+
     private ObjectProvider<AuditPort> auditPortProvider;
+    private ObjectProvider<AdvertisementPort> advertisementPortProvider;
 
     private UserService userService;
 
@@ -75,8 +80,10 @@ class UserServiceTest {
     @SuppressWarnings("unchecked")
     void setUp() {
         auditPortProvider = mock(ObjectProvider.class);
+        advertisementPortProvider = mock(ObjectProvider.class);
         ComponentFactory<AuditPort> auditPortFactory = new ComponentFactory<>(auditPortProvider);
-        userService = new UserService(userRepository, passwordEncoder, auditPortFactory);
+        ComponentFactory<AdvertisementPort> advertisementPortFactory = new ComponentFactory<>(advertisementPortProvider);
+        userService = new UserService(userRepository, passwordEncoder, auditPortFactory, advertisementPortFactory);
         lenient().when(userRepository.countByFilter(UserFilterDto.empty())).thenReturn(5L);
         lenient().when(passwordEncoder.encode(org.mockito.ArgumentMatchers.anyString())).thenReturn("encoded");
     }
@@ -87,6 +94,15 @@ class UserServiceTest {
             consumer.accept(auditPort);
             return null;
         }).when(auditPortProvider).ifAvailable(any());
+    }
+
+    private void stubAdvertisementPortAvailable() {
+        lenient().when(advertisementPortProvider.getIfAvailable()).thenReturn(advertisementPort);
+        lenient().doAnswer(inv -> {
+            Consumer<AdvertisementPort> consumer = inv.getArgument(0);
+            consumer.accept(advertisementPort);
+            return null;
+        }).when(advertisementPortProvider).ifAvailable(any());
     }
 
     private static SignUpDto signUpDto(String email) {
@@ -197,23 +213,37 @@ class UserServiceTest {
     @Test
     void cleanup_purgesAllEligibleRows() {
         when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
+        stubAdvertisementPortAvailable();
+        when(advertisementPort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of());
 
         userService.cleanup(90);
 
+        verify(advertisementPort).clearActorReferences(Set.of(1L, 2L, 3L));
         verify(userRepository).deleteById(1L);
         verify(userRepository).deleteById(2L);
         verify(userRepository).deleteById(3L);
     }
 
     @Test
-    void cleanup_rowBlockedByForeignKey_skipsItButStillPurgesTheRest() {
+    void cleanup_rowStillOwnsAdvertisement_skipsItButStillPurgesTheRest() {
         when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L, 3L));
-        lenient().doThrow(new DataIntegrityViolationException("still referenced")).when(userRepository).deleteById(2L);
+        stubAdvertisementPortAvailable();
+        when(advertisementPort.findOwnerIds(Set.of(1L, 2L, 3L))).thenReturn(Set.of(2L));
+
+        userService.cleanup(90);
+
+        verify(userRepository).deleteById(1L);
+        verify(userRepository, never()).deleteById(2L);
+        verify(userRepository).deleteById(3L);
+    }
+
+    @Test
+    void cleanup_advertisementPortAbsent_purgesAllCandidates() {
+        when(userRepository.findIdsDeletedOlderThan(90)).thenReturn(List.of(1L, 2L));
 
         userService.cleanup(90);
 
         verify(userRepository).deleteById(1L);
         verify(userRepository).deleteById(2L);
-        verify(userRepository).deleteById(3L);
     }
 }

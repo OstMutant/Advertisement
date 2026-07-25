@@ -1278,3 +1278,27 @@ to stay open until an explicit close). Verified: unit-tests 73/73 (incl. ArchUni
 `e2e --full --ux` 50/50 on the post-fix re-run. Deliberately deferred: option D (keyset/cursor
 pagination), still the correct eventual fix for the deeper, unrelated instability from *other*
 users' concurrent inserts/deletes — tracked inside the issue file, not split out separately.
+
+✅ Done (2026-07-25): [improvement-120](issues/improvement-120-advertisement-user-hard-fk-coupling.md)
+— removed the last hard SQL-level FK coupling between starters (`advertisement` → `user_information`,
+3 constraints: `created_by` RESTRICT, `updated_by`/`deleted_by` SET NULL), found during F-02
+planning review. Edited `01-advertisement-schema.xml` in place (pre-prod, no incremental
+changeset). Traced the constraint as load-bearing before removing it — `UserService.cleanup()`'s
+retention-purge job relied on the DB blocking a hard delete when `advertisement` rows still
+referenced the user. Replaced with two new `AdvertisementPort` methods split by the two
+constraints' different original semantics: `findOwnerIds()` (mirrors RESTRICT, blocks purge while
+the user still owns an ad) and `clearActorReferences()` (mirrors SET NULL, nulls
+`updated_by`/`deleted_by` instead of blocking). Verified no UI regression, not assumed — neither
+column is ever exposed to the UI (`AdvertisementInfoDto` has no such fields), and
+Activity/Timeline actor-name resolution is a separate mechanism (`audit_log.actor_id`) that never
+had a DB constraint either. `created_by` (the only actor reference actually shown in the UI) ends
+up *more* protected than before. See `marketplace-app/DECISIONS.md` ADR-064. Bonus, per user
+request: `deploy.sh` now auto-recovers from the resulting local-dev Liquibase checksum mismatch
+(edited-in-place changeset vs. an already-applied old version) — detects the specific
+`ValidationFailedException` signature and auto-wipes/retries once instead of requiring a manual
+`--reset`, verified live by deliberately corrupting a dev DB's stored checksum and confirming
+recovery. Hit and fixed two real bash pitfalls along the way (`$?` after `if ! cmd; then` capturing
+the `if` test's own status, not `cmd`'s; the `ERR` trap firing regardless of `set +e` for any
+command outside a tested `if`/`&&`/`||` construct) — see `scripts/DECISIONS.md` ADR-010. Verified:
+unit-tests 74/74, integration-tests 126/126 (full suite), Playwright `e2e --full --ux` 50/50
+(twice).

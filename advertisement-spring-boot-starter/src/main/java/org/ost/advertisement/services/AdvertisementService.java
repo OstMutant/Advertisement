@@ -161,6 +161,15 @@ public class AdvertisementService {
         return repository.findByCreator(userId);
     }
 
+    public Set<Long> findOwnerIds(@NonNull Set<Long> userIds) {
+        return repository.findOwnerIds(userIds);
+    }
+
+    @Transactional
+    public void clearActorReferences(@NonNull Set<Long> userIds) {
+        repository.clearActorReferences(userIds);
+    }
+
     @Transactional
     public void delete(@NonNull Long id, @NonNull Long actingUserId, Long version) {
         log.info("Advertisement delete: id={}", id);

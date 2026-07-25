@@ -185,3 +185,52 @@ host-facing occurrences (`S3_PUBLIC_URL`, the host port mappings themselves) wer
   non-production dev credentials, same as before — moving them to `.env` is a pure refactor, not
   a security hardening pass) and `deploy.sh`'s deliberate `8081` vs `8080` port distinction
   (untouched, must stay distinct).
+
+## ADR-010: `deploy.sh` auto-recovers from a Liquibase checksum mismatch (stale local dev DB)
+
+**Status:** Accepted
+
+**Context:** [improvement-120](../backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md)
+edited an already-applied Liquibase changeset in place (`01-advertisement-schema.xml`, removing
+the `advertisement`→`user_information` FK constraints — deliberate, since the DB has never been
+released, so preserving changelog history across a content edit was never a goal). Every local dev
+DB that had already run the old version of that changeset then fails Liquibase's own checksum
+validation on the next `deploy.sh` run — a `ValidationFailedException` that crashes the app
+container on startup. This is a predictable, recurring class of event for this project (any future
+in-place changeset edit on a still-unreleased table hits the same wall), not a one-off — worth
+teaching the script instead of re-explaining it and manually running `--reset` every time it recurs.
+
+**Decision:** `deploy.sh`'s Step 3 (`wait_for_app`) now distinguishes three outcomes instead of a
+flat "started or timed out": `0` = `Started Application` seen, `1` = the app container's logs
+contain the Liquibase checksum-mismatch signature (`changesets check sum`/`ValidationFailedException`),
+`2` = anything else (container exited for a different reason, or a genuine timeout). On `1`, the
+script automatically calls the same volume-wipe logic `--reset` already used (`reset_infra`,
+extracted from the `--reset` branch into a reusable function, alongside a new `start_infra`
+covering the rest of Step 1's container/wait/bucket setup), then retries starting the app exactly
+once. A second failure of any kind after the retry fails loudly (`exit 1` with the log tail), not
+silently — this only ever auto-recovers from the one specific, unambiguous signature, never masks
+a different underlying problem.
+
+**Two real bash pitfalls hit and fixed while wiring this up, worth recording since they're easy to
+reintroduce:**
+1. `if ! wait_for_app; then status=$?; ...` — `$?` inside that block is the exit status of the `if`
+   condition test itself (always `0`, since the negated test succeeded), **not** `wait_for_app`'s
+   real return value. Fixed with the standard idiom `wait_for_app && status=0 || status=$?`, which
+   captures the function's own exit code correctly.
+2. Even after fixing (1), a bare `wait_for_app` call (or a `set +e`-wrapped one) still triggered
+   this script's own `ERR` trap and exited immediately — the trap fires on any non-zero-returning
+   command that isn't inside a *tested* construct (`if`/`&&`/`||`/`!`), independent of whether
+   `set -e` itself is currently active. `set +e; wait_for_app; set -e` does not exempt the call;
+   only wrapping it in `&&`/`||` (as in the idiom above) does, since that's what the trap's own
+   exemption rule actually checks for.
+
+**Consequences:**
+- Verified end-to-end, not just by inspection: manually corrupted the `databasechangelog` row's
+  `md5sum` in the running dev DB to force the exact failure, ran `deploy.sh` unmodified, confirmed
+  the auto-recovery message, volume wipe, and successful retry all fired for real, then confirmed
+  the checksum was correctly re-applied afterward. Also verified the untouched happy path (normal
+  `deploy.sh`, no corruption) still passes straight through unaffected.
+- Scoped to local dev only, by construction — the auto-wipe is the same disposable dev DB/MinIO
+  volumes `--reset` already destroys today, never anything resembling a deployed database (this
+  project has none yet). A future real migration story for a released database is a separate,
+  unrelated problem this ADR does not attempt to solve.

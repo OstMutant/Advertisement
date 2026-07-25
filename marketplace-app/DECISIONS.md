@@ -2753,3 +2753,65 @@ surfaces on page 1, so jumping there on refresh is where the changes actually ar
 the user happened to be paginated to. i18n keys `*_BANNER_CHANGES_AVAILABLE`/`*_BUTTON_REFRESH`
 removed in favor of a single `*_TOOLTIP_REFRESH_AVAILABLE` key per domain (Advertisement, User;
 Taxon still has neither). Re-verified: unit-tests 73/73, Playwright `e2e --full --ux` 50/50.
+
+## ADR-064: `advertisement` → `user_information` hard FK coupling removed — last one between starters
+
+**Status:** Accepted
+
+**Context:** [improvement-120](../backlog/completed/issues/improvement-120-advertisement-user-hard-fk-coupling.md) —
+`01-advertisement-schema.xml` had three physical `addForeignKeyConstraint` blocks from
+`advertisement` to `user_information` (`created_by` `ON DELETE RESTRICT`, `updated_by`/`deleted_by`
+`ON DELETE SET NULL`) — confirmed the sole such constraint anywhere in the codebase; `taxon`,
+`audit`, and `attachment` all store actor references as plain `BIGINT` with no DB-level FK, exactly
+matching the Java-level decoupling `advertisement-spring-boot-starter/CLAUDE.md` already documents
+(`AdvertisementRepository` never joins `user_information`). Found during F-02 planning review, not
+originally sought out.
+
+Traced both real consumers before touching anything, since the constraint turned out to be
+load-bearing, not dead weight: `UserDeleteService.delete()` (interactive admin delete) already
+cascades correctly and never hits the FK. `UserService.cleanup(retentionDays)` (the retention-purge
+`@Scheduled` job) does a genuine hard `deleteById()` and was the one path actually relying on the
+constraint — catching `DataIntegrityViolationException` to skip a user still referenced by an
+`advertisement` row, since `AdvertisementService.cleanup()` is a *separate*, independently-scheduled
+job in a different starter with no cross-starter ordering guarantee.
+
+**Decision:**
+1. Removed all three FK constraints from `01-advertisement-schema.xml` directly (edited the
+   existing changeset in place, not a new incremental one — the DB has never been released, so
+   there is no deployed changelog history to preserve). `idx_advertisement_created_by` kept as a
+   plain index, matching `taxon`'s existing pattern for its own actor columns.
+2. `AdvertisementPort` gained two methods, split by the two constraints' different semantics rather
+   than one generic existence check: `findOwnerIds(Set<Long> userIds)` (subset that created at
+   least one advertisement, including soft-deleted rows — mirrors the old RESTRICT, blocks purge)
+   and `clearActorReferences(Set<Long> userIds)` (nulls `updated_by`/`deleted_by` — mirrors the old
+   SET NULL). Both pure-delegation through `AdvertisementService`/`AdvertisementPortImpl`, per the
+   project's `*PortImpl` convention.
+3. `UserService.cleanup()` now calls `clearActorReferences()` unconditionally first, then skips
+   `deleteById()` only for ids still in `findOwnerIds()`'s result — same observable retry-next-cycle
+   behavior as before, no longer dependent on a DB constraint to enforce it.
+4. **Verified no UI regression, not assumed** — confirmed `AdvertisementInfoDto` has no
+   `updatedBy`/`deletedBy` fields at all and `AdvertisementMapper` doesn't map them, so nulling those
+   columns is invisible to every screen. Activity/Timeline actor-name resolution
+   (`UserActorNameService`) is a completely separate mechanism keyed on `audit_log.actor_id`, which
+   never had a DB constraint either — a purged/unresolvable actor id already fell back to a blank
+   name before this change, same as after. `created_by` (the only actor reference actually surfaced
+   in the UI, via `createdByUserName`) is *more* protected now than before, since `findOwnerIds()`
+   checks it unconditionally regardless of soft-delete state.
+
+**Consequences:**
+- `user-spring-boot-starter` can now run its own Liquibase changelog against a database that has
+  never seen `advertisement-spring-boot-starter` at all — the concrete thing the old FK made
+  impossible.
+- `integration-tests/support/RepositoryTestSupport.java` gained a third empty
+  `ComponentFactory<AdvertisementPort>` bean (alongside the existing `AuditPort`/`AttachmentPort`
+  ones), `@ConditionalOnMissingBean`-guarded since `AdvertisementRepositoryTest` itself already
+  provides the real one via `AdvertisementAutoConfiguration` — omitting that annotation causes a
+  `BeanDefinitionOverrideException` the moment a test combines both, confirmed by hitting it
+  directly during verification.
+- Local dev DBs that already had the old changeset applied fail Liquibase's checksum validation on
+  the next deploy — expected and handled by `deploy.sh`'s new auto-recovery (`scripts/DECISIONS.md`
+  ADR-010), not a regression in this change itself.
+- Verified: unit-tests 74/74 (cascades through the full reactor since `AdvertisementPort` is a
+  `platform-commons` interface change), integration-tests 126/126 (full suite, not just the
+  touched classes), Playwright `e2e --full --ux` 50/50 (twice, including a final check after the
+  `deploy.sh` auto-recovery fix landed).
