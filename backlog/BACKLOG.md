@@ -34,21 +34,37 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
 `completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
 2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
-out into improvement-118 (sole remaining top priority).
+out into improvement-118. **improvement-120 promoted to sole top priority 2026-07-25** — last
+hard SQL-level FK coupling between starters, cheapest to fix before the DB ever reaches
+production.
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **Top** | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL |
+| **Top** | 🔴 | 120 | `advertisement` → `user_information` hard FK coupling — edit `01-advertisement-schema.xml` in place (pre-prod, no incremental changeset), close the `UserService.cleanup()` safety-net gap the FK currently covers |
+| Top | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL |
+| High | 🟡 | 119 | F-02 city dictionary + geo filter — product roadmap Phase 1, item #2; taxon-assignment reuse (no schema change), new `City*` admin classes by analogy, city chip/badge/filter on advertisements |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 
 Details, links, and per-batch rationale below.
+
+### Top priority — improvement-120
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-120](issues/improvement-120-advertisement-user-hard-fk-coupling.md) | New (found during F-02 planning review) | Remove the last hard SQL FK coupling between starters (`advertisement` → `user_information`, 3 constraints); close the retention-cleanup safety-net gap it currently covers |
 
 ### Top priority — improvement-118
 
 | Issue | Origin | What |
 |---|---|---|
 | [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable |
+
+### High priority — improvement-119
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-119](issues/improvement-119-f02-city-dictionary-geo-filter.md) | New (product roadmap Phase 1, item #2) | City dictionary + geo filter — reuses `taxon_assignment` (no schema change to `advertisement`), new `City*` admin classes by analogy with `Taxon*` (not a shared parameterized class), city chip/badge/filter mirroring the existing category UI |
 
 ### Nice to have — no internal priority order
 

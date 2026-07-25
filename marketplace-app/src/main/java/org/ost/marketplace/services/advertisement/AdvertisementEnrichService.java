@@ -3,6 +3,7 @@ package org.ost.marketplace.services.advertisement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -17,7 +18,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -29,6 +29,7 @@ public class AdvertisementEnrichService {
 
     private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
     private final ComponentFactory<TaxonPort>           taxonPortFactory;
+    private final LocaleProvider                        localeProvider;
 
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> mergeMediaChanges(
             List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
@@ -97,8 +98,7 @@ public class AdvertisementEnrichService {
 
     private static final ChangeEntry NO_MEDIA_ENTRY = new ChangeEntry.MediaChange(null, "—");
 
-    // skipMediaMergeIfUnchanged: Activity skips the media entry when attachmentSnapshotId is
-    // unchanged from the previous version; Timeline always merges it (no "unchanged" concept there).
+    // skipMediaMergeIfUnchanged: Activity skips an unchanged media entry; Timeline always merges it.
     private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
                                             AdvertisementSnapshotDto prev, Map<Long, String> nameById,
                                             boolean skipMediaMergeIfUnchanged) {
@@ -126,8 +126,7 @@ public class AdvertisementEnrichService {
         if (snapshot != null) ids.addAll(snapshot.categoryIds());
     }
 
-    // Replaces the categoryIds FieldChange's raw id strings with resolved names; every other
-    // ChangeEntry (media changes, or any other field) passes through unchanged.
+    // Always appends a resolved categoryIds entry -- expandWithChanges() falls back to allFields()'s raw ids otherwise.
     private static List<ChangeEntry> resolveCategories(List<ChangeEntry> changes,
                                                         AdvertisementSnapshotDto snapshot,
                                                         AdvertisementSnapshotDto prev,
@@ -135,11 +134,18 @@ public class AdvertisementEnrichService {
         if (nameById.isEmpty()) return changes;
         List<Long> currIds = snapshot.categoryIds();
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
-        return changes.stream()
+        List<ChangeEntry> resolved = changes.stream()
                 .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.categoryIds,
                         _ -> idsToNames(prevIds, nameById),
                         _ -> idsToNames(currIds, nameById)))
                 .toList();
+        boolean hasCategoryEntry = resolved.stream().anyMatch(
+                e -> e instanceof ChangeEntry.FieldChange(var field, var _, var _)
+                        && field.equals(AdvertisementSnapshotDto.Fields.categoryIds));
+        if (hasCategoryEntry) return resolved;
+        List<ChangeEntry> withCategory = new ArrayList<>(resolved);
+        withCategory.add(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.categoryIds, null, idsToNames(currIds, nameById)));
+        return withCategory;
     }
 
     private static String idsToNames(List<Long> ids, Map<Long, String> nameById) {
@@ -151,7 +157,7 @@ public class AdvertisementEnrichService {
     private Map<Long, String> resolveNames(Set<Long> ids) {
         if (ids.isEmpty()) return Map.of();
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findByIds(ids, Locale.ENGLISH))
+                .map(p -> p.findByIds(ids, localeProvider.getCurrentLocale()))
                 .map(m -> m.entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, e -> nameOrStrikethrough(e.getValue()))))
                 .orElse(Map.of());

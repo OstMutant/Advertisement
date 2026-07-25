@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
@@ -41,12 +42,14 @@ class AdvertisementEnrichServiceTest {
     @Mock private ComponentFactory<TaxonPort> taxonPortFactory;
     @Mock private AttachmentAuditHook attachmentAuditHook;
     @Mock private TaxonPort taxonPort;
+    @Mock private LocaleProvider localeProvider;
 
     private AdvertisementEnrichService service;
 
     @BeforeEach
     void setUp() {
-        service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory);
+        lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
+        service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider);
     }
 
     private static <T> void stubAvailable(ComponentFactory<T> factory, T component) {
@@ -115,6 +118,29 @@ class AdvertisementEnrichServiceTest {
         List<ChangeEntry> changes = result.getFirst().changes();
         assertThat(changes).hasSize(1);
         assertThat(((ChangeEntry.FieldChange) changes.getFirst()).to()).isEqualTo("Electronics");
+    }
+
+    @Test
+    void mergeMediaChanges_categoryUnchanged_stillAddsResolvedCategoryEntry() {
+        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(taxonPortFactory, taxonPort);
+        when(taxonPort.findByIds(Set.of(1L), Locale.ENGLISH)).thenReturn(Map.of(1L, taxon(1L, "Electronics")));
+        when(attachmentAuditHook.getChangesBySnapshotId(50L))
+                .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
+
+        AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
+                1L, new EntityRef(EntityType.ADVERTISEMENT, 1L), ActionType.UPDATED, null,
+                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.title, "Old", "New")),
+                10L, snapshot(List.of(1L), 50L), snapshot(List.of(1L), 40L));
+
+        List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
+
+        ChangeEntry.FieldChange categoryEntry = result.getFirst().changes().stream()
+                .filter(ChangeEntry.FieldChange.class::isInstance)
+                .map(ChangeEntry.FieldChange.class::cast)
+                .filter(fc -> fc.field().equals(AdvertisementSnapshotDto.Fields.categoryIds))
+                .findFirst().orElseThrow();
+        assertThat(categoryEntry.to()).isEqualTo("Electronics");
     }
 
     @Test
