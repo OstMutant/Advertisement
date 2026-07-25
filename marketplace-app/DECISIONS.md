@@ -2692,8 +2692,8 @@ full-list rebuild:
   does a full `refresh()`.
 - `Runnable onClosed` — fired on every overlay close (Advertisement/User only, not Taxon — see
   below); triggers a cheap `count()`-only query compared against the count captured at the last
-  `refresh()`, showing a "N changes — Refresh" banner if they differ. No continuous polling —
-  this is the only place a stale-count check happens.
+  `refresh()`, surfacing a refresh affordance if they differ (see "Amended" below for its final
+  shape). No continuous polling — this is the only place a stale-count check happens.
 
 Per-domain implementation:
 - **Advertisement** (`AdvertisementOverlay`, `AdvertisementCardView`, `AdvertisementsView`):
@@ -2741,3 +2741,15 @@ matching the pre-existing (and correct) behavior of never auto-closing after any
   [improvement-046](../backlog/issues/improvement-046-list-stability-under-concurrent-edits.md).
 - Verified via `bash scripts/unit-tests.sh marketplace-app` (73/73, including ArchUnit boundary
   checks) and a full Playwright re-run after the Taxon fix above: `e2e --full --ux`, 50/50.
+
+**Amended (2026-07-25):** the "N changes — Refresh" banner (`Div` with a `Span` message + a
+`UiPrimaryButton`) was replaced with a single `UiIconButton` (`VaadinIcon.REFRESH`), same
+visibility trigger (`count()` mismatch on overlay close), but no message text — the button's
+native `title`/`aria-label` (set from `*_TOOLTIP_REFRESH_AVAILABLE`, a static string, no count
+param) carries the explanation instead of a persistent banner row. Its click handler now also
+calls the new `PaginationBar.resetToFirstPage()` before `refresh()` — since the sort is
+`updatedAt DESC, createdAt DESC`, every change (the user's own CREATE, or anyone else's mutation)
+surfaces on page 1, so jumping there on refresh is where the changes actually are, not wherever
+the user happened to be paginated to. i18n keys `*_BANNER_CHANGES_AVAILABLE`/`*_BUTTON_REFRESH`
+removed in favor of a single `*_TOOLTIP_REFRESH_AVAILABLE` key per domain (Advertisement, User;
+Taxon still has neither). Re-verified: unit-tests 73/73, Playwright `e2e --full --ux` 50/50.

@@ -1,8 +1,7 @@
 package org.ost.marketplace.ui.views.main.tabs.users;
 
 import com.vaadin.flow.component.grid.Grid;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -20,7 +19,7 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.user.UserDeleteService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
-import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
@@ -54,7 +53,7 @@ public class UserView extends VerticalLayout {
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
 
     private Grid<UserDto>  grid;
-    private Div            changesBanner;
+    private UiIconButton   refreshButton;
     private List<UserDto>  currentItems   = new ArrayList<>();
     private int            lastKnownTotal = 0;
 
@@ -69,10 +68,10 @@ public class UserView extends VerticalLayout {
         grid.setAllRowsVisible(true);
 
         paginationBar.addClassName("user-pagination");
-        changesBanner = buildChangesBanner();
+        refreshButton = buildRefreshButton();
 
         VerticalLayout contentWrapper = new VerticalLayout(
-                queryStatusBar, queryStatusBar.getQueryBlock(), changesBanner, grid, paginationBar
+                queryStatusBar, queryStatusBar.getQueryBlock(), refreshButton, grid, paginationBar
         );
         contentWrapper.setPadding(false);
         contentWrapper.setSpacing(false);
@@ -116,7 +115,7 @@ public class UserView extends VerticalLayout {
             int           totalCount = userPort.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
             lastKnownTotal = totalCount;
-            changesBanner.setVisible(false);
+            refreshButton.setVisible(false);
             currentItems = new ArrayList<>(pageData);
             grid.setItems(currentItems);
         } catch (ConstraintViolationException ex) {
@@ -134,11 +133,15 @@ public class UserView extends VerticalLayout {
         }
     }
 
-    private Div buildChangesBanner() {
-        Div banner = new Div();
-        banner.addClassName("user-changes-banner");
-        banner.setVisible(false);
-        return banner;
+    private UiIconButton buildRefreshButton() {
+        UiIconButton button = new UiIconButton(i18n.get(USER_VIEW_TOOLTIP_REFRESH_AVAILABLE), VaadinIcon.REFRESH.create());
+        button.addClassName("user-refresh-button");
+        button.setVisible(false);
+        button.addClickListener(_ -> {
+            paginationBar.resetToFirstPage();
+            refresh();
+        });
+        return button;
     }
 
     private void checkForChanges() {
@@ -149,14 +152,7 @@ public class UserView extends VerticalLayout {
         } catch (Exception ex) {
             return;
         }
-        changesBanner.setVisible(currentTotal != lastKnownTotal);
-        if (currentTotal == lastKnownTotal) return;
-
-        changesBanner.removeAll();
-        Span message = new Span(i18n.get(USER_VIEW_BANNER_CHANGES_AVAILABLE, Math.abs(currentTotal - lastKnownTotal)));
-        UiPrimaryButton refreshButton = new UiPrimaryButton(i18n.get(USER_VIEW_BUTTON_REFRESH));
-        refreshButton.addClickListener(_ -> refresh());
-        changesBanner.add(message, refreshButton);
+        refreshButton.setVisible(currentTotal != lastKnownTotal);
     }
 
     private void updateRowInPlace(UserDto fresh) {

@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements;
 import com.vaadin.flow.component.ClientCallable;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasOrderedComponents;
-import com.vaadin.flow.component.html.Div;
-import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
@@ -22,6 +20,7 @@ import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.platform.core.ComponentFactory;
@@ -56,18 +55,18 @@ public class AdvertisementsView extends VerticalLayout {
     private final PaginationBar                          paginationBar;
     private final transient SettingsPaginationBinding    settingsPaginationBinding;
 
-    private FlexLayout advertisementContainer;
-    private Div         changesBanner;
-    private int         lastKnownTotal = 0;
+    private FlexLayout  advertisementContainer;
+    private UiIconButton refreshButton;
+    private int          lastKnownTotal = 0;
 
     @PostConstruct
     protected void init() {
         advertisementContainer = buildAdvertisementContainer();
         UiPrimaryButton addButton = buildAddButton();
-        changesBanner = buildChangesBanner();
+        refreshButton = buildRefreshButton();
 
         VerticalLayout contentWrapper = new VerticalLayout(
-                queryStatusBar, queryStatusBar.getQueryBlock(), addButton, changesBanner, advertisementContainer, paginationBar
+                queryStatusBar, queryStatusBar.getQueryBlock(), addButton, refreshButton, advertisementContainer, paginationBar
         );
         contentWrapper.addClassName("advertisements-content-wrapper");
         contentWrapper.setPadding(false);
@@ -148,25 +147,22 @@ public class AdvertisementsView extends VerticalLayout {
         return button;
     }
 
-    private Div buildChangesBanner() {
-        Div banner = new Div();
-        banner.addClassName("advertisement-changes-banner");
-        banner.setVisible(false);
-        return banner;
+    private UiIconButton buildRefreshButton() {
+        UiIconButton button = new UiIconButton(i18n.get(ADVERTISEMENT_VIEW_TOOLTIP_REFRESH_AVAILABLE), VaadinIcon.REFRESH.create());
+        button.addClassName("advertisement-refresh-button");
+        button.setVisible(false);
+        button.addClickListener(_ -> {
+            paginationBar.resetToFirstPage();
+            refresh();
+        });
+        return button;
     }
 
     private void checkForChanges() {
         QueryBlock<AdvertisementFilterDto> queryBlock = queryStatusBar.getQueryBlock();
         AdvertisementFilterDto filter = queryBlock.getFilterProcessor().getOriginalFilter();
         int currentTotal = advertisementPortFactory.findIfAvailable().map(p -> p.count(filter)).orElse(lastKnownTotal);
-        changesBanner.setVisible(currentTotal != lastKnownTotal);
-        if (currentTotal == lastKnownTotal) return;
-
-        changesBanner.removeAll();
-        Span message = new Span(i18n.get(ADVERTISEMENT_VIEW_BANNER_CHANGES_AVAILABLE, Math.abs(currentTotal - lastKnownTotal)));
-        UiPrimaryButton refreshButton = new UiPrimaryButton(i18n.get(ADVERTISEMENT_VIEW_BUTTON_REFRESH));
-        refreshButton.addClickListener(_ -> refresh());
-        changesBanner.add(message, refreshButton);
+        refreshButton.setVisible(currentTotal != lastKnownTotal);
     }
 
     private void updateCardInPlace(AdvertisementInfoDto fresh) {
@@ -202,7 +198,7 @@ public class AdvertisementsView extends VerticalLayout {
                     .orElse(0);
             paginationBar.setTotalCount(total);
             lastKnownTotal = total;
-            changesBanner.setVisible(false);
+            refreshButton.setVisible(false);
             advertisementContainer.removeAll();
             if (ads.isEmpty()) {
                 advertisementContainer.add(buildEmptyState());
