@@ -5,6 +5,7 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.HasOrderedComponents;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexLayout;
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.server.VaadinSession;
 import com.vaadin.flow.spring.annotation.SpringComponent;
@@ -65,8 +66,12 @@ public class AdvertisementsView extends VerticalLayout {
         UiPrimaryButton addButton = buildAddButton();
         refreshButton = buildRefreshButton();
 
+        HorizontalLayout actionsBar = new HorizontalLayout(addButton, refreshButton);
+        actionsBar.addClassName("advertisements-actions-bar");
+        actionsBar.setAlignItems(Alignment.CENTER);
+
         VerticalLayout contentWrapper = new VerticalLayout(
-                queryStatusBar, queryStatusBar.getQueryBlock(), addButton, refreshButton, advertisementContainer, paginationBar
+                queryStatusBar, queryStatusBar.getQueryBlock(), actionsBar, advertisementContainer, paginationBar
         );
         contentWrapper.addClassName("advertisements-content-wrapper");
         contentWrapper.setPadding(false);
