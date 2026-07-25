@@ -2665,3 +2665,79 @@ dispatcher that all deep-linkable overlays register into, not each calling
 - With this, every item from the original F-01 spec is done except the one that was never
   automatable in the first place: sharing a real `/ads/:id` link into an actual Facebook post and
   Telegram chat, which needs a public URL this sandbox doesn't have.
+
+## ADR-063: List stability after edit — splice-in-place instead of full refresh (Advertisement, User, Taxon)
+
+**Status:** Accepted
+
+**Context:** [improvement-046](../backlog/issues/improvement-046-list-stability-under-concurrent-edits.md) —
+`AdvertisementsView`/`UserView` both sort `updatedAt DESC, createdAt DESC` and paginate with plain
+OFFSET. Editing a row on page 2+ changes its `updatedAt`, so the next `refresh()` (fired
+immediately on save, while the overlay is often still open) would move that row to page 1 under
+the *current* page's OFFSET — the row the user was just looking at silently vanishes from view,
+with the page number left unchanged. Verified directly against `AdvertisementQueryConfig`/
+`UserQueryConfig`'s sort and `AbstractEntityOverlay.handleSave()`'s refresh-before-close ordering,
+not assumed. External research into keyset/cursor pagination and dashboard "live/paused" UX
+patterns confirmed keyset pagination is the industry-standard fix for OFFSET instability under
+concurrent inserts/deletes generally, but for the narrower "I edited a row and it moved" case a
+much cheaper client-side fix exists: don't refetch the whole page at all, just patch the one row
+that changed.
+
+**Decision:** Replaced each overlay's single `Runnable onSaved`/`onChanged` callback with three
+purpose-specific callbacks, so the caller (the view) can react precisely instead of always doing a
+full-list rebuild:
+- `Consumer<T> onUpdated` — fired after an EDIT save; splices the fresh entity into its existing
+  position in the currently-rendered list/grid, without touching row count or order.
+- `Runnable onListChanged` — fired after a CREATE save; row count genuinely changes, so this still
+  does a full `refresh()`.
+- `Runnable onClosed` — fired on every overlay close (Advertisement/User only, not Taxon — see
+  below); triggers a cheap `count()`-only query compared against the count captured at the last
+  `refresh()`, showing a "N changes — Refresh" banner if they differ. No continuous polling —
+  this is the only place a stale-count check happens.
+
+Per-domain implementation:
+- **Advertisement** (`AdvertisementOverlay`, `AdvertisementCardView`, `AdvertisementsView`):
+  `updateCardInPlace(AdvertisementInfoDto)` finds the existing card in the `FlexLayout` container
+  by a `data-ad-id` element attribute, rebuilds just that one `AdvertisementCardView`, and
+  reinserts it at the same index via `com.vaadin.flow.component.HasOrderedComponents.indexOf()`/
+  `.addComponentAtIndex()` — note the correct import is `com.vaadin.flow.component
+  .HasOrderedComponents`, not `com.vaadin.flow.component.orderedlayout.HasOrderedComponents` (the
+  latter package has no such type; `FlexLayout` gets the interface via `FlexComponent`).
+  Deprecated-for-removal in this Vaadin version but still fully functional — not addressed here,
+  same as the existing `@Theme` deprecation tracked separately (improvement-116).
+- **User** (`UserOverlay`, `UserView`): a local `List<UserDto> currentItems` field tracks the
+  currently-rendered page; `updateRowInPlace(UserDto)` replaces the matching entry by `id()` and
+  re-calls `grid.setItems(currentItems)` — no ordering API needed since `Grid`/`ListDataProvider`
+  render directly from the list's own order.
+- **Taxon** (`TaxonOverlay`, `TaxonManagementView`): converted for consistency of approach only —
+  Taxon has no pagination (`listAllByType()` loads the whole list at once), so the "wrong page"
+  symptom this issue exists for cannot occur here. `updateRowInPlace(TaxonDto)` finds the row `Div`
+  by a `data-taxon-id` attribute and replaces it via `Div`'s own `HasOrderedComponents`
+  implementation (unlike `FlexLayout`, `Div` implements the interface directly — no cast needed).
+  **No `onClosed`/banner for Taxon** — no count concept to compare against without pagination, so
+  the banner would have nothing meaningful to show.
+- Delete/restore (all three domains) still call a full `refresh()` directly — row count or
+  active/deleted section membership changes there regardless, so splicing doesn't apply.
+
+**Corrected mid-implementation:** the first `TaxonOverlay.proceed()` pass had CREATE call
+`closeToList()` immediately after save, mirroring Advertisement's CREATE behavior. This broke 3
+Playwright tests (`03-marketplace-promotion-flow.spec.js`'s category-create/discard-after-save
+test, plus two tests cascading from the missing "Electronics" category) — Taxon's CREATE overlay
+is expected to **stay open** after save (its own `createCategory()` test helper explicitly clicks
+the close (X) button afterward, and a separate test step verifies "modify after save → discard
+reverts to the saved values, not empty" while the form is still open). Fixed by removing the
+auto-close: `proceed()` now only calls `onUpdated`/`onListChanged` and never `closeToList()`,
+matching the pre-existing (and correct) behavior of never auto-closing after any Taxon save.
+
+**Consequences:**
+- Editing a row on any page no longer moves or hides it — the currently-rendered page is a
+  "frozen" working set until the user takes an action that does a real refresh (page/filter
+  change, or clicking the new banner's "Refresh" button).
+- If other users create/delete rows while someone is browsing, that browser's view goes stale
+  silently until the on-close count check fires (Advertisement/User) — deliberately not
+  continuously polled; deeper OFFSET-under-concurrent-mutation instability (unrelated rows
+  shifting pages due to someone else's insert/delete, not this user's own edit) remains a known,
+  unaddressed gap, tracked as the keyset-pagination follow-up already noted in
+  [improvement-046](../backlog/issues/improvement-046-list-stability-under-concurrent-edits.md).
+- Verified via `bash scripts/unit-tests.sh marketplace-app` (73/73, including ArchUnit boundary
+  checks) and a full Playwright re-run after the Taxon fix above: `e2e --full --ux`, 50/50.

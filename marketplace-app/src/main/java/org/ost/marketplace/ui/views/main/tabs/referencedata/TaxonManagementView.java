@@ -103,13 +103,30 @@ public class TaxonManagementView extends Div {
         row.setAlignItems(HorizontalLayout.Alignment.CENTER);
 
         if (!isDeleted) {
-            nameSpan.addClickListener(_ -> overlay.openForView(taxon, this::refresh));
+            nameSpan.addClickListener(_ -> overlay.openForView(taxon, this::updateRowInPlace));
         }
 
         Div wrapper = new Div(row);
         wrapper.addClassName("taxon-row-wrapper");
+        wrapper.getElement().setAttribute("data-taxon-id", String.valueOf(taxon.getId()));
 
         return wrapper;
+    }
+
+    private void updateRowInPlace(TaxonDto fresh) {
+        String id = String.valueOf(fresh.getId());
+        listContainer.getChildren()
+                .filter(c -> id.equals(c.getElement().getAttribute("data-taxon-id")))
+                .findFirst()
+                .ifPresent(old -> {
+                    int index = listContainer.indexOf(old);
+                    long usageCount = taxonPortFactory.findIfAvailable()
+                            .map(p -> p.getUsageCounts(TaxonType.CATEGORY).getOrDefault(fresh.getId(), 0L))
+                            .orElse(0L);
+                    Div updated = buildRow(fresh, usageCount, fresh.isDeleted());
+                    listContainer.remove(old);
+                    listContainer.addComponentAtIndex(index, updated);
+                });
     }
 
     private Div buildRowActions(TaxonDto taxon, boolean isDeleted) {
@@ -122,7 +139,7 @@ public class TaxonManagementView extends Div {
             actions.add(restoreBtn);
         } else {
             UiIconButton editBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_EDIT), VaadinIcon.PENCIL.create());
-            editBtn.addClickListener(e -> overlay.openForEdit(taxon, this::refresh));
+            editBtn.addClickListener(e -> overlay.openForEdit(taxon, this::updateRowInPlace));
 
             UiIconButton deleteBtn = new UiIconButton(i18n.get(TAXON_VIEW_TOOLTIP_DELETE), VaadinIcon.TRASH.create());
             deleteBtn.addClickListener(e -> confirmAndDelete(taxon));

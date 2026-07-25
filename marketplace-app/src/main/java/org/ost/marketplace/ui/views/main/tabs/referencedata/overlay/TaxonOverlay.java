@@ -17,6 +17,7 @@ import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 
 import java.util.Locale;
+import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -29,14 +30,15 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
     private enum Mode { VIEW, CREATE, EDIT }
 
     private record OverlaySession(
-            @NonNull Mode     mode,
-            TaxonDto          taxon,
-            @NonNull Runnable onSaved,
-            boolean           enteredFromView
+            @NonNull Mode               mode,
+            TaxonDto                    taxon,
+            @NonNull Consumer<TaxonDto> onUpdated,
+            @NonNull Runnable           onListChanged,
+            boolean                     enteredFromView
     ) {
-        OverlaySession toEdit()                  { return new OverlaySession(Mode.EDIT, taxon, onSaved, true); }
-        OverlaySession toView()                  { return new OverlaySession(Mode.VIEW, taxon, onSaved, false); }
-        OverlaySession withTaxon(TaxonDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
+        OverlaySession toEdit()                  { return new OverlaySession(Mode.EDIT, taxon, onUpdated, onListChanged, true); }
+        OverlaySession toView()                  { return new OverlaySession(Mode.VIEW, taxon, onUpdated, onListChanged, false); }
+        OverlaySession withTaxon(TaxonDto fresh) { return new OverlaySession(mode, fresh, onUpdated, onListChanged, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
@@ -60,12 +62,17 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
 
     @Override
     protected void proceed() {
-        session.onSaved().run();
         Long savedId = currentFormHandler.getSavedTaxonId();
-        if (savedId != null) {
-            taxonPortFactory.findIfAvailable()
-                    .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
-                    .ifPresent(fresh -> session = session.withTaxon(fresh));
+        TaxonDto fresh = savedId == null ? null : taxonPortFactory.findIfAvailable()
+                .flatMap(p -> p.findById(savedId, Locale.ENGLISH))
+                .orElse(null);
+        if (fresh == null) return;
+
+        session = session.withTaxon(fresh);
+        if (session.mode() == Mode.EDIT) {
+            session.onUpdated().accept(fresh);
+        } else {
+            session.onListChanged().run();
         }
     }
 
@@ -79,19 +86,19 @@ public class TaxonOverlay extends AbstractEntityOverlay<TaxonFormOverlayModeHand
         }
     }
 
-    public void openForView(@NonNull TaxonDto taxon, @NonNull Runnable onSaved) {
+    public void openForView(@NonNull TaxonDto taxon, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.VIEW, taxon, onSaved, false));
+        openSession(new OverlaySession(Mode.VIEW, taxon, onUpdated, () -> {}, false));
     }
 
-    public void openForCreate(@NonNull Runnable onSaved) {
+    public void openForCreate(@NonNull Runnable onListChanged) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.CREATE, null, onSaved, false));
+        openSession(new OverlaySession(Mode.CREATE, null, _ -> {}, onListChanged, false));
     }
 
-    public void openForEdit(@NonNull TaxonDto taxon, @NonNull Runnable onSaved) {
+    public void openForEdit(@NonNull TaxonDto taxon, @NonNull Consumer<TaxonDto> onUpdated) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.EDIT, taxon, onSaved, false));
+        openSession(new OverlaySession(Mode.EDIT, taxon, onUpdated, () -> {}, false));
     }
 
     private void openSession(OverlaySession s) {

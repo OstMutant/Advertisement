@@ -1262,3 +1262,19 @@ Playwright test; full e2e suite 50/50 after each pass, unit-tests 73/73. The one
 non-automatable item — sharing a real `/ads/:id` link into an actual Facebook post and Telegram
 chat, needs a public URL this sandbox doesn't have — carved out into
 [improvement-118](../issues/improvement-118-f01-real-world-og-preview-verification.md).
+
+✅ Done (2026-07-25): [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md)
+— list stability after edit, option E (client-side variant) + a lightweight "N changes — Refresh"
+banner, chosen after external research showed the dashboard "live/paused" pattern makes E far
+cheaper than the server-side snapshot originally costed. `AdvertisementOverlay`/`UserOverlay`/
+`TaxonOverlay` each split their single `onSaved` callback into `onUpdated` (splice one row/card in
+place after an EDIT save, no refetch), `onListChanged` (full refresh, CREATE only — row count
+changes), and `onClosed` (Advertisement/User only — cheap `count()`-only staleness check driving
+the banner; no banner for Taxon, which has no pagination and so never had the underlying "wrong
+page" symptom, converted only for consistency of approach). See `marketplace-app/DECISIONS.md`
+ADR-063 for full per-domain detail, including a real bug found and fixed mid-implementation
+(Taxon's CREATE overlay briefly auto-closed after save, breaking 3 Playwright tests that expect it
+to stay open until an explicit close). Verified: unit-tests 73/73 (incl. ArchUnit), full Playwright
+`e2e --full --ux` 50/50 on the post-fix re-run. Deliberately deferred: option D (keyset/cursor
+pagination), still the correct eventual fix for the deeper, unrelated instability from *other*
+users' concurrent inserts/deletes — tracked inside the issue file, not split out separately.

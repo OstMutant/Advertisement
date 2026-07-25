@@ -98,6 +98,8 @@ public enum I18nKey {
     USER_VIEW_NOTIFICATION_DELETED("user.view.notification.deleted"),
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
+    USER_VIEW_BANNER_CHANGES_AVAILABLE("user.view.banner.changes.available"),
+    USER_VIEW_BUTTON_REFRESH("user.view.button.refresh"),
 
     // === User Sort ===
     USER_SORT_ID("user.sort.id"),
@@ -115,6 +117,8 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
     ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
+    ADVERTISEMENT_VIEW_BANNER_CHANGES_AVAILABLE("advertisement.view.banner.changes.available"),
+    ADVERTISEMENT_VIEW_BUTTON_REFRESH("advertisement.view.button.refresh"),
 
     // === User Filter ===
     USER_FILTER_ID_MIN("user.filter.id.min"),
