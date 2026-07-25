@@ -29,6 +29,7 @@ public class AdvertisementFilterDto {
     private Instant updatedAtEnd;
 
     private Set<Long> categoryIds;
+    private Long cityTaxonId;
 
     public static AdvertisementFilterDto empty() {
         return new AdvertisementFilterDto();

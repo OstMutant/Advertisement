@@ -1302,3 +1302,32 @@ the `if` test's own status, not `cmd`'s; the `ERR` trap firing regardless of `se
 command outside a tested `if`/`&&`/`||` construct) — see `scripts/DECISIONS.md` ADR-010. Verified:
 unit-tests 74/74, integration-tests 126/126 (full suite), Playwright `e2e --full --ux` 50/50
 (twice).
+
+✅ Done (2026-07-25): [improvement-119](issues/improvement-119-f02-city-dictionary-geo-filter.md)
+— F-02 city dictionary + geo filter, product roadmap Phase 1 item #2. Added `TaxonType.CITY`
+(`platform-commons`) reusing the existing `taxon_assignment` mechanism — zero schema changes
+anywhere. Caught (by reading the actual source first, not assuming) that
+`TaxonAssignmentService.replaceAssignments()` diff-replaces *all* taxon types in one call, so
+category ids and the city id must be unioned into one `Set<Long>` before a single call, and that
+`getForEntity(s)`'s result is type-unfiltered, requiring every consumer (save-service snapshot
+builder, enrich-service, filter resolver) to split by `TaxonDto.getType()` client-side. Pre-empted
+the earlier categoryIds raw-id-fallback bug for `cityTaxonId` from the start
+(`AdvertisementEnrichService.resolveCity()`), then found via unit tests that both `resolveCity()`
+and the pre-existing `resolveCategories()` were appending a spurious empty diff entry when the
+*other* field's ids were the only thing that resolved a non-empty `nameById` — fixed by guarding
+the append on the field's own ids actually being non-empty/non-null. New, separate `City*` admin
+classes by analogy with `Taxon*` (not a parameterized shared class — `TaxonOverlay` is a
+`@UIScope` singleton, needs two distinct instances for two simultaneous tabs), new "Cities" tab in
+`ReferenceDataView`. Single-select `ComboBox<TaxonDto>` on the advertisement query block/form/view/
+card (categories use `MultiSelectComboBox` — first single-select precedent in this codebase).
+Playwright: extended existing tests rather than new spec files (per explicit instruction) — city
+admin lifecycle folded into spec 03's category tests, `city`/`cityToSet` params added to spec 04's
+create/edit flows, city filter folded into spec 05's seed/filter test. Found and fixed two more
+real bugs via the Playwright run itself: `openReferenceDataTab()` assumed the "Categories" sub-tab
+was always showing, but Vaadin's `Tabs` retains its last selection across visibility toggles, so
+visiting the new "Cities" sub-tab once broke every later call — fixed by explicitly reselecting
+Categories every time; and the new `cityToSet` step added an extra save to an existing edit-
+lifecycle test, shifting a downstream activity-version assertion by one. See
+`marketplace-app/DECISIONS.md` ADR-065 and `taxon-spring-boot-starter/DECISIONS.md` ADR-003's
+update. Verified: unit-tests 75/75, integration-tests 128/128, Playwright `e2e --full --ux` 50/50
+(after both bugfixes above).

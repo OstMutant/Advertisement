@@ -73,6 +73,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
     ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
+    ADVERTISEMENT_OVERLAY_FIELD_CITY("advertisement.overlay.field.city"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
@@ -153,11 +154,13 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_UPDATED_START("advertisement.filter.time.updated.start"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
     ADVERTISEMENT_FILTER_CATEGORIES("advertisement.filter.categories"),
+    ADVERTISEMENT_FILTER_CITY("advertisement.filter.city"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
+    ADVERTISEMENT_CARD_CITY("advertisement.card.city"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
     ADVERTISEMENT_CARD_BUTTON_SHARE("advertisement.card.button.share"),
@@ -297,6 +300,7 @@ public enum I18nKey {
 
     // === Reference Data tab ===
     REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
+    REFERENCE_DATA_TAB_CITIES("reference.data.tab.cities"),
     REFERENCE_DATA_BUTTON_ADD("reference.data.button.add"),
     REFERENCE_DATA_USAGE_COUNT("reference.data.usage.count"),
 
@@ -336,7 +340,45 @@ public enum I18nKey {
     TAXON_VIEW_TOOLTIP_RESTORE("taxon.view.tooltip.restore"),
     TAXON_VIEW_DELETED_LABEL("taxon.view.deleted.label"),
     TAXON_VIEW_EMPTY("taxon.view.empty"),
-    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit");
+    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit"),
+
+    // === City Overlay ===
+    CITY_OVERLAY_TITLE_NEW("city.overlay.title.new"),
+    CITY_OVERLAY_TITLE_EDIT("city.overlay.title.edit"),
+    CITY_OVERLAY_TAB_EDIT("city.overlay.tab.edit"),
+    CITY_OVERLAY_TAB_ACTIVITY("city.overlay.tab.activity"),
+    CITY_OVERLAY_LOCALE_TAB_EN("city.overlay.locale.tab.en"),
+    CITY_OVERLAY_LOCALE_TAB_UK("city.overlay.locale.tab.uk"),
+    CITY_OVERLAY_FIELD_NAME("city.overlay.field.name"),
+    CITY_OVERLAY_FIELD_NAME_PLACEHOLDER("city.overlay.field.name.placeholder"),
+    CITY_OVERLAY_FIELD_DESCRIPTION("city.overlay.field.description"),
+    CITY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER("city.overlay.field.description.placeholder"),
+    CITY_OVERLAY_SECTION_LABEL("city.overlay.section.label"),
+    CITY_OVERLAY_VALIDATION_NAME_REQUIRED("city.overlay.validation.name.required"),
+    CITY_OVERLAY_VALIDATION_NAME_LENGTH("city.overlay.validation.name.length"),
+    CITY_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("city.overlay.validation.description.required"),
+    CITY_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("city.overlay.validation.description.length"),
+    CITY_OVERLAY_NOTIFICATION_SUCCESS("city.overlay.notification.success"),
+    CITY_OVERLAY_NOTIFICATION_VALIDATION_FAILED("city.overlay.notification.validation.failed"),
+    CITY_OVERLAY_NOTIFICATION_SAVE_ERROR("city.overlay.notification.save.error"),
+    CITY_OVERLAY_NOTIFICATION_CONFLICT("city.overlay.notification.conflict"),
+    CITY_OVERLAY_BUTTON_SAVE("city.overlay.button.save"),
+    CITY_OVERLAY_BUTTON_CANCEL("city.overlay.button.cancel"),
+
+    // === City Management ===
+    CITY_VIEW_CONFIRM_DELETE_TITLE("city.view.confirm.delete.title"),
+    CITY_VIEW_CONFIRM_DELETE_TEXT("city.view.confirm.delete.text"),
+    CITY_VIEW_CONFIRM_DELETE_BUTTON("city.view.confirm.delete.button"),
+    CITY_VIEW_CONFIRM_CANCEL_BUTTON("city.view.confirm.cancel.button"),
+    CITY_VIEW_NOTIFICATION_DELETED("city.view.notification.deleted"),
+    CITY_VIEW_NOTIFICATION_DELETE_ERROR("city.view.notification.delete.error"),
+    CITY_VIEW_NOTIFICATION_RESTORED("city.view.notification.restored"),
+    CITY_VIEW_TOOLTIP_EDIT("city.view.tooltip.edit"),
+    CITY_VIEW_TOOLTIP_DELETE("city.view.tooltip.delete"),
+    CITY_VIEW_TOOLTIP_RESTORE("city.view.tooltip.restore"),
+    CITY_VIEW_DELETED_LABEL("city.view.deleted.label"),
+    CITY_VIEW_EMPTY("city.view.empty"),
+    CITY_VIEW_BUTTON_EDIT("city.view.button.edit");
 
     private final String key;
 

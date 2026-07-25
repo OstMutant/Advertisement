@@ -9,6 +9,7 @@ public record AdvertisementSaveDto(
         @NotBlank @Size(min = 1, max = TITLE_MAX_LENGTH) String title,
         @NotBlank @Size(max = DESCRIPTION_RAW_MAX_LENGTH) String description,
         @Size(max = CATEGORY_MAX_COUNT) Set<Long> categoryIds,
+        Long cityTaxonId,
         Long version
 ) {
     public static final int TITLE_MAX_LENGTH           = 255;

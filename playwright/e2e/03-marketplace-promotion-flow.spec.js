@@ -12,6 +12,9 @@ const { selectCategoryInAdForm, assertViewOverlayHasDeletedCategory, assertActiv
 // Section 3 helpers — taxon management
 async function openRefDataTab(page) {
   await page.locator('vaadin-tab').filter({ hasText: 'Reference Data' }).click();
+  // The sub-tabs component retains its last selection across visibility toggles — explicitly
+  // reselect Categories so this helper is deterministic regardless of which sub-tab was last open.
+  await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
   await page.locator('.taxon-management-view').waitFor({ timeout: 8000 });
 }
 
@@ -54,8 +57,56 @@ async function openTaxonEdit(page, name) {
   await waitForTaxonOverlay(page);
 }
 
+// Section 3 helpers — city management (mirrors taxon helpers above, scoped to the Cities sub-tab)
+async function openCitiesSubTab(page) {
+  await openRefDataTab(page);
+  await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Cities|Міста/i }).click();
+  await page.locator('.city-management-view').waitFor({ timeout: 8000 });
+}
+
+async function waitForCityOverlay(page) {
+  await page.locator('.city-overlay.overlay--visible').waitFor({ timeout: 8000 });
+}
+
+async function closeCityOverlay(page) {
+  await page.locator('.city-overlay vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:close"]') })
+    .click();
+  await page.locator('.city-overlay.overlay--visible').waitFor({ state: 'hidden', timeout: 8000 });
+}
+
+async function fillCityLocale(page, locale, name, desc) {
+  const overlay = page.locator('.city-overlay');
+  const idx     = locale === 'EN' ? 0 : 1;
+  const content = overlay.locator('.taxon-locale-content').nth(idx);
+  await content.locator('vaadin-text-field input').fill(name);
+  await content.locator('vaadin-text-area textarea').fill(desc);
+}
+
+async function createCity(page, { nameEn, descEn, nameUk, descUk }) {
+  await page.locator('.city-add-button').click();
+  await waitForCityOverlay(page);
+  await fillCityLocale(page, 'EN', nameEn, descEn);
+  await fillCityLocale(page, 'UK', nameUk, descUk);
+  await page.locator('.city-overlay vaadin-button').filter({ hasText: 'Save' }).click();
+  await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+  await closeNotification(page);
+  await closeCityOverlay(page);
+}
+
+async function openCityEdit(page, name) {
+  const row = page.locator('.city-management-view .taxon-row-wrapper')
+    .filter({ has: page.locator('.taxon-row-name', { hasText: name }) });
+  await row.locator('vaadin-button')
+    .filter({ has: page.locator('vaadin-icon[icon="vaadin:pencil"]') })
+    .click();
+  await waitForCityOverlay(page);
+}
+
 const CAT1 = { nameEn: 'Electronics', descEn: 'Electronic devices and accessories',         nameUk: 'Електроніка', descUk: 'Електронні пристрої та аксесуари' };
 const CAT2 = { nameEn: 'Vehicles',    descEn: 'Cars, motorcycles and other vehicles',       nameUk: 'Транспорт',   descUk: 'Автомобілі, мотоцикли та інший транспорт' };
+const CITY1 = { nameEn: 'Lviv', descEn: 'Western Ukraine cultural hub',     nameUk: 'Львів', descUk: 'Культурний центр Західної України' };
+const CITY2 = { nameEn: 'Kyiv', descEn: 'Capital of Ukraine',               nameUk: 'Київ',  descUk: 'Столиця України' };
 
 test.describe.configure({ mode: 'serial' });
 
@@ -183,7 +234,7 @@ test.describe('Promotion flow', () => {
 
   // === Section 3: Reference Data — Category management ===
 
-  test('adminEn creates categories Electronics and Vehicles — both in list, create discard clears form', async () => {
+  test('adminEn creates categories Electronics and Vehicles, cities Lviv and Kyiv — both in list, create discard clears form', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -242,10 +293,19 @@ test.describe('Promotion flow', () => {
     await expect(page.locator('.taxon-row-name', { hasText: CAT2.nameEn })).toBeVisible();
     await screenshot(page, 'taxon-02-two-categories-in-list');
 
+    await test.step('create Lviv and Kyiv cities — both in Cities sub-tab list', async () => {
+      await openCitiesSubTab(page);
+      await createCity(page, CITY1);
+      await createCity(page, CITY2);
+      await expect(page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn })).toBeVisible({ timeout: 5000 });
+      await expect(page.locator('.city-management-view .taxon-row-name', { hasText: CITY2.nameEn })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'city-01-two-cities-in-list');
+    });
+
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted', async () => {
+  test('adminEn edits Electronics — edit discard reverts, save records activity, restore reverts name, all fields in timeline diff, delete and restore recorded in activity, advertisement view and activity diff show struck-through category while deleted, edits Lviv city with activity diff and restore', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await openRefDataTab(page);
@@ -323,6 +383,38 @@ test.describe('Promotion flow', () => {
       await expect(changesDiv).toContainText('Name (UK)');
       await expect(changesDiv).toContainText('Description (UK)');
       await screenshot(page, 'taxon-06-timeline-all-fields-in-diff');
+    });
+
+    await test.step('edit Lviv city name and save — activity shows v2 update row, restore reverts to v1', async () => {
+      await openCitiesSubTab(page);
+      await openCityEdit(page, CITY1.nameEn);
+      const overlay = page.locator('.city-overlay');
+      await overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input').fill('Lviv v2');
+      const saveBtn = overlay.locator('vaadin-button').filter({ hasText: 'Save' });
+      await expect(saveBtn).toBeEnabled({ timeout: 5000 });
+      await saveBtn.click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await screenshot(page, 'city-02-edit-saved');
+
+      await overlay.locator('vaadin-tab').filter({ hasText: 'Activity' }).click();
+      const activityList = overlay.locator('.entity-activity-list');
+      await activityList.waitFor({ timeout: 5000 });
+      await expect(activityList.locator('.entity-activity-row')).toHaveCount(2, { timeout: 8000 });
+      await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version')).toContainText('v2');
+      await screenshot(page, 'city-02-activity-two-rows');
+
+      const v1Row = activityList.locator('.entity-activity-row').nth(1);
+      await v1Row.locator('.entity-activity-restore-btn').click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await expect(overlay.locator('.taxon-locale-content').nth(0).locator('vaadin-text-field input')).toHaveValue(CITY1.nameEn, { timeout: 5000 });
+      await saveBtn.click();
+      await expect(page.locator('vaadin-notification-card')).toBeVisible({ timeout: 5000 });
+      await closeNotification(page);
+      await closeCityOverlay(page);
+      await expect(page.locator('.city-management-view .taxon-row-name', { hasText: CITY1.nameEn })).toBeVisible({ timeout: 5000 });
+      await screenshot(page, 'city-02-restored-in-list');
     });
 
     const STRIKETHROUGH_AD_TITLE = 'Electronics Strikethrough Test Ad';

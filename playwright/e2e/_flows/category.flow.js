@@ -2,6 +2,9 @@ const { screenshot } = require('../_helpers');
 
 async function openReferenceDataTab(page) {
   await page.locator('.main-tabs vaadin-tab').filter({ hasText: /Reference Data|Довідникові дані/i }).click();
+  // The sub-tabs component retains its last selection across visibility toggles — explicitly
+  // reselect Categories so this helper is deterministic regardless of which sub-tab was last open.
+  await page.locator('.reference-data-sub-tabs vaadin-tab').filter({ hasText: /Categories|Категорії/i }).click();
   await page.locator('.taxon-management-view').waitFor({ timeout: 5000 });
 }
 

@@ -35,27 +35,17 @@ improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 
 `completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
 2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
 out into improvement-118. improvement-120 completed 2026-07-25 — see `completed/BACKLOG-ARCHIVE.md`.
+improvement-119 (F-02, product roadmap Phase 1 item #2) completed 2026-07-25 — see
+`completed/BACKLOG-ARCHIVE.md`. improvement-118 remains at the bottom (blocked, not actionable —
+needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| Top | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL |
-| High | 🟡 | 119 | F-02 city dictionary + geo filter — product roadmap Phase 1, item #2; taxon-assignment reuse (no schema change), new `City*` admin classes by analogy, city chip/badge/filter on advertisements |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
+| (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
 
 Details, links, and per-batch rationale below.
-
-### Top priority — improvement-118
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable |
-
-### High priority — improvement-119
-
-| Issue | Origin | What |
-|---|---|---|
-| [improvement-119](issues/improvement-119-f02-city-dictionary-geo-filter.md) | New (product roadmap Phase 1, item #2) | City dictionary + geo filter — reuses `taxon_assignment` (no schema change to `advertisement`), new `City*` admin classes by analogy with `Taxon*` (not a shared parameterized class), city chip/badge/filter mirroring the existing category UI |
 
 ### Nice to have — no internal priority order
 
@@ -70,6 +60,12 @@ Details, links, and per-batch rationale below.
 | [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) |
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
 | [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
+
+### Blocked — improvement-118
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable; pushed to the bottom 2026-07-25, not actionable in this environment |
 
 ---
 

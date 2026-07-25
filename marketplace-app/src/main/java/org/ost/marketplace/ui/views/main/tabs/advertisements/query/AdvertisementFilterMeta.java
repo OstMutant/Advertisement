@@ -51,4 +51,8 @@ public class AdvertisementFilterMeta {
             FilterFieldMeta.of(categoryIds, AdvertisementFilterDto::getCategoryIds,
                     (dto, v) -> dto.setCategoryIds(v == null || v.isEmpty() ? null
                             : v.stream().map(TaxonDto::getId).collect(Collectors.toSet())));
+
+    public static final FilterFieldMeta<TaxonDto, AdvertisementFilterDto, Long> CITY_TAXON_ID =
+            FilterFieldMeta.of(cityTaxonId, AdvertisementFilterDto::getCityTaxonId,
+                    (dto, v) -> dto.setCityTaxonId(v == null ? null : v.getId()));
 }

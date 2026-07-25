@@ -1,5 +1,6 @@
 const { closeNotification } = require('../_helpers');
 const { selectCategoryInAdForm } = require('./category.flow');
+const { selectCityInAdForm } = require('./city.flow');
 
 async function signUpBulk(page, { name, email, password }) {
   await page.locator('vaadin-button').filter({ hasText: /sign up/i }).first().click();
@@ -44,7 +45,7 @@ async function logoutBulk(page) {
   await page.locator('vaadin-button').filter({ hasText: /log in/i }).first().waitFor({ timeout: 5000 });
 }
 
-async function createAdvertisementBulk(page, { title, description, category = null }) {
+async function createAdvertisementBulk(page, { title, description, category = null, city = null }) {
   // Wait for button to be stable — Vaadin may reconnect after heavy prior load, temporarily detaching DOM
   await page.locator('.add-advertisement-button').waitFor({ state: 'visible', timeout: 20000 });
   await page.locator('.add-advertisement-button').click();
@@ -53,6 +54,7 @@ async function createAdvertisementBulk(page, { title, description, category = nu
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   if (category) await selectCategoryInAdForm(page, overlay, category);
+  if (city) await selectCityInAdForm(page, overlay, city);
   await overlay.locator('vaadin-button').filter({ hasText: /save|зберегти/i }).click();
   await overlay.waitFor({ state: 'hidden', timeout: 10000 });
 }

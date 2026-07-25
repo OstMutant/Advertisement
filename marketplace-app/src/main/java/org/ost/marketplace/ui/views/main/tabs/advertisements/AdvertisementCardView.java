@@ -154,6 +154,8 @@ public class AdvertisementCardView extends HorizontalLayout
 
         Span categoriesLine = createCategoriesLine(ad);
         if (categoriesLine != null) content.add(categoriesLine);
+        Span cityLine = createCityLine(ad);
+        if (cityLine != null) content.add(cityLine);
         content.add(bottom);
         return content;
     }
@@ -163,6 +165,13 @@ public class AdvertisementCardView extends HorizontalLayout
         String names = String.join(", ", ad.getCategoryNames());
         Span line = new Span(getValue(ADVERTISEMENT_CARD_CATEGORIES) + " " + names);
         line.addClassName("advertisement-categories");
+        return line;
+    }
+
+    private Span createCityLine(AdvertisementInfoDto ad) {
+        if (ad.getCityName() == null) return null;
+        Span line = new Span(getValue(ADVERTISEMENT_CARD_CITY) + " " + ad.getCityName());
+        line.addClassName("advertisement-city");
         return line;
     }
 

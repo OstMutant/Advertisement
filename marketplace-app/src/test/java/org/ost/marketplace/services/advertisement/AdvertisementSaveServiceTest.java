@@ -81,7 +81,7 @@ class AdvertisementSaveServiceTest {
 
     @Test
     void save_newAdvertisement_capturesCreationNotUpdate() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", Set.of(1L, 2L), null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", Set.of(1L, 2L), null, null);
         when(advertisementPort.save(dto)).thenReturn(100L);
         when(advertisementPort.findById(100L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(100L).title("Title").description("Desc").build()));
@@ -102,7 +102,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_existingAdvertisement_capturesUpdateWithAfter() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", Set.of(3L), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", Set.of(3L), null, 5L);
         AdvertisementInfoDto beforeInfo = AdvertisementInfoDto.builder().id(adId).title("Old Title").description("Old Desc").build();
         AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
 
@@ -123,7 +123,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_existingAdvertisementConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", Set.of(), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", Set.of(), null, 5L);
         AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
 
         when(advertisementPort.findById(adId)).thenReturn(Optional.empty(), Optional.of(afterInfo));
@@ -141,7 +141,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_galleryTouched_usesGallerySnapshotIdRegardlessOfPreviousOne() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), null, 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
         when(advertisementPort.save(dto)).thenReturn(adId);
@@ -159,7 +159,7 @@ class AdvertisementSaveServiceTest {
     @Test
     void save_galleryNotTouched_fallsBackToPreviousAttachmentSnapshotId() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), null, 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
         when(advertisementPort.save(dto)).thenReturn(adId);
@@ -176,7 +176,7 @@ class AdvertisementSaveServiceTest {
 
     @Test
     void save_optionalPortsAbsent_completesWithoutException() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "T", "D", null, null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "T", "D", null, null, null);
         when(advertisementPort.save(dto)).thenReturn(1L);
         when(advertisementPort.findById(1L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(1L).title("T").description("D").build()));

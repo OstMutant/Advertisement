@@ -25,6 +25,7 @@ public class AdvertisementEditDto implements EditDto {
     private Long updatedBy;
 
     private Set<Long> categoryIds;
+    private Long cityTaxonId;
 
     private Long version;
 }

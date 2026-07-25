@@ -34,14 +34,14 @@ public class AdvertisementEnrichService {
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> mergeMediaChanges(
             List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
 
-        Map<Long, String> nameById = resolveNames(collectTimelineCategoryIds(items));
+        Map<Long, String> nameById = resolveNames(collectTimelineTaxonIds(items));
         return items.stream().map(item -> mergeTimelineItem(item, nameById)).toList();
     }
 
     public List<AuditActivityItemDto<AdvertisementSnapshotDto>> enrichActivityItems(
             @NonNull List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
 
-        Map<Long, String> nameById = resolveNames(collectActivityCategoryIds(items));
+        Map<Long, String> nameById = resolveNames(collectActivityTaxonIds(items));
         return items.stream().map(item -> mergeActivityItem(item, nameById)).toList();
     }
 
@@ -54,12 +54,12 @@ public class AdvertisementEnrichService {
 
     // ── Timeline tab ─────────────────────────────────────────────────────────────────────────
 
-    private static Set<Long> collectTimelineCategoryIds(List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
+    private static Set<Long> collectTimelineTaxonIds(List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
         Set<Long> ids = new HashSet<>();
         for (AuditTimelineItemDto<AdvertisementSnapshotDto> item : items) {
             if (item.entityRef().entityType() != EntityType.ADVERTISEMENT) continue;
-            addCategoryIds(ids, item.snapshotData());
-            addCategoryIds(ids, item.prevSnapshotData());
+            addTaxonIds(ids, item.snapshotData());
+            addTaxonIds(ids, item.prevSnapshotData());
         }
         return ids;
     }
@@ -76,11 +76,11 @@ public class AdvertisementEnrichService {
 
     // ── Activity tab ─────────────────────────────────────────────────────────────────────────
 
-    private static Set<Long> collectActivityCategoryIds(List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
+    private static Set<Long> collectActivityTaxonIds(List<AuditActivityItemDto<AdvertisementSnapshotDto>> items) {
         Set<Long> ids = new HashSet<>();
         for (AuditActivityItemDto<AdvertisementSnapshotDto> item : items) {
-            addCategoryIds(ids, item.snapshotData());
-            addCategoryIds(ids, item.prevSnapshotData());
+            addTaxonIds(ids, item.snapshotData());
+            addTaxonIds(ids, item.prevSnapshotData());
         }
         return ids;
     }
@@ -102,7 +102,7 @@ public class AdvertisementEnrichService {
     private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
                                             AdvertisementSnapshotDto prev, Map<Long, String> nameById,
                                             boolean skipMediaMergeIfUnchanged) {
-        List<ChangeEntry> resolved = resolveCategories(changes, snapshot, prev, nameById);
+        List<ChangeEntry> resolved = resolveCity(resolveCategories(changes, snapshot, prev, nameById), snapshot, prev, nameById);
 
         Long attachId     = snapshot.attachmentSnapshotId();
         Long prevAttachId = prev != null ? prev.attachmentSnapshotId() : null;
@@ -122,11 +122,13 @@ public class AdvertisementEnrichService {
                 .orElse(List.of());
     }
 
-    private static void addCategoryIds(Set<Long> ids, AdvertisementSnapshotDto snapshot) {
-        if (snapshot != null) ids.addAll(snapshot.categoryIds());
+    private static void addTaxonIds(Set<Long> ids, AdvertisementSnapshotDto snapshot) {
+        if (snapshot == null) return;
+        ids.addAll(snapshot.categoryIds());
+        if (snapshot.cityTaxonId() != null) ids.add(snapshot.cityTaxonId());
     }
 
-    // Always appends a resolved categoryIds entry -- expandWithChanges() falls back to allFields()'s raw ids otherwise.
+    // Appends a resolved categoryIds entry when categories exist -- expandWithChanges() falls back to allFields()'s raw ids otherwise.
     private static List<ChangeEntry> resolveCategories(List<ChangeEntry> changes,
                                                         AdvertisementSnapshotDto snapshot,
                                                         AdvertisementSnapshotDto prev,
@@ -142,7 +144,7 @@ public class AdvertisementEnrichService {
         boolean hasCategoryEntry = resolved.stream().anyMatch(
                 e -> e instanceof ChangeEntry.FieldChange(var field, var _, var _)
                         && field.equals(AdvertisementSnapshotDto.Fields.categoryIds));
-        if (hasCategoryEntry) return resolved;
+        if (hasCategoryEntry || (currIds.isEmpty() && prevIds.isEmpty())) return resolved;
         List<ChangeEntry> withCategory = new ArrayList<>(resolved);
         withCategory.add(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.categoryIds, null, idsToNames(currIds, nameById)));
         return withCategory;
@@ -152,6 +154,32 @@ public class AdvertisementEnrichService {
         return ids.stream()
                 .map(id -> nameById.getOrDefault(id, String.valueOf(id)))
                 .collect(Collectors.joining(", "));
+    }
+
+    // Same shape as resolveCategories() above, for the single-valued cityTaxonId field.
+    private static List<ChangeEntry> resolveCity(List<ChangeEntry> changes,
+                                                  AdvertisementSnapshotDto snapshot,
+                                                  AdvertisementSnapshotDto prev,
+                                                  Map<Long, String> nameById) {
+        if (nameById.isEmpty()) return changes;
+        Long currId = snapshot.cityTaxonId();
+        Long prevId = prev != null ? prev.cityTaxonId() : null;
+        List<ChangeEntry> resolved = changes.stream()
+                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.cityTaxonId,
+                        _ -> idToName(prevId, nameById),
+                        _ -> idToName(currId, nameById)))
+                .toList();
+        boolean hasCityEntry = resolved.stream().anyMatch(
+                e -> e instanceof ChangeEntry.FieldChange(var field, var _, var _)
+                        && field.equals(AdvertisementSnapshotDto.Fields.cityTaxonId));
+        if (hasCityEntry || (currId == null && prevId == null)) return resolved;
+        List<ChangeEntry> withCity = new ArrayList<>(resolved);
+        withCity.add(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.cityTaxonId, null, idToName(currId, nameById)));
+        return withCity;
+    }
+
+    private static String idToName(Long id, Map<Long, String> nameById) {
+        return id == null ? "" : nameById.getOrDefault(id, String.valueOf(id));
     }
 
     private Map<Long, String> resolveNames(Set<Long> ids) {

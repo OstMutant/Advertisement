@@ -2,6 +2,7 @@ const fs = require('fs');
 const { test, screenshot, downloadPng, closeNotification } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
+const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = require('./city.flow');
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
@@ -179,7 +180,7 @@ async function typeAllFormats(page, overlay) {
 
 // ── flows ─────────────────────────────────────────────────────────────────────
 
-async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [] }) {
+async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [], city = null }) {
   const imagePath = `/tmp/${screenshotPrefix}-image.png`;
   await downloadPng(avatar(screenshotPrefix), imagePath);
 
@@ -201,6 +202,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').fill(title);
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
+  if (city) await selectCityInAdForm(page, overlay, city);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
 
   await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
@@ -231,12 +233,18 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
       await assertCardHasCategories(page, expect, cardByTitle(page, title), categories, `${screenshotPrefix}-categories`);
     });
   }
+  if (city) {
+    await test.step('card shows city text', async () => {
+      await assertCardHasCity(page, expect, cardByTitle(page, title), city, `${screenshotPrefix}-city`);
+    });
+  }
   await openLightboxAndNavigate(page, card, screenshotPrefix);
 
   await test.step('history entries match expected count, no restore button', async () => {
     const freshCard = cardByTitle(page, title);
     const overlay = await openCardOverlay(page, freshCard, `${screenshotPrefix}-single-history`);
     if (categories.length > 0) await assertViewOverlayHasCategories(page, expect, overlay, categories, `${screenshotPrefix}-view-chips`);
+    if (city) await assertViewOverlayHasCity(page, expect, overlay, city, `${screenshotPrefix}-view-city-chip`);
     await switchToEditMode(page, overlay, null);
     const activityList = await openActivityTab(overlay);
     await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
@@ -245,7 +253,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, richText = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, richText = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const visibleBase       = startingVisibleRows ?? startingVersion;
@@ -414,8 +422,23 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     });
   }
 
+  if (cityToSet) {
+    await test.step(`set city ${cityToSet} — activity diff shows city change`, async () => {
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await selectCityInAdForm(page, overlay, cityToSet);
+      await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-city-set`);
+      const cityActivityList = await openActivityTab(overlay);
+      const cityChanges = cityActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(cityChanges).toContainText(newTitle, { timeout: 5000 });
+      await expect(cityChanges).toContainText(cityToSet);
+      await screenshot(page, `${screenshotPrefix}-city-set-activity`);
+    });
+  }
+
   await test.step('view reflects saved state', async () => {
     await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
+    if (cityToSet) await assertViewOverlayHasCity(page, expect, overlay, cityToSet, `${screenshotPrefix}-view-city-chip`);
     if (richText) {
       const viewHtml = await overlay.locator('.overlay__view-description').innerHTML();
       assertAllRichTags(expect, viewHtml, 'view description');

@@ -26,6 +26,8 @@ public class AdvertisementInfoDto {
     Integer mediaCount;
     Set<Long> categoryIds;
     List<String> categoryNames;
+    Long cityTaxonId;
+    String cityName;
     Long version;
 
     public Long getOwnerUserId() {

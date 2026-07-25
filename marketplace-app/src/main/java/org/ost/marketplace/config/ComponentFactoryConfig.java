@@ -1,6 +1,7 @@
 package org.ost.marketplace.config;
 
 import org.ost.marketplace.ui.dto.AdvertisementEditDto;
+import org.ost.marketplace.ui.dto.CityEditDto;
 import org.ost.marketplace.ui.dto.SettingsEditDto;
 import org.ost.marketplace.ui.dto.TaxonEditDto;
 import org.ost.marketplace.ui.dto.UserEditDto;
@@ -11,6 +12,8 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.Adver
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.modes.AdvertisementViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.UserGridConfigurator;
 import org.ost.marketplace.ui.views.main.header.settings.SettingsFormModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityFormOverlayModeHandler;
+import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.CityViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonFormOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.referencedata.overlay.modes.TaxonViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverlayModeHandler;
@@ -45,6 +48,12 @@ public class ComponentFactoryConfig {
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<OverlayFormBinder<SettingsEditDto>> settingsFormBinderFactory(
             ObjectProvider<OverlayFormBinder<SettingsEditDto>> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<OverlayFormBinder<CityEditDto>> cityFormBinderFactory(
+            ObjectProvider<OverlayFormBinder<CityEditDto>> p) {
         return new UiComponentFactory<>(p);
     }
 
@@ -95,6 +104,16 @@ public class ComponentFactoryConfig {
 
     @Bean @ConditionalOnMissingBean
     public UiComponentFactory<TaxonViewOverlayModeHandler> taxonViewOverlayModeHandlerFactory(ObjectProvider<TaxonViewOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<CityFormOverlayModeHandler> cityFormOverlayModeHandlerFactory(ObjectProvider<CityFormOverlayModeHandler> p) {
+        return new UiComponentFactory<>(p);
+    }
+
+    @Bean @ConditionalOnMissingBean
+    public UiComponentFactory<CityViewOverlayModeHandler> cityViewOverlayModeHandlerFactory(ObjectProvider<CityViewOverlayModeHandler> p) {
         return new UiComponentFactory<>(p);
     }
 }

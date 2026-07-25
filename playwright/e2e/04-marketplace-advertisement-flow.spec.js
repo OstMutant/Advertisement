@@ -40,10 +40,10 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips', async () => {
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
-    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'] });
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv' });
 
     await test.step('attachment lightbox — play icon visible, video src valid, close button works', async () => {
       await page.locator('.advertisement-card')
@@ -239,7 +239,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, add and replace media, timeline check', async () => {
+  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runEditAdvertisementFlow(page, expect, {
@@ -252,11 +252,12 @@ test.describe('Advertisement flow', () => {
       richText:            true,
       categoryToAdd:       'Vehicles',
       categoryToRemove:    'Vehicles',
+      cityToSet:           'Kyiv',
       screenshotPrefix:    'adv-adminen-edit-uk',
     });
     await runCrossUserMediaReplaceFlow(page, expect, {
       adTitle:          CROSS_UPDATE.ukAd.title,
-      startingVersion:  9,
+      startingVersion:  10,
       screenshotPrefix: 'adv-adminen-media-uk',
     });
     await openTimelineTab(page);

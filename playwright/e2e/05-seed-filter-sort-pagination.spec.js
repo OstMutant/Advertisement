@@ -27,7 +27,7 @@ const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = r
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory,
+  fillText, fillNumber, fillRole, fillCategory, fillCity,
   getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
@@ -35,6 +35,7 @@ const { changePageSizes, restoreLatestFromActivity, getPageSizes } = require('./
 const { openTimelineTab, openTimelineFilter, assertActorPickerVisible, assertAllRowsHaveType, assertAllRowsHaveAction, fillEntityType, fillActionType, fillActorPicker, removeActorChip, actorChipCount, TIMELINE_BLOCK } = require('./_flows/timeline.flow');
 const { goToNextPage } = require('./_flows/filter.flow');
 const { runCreateCategoryFlow } = require('./_flows/category.flow');
+const { runCreateCityFlow } = require('./_flows/city.flow');
 
 test.describe.configure({ mode: 'serial' });
 
@@ -46,6 +47,8 @@ const USER_ITEM  = '.user-grid-name';
 const SEED_COUNT = 60;
 // Distinct from spec-03 categories (Electronics, Vehicles) to avoid duplicates in e2e suite mode.
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
+// Distinct from spec-03 cities (Lviv, Kyiv) to avoid duplicates in e2e suite mode.
+const CITIES = ['Kharkiv', 'Odesa', 'Dnipro'];
 
 // Same generation formula as spec 03's MAX_NAME_100 (maxEn's 100-char boundary name) — used as
 // the timeline actor filter's second pick below so the actor chip's own truncation gets exercised
@@ -58,6 +61,12 @@ const SEED_CATEGORIES = [
   { nameEn: 'Furniture', descriptionEn: 'Home and office furniture.',            nameUk: 'Меблі',   descriptionUk: 'Домашні та офісні меблі.' },
   { nameEn: 'Sports',    descriptionEn: 'Sports equipment and accessories.',     nameUk: 'Спорт',   descriptionUk: 'Спортивне обладнання та аксесуари.' },
   { nameEn: 'Toys',      descriptionEn: 'Toys, games and hobbies.',              nameUk: 'Іграшки', descriptionUk: 'Іграшки, ігри та хобі.' },
+];
+
+const SEED_CITIES = [
+  { nameEn: 'Kharkiv', descriptionEn: 'Major city in eastern Ukraine.',     nameUk: 'Харків', descriptionUk: 'Велике місто на сході України.' },
+  { nameEn: 'Odesa',   descriptionEn: 'Port city on the Black Sea.',        nameUk: 'Одеса',  descriptionUk: 'Портове місто на Чорному морі.' },
+  { nameEn: 'Dnipro',  descriptionEn: 'Major city on the Dnipro river.',    nameUk: 'Дніпро', descriptionUk: 'Велике місто на річці Дніпро.' },
 ];
 
 const seedUser = i => ({
@@ -141,14 +150,19 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 2: seed advertisements ───────────────────────────────────────────
 
-  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories`, async () => {
+  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories, three cities`, async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     for (const cat of SEED_CATEGORIES) await runCreateCategoryFlow(page, expect, cat);
+    for (const city of SEED_CITIES) await runCreateCityFlow(page, expect, city);
     await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
     await page.locator('.add-advertisement-button').waitFor({ timeout: 8000 });
     for (let i = 1; i <= SEED_COUNT; i++) {
-      await createAdvertisementBulk(page, { ...seedAd(i), category: CATEGORIES[(i - 1) % CATEGORIES.length] });
+      await createAdvertisementBulk(page, {
+        ...seedAd(i),
+        category: CATEGORIES[(i - 1) % CATEGORIES.length],
+        city: CITIES[(i - 1) % CITIES.length],
+      });
     }
     // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
     // Without this, SPA-style logout/login preserves the stale DOM, which causes Vaadin to
@@ -160,7 +174,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 3: advertisement filters, sort, pagination ───────────────────────
 
-  test('advertisements — title, date and category filters, column sort, pagination', async () => {
+  test('advertisements — title, date, category and city filters, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
@@ -188,6 +202,13 @@ test.describe('Seed data and query validation', () => {
     await applyFilter(page, ADV_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT / CATEGORIES.length}`, { timeout: 8000 });
     await screenshot(page, 'adv-filter-category');
+    await clearFilter(page, ADV_BLOCK);
+
+    // ── city filter → SEED_COUNT / 3 results per city ────────────────────────
+    await fillCity(page, ADV_BLOCK, CITIES[0]);
+    await applyFilter(page, ADV_BLOCK);
+    await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT / CITIES.length}`, { timeout: 8000 });
+    await screenshot(page, 'adv-filter-city');
     await clearFilter(page, ADV_BLOCK);
 
     // ── date range filters (created/updated today + boundary cases) ──────────

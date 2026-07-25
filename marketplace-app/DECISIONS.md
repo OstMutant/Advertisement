@@ -2815,3 +2815,89 @@ job in a different starter with no cross-starter ordering guarantee.
   `platform-commons` interface change), integration-tests 126/126 (full suite, not just the
   touched classes), Playwright `e2e --full --ux` 50/50 (twice, including a final check after the
   `deploy.sh` auto-recovery fix landed).
+
+---
+
+## ADR-065: F-02 city dictionary + geo filter — `TaxonType.CITY` reusing the existing taxon assignment mechanism, no schema change
+
+**Status:** Accepted
+
+**Context:** [improvement-119](../backlog/completed/issues/improvement-119-f02-city-dictionary-geo-filter.md) —
+local service listings are geo-first ("плиточник у Луцьку" is a real query shape); without a city
+facet the catalog is unfilterable past one city. The issue's own research (see its `## Suggested
+fix`) had already ruled out two tempting shortcuts: a `city_taxon_id BIGINT REFERENCES taxon(id)`
+FK column on `advertisement` (would recreate the exact starter-to-starter hard coupling ADR-064
+just removed, this time within the same session), and a Liquibase `<insert>` seed changeset for
+city rows (no such changeset exists anywhere in this project — categories aren't seeded that way
+either, only ever created through the running admin UI).
+
+**Decision:**
+1. Added `CITY` to `TaxonType` (`platform-commons`, alongside `CATEGORY`) — no schema change
+   anywhere. A city assignment is just another `taxon_assignment` row
+   (`entity_type='ADVERTISEMENT', taxon_id=<city id>`), the exact same mechanism categories already
+   use via `TaxonPort.replaceAssignments()`/`getForEntity(s)`.
+2. `AdvertisementInfoDto`/`AdvertisementFilterDto`/`AdvertisementSaveDto`/`AdvertisementSnapshotDto`
+   each gained a `cityTaxonId`/`cityName` field, mirroring `categoryIds`'s shape exactly (`diff()`
+   and `allFields()` updated the same way).
+3. **Critical correctness hazard, caught by reading `TaxonAssignmentService.replaceAssignments()`'s
+   actual source before writing any save-path code, not assumed:** it does a full diff-replace
+   across *all* taxon types assigned to an entity in one call. `AdvertisementSaveService.save()`
+   therefore unions category ids and the city id into one `Set<Long>` before the single
+   `replaceAssignments()` call — two separate calls would have silently wiped whichever ran first.
+   The same file's `buildCurrentSnapshot()`, `AdvertisementService.enrichWithTaxons()` (renamed from
+   `enrichWithCategories()`), and `AdvertisementEnrichService`'s audit-diff resolution all had to
+   split `getForEntity(s)`'s *type-unfiltered* result by `TaxonDto.getType()` client-side for the
+   same reason — none of these port methods take a `TaxonType` parameter.
+4. **Same expandWithChanges() raw-id fallback bug pre-empted for city from the start** (the bug
+   this session already root-caused and fixed for categories earlier): `AdvertisementEnrichService
+   .resolveCity()` always appends a resolved `cityTaxonId` entry when the enriched snapshot has one
+   to show — mirroring `resolveCategories()`'s shape exactly. Caught immediately in unit tests
+   (below) that BOTH `resolveCity()` and the pre-existing `resolveCategories()` were appending a
+   synthetic empty entry even when that specific field had nothing to show (`nameById` non-empty
+   because the *other* field's ids resolved) — fixed by guarding the append on `currId != null ||
+   prevId != null` (city) / non-empty `currIds`/`prevIds` (categories), not just "did we already
+   attach an entry".
+5. **New `City*` classes by analogy, not a parameterized `Taxon*`** — matches the issue's explicit
+   rejection of a generalized `TaxonManagementView(TaxonType)`: `TaxonOverlay` is a `@UIScope`
+   singleton, so two simultaneous tabs (Categories, Cities) need two distinct bean instances, not
+   one shared parameterized instance. Added `CityEditDto`, `CityManagementView`, `CityOverlay`,
+   `CityFormOverlayModeHandler`, `CityViewOverlayModeHandler` (same packages as their `Taxon*`
+   counterparts), each hardcoded to `TaxonType.CITY`. `ReferenceDataView` gained a second
+   `Tab`/page pair ("Cities"). CSS classes deliberately reused where the shape is identical
+   (`taxon-locale-content`, `taxon-row-wrapper`, `taxon-list-container`, ...) and deliberately
+   distinct where the two screens must render simultaneously in the DOM
+   (`city-management-view`/`city-overlay`/`city-add-button` vs. `taxon-management-view`/
+   `taxon-overlay`/`taxon-add-button`) — reusing a class name across two concurrently-mounted trees
+   would make CSS-scoped Playwright selectors ambiguous.
+6. Advertisement UI: single-select `ComboBox<TaxonDto>` (categories use `MultiSelectComboBox` — no
+   existing single-select precedent in this codebase before this change) in the query block, form,
+   view overlay (chip) and card (badge below the categories line) — mirroring the existing category
+   rendering shape exactly, new `advertisement-city-chip`/`advertisement-city` CSS classes.
+7. Initial city list entered by hand through `CityManagementView` after deploy, same as categories
+   — no Liquibase seed.
+
+**Consequences:**
+- Zero schema changes anywhere in this feature — verified no new Liquibase changeset was needed in
+  any of the three starters it touches.
+- A **real, unrelated bug was found and fixed as a side effect**: `TaxonManagementView`/
+  `TaxonOverlay`'s `listAllByType()`/`findById()` calls hardcode `Locale.ENGLISH` rather than the
+  current UI locale — pre-existing, not introduced by this change, left as-is (out of scope; not
+  yet filed as a separate issue at the time of this ADR).
+- Playwright: extended existing tests rather than adding new spec files, per explicit instruction —
+  city admin creation/edit folded into spec 03's existing category-admin tests (`city.flow.js` new
+  shared flow file, mirroring `category.flow.js`'s shape only where the UI shape actually matches
+  single- vs. multi-select), a `city`/`cityToSet` param added to
+  `runCreateAdvertisementFlow`/`runEditAdvertisementFlow` (spec 04), and a city filter folded into
+  spec 05's existing seed/filter test (`fillCity()` in `filter.flow.js`, `SEED_CITIES`/`CITIES`
+  constants, distinct city names from spec 03's Lviv/Kyiv to avoid dupes in full-suite mode).
+- **Second real bug found via the Playwright run itself, not by inspection:** `openReferenceDataTab()`/
+  the spec-03-local `openRefDataTab()` only clicked the top-level "Reference Data" tab and assumed
+  the "Categories" sub-tab was showing — but Vaadin's `Tabs` component retains its last selection
+  across visibility toggles, so once a test visited the new "Cities" sub-tab, every later call to
+  these helpers left `.taxon-management-view` hidden. Fixed by having both helpers explicitly
+  reselect "Categories" every time, making them deterministic regardless of prior sub-tab state.
+- Verified: unit-tests 75/75 (including two new tests that pinned down the resolveCity/
+  resolveCategories noise bug above), integration-tests 128/128 (two new `AdvertisementSnapshotDto`
+  `cityTaxonId` diff tests), Playwright `e2e --full --ux` 50/50 (after fixing the sub-tab-selection
+  bug and one activity-version off-by-one caused by the new `cityToSet` step adding an extra save
+  to an existing edit-lifecycle test).

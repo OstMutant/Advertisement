@@ -117,6 +117,15 @@ async function fillCategory(page, blockSelector, categoryName) {
   await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
 }
 
+// Selects one value from the single-select city combo in the advertisement query block.
+async function fillCity(page, blockSelector, cityName) {
+  const combo = page.locator(`${blockSelector} vaadin-combo-box`);
+  await combo.locator('input').click();
+  await combo.locator('input').fill(cityName);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+}
+
 // Sets a date range using the Vaadin date-picker JS API.
 // pickerStartIndex: 0 = first date-pair (created), 2 = second date-pair (updated).
 async function setDateRange(page, blockSelector, pickerStartIndex, startDate, endDate) {
@@ -288,7 +297,7 @@ module.exports = {
   openQueryPanel, closeQueryPanel,
   applyFilter, clearFilter, waitForVaadin,
   clickSort, resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory, setDateRange,
+  fillText, fillNumber, fillRole, fillCategory, fillCity, setDateRange,
   getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,

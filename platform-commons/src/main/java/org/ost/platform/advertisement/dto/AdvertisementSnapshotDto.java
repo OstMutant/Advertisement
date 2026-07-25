@@ -22,6 +22,7 @@ public record AdvertisementSnapshotDto(
         String title,
         String description,
         List<Long> categoryIds,
+        Long cityTaxonId,
         Long attachmentSnapshotId
 ) implements AuditableSnapshot {
 
@@ -44,6 +45,9 @@ public record AdvertisementSnapshotDto(
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
         if (!Objects.equals(prevIds, categoryIds()))
             changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
+        Long prevCityId = prev != null ? prev.cityTaxonId() : null;
+        if (!Objects.equals(prevCityId, cityTaxonId()))
+            changes.add(new FieldChange(Fields.cityTaxonId, idToString(prevCityId), idToString(cityTaxonId())));
         return changes;
     }
 
@@ -52,11 +56,16 @@ public record AdvertisementSnapshotDto(
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
                 new FieldChange(Fields.description, null, description()),
-                new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())));
+                new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())),
+                new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())));
     }
 
     private static String idsToString(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return "";
         return ids.stream().map(String::valueOf).collect(Collectors.joining(", "));
+    }
+
+    private static String idToString(Long id) {
+        return id == null ? "" : String.valueOf(id);
     }
 }

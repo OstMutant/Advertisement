@@ -65,8 +65,16 @@ class AdvertisementEnrichServiceTest {
         return TaxonDto.builder().id(id).type(TaxonType.CATEGORY).name(name).description("").build();
     }
 
+    private static TaxonDto city(Long id, String name) {
+        return TaxonDto.builder().id(id).type(TaxonType.CITY).name(name).description("").build();
+    }
+
     private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long attachmentSnapshotId) {
-        return new AdvertisementSnapshotDto("Title", "Desc", categoryIds, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto("Title", "Desc", categoryIds, null, attachmentSnapshotId);
+    }
+
+    private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long cityTaxonId, Long attachmentSnapshotId) {
+        return new AdvertisementSnapshotDto("Title", "Desc", categoryIds, cityTaxonId, attachmentSnapshotId);
     }
 
     // ── mergeMediaChanges() (Timeline tab) ──────────────────────────────────────────────────
@@ -141,6 +149,29 @@ class AdvertisementEnrichServiceTest {
                 .filter(fc -> fc.field().equals(AdvertisementSnapshotDto.Fields.categoryIds))
                 .findFirst().orElseThrow();
         assertThat(categoryEntry.to()).isEqualTo("Electronics");
+    }
+
+    @Test
+    void mergeMediaChanges_cityUnchanged_stillAddsResolvedCityEntry() {
+        stubAvailable(attachmentAuditHookFactory, attachmentAuditHook);
+        stubAvailable(taxonPortFactory, taxonPort);
+        when(taxonPort.findByIds(Set.of(5L), Locale.ENGLISH)).thenReturn(Map.of(5L, city(5L, "Lviv")));
+        when(attachmentAuditHook.getChangesBySnapshotId(50L))
+                .thenReturn(List.of(new ChangeEntry.MediaChange("old.jpg", "new.jpg")));
+
+        AuditTimelineItemDto<AdvertisementSnapshotDto> item = new AuditTimelineItemDto<>(
+                1L, new EntityRef(EntityType.ADVERTISEMENT, 1L), ActionType.UPDATED, null,
+                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.title, "Old", "New")),
+                10L, snapshot(List.of(), 5L, 50L), snapshot(List.of(), 5L, 40L));
+
+        List<AuditTimelineItemDto<AdvertisementSnapshotDto>> result = service.mergeMediaChanges(List.of(item));
+
+        ChangeEntry.FieldChange cityEntry = result.getFirst().changes().stream()
+                .filter(ChangeEntry.FieldChange.class::isInstance)
+                .map(ChangeEntry.FieldChange.class::cast)
+                .filter(fc -> fc.field().equals(AdvertisementSnapshotDto.Fields.cityTaxonId))
+                .findFirst().orElseThrow();
+        assertThat(cityEntry.to()).isEqualTo("Lviv");
     }
 
     @Test

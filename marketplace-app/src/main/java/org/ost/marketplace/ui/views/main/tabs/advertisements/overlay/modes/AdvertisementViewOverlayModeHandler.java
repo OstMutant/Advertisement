@@ -27,6 +27,7 @@ import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.platform.taxon.model.TaxonType;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
 
@@ -82,7 +83,9 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         textCard.addClassName("overlay__view-card");
 
         taxonPortFactory.ifAvailable(taxonPort -> {
-            var cats = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
+            var taxons = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
+            var cats = taxons.stream().filter(t -> t.getType() == TaxonType.CATEGORY).toList();
+            var cities = taxons.stream().filter(t -> t.getType() == TaxonType.CITY).toList();
             if (!cats.isEmpty()) {
                 Div categoriesRow = new Div();
                 categoriesRow.addClassName("advertisement-categories-chips");
@@ -96,6 +99,20 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                     categoriesRow.add(chip);
                 });
                 textCard.add(categoriesRow);
+            }
+            if (!cities.isEmpty()) {
+                Div cityRow = new Div();
+                cityRow.addClassName("advertisement-city-chips");
+                cityRow.getElement().setAttribute("role", "list");
+                cityRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
+                cities.forEach(city -> {
+                    Span chip = new Span(city.getName());
+                    chip.addClassName("advertisement-city-chip");
+                    if (city.isDeleted()) chip.addClassName("advertisement-city-chip--deleted");
+                    chip.getElement().setAttribute("role", "listitem");
+                    cityRow.add(chip);
+                });
+                textCard.add(cityRow);
             }
         });
 

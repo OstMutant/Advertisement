@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -81,6 +82,15 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         taxonPortFactory.ifAvailable(port ->
                 categoriesField.setItems(port.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale())));
         filterRow(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES), categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
+
+        // City row
+        ComboBox<TaxonDto> cityField = new ComboBox<>();
+        cityField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CITY));
+        cityField.setItemLabelGenerator(TaxonDto::getName);
+        cityField.setClearButtonVisible(true);
+        taxonPortFactory.ifAvailable(port ->
+                cityField.setItems(port.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale())));
+        filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
 
         add(queryActionBlock);
     }
