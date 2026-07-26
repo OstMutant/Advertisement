@@ -49,8 +49,7 @@ public class AdvertisementSaveService {
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
             Long cityId = dto.cityTaxonId();
-            // replaceAssignments() does a full diff-replace across ALL taxon types for this entity --
-            // category and city ids must go in as one unioned set, or the second call would wipe the first.
+            // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
             Set<Long> assignmentIds = cityId != null
                     ? Stream.concat(catIds.stream(), Stream.of(cityId)).collect(Collectors.toSet())
                     : catIds;

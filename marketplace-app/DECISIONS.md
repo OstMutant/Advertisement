@@ -2901,3 +2901,34 @@ either, only ever created through the running admin UI).
   `cityTaxonId` diff tests), Playwright `e2e --full --ux` 50/50 (after fixing the sub-tab-selection
   bug and one activity-version off-by-one caused by the new `cityToSet` step adding an extra save
   to an existing edit-lifecycle test).
+
+**Update (2026-07-25, post-implementation SOLID/DRY review):** A repo-wide review pass (11 parallel
+read-only agents, one per module) surfaced two more real bugs in this feature, both fixed and
+covered:
+1. `AdvertisementActivityFieldsHookImpl.labelFor()` had no `case` for `cityTaxonId` — the Activity
+   tab showed the raw field key `"cityTaxonId"` instead of a translated "City" label. Fixed by
+   adding the missing case (new `CHANGES_FIELD_CITY` key), with a Playwright assertion
+   (`toContainText('City')` on the diff row) that fails against the pre-fix code.
+2. `AdvertisementService.findById()` re-implemented its own inline category/city split instead of
+   calling the existing `enrichWithTaxons()` — and its inline version never set
+   `categoryNames`/`cityName` at all (only `categoryIds`/`cityTaxonId`). Since `findById()` is what
+   refreshes a card in place after an edit save (`AdvertisementFormOverlayModeHandler` →
+   `savedInfoDto` → `AdvertisementOverlay.proceed()` → `updateCardInPlace()`), every edit save was
+   silently dropping the category/city text from that one card until the next full list refresh —
+   a real, user-visible regression, not just a DRY nit. Fixed by having `findById()` call
+   `enrichWithTaxons(List.of(dto), Locale.ENGLISH)` directly, and added a Playwright assertion
+   (`assertCardHasCity` on the card right after an edit-save) that fails against the pre-fix code.
+3. Also applied, lower-risk: extracted `AdvertisementEnrichService.resolveField()` (shared by
+   `resolveCategories()`/`resolveCity()`, replacing ~30 duplicated lines), `AdvertisementService
+   .resolveTaxonIdFilter()` (shared by `resolveCategoryFilter()`/`resolveCityFilter()`),
+   `AdvertisementViewOverlayModeHandler.buildChipRow()` (shared category/city chip rendering),
+   `AdvertisementCardView.createInfoLine()` (shared category/city card-line rendering), and
+   `AdvertisementSnapshotDto.idToString()`/`AdvertisementEnrichService.idToName()` now delegate to
+   their list-based siblings instead of duplicating the same null-check-and-format ternary.
+4. The same review surfaced a substantial list of **pre-existing** findings across every other
+   module (attachment-starter, audit-starter, platform-commons, query-lib, taxon-starter,
+   user-starter, and other marketplace-app areas) unrelated to this feature — reported to the user
+   for separate triage, not fixed here to keep this change's blast radius scoped to what F-02
+   actually touched.
+- Re-verified after this update: unit-tests 75/75, integration-tests 128/128, Playwright
+  `e2e --full --ux` 50/50 (including the two new regression assertions above).

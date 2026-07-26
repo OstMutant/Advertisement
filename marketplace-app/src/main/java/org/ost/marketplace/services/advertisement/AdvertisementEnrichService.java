@@ -128,7 +128,6 @@ public class AdvertisementEnrichService {
         if (snapshot.cityTaxonId() != null) ids.add(snapshot.cityTaxonId());
     }
 
-    // Appends a resolved categoryIds entry when categories exist -- expandWithChanges() falls back to allFields()'s raw ids otherwise.
     private static List<ChangeEntry> resolveCategories(List<ChangeEntry> changes,
                                                         AdvertisementSnapshotDto snapshot,
                                                         AdvertisementSnapshotDto prev,
@@ -136,18 +135,35 @@ public class AdvertisementEnrichService {
         if (nameById.isEmpty()) return changes;
         List<Long> currIds = snapshot.categoryIds();
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
+        return resolveField(changes, AdvertisementSnapshotDto.Fields.categoryIds,
+                !currIds.isEmpty() || !prevIds.isEmpty(),
+                idsToNames(currIds, nameById), idsToNames(prevIds, nameById));
+    }
+
+    private static List<ChangeEntry> resolveCity(List<ChangeEntry> changes,
+                                                  AdvertisementSnapshotDto snapshot,
+                                                  AdvertisementSnapshotDto prev,
+                                                  Map<Long, String> nameById) {
+        if (nameById.isEmpty()) return changes;
+        Long currId = snapshot.cityTaxonId();
+        Long prevId = prev != null ? prev.cityTaxonId() : null;
+        return resolveField(changes, AdvertisementSnapshotDto.Fields.cityTaxonId,
+                currId != null || prevId != null,
+                idToName(currId, nameById), idToName(prevId, nameById));
+    }
+
+    // Appends a resolved entry for the given field when it has a value -- expandWithChanges() falls back to allFields()'s raw ids otherwise.
+    private static List<ChangeEntry> resolveField(List<ChangeEntry> changes, String field,
+                                                   boolean hasValue, String currResolved, String prevResolved) {
         List<ChangeEntry> resolved = changes.stream()
-                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.categoryIds,
-                        _ -> idsToNames(prevIds, nameById),
-                        _ -> idsToNames(currIds, nameById)))
+                .map(entry -> entry.replaceIfField(field, _ -> prevResolved, _ -> currResolved))
                 .toList();
-        boolean hasCategoryEntry = resolved.stream().anyMatch(
-                e -> e instanceof ChangeEntry.FieldChange(var field, var _, var _)
-                        && field.equals(AdvertisementSnapshotDto.Fields.categoryIds));
-        if (hasCategoryEntry || (currIds.isEmpty() && prevIds.isEmpty())) return resolved;
-        List<ChangeEntry> withCategory = new ArrayList<>(resolved);
-        withCategory.add(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.categoryIds, null, idsToNames(currIds, nameById)));
-        return withCategory;
+        boolean hasEntry = resolved.stream().anyMatch(
+                e -> e instanceof ChangeEntry.FieldChange(var f, var _, var _) && f.equals(field));
+        if (hasEntry || !hasValue) return resolved;
+        List<ChangeEntry> withEntry = new ArrayList<>(resolved);
+        withEntry.add(new ChangeEntry.FieldChange(field, null, currResolved));
+        return withEntry;
     }
 
     private static String idsToNames(List<Long> ids, Map<Long, String> nameById) {
@@ -156,30 +172,8 @@ public class AdvertisementEnrichService {
                 .collect(Collectors.joining(", "));
     }
 
-    // Same shape as resolveCategories() above, for the single-valued cityTaxonId field.
-    private static List<ChangeEntry> resolveCity(List<ChangeEntry> changes,
-                                                  AdvertisementSnapshotDto snapshot,
-                                                  AdvertisementSnapshotDto prev,
-                                                  Map<Long, String> nameById) {
-        if (nameById.isEmpty()) return changes;
-        Long currId = snapshot.cityTaxonId();
-        Long prevId = prev != null ? prev.cityTaxonId() : null;
-        List<ChangeEntry> resolved = changes.stream()
-                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.cityTaxonId,
-                        _ -> idToName(prevId, nameById),
-                        _ -> idToName(currId, nameById)))
-                .toList();
-        boolean hasCityEntry = resolved.stream().anyMatch(
-                e -> e instanceof ChangeEntry.FieldChange(var field, var _, var _)
-                        && field.equals(AdvertisementSnapshotDto.Fields.cityTaxonId));
-        if (hasCityEntry || (currId == null && prevId == null)) return resolved;
-        List<ChangeEntry> withCity = new ArrayList<>(resolved);
-        withCity.add(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.cityTaxonId, null, idToName(currId, nameById)));
-        return withCity;
-    }
-
     private static String idToName(Long id, Map<Long, String> nameById) {
-        return id == null ? "" : nameById.getOrDefault(id, String.valueOf(id));
+        return id == null ? "" : idsToNames(List.of(id), nameById);
     }
 
     private Map<Long, String> resolveNames(Set<Long> ids) {

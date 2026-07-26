@@ -71,10 +71,7 @@ public class AdvertisementService {
         return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
     }
 
-    // empty() = no filter requested at all; of(ids), possibly empty = the AND-combined result of
-    // whichever of category/city filters were actually requested (each resolved independently via
-    // findEntityIdsWithAnyTaxon, then intersected -- that method itself is an OR across the ids
-    // passed to a single call, so category and city can never be combined into one such call).
+    // AND-combines independently-resolved category/city constraints; empty() means no filter was requested.
     private Optional<Set<Long>> resolveTaxonFilter(AdvertisementFilterDto filter) {
         Optional<Set<Long>> categoryConstraint = resolveCategoryFilter(filter);
         Optional<Set<Long>> cityConstraint = resolveCityFilter(filter);
@@ -86,19 +83,20 @@ public class AdvertisementService {
     }
 
     private Optional<Set<Long>> resolveCategoryFilter(AdvertisementFilterDto filter) {
-        if (filter.getCategoryIds() == null) {
-            return Optional.empty();
-        }
-        return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, filter.getCategoryIds()));
+        return resolveTaxonIdFilter(filter.getCategoryIds());
     }
 
     private Optional<Set<Long>> resolveCityFilter(AdvertisementFilterDto filter) {
-        if (filter.getCityTaxonId() == null) {
+        Long cityId = filter.getCityTaxonId();
+        return resolveTaxonIdFilter(cityId == null ? null : Set.of(cityId));
+    }
+
+    private Optional<Set<Long>> resolveTaxonIdFilter(Set<Long> taxonIds) {
+        if (taxonIds == null) {
             return Optional.empty();
         }
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, Set.of(filter.getCityTaxonId())));
+                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, taxonIds));
     }
 
     private List<AdvertisementInfoDto> enrichWithTaxons(List<AdvertisementInfoDto> ads, Locale locale) {
@@ -176,18 +174,7 @@ public class AdvertisementService {
 
     public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
         return repository.findAdvertisementById(id)
-                .map(dto -> taxonPortFactory.findIfAvailable()
-                        .map(taxonPort -> {
-                            List<TaxonDto> assigned = taxonPort.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH);
-                            Set<Long> catIds = assigned.stream()
-                                    .filter(t -> t.getType() == TaxonType.CATEGORY)
-                                    .map(TaxonDto::getId).collect(Collectors.toSet());
-                            Long cityId = assigned.stream()
-                                    .filter(t -> t.getType() == TaxonType.CITY)
-                                    .map(TaxonDto::getId).findFirst().orElse(null);
-                            return dto.toBuilder().categoryIds(catIds).cityTaxonId(cityId).build();
-                        })
-                        .orElse(dto))
+                .map(dto -> enrichWithTaxons(List.of(dto), Locale.ENGLISH).getFirst())
                 .map(dto -> enrichWithActorInfo(List.of(dto)).getFirst())
                 .map(dto -> enrichWithMediaSummary(List.of(dto)).getFirst());
     }

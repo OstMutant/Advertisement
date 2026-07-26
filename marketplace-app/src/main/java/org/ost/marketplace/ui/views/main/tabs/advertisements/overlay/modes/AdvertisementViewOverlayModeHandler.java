@@ -28,8 +28,11 @@ import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.taxon.model.TaxonType;
+import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -84,36 +87,10 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
         taxonPortFactory.ifAvailable(taxonPort -> {
             var taxons = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
-            var cats = taxons.stream().filter(t -> t.getType() == TaxonType.CATEGORY).toList();
-            var cities = taxons.stream().filter(t -> t.getType() == TaxonType.CITY).toList();
-            if (!cats.isEmpty()) {
-                Div categoriesRow = new Div();
-                categoriesRow.addClassName("advertisement-categories-chips");
-                categoriesRow.getElement().setAttribute("role", "list");
-                categoriesRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
-                cats.forEach(cat -> {
-                    Span chip = new Span(cat.getName());
-                    chip.addClassName("advertisement-category-chip");
-                    if (cat.isDeleted()) chip.addClassName("advertisement-category-chip--deleted");
-                    chip.getElement().setAttribute("role", "listitem");
-                    categoriesRow.add(chip);
-                });
-                textCard.add(categoriesRow);
-            }
-            if (!cities.isEmpty()) {
-                Div cityRow = new Div();
-                cityRow.addClassName("advertisement-city-chips");
-                cityRow.getElement().setAttribute("role", "list");
-                cityRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
-                cities.forEach(city -> {
-                    Span chip = new Span(city.getName());
-                    chip.addClassName("advertisement-city-chip");
-                    if (city.isDeleted()) chip.addClassName("advertisement-city-chip--deleted");
-                    chip.getElement().setAttribute("role", "listitem");
-                    cityRow.add(chip);
-                });
-                textCard.add(cityRow);
-            }
+            buildChipRow(textCard, taxons, TaxonType.CATEGORY, "advertisement-categories-chips",
+                    "advertisement-category-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
+            buildChipRow(textCard, taxons, TaxonType.CITY, "advertisement-city-chips",
+                    "advertisement-city-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
         });
 
         Div viewBody = new Div(textCard);
@@ -123,6 +100,24 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
+    }
+
+    private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,
+                                      String rowCssClass, String chipCssClass, String ariaLabel) {
+        List<TaxonDto> matching = taxons.stream().filter(t -> t.getType() == type).toList();
+        if (matching.isEmpty()) return;
+        Div row = new Div();
+        row.addClassName(rowCssClass);
+        row.getElement().setAttribute("role", "list");
+        row.getElement().setAttribute("aria-label", ariaLabel);
+        matching.forEach(taxon -> {
+            Span chip = new Span(taxon.getName());
+            chip.addClassName(chipCssClass);
+            if (taxon.isDeleted()) chip.addClassName(chipCssClass + "--deleted");
+            chip.getElement().setAttribute("role", "listitem");
+            row.add(chip);
+        });
+        textCard.add(row);
     }
 
     @Override

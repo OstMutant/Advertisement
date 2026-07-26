@@ -432,6 +432,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       const cityChanges = cityActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(cityChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(cityChanges).toContainText(cityToSet);
+      await expect(cityChanges).toContainText('City');
       await screenshot(page, `${screenshotPrefix}-city-set-activity`);
     });
   }
@@ -450,6 +451,9 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await closeOverlayToList(page, overlay);
     const updatedCard = cardByTitle(page, newTitle).first();
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
+    if (cityToSet) {
+      await assertCardHasCity(page, expect, updatedCard, cityToSet, `${screenshotPrefix}-list-updated-city`);
+    }
     if (richText) {
       const descHtml = await updatedCard.locator('.advertisement-description').innerHTML();
       expect(descHtml, 'card description should be plain text, no HTML tags').not.toContain('<');

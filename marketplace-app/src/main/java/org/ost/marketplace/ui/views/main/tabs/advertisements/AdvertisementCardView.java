@@ -17,6 +17,7 @@ import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
@@ -162,16 +163,17 @@ public class AdvertisementCardView extends HorizontalLayout
 
     private Span createCategoriesLine(AdvertisementInfoDto ad) {
         if (ad.getCategoryNames() == null || ad.getCategoryNames().isEmpty()) return null;
-        String names = String.join(", ", ad.getCategoryNames());
-        Span line = new Span(getValue(ADVERTISEMENT_CARD_CATEGORIES) + " " + names);
-        line.addClassName("advertisement-categories");
-        return line;
+        return createInfoLine(ADVERTISEMENT_CARD_CATEGORIES, String.join(", ", ad.getCategoryNames()), "advertisement-categories");
     }
 
     private Span createCityLine(AdvertisementInfoDto ad) {
         if (ad.getCityName() == null) return null;
-        Span line = new Span(getValue(ADVERTISEMENT_CARD_CITY) + " " + ad.getCityName());
-        line.addClassName("advertisement-city");
+        return createInfoLine(ADVERTISEMENT_CARD_CITY, ad.getCityName(), "advertisement-city");
+    }
+
+    private Span createInfoLine(I18nKey label, String text, String cssClass) {
+        Span line = new Span(getValue(label) + " " + text);
+        line.addClassName(cssClass);
         return line;
     }
 

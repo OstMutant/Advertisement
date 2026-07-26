@@ -66,6 +66,6 @@ public record AdvertisementSnapshotDto(
     }
 
     private static String idToString(Long id) {
-        return id == null ? "" : String.valueOf(id);
+        return idsToString(id == null ? null : List.of(id));
     }
 }

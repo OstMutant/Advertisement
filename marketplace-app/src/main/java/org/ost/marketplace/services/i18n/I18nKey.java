@@ -290,6 +290,7 @@ public enum I18nKey {
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_FIELD_CATEGORY("changes.field.category"),
+    CHANGES_FIELD_CITY("changes.field.city"),
     CHANGES_FIELD_NAME_EN("changes.field.nameEn"),
     CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
     CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
