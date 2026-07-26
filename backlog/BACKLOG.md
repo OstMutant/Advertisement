@@ -37,15 +37,17 @@ improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 
 out into improvement-118. improvement-120 completed 2026-07-25 — see `completed/BACKLOG-ARCHIVE.md`.
 improvement-119 (F-02, product roadmap Phase 1 item #2) completed 2026-07-25 — see
 `completed/BACKLOG-ARCHIVE.md`. improvement-121 filed 2026-07-26 (repo-wide SOLID/DRY review
-findings from the 11-agent audit run after improvement-119 shipped). improvement-118 remains at
-the bottom (blocked, not actionable — needs a public URL this sandbox doesn't have).
+findings from the 11-agent audit run after improvement-119 shipped), then deprioritized the same
+day to lowest ⚪ after an autopilot execution attempt across all 8 batches was aborted before
+landing anything (cleanly rolled back, no code changes from it are in the tree). improvement-118
+remains at the bottom (blocked, not actionable — needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| Nice to have | 🔵 | 121 | repo-wide SOLID/DRY review findings (11-agent audit) — ~20 items across every module, grouped by module; includes a query-lib `SqlFilterBuilder` crash-risk fix shared by every repository |
 | Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
 | (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
+| Lowest | ⚪ | 121 | repo-wide SOLID/DRY review findings (11-agent audit) — ~20 items across every module; deprioritized after an aborted autopilot attempt, revisit opportunistically only |
 
 Details, links, and per-batch rationale below.
 
@@ -53,7 +55,6 @@ Details, links, and per-batch rationale below.
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-121](issues/improvement-121-solid-dry-review-findings.md) | New (11-agent SOLID/DRY audit after improvement-119) | ~20 findings across attachment/audit/user/taxon-starters, platform-commons, query-lib, marketplace-app — SRP/DRY violations, missing `@NonNull`, doc drift, one shared-library crash-risk fix |
 | [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated | Playwright seeding infrastructure (sequenced pair — 035 unblocks on 073), then service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
 | [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch |
 | [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
@@ -69,6 +70,12 @@ Details, links, and per-batch rationale below.
 | Issue | Origin | What |
 |---|---|---|
 | [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable; pushed to the bottom 2026-07-25, not actionable in this environment |
+
+### Lowest priority — improvement-121
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-121](issues/improvement-121-solid-dry-review-findings.md) | New (11-agent SOLID/DRY audit after improvement-119) | ~20 findings across attachment/audit/user/taxon-starters, platform-commons, query-lib, marketplace-app — SRP/DRY violations, missing `@NonNull`, doc drift, one shared-library crash-risk fix. Has a detailed 8-batch execution plan already written into the issue. Deprioritized 2026-07-26 after an autopilot execution attempt was aborted before landing anything — pick up opportunistically, not on a schedule. |
 
 ---
 

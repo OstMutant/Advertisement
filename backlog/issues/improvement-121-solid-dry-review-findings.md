@@ -5,8 +5,9 @@ this same review found were already fixed directly in improvement-119's cleanup 
 **Module:** `attachment-spring-boot-starter`, `audit-spring-boot-starter`, `platform-commons`,
 `query-lib`, `taxon-spring-boot-starter`, `user-spring-boot-starter`, `marketplace-app` (several
 packages).
-**Priority:** medium — no live bug, but one item (query-lib) is a latent crash risk shared by every
-repository in the app.
+**Priority:** lowest ⚪ — no live bug; deprioritized 2026-07-26 after an autopilot execution attempt
+across all 8 batches was aborted before landing anything (rolled back cleanly, no code changes from
+this issue are in the tree). Revisit opportunistically, not on a schedule.
 **When:** independent, no blockers.
 
 ## Problem
@@ -149,6 +150,153 @@ incrementally. The `query-lib` `SqlFilterBuilder.toParams()` item is the one wit
 risk (a silent crash under a specific filter-binding-name collision) and is worth prioritizing
 first regardless of batching; the two `CLAUDE.md` doc-drift items (`AttachmentMediaChangeHook`,
 `applyUserRestore()`) are free wins alongside whichever code change touches those files next.
+
+## Detailed execution plan
+
+Eight batches, ordered by risk (lowest/most-isolated first) so early batches build confidence
+before the two batches that touch shared UI components or a cross-module SPI rename. Each batch is
+one pass = one PR, one test run, per this project's own batching convention. `git commit` only on
+explicit request, per standing project rule — this plan does not change that.
+
+**Batch 121-A — query-lib** (isolated library, zero Spring context, highest production risk item)
+1. `SqlFilterBuilder` constructor: validate the `List<SqlBoundFilter<F,R>>` for duplicate
+   `filterProperty` values and fail fast (throw `IllegalArgumentException` at construction time,
+   not `IllegalStateException` at request time) — construction happens once per repository class
+   at classload, so this turns a rare runtime crash into an always-caught startup/test failure.
+2. Pick one null policy for the three sibling "build a SQL fragment" entry points
+   (`SqlFilterBuilder.build`, `OrderByBuilder.build`, `PaginationSqlBuilder.pageLimit`) and apply it
+   to all three — recommend adopting "tolerate `null` as no-op" everywhere (2 of 3 already do this;
+   changing `SqlFilterBuilder.build`'s `@NonNull` filter param to tolerate `null` is the smaller
+   diff than adding null-handling to the other two).
+3. Extract `applyIfNotEmpty(mapping, collection, operator, mapper)` shared by `inSet()`/`anyOf()`.
+4. Fix `SqlCondition`'s class Javadoc to describe both the scalar (`null`) and collection
+   (`null`-or-empty) absence conditions precisely.
+- Test: `bash scripts/unit-tests.sh query-lib` (existing `SqlConditionTest`/`SqlOperatorTest`) +
+  new test cases for the duplicate-`filterProperty` fail-fast and the null-tolerant `build()`.
+
+**Batch 121-B — audit-spring-boot-starter** (small, isolated, no UI surface)
+1. Extract the `numbered AS (...)` CTE text shared by `findRows()`/`findTimeline()` into a
+   `private static final String NUMBERED_CTE` constant, matching this class's own `FILTER`/
+   `SORT_ALIASES` convention.
+2. Add `@NonNull` to the not-null public parameters on `AuditReadService`, `AuditLogRepository`,
+   `AuditCleanupService` (mirror `DefaultAuditPort`'s existing coverage in the same module).
+3. Replace `getSnapshotContent()`'s per-call `snapshotContentMapper()` lambda with a small static
+   nested `RowMapper` class taking `objectMapper` via constructor, mirroring `ProjectionMapper`'s
+   existing shape in the same file.
+- Explicitly deferred from this batch: the `rawtypes`/`unchecked` suppression in
+  `AuditReadService` — the reviewing agent flagged it as "awareness, not a hard defect" since it's
+  tied to a deliberate generic-erasure tradeoff elsewhere in the DTO hierarchy; revisit only if it
+  causes an actual bug.
+- Test: `bash scripts/integration-tests.sh --sandbox AuditLogRepositoryTest` +
+  `bash scripts/unit-tests.sh`.
+
+**Batch 121-C — taxon-spring-boot-starter** (small, isolated)
+1. Extract `DefaultTaxonPort.buildDtoLookup(List<Long> taxonIds, Locale locale, boolean
+   activeOnly) -> Map<Long, TaxonDto>` (this is what `buildDtoIndex()` already computes) and
+   rewrite `resolveDtos()` as a thin ordering wrapper over it
+   (`taxonIds.stream().map(lookup::get).filter(Objects::nonNull).toList()`).
+2. Fix `TaxonAssignmentRepository.countByTaxonIds()`'s fully-qualified
+   `java.util.stream.Collectors` reference — add the normal import, matching every sibling method.
+- Test: `bash scripts/integration-tests.sh --sandbox` for `TaxonRepositoryTest`,
+  `TaxonServiceTest`, `TaxonPortTranslationFallbackTest`, `TaxonAssignmentRepositoryTest` + spec 03
+  Playwright (category/city admin flows, since `DefaultTaxonPort` backs both).
+
+**Batch 121-D — user-spring-boot-starter**
+1. Add `@NonNull` to `RoleChecker`/`OwnershipChecker` public parameters, drop the now-redundant
+   defensive `!= null` checks.
+2. Extract `UserDto.from(User)` (static factory on the DTO, or a small mapper method) and call it
+   from both `UserService.java` and `UserPrincipal.java` instead of duplicating the 8-field
+   mapping.
+3. Change `UserPort.findActorNames`/`UserService.findActorNames` to take `Set<Long>` directly
+   (matching `findExistingIds`/`findDeletedIds`/`findByIds`), dropping the one-off
+   `instanceof Set` branch.
+4. Unify `cleanup()`'s two different `ComponentFactory<AdvertisementPort>` access patterns
+   (`ifAvailable`/`findIfAvailable().orElse(...)`) into one `findIfAvailable()` call branched once.
+5. Fix `user-spring-boot-starter/CLAUDE.md`'s stale reference to `UserService.applyUserRestore()`
+   (confirm whether it was renamed/removed and correct the doc accordingly).
+- Explicitly deferred from this batch: splitting `UserService` into
+  `UserCleanupService`/`UserRegistrationService` — the reviewing agent flagged this as "a trend,
+  not yet a hard violation"; revisit only once the class grows further, not preemptively.
+- Test: `bash scripts/unit-tests.sh` (`AccessEvaluatorTest`, `AuthServiceTest`) +
+  `bash scripts/integration-tests.sh --sandbox UserServiceTest UserRepositoryTest` + Playwright
+  spec 02 (auth) and spec 03 (role promotion, since `RoleChecker` backs the UI's edit/delete gating).
+
+**Batch 121-E — marketplace-app: services/query layer**
+1. Collapse `AccessEvaluator.canNotEdit`/`canNotDelete`/`canOperate`'s `UserIdMarker`/`Long`
+   overload pairs into one implementation each (have the `UserIdMarker` overload delegate to the
+   `Long` overload via `.getOwnerUserId()`, or vice versa — whichever reads more naturally at each
+   call site).
+2. Rewrite `SettingsFormModeHandler` to build an `ActivityTabParams` and call the inherited
+   `buildContentWithActivity(...)` instead of manually reimplementing the same tab-gating control
+   flow — delete the now-dead manual `.map(...).orElse(...)` block.
+3. `UserView.refresh()`: add `refreshButton.setVisible(false)` to the `ConstraintViolationException`
+   catch branch (or move it to `finally`), matching the success path's bookkeeping.
+4. `TimelineView.refresh()`: either add the same two-tier `ConstraintViolationException`/`Exception`
+   catch shape `.claude/rules.md`'s View Pattern documents, or — if confirmed `AuditPort` genuinely
+   never throws that exception — leave the single catch but add a one-line comment stating that
+   explicitly, so it reads as a deliberate exception rather than an oversight.
+- Test: `bash scripts/unit-tests.sh` + Playwright spec 02/03 (settings page-size changes, user
+  promotion/edit) and spec 05 (timeline filters) — this batch touches security gating and two
+  `refresh()` methods, so the relevant e2e flows need a real pass, not just unit coverage.
+
+**Batch 121-F — marketplace-app: shared UI components** (broadest Playwright blast radius —
+these components render on every tab)
+1. Collapse `DeleteActionButton`/`EditActionButton`/`ShareActionButton`'s identical
+   two-constructor boilerplate into a protected `BaseActionButton` constructor/helper taking
+   `(VaadinIcon icon, ButtonVariant[] extraVariants, String tooltip, Runnable onClick, String
+   cssClassName, boolean small)`; keep the three named subclasses (call sites/readability), just
+   remove the duplicated bodies.
+2. Extract `AttachmentThumbnail.thumbSrc()`/`CardLightboxStrip.thumbSrc()`'s identical
+   YouTube/video/plain-url branching into one shared static helper in `ui/views/utils/` (e.g.
+   `LightboxUtil.thumbSrc(contentType, url)`).
+3. Add `@NonNull` to the non-optional constructor parameters across `ui/views/components/buttons/`,
+   `fields/`, and `dialogs/` that are currently missing it.
+4. Delete `BaseDialog`'s dead no-arg `buildLayout()` overload.
+- Test: full `bash scripts/playwright.sh e2e --full --ux` — action buttons, thumbnails, and dialogs
+  appear across every tab (advertisements, users, reference data, timeline), so this is the one
+  batch that needs the complete suite, not a targeted subset.
+
+**Batch 121-G — attachment-spring-boot-starter** (larger extraction, needs careful media-flow
+testing; do after the smaller/safer batches above have re-established confidence in the process)
+1. Consolidate the three independent "is this a video/embed" checks
+   (`AttachmentService.isVideo()`, `AttachmentMediaContentType.isEmbedded()`,
+   `AttachmentSnapshotService.filename()`'s inline check) onto `AttachmentMediaContentType` as the
+   single source of truth; delete `AttachmentService`'s own `CT_YOUTUBE`/`CT_EMBED` constants once
+   nothing references them.
+2. Extract `AttachmentService`'s video/embed-URL logic (`resolveVideoDescriptor`,
+   `validateEmbedUrl`, `embedFilename`, `VideoDescriptor`) into its own class (e.g.
+   `VideoAttachmentResolver`), mirroring how `AttachmentSnapshotService` is already split out.
+3. Convert `AttachmentSnapshotRepository`/`AttachmentCleanupService`'s inline `RowMapper` lambdas
+   to `private static final` constants, matching `AttachmentRepository.ROW_MAPPER`.
+- Test: `bash scripts/integration-tests.sh --sandbox` for `AttachmentRepositoryTest`,
+  `AttachmentServiceTest`, `AttachmentServiceTransactionTest`, `AttachmentSnapshotRepositoryTest`,
+  `AttachmentSnapshotServiceTest` + full Playwright `e2e --full --ux` (media upload/YouTube/gallery
+  flows exercise this class end-to-end in specs 04/05).
+
+**Batch 121-H — platform-commons: `AttachmentAuditHook` → `AttachmentAuditPort` rename** (do
+last, deliberately isolated — the one item in this issue that is an SPI-naming/direction fix
+spanning three modules, not a same-module refactor; flag for explicit confirmation before starting
+given its blast radius)
+1. Rename `AttachmentAuditHook` → `AttachmentAuditPort` in `platform-commons` (interface + package
+   stays `attachment.spi`, since `*Port` already lives there for `AttachmentPort`).
+2. Rename the implementation `AttachmentAuditHookImpl` → `AttachmentAuditPortImpl` in
+   `attachment-spring-boot-starter`, and its Spring bean/`ComponentFactory<AttachmentAuditPort>`
+   wiring.
+3. Update the one consumer, `AdvertisementEnrichService` (marketplace-app), to inject
+   `ComponentFactory<AttachmentAuditPort>` instead of `...Hook`.
+4. Update `platform-commons/CLAUDE.md`'s SPI table and `attachment-spring-boot-starter/CLAUDE.md`
+   in the same change (also fixes the separate stale-doc finding about `AttachmentMediaChangeHook`
+   no longer existing, while both files are already open).
+5. Add a `platform-commons/DECISIONS.md` entry recording the rename and why (naming/direction
+   mismatch against this module's own SPI table, found by the improvement-121 audit).
+6. (Optional, smaller, same batch) Move `UserIdMarker` from `user.security` into `user.spi`, or add
+   a one-line note to `platform-commons/CLAUDE.md` documenting `security` as a legitimate fourth
+   package role — whichever the implementer judges less disruptive once they're looking at the file.
+- Test: full reactor build (`./mvnw install -DskipTests` across all modules, since this is an
+  interface rename crossing module boundaries) + `bash scripts/unit-tests.sh` +
+  `bash scripts/integration-tests.sh --sandbox` (full suite, not just attachment) + Playwright
+  `e2e --full --ux` (Activity-tab media rendering depends on this port through
+  `AdvertisementEnrichService`).
 
 ## Related
 
