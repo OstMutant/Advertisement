@@ -81,9 +81,11 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
         Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");
+        cardHeader.addClassName("overlay__view-card-header--" + params.getAd().getAdKind().name().toLowerCase());
 
         Div textCard = new Div(cardHeader, title, description);
         textCard.addClassName("overlay__view-card");
+        textCard.addClassName("overlay__view-card--" + params.getAd().getAdKind().name().toLowerCase());
 
         taxonPortFactory.ifAvailable(taxonPort -> {
             var taxons = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
@@ -96,8 +98,11 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         textCard.add(buildAdKindBadge(params.getAd()));
 
         Div viewBody = new Div(textCard);
-        attachmentPortFactory.ifAvailable(_ -> viewBody.add(
-                galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
+        attachmentPortFactory.ifAvailable(_ -> {
+            var gallery = galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()));
+            gallery.addClassName("attachment-gallery--" + params.getAd().getAdKind().name().toLowerCase());
+            viewBody.add(gallery);
+        });
         viewBody.add(metaPanel.configure(OverlayAdvertisementMetaPanel.Parameters.from(params.getAd())));
         viewBody.addClassName("overlay__view-body");
 

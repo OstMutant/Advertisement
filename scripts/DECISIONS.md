@@ -234,3 +234,45 @@ reintroduce:**
   volumes `--reset` already destroys today, never anything resembling a deployed database (this
   project has none yet). A future real migration story for a released database is a separate,
   unrelated problem this ADR does not attempt to solve.
+
+## ADR-011: `.env` parser strips a trailing `\r` — CRLF line endings silently broke `deploy.sh`
+
+**Status:** Accepted
+
+**Context:** ADR-009's `.env`-as-fallback parser (`while IFS='=' read -r _env_key _env_value; do
+... printf -v "ENV_$_env_key" '%s' "$_env_value"; done`, in both `deploy.sh` and
+`scripts/database/reset.sh`) reads the repo-root `.env` line by line. The repo-root `.env` had
+picked up Windows (CRLF, `\r\n`) line endings at some point (likely a Windows editor/git
+`autocrlf` interaction — not committed maliciously, just drifted). `read` strips the trailing
+`\n` but not a preceding `\r`, so every `ENV_*`-prefixed variable this loop produced silently
+carried a trailing carriage return — confirmed directly: `printf "%s" "$ENV_S3_PORT" | od -c`
+showed `9 0 0 0 \r`, not a clean `9000`.
+
+This surfaced as `deploy.sh` hanging indefinitely on "Waiting for MinIO..." — `MINIO_PORT`
+resolved to `"9000\r"`, so the health-check `curl` hit a malformed URL
+(`http://localhost:9000\r/minio/health/live`) and never succeeded, even though the MinIO
+container itself was healthy and answered instantly to a `curl` run outside the script (verified
+directly, `200 OK`). The `until curl ...; do sleep 1; done` loop then retried forever with no
+error surfaced — a silent hang, not a crash, so nothing in the script's own output pointed at the
+real cause.
+
+**Decision:** Two-part fix, not either alone:
+1. Normalized `.env` itself to LF line endings (`sed -i 's/\r$//'`) — removes the root cause for
+   every current consumer of this file.
+2. Made both parsers in `deploy.sh` and `scripts/database/reset.sh` defensively strip a trailing
+   `\r` from the parsed value regardless: `printf -v "ENV_$_env_key" '%s' "${_env_value%$'\r'}"`.
+   Belt-and-suspenders — (1) alone would silently break again if any future editor/tool
+   reintroduces CRLF into `.env`, since nothing enforces its line-ending style; (2) alone would
+   leave the `.env` file itself inconsistent with every other text file in the repo. Neither is a
+   substitute for the other.
+
+**Consequences:**
+- `integration-tests`' `SharedEnvConfig` (`java.util.Properties.load(InputStream)`) was not
+  affected — the JDK `Properties` format explicitly handles `\n`, `\r`, and `\r\n` line
+  terminators natively, confirmed by reading its actual parsing logic before ruling it out as a
+  second occurrence of this bug, not by assumption.
+- Verified end-to-end: killed the hung `deploy.sh` process, confirmed no `docker build` had even
+  started yet (the hang was before Step 2), applied both fixes, reran `deploy.sh` from scratch —
+  MinIO's wait now resolves immediately, the full build/start pipeline completes normally.
+- No new script flag or manual step introduced — this is a pure correctness fix to logic that
+  already existed (ADR-009), not a new mechanism.

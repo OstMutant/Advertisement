@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText } = require('../_helpers');
+const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
 const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = require('./city.flow');
@@ -13,12 +13,40 @@ async function selectAdKind(page, overlay, labelText) {
 
 const DEFAULT_AD_KIND_LABEL = { en: 'Offer', uk: 'Пропозиція' };
 
+const AD_KIND_LABEL_TO_CLASS = {
+  Offer: 'offer', 'Пропозиція': 'offer',
+  Request: 'request', 'Запит': 'request',
+  Product: 'product', 'Товар': 'product',
+};
+
+// Expected computed colors per AdKind -- must match advertisement-card.css's badge colors exactly.
+const AD_KIND_COLOR = {
+  offer:   { text: 'rgb(22, 101, 52)' },
+  request: { text: 'rgb(30, 64, 175)' },
+  product: { text: 'rgb(146, 64, 14)' },
+};
+
 async function assertCardHasAdKind(page, expect, card, labelText, screenshotName) {
   return assertCardHasText(page, expect, card, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
 }
 
 async function assertViewOverlayHasAdKind(page, expect, overlay, labelText, screenshotName) {
-  return assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  await assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
+  // The view-card's accent border and header strip must match the AdKind badge color (improvement-125).
+  const kindClass = AD_KIND_LABEL_TO_CLASS[labelText];
+  const expectedTextColor = AD_KIND_COLOR[kindClass].text;
+  const viewCard = overlay.locator(`.overlay__view-card.overlay__view-card--${kindClass}`);
+  await expect(viewCard).toHaveCount(1);
+  await assertComputedColor(expect, viewCard, 'borderTopColor', expectedTextColor);
+  const viewCardHeader = overlay.locator(`.overlay__view-card-header.overlay__view-card-header--${kindClass}`);
+  await expect(viewCardHeader).toHaveCount(1);
+  await assertComputedColor(expect, viewCardHeader, 'color', expectedTextColor);
+  // Gallery only renders when the ad has media -- skip the check when it's absent.
+  const gallery = overlay.locator(`.attachment-gallery--${kindClass}`);
+  if (await gallery.count() > 0) {
+    await assertComputedColor(expect, gallery, 'borderTopColor', expectedTextColor);
+    await assertComputedColor(expect, gallery.locator('.attachment-gallery__title'), 'color', expectedTextColor);
+  }
 }
 
 const avatar = seed =>
@@ -459,7 +487,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
   }
 
   if (adKindToSet) {
-    await test.step(`set listing type ${adKindToSet} — activity diff shows listing type change`, async () => {
+    await test.step(`set ad kind ${adKindToSet} — activity diff shows ad kind change`, async () => {
       await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
       await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
       await selectAdKind(page, overlay, adKindToSet);
@@ -468,7 +496,7 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
       const typeChanges = typeActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
       await expect(typeChanges).toContainText(newTitle, { timeout: 5000 });
       await expect(typeChanges).toContainText(adKindToSet);
-      await expect(typeChanges).toContainText('Listing type');
+      await expect(typeChanges).toContainText('Advertisement kind');
       await screenshot(page, `${screenshotPrefix}-ad-kind-set-activity`);
     });
   }

@@ -26,6 +26,34 @@
     letter-spacing: 0.08em;
 }
 
+/* Accent color matching the AdKind badge -- see advertisement-card.css's badges (view mode only) */
+.attachment-gallery--offer {
+    border-top-color: var(--app-status-success-badge-text) !important;
+}
+
+.attachment-gallery--request {
+    border-top-color: var(--app-status-info-text) !important;
+}
+
+.attachment-gallery--product {
+    border-top-color: var(--app-status-entity-advertisement-text) !important;
+}
+
+.attachment-gallery--offer .attachment-gallery__title {
+    background: var(--app-status-success-badge-bg);
+    color: var(--app-status-success-badge-text);
+}
+
+.attachment-gallery--request .attachment-gallery__title {
+    background: var(--app-accent-primary-bg);
+    color: var(--app-status-info-text);
+}
+
+.attachment-gallery--product .attachment-gallery__title {
+    background: var(--app-status-entity-advertisement-bg);
+    color: var(--app-status-entity-advertisement-text);
+}
+
 .attachment-gallery__thumbnails {
     display: flex;
     flex-direction: row;

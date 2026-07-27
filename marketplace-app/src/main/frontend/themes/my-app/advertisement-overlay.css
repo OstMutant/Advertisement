@@ -118,6 +118,19 @@
     overflow: hidden;
 }
 
+/* Accent border matching the listing type badge color -- see advertisement-card.css's left border */
+.overlay__view-card--offer {
+    border-top-color: var(--app-status-success-badge-text) !important;
+}
+
+.overlay__view-card--request {
+    border-top-color: var(--app-status-info-text) !important;
+}
+
+.overlay__view-card--product {
+    border-top-color: var(--app-status-entity-advertisement-text) !important;
+}
+
 /* Spacing between text fields card and attachment gallery in edit mode */
 .overlay__form-fields-card + .attachment-gallery {
     margin-top: 16px;

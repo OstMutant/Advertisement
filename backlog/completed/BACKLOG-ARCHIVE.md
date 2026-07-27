@@ -1357,3 +1357,28 @@ non-seed ads from earlier specs always inflate one of the three buckets — swit
 idiom `verifyDateRangeFilters()` already used for this exact class of problem). See
 `marketplace-app/DECISIONS.md` ADR-066. Verified: unit-tests 77/77, integration-tests unaffected
 (schema/repository-only change), Playwright `e2e --full --ux` 50/50.
+
+✅ Done (2026-07-27): [improvement-125](issues/improvement-125-overlay-accent-color-sync.md) — synced
+the view-overlay's accent border color with `AdKind` (advertisements) / `Role` (users), matching
+the already-correct card left-border / role-badge colors that existed only in the list view, not
+the detail overlay. `AdvertisementViewOverlayModeHandler`/`UserViewOverlayModeHandler` each gained
+one modifier class name; `advertisement-overlay.css`/`user-overlay.css` gained the corresponding
+CSS rules reusing the exact color variables the badges already used — no new colors introduced.
+Users grid row border explicitly deferred, out of scope. Extended (not added) Playwright coverage:
+`assertViewOverlayHasAdKind` (advertisement flow) and `runPromoteUserFlow` (user promotion flow)
+now also assert the accent-border modifier class. Implemented via `/autopilot`. Along the way,
+found and fixed an unrelated real bug blocking the verification deploy: the repo-root `.env` had
+CRLF line endings, silently breaking `deploy.sh`'s/`reset.sh`'s manual `.env` parser (a trailing
+`\r` on every parsed value) and hanging `deploy.sh` indefinitely on the MinIO health check — see
+`scripts/DECISIONS.md` ADR-011. Verified: full Playwright `e2e --ux` run, 37/37 non-skipped passed.
+**Reopened same day, now fully closed (2026-07-27):** Phase 2 — `.attachment-gallery` (view mode
+only; users have no gallery) synced to `AdKind`, same modifier-class pattern as Phase 1; "Listing
+type" label renamed to "Advertisement kind" across all 4 English and 4 Ukrainian ("Тип оголошення"
+→ "Вид оголошення") keys. Phase 3 — the view-mode header strip (`.overlay__view-card-header`,
+shows "Advertisement"/"View" text) synced to `AdKind`/`Role` the same way; edit mode
+(`.overlay__form-card-header`, always blue) deliberately left untouched since `AdKind`/role can
+change interactively before save and live-updating it is a separate, bigger feature not undertaken
+here. Playwright coverage extended further: `assertViewOverlayHasAdKind`/`runPromoteUserFlow` now
+assert actual computed `getComputedStyle` colors (not just class-name presence) via a new shared
+`assertComputedColor` helper in `_helpers.js`, since a class being present doesn't by itself prove
+the CSS rule actually won. Verified: full Playwright `e2e --full --ux`, 50/50 passed.

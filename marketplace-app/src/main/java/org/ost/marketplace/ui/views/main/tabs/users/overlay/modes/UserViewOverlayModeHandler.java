@@ -63,9 +63,11 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
 
         Div cardHeader = new Div(VaadinIcon.USER.create(), new Span(getValue(USER_DIALOG_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");
+        cardHeader.addClassName("overlay__view-card-header--" + user.role().name().toLowerCase());
 
         Div card = new Div(cardHeader, buildProfileRow(user), metaRow);
         card.addClassName("user-view-card");
+        card.addClassName("user-view-card--" + user.role().name().toLowerCase());
 
         return card;
     }

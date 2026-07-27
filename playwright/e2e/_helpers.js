@@ -74,6 +74,13 @@ async function assertOverlayHasText(page, expect, overlay, selector, expectedTex
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
+// ── Computed style assertion (proves a CSS rule actually resolved, not just that a class is present) ──
+
+async function assertComputedColor(expect, locator, cssProperty, expectedRgb) {
+  const actual = await locator.evaluate((el, prop) => getComputedStyle(el)[prop], cssProperty);
+  expect(actual, `expected ${cssProperty} to be ${expectedRgb}, got ${actual}`).toBe(expectedRgb);
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 
 function downloadPng(url, dest) {
@@ -93,5 +100,5 @@ module.exports = {
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,
-  assertCardHasText, assertOverlayHasText,
+  assertCardHasText, assertOverlayHasText, assertComputedColor,
 };

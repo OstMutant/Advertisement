@@ -47,7 +47,7 @@ LOG=/tmp/deploy.log
 if [ -f "$ROOT/.env" ]; then
   while IFS='=' read -r _env_key _env_value; do
     [[ "$_env_key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
-    printf -v "ENV_$_env_key" '%s' "$_env_value"
+    printf -v "ENV_$_env_key" '%s' "${_env_value%$'\r'}"
   done < <(grep -v '^\s*#' "$ROOT/.env" | grep -v '^\s*$')
 fi
 

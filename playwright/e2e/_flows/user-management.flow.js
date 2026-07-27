@@ -1,5 +1,12 @@
-const { screenshot } = require('../_helpers');
+const { screenshot, assertComputedColor } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
+
+// Expected computed colors per role -- must match user-grid.css's role badge colors exactly.
+const ROLE_COLOR = {
+  admin:     'rgb(29, 78, 216)',
+  user:      'rgb(21, 128, 61)',
+  moderator: 'rgb(194, 65, 12)',
+};
 
 async function closeUserOverlay(page) {
   await page.locator('.user-overlay vaadin-button')
@@ -128,7 +135,16 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
   // Check role in VIEW mode
   await expect(page.locator('.user-overlay .user-role-badge')).toContainText(role);
-  await screenshot(page, `user-management-promoted-${role.toLowerCase()}-view`);
+  // The view-card's accent border and header strip must match the role badge color (improvement-125).
+  const roleClass = role.toLowerCase();
+  const expectedColor = ROLE_COLOR[roleClass];
+  const viewCard = page.locator(`.user-overlay .user-view-card.user-view-card--${roleClass}`);
+  await expect(viewCard).toHaveCount(1);
+  await assertComputedColor(expect, viewCard, 'borderTopColor', expectedColor);
+  const viewCardHeader = page.locator(`.user-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`);
+  await expect(viewCardHeader).toHaveCount(1);
+  await assertComputedColor(expect, viewCardHeader, 'color', expectedColor);
+  await screenshot(page, `user-management-promoted-${roleClass}-view`);
 
   // VIEW → close
   await closeUserOverlay(page);

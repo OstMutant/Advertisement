@@ -39,6 +39,11 @@ Example format:
 
 Wait for explicit confirmation before making any change.
 
+Before presenting a plan for a multi-step change, first write the complete, current plan into the
+relevant `backlog/issues/<n>.md` file — never present a plan only in chat. Update the issue file
+again every time the plan changes (new finding, scope correction), then present a short summary
+from that file for approval — never re-paraphrase the whole issue back at length.
+
 ## Module Import Rules
 
 **No direct imports between sibling modules.**
