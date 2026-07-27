@@ -27,7 +27,7 @@ const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = r
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory, fillCity,
+  fillText, fillNumber, fillRole, fillCategory, fillCity, fillListingType,
   getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
@@ -49,6 +49,8 @@ const SEED_COUNT = 60;
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
 // Distinct from spec-03 cities (Lviv, Kyiv) to avoid duplicates in e2e suite mode.
 const CITIES = ['Kharkiv', 'Odesa', 'Dnipro'];
+// No seeding needed -- ListingType is a fixed enum, not a taxon dictionary like categories/cities.
+const LISTING_TYPES = ['Offer', 'Request', 'Product'];
 
 // Same generation formula as spec 03's MAX_NAME_100 (maxEn's 100-char boundary name) — used as
 // the timeline actor filter's second pick below so the actor chip's own truncation gets exercised
@@ -150,7 +152,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 2: seed advertisements ───────────────────────────────────────────
 
-  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories, three cities`, async () => {
+  test(`adminEn seeds ${SEED_COUNT} advertisements — five categories, three cities, three listing types`, async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     for (const cat of SEED_CATEGORIES) await runCreateCategoryFlow(page, expect, cat);
@@ -162,6 +164,7 @@ test.describe('Seed data and query validation', () => {
         ...seedAd(i),
         category: CATEGORIES[(i - 1) % CATEGORIES.length],
         city: CITIES[(i - 1) % CITIES.length],
+        listingType: LISTING_TYPES[(i - 1) % LISTING_TYPES.length],
       });
     }
     // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
@@ -174,7 +177,7 @@ test.describe('Seed data and query validation', () => {
 
   // ── Test 3: advertisement filters, sort, pagination ───────────────────────
 
-  test('advertisements — title, date, category and city filters, column sort, pagination', async () => {
+  test('advertisements — title, date, category, city and listing type filters, column sort, pagination', async () => {
     test.setTimeout(5 * 60 * 1000);
     await loginBulk(page, TEST_USERS.adminEn);
     await page.locator('vaadin-tab').filter({ hasText: 'Advertisements' }).first().click();
@@ -209,6 +212,16 @@ test.describe('Seed data and query validation', () => {
     await applyFilter(page, ADV_BLOCK);
     await expect(page.locator('.pagination-count:visible')).toContainText(`of ${SEED_COUNT / CITIES.length}`, { timeout: 8000 });
     await screenshot(page, 'adv-filter-city');
+    await clearFilter(page, ADV_BLOCK);
+
+    // ── listing type filter → at least SEED_COUNT / 3 results per type; unlike category/city,
+    // every advertisement always has a listing type, so non-seed ads left behind by earlier specs
+    // always add to one of the three buckets -- use >= same as verifyDateRangeFilters, not toBe ──
+    await fillListingType(page, ADV_BLOCK, LISTING_TYPES[0]);
+    await applyFilter(page, ADV_BLOCK);
+    await page.locator('.pagination-count:visible').waitFor({ timeout: 8000 });
+    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT / LISTING_TYPES.length);
+    await screenshot(page, 'adv-filter-listing-type');
     await clearFilter(page, ADV_BLOCK);
 
     // ── date range filters (created/updated today + boundary cases) ──────────

@@ -39,8 +39,10 @@ improvement-119 (F-02, product roadmap Phase 1 item #2) completed 2026-07-25 —
 `completed/BACKLOG-ARCHIVE.md`. improvement-121 filed 2026-07-26 (repo-wide SOLID/DRY review
 findings from the 11-agent audit run after improvement-119 shipped), then deprioritized the same
 day to lowest ⚪ after an autopilot execution attempt across all 8 batches was aborted before
-landing anything (cleanly rolled back, no code changes from it are in the tree). improvement-118
-remains at the bottom (blocked, not actionable — needs a public URL this sandbox doesn't have).
+landing anything (cleanly rolled back, no code changes from it are in the tree).
+improvement-122 (F-03, product roadmap Phase 1 item #3, "Shareability foundation" gate) completed
+2026-07-27 — see `completed/BACKLOG-ARCHIVE.md`. improvement-118 remains at the bottom (blocked,
+not actionable — needs a public URL this sandbox doesn't have).
 
 | Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|

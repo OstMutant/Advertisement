@@ -11,6 +11,7 @@ import org.ost.integrationtests.support.RepositoryTestSupport;
 import org.ost.integrationtests.support.TestDataCleaner;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.model.ListingType;
 import org.ost.user.config.UserAutoConfiguration;
 import org.ost.user.entity.User;
 import org.ost.user.repository.UserRepository;
@@ -77,6 +78,7 @@ class AdvertisementRepositoryTest extends AbstractPostgresIntegrationTest {
         return advertisementRepository.save(Advertisement.builder()
                 .title(title)
                 .description(description)
+                .listingType(ListingType.OFFER)
                 .build());
     }
 

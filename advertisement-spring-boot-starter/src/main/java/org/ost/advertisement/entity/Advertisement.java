@@ -3,6 +3,7 @@ package org.ost.advertisement.entity;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.advertisement.model.ListingType;
 import org.springframework.data.annotation.*;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -18,6 +19,7 @@ public class Advertisement {
     Long id;
     String title;
     String description;
+    ListingType listingType;
 
     @CreatedDate
     Instant createdAt;

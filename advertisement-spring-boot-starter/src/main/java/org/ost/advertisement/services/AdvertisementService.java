@@ -218,6 +218,7 @@ public class AdvertisementService {
                 .id(dto.id())
                 .title(dto.title())
                 .description(sanitizeHtml(dto.description()))
+                .listingType(dto.listingType())
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .createdBy(before != null ? before.getCreatedBy() : null)
                 .version(dto.version())

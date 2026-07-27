@@ -6,6 +6,25 @@ const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = requ
 
 const YT_URL = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
+async function selectListingType(page, overlay, labelText) {
+  const group = overlay.locator('[data-testid="advertisement-overlay-field-listing-type"]');
+  await group.locator('vaadin-radio-button', { hasText: labelText }).click();
+}
+
+const DEFAULT_LISTING_TYPE_LABEL = { en: 'Offer', uk: 'Пропозиція' };
+
+async function assertCardHasListingType(page, expect, card, labelText, screenshotName) {
+  const badge = card.locator('.advertisement-listing-type-badge');
+  await expect(badge).toHaveText(labelText, { timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
+async function assertViewOverlayHasListingType(page, expect, overlay, labelText, screenshotName) {
+  const badge = overlay.locator('.advertisement-listing-type-badge');
+  await expect(badge).toHaveText(labelText, { timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
 const avatar = seed =>
   `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=256&backgroundColor=b6e3f4`;
 
@@ -180,7 +199,8 @@ async function typeAllFormats(page, overlay) {
 
 // ── flows ─────────────────────────────────────────────────────────────────────
 
-async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [], city = null }) {
+async function runCreateAdvertisementFlow(page, expect, { title, description, screenshotPrefix, categories = [], city = null, listingType = null, locale = 'en' }) {
+  const defaultListingTypeLabel = DEFAULT_LISTING_TYPE_LABEL[locale];
   const imagePath = `/tmp/${screenshotPrefix}-image.png`;
   await downloadPng(avatar(screenshotPrefix), imagePath);
 
@@ -203,6 +223,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   await overlay.locator('[data-testid="advertisement-overlay-field-description"] .ql-editor').fill(description);
   for (const cat of categories) await selectCategoryInAdForm(page, overlay, cat);
   if (city) await selectCityInAdForm(page, overlay, city);
+  if (listingType) await selectListingType(page, overlay, listingType);
   await screenshot(page, `${screenshotPrefix}-form-filled`);
 
   await overlay.locator('.attachment-gallery__video-input input').fill(YT_URL);
@@ -238,6 +259,9 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
       await assertCardHasCity(page, expect, cardByTitle(page, title), city, `${screenshotPrefix}-city`);
     });
   }
+  await test.step('card shows listing type badge', async () => {
+    await assertCardHasListingType(page, expect, cardByTitle(page, title), listingType || defaultListingTypeLabel, `${screenshotPrefix}-listing-type`);
+  });
   await openLightboxAndNavigate(page, card, screenshotPrefix);
 
   await test.step('history entries match expected count, no restore button', async () => {
@@ -245,6 +269,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
     const overlay = await openCardOverlay(page, freshCard, `${screenshotPrefix}-single-history`);
     if (categories.length > 0) await assertViewOverlayHasCategories(page, expect, overlay, categories, `${screenshotPrefix}-view-chips`);
     if (city) await assertViewOverlayHasCity(page, expect, overlay, city, `${screenshotPrefix}-view-city-chip`);
+    await assertViewOverlayHasListingType(page, expect, overlay, listingType || defaultListingTypeLabel, `${screenshotPrefix}-view-listing-type`);
     await switchToEditMode(page, overlay, null);
     const activityList = await openActivityTab(overlay);
     await expect(activityList.locator('.entity-activity-row')).toHaveCount(1, { timeout: 5000 });
@@ -253,7 +278,7 @@ async function runCreateAdvertisementFlow(page, expect, { title, description, sc
   });
 }
 
-async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, richText = false, screenshotPrefix }) {
+async function runEditAdvertisementFlow(page, expect, { originalTitle, originalDescription, newTitle, newDescription, startingVersion = 1, startingVisibleRows = null, checkCurrentBadge = false, categoryToAdd = null, categoryToRemove = null, cityToSet = null, listingTypeToSet = null, richText = false, screenshotPrefix }) {
   const editVersion       = startingVersion + 1;
   const textEditVersion   = startingVersion + 2;
   const visibleBase       = startingVisibleRows ?? startingVersion;
@@ -437,9 +462,25 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     });
   }
 
+  if (listingTypeToSet) {
+    await test.step(`set listing type ${listingTypeToSet} — activity diff shows listing type change`, async () => {
+      await overlay.locator('.adv-form-tabs vaadin-tab').first().click();
+      await overlay.locator('[data-testid="advertisement-overlay-field-title"] input').waitFor({ timeout: 3000 });
+      await selectListingType(page, overlay, listingTypeToSet);
+      await saveAndWaitForIdle(page, expect, overlay, `${screenshotPrefix}-listing-type-set`);
+      const typeActivityList = await openActivityTab(overlay);
+      const typeChanges = typeActivityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-changes');
+      await expect(typeChanges).toContainText(newTitle, { timeout: 5000 });
+      await expect(typeChanges).toContainText(listingTypeToSet);
+      await expect(typeChanges).toContainText('Listing type');
+      await screenshot(page, `${screenshotPrefix}-listing-type-set-activity`);
+    });
+  }
+
   await test.step('view reflects saved state', async () => {
     await closeEditAndVerifyView(page, expect, overlay, newTitle, textOnlyDescription, `${screenshotPrefix}-view-updated`);
     if (cityToSet) await assertViewOverlayHasCity(page, expect, overlay, cityToSet, `${screenshotPrefix}-view-city-chip`);
+    if (listingTypeToSet) await assertViewOverlayHasListingType(page, expect, overlay, listingTypeToSet, `${screenshotPrefix}-view-listing-type`);
     if (richText) {
       const viewHtml = await overlay.locator('.overlay__view-description').innerHTML();
       assertAllRichTags(expect, viewHtml, 'view description');
@@ -453,6 +494,9 @@ async function runEditAdvertisementFlow(page, expect, { originalTitle, originalD
     await verifyCardInList(page, expect, updatedCard, textOnlyDescription, 0, `${screenshotPrefix}-list-updated`);
     if (cityToSet) {
       await assertCardHasCity(page, expect, updatedCard, cityToSet, `${screenshotPrefix}-list-updated-city`);
+    }
+    if (listingTypeToSet) {
+      await assertCardHasListingType(page, expect, updatedCard, listingTypeToSet, `${screenshotPrefix}-list-updated-listing-type`);
     }
     if (richText) {
       const descHtml = await updatedCard.locator('.advertisement-description').innerHTML();
@@ -557,4 +601,4 @@ async function runCrossUserMediaReplaceFlow(page, expect, { adTitle, startingVer
   [img1, img2].forEach(p => { try { fs.unlinkSync(p); } catch (_) {} });
 }
 
-module.exports = { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems };
+module.exports = { MINIMAL_WEBM, RICH_TAGS, assertAllRichTags, runCreateAdvertisementFlow, runEditAdvertisementFlow, runRestoreAdvertisementFlow, runCrossUserMediaReplaceFlow, cardByTitle, openCardOverlay, switchToEditMode, openActivityTab, saveAndWaitForIdle, closeOverlayToList, deleteAllGalleryItems, selectListingType };

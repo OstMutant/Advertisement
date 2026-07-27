@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.advertisement.model.ListingType;
 import org.ost.platform.core.validation.ValidRange;
 
 import java.time.Instant;
@@ -30,6 +31,7 @@ public class AdvertisementFilterDto {
 
     private Set<Long> categoryIds;
     private Long cityTaxonId;
+    private Set<ListingType> listingTypes;
 
     public static AdvertisementFilterDto empty() {
         return new AdvertisementFilterDto();

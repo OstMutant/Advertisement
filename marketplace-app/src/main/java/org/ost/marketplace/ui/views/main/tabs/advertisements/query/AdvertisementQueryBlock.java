@@ -16,6 +16,7 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
+import org.ost.platform.advertisement.model.ListingType;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -79,6 +80,7 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
         categoriesField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES));
         categoriesField.setItemLabelGenerator(TaxonDto::getName);
+        categoriesField.getElement().setAttribute("data-testid", "advertisement-filter-categories");
         taxonPortFactory.ifAvailable(port ->
                 categoriesField.setItems(port.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale())));
         filterRow(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES), categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
@@ -91,6 +93,14 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         taxonPortFactory.ifAvailable(port ->
                 cityField.setItems(port.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale())));
         filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
+
+        // Listing type row
+        MultiSelectComboBox<ListingType> listingTypeField = new MultiSelectComboBox<>();
+        listingTypeField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_LISTING_TYPE));
+        listingTypeField.setItems(ListingType.values());
+        listingTypeField.setItemLabelGenerator(t -> i18nService.get(forListingType(t)));
+        listingTypeField.getElement().setAttribute("data-testid", "advertisement-filter-listing-type");
+        filterRow(i18nService.get(ADVERTISEMENT_FILTER_LISTING_TYPE), listingTypeField, AdvertisementFilterMeta.LISTING_TYPES);
 
         add(queryActionBlock);
     }

@@ -69,7 +69,7 @@ public class AdvertisementSaveService {
             AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
             List<Long> sortedCatIds = catIds.stream().sorted().toList();
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
-                    saved.getTitle(), saved.getDescription(), sortedCatIds, cityId, attachmentSnapshotId);
+                    saved.getTitle(), saved.getDescription(), saved.getListingType(), sortedCatIds, cityId, attachmentSnapshotId);
 
             if (isNew) {
                 auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
@@ -126,6 +126,6 @@ public class AdvertisementSaveService {
         Long attachmentSnapshotId = attachmentPortFactory.findIfAvailable()
                 .map(p -> p.getLatestSnapshotId(EntityType.ADVERTISEMENT, entityId))
                 .orElse(null);
-        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), catIds, cityId, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), ad.getListingType(), catIds, cityId, attachmentSnapshotId);
     }
 }

@@ -2932,3 +2932,89 @@ covered:
    actually touched.
 - Re-verified after this update: unit-tests 75/75, integration-tests 128/128, Playwright
   `e2e --full --ux` 50/50 (including the two new regression assertions above).
+
+## ADR-066: F-03 listing types (Offer/Request/Product) — new `listing_type` column, `RadioButtonGroup` (first use in this codebase), multi-select filter
+
+**Status:** Accepted
+
+**Context:** [improvement-122](../backlog/completed/issues/improvement-122-f03-listing-types.md) —
+the catalog had no way to distinguish "I'm offering X" from "I'm looking for X" from "selling a
+physical product X", collapsing three different user intents into one undifferentiated list.
+Unlike F-02's city facet (ADR-065), this is a **mandatory, always-present** classification with a
+small closed set of values — not a natural fit for the taxon/taxon_assignment mechanism (no
+translations, no soft-delete, no admin-managed dictionary), so it's modeled as a genuine new
+column instead.
+
+**Decision:**
+1. New `ListingType` enum (`platform-commons`, `org.ost.platform.advertisement.model`, alongside
+   `taxon.model`/`user.model`/`attachment.model`) — `OFFER`, `REQUEST`, `PRODUCT`.
+2. New `advertisement.listing_type VARCHAR(20) NOT NULL DEFAULT 'OFFER'` column, added to the
+   *existing* `01-advertisement-schema.xml` changeset (never released, per the project's
+   edit-in-place convention — ADR-064's precedent) plus a plain (non-unique) index. Direct
+   `EnumType` field on the `Advertisement` entity — Spring Data JDBC maps it to `VARCHAR` natively
+   (same as `User.role`), no custom converter.
+3. `AdvertisementInfoDto`/`SaveDto`/`FilterDto`/`SnapshotDto` each gained a `listingType` /
+   `listingTypes` (filter, `Set<ListingType>`) field, mirroring the existing field shapes;
+   `SnapshotDto.diff()`/`allFields()` updated the same way as every other field.
+4. **UI: `RadioButtonGroup<ListingType>` — first use of this Vaadin component in the codebase**
+   (confirmed via grep before use), chosen over `ComboBox`/`MultiSelectComboBox` because this field
+   is mandatory, always-visible, and has exactly one value from a small fixed set — the "pick
+   exactly one, always shown" shape neither existing pattern fits. Filter uses
+   `MultiSelectComboBox<ListingType>` (mirrors `categoryIds`'s shape — filtering can match any of
+   several types at once).
+5. **Binder default-value hazard, caught by reasoning about `readInitialValues()` before writing
+   the code, not discovered by a failing test:** calling `.setValue(ListingType.OFFER)` directly on
+   the widget in `activate()` would be silently overwritten the moment `binder.readInitialValues()`
+   reads the (null) DTO value back into the field. Fixed by setting the default on
+   `AdvertisementEditDto` itself (`.builder().listingType(ListingType.OFFER).build()`) for CREATE
+   mode, not on the widget.
+6. **Activity diff localization, the one real bug this feature's own Playwright run surfaced:**
+   `AdvertisementSnapshotDto.diff()` stores the raw enum name (`"OFFER"`, `"PRODUCT"`) as the
+   `FieldChange` value — correct for a stable, diffable representation, but wrong to show a user
+   directly. `AdvertisementEnrichService` gained `resolveListingType()`, mirroring
+   `resolveCategories()`/`resolveCity()`'s shape but *not* reusing their shared `resolveField()`
+   helper: those two manufacture a synthetic entry whenever the field currently has a value, even
+   if `diff()` didn't include one for that specific update (deliberate, since category/city are
+   optional — showing them gives full current-classification context). Listing type is *never*
+   absent, so the same manufacture-if-missing behavior would inject a "Listing type: Offer" line
+   into every single activity/timeline row regardless of what actually changed. `resolveListingType()`
+   instead only relabels an entry `diff()`/`allFields()` already produced (via
+   `ChangeEntry.replaceIfField()` directly), leaving the list untouched — same size, same reference
+   identity — when no such entry exists.
+7. Playwright: extended existing tests rather than adding new spec files, per established
+   convention — `listingType`/`listingTypeToSet` params added to
+   `runCreateAdvertisementFlow`/`runEditAdvertisementFlow` (spec 04), a listing-type filter folded
+   into spec 05's existing seed/filter test, `selectListingType()`/`assertCardHasListingType()`/
+   `assertViewOverlayHasListingType()` added to `advertisement.flow.js`.
+
+**Consequences:**
+- **Playwright selector collision, caught by reasoning about existing selector scope before
+  running any test:** adding a second `MultiSelectComboBox` (listing type) to
+  `AdvertisementQueryBlock` would silently break `fillCategory()`'s pre-existing bare-tag-name
+  selector. Fixed proactively with `data-testid` on both combos.
+- **Second, related bug the Playwright run itself did surface:** `data-testid` scoping the *input*
+  wasn't enough — `fillCategory()`/`fillListingType()` also waited on a bare
+  `vaadin-multi-select-combo-box-overlay` locator's `.first()` for visibility. Once a second
+  multi-select combo exists on the same page, its own (by-then-hidden, from an earlier use)
+  overlay element can still be the one `.first()` resolves to, so the wait never sees the *actual*
+  newly-opened overlay become visible. Fixed by waiting on the specific combo element's own
+  `opened` property via `page.waitForFunction()` instead of any shared overlay-tag locator.
+- **Third bug the Playwright run surfaced:** the default-listing-type assertion
+  (`listingType || 'Offer'`) hardcoded the English label regardless of the logged-in test user's
+  UI locale — failed for `userUk` (real per-account persisted Ukrainian locale, switched earlier in
+  the suite) whose card correctly rendered "Пропозиція". Fixed with a `locale` param +
+  `DEFAULT_LISTING_TYPE_LABEL` map in `advertisement.flow.js`. Note this is distinct from
+  `maxUk`/`maxEn` in spec 04's boundary tests — those names describe the *ad content's* language
+  only; neither account's UI locale is ever actually switched in that describe block, so both
+  correctly assert the English default.
+- **Fourth bug (test-only, not production): spec 05's exact per-type filter count.** Unlike
+  category/city (optional — a pre-existing test ad with no category/city never pollutes an
+  exact-match filter count), every advertisement always has *some* listing type, so non-seed ads
+  left behind by earlier specs always land in one of the three buckets and inflate whichever count
+  is checked. Fixed by asserting `>= SEED_COUNT / LISTING_TYPES.length` (same `getTotalCount()` +
+  `toBeGreaterThanOrEqual` idiom `verifyDateRangeFilters()` already used for this exact class of
+  problem) instead of an exact match.
+- Verified: unit-tests 77/77 (including two new `AdvertisementEnrichServiceTest` cases pinning the
+  localize-only-if-present behavior above), integration-tests unaffected (schema/repository change
+  only — `AdvertisementRepositoryTest`'s shared `save()` fixture needed `.listingType(OFFER)` added
+  to satisfy the new `NOT NULL` column), Playwright `e2e --full --ux` 50/50.

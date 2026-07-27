@@ -40,10 +40,10 @@ test.describe('Advertisement flow', () => {
     await page.close();
   });
 
-  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip', async () => {
+  test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip, listing type badge', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
-    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv' });
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv', listingType: 'Request' });
 
     await test.step('attachment lightbox — play icon visible, video src valid, close button works', async () => {
       await page.locator('.advertisement-card')
@@ -81,7 +81,7 @@ test.describe('Advertisement flow', () => {
   test('userUk creates advertisement — YouTube, image and video, single activity row', async () => {
     await runFillLoginFormFlow(page, CREATE.ukAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.ukAd.user);
-    await runCreateAdvertisementFlow(page, expect, { title: CREATE.ukAd.title, description: CREATE.ukAd.description, screenshotPrefix: 'adv-useruk-create' });
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.ukAd.title, description: CREATE.ukAd.description, screenshotPrefix: 'adv-useruk-create', locale: 'uk' });
     await runLogoutFlow(page, expect);
   });
 
@@ -239,7 +239,7 @@ test.describe('Advertisement flow', () => {
     await runLogoutFlow(page, expect);
   });
 
-  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, add and replace media, timeline check', async () => {
+  test('adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, listing type set with activity diff and view badge, add and replace media, timeline check', async () => {
     await runFillLoginFormFlow(page, TEST_USERS.adminEn);
     await runSubmitLoginFlow(page, expect, TEST_USERS.adminEn);
     await runEditAdvertisementFlow(page, expect, {
@@ -253,11 +253,12 @@ test.describe('Advertisement flow', () => {
       categoryToAdd:       'Vehicles',
       categoryToRemove:    'Vehicles',
       cityToSet:           'Kyiv',
+      listingTypeToSet:    'Product',
       screenshotPrefix:    'adv-adminen-edit-uk',
     });
     await runCrossUserMediaReplaceFlow(page, expect, {
       adTitle:          CROSS_UPDATE.ukAd.title,
-      startingVersion:  10,
+      startingVersion:  11,
       screenshotPrefix: 'adv-adminen-media-uk',
     });
     await openTimelineTab(page);

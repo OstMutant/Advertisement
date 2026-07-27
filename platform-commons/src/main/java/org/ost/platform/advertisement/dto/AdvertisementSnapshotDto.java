@@ -2,6 +2,7 @@ package org.ost.platform.advertisement.dto;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.advertisement.model.ListingType;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -21,6 +22,7 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 public record AdvertisementSnapshotDto(
         String title,
         String description,
+        ListingType listingType,
         List<Long> categoryIds,
         Long cityTaxonId,
         Long attachmentSnapshotId
@@ -42,6 +44,9 @@ public record AdvertisementSnapshotDto(
         List<ChangeEntry> changes = new ArrayList<>();
         diffField(changes, Fields.title,       field(prev, AdvertisementSnapshotDto::title),       title());
         diffField(changes, Fields.description, field(prev, AdvertisementSnapshotDto::description), description());
+        ListingType prevType = prev != null ? prev.listingType() : null;
+        if (!Objects.equals(prevType, listingType()))
+            changes.add(new FieldChange(Fields.listingType, typeToString(prevType), typeToString(listingType())));
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
         if (!Objects.equals(prevIds, categoryIds()))
             changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
@@ -56,6 +61,7 @@ public record AdvertisementSnapshotDto(
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
                 new FieldChange(Fields.description, null, description()),
+                new FieldChange(Fields.listingType, null, typeToString(listingType())),
                 new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())),
                 new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())));
     }
@@ -67,5 +73,9 @@ public record AdvertisementSnapshotDto(
 
     private static String idToString(Long id) {
         return idsToString(id == null ? null : List.of(id));
+    }
+
+    private static String typeToString(ListingType type) {
+        return type == null ? "" : type.name();
     }
 }

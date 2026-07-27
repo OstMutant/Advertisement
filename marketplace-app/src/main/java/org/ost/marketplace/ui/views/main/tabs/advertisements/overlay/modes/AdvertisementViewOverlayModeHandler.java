@@ -72,6 +72,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected Div buildPrimaryContent() {
+        Span typeBadge = buildListingTypeBadge(params.getAd());
+
         H2 title = new H2(params.getAd().getTitle());
         title.addClassName("overlay__view-title");
 
@@ -82,7 +84,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");
 
-        Div textCard = new Div(cardHeader, title, description);
+        Div textCard = new Div(cardHeader, typeBadge, title, description);
         textCard.addClassName("overlay__view-card");
 
         taxonPortFactory.ifAvailable(taxonPort -> {
@@ -100,6 +102,13 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         viewBody.addClassName("overlay__view-body");
 
         return viewBody;
+    }
+
+    private Span buildListingTypeBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forListingType(ad.getListingType())));
+        badge.addClassName("advertisement-listing-type-badge");
+        badge.addClassName("advertisement-listing-type-badge--" + ad.getListingType().name().toLowerCase());
+        return badge;
     }
 
     private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,

@@ -218,5 +218,83 @@
   text-decoration: line-through;
 }
 
+/* City text line on card, city chip in view overlay -- same shape as categories above */
+.advertisement-city {
+  font-size: 0.78rem;
+  color: var(--app-text-muted);
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.advertisement-city-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.advertisement-city-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 240px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--app-surface-muted);
+  color: var(--app-text-tertiary);
+  border: 1px solid var(--app-border-default);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.advertisement-city-chip--deleted {
+  text-decoration: line-through;
+}
+
+/* Listing type badge -- card and view overlay */
+.advertisement-listing-type-badge {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  padding: 2px 9px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.advertisement-listing-type-badge--offer {
+  background: var(--app-status-success-badge-bg);
+  color: var(--app-status-success-badge-text);
+}
+
+.advertisement-listing-type-badge--request {
+  background: var(--app-accent-primary-bg);
+  color: var(--app-status-info-text);
+}
+
+.advertisement-listing-type-badge--product {
+  background: var(--app-status-entity-advertisement-bg);
+  color: var(--app-status-entity-advertisement-text);
+}
+
+/* Card modifier -- left accent border matching the listing type badge color */
+.advertisement-card--offer {
+  border-left: 3px solid var(--app-status-success-badge-text);
+}
+
+.advertisement-card--request {
+  border-left: 3px solid var(--app-status-info-text);
+}
+
+.advertisement-card--product {
+  border-left: 3px solid var(--app-status-entity-advertisement-text);
+}
+
 /* Hide trailing empty Quill paragraph (<p><br></p>) in card display */
 .advertisement-description p:last-child:has(> br:only-child) { display: none; }

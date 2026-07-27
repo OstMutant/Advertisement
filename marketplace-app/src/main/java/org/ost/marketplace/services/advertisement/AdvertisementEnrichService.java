@@ -3,6 +3,9 @@ package org.ost.marketplace.services.advertisement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.model.ListingType;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
@@ -30,6 +33,7 @@ public class AdvertisementEnrichService {
     private final ComponentFactory<AttachmentAuditHook> attachmentAuditHookFactory;
     private final ComponentFactory<TaxonPort>           taxonPortFactory;
     private final LocaleProvider                        localeProvider;
+    private final I18nService                            i18nService;
 
     public List<AuditTimelineItemDto<AdvertisementSnapshotDto>> mergeMediaChanges(
             List<AuditTimelineItemDto<AdvertisementSnapshotDto>> items) {
@@ -102,7 +106,9 @@ public class AdvertisementEnrichService {
     private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
                                             AdvertisementSnapshotDto prev, Map<Long, String> nameById,
                                             boolean skipMediaMergeIfUnchanged) {
-        List<ChangeEntry> resolved = resolveCity(resolveCategories(changes, snapshot, prev, nameById), snapshot, prev, nameById);
+        List<ChangeEntry> resolved = resolveListingType(
+                resolveCity(resolveCategories(changes, snapshot, prev, nameById), snapshot, prev, nameById),
+                snapshot, prev);
 
         Long attachId     = snapshot.attachmentSnapshotId();
         Long prevAttachId = prev != null ? prev.attachmentSnapshotId() : null;
@@ -164,6 +170,31 @@ public class AdvertisementEnrichService {
         List<ChangeEntry> withEntry = new ArrayList<>(resolved);
         withEntry.add(new ChangeEntry.FieldChange(field, null, currResolved));
         return withEntry;
+    }
+
+    // Unlike category/city, listing type is never absent -- so only replaces an entry diff()/
+    // allFields() already produced, rather than resolveField()'s "manufacture one if missing"
+    // behavior, which would inject a "Listing type" line into every single activity row.
+    // Preserves the input list's reference identity when no such entry exists, same as
+    // resolveCategories()/resolveCity()'s nameById.isEmpty() short-circuit.
+    private List<ChangeEntry> resolveListingType(List<ChangeEntry> changes,
+                                                  AdvertisementSnapshotDto snapshot,
+                                                  AdvertisementSnapshotDto prev) {
+        boolean hasEntry = changes.stream().anyMatch(
+                e -> e instanceof ChangeEntry.FieldChange(var f, var _, var _)
+                        && f.equals(AdvertisementSnapshotDto.Fields.listingType));
+        if (!hasEntry) return changes;
+
+        ListingType curr = snapshot.listingType();
+        ListingType prevType = prev != null ? prev.listingType() : null;
+        return changes.stream()
+                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.listingType,
+                        _ -> labelFor(prevType), _ -> labelFor(curr)))
+                .toList();
+    }
+
+    private String labelFor(ListingType type) {
+        return type == null ? "" : i18nService.get(I18nKey.forListingType(type));
     }
 
     private static String idsToNames(List<Long> ids, Map<Long, String> nameById) {

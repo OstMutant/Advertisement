@@ -103,18 +103,24 @@ async function fillRole(page, blockSelector, role) {
 
 // Selects one category value from the multi-select combo in the advertisement query block.
 // Uses keyboard navigation — same approach as fillRole — because the combo overlay has popover="manual".
+// Scoped by data-testid, not the bare tag name -- the advertisement block has a second
+// vaadin-multi-select-combo-box (listing type) that a generic tag selector would collide with.
+// Waits on the combo's own `opened` property (not a bare vaadin-multi-select-combo-box-overlay
+// locator) -- once a second multi-select combo exists on the page, its stale, now-hidden overlay
+// element can still be the one a generic `.first()` resolves to.
 async function fillCategory(page, blockSelector, categoryName) {
-  const combo = page.locator(`${blockSelector} vaadin-multi-select-combo-box`);
+  const selector = `${blockSelector} [data-testid="advertisement-filter-categories"]`;
+  const combo = page.locator(selector);
   await combo.locator('input').click();
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
   await page.keyboard.type(categoryName);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
-    const el = document.querySelector(sel + ' vaadin-multi-select-combo-box');
+    const el = document.querySelector(sel);
     if (el) el.opened = false;
-  }, blockSelector);
-  await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
+  }, selector);
+  await page.waitForFunction((sel) => document.querySelector(sel)?.opened === false, selector, { timeout: 5000 });
 }
 
 // Selects one value from the single-select city combo in the advertisement query block.
@@ -124,6 +130,24 @@ async function fillCity(page, blockSelector, cityName) {
   await combo.locator('input').fill(cityName);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
+}
+
+// Selects one listing-type value from the multi-select combo in the advertisement query block.
+// See fillCategory's comment above -- scoped by data-testid and waits on the combo's own
+// `opened` property, not a bare vaadin-multi-select-combo-box-overlay locator.
+async function fillListingType(page, blockSelector, listingTypeName) {
+  const selector = `${blockSelector} [data-testid="advertisement-filter-listing-type"]`;
+  const combo = page.locator(selector);
+  await combo.locator('input').click();
+  await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
+  await page.keyboard.type(listingTypeName);
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel);
+    if (el) el.opened = false;
+  }, selector);
+  await page.waitForFunction((sel) => document.querySelector(sel)?.opened === false, selector, { timeout: 5000 });
 }
 
 // Sets a date range using the Vaadin date-picker JS API.
@@ -297,7 +321,7 @@ module.exports = {
   openQueryPanel, closeQueryPanel,
   applyFilter, clearFilter, waitForVaadin,
   clickSort, resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory, fillCity, setDateRange,
+  fillText, fillNumber, fillRole, fillCategory, fillCity, fillListingType, setDateRange,
   getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,

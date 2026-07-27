@@ -1,6 +1,6 @@
 # Playwright Test Coverage
 
-Last updated: 2026-07-25 · 50 passed · 0 failed · 0 skipped · 50 total
+Last updated: 2026-07-27 · 50 passed · 0 failed · 0 skipped · 50 total
 
 `[x]` passed &nbsp; `[!]` failed &nbsp; `[-]` skipped
 
@@ -44,7 +44,7 @@ Last updated: 2026-07-25 · 50 passed · 0 failed · 0 skipped · 50 total
 ## e2e/04-marketplace-advertisement-flow.spec.js
 
 **› e2e/04-marketplace-advertisement-flow.spec.js**
-- [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip
+- [x] Advertisement flow › userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip, listing type badge
 - [x] Advertisement flow › userUk creates advertisement — YouTube, image and video, single activity row
 - [x] Advertisement flow › userEn edits advertisement — discard, two saves with activity diff, all rich formats in view and card, format-only edit, admin timeline check
 - [x] Advertisement flow › userUk edits advertisement — discard, two saves with activity diff, admin timeline check
@@ -52,7 +52,7 @@ Last updated: 2026-07-25 · 50 passed · 0 failed · 0 skipped · 50 total
 - [x] Advertisement flow › userUk restores advertisement — activity diff shows restored media and text, view and card updated
 - [x] Advertisement flow › moderatorEn edits EN advertisement — discard, two saves with activity diff, add and replace media, timeline check
 - [x] Advertisement flow › userEn and moderatorEn edit the same advertisement in two sessions — stale save shows conflict, first save wins
-- [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, add and replace media, timeline check
+- [x] Advertisement flow › adminEn edits UK advertisement — discard, two saves with activity diff, category added and removed with diff, city set with activity diff and view chip, listing type set with activity diff and view badge, add and replace media, timeline check
 - [x] Advertisement flow › userEn verifies lightbox — YouTube to image blanks iframe, WebM to image stops video
 - [x] Advertisement flow › adminEn verifies long description — activity diff shows all fields, collapsible value toggle, card truncated
 - [x] Advertisement flow › userEn opens a deep link — direct navigation to /ads/:id opens the correct advertisement overlay, share button copies link, sitemap.xml lists the ad
@@ -65,8 +65,8 @@ Last updated: 2026-07-25 · 50 passed · 0 failed · 0 skipped · 50 total
 
 **› e2e/05-seed-filter-sort-pagination.spec.js**
 - [x] Seed data and query validation › seed 60 users — parallel signup
-- [x] Seed data and query validation › adminEn seeds 60 advertisements — five categories, three cities
-- [x] Seed data and query validation › advertisements — title, date, category and city filters, column sort, pagination
+- [x] Seed data and query validation › adminEn seeds 60 advertisements — five categories, three cities, three listing types
+- [x] Seed data and query validation › advertisements — title, date, category, city and listing type filters, column sort, pagination
 - [x] Seed data and query validation › users — email, role and date filters, invalid fractional ID input, column sort, pagination
 - [x] Seed data and query validation › adminEn changes page sizes — activity diff, ads and users grids reflect sizes, restore defaults, no cross-session bleed
 - [x] Seed data and query validation › adminEn verifies timeline — ADVERTISEMENT and USER type filters, CREATED and UPDATED action filters, multi-actor filter with chip removal, pagination

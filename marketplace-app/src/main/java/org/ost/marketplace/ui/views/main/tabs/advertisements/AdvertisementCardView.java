@@ -91,6 +91,7 @@ public class AdvertisementCardView extends HorizontalLayout
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onUpdated, onClosed))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
+        addClassName("advertisement-card--" + ad.getListingType().name().toLowerCase());
 
         Div thumbnail = createThumbnail(ad);
         if (thumbnail != null) add(thumbnail);
@@ -147,7 +148,7 @@ public class AdvertisementCardView extends HorizontalLayout
         bottom.setAlignItems(Alignment.END);
         bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        VerticalLayout content = new VerticalLayout(createTitle(ad), createDescription(ad), spacer);
+        VerticalLayout content = new VerticalLayout(createListingTypeBadge(ad), createTitle(ad), createDescription(ad), spacer);
         content.addClassName("advertisement-content");
         content.setPadding(false);
         content.setSpacing(false);
@@ -175,6 +176,13 @@ public class AdvertisementCardView extends HorizontalLayout
         Span line = new Span(getValue(label) + " " + text);
         line.addClassName(cssClass);
         return line;
+    }
+
+    private Span createListingTypeBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forListingType(ad.getListingType())));
+        badge.addClassName("advertisement-listing-type-badge");
+        badge.addClassName("advertisement-listing-type-badge--" + ad.getListingType().name().toLowerCase());
+        return badge;
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {

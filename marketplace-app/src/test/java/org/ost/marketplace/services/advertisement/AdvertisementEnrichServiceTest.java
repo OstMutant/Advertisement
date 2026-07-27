@@ -5,8 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.ost.marketplace.services.i18n.I18nKey;
+import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.model.ListingType;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -43,13 +46,16 @@ class AdvertisementEnrichServiceTest {
     @Mock private AttachmentAuditHook attachmentAuditHook;
     @Mock private TaxonPort taxonPort;
     @Mock private LocaleProvider localeProvider;
+    @Mock private I18nService i18nService;
 
     private AdvertisementEnrichService service;
 
     @BeforeEach
     void setUp() {
         lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-        service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider);
+        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_LISTING_TYPE_OFFER)).thenReturn("Offer");
+        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_LISTING_TYPE_PRODUCT)).thenReturn("Product");
+        service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider, i18nService);
     }
 
     private static <T> void stubAvailable(ComponentFactory<T> factory, T component) {
@@ -70,11 +76,11 @@ class AdvertisementEnrichServiceTest {
     }
 
     private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long attachmentSnapshotId) {
-        return new AdvertisementSnapshotDto("Title", "Desc", categoryIds, null, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, categoryIds, null, attachmentSnapshotId);
     }
 
     private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long cityTaxonId, Long attachmentSnapshotId) {
-        return new AdvertisementSnapshotDto("Title", "Desc", categoryIds, cityTaxonId, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, categoryIds, cityTaxonId, attachmentSnapshotId);
     }
 
     // ── mergeMediaChanges() (Timeline tab) ──────────────────────────────────────────────────
@@ -172,6 +178,35 @@ class AdvertisementEnrichServiceTest {
                 .filter(fc -> fc.field().equals(AdvertisementSnapshotDto.Fields.cityTaxonId))
                 .findFirst().orElseThrow();
         assertThat(cityEntry.to()).isEqualTo("Lviv");
+    }
+
+    @Test
+    void enrichActivityItems_listingTypeChanged_resolvesToLocalizedLabel() {
+        AdvertisementSnapshotDto curr = new AdvertisementSnapshotDto("Title", "Desc", ListingType.PRODUCT, List.of(), null, 50L);
+        AdvertisementSnapshotDto prev = new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, List.of(), null, 50L);
+        AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
+                1L, 2, ActionType.UPDATED, 10L, null,
+                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.listingType, "OFFER", "PRODUCT")),
+                null, curr, prev);
+
+        List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
+
+        ChangeEntry.FieldChange typeEntry = (ChangeEntry.FieldChange) result.getFirst().changes().getFirst();
+        assertThat(typeEntry.from()).isEqualTo("Offer");
+        assertThat(typeEntry.to()).isEqualTo("Product");
+    }
+
+    @Test
+    void enrichActivityItems_listingTypeUnchanged_noEntryManufactured() {
+        AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
+                1L, 2, ActionType.UPDATED, 10L, null,
+                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.title, "Old", "New")),
+                null, snapshot(List.of(), 50L), snapshot(List.of(), 50L));
+
+        List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
+
+        assertThat(result.getFirst().changes()).hasSize(1);
+        assertThat(result.getFirst().changes().getFirst()).isInstanceOf(ChangeEntry.FieldChange.class);
     }
 
     @Test
