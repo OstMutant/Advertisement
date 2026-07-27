@@ -19,7 +19,7 @@ import org.jsoup.Jsoup;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.platform.attachment.spi.AttachmentPort;
@@ -99,9 +99,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
     @Getter
     private AdvertisementInfoDto              savedInfoDto;
     private AttachmentGalleryService.FormHandle activeHandle;
-    private RadioButtonGroup<ListingType>     listingTypeField;
     private MultiSelectComboBox<TaxonDto>     categoryComboBox;
     private ComboBox<TaxonDto>                cityComboBox;
+    private RadioButtonGroup<AdKind>           adKindField;
     private UiPrimaryButton                   saveButton;
     private UiTertiaryButton                  discardButton;
 
@@ -123,12 +123,6 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         descriptionField.setMaxLength(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
         descriptionField.addClassName("overlay__description-rich-editor");
         descriptionField.getElement().setAttribute("data-testid", "advertisement-overlay-field-description");
-
-        listingTypeField = new RadioButtonGroup<>();
-        listingTypeField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_LISTING_TYPE));
-        listingTypeField.setItems(ListingType.values());
-        listingTypeField.setItemLabelGenerator(t -> getValue(forListingType(t)));
-        listingTypeField.getElement().setAttribute("data-testid", "advertisement-overlay-field-listing-type");
 
         List<TaxonDto> availableCategories = taxonPortFactory.findIfAvailable()
                 .map(p -> p.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale()))
@@ -154,15 +148,21 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
             cityComboBox.getElement().setAttribute("data-testid", "advertisement-overlay-field-city");
         }
 
+        adKindField = new RadioButtonGroup<>();
+        adKindField.setLabel(getValue(ADVERTISEMENT_OVERLAY_FIELD_AD_KIND));
+        adKindField.setItems(AdKind.values());
+        adKindField.setItemLabelGenerator(t -> getValue(forAdKind(t)));
+        adKindField.getElement().setAttribute("data-testid", "advertisement-overlay-field-ad-kind");
+
         AdvertisementEditDto dto = isCreate
-                ? AdvertisementEditDto.builder().listingType(ListingType.OFFER).build()
+                ? AdvertisementEditDto.builder().adKind(AdKind.OFFER).build()
                 : mapper.toAdvertisementEdit(params.getAd());
         buildBinder(dto, availableCategories, availableCities);
 
         titleField.setValueChangeMode(ValueChangeMode.EAGER);
         titleField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         descriptionField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
-        listingTypeField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
+        adKindField.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         if (categoryComboBox != null) {
             categoryComboBox.addValueChangeListener(_ -> updateButtons(binder.hasChanges()));
         }
@@ -173,13 +173,14 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         Div cardHeader = new Div(VaadinIcon.FORM.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_BASIC)));
         cardHeader.addClassName("overlay__form-card-header");
 
-        Div fieldsCard = new Div(cardHeader, titleField, descriptionField, listingTypeField);
+        Div fieldsCard = new Div(cardHeader, titleField, descriptionField);
         if (categoryComboBox != null) {
             fieldsCard.add(categoryComboBox);
         }
         if (cityComboBox != null) {
             fieldsCard.add(cityComboBox);
         }
+        fieldsCard.add(adKindField);
         fieldsCard.addClassName("overlay__form-fields-card");
 
         Div content = new Div(fieldsCard);
@@ -226,7 +227,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         return binder.save(dto -> {
             this.savedId = advertisementPortFactory.findIfAvailable()
                     .map(_ -> advertisementSaveService.save(
-                            new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getListingType(), dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
+                            new AdvertisementSaveDto(dto.getId(), dto.getTitle(), dto.getDescription(), dto.getAdKind(), dto.getCategoryIds(), dto.getCityTaxonId(), dto.getVersion()),
                             access.getCurrentUserId(),
                             entityRef -> activeHandle != null ? activeHandle.commit(entityRef) : null))
                     .orElse(null);
@@ -245,7 +246,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
         binder.loadRestored(restoredDto, (src, tgt) -> {
             tgt.setTitle(src.getTitle());
             tgt.setDescription(src.getDescription());
-            tgt.setListingType(src.getListingType());
+            tgt.setAdKind(src.getAdKind());
             tgt.setCategoryIds(src.getCategoryIds());
             tgt.setCityTaxonId(src.getCityTaxonId());
         });
@@ -272,7 +273,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                             AdvertisementEditDto dto = mapper.toAdvertisementEdit(params.getAd());
                             dto.setTitle(snapshot.title());
                             dto.setDescription(snapshot.description());
-                            dto.setListingType(snapshot.listingType());
+                            dto.setAdKind(snapshot.adKind());
                             dto.setCategoryIds(snapshot.categoryIds() != null
                                     ? new java.util.HashSet<>(snapshot.categoryIds()) : new java.util.HashSet<>());
                             dto.setCityTaxonId(snapshot.cityTaxonId());
@@ -284,10 +285,10 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
 
     public void discardChanges() {
         if (params.getAd() == null) {
-            binder.reload(AdvertisementEditDto.builder().listingType(ListingType.OFFER).build(), (src, tgt) -> {
+            binder.reload(AdvertisementEditDto.builder().adKind(AdKind.OFFER).build(), (src, tgt) -> {
                 tgt.setTitle(src.getTitle());
                 tgt.setDescription(src.getDescription());
-                tgt.setListingType(src.getListingType());
+                tgt.setAdKind(src.getAdKind());
                 tgt.setCategoryIds(src.getCategoryIds());
                 tgt.setCityTaxonId(src.getCityTaxonId());
             });
@@ -302,7 +303,7 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                     binder.reload(fresh, (src, tgt) -> {
                         tgt.setTitle(src.getTitle());
                         tgt.setDescription(src.getDescription());
-                        tgt.setListingType(src.getListingType());
+                        tgt.setAdKind(src.getAdKind());
                         tgt.setCategoryIds(src.getCategoryIds());
                         tgt.setCityTaxonId(src.getCityTaxonId());
                     });
@@ -347,9 +348,9 @@ public class AdvertisementFormOverlayModeHandler extends AbstractFormOverlayMode
                         getValue(ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH)
                 )
                 .bind(AdvertisementEditDto::getDescription, AdvertisementEditDto::setDescription);
-        binder.getBinder().forField(listingTypeField)
-                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_LISTING_TYPE_REQUIRED))
-                .bind(AdvertisementEditDto::getListingType, AdvertisementEditDto::setListingType);
+        binder.getBinder().forField(adKindField)
+                .asRequired(getValue(ADVERTISEMENT_OVERLAY_VALIDATION_AD_KIND_REQUIRED))
+                .bind(AdvertisementEditDto::getAdKind, AdvertisementEditDto::setAdKind);
         if (categoryComboBox != null) {
             binder.getBinder().forField(categoryComboBox)
                     .withConverter(

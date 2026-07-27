@@ -1,7 +1,7 @@
 package org.ost.marketplace.ui.dto;
 
 import lombok.*;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 
 import java.time.Instant;
 import java.util.Set;
@@ -17,7 +17,7 @@ public class AdvertisementEditDto implements EditDto {
 
     private String title;
     private String description;
-    private ListingType listingType;
+    private AdKind adKind;
 
     private Instant createdAt;
     private Instant updatedAt;

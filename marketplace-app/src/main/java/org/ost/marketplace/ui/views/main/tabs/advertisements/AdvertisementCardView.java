@@ -91,7 +91,7 @@ public class AdvertisementCardView extends HorizontalLayout
         getElement().setAttribute("tabindex", "0");
         getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onUpdated, onClosed))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
-        addClassName("advertisement-card--" + ad.getListingType().name().toLowerCase());
+        addClassName("advertisement-card--" + ad.getAdKind().name().toLowerCase());
 
         Div thumbnail = createThumbnail(ad);
         if (thumbnail != null) add(thumbnail);
@@ -148,7 +148,7 @@ public class AdvertisementCardView extends HorizontalLayout
         bottom.setAlignItems(Alignment.END);
         bottom.setJustifyContentMode(JustifyContentMode.BETWEEN);
 
-        VerticalLayout content = new VerticalLayout(createListingTypeBadge(ad), createTitle(ad), createDescription(ad), spacer);
+        VerticalLayout content = new VerticalLayout(createTitle(ad), createDescription(ad), spacer);
         content.addClassName("advertisement-content");
         content.setPadding(false);
         content.setSpacing(false);
@@ -158,6 +158,7 @@ public class AdvertisementCardView extends HorizontalLayout
         if (categoriesLine != null) content.add(categoriesLine);
         Span cityLine = createCityLine(ad);
         if (cityLine != null) content.add(cityLine);
+        content.add(createAdKindBadge(ad));
         content.add(bottom);
         return content;
     }
@@ -178,10 +179,10 @@ public class AdvertisementCardView extends HorizontalLayout
         return line;
     }
 
-    private Span createListingTypeBadge(AdvertisementInfoDto ad) {
-        Span badge = new Span(getValue(forListingType(ad.getListingType())));
-        badge.addClassName("advertisement-listing-type-badge");
-        badge.addClassName("advertisement-listing-type-badge--" + ad.getListingType().name().toLowerCase());
+    private Span createAdKindBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forAdKind(ad.getAdKind())));
+        badge.addClassName("advertisement-ad-kind-badge");
+        badge.addClassName("advertisement-ad-kind-badge--" + ad.getAdKind().name().toLowerCase());
         return badge;
     }
 

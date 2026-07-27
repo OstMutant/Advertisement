@@ -27,7 +27,7 @@ const { signUpBulkParallel, loginBulk, logoutBulk, createAdvertisementBulk } = r
 const {
   openQueryPanel, clearFilter, applyFilter,
   resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory, fillCity, fillListingType,
+  fillText, fillNumber, fillRole, fillCategory, fillCity, fillAdKind,
   getRow, getTotalCount,
   verifyPagination, verifyDateRangeFilters, verifySortColumn,
 } = require('./_flows/filter.flow');
@@ -49,8 +49,8 @@ const SEED_COUNT = 60;
 const CATEGORIES = ['Clothing', 'Books', 'Furniture', 'Sports', 'Toys'];
 // Distinct from spec-03 cities (Lviv, Kyiv) to avoid duplicates in e2e suite mode.
 const CITIES = ['Kharkiv', 'Odesa', 'Dnipro'];
-// No seeding needed -- ListingType is a fixed enum, not a taxon dictionary like categories/cities.
-const LISTING_TYPES = ['Offer', 'Request', 'Product'];
+// No seeding needed -- AdKind is a fixed enum, not a taxon dictionary like categories/cities.
+const AD_KINDS = ['Offer', 'Request', 'Product'];
 
 // Same generation formula as spec 03's MAX_NAME_100 (maxEn's 100-char boundary name) — used as
 // the timeline actor filter's second pick below so the actor chip's own truncation gets exercised
@@ -164,7 +164,7 @@ test.describe('Seed data and query validation', () => {
         ...seedAd(i),
         category: CATEGORIES[(i - 1) % CATEGORIES.length],
         city: CITIES[(i - 1) % CITIES.length],
-        listingType: LISTING_TYPES[(i - 1) % LISTING_TYPES.length],
+        adKind: AD_KINDS[(i - 1) % AD_KINDS.length],
       });
     }
     // Force a full page reload to clear 60 stale advertisement overlay DOM elements before logout.
@@ -217,11 +217,11 @@ test.describe('Seed data and query validation', () => {
     // ── listing type filter → at least SEED_COUNT / 3 results per type; unlike category/city,
     // every advertisement always has a listing type, so non-seed ads left behind by earlier specs
     // always add to one of the three buckets -- use >= same as verifyDateRangeFilters, not toBe ──
-    await fillListingType(page, ADV_BLOCK, LISTING_TYPES[0]);
+    await fillAdKind(page, ADV_BLOCK, AD_KINDS[0]);
     await applyFilter(page, ADV_BLOCK);
     await page.locator('.pagination-count:visible').waitFor({ timeout: 8000 });
-    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT / LISTING_TYPES.length);
-    await screenshot(page, 'adv-filter-listing-type');
+    expect(await getTotalCount(page)).toBeGreaterThanOrEqual(SEED_COUNT / AD_KINDS.length);
+    await screenshot(page, 'adv-filter-ad-kind');
     await clearFilter(page, ADV_BLOCK);
 
     // ── date range filters (created/updated today + boundary cases) ──────────

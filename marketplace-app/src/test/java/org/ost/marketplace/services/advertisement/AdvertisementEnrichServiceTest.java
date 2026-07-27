@@ -9,7 +9,7 @@ import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.attachment.spi.AttachmentAuditHook;
 import org.ost.platform.audit.dto.AuditActivityItemDto;
 import org.ost.platform.audit.dto.AuditTimelineItemDto;
@@ -53,8 +53,8 @@ class AdvertisementEnrichServiceTest {
     @BeforeEach
     void setUp() {
         lenient().when(localeProvider.getCurrentLocale()).thenReturn(Locale.ENGLISH);
-        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_LISTING_TYPE_OFFER)).thenReturn("Offer");
-        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_LISTING_TYPE_PRODUCT)).thenReturn("Product");
+        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_OFFER)).thenReturn("Offer");
+        lenient().when(i18nService.get(I18nKey.ADVERTISEMENT_AD_KIND_PRODUCT)).thenReturn("Product");
         service = new AdvertisementEnrichService(attachmentAuditHookFactory, taxonPortFactory, localeProvider, i18nService);
     }
 
@@ -76,11 +76,11 @@ class AdvertisementEnrichServiceTest {
     }
 
     private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long attachmentSnapshotId) {
-        return new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, categoryIds, null, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto("Title", "Desc", AdKind.OFFER, categoryIds, null, attachmentSnapshotId);
     }
 
     private static AdvertisementSnapshotDto snapshot(List<Long> categoryIds, Long cityTaxonId, Long attachmentSnapshotId) {
-        return new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, categoryIds, cityTaxonId, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto("Title", "Desc", AdKind.OFFER, categoryIds, cityTaxonId, attachmentSnapshotId);
     }
 
     // ── mergeMediaChanges() (Timeline tab) ──────────────────────────────────────────────────
@@ -181,12 +181,12 @@ class AdvertisementEnrichServiceTest {
     }
 
     @Test
-    void enrichActivityItems_listingTypeChanged_resolvesToLocalizedLabel() {
-        AdvertisementSnapshotDto curr = new AdvertisementSnapshotDto("Title", "Desc", ListingType.PRODUCT, List.of(), null, 50L);
-        AdvertisementSnapshotDto prev = new AdvertisementSnapshotDto("Title", "Desc", ListingType.OFFER, List.of(), null, 50L);
+    void enrichActivityItems_adKindChanged_resolvesToLocalizedLabel() {
+        AdvertisementSnapshotDto curr = new AdvertisementSnapshotDto("Title", "Desc", AdKind.PRODUCT, List.of(), null, 50L);
+        AdvertisementSnapshotDto prev = new AdvertisementSnapshotDto("Title", "Desc", AdKind.OFFER, List.of(), null, 50L);
         AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
                 1L, 2, ActionType.UPDATED, 10L, null,
-                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.listingType, "OFFER", "PRODUCT")),
+                List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.adKind, "OFFER", "PRODUCT")),
                 null, curr, prev);
 
         List<AuditActivityItemDto<AdvertisementSnapshotDto>> result = service.enrichActivityItems(List.of(item));
@@ -197,7 +197,7 @@ class AdvertisementEnrichServiceTest {
     }
 
     @Test
-    void enrichActivityItems_listingTypeUnchanged_noEntryManufactured() {
+    void enrichActivityItems_adKindUnchanged_noEntryManufactured() {
         AuditActivityItemDto<AdvertisementSnapshotDto> item = new AuditActivityItemDto<>(
                 1L, 2, ActionType.UPDATED, 10L, null,
                 List.of(new ChangeEntry.FieldChange(AdvertisementSnapshotDto.Fields.title, "Old", "New")),

@@ -2,7 +2,7 @@ package org.ost.integrationtests.advertisement;
 
 import org.junit.jupiter.api.Test;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.ChangeEntry.FieldChange;
 
@@ -21,23 +21,23 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_noPrevious_returnsChangesForAllSetFields() {
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(1L, 2L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(1L, 2L), null, null);
 
         List<ChangeEntry> changes = current.diff(null);
 
         assertThat(changes).containsExactlyInAnyOrder(
                 new FieldChange(AdvertisementSnapshotDto.Fields.title, null, "Title"),
                 new FieldChange(AdvertisementSnapshotDto.Fields.description, null, "Description"),
-                new FieldChange(AdvertisementSnapshotDto.Fields.listingType, "", "OFFER"),
+                new FieldChange(AdvertisementSnapshotDto.Fields.adKind, "", "OFFER"),
                 new FieldChange(AdvertisementSnapshotDto.Fields.categoryIds, "", "1, 2"));
     }
 
     @Test
     void diff_identicalSnapshots_returnsNoChanges() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(1L, 2L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(1L, 2L), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(1L, 2L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(1L, 2L), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -47,9 +47,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_titleChanged_returnsSingleFieldChange() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Old title", "Description", ListingType.OFFER, List.of(), null, null);
+                "Old title", "Description", AdKind.OFFER, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "New title", "Description", ListingType.OFFER, List.of(), null, null);
+                "New title", "Description", AdKind.OFFER, List.of(), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -60,9 +60,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_descriptionChanged_returnsSingleFieldChange() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Old description", ListingType.OFFER, List.of(), null, null);
+                "Title", "Old description", AdKind.OFFER, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "New description", ListingType.OFFER, List.of(), null, null);
+                "Title", "New description", AdKind.OFFER, List.of(), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -73,9 +73,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_categoryIdsChanged_returnsSortedJoinedStrings() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(3L, 1L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(3L, 1L), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(2L, 5L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(2L, 5L), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -86,9 +86,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_cityTaxonIdChanged_returnsSingleFieldChange() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), 1L, null);
+                "Title", "Description", AdKind.OFFER, List.of(), 1L, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), 2L, null);
+                "Title", "Description", AdKind.OFFER, List.of(), 2L, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -99,9 +99,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_cityTaxonIdAddedFromNull_fromIsEmptyString() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), 1L, null);
+                "Title", "Description", AdKind.OFFER, List.of(), 1L, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -110,37 +110,37 @@ class AdvertisementSnapshotDtoTest {
     }
 
     @Test
-    void diff_listingTypeChanged_returnsSingleFieldChange() {
+    void diff_adKindChanged_returnsSingleFieldChange() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.REQUEST, List.of(), null, null);
+                "Title", "Description", AdKind.REQUEST, List.of(), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
         assertThat(changes).containsExactly(
-                new FieldChange(AdvertisementSnapshotDto.Fields.listingType, "OFFER", "REQUEST"));
+                new FieldChange(AdvertisementSnapshotDto.Fields.adKind, "OFFER", "REQUEST"));
     }
 
     @Test
-    void diff_listingTypeAddedFromNull_fromIsEmptyString() {
+    void diff_adKindAddedFromNull_fromIsEmptyString() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
                 "Title", "Description", null, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.PRODUCT, List.of(), null, null);
+                "Title", "Description", AdKind.PRODUCT, List.of(), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
         assertThat(changes).containsExactly(
-                new FieldChange(AdvertisementSnapshotDto.Fields.listingType, "", "PRODUCT"));
+                new FieldChange(AdvertisementSnapshotDto.Fields.adKind, "", "PRODUCT"));
     }
 
     @Test
     void diff_multipleFieldsChanged_returnsAllChangedFields() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Old title", "Old description", ListingType.OFFER, List.of(1L), null, null);
+                "Old title", "Old description", AdKind.OFFER, List.of(1L), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "New title", "New description", ListingType.OFFER, List.of(2L), null, null);
+                "New title", "New description", AdKind.OFFER, List.of(2L), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -153,9 +153,9 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void diff_categoryIdsAddedFromEmpty_fromIsEmptyString() {
         AdvertisementSnapshotDto previous = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(), null, null);
         AdvertisementSnapshotDto current = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(1L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(1L), null, null);
 
         List<ChangeEntry> changes = current.diff(previous);
 
@@ -166,7 +166,7 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void constructor_categoryIdsAlwaysSorted_regardlessOfInputOrder() {
         AdvertisementSnapshotDto dto = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, List.of(5L, 1L, 3L), null, null);
+                "Title", "Description", AdKind.OFFER, List.of(5L, 1L, 3L), null, null);
 
         assertThat(dto.categoryIds()).containsExactly(1L, 3L, 5L);
     }
@@ -174,7 +174,7 @@ class AdvertisementSnapshotDtoTest {
     @Test
     void constructor_nullCategoryIds_defaultsToEmptyList() {
         AdvertisementSnapshotDto dto = new AdvertisementSnapshotDto(
-                "Title", "Description", ListingType.OFFER, null, null, null);
+                "Title", "Description", AdKind.OFFER, null, null, null);
 
         assertThat(dto.categoryIds()).isEmpty();
     }

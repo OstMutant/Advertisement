@@ -101,13 +101,7 @@ async function fillRole(page, blockSelector, role) {
   await page.locator('vaadin-multi-select-combo-box-overlay').first().waitFor({ state: 'hidden', timeout: 5000 });
 }
 
-// Selects one category value from the multi-select combo in the advertisement query block.
-// Uses keyboard navigation — same approach as fillRole — because the combo overlay has popover="manual".
-// Scoped by data-testid, not the bare tag name -- the advertisement block has a second
-// vaadin-multi-select-combo-box (listing type) that a generic tag selector would collide with.
-// Waits on the combo's own `opened` property (not a bare vaadin-multi-select-combo-box-overlay
-// locator) -- once a second multi-select combo exists on the page, its stale, now-hidden overlay
-// element can still be the one a generic `.first()` resolves to.
+// Scoped by data-testid and waits on the combo's own `opened` property -- avoids colliding with the other multi-select combo on this block.
 async function fillCategory(page, blockSelector, categoryName) {
   const selector = `${blockSelector} [data-testid="advertisement-filter-categories"]`;
   const combo = page.locator(selector);
@@ -132,15 +126,13 @@ async function fillCity(page, blockSelector, cityName) {
   await page.keyboard.press('Enter');
 }
 
-// Selects one listing-type value from the multi-select combo in the advertisement query block.
-// See fillCategory's comment above -- scoped by data-testid and waits on the combo's own
-// `opened` property, not a bare vaadin-multi-select-combo-box-overlay locator.
-async function fillListingType(page, blockSelector, listingTypeName) {
-  const selector = `${blockSelector} [data-testid="advertisement-filter-listing-type"]`;
+// Selects one ad-kind value from the multi-select combo -- see fillCategory's comment above.
+async function fillAdKind(page, blockSelector, adKindName) {
+  const selector = `${blockSelector} [data-testid="advertisement-filter-ad-kind"]`;
   const combo = page.locator(selector);
   await combo.locator('input').click();
   await page.waitForFunction((sel) => document.querySelector(sel)?.opened === true, selector, { timeout: 5000 });
-  await page.keyboard.type(listingTypeName);
+  await page.keyboard.type(adKindName);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
   await page.evaluate((sel) => {
@@ -321,7 +313,7 @@ module.exports = {
   openQueryPanel, closeQueryPanel,
   applyFilter, clearFilter, waitForVaadin,
   clickSort, resetDefaultSorts,
-  fillText, fillNumber, fillRole, fillCategory, fillCity, fillListingType, setDateRange,
+  fillText, fillNumber, fillRole, fillCategory, fillCity, fillAdKind, setDateRange,
   getRow,
   getTotalCount,
   goToNextPage, goToPrevPage, goToFirstPage, goToLastPage,

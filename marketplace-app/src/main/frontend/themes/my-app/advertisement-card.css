@@ -257,7 +257,7 @@
 }
 
 /* Listing type badge -- card and view overlay */
-.advertisement-listing-type-badge {
+.advertisement-ad-kind-badge {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
@@ -268,17 +268,17 @@
   margin-bottom: 4px;
 }
 
-.advertisement-listing-type-badge--offer {
+.advertisement-ad-kind-badge--offer {
   background: var(--app-status-success-badge-bg);
   color: var(--app-status-success-badge-text);
 }
 
-.advertisement-listing-type-badge--request {
+.advertisement-ad-kind-badge--request {
   background: var(--app-accent-primary-bg);
   color: var(--app-status-info-text);
 }
 
-.advertisement-listing-type-badge--product {
+.advertisement-ad-kind-badge--product {
   background: var(--app-status-entity-advertisement-bg);
   color: var(--app-status-entity-advertisement-text);
 }

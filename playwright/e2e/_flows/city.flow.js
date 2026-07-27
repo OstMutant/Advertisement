@@ -1,4 +1,4 @@
-const { screenshot } = require('../_helpers');
+const { screenshot, assertCardHasText, assertOverlayHasText } = require('../_helpers');
 const { openReferenceDataTab } = require('./category.flow');
 
 async function openCitiesSubTab(page) {
@@ -42,16 +42,11 @@ async function selectCityInAdForm(page, overlay, cityName) {
 }
 
 async function assertCardHasCity(page, expect, card, cityName, screenshotName) {
-  const line = card.locator('.advertisement-city');
-  await expect(line).toBeVisible({ timeout: 5000 });
-  await expect(line).toContainText(cityName, { timeout: 5000 });
-  if (screenshotName) await screenshot(page, screenshotName);
+  return assertCardHasText(page, expect, card, '.advertisement-city', cityName, screenshotName);
 }
 
 async function assertViewOverlayHasCity(page, expect, overlay, cityName, screenshotName) {
-  const chip = overlay.locator('.advertisement-city-chip', { hasText: cityName });
-  await expect(chip).toBeVisible({ timeout: 5000 });
-  if (screenshotName) await screenshot(page, screenshotName);
+  return assertOverlayHasText(page, expect, overlay, '.advertisement-city-chip', cityName, screenshotName);
 }
 
 module.exports = {

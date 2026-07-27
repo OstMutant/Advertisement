@@ -16,7 +16,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="description" type="VARCHAR(20000)"/>
-            <column name="listing_type" type="VARCHAR(20)" defaultValue="OFFER">
+            <column name="ad_kind" type="VARCHAR(20)" defaultValue="OFFER">
                 <constraints nullable="false"/>
             </column>
             <column name="created_by" type="BIGINT">
@@ -46,8 +46,8 @@
         <createIndex indexName="idx_advertisement_deleted_at" tableName="advertisement">
             <column name="deleted_at"/>
         </createIndex>
-        <createIndex indexName="idx_advertisement_listing_type" tableName="advertisement">
-            <column name="listing_type"/>
+        <createIndex indexName="idx_advertisement_ad_kind" tableName="advertisement">
+            <column name="ad_kind"/>
         </createIndex>
 
     </changeSet>

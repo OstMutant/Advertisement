@@ -3,7 +3,7 @@ package org.ost.platform.advertisement.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 
 import java.util.Set;
 
@@ -11,7 +11,7 @@ public record AdvertisementSaveDto(
         Long id,
         @NotBlank @Size(min = 1, max = TITLE_MAX_LENGTH) String title,
         @NotBlank @Size(max = DESCRIPTION_RAW_MAX_LENGTH) String description,
-        @NotNull ListingType listingType,
+        @NotNull AdKind adKind,
         @Size(max = CATEGORY_MAX_COUNT) Set<Long> categoryIds,
         Long cityTaxonId,
         Long version

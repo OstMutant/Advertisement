@@ -1,7 +1,7 @@
 package org.ost.marketplace.services.i18n;
 
 import lombok.RequiredArgsConstructor;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
 
 @RequiredArgsConstructor
@@ -67,7 +67,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("advertisement.overlay.validation.description.length"),
-    ADVERTISEMENT_OVERLAY_VALIDATION_LISTING_TYPE_REQUIRED("advertisement.overlay.validation.listingType.required"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_AD_KIND_REQUIRED("advertisement.overlay.validation.adKind.required"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
@@ -76,7 +76,7 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
     ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
     ADVERTISEMENT_OVERLAY_FIELD_CITY("advertisement.overlay.field.city"),
-    ADVERTISEMENT_OVERLAY_FIELD_LISTING_TYPE("advertisement.overlay.field.listingType"),
+    ADVERTISEMENT_OVERLAY_FIELD_AD_KIND("advertisement.overlay.field.adKind"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
@@ -158,12 +158,12 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
     ADVERTISEMENT_FILTER_CATEGORIES("advertisement.filter.categories"),
     ADVERTISEMENT_FILTER_CITY("advertisement.filter.city"),
-    ADVERTISEMENT_FILTER_LISTING_TYPE("advertisement.filter.listingType"),
+    ADVERTISEMENT_FILTER_AD_KIND("advertisement.filter.adKind"),
 
     // === Advertisement Listing Type ===
-    ADVERTISEMENT_LISTING_TYPE_OFFER("advertisement.listingType.offer"),
-    ADVERTISEMENT_LISTING_TYPE_REQUEST("advertisement.listingType.request"),
-    ADVERTISEMENT_LISTING_TYPE_PRODUCT("advertisement.listingType.product"),
+    ADVERTISEMENT_AD_KIND_OFFER("advertisement.adKind.offer"),
+    ADVERTISEMENT_AD_KIND_REQUEST("advertisement.adKind.request"),
+    ADVERTISEMENT_AD_KIND_PRODUCT("advertisement.adKind.product"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
@@ -300,7 +300,7 @@ public enum I18nKey {
     CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_FIELD_CATEGORY("changes.field.category"),
     CHANGES_FIELD_CITY("changes.field.city"),
-    CHANGES_FIELD_LISTING_TYPE("changes.field.listingType"),
+    CHANGES_FIELD_AD_KIND("changes.field.adKind"),
     CHANGES_FIELD_NAME_EN("changes.field.nameEn"),
     CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
     CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
@@ -404,11 +404,11 @@ public enum I18nKey {
         };
     }
 
-    public static I18nKey forListingType(ListingType listingType) {
-        return switch (listingType) {
-            case OFFER   -> ADVERTISEMENT_LISTING_TYPE_OFFER;
-            case REQUEST -> ADVERTISEMENT_LISTING_TYPE_REQUEST;
-            case PRODUCT -> ADVERTISEMENT_LISTING_TYPE_PRODUCT;
+    public static I18nKey forAdKind(AdKind adKind) {
+        return switch (adKind) {
+            case OFFER   -> ADVERTISEMENT_AD_KIND_OFFER;
+            case REQUEST -> ADVERTISEMENT_AD_KIND_REQUEST;
+            case PRODUCT -> ADVERTISEMENT_AD_KIND_PRODUCT;
         };
     }
 

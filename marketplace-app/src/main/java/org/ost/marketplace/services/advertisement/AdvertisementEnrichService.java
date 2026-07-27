@@ -3,7 +3,7 @@ package org.ost.marketplace.services.advertisement;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.services.i18n.LocaleProvider;
@@ -25,6 +25,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static org.ost.platform.audit.api.AuditableSnapshot.field;
 
 @Service
 @RequiredArgsConstructor
@@ -106,7 +108,7 @@ public class AdvertisementEnrichService {
     private List<ChangeEntry> mergeChanges(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot,
                                             AdvertisementSnapshotDto prev, Map<Long, String> nameById,
                                             boolean skipMediaMergeIfUnchanged) {
-        List<ChangeEntry> resolved = resolveListingType(
+        List<ChangeEntry> resolved = resolveAdKind(
                 resolveCity(resolveCategories(changes, snapshot, prev, nameById), snapshot, prev, nameById),
                 snapshot, prev);
 
@@ -172,29 +174,21 @@ public class AdvertisementEnrichService {
         return withEntry;
     }
 
-    // Unlike category/city, listing type is never absent -- so only replaces an entry diff()/
-    // allFields() already produced, rather than resolveField()'s "manufacture one if missing"
-    // behavior, which would inject a "Listing type" line into every single activity row.
-    // Preserves the input list's reference identity when no such entry exists, same as
-    // resolveCategories()/resolveCity()'s nameById.isEmpty() short-circuit.
-    private List<ChangeEntry> resolveListingType(List<ChangeEntry> changes,
-                                                  AdvertisementSnapshotDto snapshot,
-                                                  AdvertisementSnapshotDto prev) {
+    // AdKind is never absent, so this only relabels an entry diff() already produced -- never manufactures one.
+    private List<ChangeEntry> resolveAdKind(List<ChangeEntry> changes, AdvertisementSnapshotDto snapshot, AdvertisementSnapshotDto prev) {
         boolean hasEntry = changes.stream().anyMatch(
                 e -> e instanceof ChangeEntry.FieldChange(var f, var _, var _)
-                        && f.equals(AdvertisementSnapshotDto.Fields.listingType));
+                        && f.equals(AdvertisementSnapshotDto.Fields.adKind));
         if (!hasEntry) return changes;
 
-        ListingType curr = snapshot.listingType();
-        ListingType prevType = prev != null ? prev.listingType() : null;
         return changes.stream()
-                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.listingType,
-                        _ -> labelFor(prevType), _ -> labelFor(curr)))
+                .map(entry -> entry.replaceIfField(AdvertisementSnapshotDto.Fields.adKind,
+                        _ -> labelFor(field(prev, AdvertisementSnapshotDto::adKind)), _ -> labelFor(snapshot.adKind())))
                 .toList();
     }
 
-    private String labelFor(ListingType type) {
-        return type == null ? "" : i18nService.get(I18nKey.forListingType(type));
+    private String labelFor(AdKind kind) {
+        return kind == null ? "" : i18nService.get(I18nKey.forAdKind(kind));
     }
 
     private static String idsToNames(List<Long> ids, Map<Long, String> nameById) {

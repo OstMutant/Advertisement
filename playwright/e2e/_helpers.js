@@ -57,6 +57,23 @@ async function screenshot(page, name) {
   await test.info().attach(name, { body: buffer, contentType: 'image/png' });
 }
 
+// ── Single-value field assertions (card / view overlay) ───────────────────────
+
+async function assertCardHasText(page, expect, card, selector, expectedText, screenshotName, exact = false) {
+  const el = card.locator(selector);
+  await expect(el).toBeVisible({ timeout: 5000 });
+  if (exact) await expect(el).toHaveText(expectedText, { timeout: 5000 });
+  else await expect(el).toContainText(expectedText, { timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
+async function assertOverlayHasText(page, expect, overlay, selector, expectedText, screenshotName, exact = false) {
+  const el = exact ? overlay.locator(selector) : overlay.locator(selector, { hasText: expectedText });
+  if (exact) await expect(el).toHaveText(expectedText, { timeout: 5000 });
+  else await expect(el).toBeVisible({ timeout: 5000 });
+  if (screenshotName) await screenshot(page, screenshotName);
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 
 function downloadPng(url, dest) {
@@ -76,4 +93,5 @@ module.exports = {
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,
+  assertCardHasText, assertOverlayHasText,
 };

@@ -72,8 +72,6 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
 
     @Override
     protected Div buildPrimaryContent() {
-        Span typeBadge = buildListingTypeBadge(params.getAd());
-
         H2 title = new H2(params.getAd().getTitle());
         title.addClassName("overlay__view-title");
 
@@ -84,7 +82,7 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         Div cardHeader = new Div(VaadinIcon.EYE.create(), new Span(getValue(ADVERTISEMENT_OVERLAY_SECTION_VIEW)));
         cardHeader.addClassName("overlay__view-card-header");
 
-        Div textCard = new Div(cardHeader, typeBadge, title, description);
+        Div textCard = new Div(cardHeader, title, description);
         textCard.addClassName("overlay__view-card");
 
         taxonPortFactory.ifAvailable(taxonPort -> {
@@ -95,6 +93,8 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
                     "advertisement-city-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
         });
 
+        textCard.add(buildAdKindBadge(params.getAd()));
+
         Div viewBody = new Div(textCard);
         attachmentPortFactory.ifAvailable(_ -> viewBody.add(
                 galleryServiceFactory.get().buildGalleryForView(new EntityRef(EntityType.ADVERTISEMENT, params.getAd().getId()))));
@@ -104,10 +104,10 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         return viewBody;
     }
 
-    private Span buildListingTypeBadge(AdvertisementInfoDto ad) {
-        Span badge = new Span(getValue(forListingType(ad.getListingType())));
-        badge.addClassName("advertisement-listing-type-badge");
-        badge.addClassName("advertisement-listing-type-badge--" + ad.getListingType().name().toLowerCase());
+    private Span buildAdKindBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forAdKind(ad.getAdKind())));
+        badge.addClassName("advertisement-ad-kind-badge");
+        badge.addClassName("advertisement-ad-kind-badge--" + ad.getAdKind().name().toLowerCase());
         return badge;
     }
 

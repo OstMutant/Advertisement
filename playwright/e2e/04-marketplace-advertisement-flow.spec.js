@@ -43,7 +43,7 @@ test.describe('Advertisement flow', () => {
   test('userEn creates advertisement — create discard clears form, YouTube, image and video, lightbox plays video, lightbox close button closes video and YouTube clips, two category rows, categories text and view chips, city text and view chip, listing type badge', async () => {
     await runFillLoginFormFlow(page, CREATE.enAd.user);
     await runSubmitLoginFlow(page, expect, CREATE.enAd.user);
-    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv', listingType: 'Request' });
+    await runCreateAdvertisementFlow(page, expect, { title: CREATE.enAd.title, description: CREATE.enAd.description, screenshotPrefix: 'adv-useren-create', categories: ['Electronics', 'Vehicles'], city: 'Lviv', adKind: 'Request' });
 
     await test.step('attachment lightbox — play icon visible, video src valid, close button works', async () => {
       await page.locator('.advertisement-card')
@@ -253,7 +253,7 @@ test.describe('Advertisement flow', () => {
       categoryToAdd:       'Vehicles',
       categoryToRemove:    'Vehicles',
       cityToSet:           'Kyiv',
-      listingTypeToSet:    'Product',
+      adKindToSet:         'Product',
       screenshotPrefix:    'adv-adminen-edit-uk',
     });
     await runCrossUserMediaReplaceFlow(page, expect, {

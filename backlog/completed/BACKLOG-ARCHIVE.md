@@ -1334,16 +1334,16 @@ update. Verified: unit-tests 75/75, integration-tests 128/128, Playwright `e2e -
 
 ✅ Done (2026-07-27): [improvement-122](issues/improvement-122-f03-listing-types.md) — F-03
 listing types (Offer/Request/Product), product roadmap Phase 1 item #3, the last piece of the
-"Shareability foundation" gate. Unlike F-02's city facet, a genuine new `advertisement.listing_type
+"Shareability foundation" gate. Unlike F-02's city facet, a genuine new `advertisement.ad_kind
 VARCHAR(20) NOT NULL DEFAULT 'OFFER'` column (mandatory, closed set, no admin dictionary needed) —
-new `ListingType` enum in `platform-commons`, added to the existing (never-released)
+new `AdKind` enum in `platform-commons`, added to the existing (never-released)
 `01-advertisement-schema.xml` changeset. First use of Vaadin's `RadioButtonGroup` in this codebase
 (mandatory single-select, always visible — neither `ComboBox` nor `MultiSelectComboBox` fit).
 Caught a Binder `readInitialValues()` default-value hazard by reasoning before writing code, not by
 a failing test: setting the default on the widget directly would be silently overwritten, so it's
 set on `AdvertisementEditDto` instead. Playwright's own run then surfaced four real bugs: (1) the
 activity diff showed the raw enum name (`"OFFER"`, `"PRODUCT"`) instead of a localized label — fixed
-via `AdvertisementEnrichService.resolveListingType()`, which — unlike `resolveCategories()`/
+via `AdvertisementEnrichService.resolveAdKind()`, which — unlike `resolveCategories()`/
 `resolveCity()` — only relabels an entry `diff()` already produced instead of manufacturing one,
 since listing type (unlike category/city) is never absent and would otherwise inject a "Listing
 type" line into every single activity row; (2) a second `MultiSelectComboBox` filter on the same

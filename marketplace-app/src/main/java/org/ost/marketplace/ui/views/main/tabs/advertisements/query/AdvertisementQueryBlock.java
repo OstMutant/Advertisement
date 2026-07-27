@@ -16,7 +16,7 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
-import org.ost.platform.advertisement.model.ListingType;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -95,12 +95,12 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
 
         // Listing type row
-        MultiSelectComboBox<ListingType> listingTypeField = new MultiSelectComboBox<>();
-        listingTypeField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_LISTING_TYPE));
-        listingTypeField.setItems(ListingType.values());
-        listingTypeField.setItemLabelGenerator(t -> i18nService.get(forListingType(t)));
-        listingTypeField.getElement().setAttribute("data-testid", "advertisement-filter-listing-type");
-        filterRow(i18nService.get(ADVERTISEMENT_FILTER_LISTING_TYPE), listingTypeField, AdvertisementFilterMeta.LISTING_TYPES);
+        MultiSelectComboBox<AdKind> adKindField = new MultiSelectComboBox<>();
+        adKindField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_AD_KIND));
+        adKindField.setItems(AdKind.values());
+        adKindField.setItemLabelGenerator(t -> i18nService.get(forAdKind(t)));
+        adKindField.getElement().setAttribute("data-testid", "advertisement-filter-ad-kind");
+        filterRow(i18nService.get(ADVERTISEMENT_FILTER_AD_KIND), adKindField, AdvertisementFilterMeta.AD_KINDS);
 
         add(queryActionBlock);
     }
