@@ -144,9 +144,9 @@ Three independent layers, each targeting a different failure mode:
 | Integration | JUnit 5 + Testcontainers (real Postgres) | SQL correctness — filters, sorts, pagination, optimistic locking, real Liquibase schema |
 | End-to-end | Playwright | Full browser-driven flows across the actual Vaadin UI, including auth, CRUD, media, and the audit timeline |
 
-See [Module Layout](#module-layout) above for each layer's own README/DECISIONS, and
-`scripts/README.md` for how to run each one (or all three orchestrated together via
-`scripts/run-all-tests.sh` / `scripts/ci.sh`).
+See [Module Layout](#module-layout) above for each layer's own README/DECISIONS. See the
+[Helper Scripts](#helper-scripts) section below for the exact commands to run each layer, or use
+`scripts/run-all-tests.sh` / `scripts/ci.sh` to orchestrate all of them at once.
 
 ---
 
@@ -303,6 +303,7 @@ Key variables used by the application.
 | `S3_SECRET_KEY` | S3 secret key | — |
 | `S3_REGION` | S3 region | `us-east-1` / `auto` |
 | `S3_PUBLIC_URL` | Public base URL for file access | `http://localhost:9000/advertisement` |
+| `APP_PUBLIC_URL` | Public base URL of the app itself — used to build absolute deep-link/OG/sitemap URLs | `http://localhost:8080` |
 
 ---
 
