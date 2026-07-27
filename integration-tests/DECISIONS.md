@@ -162,7 +162,9 @@ to be re-typed verbatim in every future `*RepositoryTest` (Batch 3: `AuditLogRep
 `TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest` — **done, 2026-07-16 correction:** all
 three now exist and pass, plus several more added since (`AttachmentServiceTest`,
 `AttachmentServiceTransactionTest`, `AttachmentCleanupServiceTest`, `TaxonServiceTest`,
-`TaxonSnapshotDtoTest`, `UserServiceRestoreTest`)).
+`TaxonSnapshotDtoTest`) — **corrected 2026-07-27:** `UserServiceRestoreTest` no longer exists in
+`src/test/java` (only stale `target/`/`reports/` surefire output remained from an earlier run);
+removed from this list).
 
 **Decision:** Extract to `org.ost.integrationtests.support` (in `src/main`, not `src/test`, so
 `*RepositoryTest` classes can import without a test-jar dependency), by direct analogy with
@@ -171,13 +173,18 @@ once two or more consumers need it):
 - `RepositoryTestSupport` — the `@TestConfiguration` bean bag, added to a test's
   `@SpringBootTest(classes = {...})` list.
 - `TestDataCleaner.cleanTables(jdbcClient, "table1", "table2", ...)` — FK-ordered row deletion,
-  called from `@BeforeEach`.
+  the lower-level overload; `cleanAll(jdbcClient)` wraps it with the full FK-safe table list and is
+  what `*RepositoryTest` classes should actually call from `@BeforeEach` (see `integration-tests/
+  CLAUDE.md`'s "Always use `cleanAll`" note).
 
 **Consequences:**
 - A test that needs a *different* optional port (e.g. `TaxonPort` for a future
   `TaxonAssignmentRepositoryTest`) declares its own extra `ComponentFactory` bean locally —
   `RepositoryTestSupport` only covers the ports every repository test has hit so far
-  (`AuditPort`, `AttachmentPort`); it is not meant to grow into a bean bag for every possible port.
+  (`AuditPort`, `AttachmentPort`, and — corrected 2026-07-27 — `AdvertisementPort`, added as a
+  `@ConditionalOnMissingBean` bean since `AdvertisementRepositoryTest`'s own
+  `AdvertisementAutoConfiguration` already provides it); it is not meant to grow into a bean bag for
+  every possible port.
 - Full usage example: `integration-tests/CLAUDE.md` "Reusable test support (steps/blocks)".
 
 ---
@@ -292,9 +299,12 @@ directly via repositories instead of through the service layer.
 ## ADR-009: `@ImportAutoConfiguration` explicit allow-list instead of `@EnableAutoConfiguration` in shared test config
 **Status:** Accepted
 
-**Context:** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig` both originally used
-`@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also carrying a hand-written
-`ComponentFactory<AttachmentPort>` stub bean to compensate for one side effect of it). This
+**Context (corrected 2026-07-27: `UserServiceRestoreTest` no longer exists — see ADR-006 — but the
+history below is kept since it's what motivated the decision; the current source of truth is
+`RepositoryTestSupport` alone):** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`
+both originally used `@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also
+carrying a hand-written `ComponentFactory<AttachmentPort>` stub bean to compensate for one side
+effect of it). This
 annotation pulls in every `@AutoConfiguration` class found anywhere on the classpath, not just what
 a given test actually declares — a real problem specifically for `integration-tests`, whose own
 design (ADR-001) means its classpath keeps growing over time as Batches 2/3 add more starter
@@ -314,9 +324,11 @@ test enforcement that anyone actually does it — the exact same silent-break sh
 schedule tied to how often `integration-tests`' `pom.xml` grows.
 
 **Decision:** Replace `@EnableAutoConfiguration` with `@ImportAutoConfiguration({...})` and an
-explicit class list, in both `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`. The
-list covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure every
-`@SpringBootTest` in this module needs — nothing from any domain starter:
+explicit class list. Originally applied to both `RepositoryTestSupport` and
+`UserServiceRestoreTest.TestConfig`; now that the latter no longer exists (see ADR-006),
+`RepositoryTestSupport` is the sole surviving instance, and its actual current list (verified
+directly against source, 2026-07-27) is exactly these 7 — no `ConfigurationPropertiesAutoConfiguration`
+entry, since that was only needed by the now-deleted test's own `TestConfig`:
 ```java
 @ImportAutoConfiguration({
         DataSourceAutoConfiguration.class,               // org.springframework.boot.jdbc.autoconfigure
@@ -325,11 +337,7 @@ list covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure ev
         JdbcTemplateAutoConfiguration.class,
         DataJdbcRepositoriesAutoConfiguration.class,      // org.springframework.boot.data.jdbc.autoconfigure
         LiquibaseAutoConfiguration.class,                 // org.springframework.boot.liquibase.autoconfigure
-        TransactionAutoConfiguration.class,               // org.springframework.boot.transaction.autoconfigure
-        ConfigurationPropertiesAutoConfiguration.class    // org.springframework.boot.autoconfigure.context —
-                                                           // UserServiceRestoreTest.TestConfig only, needed
-                                                           // once AuditAutoConfiguration's own @ConfigurationProperties
-                                                           // consumer is genuinely wired in (see below)
+        TransactionAutoConfiguration.class                // org.springframework.boot.transaction.autoconfigure
 })
 ```
 Domain-starter autoconfiguration (`AdvertisementAutoConfiguration`, `TaxonAutoConfiguration`, ...)

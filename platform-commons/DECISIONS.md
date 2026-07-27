@@ -11,9 +11,11 @@ with no clear ownership, making it impossible to tell which package belonged to 
 **Decision:** Three semantic groups (final layout after 2026-05-18 symmetry cleanup):
 
 ```
-core.config    — CleanupProperties
-core.model     — ActionType, ChangeEntry, EntityType, EntityRef
-core.spi       — CurrentActorHook
+core            — ComponentFactory (top-level, not a sub-package)
+core.config     — CleanupProperties
+core.model      — ActionType, ChangeEntry, EntityType, EntityRef
+core.spi        — CurrentActorHook
+core.validation — ValidRange, ValidRangeValidator
 
 audit.api      — AuditableSnapshot
 audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto, AuditTimelineFilterDto
@@ -21,19 +23,22 @@ audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditAct
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.spi     — AttachmentPort, AttachmentAuditHook (AttachmentMediaChangeHook removed, improvement-102)
 attachment.util    — YoutubeUtil
 
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
                  UserSnapshotDto, SettingsSnapshotDto, SignUpDto
 user.model     — Role
+user.security  — UserIdMarker
 user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
 
 advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
                      AdvertisementSaveDto, AdvertisementSnapshotDto
+advertisement.model — AdKind
 advertisement.spi  — AdvertisementPort
 
-taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto, CategoryChangeSnapshotDto
+taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto (CategoryChangeSnapshotDto deleted,
+                 see this file's own entry below on the advertisement-snapshot redesign)
 taxon.model    — TaxonType
 taxon.spi      — TaxonPort
 ```
@@ -139,7 +144,8 @@ what exists in code — `grep -rn "InjectionPoint"` across the whole reactor ret
 `ComponentFactory<T>` (`platform-commons/.../core/ComponentFactory.java`) is instead a plain
 class taking a constructor-injected `ObjectProvider<T>`, with **one explicit `@Bean` method per
 concrete type**, hand-written in each consuming config class (`marketplace-app/config/
-ComponentFactoryConfig.java` has 20+ such methods, one per optional port/component type). `build(P
+ComponentFactoryConfig.java` has 17 such methods, one per optional port/component type — was "20+"
+in an earlier count, corrected 2026-07-27). `build(P
 params)` lives on the marketplace-app subclass `UiComponentFactory<T>`, not on the base
 `ComponentFactory<T>` itself — the base class only exposes `get()`, `getIfAvailable()`,
 `findIfAvailable()`, `ifAvailable(Consumer<T>)`.
@@ -227,7 +233,11 @@ derived fields into the event payload and the domain to listen and translate.
 - **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityRef entity)` (corrected
   2026-07-13 — signature was `(EntityType, Long)` when this ADR was written, superseded by a later
   refactor introducing `EntityRef` to collapse `(EntityType, Long)` pairs across attachment SPIs;
-  the ADR was never updated for it).
+  the ADR was never updated for it). **Removed entirely, improvement-102, corrected 2026-07-27** —
+  the interface no longer exists anywhere in `attachment.spi`; it had zero implementations and was
+  deleted rather than kept as dead API surface (see `advertisement-spring-boot-starter/CLAUDE.md`
+  and `marketplace-app/DECISIONS.md` ADR-035). Any reference to this hook elsewhere in this file is
+  historical only.
 - **`AttachmentMediaSummaryDto`** (`attachment.dto`) — display-ready record from `getMediaSummary`.
 
 **Consequences:** Rejected: keeping events alongside the SPI — splits the contract surface.
@@ -270,15 +280,14 @@ Using `ObjectProvider` in a starter implies the hook is optional, which is archi
 **Consequences:**
 - `private final CurrentActorHook currentActorHook;` — correct inside a starter.
 - `private final ObjectProvider<AuditPort> auditPort;` — correct inside marketplace-app.
-- **Documented exception (found 2026-07-16, not previously noted):** `AttachmentService`
-  (attachment-spring-boot-starter) injects `AttachmentMediaChangeHook` as
-  `ObjectProvider<AttachmentMediaChangeHook>`, not a plain required field — its own javadoc calls
-  this intentional ("Optional — attachment-starter injects via `ObjectProvider`"). This is a real,
-  live exception to this ADR's rule, not a violation to silently fix — `AttachmentMediaChangeHook`
-  currently has zero implementations anywhere (the old `MediaChangeHookImpl` was deleted, see
-  ADR-035 in `marketplace-app/DECISIONS.md`), so a required field would fail to autowire. Whether
-  to keep this exception long-term or restore a listener is a decision for whoever revisits that
-  hook, not something to resolve via documentation alone.
+- **Documented exception, now moot (found 2026-07-16, resolved 2026-07-27):** this entry used to
+  describe `AttachmentService` (attachment-spring-boot-starter) injecting `AttachmentMediaChangeHook`
+  as `ObjectProvider<AttachmentMediaChangeHook>` as a real, live exception to this ADR's rule.
+  Confirmed by direct read of `AttachmentService`: that field no longer exists — the class's actual
+  fields are `storageService`, `attachmentRepository`, `attachmentSnapshotService`,
+  `currentActorHook` only. `AttachmentMediaChangeHook` itself was deleted entirely (improvement-102,
+  see ADR-010 above), not just left unimplemented, so there is no exception left to document — this
+  ADR's rule holds without carve-outs today.
 
 ---
 
@@ -356,8 +365,11 @@ services in marketplace-app must reach taxon functionality without importing sta
 - `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
 - ~~`TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change~~
 
-New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`.
-New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding a value is a release-level change).
+New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto` (`CategoryChangeSnapshotDto`,
+listed here originally, was deleted in the advertisement-snapshot redesign — see ADR-001's package
+listing above).
+New enum in `taxon.model`: `TaxonType` — was a closed set of just `CATEGORY` when this ADR was
+written; `CITY` was added since (F-02).
 
 **Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
 audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from

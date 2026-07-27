@@ -62,7 +62,9 @@ column. Domain Spring events replaced by SPI calls. S3 folder layout:
 `@ConditionalOnAttachmentEnabled` and the `attachment.enabled` property added unnecessary
 configuration overhead.
 
-**Decision:** `StorageService` moved to `org.ost.attachment.storage`. The `attachment.enabled`
+**Decision:** `StorageService` moved to `org.ost.attachment.services` (corrected 2026-07-27 — an
+earlier `org.ost.attachment.storage` package this ADR originally named does not exist; verified
+directly against the actual source tree). The `attachment.enabled`
 property and `@ConditionalOnAttachmentEnabled` annotation removed. Jar presence is the only
 toggle. UI components degrade via `ObjectProvider.ifAvailable()`.
 
@@ -128,7 +130,12 @@ Do not re-introduce `AttachmentGalleryPort`.
 `sandbox="allow-scripts allow-same-origin allow-presentation"` (corrected 2026-07-13 — written as
 including `allow-forms` originally; verified in `AttachmentLightbox.java:83` and
 `CardLightboxViewer.java:44` (line numbers re-verified 2026-07-16, drifted from the original
-citation after later refactors — substance unchanged, neither carries `allow-forms`).
+citation after later refactors — substance unchanged, neither carries `allow-forms`). **Corrected
+2026-07-27:** the attribute is no longer set inline at those call sites at all — both now delegate
+to `LightboxUtil.applyEmbedIframeAttributes(iframe, isYoutube)` /
+`LightboxUtil.embedSandbox(isYoutube)` (`org.ost.marketplace.ui.views.utils.LightboxUtil`), which
+centralizes the exact same flag string (YouTube gets `allow-same-origin` in addition, since its
+player needs Cache Storage to bootstrap; non-YouTube embeds omit it).
 
 **Consequences:** Minimum flags required for YouTube and generic embed playback.
 

@@ -82,15 +82,18 @@ Playwright convention: extract to a shared file only once two or more consumers 
 helper, keep spec/test-specific logic local otherwise.
 
 - `org.ost.integrationtests.support.RepositoryTestSupport` — a `@TestConfiguration` bean bag: adds
-  `@EnableAutoConfiguration` + `@EnableJdbcAuditing` (needed because `@SpringBootTest(classes =
-  {...@AutoConfiguration classes...})` does not itself trigger Spring Boot's autoconfiguration
-  cascade — `JdbcClient`, `DataSource`, etc. only appear once `@EnableAutoConfiguration` is present
-  among the loaded classes), the `MutableAuditorAware` bean, and empty `ComponentFactory<AuditPort>`
-  / `ComponentFactory<AttachmentPort>` beans (representing "audit/attachment starter absent from
-  the test classpath", the same shape `AdvertisementService` sees in production when those optional
-  starters aren't installed — not a stub). A test that needs a *different* optional port (e.g.
-  `TaxonPort`) declares its own extra `ComponentFactory` bean locally — this class only covers the
-  ports every repository test has hit so far.
+  `@ImportAutoConfiguration({...})` with an explicit class list (corrected 2026-07-27 — not
+  `@EnableAutoConfiguration`; see `DECISIONS.md` ADR-009 for why) + `@EnableJdbcAuditing` (needed
+  because `@SpringBootTest(classes = {...@AutoConfiguration classes...})` does not itself trigger
+  Spring Boot's autoconfiguration cascade — `JdbcClient`, `DataSource`, etc. only appear once the
+  relevant autoconfiguration classes are present among the loaded classes), the
+  `MutableAuditorAware` bean, and empty `ComponentFactory<AuditPort>` / `ComponentFactory
+  <AttachmentPort>` / `ComponentFactory<AdvertisementPort>` (`@ConditionalOnMissingBean`, corrected
+  2026-07-27 — added since this section was first written) beans (representing "audit/attachment/
+  advertisement starter absent from the test classpath", the same shape `AdvertisementService` sees
+  in production when those optional starters aren't installed — not a stub). A test that needs a
+  *different* optional port (e.g. `TaxonPort`) declares its own extra `ComponentFactory` bean
+  locally — this class only covers the ports every repository test has hit so far.
 - `org.ost.integrationtests.support.TestDataCleaner.cleanAll(jdbcClient)` — deletes every row from
   every table this module currently knows about, across every domain, in one FK-safe order. Every
   `@SpringBootTest` reuses its cached ApplicationContext (and database) across all test methods in

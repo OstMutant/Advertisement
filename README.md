@@ -3,9 +3,6 @@
 A personal backend project used as an architectural playground — for exploring trade-offs,
 experimenting with patterns, and developing engineering intuition.
 
-🚀 **Live Demo:** [advertisement-dtdg.onrender.com](https://advertisement-dtdg.onrender.com/)  
-*(Note: Hosted on Render's free tier. Initial load may take up to 50 seconds if the instance is sleeping).*
-
 ---
 
 ## About
@@ -46,6 +43,7 @@ declaratively and kept strongly typed.
 ```
 advertisement-parent
 ├── query-lib                         — framework-agnostic SQL query-building library
+├── integration-tests                 — Testcontainers repository tests + fixtures (test-only)
 ├── platform-commons                  — shared kernel: DTOs, domain events, SPI interfaces
 ├── audit-spring-boot-starter         — audit subsystem: write side + read side
 ├── attachment-spring-boot-starter    — photo/attachment module + S3 storage
@@ -60,6 +58,7 @@ Per-module documentation:
 | Module | README | Decisions |
 |---|---|---|
 | query-lib | [README](query-lib/README.md) | [DECISIONS](query-lib/DECISIONS.md) |
+| integration-tests | [README](integration-tests/README.md) | [DECISIONS](integration-tests/DECISIONS.md) |
 | platform-commons | — | [DECISIONS](platform-commons/DECISIONS.md) |
 | audit-spring-boot-starter | [README](audit-spring-boot-starter/README.md) | [DECISIONS](audit-spring-boot-starter/DECISIONS.md) |
 | attachment-spring-boot-starter | [README](attachment-spring-boot-starter/README.md) | [DECISIONS](attachment-spring-boot-starter/DECISIONS.md) |
@@ -85,36 +84,15 @@ Per-module documentation:
 
 ---
 
-## Deployment
+## Feature Highlights
 
-| Service | Role |
-|---|---|
-| [Render](https://render.com) | Application hosting |
-| [Neon](https://neon.tech) | Serverless PostgreSQL |
-| [Supabase Storage](https://supabase.com/storage) | S3-compatible file storage |
-| [UptimeRobot](https://uptimerobot.com) | Keeps the free-tier instance alive |
-
-### Deploying to Render
-Please note that **Render ignores `scripts/infra/docker-compose.app.yml`** and builds the application directly from the `Dockerfile`.
-
-To successfully deploy the app, you **must** manually add the following Environment Variables in your Render Web Service dashboard (under the "Environment" tab):
-
-1. `SPRING_PROFILES_ACTIVE` = `prod` *(Crucial: prevents the app from falling back to `dev` and trying to connect to `localhost`)*
-2. Database credentials (e.g., from Neon):
-    - `DB_HOST`
-    - `DB_NAME`
-    - `DB_USER`
-    - `DB_PASSWORD`
-    - `DB_SSL_PARAMS` = `?sslmode=require&channel_binding=require`
-3. Storage credentials (e.g., from Supabase Storage):
-    - `S3_ENDPOINT`
-    - `S3_BUCKET`
-    - `S3_ACCESS_KEY`
-    - `S3_SECRET_KEY`
-    - `S3_REGION`
-    - `S3_PUBLIC_URL`
-
-Render will automatically inject the `PORT` variable, which the application uses to bind the web server.
+- **Advertisements** — CRUD with ownership checks, dynamic filter/sort/pagination, HTML description sanitization (OWASP HTML Sanitizer), soft delete + restore, optimistic locking.
+- **Users** — registration with rate limiting, role-based access (Admin/Moderator/User), per-user settings, profile edit and restore.
+- **Taxonomy** — categories/tags with per-locale translations, soft-deletable, many-to-many assignment to any entity type.
+- **Attachments** — photo/video uploads to S3-compatible storage, YouTube embeds, media history for restore.
+- **Audit trail** — every domain write captured as a versioned snapshot; per-entity timeline and diff view, per-actor activity feed.
+- **i18n** — English/Ukrainian, enum-based translation keys (missing keys fail fast, never a silent fallback).
+- **Deep links & rich previews** — shareable advertisement links with Open Graph meta tags and JSON-LD for social/search previews.
 
 ---
 
@@ -175,8 +153,15 @@ All developer scripts live in `scripts/`. See [`scripts/README.md`](scripts/READ
 | Script | Purpose |
 |---|---|
 | `scripts/deploy.sh` / `scripts/deploy.bat` | Full deploy pipeline: pull images → start infra → build → run → wait for startup |
-| `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright tests (delegates to `playwright/run.sh`) |
-| `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube analysis (delegates to `scripts/sonar/run.sh`) |
+| `scripts/deploy-dev.sh` / `scripts/deploy-dev.bat` | Fast dev deploy — hot-swaps a freshly built JAR into the running container (~3-4 min vs ~7-10 min for a full rebuild) |
+| `scripts/run-local.bat` | Run the app via Maven with no Docker image rebuild (dev or prod Vaadin mode) |
+| `scripts/unit-tests.sh` / `scripts/unit-tests.bat` | Run plain JUnit unit tests — no Docker, no database |
+| `scripts/integration-tests.sh` / `scripts/integration-tests.bat` | Run Testcontainers-based repository tests against a real Postgres |
+| `scripts/playwright.sh` / `scripts/playwright.bat` | Run Playwright end-to-end tests (delegates to `playwright/run.sh`) |
+| `scripts/run-all-tests.sh` | Orchestrate unit → integration tests sequentially plus Playwright in parallel, one command |
+| `scripts/sonar.sh` / `scripts/sonar.bat` | Run SonarQube static analysis (delegates to `scripts/sonar/run.sh`) |
+| `scripts/ci.sh` / `scripts/ci.bat` | Isolated local CI pipeline — unit + integration + e2e + Sonar in one backgrounded pass |
+| `scripts/install-hooks.sh` | Install this repo's git hooks (pre-commit doc sync, commit-msg changelog) |
 | `scripts/clean.bat` | Remove Maven `target/` directories and Vaadin generated files |
 | `scripts/collect-code.bat` | Collect all source files into a single `all-code.txt` for AI analysis |
 | `scripts/claude.bat` | Start Claude Code container with project and auth mounts |
@@ -191,12 +176,55 @@ All scripts resolve the project root automatically — run them from any directo
 
 ---
 
+## AI-Assisted Development Workflow
+
+This project is built and maintained with [Claude Code](https://claude.com/claude-code) as an
+active part of the engineering process, not just autocomplete. A set of custom slash commands
+wraps the day-to-day loop — build, test, document, review — into single, repeatable steps:
+
+| Command | Purpose |
+|---|---|
+| `/build` | Rebuild the Docker image and start the app |
+| `/playwright` | Run the Playwright end-to-end suite |
+| `/sonar` | Run SonarQube static analysis |
+| `/run-all-tests` | Unit tests → integration tests sequentially, Playwright in parallel |
+| `/ci` | Full isolated CI pipeline — unit + integration + e2e + Sonar, backgrounded |
+| `/sync-docs` | Reconcile architecture docs (`DECISIONS.md`/`CLAUDE.md`) with the actual code |
+| `/decision` | Record a new architectural decision in the relevant module's `DECISIONS.md` |
+| `/feature` | Scaffold a new tracked backlog issue, ranked into the priority list |
+| `/autopilot` | Approve a scoped task once, then implement + test + document it end-to-end |
+
+Every module keeps its own `DECISIONS.md` (an ADR log — why, not just what) and `CLAUDE.md` (the
+working agreement for changes in that module). Those same documents drive the AI-assisted workflow
+and double as onboarding notes for a human contributor — one source of truth either way.
+
+### Running the AI dev container
+
+`scripts/claude.bat` starts Claude Code itself in an isolated Docker container (built from
+`Dockerfile.ai`), with the project directory and a per-account auth config mounted:
+
+```bat
+scripts\claude.bat your.email@gmail.com
+```
+
+Chat history and project context are shared across accounts (same mounted project directory);
+only the auth config folder is per-account, so switching accounts on rate limits keeps the
+conversation going.
+
+Once the container is up: running the deploy script (`scripts/deploy.sh`) to build and start the
+app, then the Playwright script (`scripts/playwright.sh`) against it, is already a complete,
+working test environment — real Postgres, real MinIO, a real production-mode build, and a full
+browser-driven end-to-end suite — with no extra setup beyond those two commands.
+
+---
+
 ## Database Scripts
 
 All database scripts live in `scripts/database/`:
 
 | File | Purpose |
 |---|---|
+| `scripts/database/reset.sh` / `scripts/database/reset.bat` | Truncates all application data without restarting the app or touching MinIO volumes (~1s) — runs `reset-clean.sql` |
 | `scripts/database/reset-clean.sql` | Truncates all tables (no seed data). Run automatically by `playwright/run.sh` before every test run. |
 
 ---

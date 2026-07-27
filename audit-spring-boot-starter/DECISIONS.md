@@ -196,7 +196,9 @@ marketplace-app. The split served no isolation purpose, just added indirection.
 
 **Decision:**
 1. `AuditActivityFieldsHook` absorbs `AuditFieldLabelHook` — added `default String labelFor(String rawFieldKey)`.
-2. `AuditDomainHook` absorbs `EntityNameHook` — added `String resolveDisplayName(EntityType, AuditableSnapshot)`.
+2. `AuditDomainHook` absorbs `EntityNameHook` — added `String resolveDisplayName(AuditableSnapshot)`
+   (corrected 2026-07-27 — single-parameter, no separate `EntityType` argument; verified directly
+   against `platform-commons`' `AuditDomainHook.java`).
 3. `AuditActivityEnrichHook` absorbs `AuditActivityRenderHook` — added `EntityType entityType()`,
    `getMediaStateForSnapshot`, `getMediaStateAtVersion`.
 

@@ -55,12 +55,13 @@ a constant unless shared across 3+ methods and genuinely non-trivial.
 ---
 
 ## ADR-004: Dependency versions
-**Status:** Accepted
+**Status:** Accepted (versions bumped since original acceptance, decision stands)
 
-**Context:** Spring Boot 4.0.6 is the latest stable patch; Vaadin 25.1.5 aligns with the
+**Context:** Spring Boot 4.1.0 is the latest stable patch; Vaadin 25.2.3 aligns with the
 Spring Boot 4.x BOM; AWS SDK bumped from 2.25.60 for security patches and API improvements.
 
-**Decision:** Spring Boot 4.0.6, Vaadin 25.1.5, AWS S3 SDK 2.44.4.
+**Decision:** Spring Boot 4.1.0, Vaadin 25.2.3, AWS S3 SDK 2.48.4 (originally accepted at
+4.0.6/25.1.5/2.44.4 — bumped since via routine dependency updates, no re-litigation needed).
 
 **Consequences:** Rejected: Jackson 3 migration (`tools.jackson:jackson-databind:3.1.2`) —
 Maven artifacts for the `tools.jackson` groupId are unverified. Revisit when official release
@@ -74,8 +75,9 @@ is confirmed.
 **Context:** Storage only exists to serve attachments — no use case for storage without attachments.
 
 **Decision:** `StorageService` interface and implementations live in `attachment-spring-boot-starter`
-(`org.ost.attachment.storage`). UI components use `ObjectProvider.ifAvailable()` to degrade
-gracefully when the attachment starter is absent.
+(`org.ost.attachment.services` — moved from the originally accepted `org.ost.attachment.storage`
+package at some point, decision itself unaffected). UI components use `ObjectProvider.ifAvailable()`
+to degrade gracefully when the attachment starter is absent.
 
 **Consequences:** Rejected: keeping `storage-s3-spring-boot-starter` as a separate module —
 two modules with a mandatory one-way dependency and no realistic decoupling scenario.
@@ -163,14 +165,15 @@ entry's snapshot (`getSnapshotContent`). `getPreviousSnapshotContent` was reserv
 display only, and has since been removed entirely (see `audit-spring-boot-starter/DECISIONS.md`
 ADR-008's amendment) — diff display now works directly from snapshot pairs.
 
-**Consequences (corrected 2026-07-13 — method names had drifted):** all restore flows call
-`AuditPort.getSnapshotContent(snapshotId, entityType)`. Current entry points:
+**Consequences (corrected 2026-07-27 — the 2026-07-13 correction itself had drifted):** all
+restore flows call `AuditPort.getSnapshotContent(snapshotId, entityType)`. Current entry points:
 `AdvertisementFormOverlayModeHandler.handleRestoreFromActivity`,
 `UserFormOverlayModeHandler`'s equivalent, `SettingsFormModeHandler.handleRestoreFromActivity`,
-and `TaxonFormOverlayModeHandler`'s own restore flow (added when taxon-spring-boot-starter
-landed, not present when this ADR was originally written). The originally-cited method names
-(`UserOverlay.handleRestoreUser`, `AdvertisementService.restoreToSnapshot`) do not exist — only
-`UserService.restoreToSnapshot` (user-spring-boot-starter) matches that exact name today.
+`TaxonFormOverlayModeHandler`'s own restore flow, and `CityFormOverlayModeHandler`'s (both added
+after F-02, not present when this ADR was originally written). **No dedicated
+`*.restoreToSnapshot()` method exists anywhere in the codebase anymore** — the 2026-07-13
+correction's claim that `UserService.restoreToSnapshot` matched is itself now stale; every handler
+just maps the snapshot directly into its own `*EditDto` and calls `loadRestored(dto)`.
 
 ---
 
@@ -206,30 +209,27 @@ Prerequisite for any component moved to commons: remove all marketplace-specific
 
 ---
 
-## ADR-013: AbstractViewOverlayModeHandler — template method for tabbed view overlays
-**Status:** Accepted
+## ADR-013: AbstractViewOverlayModeHandler — template method for view overlays; tab machinery has since moved to AbstractFormOverlayModeHandler
+**Status:** Superseded by current code, corrected 2026-07-27 (see ADR-057, which already removed
+this class's secondary/tertiary-tab machinery — this entry hadn't been updated to match)
 
 **Context:** `AdvertisementViewOverlayModeHandler` and `UserViewOverlayModeHandler` had identical
 tab-switching and lazy-loading boilerplate (~15 lines each).
 
-**Decision:** All "view mode" overlay handlers extend `AbstractViewOverlayModeHandler`. The base
-class provides `final activate(OverlayLayout)` that assembles the tab layout. Only two methods
-are truly `abstract` (corrected 2026-07-13 — not "five abstract methods" as originally written):
-`buildPrimaryContent()` and `buildHeaderActions()`. `tabsCssClass()` (default `""`),
-`buildSecondaryTab()`, and `buildTertiaryTab()` (both default `null`) have default bodies and are
-overridden only when needed.
+**Original decision (no longer current):** all "view mode" overlay handlers extended
+`AbstractViewOverlayModeHandler`, which provided the tab-switching machinery described below
+(`SecondaryTabDef`/`TertiaryTabDef` records, `buildSecondaryTab()`/`buildTertiaryTab()` hooks).
 
-`SecondaryTabDef` record `(Tab tab, String cssClass, Supplier<Component> loader)` represents the
-optional second tab. Returning `null` from `buildSecondaryTab()` produces a single-tab layout.
+**Current reality:** `AbstractViewOverlayModeHandler` now has exactly two abstract methods —
+`buildPrimaryContent()` and `buildHeaderActions()` — and no tab machinery at all (confirmed by
+reading the class directly; this shrinking is ADR-057's doing, "dead since the Timeline-tab
+extraction"). The tabbed-content pattern this ADR originally described now lives on
+`AbstractFormOverlayModeHandler.buildTabbedContent(Tabs, Tab, Div, Supplier<Component>)` instead —
+a different base class, used by *form* handlers (the Edit/Activity tab pair), not view handlers.
 
-**Addition (2026-07-13, previously undocumented):** a `TertiaryTabDef` record of the same shape
-plus a `buildTertiaryTab()` hook were added since this ADR was written, supporting a third tab —
-used by `TaxonFormOverlayModeHandler`/`ReferenceDataView`'s sub-tabs (taxon-spring-boot-starter
-landed after this ADR). Same override-for-null-default pattern as `SecondaryTabDef`.
-
-**Consequences:** Rejected: `TabbedOverlayContent` as a Spring `@Prototype` `Configurable` bean
-— passing live UI components as `Parameters` violates the convention that Parameters carry
-data/config, not pre-built component trees.
+**Consequences:** Rejected (still applies): `TabbedOverlayContent` as a Spring `@Prototype`
+`Configurable` bean — passing live UI components as `Parameters` violates the convention that
+Parameters carry data/config, not pre-built component trees.
 
 ---
 
@@ -379,11 +379,12 @@ Marketplace-app additions:
   them) — fixed in `AdvertisementEnrichService` (see below). `TaxonAuditHook` was removed entirely
   rather than implemented, along with the unused `TaxonPort.assign()`/`unassign()`/`findByCode()`
   methods (zero callers). See
-  [improvement-058](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
-  (not yet closed — pending Playwright verification).
+  [improvement-058](../backlog/completed/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
+  (closed 2026-07-17, moved to `backlog/completed/issues/`).
 
-`TaxonType` enum (in `platform-commons`) — closed set: currently `CATEGORY`. Adding a new type
-is a release-level change requiring UI, audit translations, and seed entries.
+`TaxonType` enum (in `platform-commons`) — was a closed set of just `CATEGORY` when this ADR was
+written; **`CITY` was added since (F-02, ADR-065)**, confirming the "release-level change" this
+paragraph warned about did happen, with UI/audit/seed-entry work exactly as anticipated.
 
 Advertisement filtering by category: `AdvertisementRepository` calls
 `TaxonPort.findEntityIdsWithAnyTaxon()` to translate taxon ids into entity ids — no direct
@@ -1683,9 +1684,8 @@ discarding `row.prevSnapshot()` even though `AuditLogProjection` already had it.
   with the repository method they covered (a deliberate soft-delete-filter regression test from
   improvement-045, item 4/5 — traded for keeping the method-removal clean per explicit direction,
   not an oversight).
-- → [improvement-058-taxon-assignment-audit-trail-missing](../backlog/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
-  (not yet closed — pending Playwright verification that the Timeline tab now shows resolved
-  category names).
+- → [improvement-058-taxon-assignment-audit-trail-missing](../backlog/completed/issues/improvement-058-taxon-assignment-audit-trail-missing.md)
+  (closed 2026-07-17, moved to `backlog/completed/issues/`).
 
 ---
 
