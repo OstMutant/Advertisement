@@ -3,6 +3,7 @@ package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.marketplace.ui.query.filter.ValidationService;
 import org.ost.marketplace.ui.query.filter.FilterFieldMeta;
 import org.ost.marketplace.ui.query.filter.ValidationPredicates;
@@ -51,4 +52,12 @@ public class AdvertisementFilterMeta {
             FilterFieldMeta.of(categoryIds, AdvertisementFilterDto::getCategoryIds,
                     (dto, v) -> dto.setCategoryIds(v == null || v.isEmpty() ? null
                             : v.stream().map(TaxonDto::getId).collect(Collectors.toSet())));
+
+    public static final FilterFieldMeta<TaxonDto, AdvertisementFilterDto, Long> CITY_TAXON_ID =
+            FilterFieldMeta.of(cityTaxonId, AdvertisementFilterDto::getCityTaxonId,
+                    (dto, v) -> dto.setCityTaxonId(v == null ? null : v.getId()));
+
+    public static final FilterFieldMeta<Set<AdKind>, AdvertisementFilterDto, Set<AdKind>> AD_KINDS =
+            FilterFieldMeta.of(adKinds, AdvertisementFilterDto::getAdKinds,
+                    (dto, v) -> dto.setAdKinds(v == null || v.isEmpty() ? null : v));
 }

@@ -11,7 +11,7 @@ class AttachmentUploadButton extends Upload {
     AttachmentUploadButton(UploadHandler handler) {
         super(handler);
         addClassName("attachment-gallery__upload");
-        setAcceptedFileTypes("image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm");
+        setAcceptedMimeTypes("image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm");
         setMaxFiles(MAX_FILES);
         setMaxFileSize((int) MAX_FILE_SIZE);
         getElement().setAttribute("nodrop", "");

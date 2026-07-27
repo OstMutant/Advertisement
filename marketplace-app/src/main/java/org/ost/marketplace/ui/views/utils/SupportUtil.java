@@ -3,8 +3,6 @@ package org.ost.marketplace.ui.views.utils;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.Objects;
-
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class SupportUtil {
 
@@ -21,10 +19,6 @@ public class SupportUtil {
         } catch (NumberFormatException _) {
             return null;
         }
-    }
-
-    public static <T> boolean hasChanged(T current, T previous) {
-        return !Objects.equals(current, previous);
     }
 
     /**

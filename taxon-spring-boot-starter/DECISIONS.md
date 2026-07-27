@@ -61,6 +61,16 @@ translation coverage.
 **Consequences:** `TaxonType` must never be added to as a "quick hack". Each addition must be
 tracked via an ADR entry here.
 
+**Update (2026-07-25, improvement-119 / F-02):** Added `CITY` — second value in the enum. Point
+(3) above ("Liquibase seed entry") turned out not to be this project's actual convention once
+checked against the code: zero such seed changesets exist anywhere, including for `CATEGORY` —
+every taxon entry, of either type, is created exclusively through the running admin UI
+(`TaxonPort.create()`/now also `CityManagementView`'s equivalent). Point (1) was satisfied via a
+**new, separate** `City*` class set (`CityManagementView`/`CityOverlay`/
+`CityFormOverlayModeHandler`/`CityViewOverlayModeHandler`), not a `TaxonType`-parameterized
+`TaxonManagementView` — `TaxonOverlay` is a `@UIScope` singleton, so two simultaneous tabs need two
+distinct bean instances. Full implementation details: `marketplace-app/DECISIONS.md` ADR-065.
+
 ---
 
 ## ADR-004: TaxonAuditHook fires per assignment change, not per batch

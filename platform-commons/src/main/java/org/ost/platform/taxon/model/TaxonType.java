@@ -5,5 +5,6 @@ package org.ost.platform.taxon.model;
  * it requires UI integration, audit translations, and seed entries.
  */
 public enum TaxonType {
-    CATEGORY
+    CATEGORY,
+    CITY
 }

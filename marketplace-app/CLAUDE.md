@@ -124,7 +124,7 @@ Translation keys — single consolidated enum:
 → SPI interface naming (`*Port`, `*Hook`): @platform-commons/CLAUDE.md
 
 ### Package structure
-- `config/` — app-level Spring configuration (`config/db/`, `config/ui/` for sub-domains)
+- `config/` — app-level Spring configuration (`config/db/`, `config/ui/`, `config/seo/` for sub-domains)
 - `services/advertisement/` — advertisement UI-side orchestration (`AdvertisementSaveService` — transactional save + audit capture, `AdvertisementEnrichService` — category-name resolution for audit diffs)
 - `services/auth/` — authentication (`AuthService` — login/logout + rate limiting, `AuthContextService` — current-user context)
 - `services/i18n/` — `I18nKey` enum, `I18nService`, `I18nServiceImpl`, `LocaleProvider`, `InstantFormatter`

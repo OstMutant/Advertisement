@@ -3,6 +3,7 @@ package org.ost.platform.advertisement.dto;
 import lombok.Builder;
 import lombok.Value;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.advertisement.model.AdKind;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,6 +17,7 @@ public class AdvertisementInfoDto {
     Long id;
     String title;
     String description;
+    AdKind adKind;
     Instant createdAt;
     Instant updatedAt;
     Long createdBy;
@@ -26,6 +28,8 @@ public class AdvertisementInfoDto {
     Integer mediaCount;
     Set<Long> categoryIds;
     List<String> categoryNames;
+    Long cityTaxonId;
+    String cityName;
     Long version;
 
     public Long getOwnerUserId() {

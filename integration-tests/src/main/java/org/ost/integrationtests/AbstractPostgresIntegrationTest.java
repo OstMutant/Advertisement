@@ -2,7 +2,7 @@ package org.ost.integrationtests;
 
 import org.junit.jupiter.api.Tag;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import java.util.List;
 
@@ -35,14 +35,14 @@ public abstract class AbstractPostgresIntegrationTest {
     private static final String FIXED_PORT_ENV = "INTEGRATION_TESTS_POSTGRES_FIXED_PORT";
 
     @ServiceConnection
-    protected static final PostgreSQLContainer<?> POSTGRES = createContainer();
+    protected static final PostgreSQLContainer POSTGRES = createContainer();
 
     static {
         POSTGRES.start();
     }
 
-    private static PostgreSQLContainer<?> createContainer() {
-        PostgreSQLContainer<?> container = new PostgreSQLContainer<>(SharedEnvConfig.require("POSTGRES_IMAGE"));
+    private static PostgreSQLContainer createContainer() {
+        PostgreSQLContainer container = new PostgreSQLContainer(SharedEnvConfig.require("POSTGRES_IMAGE"));
         String fixedPort = System.getenv(FIXED_PORT_ENV);
         if (fixedPort != null && !fixedPort.isBlank()) {
             container.setPortBindings(List.of(fixedPort + ":5432"));

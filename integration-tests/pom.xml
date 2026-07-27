@@ -72,6 +72,13 @@
             <artifactId>spring-boot-starter-test</artifactId>
         </dependency>
 
+        <!-- AbstractPostgresIntegrationTest (src/main/java) uses @Tag, so junit-jupiter-api must
+             be visible at compile scope here, not just test scope via spring-boot-starter-test. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>

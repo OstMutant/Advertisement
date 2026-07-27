@@ -29,27 +29,27 @@ public record OffsetPageable(long offset, int limit, @NonNull Sort sort) impleme
     }
 
     @Override
-    public Sort getSort() {
+    public @org.jspecify.annotations.NonNull Sort getSort() {
         return sort;
     }
 
     @Override
-    public Pageable next() {
+    public @org.jspecify.annotations.NonNull Pageable next() {
         return new OffsetPageable(offset + limit, limit, sort);
     }
 
     @Override
-    public Pageable previousOrFirst() {
+    public @org.jspecify.annotations.NonNull Pageable previousOrFirst() {
         return hasPrevious() ? new OffsetPageable(Math.max(0, offset - limit), limit, sort) : first();
     }
 
     @Override
-    public Pageable first() {
+    public @org.jspecify.annotations.NonNull Pageable first() {
         return new OffsetPageable(0, limit, sort);
     }
 
     @Override
-    public Pageable withPage(int pageNumber) {
+    public @org.jspecify.annotations.NonNull Pageable withPage(int pageNumber) {
         return new OffsetPageable((long) pageNumber * limit, limit, sort);
     }
 

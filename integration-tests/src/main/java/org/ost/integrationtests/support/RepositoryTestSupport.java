@@ -2,11 +2,13 @@ package org.ost.integrationtests.support;
 
 import java.util.Optional;
 import lombok.NonNull;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.data.jdbc.autoconfigure.DataJdbcRepositoriesAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration;
 import org.springframework.boot.jdbc.autoconfigure.DataSourceTransactionManagerAutoConfiguration;
@@ -25,9 +27,9 @@ import org.springframework.data.jdbc.repository.config.EnableJdbcAuditing;
  * boilerplate. Add to a test's {@code @SpringBootTest(classes = {...})} instead of redeclaring
  * {@link MutableAuditorAware} or the empty {@link ComponentFactory} beans per test class.
  *
- * <p>The empty {@code ComponentFactory<AuditPort>}/{@code ComponentFactory<AttachmentPort>} beans
- * represent audit-spring-boot-starter/attachment-spring-boot-starter being absent from the test
- * classpath — the same "optional starter" shape services see in production via
+ * <p>The empty {@code ComponentFactory<AuditPort>}/{@code ComponentFactory<AttachmentPort>}/
+ * {@code ComponentFactory<AdvertisementPort>} beans represent those starters being absent from the
+ * test classpath — the same "optional starter" shape services see in production via
  * {@code ObjectProvider}, not a stub. Domain starters whose services depend on additional optional
  * ports (e.g. {@code TaxonPort}) must add their own empty {@code ComponentFactory} bean in the
  * consuming test, not here — this class only covers the ports every repository test has hit so
@@ -88,6 +90,13 @@ public class RepositoryTestSupport {
         return new ComponentFactory<>(provider);
     }
 
+    // @ConditionalOnMissingBean: AdvertisementRepositoryTest's own AdvertisementAutoConfiguration already provides this bean.
+    @Bean
+    @ConditionalOnMissingBean
+    public ComponentFactory<AdvertisementPort> advertisementPortFactory(ObjectProvider<AdvertisementPort> provider) {
+        return new ComponentFactory<>(provider);
+    }
+
     /** {@code @CreatedBy} needs the real id of a row that already exists (the FK target), so the
      *  auditor can't be a fixed constant — it's set per test after creating the fixture actor. */
     public static class MutableAuditorAware implements AuditorAware<Long> {
@@ -98,7 +107,7 @@ public class RepositoryTestSupport {
         }
 
         @Override
-        public Optional<Long> getCurrentAuditor() {
+        public @org.jspecify.annotations.NonNull Optional<Long> getCurrentAuditor() {
             return Optional.ofNullable(currentUserId);
         }
     }

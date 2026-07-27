@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.function.Consumer;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -41,7 +40,6 @@ class UserDeleteServiceTest {
         service = new UserDeleteService(advertisementPortFactory, advertisementSaveService, userPort);
     }
 
-    @SuppressWarnings("unchecked")
     private void stubAdvertisementPortAvailable() {
         lenient().doAnswer(inv -> {
             Consumer<AdvertisementPort> consumer = inv.getArgument(0);

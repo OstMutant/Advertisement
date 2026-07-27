@@ -15,10 +15,6 @@ public class RoleChecker {
         return hasRole(user, Role.MODERATOR);
     }
 
-    public boolean isUser(UserDto user) {
-        return hasRole(user, Role.USER);
-    }
-
     private boolean hasRole(UserDto user, Role role) {
         return user != null && user.role() == role;
     }

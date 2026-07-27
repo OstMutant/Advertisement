@@ -213,7 +213,7 @@ public class TaxonFormOverlayModeHandler extends AbstractFormOverlayModeHandler<
 
     private void handleRestoreFromActivity(long snapshotId) {
         auditPortFactory.ifAvailable(port ->
-                port.<TaxonSnapshotDto>getSnapshotContent(snapshotId, EntityType.TAXON)
+                port.getSnapshotContent(snapshotId, EntityType.TAXON, TaxonSnapshotDto.class)
                         .ifPresent(content -> {
                             TaxonSnapshotDto snapshot = content.snapshotData();
                             TaxonEditDto dto = new TaxonEditDto();

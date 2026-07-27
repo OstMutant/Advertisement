@@ -14,6 +14,8 @@ import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserFormOverla
 import org.ost.marketplace.ui.views.main.tabs.users.overlay.modes.UserViewOverlayModeHandler;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
+import java.util.function.Consumer;
+
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
 @SpringComponent
@@ -27,12 +29,13 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
     private record OverlaySession(
             Mode mode,
             @NonNull UserDto user,
-            @NonNull Runnable onSaved,
+            @NonNull Consumer<UserDto> onUpdated,
+            @NonNull Runnable onClosed,
             boolean enteredFromView
     ) {
-        OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, user, onSaved, true); }
-        OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onSaved, false); }
-        OverlaySession withUser(UserDto fresh) { return new OverlaySession(mode, fresh, onSaved, enteredFromView); }
+        OverlaySession toEdit() { return new OverlaySession(Mode.EDIT, user, onUpdated, onClosed, true); }
+        OverlaySession toView() { return new OverlaySession(Mode.VIEW, user, onUpdated, onClosed, false); }
+        OverlaySession withUser(UserDto fresh) { return new OverlaySession(mode, fresh, onUpdated, onClosed, enteredFromView); }
     }
 
     @Getter private final EntityOverlaySupport support;
@@ -55,9 +58,11 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
 
     @Override
     protected void proceed() {
-        session.onSaved().run();
         UserDto fresh = currentFormHandler.getSavedUser();
-        if (fresh != null) session = session.withUser(fresh);
+        if (fresh != null) {
+            session = session.withUser(fresh);
+            session.onUpdated().accept(fresh);
+        }
     }
 
     @Override
@@ -70,14 +75,14 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
         }
     }
 
-    public void openForView(UserDto user, Runnable onChanged) {
+    public void openForView(UserDto user, Consumer<UserDto> onUpdated, Runnable onClosed) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.VIEW, user, onChanged, false));
+        openSession(new OverlaySession(Mode.VIEW, user, onUpdated, onClosed, false));
     }
 
-    public void openForEdit(UserDto user, Runnable onSaved) {
+    public void openForEdit(UserDto user, Consumer<UserDto> onUpdated, Runnable onClosed) {
         ensureInitialized();
-        openSession(new OverlaySession(Mode.EDIT, user, onSaved, false));
+        openSession(new OverlaySession(Mode.EDIT, user, onUpdated, onClosed, false));
     }
 
     private void openSession(OverlaySession s) {
@@ -115,5 +120,11 @@ public class UserOverlay extends AbstractEntityOverlay<UserFormOverlayModeHandle
     private void switchToEdit() {
         session = session.toEdit();
         switchTo();
+    }
+
+    @Override
+    protected void closeToList() {
+        session.onClosed().run();
+        super.closeToList();
     }
 }

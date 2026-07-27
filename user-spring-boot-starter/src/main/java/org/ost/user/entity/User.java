@@ -12,7 +12,6 @@ import org.springframework.data.annotation.Version;
 import org.springframework.data.relational.core.mapping.Table;
 
 import java.time.Instant;
-import java.util.Locale;
 
 @Value
 @Builder
@@ -38,8 +37,4 @@ public class User {
 
     @Version
     Long version;
-
-    public Locale getLocaleAsObject() {
-        return locale != null ? Locale.forLanguageTag(locale) : Locale.getDefault();
-    }
 }

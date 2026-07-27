@@ -18,8 +18,6 @@ public interface AttachmentPort {
 
     void softDeleteAll(@NonNull EntityRef entity, @NonNull Long actorId);
 
-    AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity);
-
     Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
 
     // ── gallery queries ───────────────────────────────────────────────────────

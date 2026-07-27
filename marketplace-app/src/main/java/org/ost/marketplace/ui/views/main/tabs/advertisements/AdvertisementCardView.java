@@ -12,11 +12,14 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import jakarta.annotation.PostConstruct;
 import lombok.*;
-import org.jsoup.Jsoup;
+import org.ost.marketplace.ui.views.utils.HtmlExcerptUtil;
+import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.marketplace.services.advertisement.AdvertisementSaveService;
 import org.ost.marketplace.services.security.AccessEvaluator;
+import org.ost.marketplace.services.i18n.I18nKey;
 import org.ost.marketplace.services.i18n.I18nService;
+import org.ost.marketplace.ui.views.services.AppLinkService;
 import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.platform.core.ComponentFactory;
@@ -27,6 +30,7 @@ import org.ost.marketplace.ui.views.main.tabs.advertisements.card.AdvertisementC
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.AdvertisementOverlay;
 import org.ost.marketplace.ui.views.components.buttons.action.DeleteActionButton;
 import org.ost.marketplace.ui.views.components.buttons.action.EditActionButton;
+import org.ost.marketplace.ui.views.components.buttons.action.ShareActionButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 
 import org.ost.platform.attachment.model.AttachmentMediaContentType;
@@ -35,6 +39,8 @@ import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryServi
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.springframework.context.annotation.Scope;
+
+import java.util.function.Consumer;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -49,8 +55,10 @@ public class AdvertisementCardView extends HorizontalLayout
 
     @Value @lombok.Builder
     public static class Parameters {
-        @NonNull AdvertisementInfoDto ad;
-        @NonNull Runnable             onChanged;
+        @NonNull AdvertisementInfoDto             ad;
+        @NonNull Consumer<AdvertisementInfoDto>   onUpdated;
+        @NonNull Runnable                         onListChanged;
+        @NonNull Runnable                         onClosed;
     }
 
     @Getter
@@ -58,10 +66,11 @@ public class AdvertisementCardView extends HorizontalLayout
     private final transient NotificationService                       notificationService;
     private final transient AdvertisementSaveService                    advertisementSaveService;
     private final transient ComponentFactory<AttachmentPort>             attachmentPortFactory;
-    private final transient UiComponentFactory<AttachmentGalleryService> galleryServiceFactory;
+    private final transient ComponentFactory<AttachmentGalleryService> galleryServiceFactory;
     private final transient UiComponentFactory<AdvertisementCardMetaPanel> metaPanelFactory;
     private final transient AccessEvaluator                            access;
     private final transient AdvertisementOverlay                       overlay;
+    private final transient AppLinkService                             appLinkService;
 
     @Override
     @PostConstruct
@@ -72,17 +81,21 @@ public class AdvertisementCardView extends HorizontalLayout
 
     @Override
     public AdvertisementCardView configure(Parameters p) {
-        AdvertisementInfoDto ad        = p.getAd();
-        Runnable             onChanged = p.getOnChanged();
+        AdvertisementInfoDto           ad            = p.getAd();
+        Consumer<AdvertisementInfoDto> onUpdated     = p.getOnUpdated();
+        Runnable                       onListChanged = p.getOnListChanged();
+        Runnable                       onClosed      = p.getOnClosed();
 
-        getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onChanged));
+        getElement().addEventListener(CLICK_EVENT, _ -> overlay.openForView(ad, onUpdated, onClosed));
+        getElement().setAttribute("data-ad-id", String.valueOf(ad.getId()));
         getElement().setAttribute("tabindex", "0");
-        getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onChanged))
+        getElement().addEventListener("keydown", _ -> overlay.openForView(ad, onUpdated, onClosed))
                 .setFilter("event.key === 'Enter' || event.key === ' '");
+        addClassName("advertisement-card--" + ad.getAdKind().name().toLowerCase());
 
         Div thumbnail = createThumbnail(ad);
         if (thumbnail != null) add(thumbnail);
-        add(createContent(ad, onChanged));
+        add(createContent(ad, onUpdated, onListChanged, onClosed));
 
         return this;
     }
@@ -123,12 +136,13 @@ public class AdvertisementCardView extends HorizontalLayout
         return wrapper;
     }
 
-    private VerticalLayout createContent(AdvertisementInfoDto ad, Runnable onChanged) {
+    private VerticalLayout createContent(AdvertisementInfoDto ad, Consumer<AdvertisementInfoDto> onUpdated,
+                                          Runnable onListChanged, Runnable onClosed) {
         Span spacer = new Span();
 
         HorizontalLayout bottom = new HorizontalLayout(
                 createMetaPanel(ad),
-                createActions(ad, onChanged)
+                createActions(ad, onUpdated, onListChanged, onClosed)
         );
         bottom.setWidthFull();
         bottom.setAlignItems(Alignment.END);
@@ -142,16 +156,34 @@ public class AdvertisementCardView extends HorizontalLayout
 
         Span categoriesLine = createCategoriesLine(ad);
         if (categoriesLine != null) content.add(categoriesLine);
+        Span cityLine = createCityLine(ad);
+        if (cityLine != null) content.add(cityLine);
+        content.add(createAdKindBadge(ad));
         content.add(bottom);
         return content;
     }
 
     private Span createCategoriesLine(AdvertisementInfoDto ad) {
         if (ad.getCategoryNames() == null || ad.getCategoryNames().isEmpty()) return null;
-        String names = String.join(", ", ad.getCategoryNames());
-        Span line = new Span(getValue(ADVERTISEMENT_CARD_CATEGORIES) + " " + names);
-        line.addClassName("advertisement-categories");
+        return createInfoLine(ADVERTISEMENT_CARD_CATEGORIES, String.join(", ", ad.getCategoryNames()), "advertisement-categories");
+    }
+
+    private Span createCityLine(AdvertisementInfoDto ad) {
+        if (ad.getCityName() == null) return null;
+        return createInfoLine(ADVERTISEMENT_CARD_CITY, ad.getCityName(), "advertisement-city");
+    }
+
+    private Span createInfoLine(I18nKey label, String text, String cssClass) {
+        Span line = new Span(getValue(label) + " " + text);
+        line.addClassName(cssClass);
         return line;
+    }
+
+    private Span createAdKindBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forAdKind(ad.getAdKind())));
+        badge.addClassName("advertisement-ad-kind-badge");
+        badge.addClassName("advertisement-ad-kind-badge--" + ad.getAdKind().name().toLowerCase());
+        return badge;
     }
 
     private H3 createTitle(AdvertisementInfoDto ad) {
@@ -161,9 +193,7 @@ public class AdvertisementCardView extends HorizontalLayout
     }
 
     private Div createDescription(AdvertisementInfoDto ad) {
-        String html = ad.getDescription();
-        if (html == null || html.isBlank()) return new Div();
-        String text = Jsoup.parse(html).text();
+        String text = HtmlExcerptUtil.plainText(ad.getDescription());
         if (text.isBlank()) return new Div();
 
         Div description = new Div();
@@ -189,32 +219,42 @@ public class AdvertisementCardView extends HorizontalLayout
                 .build());
     }
 
-    private HorizontalLayout createActions(AdvertisementInfoDto ad, Runnable onChanged) {
+    private HorizontalLayout createActions(AdvertisementInfoDto ad, Consumer<AdvertisementInfoDto> onUpdated,
+                                            Runnable onListChanged, Runnable onClosed) {
         boolean canOperate = access.canOperate(ad.getOwnerUserId());
 
-        Button edit   = createEditButton(ad, onChanged, canOperate);
-        Button delete = createDeleteButton(ad, onChanged, canOperate);
+        Button edit   = createEditButton(ad, onUpdated, onClosed, canOperate);
+        Button delete = createDeleteButton(ad, onListChanged, canOperate);
+        Button share  = createShareButton(ad);
 
-        HorizontalLayout actions = new HorizontalLayout(edit, delete);
+        HorizontalLayout actions = new HorizontalLayout(edit, delete, share);
         actions.addClassName("advertisement-actions");
         return actions;
     }
 
-    private Button createEditButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
+    private Button createShareButton(AdvertisementInfoDto ad) {
+        return new ShareActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_SHARE),
+                () -> ShareUtil.share(this, appLinkService.advertisementUrl(ad.getId()), ad.getTitle(),
+                        () -> notificationService.success(ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED)),
+                "advertisement-share", true);
+    }
+
+    private Button createEditButton(AdvertisementInfoDto ad, Consumer<AdvertisementInfoDto> onUpdated,
+                                     Runnable onClosed, boolean visible) {
         Button edit = new EditActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT),
-                () -> overlay.openForEdit(ad, onChanged), "advertisement-edit", true);
+                () -> overlay.openForEdit(ad, onUpdated, onClosed), "advertisement-edit", true);
         edit.setVisible(visible);
         return edit;
     }
 
-    private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onChanged, boolean visible) {
+    private Button createDeleteButton(AdvertisementInfoDto ad, Runnable onListChanged, boolean visible) {
         Button delete = new DeleteActionButton(getValue(ADVERTISEMENT_CARD_BUTTON_DELETE),
-                () -> confirmAndDelete(ad, onChanged), "advertisement-delete", true);
+                () -> confirmAndDelete(ad, onListChanged), "advertisement-delete", true);
         delete.setVisible(visible);
         return delete;
     }
 
-    private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onChanged) {
+    private void confirmAndDelete(AdvertisementInfoDto ad, Runnable onListChanged) {
         new ConfirmActionDialog(
                 getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TITLE),
                 getValue(ADVERTISEMENT_VIEW_CONFIRM_DELETE_TEXT, ad.getTitle(), ad.getId()),
@@ -224,7 +264,7 @@ public class AdvertisementCardView extends HorizontalLayout
                     try {
                         advertisementSaveService.delete(ad.getId(), access.getCurrentUserId(), ad.getVersion());
                         notificationService.success(ADVERTISEMENT_VIEW_NOTIFICATION_DELETED);
-                        onChanged.run();
+                        onListChanged.run();
                     } catch (Exception _) {
                         notificationService.error(ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR);
                     }

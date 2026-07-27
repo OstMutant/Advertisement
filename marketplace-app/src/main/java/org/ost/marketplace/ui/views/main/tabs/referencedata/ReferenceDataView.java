@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.ost.marketplace.services.i18n.I18nKey.REFERENCE_DATA_TAB_CATEGORIES;
+import static org.ost.marketplace.services.i18n.I18nKey.REFERENCE_DATA_TAB_CITIES;
 
 @SpringComponent
 @UIScope
@@ -23,6 +24,7 @@ public class ReferenceDataView extends VerticalLayout {
 
     private final I18nService i18n;
     private final TaxonManagementView taxonManagementView;
+    private final CityManagementView cityManagementView;
 
     @PostConstruct
     protected void init() {
@@ -32,13 +34,17 @@ public class ReferenceDataView extends VerticalLayout {
         setSpacing(false);
 
         Tab categoriesTab = new Tab(i18n.get(REFERENCE_DATA_TAB_CATEGORIES));
-        Tabs subTabs = new Tabs(categoriesTab);
+        Tab citiesTab = new Tab(i18n.get(REFERENCE_DATA_TAB_CITIES));
+        Tabs subTabs = new Tabs(categoriesTab, citiesTab);
         subTabs.addClassName("reference-data-sub-tabs");
 
         Map<Tab, Component> tabsToPages = new HashMap<>();
         tabsToPages.put(categoriesTab, taxonManagementView);
+        tabsToPages.put(citiesTab, cityManagementView);
 
-        Div pages = new Div(taxonManagementView);
+        cityManagementView.setVisible(false);
+
+        Div pages = new Div(taxonManagementView, cityManagementView);
         pages.setSizeFull();
         pages.addClassName("reference-data-pages");
 

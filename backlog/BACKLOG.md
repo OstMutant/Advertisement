@@ -31,36 +31,70 @@ improvement-019 (→ Batch H, an audit-starter touch) and the improvement-008/01
 
 ### At a glance
 
-| Batch | Tier | Issues (in execution order) | One pass = |
+improvement-072 (promoted to sole top priority 2026-07-23) completed 2026-07-24 — see
+`completed/BACKLOG-ARCHIVE.md`. improvement-117 (F-01, product roadmap Phase 1) completed
+2026-07-24 — all technical work done; its one non-automatable manual-verification item carved
+out into improvement-118. improvement-120 completed 2026-07-25 — see `completed/BACKLOG-ARCHIVE.md`.
+improvement-119 (F-02, product roadmap Phase 1 item #2) completed 2026-07-25 — see
+`completed/BACKLOG-ARCHIVE.md`. improvement-121 filed 2026-07-26 (repo-wide SOLID/DRY review
+findings from the 11-agent audit run after improvement-119 shipped), then deprioritized the same
+day to lowest ⚪ after an autopilot execution attempt across all 8 batches was aborted before
+landing anything (cleanly rolled back, no code changes from it are in the tree).
+improvement-122 (F-03, product roadmap Phase 1 item #3, "Shareability foundation" gate) completed
+2026-07-27 — see `completed/BACKLOG-ARCHIVE.md`. **improvement-002 + improvement-124 filed/decided
+2026-07-27** — F-04, product roadmap Phase 2 item #1, broadened during planning from a master-only
+profile (improvement-123, superseded) into one combined issue: one `actor_profile` table merging
+provider-facing fields (master/shop/support, `kind` column mirroring F-03's `AdKind`) with the
+locale/settings preferences decoupled out of `user_information` (an earlier plan with these as two
+separate tables was merged into one the same day), plus the unified "My Account" overlay this
+triggered. One continuous piece of work, not three separate issues (an earlier split into
+124/125/126 was merged back into 124 the same day). Paired with improvement-002 (snapshot schema
+versioning) landing first, since this is the first new snapshot-bearing domain since improvement-002
+was filed. improvement-118 remains at the bottom (blocked, not actionable — needs a public URL
+this sandbox doesn't have).
+
+| Priority | Tier | Issues (in execution order) | One pass = |
 |---|---|---|---|
-| **K** | ⚪ | 073 → 035 | Playwright seeding infrastructure — sequenced pair, 035 unblocks on 073 |
-| — | 🟡/🔵/⚪ | 096, 036, 039, 065, 072, 114, 063, 028 | standalone — no one-pass partner (096 = its own responsive program) |
+| **Top** | 🟡 | 002 → 124 | improvement-002 (snapshot schema versioning) lands first, then F-04/improvement-124 — one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) merging provider-facing fields (`ProviderKind` MASTER/SHOP/SUPPORT) with locale/settings decoupled out of `user_information`, plus the unified "My Account" overlay (name + settings + provider profile in one place, narrower moderator edit permissions) |
+| Nice to have | — | 073 → 035, 096, 036, 039, 065, 114, 063, 028 | everything else — no internal priority order, pick up opportunistically |
 | (Deferred) | 🟠 | 111 | authorization at service boundary — trigger: before the first non-UI mutation endpoint (see Deferred table) |
+| (Blocked) | 🔵 | 118 | F-01 real-world Open Graph preview verification — manual check in an actual Facebook post/Telegram chat, needs a public URL this sandbox doesn't have; pick up whenever that becomes available |
+| Lowest | ⚪ | 121 | repo-wide SOLID/DRY review findings (11-agent audit) — ~20 items across every module; deprioritized after an aborted autopilot attempt, revisit opportunistically only |
 
 Details, links, and per-batch rationale below.
 
-### Batch K ⚪ — Playwright seeding infrastructure (sequenced pair)
+### Top priority — improvement-002 → improvement-124
 
 | Issue | Origin | What |
 |---|---|---|
-| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) | New | Test-only, dev-gated REST endpoints for Playwright seeding |
-| [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | Migrated | Service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
+| [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) | Wave 3, promoted 2026-07-27 | Snapshot schema versioning (`@SchemaVersion` + mismatch logging, no auto-migration) — applied to all 4 existing snapshot classes, the settings JSONB blob, the attachment `changes_summary` array, plus the new `ActorProfileSnapshotDto`; must land before F-04's new snapshot type ships |
+| [improvement-124](issues/improvement-124-provider-profile.md) | New (product roadmap Phase 2, item #1; supersedes [improvement-123](issues/improvement-123-f04-master-profile.md)) | F-04, one combined issue: one `actor_profile` table (new `actor-profile-spring-boot-starter` module, new `EntityType.ACTOR_PROFILE`) with `kind` nullable (`MASTER`/`SHOP`/`SUPPORT`, mirrors F-03's `AdKind` — `NULL` means "not a provider"), SUPPORT kind role-gated + visibility toggle, plus `locale`/`settings` decoupled out of `user_information` onto the same row; new Providers tab/overlay/card, header entry point, OG meta + sitemap for `/providers/:id`; unified "My Account" overlay — Name/Settings/Provider Profile tabs in one place, reused for both self-service and admin/moderator viewing another user, narrower moderator (view-only) permissions. Has a detailed execution plan already written into the issue |
 
-One pass because: 035 is blocked solely on 073 — doing them back-to-back removes the blocker
-churn (endpoints first, spec-05 seeding on top).
+### Nice to have — no internal priority order
 
-### Standalone — no one-pass partner
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-073](issues/improvement-073-rest-endpoint-infrastructure-test-seeding.md) → [improvement-035](issues/improvement-035-sql-seeding-for-playwright-spec-05.md) | New / Migrated | Playwright seeding infrastructure (sequenced pair — 035 unblocks on 073), then service-layer-seed spec 05 via those endpoints — full e2e 11 min → ~7-8 min |
+| [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch |
+| [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging |
+| [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 |
+| [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry |
+| [improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) | New (found running Sonar) | SonarQube's `new_coverage` quality gate condition always reads 0% — JaCoCo never wired into the scan |
+| [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) |
+| [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
+| [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
 
-| Issue | Origin | What | Tier |
-|---|---|---|---|
-| [improvement-096](issues/improvement-096-responsive-mobile-adaptation-pass.md) | New (UX review) | Responsive/mobile adaptation — 2 `@media` queries across 26 theme CSS files; its own 4-phase program (mobile Playwright viewport first), schedule before public launch | 🟡 |
-| [improvement-036](issues/improvement-036-actuator-structured-logging.md) | Migrated | Actuator + structured JSON logging | 🔵 |
-| [improvement-039](issues/improvement-039-dark-mode-lumo-tokens.md) | Migrated | Dark mode — step 2 (palette values + toggle); step 1 shipped via improvement-037 | 🔵 |
-| [improvement-065](issues/improvement-065-settingspaginationservice-detach-not-guaranteed-on-session-expiry.md) | Still open | `SettingsPaginationService`'s `DetachListener` cleanup isn't guaranteed on abrupt session expiry | 🔵 |
-| [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md) | Still open | Generics/type-safety design debt (`UiComponentFactory`, raw hook dispatch, `castIfKnown`) — needs a design decision | 🔵 |
-| [improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) | New (found running Sonar) | SonarQube's `new_coverage` quality gate condition always reads 0% — JaCoCo never wired into the scan | 🔵 |
-| [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) | ⚪ |
-| [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved | ⚪ |
+### Blocked — improvement-118
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-118](issues/improvement-118-f01-real-world-og-preview-verification.md) | New (carved out of improvement-117) | Manual real-world Facebook/Telegram preview check — needs a public URL, not automatable; pushed to the bottom 2026-07-25, not actionable in this environment |
+
+### Lowest priority — improvement-121
+
+| Issue | Origin | What |
+|---|---|---|
+| [improvement-121](issues/improvement-121-solid-dry-review-findings.md) | New (11-agent SOLID/DRY audit after improvement-119) | ~20 findings across attachment/audit/user/taxon-starters, platform-commons, query-lib, marketplace-app — SRP/DRY violations, missing `@NonNull`, doc drift, one shared-library crash-risk fix. Has a detailed 8-batch execution plan already written into the issue. Deprioritized 2026-07-26 after an autopilot execution attempt was aborted before landing anything — pick up opportunistically, not on a schedule. |
 
 ---
 
@@ -98,9 +132,8 @@ Checkstyle/JSpecify/CDS-AOT-cache (explicitly deferred or rejected in the source
 
 ## Wave 3 — with the corresponding domain work
 
-| Issue | What | Pairs with |
-|---|---|---|
-| [improvement-002](issues/improvement-002-snapshot-schema-versioning.md) | Snapshot schema versioning | before the first new snapshot-bearing domain |
+(improvement-002, formerly here with trigger "before the first new snapshot-bearing domain",
+promoted to Top priority above 2026-07-27 — F-04/improvement-124 is that domain.)
 
 (improvement-019, formerly here with trigger "any audit-starter touch", moved to Batch H above —
 that batch is the audit-starter touch it was waiting for.)
@@ -116,7 +149,6 @@ Plus: Testcontainers test layer is a hard gate before any payment code.
 | [improvement-021](issues/improvement-021-attachment-concurrency-and-batching.md) | concurrent gallery editing in practice; item A joins any attachment schema touch |
 | [improvement-017](issues/improvement-017-sync-s3-upload-in-request-thread.md) (step 2) | bundled with the thumbnail-pipeline refactor |
 | [goal-001](issues/goal-001-activity-field-visibility-by-role.md) | user feedback |
-| [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md) | product decision on which option (A-E) to pursue — offset pagination over the activity-sorted advertisement list has no stable-view guarantee under concurrent edits; captures a design discussion, not an agreed fix |
 | [improvement-052](issues/improvement-052-first-admin-registration-toctou-race.md) | project nearing production readiness — `UserService.register()` first-admin TOCTOU race, accepted risk for now (narrow window, only the instant of a fresh instance's very first registration); extracted from improvement-050 item 1 |
 | [improvement-100](issues/improvement-100-forgot-password-flow-missing.md) | project nearing public launch (same gate as improvement-052) — no password-recovery flow exists; requires an email-infrastructure decision first; natural companion to 052 in a pre-launch hardening pass (improvement-088, formerly grouped here, shipped 2026-07-20) |
 | [improvement-111](issues/improvement-111-authorization-enforced-in-ui-only-not-at-service-boundary.md) | before the first non-UI mutation endpoint (F-01/improvement-073 seeding/any API) — authorization is UI-only today; the service/port boundary trusts `actingUserId`. Hard gate, same shape as the completed improvement-020 baseline; not exploitable in the current Vaadin-only architecture |

@@ -279,10 +279,13 @@ in the foreground (fast, fails loudly), then detaches and returns control within
 the background PID and two paths: `scripts/ci/reports/<timestamp>/progress.txt` (a small,
 continuously-rewritten status file — per-stage `PENDING`/`RUNNING`/`DONE`/`FAILED` with elapsed
 seconds, updated via periodic `docker cp` while the container runs, since bind mounts don't work in
-this sandbox — same constraint as `playwright/CLAUDE.md`) and `run.log` (the full raw output).
+this sandbox — same constraint as `playwright/CLAUDE.md`) and `run.log` (the outer orchestrator's
+own stdout — container build/run/wait bookkeeping, not any stage's command output).
 Check in on a running background job anytime with `cat <path>/progress.txt` — no need to attach to
 anything. Reports land in `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,
-sonar}/` (gitignored, pruned to the last 3 runs by default — see `--keep-reports`). Maven
+sonar}/` (gitignored, pruned to the last 3 runs by default — see `--keep-reports`), each with its
+own `run.log` holding that stage's actual command output (see `scripts/ci/DECISIONS.md` ADR-006).
+Maven
 dependencies are cached across runs via the `ci-m2-cache` named volume. No stage logic is
 reimplemented — `entrypoint.sh` calls the existing `unit-tests.sh`/`integration-tests.sh`/
 `deploy.sh`+`playwright/run.sh`/`sonar.sh` scripts, with `deploy.sh` and `playwright/run.sh` now

@@ -29,11 +29,13 @@ bash scripts/integration-tests.sh --sandbox smoke             # + this sandbox's
 bash scripts/integration-tests.sh --no-check TaxonRepositoryTest  # skip the staleness check below
 ```
 
-`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon-spring-boot-starter`
-changed since their last install and only rebuilds those before testing (~1:47-3:35 vs. 3-7 min
-walking the full reactor every time) — no manual flag needed for the common case. `--no-check`
-skips that detection entirely, testing against whatever is already in `~/.m2` even if stale — only
-for deliberately reproducing behavior against an older build. See `CLAUDE.md` for the full rule.
+`run.sh` auto-detects whether `platform-commons`/`advertisement`/`user`/`taxon`/`audit`/
+`attachment-spring-boot-starter` (6 modules, corrected 2026-07-27 — `audit`/`attachment` were
+added since this note was first written) changed since their last install and only rebuilds those
+before testing (~1:47-3:35 vs. 3-7 min walking the full reactor every time) — no manual flag
+needed for the common case. `--no-check` skips that detection entirely, testing against whatever
+is already in `~/.m2` even if stale — only for deliberately reproducing behavior against an older
+build. See `CLAUDE.md` for the full rule.
 
 ### Windows
 
@@ -81,21 +83,25 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 | `advertisement/AdvertisementRepositoryTest` | Testcontainers + `@SpringBootTest` | Real SQL correctness for `AdvertisementRepository` — the highest-risk dynamic-SQL paths (filter, sort, pagination, optimistic locking), against real `advertisement-spring-boot-starter` + `user-spring-boot-starter` autoconfiguration |
 | `advertisement/AdvertisementSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `AdvertisementSnapshotDto.diff()` — pure field-comparison logic, zero side effects |
 | `advertisement/AdvertisementServiceHtmlSanitizationTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService`'s HTML sanitization policy (OWASP sanitizer + Jsoup visible-text-length cap), tested through the real public `save()` entry point, not the `private static sanitizeHtml()` directly — improvement-027 Batch 2 |
-| `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()`/`findByTypeAndCode()` correctly exclude soft-deleted rows (`deleted_at IS NULL`) — improvement-045 item 4/5 fix |
+| `advertisement/AdvertisementServiceCategoryFilterTest` | Plain JUnit + Mockito, no Spring, no DB | `AdvertisementService.getFiltered()`/`count()` resolve a category-name filter to taxon ids before querying the repository, short-circuiting to empty/zero without a repository call when no taxon matches, and degrading to no restriction when the taxon starter is absent |
+| `taxon/TaxonRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonRepository.findByIds()` — deliberately **includes** soft-deleted rows (not excludes; see `taxon-spring-boot-starter/CLAUDE.md` on why `DefaultTaxonPort.indexById()` needs deleted taxons visible) — corrected 2026-07-27, this table previously stated the reverse |
 | `taxon/TaxonPortTranslationFallbackTest` | Testcontainers + `@SpringBootTest` | `TaxonPort.findById()`'s translation-fallback chain (requested locale → configured default → first available → blank), tested through the public port, not the package-private `resolveTranslation()` — see `DECISIONS.md` ADR-008 |
 | `taxon/TaxonServiceTest` | Testcontainers + `@SpringBootTest` | `TaxonService.update()` preserves `deletedBy` on an already soft-deleted taxon (Spring Data JDBC's full-row `UPDATE` was silently reverting it to `NULL`) — improvement-049 item 1 |
 | `taxon/TaxonSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `TaxonSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 | `taxon/TaxonAssignmentRepositoryTest` | Testcontainers + `@SpringBootTest` | `TaxonAssignmentRepository`'s many-to-many join table: idempotent `assign()` (`ON CONFLICT DO NOTHING`), `unassign()`/`deleteAllByEntity()` scoping, both directions of bulk lookup, both count variants — improvement-027 Batch 3 |
 | `user/UserRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserRepository.updateProfile()` — optimistic locking, and that the narrower `UserProfileUpdate` entity structurally cannot touch `email`/`passwordHash` |
 | `user/UserServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `UserService.register()` rate-limiting: threshold blocks before save, duplicate-key failures count, successful registration does **not** reset the IP counter (asymmetry vs. login), different IPs tracked separately |
-| `user/UserServiceRestoreTest` | Testcontainers + `@SpringBootTest` | `UserService.restoreToSnapshot()` (the public entry point to private `applyUserRestore()`) — role/name reverted, `version` forwarded from the row's current state not re-derived, unknown snapshot id returns empty — see `DECISIONS.md` ADR-008 |
 | `user/SettingsSnapshotDtoTest` | Plain JUnit, no Spring, no DB | `SettingsSnapshotDto.diff()` — pure field-comparison logic, direct analogy with `AdvertisementSnapshotDtoTest` |
 | `user/UserSettingsDtoTest` | Plain JUnit, no Spring, no DB | Confirms Jackson's builder-based deserialization correctly applies `UserSettingsDto`'s `@Builder.Default timelinePageSize = 20` for a JSON payload missing that key — improvement-050 item 5's "Required verification" |
 | `attachment/AttachmentServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentService.commitTempUploadsQuiet()` cleans up already-moved files on a mid-batch `storageService.move()` failure, instead of leaking them — improvement-049 item 2 |
 | `attachment/AttachmentServiceTransactionTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentService.upload()` rolls back its DB row (real transaction, real Postgres) when a post-save step throws — improvement-049 item 3 |
 | `attachment/AttachmentCleanupServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentCleanupService.deleteAttachments()` deletes DB rows before S3 objects (`InOrder`-verified), and a storage failure never affects the already-completed DB delete — improvement-049 item 4 |
 | `attachment/AttachmentRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | Soft-delete visibility, the two-step restore-to-urls flow, retention-based cleanup selection, and both `loadMediaStats()` overloads (including the bulk one's `ROW_NUMBER() OVER (PARTITION BY entity_id ...)` window function) — improvement-027 Batch 3 |
+| `attachment/AttachmentSnapshotRepositoryTest` | Testcontainers + `@SpringBootTest` + `@MockitoBean` | `AttachmentSnapshotRepository`'s URL-history round-trip (insert + `getPrevUrls`/`getUrlsById`) and `deleteOlderThan()`'s retention-window cutoff |
+| `attachment/AttachmentSnapshotServiceTest` | Plain JUnit + Mockito, no Spring, no DB | `AttachmentSnapshotService`'s filename resolution (real filename vs. URL-segment fallback when no matching attachment row exists) and independent resolution of duplicate original filenames across URLs |
 | `audit/AuditLogRepositoryTest` | Testcontainers + `@SpringBootTest` | `AuditLogRepository.findTimeline()`/`getSnapshotContent()`'s `version`-numbering subqueries get an `id` tiebreaker for same-`created_at` rows — improvement-050 item 4; first `AuditLogRepositoryTest`, improvement-027 Batch 3 |
+| `SharedEnvConfigTest` | Plain JUnit, no Spring, no DB | `SharedEnvConfig.require()` walking up directories to find the repo-root `.env`, and its failure modes (no `.env` in range, key missing from an `.env` that does exist) |
+| `user/UserSettingsRepositoryTest` | Testcontainers + `@SpringBootTest` | `UserSettingsRepository.save()`'s optimistic locking embedded in the `settings` JSONB column's own `version` field (fresh row starts at 0, stale version throws, correct version succeeds and increments) |
 
 ### `PostgresContainerSmokeTest`
 
@@ -107,9 +113,10 @@ vars are required — the sandbox-only `--sandbox` workarounds (ADR-004) do not 
 
 Boots both `advertisement-spring-boot-starter` and `user-spring-boot-starter`'s real
 autoconfiguration in one Spring context (satisfying `AdvertisementAutoConfiguration`'s
-`@DependsOn("userLiquibase")` and the FK from `advertisement.created_by` to
-`user_information.id`). Uses `RepositoryTestSupport` + `TestDataCleaner` (see `CLAUDE.md`
-"Reusable test support").
+`@DependsOn("userLiquibase")`, needed for changelog ordering — corrected 2026-07-27: not for an FK
+constraint, since `advertisement.created_by` → `user_information.id` had no SQL-level FK to begin
+with and improvement-120 later confirmed/hardened that it never gets one). Uses
+`RepositoryTestSupport` + `TestDataCleaner` (see `CLAUDE.md` "Reusable test support").
 
 | Test | Verifies |
 |---|---|
@@ -140,12 +147,12 @@ comparison building `ChangeEntry.FieldChange` records.
 
 ### `taxon/TaxonRepositoryTest`
 
+Corrected 2026-07-27 — this section previously described the opposite behavior.
+
 | Test | Verifies |
 |---|---|
-| `findByIds_excludesSoftDeletedRows` | A soft-deleted taxon id is silently dropped from the bulk lookup, not returned |
-| `findByIds_returnsActiveRows` | Non-deleted rows still come back correctly |
-| `findByTypeAndCode_excludesSoftDeletedRow` | Same `deleted_at IS NULL` fix applied to the type+code lookup |
-| `findByTypeAndCode_returnsActiveRow` | Non-deleted rows still come back correctly |
+| `findByIds_includesSoftDeletedRows` | A soft-deleted taxon id is deliberately still returned by the bulk lookup — `findByIds()` has no `deleted_at` filter, by design (its only caller, `DefaultTaxonPort.indexById()`, needs deleted taxons visible; see `taxon-spring-boot-starter/CLAUDE.md`) |
+| `findByIds_returnsActiveRows` | Non-deleted rows come back correctly alongside the deleted ones |
 
 ### `taxon/TaxonPortTranslationFallbackTest`
 
@@ -178,19 +185,6 @@ can't produce.
 | `register_successAfterDuplicateKeyFailures_doesNotResetAttempts` | The register/login rate-limit asymmetry: unlike login, a successful registration does **not** reset the IP's attempt counter |
 | `register_differentIpsTrackedSeparately` | Two different IPs never share a rate-limit bucket |
 
-### `user/UserServiceRestoreTest`
-
-Needed its own `TestConfig` rather than reusing `RepositoryTestSupport` (bean-name collision when
-both the stub `ComponentFactory<AuditPort>` and the real `AuditAutoConfiguration` are present) and
-registers `UserSnapshotDto` on the `auditObjectMapper` bean itself — `AuditAutoConfiguration`'s
-default mapper has no `AuditableSnapshot` subtypes registered outside `marketplace-app`'s own
-`JacksonConfig`. See the class's own javadoc for the full rationale.
-
-| Test | Verifies |
-|---|---|
-| `restoreToSnapshot_revertsNameAndRole_andForwardsCurrentVersionNotStale` | Name/role reverted to the snapshot's values; `version` forwarded from the row's current state post-change, not re-derived from a stale fetch |
-| `restoreToSnapshot_unknownSnapshotId_returnsEmpty` | An unresolvable snapshot id returns `Optional.empty()`, not an exception |
-
 ### `user/SettingsSnapshotDtoTest`
 
 No Spring context, no DB — direct analogy with `AdvertisementSnapshotDtoTest`.
@@ -203,6 +197,61 @@ No Spring context, no DB — direct analogy with `AdvertisementSnapshotDtoTest`.
 | `diff_usersPageSizeChanged_returnsSingleFieldChange` | Only `usersPageSize` changing produces exactly one `FieldChange` |
 | `diff_timelinePageSizeChanged_returnsSingleFieldChange` | Only `timelinePageSize` changing produces exactly one `FieldChange` |
 | `diff_allFieldsChanged_returnsAllChangedFields` | All 3 fields changing surface in one `diff()` call |
+
+### `advertisement/AdvertisementServiceCategoryFilterTest`
+
+Plain JUnit + Mockito, no Spring, no DB.
+
+| Test | Verifies |
+|---|---|
+| `getFiltered_noCategoryFilterRequested_appliesNoRestriction` | No category filter in the request means no restriction applied |
+| `getFiltered_categoryFilterMatchesNothing_returnsEmptyWithoutQueryingRepository` | A category filter that resolves to zero taxon ids short-circuits to empty, never reaching the repository |
+| `getFiltered_categoryFilterMatchesSome_appliesResolvedIds` | Resolved taxon ids are passed through to the repository query |
+| `getFiltered_categoryFilterRequestedButTaxonStarterAbsent_appliesNoRestriction` | Graceful degradation when the taxon starter isn't on the classpath |
+| `count_categoryFilterMatchesNothing_returnsZeroWithoutQueryingRepository` | Same short-circuit behavior for `count()` |
+
+### `attachment/AttachmentSnapshotRepositoryTest`
+
+Testcontainers + `@SpringBootTest` + `@MockitoBean`.
+
+| Test | Verifies |
+|---|---|
+| `insert_and_getPrevUrls_roundTripsMultipleUrlsInOrder` | Multiple URLs in one snapshot round-trip in insertion order |
+| `insert_and_getUrlsById_roundTripsUrls` | Lookup by snapshot id returns the same URLs that were inserted |
+| `getPrevUrls_noSnapshotExists_returnsEmpty` | No prior snapshot returns an empty result, not an exception |
+| `deleteOlderThan_removesOnlyRowsOlderThanTheGivenDays` | Retention cleanup only removes rows past the cutoff, leaves recent ones |
+
+### `attachment/AttachmentSnapshotServiceTest`
+
+Plain JUnit + Mockito, no Spring, no DB.
+
+| Test | Verifies |
+|---|---|
+| `captureAndGetId_firstSnapshot_usesRealFilenameNotUuidKey` | A first snapshot resolves to the attachment's real filename, not its storage UUID key |
+| `captureAndGetId_noMatchingAttachmentRow_fallsBackToUrlSegment` | No matching attachment row falls back to the URL's own filename segment |
+| `getMediaStateForSnapshot_resolvesRealFilename` | Media-state lookup for a snapshot resolves the real filename the same way |
+| `captureAndGetId_duplicateOriginalFilenamesAcrossUrls_bothResolveIndependently` | Two URLs sharing the same original filename resolve independently, no collision |
+
+### `SharedEnvConfigTest`
+
+Plain JUnit, no Spring, no DB.
+
+| Test | Verifies |
+|---|---|
+| `require_envInStartDirectory_returnsValue` | `.env` found directly in the starting directory resolves the requested key |
+| `require_envInParentDirectory_walksUpAndReturnsValue` | `.env` found by walking up parent directories still resolves |
+| `require_noEnvFileWithinSearchRange_throwsIllegalStateException` | No `.env` anywhere in range fails fast |
+| `require_envFilePresentButKeyMissing_throwsIllegalStateExceptionMentioningKey` | An `.env` that exists but lacks the requested key fails fast, naming the missing key |
+
+### `user/UserSettingsRepositoryTest`
+
+Testcontainers + `@SpringBootTest`.
+
+| Test | Verifies |
+|---|---|
+| `save_freshUser_startsAtVersionZeroAndSucceeds` | A user with no prior settings row starts at `version` 0 |
+| `save_staleVersion_throwsOptimisticLockingFailureException` | A stale `version` embedded in the `settings` JSONB column is rejected |
+| `save_currentVersion_succeedsAndIncrementsVersion` | A correct `version` succeeds and increments — same optimistic-locking shape as `User.version`, but scoped to the JSONB column, not a SQL column |
 
 ---
 

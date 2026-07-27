@@ -83,6 +83,11 @@ public class PaginationBar extends HorizontalLayout implements I18nParams {
         updateUI();
     }
 
+    public void resetToFirstPage() {
+        this.currentPage = 0;
+        updateUI();
+    }
+
     public void setTotalCount(int total) {
         this.totalCount = total;
         if (currentPage >= getTotalPages()) {

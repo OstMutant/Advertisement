@@ -1,5 +1,6 @@
 package org.ost.marketplace.ui.views.main.tabs.advertisements.query;
 
+import com.vaadin.flow.component.combobox.ComboBox;
 import com.vaadin.flow.component.combobox.MultiSelectComboBox;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -15,6 +16,7 @@ import org.ost.marketplace.ui.query.elements.fields.QueryDateTimeField;
 import org.ost.marketplace.ui.query.elements.fields.QueryTextField;
 import org.ost.marketplace.ui.query.filter.FilterProcessor;
 import org.ost.marketplace.ui.query.sort.SortProcessor;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.platform.taxon.model.TaxonType;
@@ -78,9 +80,27 @@ public class AdvertisementQueryBlock extends QueryBlock<AdvertisementFilterDto> 
         MultiSelectComboBox<TaxonDto> categoriesField = new MultiSelectComboBox<>();
         categoriesField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES));
         categoriesField.setItemLabelGenerator(TaxonDto::getName);
+        categoriesField.getElement().setAttribute("data-testid", "advertisement-filter-categories");
         taxonPortFactory.ifAvailable(port ->
                 categoriesField.setItems(port.getAllByType(TaxonType.CATEGORY, localeProvider.getCurrentLocale())));
         filterRow(i18nService.get(ADVERTISEMENT_FILTER_CATEGORIES), categoriesField, AdvertisementFilterMeta.CATEGORY_IDS);
+
+        // City row
+        ComboBox<TaxonDto> cityField = new ComboBox<>();
+        cityField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_CITY));
+        cityField.setItemLabelGenerator(TaxonDto::getName);
+        cityField.setClearButtonVisible(true);
+        taxonPortFactory.ifAvailable(port ->
+                cityField.setItems(port.getAllByType(TaxonType.CITY, localeProvider.getCurrentLocale())));
+        filterRow(i18nService.get(ADVERTISEMENT_FILTER_CITY), cityField, AdvertisementFilterMeta.CITY_TAXON_ID);
+
+        // Listing type row
+        MultiSelectComboBox<AdKind> adKindField = new MultiSelectComboBox<>();
+        adKindField.setPlaceholder(i18nService.get(ADVERTISEMENT_FILTER_AD_KIND));
+        adKindField.setItems(AdKind.values());
+        adKindField.setItemLabelGenerator(t -> i18nService.get(forAdKind(t)));
+        adKindField.getElement().setAttribute("data-testid", "advertisement-filter-ad-kind");
+        filterRow(i18nService.get(ADVERTISEMENT_FILTER_AD_KIND), adKindField, AdvertisementFilterMeta.AD_KINDS);
 
         add(queryActionBlock);
     }

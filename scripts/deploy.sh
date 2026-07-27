@@ -17,6 +17,12 @@
 #                                                  scripts/ci/DECISIONS.md ADR-001 for the incident that made
 #                                                  this explicit instead of unconditional.
 #
+# Liquibase checksum mismatch (a changeset was edited in place instead of adding a new one --
+# e.g. improvement-120 removing the advertisement->user_information FK -- while the local dev DB
+# still has the old version applied) is detected automatically and self-heals: the script wipes
+# dev DB/MinIO volumes and retries once, same as --reset, no re-run needed. Dev-only; a real
+# deployed database would need a proper migration, not a wipe.
+#
 # Stream full app log after deploy:
 #   docker logs -f marketplace-app
 #
@@ -148,14 +154,49 @@ configure_minio() {
   "
 }
 
+# ── Helper: wipe DB/MinIO/app containers and volumes ─────────────────────────
+reset_infra() {
+  echo "Resetting all containers and volumes..."
+  docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
+  docker volume rm "$DB_VOLUME" "$MINIO_VOLUME" 2>/dev/null || true
+}
+
+# ── Helper: bring up DB + MinIO and wait until both are ready ────────────────
+start_infra() {
+  docker network create "$NETWORK" 2>/dev/null || true
+
+  pull_if_missing "postgres:15-alpine"
+  pull_if_missing "minio/minio:latest"
+  pull_if_missing "minio/mc:latest"
+
+  ensure_running "$DB_CONTAINER" \
+    docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
+      -p "$DB_PORT":5432 \
+      -e POSTGRES_DB="$DB_NAME" \
+      -e POSTGRES_USER="$DB_USER" \
+      -e POSTGRES_PASSWORD="$DB_PASSWORD" \
+      -v "$DB_VOLUME":/var/lib/postgresql/data \
+      postgres:15-alpine
+
+  ensure_running "$MINIO_CONTAINER" \
+    docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
+      -p "$MINIO_PORT":9000 -p "$MINIO_CONSOLE_PORT":9001 \
+      -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
+      -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
+      -v "$MINIO_VOLUME":/data \
+      minio/minio:latest server /data --console-address ":9001"
+
+  wait_for_db
+  wait_for_minio
+  configure_minio
+}
+
 # ── Step 1: Infra ─────────────────────────────────────────────────────────────
 echo ""
 echo "=== Step 1: Infrastructure ==="
 
 if [ "$MODE" = "reset" ]; then
-  echo "Resetting all containers and volumes..."
-  docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" "$APP_CONTAINER" 2>/dev/null || true
-  docker volume rm "$DB_VOLUME" "$MINIO_VOLUME" 2>/dev/null || true
+  reset_infra
 fi
 
 if [ "$MODE" = "restart-infra" ]; then
@@ -163,32 +204,7 @@ if [ "$MODE" = "restart-infra" ]; then
   docker rm -f "$DB_CONTAINER" "$MINIO_CONTAINER" 2>/dev/null || true
 fi
 
-docker network create "$NETWORK" 2>/dev/null || true
-
-pull_if_missing "postgres:15-alpine"
-pull_if_missing "minio/minio:latest"
-pull_if_missing "minio/mc:latest"
-
-ensure_running "$DB_CONTAINER" \
-  docker run -d --name "$DB_CONTAINER" --network "$NETWORK" \
-    -p "$DB_PORT":5432 \
-    -e POSTGRES_DB="$DB_NAME" \
-    -e POSTGRES_USER="$DB_USER" \
-    -e POSTGRES_PASSWORD="$DB_PASSWORD" \
-    -v "$DB_VOLUME":/var/lib/postgresql/data \
-    postgres:15-alpine
-
-ensure_running "$MINIO_CONTAINER" \
-  docker run -d --name "$MINIO_CONTAINER" --network "$NETWORK" \
-    -p "$MINIO_PORT":9000 -p "$MINIO_CONSOLE_PORT":9001 \
-    -e MINIO_ROOT_USER="$S3_ACCESS_KEY" \
-    -e MINIO_ROOT_PASSWORD="$S3_SECRET_KEY" \
-    -v "$MINIO_VOLUME":/data \
-    minio/minio:latest server /data --console-address ":9001"
-
-wait_for_db
-wait_for_minio
-configure_minio
+start_infra
 
 if $RESET_DB; then
   echo "Resetting database (reset-clean.sql)..."
@@ -228,34 +244,75 @@ if $PRUNE_ALL; then
   docker volume prune -f
 fi
 
+# ── Helper: start the app container ───────────────────────────────────────────
+start_app_container() {
+  docker rm -f "$APP_CONTAINER" 2>/dev/null || true
+  docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
+    -p "$APP_PORT":8080 \
+    -e SPRING_PROFILES_ACTIVE=prod \
+    -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME" \
+    -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
+    -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET" \
+    -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" \
+    -e S3_REGION="$S3_REGION" \
+    -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET" \
+    -e APP_PUBLIC_URL="http://localhost:$APP_PORT" \
+    -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
+    "$APP_IMAGE"
+}
+
+# ── Helper: wait for the app to start. Returns 0 = started, 1 = Liquibase
+# checksum mismatch (stale dev DB, auto-recoverable), 2 = any other failure.
+wait_for_app() {
+  echo "Waiting for application to start..."
+  local end=$((SECONDS + 180))
+  while true; do
+    local logs
+    logs=$(docker logs "$APP_CONTAINER" 2>&1)
+    if grep -q "Started Application" <<<"$logs"; then
+      return 0
+    fi
+    if grep -q "changesets check sum\|ValidationFailedException" <<<"$logs"; then
+      return 1
+    fi
+    if [ "$(docker container inspect -f '{{.State.Running}}' "$APP_CONTAINER" 2>/dev/null)" != "true" ]; then
+      return 2
+    fi
+    if [ $SECONDS -ge $end ]; then
+      return 2
+    fi
+    sleep 2
+  done
+}
+
 # ── Step 3: Start application ─────────────────────────────────────────────────
 echo ""
 echo "=== Step 3: Start application ==="
-docker run -d --name "$APP_CONTAINER" --network "$NETWORK" \
-  -p "$APP_PORT":8080 \
-  -e SPRING_PROFILES_ACTIVE=prod \
-  -e DB_HOST="$DB_CONTAINER" -e DB_PORT=5432 -e DB_NAME="$DB_NAME" \
-  -e DB_USER="$DB_USER" -e DB_PASSWORD="$DB_PASSWORD" \
-  -e S3_ENDPOINT="http://$MINIO_CONTAINER:9000" -e S3_BUCKET="$S3_BUCKET" \
-  -e S3_ACCESS_KEY="$S3_ACCESS_KEY" -e S3_SECRET_KEY="$S3_SECRET_KEY" \
-  -e S3_REGION="$S3_REGION" \
-  -e S3_PUBLIC_URL="http://localhost:$MINIO_PORT/$S3_BUCKET" \
-  -e JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=50.0 -XX:+UseG1GC" \
-  "$APP_IMAGE"
+start_app_container
 
-echo "Waiting for application to start..."
-end=$((SECONDS + 180))
-while true; do
-  if docker logs "$APP_CONTAINER" 2>&1 | grep -q "Started Application"; then
-    break
-  fi
-  if [ $SECONDS -ge $end ]; then
-    echo "=== FAILED: startup timed out ==="
+status=0
+wait_for_app && status=0 || status=$?
+
+if [ $status -eq 1 ]; then
+  echo ""
+  echo "Liquibase checksum mismatch detected -- a changeset was edited in place and the local" \
+       "dev DB still has the old version applied (e.g. improvement-120's FK removal). This is" \
+       "dev-only and always safe to auto-recover from: wiping DB/MinIO volumes and retrying once."
+  reset_infra
+  start_infra
+  start_app_container
+  status=0
+  wait_for_app && status=0 || status=$?
+  if [ $status -ne 0 ]; then
+    echo "=== FAILED: startup failed again after auto-reset ==="
     docker logs --tail=50 "$APP_CONTAINER"
     exit 1
   fi
-  sleep 2
-done
+elif [ $status -ne 0 ]; then
+  echo "=== FAILED: startup timed out ==="
+  docker logs --tail=50 "$APP_CONTAINER"
+  exit 1
+fi
 
 echo ""
 echo "=== Application is ready at http://localhost:$APP_PORT ==="

@@ -13,6 +13,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -23,6 +24,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -45,7 +48,12 @@ public class AdvertisementSaveService {
             Long savedId = advertisementPortFactory.get().save(dto);
 
             Set<Long> catIds = dto.categoryIds() != null ? dto.categoryIds() : Set.of();
-            taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, savedId, catIds));
+            Long cityId = dto.cityTaxonId();
+            // replaceAssignments() diff-replaces ALL taxon types at once -- ids must be unioned into one call.
+            Set<Long> assignmentIds = cityId != null
+                    ? Stream.concat(catIds.stream(), Stream.of(cityId)).collect(Collectors.toSet())
+                    : catIds;
+            taxonPortFactory.ifAvailable(p -> p.replaceAssignments(EntityType.ADVERTISEMENT, savedId, assignmentIds));
 
             // Last mutation before commit -- shrinks the window for a post-move rollback to orphan S3 files.
             EntityRef entityRef = new EntityRef(EntityType.ADVERTISEMENT, savedId);
@@ -61,12 +69,14 @@ public class AdvertisementSaveService {
             AdvertisementInfoDto saved = advertisementPortFactory.get().findById(savedId).orElseThrow();
             List<Long> sortedCatIds = catIds.stream().sorted().toList();
             AdvertisementSnapshotDto after = new AdvertisementSnapshotDto(
-                    saved.getTitle(), saved.getDescription(), sortedCatIds, attachmentSnapshotId);
+                    saved.getTitle(), saved.getDescription(), saved.getAdKind(), sortedCatIds, cityId, attachmentSnapshotId);
 
             if (isNew) {
                 auditPortFactory.ifAvailable(p -> p.captureCreation(savedId, after, actorId));
+            } else if (before != null) {
+                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, after, actorId));
             } else {
-                auditPortFactory.ifAvailable(p -> p.captureUpdate(savedId, before, after, actorId));
+                log.warn("Advertisement {} updated but no 'before' snapshot was available (concurrent delete?) - skipping audit capture", savedId);
             }
             log.info("Advertisement save transaction complete: id={}, isNew={}, categories={}",
                     savedId, isNew, catIds.size());
@@ -104,13 +114,18 @@ public class AdvertisementSaveService {
     private AdvertisementSnapshotDto buildCurrentSnapshot(@NonNull Long entityId) {
         AdvertisementInfoDto ad = advertisementPortFactory.get().findById(entityId).orElse(null);
         if (ad == null) return null;
-        List<Long> catIds = taxonPortFactory.findIfAvailable()
-                .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, entityId, Locale.ENGLISH)
-                        .stream().map(TaxonDto::getId).sorted().toList())
+        List<TaxonDto> assignments = taxonPortFactory.findIfAvailable()
+                .map(p -> p.getForEntity(EntityType.ADVERTISEMENT, entityId, Locale.ENGLISH))
                 .orElse(List.of());
+        List<Long> catIds = assignments.stream()
+                .filter(t -> t.getType() == TaxonType.CATEGORY)
+                .map(TaxonDto::getId).sorted().toList();
+        Long cityId = assignments.stream()
+                .filter(t -> t.getType() == TaxonType.CITY)
+                .map(TaxonDto::getId).findFirst().orElse(null);
         Long attachmentSnapshotId = attachmentPortFactory.findIfAvailable()
                 .map(p -> p.getLatestSnapshotId(EntityType.ADVERTISEMENT, entityId))
                 .orElse(null);
-        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), catIds, attachmentSnapshotId);
+        return new AdvertisementSnapshotDto(ad.getTitle(), ad.getDescription(), ad.getAdKind(), catIds, cityId, attachmentSnapshotId);
     }
 }

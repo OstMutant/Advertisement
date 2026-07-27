@@ -11,9 +11,11 @@ with no clear ownership, making it impossible to tell which package belonged to 
 **Decision:** Three semantic groups (final layout after 2026-05-18 symmetry cleanup):
 
 ```
-core.config    — CleanupProperties
-core.model     — ActionType, ChangeEntry, EntityType, EntityRef
-core.spi       — CurrentActorHook
+core            — ComponentFactory (top-level, not a sub-package)
+core.config     — CleanupProperties
+core.model      — ActionType, ChangeEntry, EntityType, EntityRef
+core.spi        — CurrentActorHook
+core.validation — ValidRange, ValidRangeValidator
 
 audit.api      — AuditableSnapshot
 audit.dto      — AuditActivityItemDto, AuditSnapshotContentDto, AuditTimelineItemDto, AuditTimelineFilterDto
@@ -21,19 +23,22 @@ audit.spi      — AuditPort, AuditDomainHook, AuditActivityFieldsHook, AuditAct
 
 attachment.dto     — AttachmentMediaSummaryDto, AttachmentItemDto, TempAttachmentDto
 attachment.model   — AttachmentMediaContentType
-attachment.spi     — AttachmentPort, AttachmentMediaChangeHook, AttachmentAuditHook
+attachment.spi     — AttachmentPort, AttachmentAuditHook (AttachmentMediaChangeHook removed, improvement-102)
 attachment.util    — YoutubeUtil
 
 user.dto       — UserDto, UserFilterDto, UserProfileDto, UserSettingsDto,
                  UserSnapshotDto, SettingsSnapshotDto, SignUpDto
 user.model     — Role
+user.security  — UserIdMarker
 user.spi       — UserPort, AuthenticatedPrincipal, UserSettingsChangedHook
 
 advertisement.dto  — AdvertisementInfoDto, AdvertisementFilterDto,
                      AdvertisementSaveDto, AdvertisementSnapshotDto
+advertisement.model — AdKind
 advertisement.spi  — AdvertisementPort
 
-taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto, CategoryChangeSnapshotDto
+taxon.dto      — TaxonDto, TaxonTranslationDto, TaxonSnapshotDto (CategoryChangeSnapshotDto deleted,
+                 see this file's own entry below on the advertisement-snapshot redesign)
 taxon.model    — TaxonType
 taxon.spi      — TaxonPort
 ```
@@ -139,7 +144,8 @@ what exists in code — `grep -rn "InjectionPoint"` across the whole reactor ret
 `ComponentFactory<T>` (`platform-commons/.../core/ComponentFactory.java`) is instead a plain
 class taking a constructor-injected `ObjectProvider<T>`, with **one explicit `@Bean` method per
 concrete type**, hand-written in each consuming config class (`marketplace-app/config/
-ComponentFactoryConfig.java` has 20+ such methods, one per optional port/component type). `build(P
+ComponentFactoryConfig.java` has 17 such methods, one per optional port/component type — was "20+"
+in an earlier count, corrected 2026-07-27). `build(P
 params)` lives on the marketplace-app subclass `UiComponentFactory<T>`, not on the base
 `ComponentFactory<T>` itself — the base class only exposes `get()`, `getIfAvailable()`,
 `findIfAvailable()`, `ifAvailable(Consumer<T>)`.
@@ -227,7 +233,11 @@ derived fields into the event payload and the domain to listen and translate.
 - **`AttachmentMediaChangeHook`** (starter → domain): `onMediaChanged(EntityRef entity)` (corrected
   2026-07-13 — signature was `(EntityType, Long)` when this ADR was written, superseded by a later
   refactor introducing `EntityRef` to collapse `(EntityType, Long)` pairs across attachment SPIs;
-  the ADR was never updated for it).
+  the ADR was never updated for it). **Removed entirely, improvement-102, corrected 2026-07-27** —
+  the interface no longer exists anywhere in `attachment.spi`; it had zero implementations and was
+  deleted rather than kept as dead API surface (see `advertisement-spring-boot-starter/CLAUDE.md`
+  and `marketplace-app/DECISIONS.md` ADR-035). Any reference to this hook elsewhere in this file is
+  historical only.
 - **`AttachmentMediaSummaryDto`** (`attachment.dto`) — display-ready record from `getMediaSummary`.
 
 **Consequences:** Rejected: keeping events alongside the SPI — splits the contract surface.
@@ -270,15 +280,14 @@ Using `ObjectProvider` in a starter implies the hook is optional, which is archi
 **Consequences:**
 - `private final CurrentActorHook currentActorHook;` — correct inside a starter.
 - `private final ObjectProvider<AuditPort> auditPort;` — correct inside marketplace-app.
-- **Documented exception (found 2026-07-16, not previously noted):** `AttachmentService`
-  (attachment-spring-boot-starter) injects `AttachmentMediaChangeHook` as
-  `ObjectProvider<AttachmentMediaChangeHook>`, not a plain required field — its own javadoc calls
-  this intentional ("Optional — attachment-starter injects via `ObjectProvider`"). This is a real,
-  live exception to this ADR's rule, not a violation to silently fix — `AttachmentMediaChangeHook`
-  currently has zero implementations anywhere (the old `MediaChangeHookImpl` was deleted, see
-  ADR-035 in `marketplace-app/DECISIONS.md`), so a required field would fail to autowire. Whether
-  to keep this exception long-term or restore a listener is a decision for whoever revisits that
-  hook, not something to resolve via documentation alone.
+- **Documented exception, now moot (found 2026-07-16, resolved 2026-07-27):** this entry used to
+  describe `AttachmentService` (attachment-spring-boot-starter) injecting `AttachmentMediaChangeHook`
+  as `ObjectProvider<AttachmentMediaChangeHook>` as a real, live exception to this ADR's rule.
+  Confirmed by direct read of `AttachmentService`: that field no longer exists — the class's actual
+  fields are `storageService`, `attachmentRepository`, `attachmentSnapshotService`,
+  `currentActorHook` only. `AttachmentMediaChangeHook` itself was deleted entirely (improvement-102,
+  see ADR-010 above), not just left unimplemented, so there is no exception left to document — this
+  ADR's rule holds without carve-outs today.
 
 ---
 
@@ -356,8 +365,11 @@ services in marketplace-app must reach taxon functionality without importing sta
 - `TaxonPort` (`taxon.spi`) — marketplace → starter; CRUD, assignment management, batched entity-id queries
 - ~~`TaxonAuditHook` (`taxon.spi`) — starter → marketplace; fired when taxon assignments change~~
 
-New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto`, `CategoryChangeSnapshotDto`.
-New enum in `taxon.model`: `TaxonType` (closed set; currently `CATEGORY`; adding a value is a release-level change).
+New DTOs in `taxon.dto`: `TaxonDto`, `TaxonTranslationDto`, `TaxonSnapshotDto` (`CategoryChangeSnapshotDto`,
+listed here originally, was deleted in the advertisement-snapshot redesign — see ADR-001's package
+listing above).
+New enum in `taxon.model`: `TaxonType` — was a closed set of just `CATEGORY` when this ADR was
+written; `CITY` was added since (F-02).
 
 **Consequences:** `EntityType.TAXON` added to `core.model.EntityType` to allow taxon entities to be
 audited. `ActionType.RESTORED` added to `core.model.ActionType` to distinguish restore events from
@@ -472,3 +484,98 @@ this record's own fields).
 
 **Consequences:** `UserActivityFieldsHookImpl`/`UserSettingsActivityFieldsHookImpl` no longer need
 a `UserPort` dependency at all for this method — removed the now-unused field from both.
+
+---
+
+## ADR-022: Dead SPI parameters and methods removed — `AuditPort`, `AuditActivityEnrichHook`, `AuditDomainHook`, `UserPort`, `AttachmentPort`
+
+**Status:** Accepted
+
+**Context:** [improvement-115](../backlog/issues/improvement-115-intellij-inspection-cleanup-pass.md)'s
+dead-code sub-pass found several SPI methods/parameters with zero real consumers across every
+current implementation and call site — not "single implementation that might grow," but params
+threaded through and never read anywhere, or methods with no caller at all:
+
+- `AuditPort.captureUpdate(entityId, before, after, actorId)` — `before` was never read by
+  `DefaultAuditPort` (only `after` gets persisted; diffing happens at read time via
+  `AuditableSnapshot.diff()` against the previous log row, per `audit-spring-boot-starter/CLAUDE.md`).
+  Every caller (`AdvertisementSaveService`, `TaxonService`, `UserService` ×2, `UserSettingsService`)
+  was computing/fetching a "before" snapshot for this one unused argument.
+- `AuditActivityEnrichHook.merge(subjects, base)` / `.enrichActivity(entityRef, items)` — both
+  `subjects`/`entityRef` were dead-forwarded from `AuditReadService` (`List<EntityRef> noSubjects
+  = List.of()` — always empty) to the sole implementation (`ActivityEnrichHookImpl`), which
+  ignored them.
+- `AuditDomainHook.resolveDisplayName(entityType, snapshot)` — `entityType` unused in the sole
+  implementation (`AuditDomainHookImpl`); `AuditableSnapshot.displayName()` already resolves
+  per-type display logic polymorphically, making the extra parameter redundant.
+- `UserPort.restoreToSnapshot()` (+ `UserService.restoreToSnapshot()`/`applyUserRestore()`) — no UI
+  caller exists; both `AdvertisementFormOverlayModeHandler` and `UserFormOverlayModeHandler`'s
+  restore-from-activity flows fetch the snapshot directly via `AuditPort.getSnapshotContent()` and
+  populate the edit form locally, letting the user's own "Save" click persist it — neither goes
+  through this port method. `UserServiceRestoreTest.java` (its only caller, existing purely to
+  test it) was deleted alongside it.
+- `AttachmentPort.getMediaSummary(EntityRef)` (single-entity) — every real caller already uses the
+  bulk `getMediaSummaries(EntityType, Set<Long>)` (see ADR-035 in `marketplace-app/DECISIONS.md`).
+  `AttachmentRepository.loadMediaStats(EntityType, Long)`, the repository method it delegated to,
+  was kept — it has its own direct repository-level test coverage independent of this port method.
+
+**Decision:** Removed each dead parameter/method from the SPI interface, its implementation(s),
+and every call site (compiler-verified — no call site could silently keep passing a stale value).
+Not treated as "maybe a future entity type needs `subjects`" speculative API surface: each was
+already threaded through a real caller today and provably unused end-to-end, not merely
+single-implementation.
+
+**Consequences:**
+- `AdvertisementSaveService.save()`'s update branch still computes its own `before` snapshot
+  locally (needed for the `attachmentSnapshotId` fallback and the concurrent-delete guard added in
+  the same pass — see that file) — only the `AuditPort.captureUpdate` argument was dropped, not
+  the local computation.
+- `TaxonService.update()` no longer fetches `beforeTranslations`/`beforeSnapshot` at all (was
+  otherwise unused after the arg removal); `UserSettingsService.save()` no longer calls
+  `repository.load(userId)` for the same reason.
+- If a genuine future need for a "before" snapshot at audit-write time arises, re-add the
+  parameter then with a concrete consumer — do not restore it preemptively.
+
+## ADR-023: `Class<T> targetClass` type-token added to `AuditPort.getSnapshotContent()` / `AuditDomainHook.castIfKnown()`
+
+**Status:** Accepted
+
+**Context:** [improvement-072](../backlog/issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+item 3 — `AuditDomainHookImpl.castIfKnown()` used a `switch` over the four known snapshot DTO
+types to confirm `content.snapshotData()` was *one of* them, then did an unchecked cast to the
+caller-inferred `T` without ever checking it matched *that specific* `T`. A caller inferring
+`T = TaxonSnapshotDto` when the actual runtime data was `AdvertisementSnapshotDto` would still
+match a `switch` case arm and silently return mismatched-type content.
+
+**Decision:** Added a `@NonNull Class<T> targetClass` parameter to both
+`AuditPort.getSnapshotContent(Long snapshotId, EntityType entityType, Class<T> targetClass)` and
+`AuditDomainHook.castIfKnown(AuditSnapshotContentDto<? extends AuditableSnapshot> content, Class<T>
+targetClass)`. `AuditDomainHookImpl.castIfKnown()` now does `targetClass.cast(content.snapshotData())`
+inside a `try`/`catch (ClassCastException)` — a real, JVM-verified generic downcast via the reified
+`Class<T>` token, with zero `instanceof`, zero `switch`, and zero `@SuppressWarnings("unchecked")`
+(`Class.cast()` is checked by construction; no erasure ambiguity remains once a concrete `Class<T>`
+is in hand). `DefaultAuditPort.getSnapshotContent()` forwards `targetClass` straight through to
+`auditDomainHook.castIfKnown()`. The four UI call sites (`AdvertisementFormOverlayModeHandler`,
+`UserFormOverlayModeHandler`, `TaxonFormOverlayModeHandler`, `SettingsFormModeHandler`) pass a
+`.class` literal (e.g. `AdvertisementSnapshotDto.class`) instead of the old
+`port.<AdvertisementSnapshotDto>getSnapshotContent(...)` type-witness syntax.
+
+**Consequences:**
+- The four known snapshot DTOs no longer need to be named in `AuditDomainHookImpl` at all — the
+  `switch`'s enumeration of `AdvertisementSnapshotDto`/`UserSnapshotDto`/`SettingsSnapshotDto`/
+  `TaxonSnapshotDto` is gone; adding a fifth snapshot DTO in the future needs no change here.
+- A caller that passes the wrong `Class<T>` for the entity type it queried now gets a caught
+  `ClassCastException` (logged, returns `Optional.empty()`) instead of silently succeeding with
+  mismatched data — closes the actual correctness gap item 3 identified.
+- Item 1 (`UiComponentFactory<T extends Configurable<T, ?>>` bound) and item 3 above are resolved;
+  item 2 (`AuditReadService`'s raw `List`/`AuditActivityEnrichHook` dispatch) was investigated and
+  **deliberately kept as the raw-type + `@SuppressWarnings` idiom** — verified directly (not just
+  in theory) that no wildcard-capture-helper or `Class<T>`-token variant can eliminate the cast
+  there without moving it somewhere worse: the dispatch loop correlates two independently-wildcarded
+  values (a heterogeneous `hook` and a heterogeneous `items` list) whose actual-type relationship is
+  an external runtime invariant (`hook.entityType() == entityType`), not something Java's wildcard
+  capture can express — capture-helper only unifies types when *one* wildcard-typed expression is
+  reused for multiple parameters of the same call, not two independently-wildcarded values. Pushing
+  the reinterpretation down into `AdvertisementEnrichService` (tried and reverted) just moved an
+  unchecked cast into a class that previously needed none, since that class already receives a
+  properly `T`-typed list via the hook interface's own generic parameter.

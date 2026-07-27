@@ -23,16 +23,20 @@ Auto-configured Advertisement domain for the Advertisement Platform.
 ## Dependencies
 
 - `platform-commons` — `AdvertisementPort` SPI and DTOs, plus the `TaxonPort`/`UserPort`/
-  `AttachmentPort`/`AuditPort` SPI interfaces `AdvertisementService` wires through
-  `ComponentFactory<T>`
+  `AttachmentPort` SPI interfaces `AdvertisementService` wires through `ComponentFactory<T>`
+  (corrected 2026-07-27 — `AdvertisementService` has no `ComponentFactory<AuditPort>` field; audit
+  writes for advertisement saves are orchestrated by marketplace-app's own
+  `AdvertisementSaveService`, not this starter)
 - `query-lib` — `SqlFilterBuilder`, `OrderByBuilder` for dynamic queries
 - **No Maven dependency on any sibling starter** (`audit-`/`attachment-`/`taxon-spring-boot-starter`)
   — confirmed 2026-07-16, this `pom.xml` used to declare `audit-`/`attachment-spring-boot-starter`
   as `<optional>true</optional>` dependencies, but zero Java source in this module ever imported
   from either (`org.ost.audit.*`/`org.ost.attachment.*`); removed as vestigial cruft alongside
   improvement-031 (Maven Enforcer's `bannedDependencies` rule now makes a real starter→starter
-  dependency a build failure, not just a code-review catch). All optional-port wiring (category
-  assignment, author enrichment, media-summary enrichment, audit writes) goes entirely through
+  dependency a build failure, not just a code-review catch). All optional-port wiring inside this
+  starter (category assignment, author enrichment, media-summary enrichment) goes entirely through
   `platform-commons`' SPI types via `ComponentFactory<T>` — genuine runtime decoupling with zero
-  build-time coupling to any other starter.
+  build-time coupling to any other starter. Audit writes for advertisement saves are not wired
+  here at all — that orchestration lives in marketplace-app's `AdvertisementSaveService`, which
+  calls `AuditPort` directly.
 - Spring Boot, Spring JDBC, Liquibase, OWASP HTML Sanitizer, Jsoup

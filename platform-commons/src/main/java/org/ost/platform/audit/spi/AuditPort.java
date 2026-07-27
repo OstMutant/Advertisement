@@ -17,11 +17,12 @@ public interface AuditPort {
     // ── write side ────────────────────────────────────────────────────────────
 
     void captureCreation(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
-    void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot before, @NonNull AuditableSnapshot after, @NonNull Long actorId);
+    void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot after, @NonNull Long actorId);
     void captureDeletion(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
     void captureRestore(@NonNull Long entityId, @NonNull AuditableSnapshot snapshot, @NonNull Long actorId);
 
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(
+            @NonNull Long snapshotId, @NonNull EntityType entityType, @NonNull Class<T> targetClass);
 
     // ── read side (UI) ────────────────────────────────────────────────────────
 

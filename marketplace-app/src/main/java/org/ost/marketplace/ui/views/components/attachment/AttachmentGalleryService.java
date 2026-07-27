@@ -6,7 +6,6 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import org.ost.platform.attachment.dto.AttachmentItemDto;
 import org.ost.platform.attachment.spi.AttachmentPort;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
@@ -17,8 +16,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class AttachmentGalleryService {
 
-    private final UiComponentFactory<AttachmentGallery> galleryFactory;
-    private final UiComponentFactory<CardMediaLightbox> lightboxFactory;
+    private final ComponentFactory<AttachmentGallery> galleryFactory;
+    private final ComponentFactory<CardMediaLightbox> lightboxFactory;
     private final ComponentFactory<AttachmentPort>     attachmentPortFactory;
 
     public Component buildGalleryForView(@NonNull EntityRef entity) {
@@ -55,11 +54,7 @@ public class AttachmentGalleryService {
         void loadFromSnapshotId(Long snapshotId);
     }
 
-    private static final class Handle implements FormHandle {
-        private final AttachmentGallery gallery;
-
-        Handle(AttachmentGallery gallery) { this.gallery = gallery; }
-
+    private record Handle(AttachmentGallery gallery) implements FormHandle {
         @Override public Component getComponent() { return gallery; }
         @Override public Long commit(@NonNull EntityRef entity) {
             return gallery.commitTempUploads(entity.entityType(), entity.entityId());

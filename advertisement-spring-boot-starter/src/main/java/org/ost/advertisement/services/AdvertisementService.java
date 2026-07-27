@@ -15,6 +15,7 @@ import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityRef;
 import org.ost.platform.core.model.EntityType;
 import org.ost.platform.taxon.dto.TaxonDto;
+import org.ost.platform.taxon.model.TaxonType;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.user.dto.UserDto;
 import org.ost.platform.user.spi.UserPort;
@@ -28,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.validation.annotation.Validated;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -52,43 +54,73 @@ public class AdvertisementService {
     private final ComponentFactory<UserPort>       userPortFactory;
 
     public List<AdvertisementInfoDto> getFiltered(@Valid @NonNull AdvertisementFilterDto filter, int page, int size, @NonNull Sort sort, @NonNull Locale locale) {
-        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
-        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
+        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
+        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return List.of();
         }
-        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), categoryFilter.orElse(null));
+        List<AdvertisementInfoDto> ads = repository.findByFilter(filter, PageRequest.of(page, size, sort), taxonFilter.orElse(null));
         if (ads.isEmpty()) return ads;
-        return enrichWithMediaSummary(enrichWithActorInfo(enrichWithCategories(ads, locale)));
+        return enrichWithMediaSummary(enrichWithActorInfo(enrichWithTaxons(ads, locale)));
     }
 
     public int count(@Valid @NonNull AdvertisementFilterDto filter) {
-        Optional<Set<Long>> categoryFilter = resolveCategoryFilter(filter);
-        if (categoryFilter.filter(Set::isEmpty).isPresent()) {
+        Optional<Set<Long>> taxonFilter = resolveTaxonFilter(filter);
+        if (taxonFilter.filter(Set::isEmpty).isPresent()) {
             return 0;
         }
-        return repository.countByFilter(filter, categoryFilter.orElse(null)).intValue();
+        return repository.countByFilter(filter, taxonFilter.orElse(null)).intValue();
     }
 
-    // empty() = no filter requested (or taxon starter absent); of(ids), possibly empty = filter resolved
+    // AND-combines independently-resolved category/city constraints; empty() means no filter was requested.
+    private Optional<Set<Long>> resolveTaxonFilter(AdvertisementFilterDto filter) {
+        Optional<Set<Long>> categoryConstraint = resolveCategoryFilter(filter);
+        Optional<Set<Long>> cityConstraint = resolveCityFilter(filter);
+        if (categoryConstraint.isEmpty()) return cityConstraint;
+        if (cityConstraint.isEmpty()) return categoryConstraint;
+        Set<Long> intersected = new HashSet<>(categoryConstraint.get());
+        intersected.retainAll(cityConstraint.get());
+        return Optional.of(intersected);
+    }
+
     private Optional<Set<Long>> resolveCategoryFilter(AdvertisementFilterDto filter) {
-        if (filter.getCategoryIds() == null) {
+        return resolveTaxonIdFilter(filter.getCategoryIds());
+    }
+
+    private Optional<Set<Long>> resolveCityFilter(AdvertisementFilterDto filter) {
+        Long cityId = filter.getCityTaxonId();
+        return resolveTaxonIdFilter(cityId == null ? null : Set.of(cityId));
+    }
+
+    private Optional<Set<Long>> resolveTaxonIdFilter(Set<Long> taxonIds) {
+        if (taxonIds == null) {
             return Optional.empty();
         }
         return taxonPortFactory.findIfAvailable()
-                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, filter.getCategoryIds()));
+                .map(p -> p.findEntityIdsWithAnyTaxon(EntityType.ADVERTISEMENT, taxonIds));
     }
 
-    private List<AdvertisementInfoDto> enrichWithCategories(List<AdvertisementInfoDto> ads, Locale locale) {
+    private List<AdvertisementInfoDto> enrichWithTaxons(List<AdvertisementInfoDto> ads, Locale locale) {
         return taxonPortFactory.findIfAvailable()
                 .map(taxonPort -> {
                     Set<Long> ids = ads.stream().map(AdvertisementInfoDto::getId).collect(Collectors.toSet());
-                    Map<Long, List<TaxonDto>> categoryMap = taxonPort.getForEntities(EntityType.ADVERTISEMENT, ids, locale);
+                    Map<Long, List<TaxonDto>> taxonMap = taxonPort.getForEntities(EntityType.ADVERTISEMENT, ids, locale);
                     return ads.stream()
                             .map(ad -> {
-                                List<TaxonDto> cats = categoryMap.getOrDefault(ad.getId(), List.of());
-                                Set<Long> catIds = cats.stream().map(TaxonDto::getId).collect(Collectors.toSet());
-                                List<String> catNames = cats.stream().map(TaxonDto::getName).toList();
-                                return ad.toBuilder().categoryIds(catIds).categoryNames(catNames).build();
+                                List<TaxonDto> assigned = taxonMap.getOrDefault(ad.getId(), List.of());
+                                Set<Long> catIds = assigned.stream()
+                                        .filter(t -> t.getType() == TaxonType.CATEGORY)
+                                        .map(TaxonDto::getId).collect(Collectors.toSet());
+                                List<String> catNames = assigned.stream()
+                                        .filter(t -> t.getType() == TaxonType.CATEGORY)
+                                        .map(TaxonDto::getName).toList();
+                                TaxonDto city = assigned.stream()
+                                        .filter(t -> t.getType() == TaxonType.CITY)
+                                        .findFirst().orElse(null);
+                                return ad.toBuilder()
+                                        .categoryIds(catIds).categoryNames(catNames)
+                                        .cityTaxonId(city != null ? city.getId() : null)
+                                        .cityName(city != null ? city.getName() : null)
+                                        .build();
                             })
                             .toList();
                 })
@@ -142,15 +174,9 @@ public class AdvertisementService {
 
     public Optional<AdvertisementInfoDto> findById(@NonNull Long id) {
         return repository.findAdvertisementById(id)
-                .map(dto -> taxonPortFactory.findIfAvailable()
-                        .map(taxonPort -> {
-                            Set<Long> catIds = taxonPort.getForEntity(EntityType.ADVERTISEMENT, id, Locale.ENGLISH)
-                                    .stream().map(TaxonDto::getId).collect(Collectors.toSet());
-                            return dto.toBuilder().categoryIds(catIds).build();
-                        })
-                        .orElse(dto))
-                .map(dto -> enrichWithActorInfo(List.of(dto)).get(0))
-                .map(dto -> enrichWithMediaSummary(List.of(dto)).get(0));
+                .map(dto -> enrichWithTaxons(List.of(dto), Locale.ENGLISH).getFirst())
+                .map(dto -> enrichWithActorInfo(List.of(dto)).getFirst())
+                .map(dto -> enrichWithMediaSummary(List.of(dto)).getFirst());
     }
 
     public Set<Long> findExistingIds(@NonNull Set<Long> ids) {
@@ -159,6 +185,15 @@ public class AdvertisementService {
 
     public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
         return repository.findByCreator(userId);
+    }
+
+    public Set<Long> findOwnerIds(@NonNull Set<Long> userIds) {
+        return repository.findOwnerIds(userIds);
+    }
+
+    @Transactional
+    public void clearActorReferences(@NonNull Set<Long> userIds) {
+        repository.clearActorReferences(userIds);
     }
 
     @Transactional
@@ -183,6 +218,7 @@ public class AdvertisementService {
                 .id(dto.id())
                 .title(dto.title())
                 .description(sanitizeHtml(dto.description()))
+                .adKind(dto.adKind())
                 .createdAt(before != null ? before.getCreatedAt() : null)
                 .createdBy(before != null ? before.getCreatedBy() : null)
                 .version(dto.version())

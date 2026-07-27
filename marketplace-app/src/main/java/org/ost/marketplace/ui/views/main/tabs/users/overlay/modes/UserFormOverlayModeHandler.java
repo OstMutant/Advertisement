@@ -42,8 +42,6 @@ import org.springframework.context.annotation.Scope;
 import java.util.Arrays;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
-import static org.ost.marketplace.services.i18n.I18nKey.FORM_DISCARD_CHANGES;
-import static org.ost.marketplace.services.i18n.I18nKey.FORM_RESTORE_BANNER;
 
 @SpringComponent
 @Scope("prototype")
@@ -130,10 +128,6 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
         updateButtons(false);
     }
 
-    public Long getSavedUserId() {
-        return params.getUser().id();
-    }
-
     public boolean save() {
         return binder.save(dto -> {
             userPort.save(mapper.copy(dto), access.getCurrentUserId());
@@ -166,7 +160,7 @@ public class UserFormOverlayModeHandler extends AbstractFormOverlayModeHandler<U
 
     private void handleRestoreFromActivity(Long snapshotId) {
         auditPortFactory.ifAvailable(port ->
-                port.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER)
+                port.getSnapshotContent(snapshotId, EntityType.USER, UserSnapshotDto.class)
                         .map(AuditSnapshotContentDto::snapshotData)
                         .ifPresent(snapshot -> {
                             UserEditDto dto = new UserEditDto(params.getUser().id(), snapshot.name(), Role.valueOf(snapshot.role()), params.getUser().version());

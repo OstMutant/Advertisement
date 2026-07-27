@@ -6,10 +6,9 @@ import jakarta.validation.Valid;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.audit.dto.AuditSnapshotContentDto;
+import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
-import org.ost.platform.core.model.EntityType;
 import org.ost.platform.user.dto.SettingsSnapshotDto;
 import org.ost.platform.user.dto.SignUpDto;
 import org.ost.platform.user.dto.UserDto;
@@ -22,7 +21,6 @@ import org.ost.user.entity.User;
 import org.ost.query.sort.OffsetPageable;
 import org.ost.user.repository.UserRepository;
 import org.ost.user.security.UserPrincipal;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -57,9 +55,10 @@ public class UserService {
             .maximumSize(10_000)
             .build();
 
-    private final UserRepository              repository;
-    private final PasswordEncoder             passwordEncoder;
-    private final ComponentFactory<AuditPort> auditPortFactory;
+    private final UserRepository                       repository;
+    private final PasswordEncoder                      passwordEncoder;
+    private final ComponentFactory<AuditPort>           auditPortFactory;
+    private final ComponentFactory<AdvertisementPort>   advertisementPortFactory;
 
     public List<UserDto> getFiltered(@Valid @NonNull UserFilterDto filter, int page, int size, @NonNull Sort sort) {
         return repository.findByFilter(filter, PageRequest.of(page, size, sort)).stream().map(this::toDto).toList();
@@ -76,11 +75,10 @@ public class UserService {
     @Transactional
     public void save(@NonNull UserProfileDto dto, @NonNull Long actingUserId) {
         log.info("User profile update: id={}", dto.id());
-        User before = repository.findById(dto.id()).orElseThrow();
+        repository.findById(dto.id()).orElseThrow();
         repository.updateProfile(dto);
         repository.findById(dto.id()).ifPresent(updated ->
                 auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                        toSnapshot(before),
                         toSnapshot(updated),
                         actingUserId)));
     }
@@ -102,17 +100,24 @@ public class UserService {
         return repository.findDeletedIds(ids.toArray(new Long[0]));
     }
 
-    // per-row, not one bulk statement -- an FK-blocked row is skipped, not fatal to the batch
     public void cleanup(int retentionDays) {
         List<Long> candidates = repository.findIdsDeletedOlderThan(retentionDays);
+        if (candidates.isEmpty()) return;
+
+        Set<Long> candidateIds = Set.copyOf(candidates);
+        advertisementPortFactory.ifAvailable(p -> p.clearActorReferences(candidateIds));
+        Set<Long> ownerIds = advertisementPortFactory.findIfAvailable()
+                .map(p -> p.findOwnerIds(candidateIds))
+                .orElse(Set.of());
+
         int purged = 0;
         for (Long id : candidates) {
-            try {
-                repository.deleteById(id);
-                purged++;
-            } catch (DataIntegrityViolationException e) {
-                log.warn("Skipped purging user {} - still referenced elsewhere, will retry next run", id);
+            if (ownerIds.contains(id)) {
+                log.warn("Skipped purging user {} - still owns an advertisement, will retry next run", id);
+                continue;
             }
+            repository.deleteById(id);
+            purged++;
         }
         log.info("User cleanup finished: purged={}, skipped={}", purged, candidates.size() - purged);
     }
@@ -147,27 +152,6 @@ public class UserService {
 
     public Optional<UserDto> findById(@NonNull Long id) {
         return repository.findById(id).map(this::toDto);
-    }
-
-    @Transactional
-    public Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId) {
-        return auditPortFactory.findIfAvailable()
-                .flatMap(p -> p.<UserSnapshotDto>getSnapshotContent(snapshotId, EntityType.USER))
-                .map(AuditSnapshotContentDto::snapshotData)
-                .flatMap(snap -> applyUserRestore(userId, snap, actingUserId))
-                .map(this::toDto);
-    }
-
-    private Optional<User> applyUserRestore(@NonNull Long userId, @NonNull UserSnapshotDto snap, @NonNull Long actingUserId) {
-        User before = repository.findById(userId).orElseThrow();
-        repository.updateProfile(new UserProfileDto(userId, snap.name(), Role.valueOf(snap.role()), before.getVersion()));
-        return repository.findById(userId).map(updated -> {
-            auditPortFactory.ifAvailable(p -> p.captureUpdate(updated.getId(),
-                    toSnapshot(before),
-                    toSnapshot(updated),
-                    actingUserId));
-            return updated;
-        });
     }
 
     public void refreshSecurityContext(@NonNull Long userId) {

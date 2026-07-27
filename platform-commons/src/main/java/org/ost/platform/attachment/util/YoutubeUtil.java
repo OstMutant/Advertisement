@@ -20,10 +20,6 @@ public final class YoutubeUtil {
         return m.find() ? m.group(1) : null;
     }
 
-    public static boolean isYoutube(String url) {
-        return extractId(url) != null;
-    }
-
     public static String thumbnailUrl(String videoId) {
         return "https://img.youtube.com/vi/%s/mqdefault.jpg".formatted(videoId);
     }

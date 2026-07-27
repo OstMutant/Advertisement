@@ -162,7 +162,9 @@ to be re-typed verbatim in every future `*RepositoryTest` (Batch 3: `AuditLogRep
 `TaxonAssignmentRepositoryTest`, `AttachmentRepositoryTest` — **done, 2026-07-16 correction:** all
 three now exist and pass, plus several more added since (`AttachmentServiceTest`,
 `AttachmentServiceTransactionTest`, `AttachmentCleanupServiceTest`, `TaxonServiceTest`,
-`TaxonSnapshotDtoTest`, `UserServiceRestoreTest`)).
+`TaxonSnapshotDtoTest`) — **corrected 2026-07-27:** `UserServiceRestoreTest` no longer exists in
+`src/test/java` (only stale `target/`/`reports/` surefire output remained from an earlier run);
+removed from this list).
 
 **Decision:** Extract to `org.ost.integrationtests.support` (in `src/main`, not `src/test`, so
 `*RepositoryTest` classes can import without a test-jar dependency), by direct analogy with
@@ -171,13 +173,18 @@ once two or more consumers need it):
 - `RepositoryTestSupport` — the `@TestConfiguration` bean bag, added to a test's
   `@SpringBootTest(classes = {...})` list.
 - `TestDataCleaner.cleanTables(jdbcClient, "table1", "table2", ...)` — FK-ordered row deletion,
-  called from `@BeforeEach`.
+  the lower-level overload; `cleanAll(jdbcClient)` wraps it with the full FK-safe table list and is
+  what `*RepositoryTest` classes should actually call from `@BeforeEach` (see `integration-tests/
+  CLAUDE.md`'s "Always use `cleanAll`" note).
 
 **Consequences:**
 - A test that needs a *different* optional port (e.g. `TaxonPort` for a future
   `TaxonAssignmentRepositoryTest`) declares its own extra `ComponentFactory` bean locally —
   `RepositoryTestSupport` only covers the ports every repository test has hit so far
-  (`AuditPort`, `AttachmentPort`); it is not meant to grow into a bean bag for every possible port.
+  (`AuditPort`, `AttachmentPort`, and — corrected 2026-07-27 — `AdvertisementPort`, added as a
+  `@ConditionalOnMissingBean` bean since `AdvertisementRepositoryTest`'s own
+  `AdvertisementAutoConfiguration` already provides it); it is not meant to grow into a bean bag for
+  every possible port.
 - Full usage example: `integration-tests/CLAUDE.md` "Reusable test support (steps/blocks)".
 
 ---
@@ -292,9 +299,12 @@ directly via repositories instead of through the service layer.
 ## ADR-009: `@ImportAutoConfiguration` explicit allow-list instead of `@EnableAutoConfiguration` in shared test config
 **Status:** Accepted
 
-**Context:** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig` both originally used
-`@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also carrying a hand-written
-`ComponentFactory<AttachmentPort>` stub bean to compensate for one side effect of it). This
+**Context (corrected 2026-07-27: `UserServiceRestoreTest` no longer exists — see ADR-006 — but the
+history below is kept since it's what motivated the decision; the current source of truth is
+`RepositoryTestSupport` alone):** `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`
+both originally used `@EnableAutoConfiguration` (with `UserServiceRestoreTest.TestConfig` also
+carrying a hand-written `ComponentFactory<AttachmentPort>` stub bean to compensate for one side
+effect of it). This
 annotation pulls in every `@AutoConfiguration` class found anywhere on the classpath, not just what
 a given test actually declares — a real problem specifically for `integration-tests`, whose own
 design (ADR-001) means its classpath keeps growing over time as Batches 2/3 add more starter
@@ -314,9 +324,11 @@ test enforcement that anyone actually does it — the exact same silent-break sh
 schedule tied to how often `integration-tests`' `pom.xml` grows.
 
 **Decision:** Replace `@EnableAutoConfiguration` with `@ImportAutoConfiguration({...})` and an
-explicit class list, in both `RepositoryTestSupport` and `UserServiceRestoreTest.TestConfig`. The
-list covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure every
-`@SpringBootTest` in this module needs — nothing from any domain starter:
+explicit class list. Originally applied to both `RepositoryTestSupport` and
+`UserServiceRestoreTest.TestConfig`; now that the latter no longer exists (see ADR-006),
+`RepositoryTestSupport` is the sole surviving instance, and its actual current list (verified
+directly against source, 2026-07-27) is exactly these 7 — no `ConfigurationPropertiesAutoConfiguration`
+entry, since that was only needed by the now-deleted test's own `TestConfig`:
 ```java
 @ImportAutoConfiguration({
         DataSourceAutoConfiguration.class,               // org.springframework.boot.jdbc.autoconfigure
@@ -325,11 +337,7 @@ list covers exactly the Spring Boot JDBC/Liquibase/Transaction infrastructure ev
         JdbcTemplateAutoConfiguration.class,
         DataJdbcRepositoriesAutoConfiguration.class,      // org.springframework.boot.data.jdbc.autoconfigure
         LiquibaseAutoConfiguration.class,                 // org.springframework.boot.liquibase.autoconfigure
-        TransactionAutoConfiguration.class,               // org.springframework.boot.transaction.autoconfigure
-        ConfigurationPropertiesAutoConfiguration.class    // org.springframework.boot.autoconfigure.context —
-                                                           // UserServiceRestoreTest.TestConfig only, needed
-                                                           // once AuditAutoConfiguration's own @ConfigurationProperties
-                                                           // consumer is genuinely wired in (see below)
+        TransactionAutoConfiguration.class                // org.springframework.boot.transaction.autoconfigure
 })
 ```
 Domain-starter autoconfiguration (`AdvertisementAutoConfiguration`, `TaxonAutoConfiguration`, ...)
@@ -467,3 +475,40 @@ tests.
 - Explicitly out of scope (per the originating issue): a GitHub Actions workflow itself — this
   repo still has no `.github/workflows/`; the CI-environment guard added here only protects a
   *future* one from a specific copy-paste mistake, it doesn't introduce CI.
+
+---
+
+## ADR-011: Explicit `junit-jupiter-api` compile-scope dependency — required for `AbstractPostgresIntegrationTest`'s `@Tag`
+**Status:** Accepted
+
+**Context:** While migrating off the deprecated `org.testcontainers.containers.PostgreSQLContainer`
+(replaced by the non-generic `org.testcontainers.postgresql.PostgreSQLContainer` in Testcontainers
+2.0.5, part of improvement-115's cleanup pass), `bash scripts/integration-tests.sh --sandbox smoke`
+failed to even compile — `AbstractPostgresIntegrationTest.java` (in `src/main/java`, using
+`org.junit.jupiter.api.Tag`) hit `package org.junit.jupiter.api does not exist`.
+
+Confirmed directly, twice, that this predates the Testcontainers migration and is not something it
+caused: running the exact same sanctioned script against a `git stash`-clean checkout of this
+module (before any of this session's edits) reproduces the identical compile failure. `mvn
+dependency:tree` on the unmodified `pom.xml` showed why: `junit-jupiter-api:6.0.3` resolves
+transitively to **`runtime`** scope (via `junit-jupiter:test` → `junit-jupiter-api:runtime`), not
+`compile` or `test` — Maven's main-compile phase only sees `compile`/`provided` scope, so
+`src/main/java` code using JUnit annotations has never had it visible on that classpath in this
+dependency-version combination (JUnit 6.0.3, a recent major bump). `mvn test`'s test-compile phase
+runs *after* main-compile in the lifecycle, so this failure was unconditional — no exclusion or
+`--sandbox` flag route around it.
+
+**Decision:** Added an explicit `org.junit.jupiter:junit-jupiter-api` dependency (default `compile`
+scope, no version — inherited from the Spring Boot BOM) to `integration-tests/pom.xml`, immediately
+after `spring-boot-starter-test`. Verified via `dependency:tree` that this resolves the same
+`6.0.3` artifact at `compile` scope, then reran the full `bash scripts/integration-tests.sh
+--sandbox` suite: 127/127 green.
+
+**Consequences:**
+- Any future `src/main/java` class in this module that uses a JUnit Jupiter annotation (mirroring
+  `AbstractPostgresIntegrationTest`'s `@Tag` placement rationale — see ADR-010) can rely on
+  `junit-jupiter-api` being compile-visible without rediscovering this scope gap.
+- This is specifically about the *API* annotations package; test execution engines
+  (`junit-jupiter-engine`, `junit-platform-*`) remain correctly `test`-scoped via
+  `spring-boot-starter-test`/`testcontainers-junit-jupiter` — only the annotation package needed
+  promoting.

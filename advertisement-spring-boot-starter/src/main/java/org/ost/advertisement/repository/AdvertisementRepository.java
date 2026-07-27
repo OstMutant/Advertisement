@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.ost.advertisement.entity.Advertisement;
 import org.ost.platform.advertisement.dto.AdvertisementFilterDto;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.query.filter.SqlBoundFilter;
 import org.ost.query.filter.SqlFilterBuilder;
 import org.ost.query.sort.OrderByBuilder;
@@ -37,6 +38,7 @@ public class AdvertisementRepository {
                 .id(rs.getObject("id", Long.class))
                 .title(rs.getString("title"))
                 .description(rs.getString("description"))
+                .adKind(AdKind.valueOf(rs.getString("ad_kind")))
                 .createdAt(createdAt != null ? createdAt.toInstant() : null)
                 .updatedAt(updatedAt != null ? updatedAt.toInstant() : null)
                 .createdBy(rs.getObject("created_by", Long.class))
@@ -45,11 +47,12 @@ public class AdvertisementRepository {
     };
 
     private static final SqlFilterBuilder<AdvertisementFilterDto> FILTER = new SqlFilterBuilder<>(List.of(
-            SqlBoundFilter.of(title,          "a.title",      (m, v) -> like(m, v.getTitle())),
-            SqlBoundFilter.of(createdAtStart, "a.created_at", (m, v) -> after(m, v.getCreatedAtStart())),
-            SqlBoundFilter.of(createdAtEnd,   "a.created_at", (m, v) -> before(m, v.getCreatedAtEnd())),
-            SqlBoundFilter.of(updatedAtStart, "a.updated_at", (m, v) -> after(m, v.getUpdatedAtStart())),
-            SqlBoundFilter.of(updatedAtEnd,   "a.updated_at", (m, v) -> before(m, v.getUpdatedAtEnd()))
+            SqlBoundFilter.of(title,          "a.title",        (m, v) -> like(m, v.getTitle())),
+            SqlBoundFilter.of(createdAtStart, "a.created_at",   (m, v) -> after(m, v.getCreatedAtStart())),
+            SqlBoundFilter.of(createdAtEnd,   "a.created_at",   (m, v) -> before(m, v.getCreatedAtEnd())),
+            SqlBoundFilter.of(updatedAtStart, "a.updated_at",   (m, v) -> after(m, v.getUpdatedAtStart())),
+            SqlBoundFilter.of(updatedAtEnd,   "a.updated_at",   (m, v) -> before(m, v.getUpdatedAtEnd())),
+            SqlBoundFilter.of(adKinds,        "a.ad_kind",      (m, v) -> inSet(m, v.getAdKinds()))
     ));
 
     private final JdbcClient jdbcClient;
@@ -60,7 +63,7 @@ public class AdvertisementRepository {
 
     public Optional<AdvertisementInfoDto> findAdvertisementById(@NonNull Long id) {
         return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
+                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
                         WHERE a.id = :id AND a.deleted_at IS NULL
                         """)
@@ -70,7 +73,7 @@ public class AdvertisementRepository {
 
     public List<AdvertisementInfoDto> findByCreator(@NonNull Long userId) {
         return jdbcClient.sql("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
+                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
                         WHERE a.created_by = :userId AND a.deleted_at IS NULL
                         """)
@@ -88,7 +91,7 @@ public class AdvertisementRepository {
                 Map.entry(AdvertisementInfoDto.Fields.createdAt,   "a.created_at"),
                 Map.entry(AdvertisementInfoDto.Fields.updatedAt,   "a.updated_at")));
         String sql = ("""
-                        SELECT a.id, a.title, a.description, a.created_at, a.updated_at, a.created_by, a.version
+                        SELECT a.id, a.title, a.description, a.ad_kind, a.created_at, a.updated_at, a.created_by, a.version
                         FROM advertisement a
                         WHERE a.deleted_at IS NULL%s%s%s%s""")
                 .formatted(buildIdClause(params, allowedIds), FILTER.build(params, filter, " AND "), orderBy, PaginationSqlBuilder.pageLimit(params, pageable));
@@ -141,6 +144,19 @@ public class AdvertisementRepository {
                 .paramSource(new MapSqlParameterSource("ids", ids))
                 .query(Long.class)
                 .list();
+    }
+
+    public Set<Long> findOwnerIds(@NonNull Set<Long> userIds) {
+        return Set.copyOf(jdbcClient.sql("SELECT DISTINCT created_by FROM advertisement WHERE created_by = ANY(:ids)")
+                .paramSource(new MapSqlParameterSource("ids", userIds.toArray(new Long[0])))
+                .query(Long.class)
+                .list());
+    }
+
+    public void clearActorReferences(@NonNull Set<Long> userIds) {
+        MapSqlParameterSource params = new MapSqlParameterSource("ids", userIds.toArray(new Long[0]));
+        jdbcClient.sql("UPDATE advertisement SET updated_by = NULL WHERE updated_by = ANY(:ids)").paramSource(params).update();
+        jdbcClient.sql("UPDATE advertisement SET deleted_by = NULL WHERE deleted_by = ANY(:ids)").paramSource(params).update();
     }
 
 }

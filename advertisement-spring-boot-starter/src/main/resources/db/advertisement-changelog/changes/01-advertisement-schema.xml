@@ -16,6 +16,9 @@
                 <constraints nullable="false"/>
             </column>
             <column name="description" type="VARCHAR(20000)"/>
+            <column name="ad_kind" type="VARCHAR(20)" defaultValue="OFFER">
+                <constraints nullable="false"/>
+            </column>
             <column name="created_by" type="BIGINT">
                 <constraints nullable="false"/>
             </column>
@@ -31,30 +34,6 @@
             </column>
         </createTable>
 
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="created_by"
-                constraintName="fk_advertisement_created_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="RESTRICT"/>
-
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="updated_by"
-                constraintName="fk_advertisement_modified_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="SET NULL"/>
-
-        <addForeignKeyConstraint
-                baseTableName="advertisement"
-                baseColumnNames="deleted_by"
-                constraintName="fk_advertisement_deleted_by"
-                referencedTableName="user_information"
-                referencedColumnNames="id"
-                onDelete="SET NULL"/>
-
         <createIndex indexName="idx_advertisement_title" tableName="advertisement">
             <column name="title"/>
         </createIndex>
@@ -66,6 +45,9 @@
         </createIndex>
         <createIndex indexName="idx_advertisement_deleted_at" tableName="advertisement">
             <column name="deleted_at"/>
+        </createIndex>
+        <createIndex indexName="idx_advertisement_ad_kind" tableName="advertisement">
+            <column name="ad_kind"/>
         </createIndex>
 
     </changeSet>

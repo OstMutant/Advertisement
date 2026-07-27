@@ -15,8 +15,6 @@ import org.ost.platform.audit.spi.AuditPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.user.dto.UserSettingsDto;
 import org.ost.marketplace.services.security.AccessEvaluator;
-import org.ost.marketplace.ui.core.UiComponentFactory;
-import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
 import org.ost.marketplace.ui.views.components.PaginationBar;
 import org.ost.marketplace.ui.views.components.audit.AuditTimelineListRenderer;
@@ -35,7 +33,7 @@ public class TimelineView extends VerticalLayout {
     private final transient ComponentFactory<AuditPort>                    auditPortFactory;
     private final transient AccessEvaluator                                access;
     private final QueryStatusBar<AuditTimelineFilterDto>                   queryStatusBar;
-    private final transient UiComponentFactory<AuditTimelineListRenderer>  rendererFactory;
+    private final transient ComponentFactory<AuditTimelineListRenderer>  rendererFactory;
     private final PaginationBar                                            paginationBar;
     private final transient SettingsPaginationBinding                      settingsPaginationBinding;
 

@@ -1,6 +1,7 @@
 package org.ost.marketplace.services.i18n;
 
 import lombok.RequiredArgsConstructor;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.core.model.ActionType;
 
 @RequiredArgsConstructor
@@ -37,16 +38,11 @@ public enum I18nKey {
     SIGNUP_BUTTON_SUBMIT("signup.button.submit"),
     SIGNUP_BUTTON_CANCEL("signup.button.cancel"),
     SIGNUP_SUCCESS("signup.success"),
-    SIGNUP_ERROR_NAME_REQUIRED("signup.error.name.required"),
-    SIGNUP_ERROR_EMAIL_INVALID("signup.error.email.invalid"),
     SIGNUP_ERROR_EMAIL_EXISTS("signup.error.email.exists"),
-    SIGNUP_ERROR_PASSWORD_SHORT("signup.error.password.short"),
     SIGNUP_ERROR_TOO_MANY_ATTEMPTS("signup.error.too.many.attempts"),
 
     // === User Dialog ===
-    USER_DIALOG_TITLE("user.dialog.title"),
     USER_DIALOG_FIELD_ID_LABEL("user.dialog.field.id.label"),
-    USER_DIALOG_FIELD_EMAIL_LABEL("user.dialog.field.email.label"),
     USER_DIALOG_FIELD_CREATED_LABEL("user.dialog.field.created.label"),
     USER_DIALOG_FIELD_UPDATED_LABEL("user.dialog.field.updated.label"),
     USER_DIALOG_FIELD_NAME_LABEL("user.dialog.field.name.label"),
@@ -67,13 +63,11 @@ public enum I18nKey {
     // === Advertisement Overlay ===
     ADVERTISEMENT_OVERLAY_TITLE_NEW("advertisement.overlay.title.new"),
     ADVERTISEMENT_OVERLAY_TITLE_EDIT("advertisement.overlay.title.edit"),
-    ADVERTISEMENT_OVERLAY_FIELD_CREATED("advertisement.overlay.field.created"),
-    ADVERTISEMENT_OVERLAY_FIELD_UPDATED("advertisement.overlay.field.updated"),
-    ADVERTISEMENT_OVERLAY_FIELD_AUTHOR("advertisement.overlay.field.author"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_REQUIRED("advertisement.overlay.validation.title.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_TITLE_LENGTH("advertisement.overlay.validation.title.length"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("advertisement.overlay.validation.description.required"),
     ADVERTISEMENT_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("advertisement.overlay.validation.description.length"),
+    ADVERTISEMENT_OVERLAY_VALIDATION_AD_KIND_REQUIRED("advertisement.overlay.validation.adKind.required"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SUCCESS("advertisement.overlay.notification.success"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_VALIDATION_FAILED("advertisement.overlay.notification.validation.failed"),
     ADVERTISEMENT_OVERLAY_NOTIFICATION_SAVE_ERROR("advertisement.overlay.notification.save.error"),
@@ -81,6 +75,8 @@ public enum I18nKey {
     ADVERTISEMENT_OVERLAY_FIELD_TITLE("advertisement.overlay.field.title"),
     ADVERTISEMENT_OVERLAY_FIELD_DESCRIPTION("advertisement.overlay.field.description"),
     ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES("advertisement.overlay.field.categories"),
+    ADVERTISEMENT_OVERLAY_FIELD_CITY("advertisement.overlay.field.city"),
+    ADVERTISEMENT_OVERLAY_FIELD_AD_KIND("advertisement.overlay.field.adKind"),
     ADVERTISEMENT_OVERLAY_SECTION_BASIC("advertisement.overlay.section.basic"),
     ADVERTISEMENT_OVERLAY_SECTION_VIEW("advertisement.overlay.section.view"),
     ADVERTISEMENT_OVERLAY_BUTTON_SAVE("advertisement.overlay.button.save"),
@@ -106,16 +102,7 @@ public enum I18nKey {
     USER_VIEW_NOTIFICATION_DELETED("user.view.notification.deleted"),
     USER_VIEW_NOTIFICATION_DELETE_ERROR("user.view.notification.delete.error"),
     USER_VIEW_NOTIFICATION_VALIDATION_FAILED("user.view.notification.validation.failed"),
-
-    // UserViewDialog
-    USER_VIEW_DIALOG_TITLE("user.view.dialog.title"),
-    USER_VIEW_DIALOG_FIELD_ID("user.view.dialog.field.id"),
-    USER_VIEW_DIALOG_FIELD_NAME("user.view.dialog.field.name"),
-    USER_VIEW_DIALOG_FIELD_EMAIL("user.view.dialog.field.email"),
-    USER_VIEW_DIALOG_FIELD_ROLE("user.view.dialog.field.role"),
-    USER_VIEW_DIALOG_FIELD_CREATED("user.view.dialog.field.created"),
-    USER_VIEW_DIALOG_FIELD_UPDATED("user.view.dialog.field.updated"),
-    USER_VIEW_DIALOG_CLOSE("user.view.dialog.close"),
+    USER_VIEW_TOOLTIP_REFRESH_AVAILABLE("user.view.tooltip.refresh.available"),
 
     // === User Sort ===
     USER_SORT_ID("user.sort.id"),
@@ -133,6 +120,7 @@ public enum I18nKey {
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETED("advertisement.view.notification.deleted"),
     ADVERTISEMENT_VIEW_NOTIFICATION_DELETE_ERROR("advertisement.view.notification.delete.error"),
     ADVERTISEMENT_VIEW_NOTIFICATION_REFRESH_ERROR("advertisement.view.notification.refresh.error"),
+    ADVERTISEMENT_VIEW_TOOLTIP_REFRESH_AVAILABLE("advertisement.view.tooltip.refresh.available"),
 
     // === User Filter ===
     USER_FILTER_ID_MIN("user.filter.id.min"),
@@ -169,18 +157,24 @@ public enum I18nKey {
     ADVERTISEMENT_FILTER_TIME_UPDATED_START("advertisement.filter.time.updated.start"),
     ADVERTISEMENT_FILTER_TIME_UPDATED_END("advertisement.filter.time.updated.end"),
     ADVERTISEMENT_FILTER_CATEGORIES("advertisement.filter.categories"),
+    ADVERTISEMENT_FILTER_CITY("advertisement.filter.city"),
+    ADVERTISEMENT_FILTER_AD_KIND("advertisement.filter.adKind"),
+
+    // === Advertisement Listing Type ===
+    ADVERTISEMENT_AD_KIND_OFFER("advertisement.adKind.offer"),
+    ADVERTISEMENT_AD_KIND_REQUEST("advertisement.adKind.request"),
+    ADVERTISEMENT_AD_KIND_PRODUCT("advertisement.adKind.product"),
 
     // === Advertisement Card ===
     ADVERTISEMENT_CARD_CREATED("advertisement.card.created"),
     ADVERTISEMENT_CARD_UPDATED("advertisement.card.updated"),
-    ADVERTISEMENT_CARD_AUTHOR("advertisement.card.author"),
     ADVERTISEMENT_CARD_CATEGORIES("advertisement.card.categories"),
+    ADVERTISEMENT_CARD_CITY("advertisement.card.city"),
     ADVERTISEMENT_CARD_BUTTON_EDIT("advertisement.card.button.edit"),
     ADVERTISEMENT_CARD_BUTTON_DELETE("advertisement.card.button.delete"),
+    ADVERTISEMENT_CARD_BUTTON_SHARE("advertisement.card.button.share"),
     ADVERTISEMENT_CARD_NOTIFICATION_MEDIA_UNAVAILABLE("advertisement.card.notification.media.unavailable"),
-
-    // === Advertisement Description Dialog ===
-    ADVERTISEMENT_DESCRIPTION_DIALOG_CLOSE("advertisement.description.dialog.close"),
+    ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED("advertisement.card.notification.link.copied"),
 
     // === Advertisement Empty State ===
     ADVERTISEMENT_EMPTY_TITLE("advertisement.empty.title"),
@@ -203,14 +197,10 @@ public enum I18nKey {
     AUDIT_HISTORY_EMPTY("audit.history.empty"),
     AUDIT_HISTORY_CURRENT_STATE("audit.history.current.state"),
     AUDIT_HISTORY_RESTORE("audit.history.restore"),
-    AUDIT_ACTIVITY_EMPTY("audit.activity.empty"),
-    AUDIT_ACTIVITY_CURRENT_STATE("audit.activity.current.state"),
-    AUDIT_ACTIVITY_RESTORE("audit.activity.restore"),
     AUDIT_ACTIVITY_ACTION_CREATED("audit.activity.action.created"),
     AUDIT_ACTIVITY_ACTION_UPDATED("audit.activity.action.updated"),
     AUDIT_ACTIVITY_ACTION_DELETED("audit.activity.action.deleted"),
     AUDIT_ACTIVITY_ACTION_RESTORED("audit.activity.action.restored"),
-    AUDIT_ACTIVITY_ENTITY_DELETED("audit.activity.entity.deleted"),
     AUDIT_ACTOR_DELETED_NAME("audit.actor.deleted.name"),
     AUDIT_CHANGES_MEDIA("audit.changes.media"),
     AUDIT_CHANGES_EDITOR("audit.changes.editor"),
@@ -296,32 +286,11 @@ public enum I18nKey {
     SETTINGS_PAGE_SIZE_RANGE("settings.page.size.range"),
 
     // === Activity ===
-    ACTIVITY_PROFILE_TAB("activity.profile.tab"),
     USER_ACTIVITY_TAB("user.activity.tab"),
     SETTINGS_ACTIVITY_TAB("settings.activity.tab"),
-    TIMELINE_TAB("timeline.tab"),
-    ACTIVITY_SECTION_TITLE("activity.section.title"),
-    ACTIVITY_ACTION_CREATED("activity.action.created"),
-    ACTIVITY_ACTION_UPDATED("activity.action.updated"),
-    ACTIVITY_ACTION_DELETED("activity.action.deleted"),
-    ACTIVITY_ACTION_RESTORED("activity.action.restored"),
-    ACTIVITY_ENTITY_DELETED("activity.entity.deleted"),
 
     // === Advertisement History ===
     ADVERTISEMENT_ACTIVITY_TAB("advertisement.activity.tab"),
-    ADVERTISEMENT_RESTORED_SUCCESS("advertisement.restored.success"),
-    ADVERTISEMENT_RESTORE_CONFIRM_TITLE("advertisement.restore.confirm.title"),
-    ADVERTISEMENT_RESTORE_CONFIRM_BUTTON("advertisement.restore.confirm.button"),
-    ADVERTISEMENT_RESTORE_CONFIRM_CANCEL("advertisement.restore.confirm.cancel"),
-
-    // === Settings History ===
-    SETTINGS_RESTORED_SUCCESS("settings.restored.success"),
-    SETTINGS_RESTORE_CONFIRM_TITLE("settings.restore.confirm.title"),
-
-    // === Restore Confirm ===
-    ADVERTISEMENT_RESTORE_CONFIRM_TEXT_DEFAULT("advertisement.restore.confirm.text.default"),
-    ADVERTISEMENT_RESTORE_CONFIRM_DESC_CHANGED("advertisement.restore.confirm.desc.changed"),
-    ADVERTISEMENT_RESTORE_NO_CHANGE("advertisement.restore.no.change"),
 
     // === Change field labels ===
     CHANGES_FIELD_TITLE("changes.field.title"),
@@ -330,6 +299,8 @@ public enum I18nKey {
     CHANGES_FIELD_EMAIL("changes.field.email"),
     CHANGES_FIELD_ROLE("changes.field.role"),
     CHANGES_FIELD_CATEGORY("changes.field.category"),
+    CHANGES_FIELD_CITY("changes.field.city"),
+    CHANGES_FIELD_AD_KIND("changes.field.adKind"),
     CHANGES_FIELD_NAME_EN("changes.field.nameEn"),
     CHANGES_FIELD_DESCRIPTION_EN("changes.field.descriptionEn"),
     CHANGES_FIELD_NAME_UK("changes.field.nameUk"),
@@ -338,12 +309,9 @@ public enum I18nKey {
     CHANGES_SETTING_USERS_PAGE_SIZE("audit.changes.setting.usersPageSize"),
     CHANGES_SETTING_TIMELINE_PAGE_SIZE("audit.changes.setting.timelinePageSize"),
 
-    // === Taxon / Category ===
-    TAXON_CATEGORY_ASSIGNED("taxon.category.assigned"),
-    TAXON_CATEGORY_UNASSIGNED("taxon.category.unassigned"),
-
     // === Reference Data tab ===
     REFERENCE_DATA_TAB_CATEGORIES("reference.data.tab.categories"),
+    REFERENCE_DATA_TAB_CITIES("reference.data.tab.cities"),
     REFERENCE_DATA_BUTTON_ADD("reference.data.button.add"),
     REFERENCE_DATA_USAGE_COUNT("reference.data.usage.count"),
 
@@ -383,7 +351,45 @@ public enum I18nKey {
     TAXON_VIEW_TOOLTIP_RESTORE("taxon.view.tooltip.restore"),
     TAXON_VIEW_DELETED_LABEL("taxon.view.deleted.label"),
     TAXON_VIEW_EMPTY("taxon.view.empty"),
-    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit");
+    TAXON_VIEW_BUTTON_EDIT("taxon.view.button.edit"),
+
+    // === City Overlay ===
+    CITY_OVERLAY_TITLE_NEW("city.overlay.title.new"),
+    CITY_OVERLAY_TITLE_EDIT("city.overlay.title.edit"),
+    CITY_OVERLAY_TAB_EDIT("city.overlay.tab.edit"),
+    CITY_OVERLAY_TAB_ACTIVITY("city.overlay.tab.activity"),
+    CITY_OVERLAY_LOCALE_TAB_EN("city.overlay.locale.tab.en"),
+    CITY_OVERLAY_LOCALE_TAB_UK("city.overlay.locale.tab.uk"),
+    CITY_OVERLAY_FIELD_NAME("city.overlay.field.name"),
+    CITY_OVERLAY_FIELD_NAME_PLACEHOLDER("city.overlay.field.name.placeholder"),
+    CITY_OVERLAY_FIELD_DESCRIPTION("city.overlay.field.description"),
+    CITY_OVERLAY_FIELD_DESCRIPTION_PLACEHOLDER("city.overlay.field.description.placeholder"),
+    CITY_OVERLAY_SECTION_LABEL("city.overlay.section.label"),
+    CITY_OVERLAY_VALIDATION_NAME_REQUIRED("city.overlay.validation.name.required"),
+    CITY_OVERLAY_VALIDATION_NAME_LENGTH("city.overlay.validation.name.length"),
+    CITY_OVERLAY_VALIDATION_DESCRIPTION_REQUIRED("city.overlay.validation.description.required"),
+    CITY_OVERLAY_VALIDATION_DESCRIPTION_LENGTH("city.overlay.validation.description.length"),
+    CITY_OVERLAY_NOTIFICATION_SUCCESS("city.overlay.notification.success"),
+    CITY_OVERLAY_NOTIFICATION_VALIDATION_FAILED("city.overlay.notification.validation.failed"),
+    CITY_OVERLAY_NOTIFICATION_SAVE_ERROR("city.overlay.notification.save.error"),
+    CITY_OVERLAY_NOTIFICATION_CONFLICT("city.overlay.notification.conflict"),
+    CITY_OVERLAY_BUTTON_SAVE("city.overlay.button.save"),
+    CITY_OVERLAY_BUTTON_CANCEL("city.overlay.button.cancel"),
+
+    // === City Management ===
+    CITY_VIEW_CONFIRM_DELETE_TITLE("city.view.confirm.delete.title"),
+    CITY_VIEW_CONFIRM_DELETE_TEXT("city.view.confirm.delete.text"),
+    CITY_VIEW_CONFIRM_DELETE_BUTTON("city.view.confirm.delete.button"),
+    CITY_VIEW_CONFIRM_CANCEL_BUTTON("city.view.confirm.cancel.button"),
+    CITY_VIEW_NOTIFICATION_DELETED("city.view.notification.deleted"),
+    CITY_VIEW_NOTIFICATION_DELETE_ERROR("city.view.notification.delete.error"),
+    CITY_VIEW_NOTIFICATION_RESTORED("city.view.notification.restored"),
+    CITY_VIEW_TOOLTIP_EDIT("city.view.tooltip.edit"),
+    CITY_VIEW_TOOLTIP_DELETE("city.view.tooltip.delete"),
+    CITY_VIEW_TOOLTIP_RESTORE("city.view.tooltip.restore"),
+    CITY_VIEW_DELETED_LABEL("city.view.deleted.label"),
+    CITY_VIEW_EMPTY("city.view.empty"),
+    CITY_VIEW_BUTTON_EDIT("city.view.button.edit");
 
     private final String key;
 
@@ -395,6 +401,14 @@ public enum I18nKey {
             case UPDATED -> AUDIT_ACTIVITY_ACTION_UPDATED;
             case DELETED  -> AUDIT_ACTIVITY_ACTION_DELETED;
             case RESTORED -> AUDIT_ACTIVITY_ACTION_RESTORED;
+        };
+    }
+
+    public static I18nKey forAdKind(AdKind adKind) {
+        return switch (adKind) {
+            case OFFER   -> ADVERTISEMENT_AD_KIND_OFFER;
+            case REQUEST -> ADVERTISEMENT_AD_KIND_REQUEST;
+            case PRODUCT -> ADVERTISEMENT_AD_KIND_PRODUCT;
         };
     }
 

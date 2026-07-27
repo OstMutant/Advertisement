@@ -20,13 +20,19 @@ import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
 import org.ost.marketplace.ui.views.components.attachment.AttachmentGalleryService;
 import org.ost.marketplace.ui.views.main.tabs.advertisements.overlay.elements.OverlayAdvertisementMetaPanel;
-import org.ost.marketplace.ui.core.UiComponentFactory;
+import org.ost.marketplace.ui.views.services.AppLinkService;
+import org.ost.marketplace.ui.views.services.NotificationService;
+import org.ost.marketplace.ui.views.utils.ShareUtil;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
+import org.ost.platform.taxon.model.TaxonType;
+import org.ost.platform.taxon.dto.TaxonDto;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.springframework.context.annotation.Scope;
+
+import java.util.List;
 
 import static org.ost.marketplace.services.i18n.I18nKey.*;
 
@@ -50,9 +56,11 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
     private final I18nService                                       i18nService;
     private final OverlayAdvertisementMetaPanel                     metaPanel;
     private final ComponentFactory<AttachmentPort>                  attachmentPortFactory;
-    private final UiComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
+    private final ComponentFactory<AttachmentGalleryService>      galleryServiceFactory;
     private final ComponentFactory<TaxonPort>                       taxonPortFactory;
     private final LocaleProvider                                    localeProvider;
+    private final AppLinkService                                    appLinkService;
+    private final NotificationService                               notificationService;
 
     private Parameters params;
 
@@ -78,22 +86,14 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         textCard.addClassName("overlay__view-card");
 
         taxonPortFactory.ifAvailable(taxonPort -> {
-            var cats = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
-            if (!cats.isEmpty()) {
-                Div categoriesRow = new Div();
-                categoriesRow.addClassName("advertisement-categories-chips");
-                categoriesRow.getElement().setAttribute("role", "list");
-                categoriesRow.getElement().setAttribute("aria-label", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
-                cats.forEach(cat -> {
-                    Span chip = new Span(cat.getName());
-                    chip.addClassName("advertisement-category-chip");
-                    if (cat.isDeleted()) chip.addClassName("advertisement-category-chip--deleted");
-                    chip.getElement().setAttribute("role", "listitem");
-                    categoriesRow.add(chip);
-                });
-                textCard.add(categoriesRow);
-            }
+            var taxons = taxonPort.getForEntity(EntityType.ADVERTISEMENT, params.getAd().getId(), localeProvider.getCurrentLocale());
+            buildChipRow(textCard, taxons, TaxonType.CATEGORY, "advertisement-categories-chips",
+                    "advertisement-category-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CATEGORIES));
+            buildChipRow(textCard, taxons, TaxonType.CITY, "advertisement-city-chips",
+                    "advertisement-city-chip", getValue(ADVERTISEMENT_OVERLAY_FIELD_CITY));
         });
+
+        textCard.add(buildAdKindBadge(params.getAd()));
 
         Div viewBody = new Div(textCard);
         attachmentPortFactory.ifAvailable(_ -> viewBody.add(
@@ -104,14 +104,43 @@ public class AdvertisementViewOverlayModeHandler extends AbstractViewOverlayMode
         return viewBody;
     }
 
+    private Span buildAdKindBadge(AdvertisementInfoDto ad) {
+        Span badge = new Span(getValue(forAdKind(ad.getAdKind())));
+        badge.addClassName("advertisement-ad-kind-badge");
+        badge.addClassName("advertisement-ad-kind-badge--" + ad.getAdKind().name().toLowerCase());
+        return badge;
+    }
+
+    private static void buildChipRow(Div textCard, List<TaxonDto> taxons, TaxonType type,
+                                      String rowCssClass, String chipCssClass, String ariaLabel) {
+        List<TaxonDto> matching = taxons.stream().filter(t -> t.getType() == type).toList();
+        if (matching.isEmpty()) return;
+        Div row = new Div();
+        row.addClassName(rowCssClass);
+        row.getElement().setAttribute("role", "list");
+        row.getElement().setAttribute("aria-label", ariaLabel);
+        matching.forEach(taxon -> {
+            Span chip = new Span(taxon.getName());
+            chip.addClassName(chipCssClass);
+            if (taxon.isDeleted()) chip.addClassName(chipCssClass + "--deleted");
+            chip.getElement().setAttribute("role", "listitem");
+            row.add(chip);
+        });
+        textCard.add(row);
+    }
+
     @Override
     protected Div buildHeaderActions() {
         UiPrimaryButton editButton = new UiPrimaryButton(getValue(ADVERTISEMENT_CARD_BUTTON_EDIT));
+        UiIconButton shareButton = new UiIconButton(getValue(ADVERTISEMENT_CARD_BUTTON_SHARE), VaadinIcon.SHARE.create());
+        shareButton.addClassName("overlay__view-share");
         UiIconButton closeButton = new UiIconButton(getValue(MAIN_TAB_ADVERTISEMENTS), VaadinIcon.CLOSE.create());
         editButton.addClickListener(_  -> params.getOnEdit().run());
+        shareButton.addClickListener(_ -> ShareUtil.share(shareButton, appLinkService.advertisementUrl(params.getAd().getId()),
+                params.getAd().getTitle(), () -> notificationService.success(ADVERTISEMENT_CARD_NOTIFICATION_LINK_COPIED)));
         closeButton.addClickListener(_ -> params.getOnClose().run());
         editButton.setVisible(access.canOperate(params.getAd().getOwnerUserId()));
-        return new Div(editButton, closeButton);
+        return new Div(editButton, shareButton, closeButton);
     }
 
 }

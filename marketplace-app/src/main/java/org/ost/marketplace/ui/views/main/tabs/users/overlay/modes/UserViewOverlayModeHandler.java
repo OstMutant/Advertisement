@@ -4,7 +4,6 @@ import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import lombok.Getter;
 import lombok.NonNull;
@@ -18,7 +17,6 @@ import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.fields.UiLabeledField;
 import org.ost.marketplace.ui.views.components.buttons.UiPrimaryButton;
 import org.ost.marketplace.ui.views.components.overlay.AbstractViewOverlayModeHandler;
-import org.ost.marketplace.ui.core.UiComponentFactory;
 import org.ost.marketplace.ui.core.Configurable;
 import org.ost.marketplace.ui.views.rules.I18nParams;
 import org.ost.marketplace.ui.query.utils.TimeZoneUtil;
@@ -51,16 +49,6 @@ public class UserViewOverlayModeHandler extends AbstractViewOverlayModeHandler
     public UserViewOverlayModeHandler configure(Parameters p) {
         this.params = p;
         return this;
-    }
-
-    @Override
-    protected String tabsCssClass() {
-        return "user-view-tabs";
-    }
-
-    @Override
-    protected Tab buildPrimaryTab() {
-        return new Tab(getValue(ACTIVITY_PROFILE_TAB));
     }
 
     @Override

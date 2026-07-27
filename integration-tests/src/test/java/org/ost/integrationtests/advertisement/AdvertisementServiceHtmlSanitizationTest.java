@@ -9,6 +9,7 @@ import org.ost.advertisement.entity.Advertisement;
 import org.ost.advertisement.repository.AdvertisementRepository;
 import org.ost.advertisement.services.AdvertisementService;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.taxon.spi.TaxonPort;
@@ -57,7 +58,7 @@ class AdvertisementServiceHtmlSanitizationTest {
                 .thenReturn(Advertisement.builder().id(1L).build());
 
         AdvertisementSaveDto dto = new AdvertisementSaveDto(
-                null, "Title", "<script>alert(1)</script><b>Bold</b>", null, null);
+                null, "Title", "<script>alert(1)</script><b>Bold</b>", AdKind.OFFER, null, null, null);
 
         service.save(dto);
 
@@ -70,7 +71,7 @@ class AdvertisementServiceHtmlSanitizationTest {
     void save_descriptionExceedsVisibleTextMaxLength_throws() {
         AdvertisementService service = newService();
         String tooLong = "a".repeat(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH + 1);
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", tooLong, null, null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", tooLong, AdKind.OFFER, null, null, null);
 
         assertThatThrownBy(() -> service.save(dto))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -84,7 +85,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         when(repository.save(captor.capture()))
                 .thenReturn(Advertisement.builder().id(1L).build());
         String exactlyMax = "a".repeat(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH);
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", exactlyMax, null, null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", exactlyMax, AdKind.OFFER, null, null, null);
 
         service.save(dto);
 
@@ -101,7 +102,7 @@ class AdvertisementServiceHtmlSanitizationTest {
         // since validateDescriptionLength() measures Jsoup's parsed .text(), not raw HTML length.
         String visibleText = "a".repeat(AdvertisementSaveDto.DESCRIPTION_MAX_LENGTH - 10);
         String html = "<b>" + visibleText + "</b>" + "<i></i>".repeat(50);
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", html, null, null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", html, AdKind.OFFER, null, null, null);
 
         service.save(dto);
 

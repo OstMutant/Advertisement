@@ -40,8 +40,6 @@ public interface UserPort {
 
     Optional<UserDto> findById(@NonNull Long id);
 
-    Optional<UserDto> restoreToSnapshot(@NonNull Long userId, @NonNull Long snapshotId, @NonNull Long actingUserId);
-
     Optional<UserDto> findByEmail(@NonNull String email);
 
     Set<Long> findExistingIds(@NonNull Set<Long> ids);

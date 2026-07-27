@@ -1170,3 +1170,190 @@ shared signature, `I18nKey`→`String`); and the remaining simple fields (`Query
 `marketplace-app/DECISIONS.md` ADR-056. Verified with unit-tests (72/72, including ArchUnit),
 integration-tests (127/127), and Playwright e2e --full --ux (49/49, first try — no recurrence of
 the `fillActorPicker` flake fixed in the improvement-025 Batch 4 entry above).
+
+✅ Done (2026-07-23): [improvement-115](issues/improvement-115-intellij-inspection-cleanup-pass.md)
+— full triage of a project-wide IntelliJ IDEA inspection export (`/app/errors/*.xml`, 33 inspection
+files), run in 4 ordered sub-passes. Batch 1 (safe mechanical): 10 unused imports,
+`SequencedCollectionMethodCanBeUsed` ×20 (`.get(0)`→`.getFirst()`), diamond/method-ref, dangling
+Javadoc, `FieldCanBeLocal` ×2, redundant suppression, `Collectors.toSet()`→`new HashSet<>()` ×2,
+dead i18n property, `ClassCanBeRecord` ×2 (one Spring bean deliberately kept a class). Batch 2
+(bugs): fixed a real gap where `AdvertisementSaveService.save()`'s update path could NPE on a
+concurrent soft-delete race (no guard existed for `before == null`, unlike the sibling `delete()`
+method — added a matching guard + regression test); migrated Testcontainers'
+`org.testcontainers.containers.PostgreSQLContainer` (deprecated, forRemoval) to the new non-generic
+`org.testcontainers.postgresql.PostgreSQLContainer`; `setAcceptedFileTypes`→`setAcceptedMimeTypes`;
+found and fixed an unrelated pre-existing build break in `integration-tests/pom.xml`
+(`junit-jupiter-api` resolved to `runtime` scope transitively, invisible to `src/main` compilation
+— added an explicit `compile`-scope dependency, see `integration-tests/DECISIONS.md` ADR-011). The
+Vaadin `@Theme` deprecation was carved out into its own deferred issue,
+[improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) — needs a full
+visual-regression pass, not a mechanical fix. Batch 3: added missing `@NonNull`/`@jspecify.NonNull`
+across 20 real gaps (6 more were a `NullableProblems` inspection quirk on an interface that already
+followed the project's `@NonNull` convention — left alone). Batch 4 (dead code, largest): removed
+~40 confirmed-dead methods/fields (unused i18n enum constants, orphaned package markers, dead
+repository/service methods) while explicitly excluding known false positives (`*CrudRepository`
+"not implemented" — Spring Data JDBC proxies; `ArchitectureRulesTest` fields — ArchUnit reflection;
+`@PostConstruct`/`@ClientCallable`-invoked methods); simplified several SPI methods with
+provably-dead parameters end-to-end (`AuditPort.captureUpdate`'s `before`, `AuditActivityEnrichHook`'s
+`subjects`/`entityRef`, `AuditDomainHook.resolveDisplayName`'s `entityType` — see
+`platform-commons/DECISIONS.md` ADR-022); removed `UserPort.restoreToSnapshot()` and
+`AttachmentPort.getMediaSummary(EntityRef)` (both confirmed to have zero real callers, per explicit
+user confirmation); and collapsed `AbstractViewOverlayModeHandler`'s secondary/tertiary-tab
+machinery, dead since the Timeline-tab extraction — tracing `activate()`'s logic showed the
+tab-rendering branch was already unreachable, not merely unused (see `marketplace-app/DECISIONS.md`
+ADR-057). Verified after every sub-pass: unit-tests (73/73), integration-tests (125/125 final,
+down from 127 after deleting `UserServiceRestoreTest.java`'s 2 tests for the removed feature), and
+a full Playwright e2e --full --ux run (a first run hit 3 cascading failures traced to one transient
+login timeout in spec 03 skipping fixture-creating tests that spec 04/05 depended on; a full
+re-run confirmed 49/49 green, not a regression).
+
+✅ Done (2026-07-24): [improvement-072](issues/improvement-072-uicomponentfactory-generics-design-debt.md)
+— resolved all three generics/type-safety design-debt items. (1) `UiComponentFactory<T extends
+Configurable<T, ?>>` bound enforced at compile time; the 10 non-`Configurable` consumers
+(`AuditActivityListRenderer`, `AuditHistoryListRenderer`, `AuditHistoryRowRenderer`,
+`AuditActivityRowRenderer`, `AttachmentGalleryService`, `AttachmentGallery`'s `thumbnailFactory`,
+`CardMediaLightbox`'s `viewerFactory`, `AttachmentThumbnail`, `UserPickerField`, and the three
+`AdvertisementCardView`/`AdvertisementFormOverlayModeHandler`/`AdvertisementViewOverlayModeHandler`
+`galleryServiceFactory` fields) migrated to plain `ComponentFactory<T>`; `OverlayFormBinder`'s
+single shared raw-typed factory bean split into 4 concrete beans, one per `EditDto` — see
+`marketplace-app/DECISIONS.md` ADR-058. (2) `AuditReadService`'s raw `List`/`AuditActivityEnrichHook`
+dispatch investigated and deliberately kept as-is — verified directly (not just argued) that
+dropping the hook interface's generic parameter to eliminate the dispatch-loop cast only pushes an
+unchecked cast into `AdvertisementEnrichService`, which previously needed none; the raw-type +
+`@SuppressWarnings` idiom is the accepted, pragmatic form for this "runtime-dispatched
+heterogeneous collection" shape — see `platform-commons/DECISIONS.md` ADR-023. (3) `Class<T>
+targetClass` type token added to `AuditPort.getSnapshotContent()`/`AuditDomainHook.castIfKnown()`;
+`AuditDomainHookImpl` now uses `targetClass.cast(...)` in a `try`/`catch (ClassCastException)` —
+zero `instanceof`, zero `switch`, zero `@SuppressWarnings("unchecked")` — see
+`platform-commons/DECISIONS.md` ADR-023. Along the way, `bash scripts/ci.sh`'s e2e/sonar stages
+were found to have no retrievable failure reason once their container was torn down; fixed by
+having both stages write their own `run.log` (`scripts/ci/DECISIONS.md` ADR-006), which then
+surfaced a real, separate root cause for a recurring `e2e` failure — the isolated CI Postgres
+volume was never recreated between runs and had been stuck since before commit `3063048d`
+retrofitted `deleted_at`/`deleted_by` onto an already-applied `01-user-schema` changeset (Liquibase
+never re-runs a recorded changeset); fixed by having `teardown_e2e_stack()` also remove
+`CI_DB_VOLUME`/`CI_MINIO_VOLUME` (ADR-007), scoped as a non-prod fix since this project has no
+deployed database that could hit the same permanent-gap risk. Verified: unit-tests (73/73),
+`bash scripts/ci.sh --sandbox` full chain — unit/integration/e2e all PASSED (e2e was the one that
+surfaced and then confirmed-fixed the Postgres volume issue); `sonar` stage still fails, but solely
+on the pre-existing, separately tracked `new_coverage` gap
+([improvement-114](issues/improvement-114-sonar-jacoco-coverage-not-wired.md) — JaCoCo was never
+wired into the scanner, unrelated to this issue's changes; `new_violations` and
+`new_duplicated_lines_density` both passed clean).
+
+✅ Done (2026-07-24): [improvement-117](issues/improvement-117-f01-deep-links-og-tags.md) — F-01
+deep links + Open Graph meta tags, the product roadmap's Phase 1 community-migration mechanic.
+Four passes, each with its own `marketplace-app/DECISIONS.md` ADR: (1) ADR-059 —
+`AdvertisementDeepLinkView` (`@Route("ads")`) + `OgMetaRequestListener`
+(`IndexHtmlRequestListener`, Caffeine-cached) + `HtmlExcerptUtil` extraction; no `SecurityConfig`
+change needed since `/ads/**` was already covered by `anyRequest().permitAll()`. (2) ADR-060 —
+"Share" button (`AppLinkService` + `ShareUtil`: native Web Share API on mobile, clipboard-copy
+fallback on desktop) on both the card and view overlay. (3) ADR-061 — `sitemap.xml`
+(`SitemapController`, pages through the existing `AdvertisementPort` with no new port method,
+genuine new endpoint so it does get its own `SecurityConfig` permit entry); found and fixed an
+unrelated bug while verifying — `deploy.sh` never set `APP_PUBLIC_URL`, so local links pointed at
+the container's internal port instead of the externally-published one. (4) ADR-062 — found a real
+bug via `curl`-based crawler simulation (`twitter:card` used the wrong HTML attribute, `property=`
+instead of Twitter's required `name=`), fixed alongside `og:image` cache-busting versioning,
+JSON-LD `Product` markup, and full browser History API sync (`pushState` on open/close,
+`Back`/`Forward` via `History.setHistoryStateChangeHandler`) — verified with a real
+`page.goBack()` in Playwright. Every item verified via one cumulative, incrementally-extended
+Playwright test; full e2e suite 50/50 after each pass, unit-tests 73/73. The one inherently
+non-automatable item — sharing a real `/ads/:id` link into an actual Facebook post and Telegram
+chat, needs a public URL this sandbox doesn't have — carved out into
+[improvement-118](../issues/improvement-118-f01-real-world-og-preview-verification.md).
+
+✅ Done (2026-07-25): [improvement-046](issues/improvement-046-list-stability-under-concurrent-edits.md)
+— list stability after edit, option E (client-side variant) + a lightweight "N changes — Refresh"
+banner, chosen after external research showed the dashboard "live/paused" pattern makes E far
+cheaper than the server-side snapshot originally costed. `AdvertisementOverlay`/`UserOverlay`/
+`TaxonOverlay` each split their single `onSaved` callback into `onUpdated` (splice one row/card in
+place after an EDIT save, no refetch), `onListChanged` (full refresh, CREATE only — row count
+changes), and `onClosed` (Advertisement/User only — cheap `count()`-only staleness check driving
+the banner; no banner for Taxon, which has no pagination and so never had the underlying "wrong
+page" symptom, converted only for consistency of approach). See `marketplace-app/DECISIONS.md`
+ADR-063 for full per-domain detail, including a real bug found and fixed mid-implementation
+(Taxon's CREATE overlay briefly auto-closed after save, breaking 3 Playwright tests that expect it
+to stay open until an explicit close). Verified: unit-tests 73/73 (incl. ArchUnit), full Playwright
+`e2e --full --ux` 50/50 on the post-fix re-run. Deliberately deferred: option D (keyset/cursor
+pagination), still the correct eventual fix for the deeper, unrelated instability from *other*
+users' concurrent inserts/deletes — tracked inside the issue file, not split out separately.
+
+✅ Done (2026-07-25): [improvement-120](issues/improvement-120-advertisement-user-hard-fk-coupling.md)
+— removed the last hard SQL-level FK coupling between starters (`advertisement` → `user_information`,
+3 constraints: `created_by` RESTRICT, `updated_by`/`deleted_by` SET NULL), found during F-02
+planning review. Edited `01-advertisement-schema.xml` in place (pre-prod, no incremental
+changeset). Traced the constraint as load-bearing before removing it — `UserService.cleanup()`'s
+retention-purge job relied on the DB blocking a hard delete when `advertisement` rows still
+referenced the user. Replaced with two new `AdvertisementPort` methods split by the two
+constraints' different original semantics: `findOwnerIds()` (mirrors RESTRICT, blocks purge while
+the user still owns an ad) and `clearActorReferences()` (mirrors SET NULL, nulls
+`updated_by`/`deleted_by` instead of blocking). Verified no UI regression, not assumed — neither
+column is ever exposed to the UI (`AdvertisementInfoDto` has no such fields), and
+Activity/Timeline actor-name resolution is a separate mechanism (`audit_log.actor_id`) that never
+had a DB constraint either. `created_by` (the only actor reference actually shown in the UI) ends
+up *more* protected than before. See `marketplace-app/DECISIONS.md` ADR-064. Bonus, per user
+request: `deploy.sh` now auto-recovers from the resulting local-dev Liquibase checksum mismatch
+(edited-in-place changeset vs. an already-applied old version) — detects the specific
+`ValidationFailedException` signature and auto-wipes/retries once instead of requiring a manual
+`--reset`, verified live by deliberately corrupting a dev DB's stored checksum and confirming
+recovery. Hit and fixed two real bash pitfalls along the way (`$?` after `if ! cmd; then` capturing
+the `if` test's own status, not `cmd`'s; the `ERR` trap firing regardless of `set +e` for any
+command outside a tested `if`/`&&`/`||` construct) — see `scripts/DECISIONS.md` ADR-010. Verified:
+unit-tests 74/74, integration-tests 126/126 (full suite), Playwright `e2e --full --ux` 50/50
+(twice).
+
+✅ Done (2026-07-25): [improvement-119](issues/improvement-119-f02-city-dictionary-geo-filter.md)
+— F-02 city dictionary + geo filter, product roadmap Phase 1 item #2. Added `TaxonType.CITY`
+(`platform-commons`) reusing the existing `taxon_assignment` mechanism — zero schema changes
+anywhere. Caught (by reading the actual source first, not assuming) that
+`TaxonAssignmentService.replaceAssignments()` diff-replaces *all* taxon types in one call, so
+category ids and the city id must be unioned into one `Set<Long>` before a single call, and that
+`getForEntity(s)`'s result is type-unfiltered, requiring every consumer (save-service snapshot
+builder, enrich-service, filter resolver) to split by `TaxonDto.getType()` client-side. Pre-empted
+the earlier categoryIds raw-id-fallback bug for `cityTaxonId` from the start
+(`AdvertisementEnrichService.resolveCity()`), then found via unit tests that both `resolveCity()`
+and the pre-existing `resolveCategories()` were appending a spurious empty diff entry when the
+*other* field's ids were the only thing that resolved a non-empty `nameById` — fixed by guarding
+the append on the field's own ids actually being non-empty/non-null. New, separate `City*` admin
+classes by analogy with `Taxon*` (not a parameterized shared class — `TaxonOverlay` is a
+`@UIScope` singleton, needs two distinct instances for two simultaneous tabs), new "Cities" tab in
+`ReferenceDataView`. Single-select `ComboBox<TaxonDto>` on the advertisement query block/form/view/
+card (categories use `MultiSelectComboBox` — first single-select precedent in this codebase).
+Playwright: extended existing tests rather than new spec files (per explicit instruction) — city
+admin lifecycle folded into spec 03's category tests, `city`/`cityToSet` params added to spec 04's
+create/edit flows, city filter folded into spec 05's seed/filter test. Found and fixed two more
+real bugs via the Playwright run itself: `openReferenceDataTab()` assumed the "Categories" sub-tab
+was always showing, but Vaadin's `Tabs` retains its last selection across visibility toggles, so
+visiting the new "Cities" sub-tab once broke every later call — fixed by explicitly reselecting
+Categories every time; and the new `cityToSet` step added an extra save to an existing edit-
+lifecycle test, shifting a downstream activity-version assertion by one. See
+`marketplace-app/DECISIONS.md` ADR-065 and `taxon-spring-boot-starter/DECISIONS.md` ADR-003's
+update. Verified: unit-tests 75/75, integration-tests 128/128, Playwright `e2e --full --ux` 50/50
+(after both bugfixes above).
+
+✅ Done (2026-07-27): [improvement-122](issues/improvement-122-f03-listing-types.md) — F-03
+listing types (Offer/Request/Product), product roadmap Phase 1 item #3, the last piece of the
+"Shareability foundation" gate. Unlike F-02's city facet, a genuine new `advertisement.ad_kind
+VARCHAR(20) NOT NULL DEFAULT 'OFFER'` column (mandatory, closed set, no admin dictionary needed) —
+new `AdKind` enum in `platform-commons`, added to the existing (never-released)
+`01-advertisement-schema.xml` changeset. First use of Vaadin's `RadioButtonGroup` in this codebase
+(mandatory single-select, always visible — neither `ComboBox` nor `MultiSelectComboBox` fit).
+Caught a Binder `readInitialValues()` default-value hazard by reasoning before writing code, not by
+a failing test: setting the default on the widget directly would be silently overwritten, so it's
+set on `AdvertisementEditDto` instead. Playwright's own run then surfaced four real bugs: (1) the
+activity diff showed the raw enum name (`"OFFER"`, `"PRODUCT"`) instead of a localized label — fixed
+via `AdvertisementEnrichService.resolveAdKind()`, which — unlike `resolveCategories()`/
+`resolveCity()` — only relabels an entry `diff()` already produced instead of manufacturing one,
+since listing type (unlike category/city) is never absent and would otherwise inject a "Listing
+type" line into every single activity row; (2) a second `MultiSelectComboBox` filter on the same
+query block broke the pre-existing category filter's overlay-visibility wait, since a stale, hidden
+overlay from an earlier combo can still be the one a bare `.first()` locator resolves to — fixed by
+waiting on each combo's own `opened` property instead; (3) the default listing-type badge assertion
+hardcoded the English label regardless of the logged-in user's actual (per-account, persisted) UI
+locale; (4) an exact per-type filter-count assertion in spec 05 was inherently fragile, since
+(unlike optional category/city) every advertisement always has some listing type, so leftover
+non-seed ads from earlier specs always inflate one of the three buckets — switched to `>=` (same
+idiom `verifyDateRangeFilters()` already used for this exact class of problem). See
+`marketplace-app/DECISIONS.md` ADR-066. Verified: unit-tests 77/77, integration-tests unaffected
+(schema/repository-only change), Playwright `e2e --full --ux` 50/50.

@@ -19,10 +19,6 @@ public class HighlighterUtil {
         component.addClassName(CLEAN);
     }
 
-    public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue) {
-        highlight(component, newValue, originalValue, defaultValue, true);
-    }
-
     public static <T> void highlight(Component component, T newValue, T originalValue, T defaultValue, boolean isValid) {
         resetHighlightClasses(component);
 
@@ -40,16 +36,6 @@ public class HighlighterUtil {
             return;
         }
         component.addClassName(CLEAN);
-    }
-
-    public static void setChanged(Component component) {
-        resetHighlightClasses(component);
-        component.addClassName(CHANGED);
-    }
-
-    public static void setDirtyOrInvalid(Component component, boolean isValid) {
-        resetHighlightClasses(component);
-        component.addClassName(isValid ? DIRTY : INVALID);
     }
 
     public static void setDirtyOrClean(Component component, boolean dirty) {

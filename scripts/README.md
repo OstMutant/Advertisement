@@ -22,6 +22,9 @@ bash scripts/deploy.sh --no-cache        # force rebuild ignoring Docker layer c
 bash scripts/deploy.sh --reset           # wipe all containers + volumes, start fresh
 bash scripts/deploy.sh --restart-infra   # restart DB + MinIO (volumes preserved), redeploy app
 bash scripts/deploy.sh --reset-db        # truncate app tables (reset-clean.sql) before starting the app
+bash scripts/deploy.sh --prune-all       # deliberate whole-machine deep clean: also prunes stopped
+                                          # containers + unused volumes host-wide, not scoped to
+                                          # this app (see scripts/CLAUDE.md, scripts/ci/DECISIONS.md ADR-001)
 scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 ```
 
@@ -48,6 +51,7 @@ scripts\deploy.bat                       # Windows (calls deploy.sh via WSL)
 | `--reset` | Stop + remove ALL containers and volumes, then start from scratch |
 | `--restart-infra` | Remove and restart DB + MinIO containers, volumes preserved |
 | `--reset-db` | Truncate app tables (`reset-clean.sql`) before starting the app — no volume wipe |
+| `--prune-all` | Also run `docker container prune -f`/`docker volume prune -f` — host-wide, not scoped to this app's own resources; opt-in only, see `scripts/CLAUDE.md` |
 
 Flags can be combined: `bash scripts/deploy.sh --no-cache --file`
 
@@ -176,8 +180,9 @@ against whatever's already in `~/.m2`; see `integration-tests/CLAUDE.md` for the
 Run SonarQube analysis. Starts SonarQube automatically if not running. Delegates to `scripts/sonar/run.sh`.
 
 ```bash
-bash scripts/sonar.sh
-scripts\sonar.bat
+bash scripts/sonar.sh              # blocking: exits non-zero if the quality gate fails
+scripts\sonar.bat                  # Windows — same
+bash scripts/sonar.sh --no-gate    # informational only, always exits 0 (improvement-032)
 ```
 
 Results: `http://localhost:9099/dashboard?id=advertisement`
@@ -249,7 +254,7 @@ This means both scripts work correctly from any context: Windows WSL, a terminal
 | `advertisement-minio` | `minio/minio:latest` | `9000` (API), `9001` (console) | `deploy.sh`, `docker-compose.minio.yml` | S3-compatible storage (MinIO) |
 | `marketplace-app` | built from `Dockerfile` | `8081` | `deploy.sh` | Spring Boot + Vaadin application |
 | `advertisement-build-env` | built from `scripts/build-env/Dockerfile` | — | `deploy-dev.sh` (throwaway `--rm`, per build) | JDK 25 + Docker CLI — builds JAR, hot-swaps into marketplace-app |
-| `pw-runner` | `mcr.microsoft.com/playwright:v1.52.0-jammy` | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
+| `pw-runner` | `mcr.microsoft.com/playwright:v1.61.1-jammy` (corrected 2026-07-27 from `v1.52.0-jammy`) | — | `playwright/run.sh` (reused across runs) | Playwright test runner |
 | `claude-dev` | built from `Dockerfile.ai` | — | `scripts/claude.bat` | Claude Code dev environment |
 
 ### Volumes
@@ -275,4 +280,61 @@ scripts/
   build-env/       — Docker build environment for deploy-dev (JDK 25 + Docker CLI)
   database/        — SQL scripts and database helpers (reset-clean.sql)
   sonar/           — SonarQube configuration and scanner
+  ci/              — isolated local CI runner (Dockerfile, entrypoint.sh, own README/DECISIONS.md)
+  hooks/           — git hooks (pre-commit, commit-msg), installed via install-hooks.sh
+  run-all-tests/   — reports/ output for run-all-tests.sh
+  unit-tests/      — run.sh + reports/ output for unit-tests.sh
 ```
+
+---
+
+## install-hooks.sh
+
+Installs this repo's git hooks (`scripts/hooks/pre-commit`, `scripts/hooks/commit-msg`) by
+pointing `core.hooksPath` at `scripts/hooks` — run once after cloning.
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+`pre-commit` syncs `docs/architecture/`, `DECISIONS.md`, `CLAUDE.md`, `backlog/issues/`.
+`commit-msg` prepends an entry to `CHANGELOG.md` from the conventional-commit message. Bypass for
+a single commit with `SKIP_AUDIT=1 git commit`.
+
+---
+
+## run-all-tests.sh / run-all-tests.bat
+
+Orchestrates unit tests → integration tests sequentially (both can compile the same starter
+modules into shared `target/` dirs, so they don't run concurrently) plus Playwright in parallel
+(it never touches the Maven reactor). Delegates to `scripts/unit-tests.sh`/
+`scripts/integration-tests.sh`/`scripts/playwright.sh`, forwarding each suite's own flags unchanged.
+
+```bash
+bash scripts/run-all-tests.sh
+bash scripts/run-all-tests.sh --unit "AccessEvaluatorTest" \
+                               --integration "--sandbox TaxonRepositoryTest" \
+                               --playwright "e2e --ux"
+```
+
+Reports: `scripts/run-all-tests/reports/`. See `scripts/DECISIONS.md` ADR-004 for the
+sequencing rationale (improvement-051).
+
+---
+
+## ci.sh / ci.bat
+
+Isolated local CI runner: builds a dedicated CI-runner container (Docker-outside-of-Docker, own
+`/var/run/docker.sock` mount) and runs unit → integration → e2e → Sonar in one pass, without
+touching the persistent dev stack. Backgrounded by default, with a live `progress.txt`.
+
+```bash
+bash scripts/ci.sh                              # default: unit+integration+e2e+sonar, backgrounded
+bash scripts/ci.sh --unit --integration --e2e   # chosen stages only
+bash scripts/ci.sh --integration --sandbox      # this sandbox's Testcontainers workaround
+bash scripts/ci.sh --foreground                 # block and stream instead of the background default
+```
+
+Reports: `scripts/ci/reports/<timestamp>/{unit-tests,integration-tests,playwright,sonar}/`
+(pruned to the last 3 runs by default — see `--keep-reports`). Full detail: `scripts/ci/README.md`
+and `scripts/ci/DECISIONS.md` (improvement-059).

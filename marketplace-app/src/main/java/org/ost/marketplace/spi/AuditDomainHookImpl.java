@@ -3,17 +3,13 @@ package org.ost.marketplace.spi;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
-import org.ost.platform.taxon.dto.TaxonSnapshotDto;
 import org.ost.platform.taxon.spi.TaxonPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.audit.dto.AuditSnapshotContentDto;
 import org.ost.platform.audit.spi.AuditDomainHook;
 import org.ost.platform.core.ComponentFactory;
 import org.ost.platform.core.model.EntityType;
-import org.ost.platform.user.dto.SettingsSnapshotDto;
-import org.ost.platform.user.dto.UserSnapshotDto;
 import org.ost.platform.user.spi.UserPort;
 import org.ost.marketplace.services.user.UserActorNameService;
 import org.springframework.stereotype.Component;
@@ -53,20 +49,18 @@ public class AuditDomainHookImpl implements AuditDomainHook {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content) {
-        AuditableSnapshot data = content.snapshotData();
-        return switch (data) {
-            case AdvertisementSnapshotDto _, UserSnapshotDto _, SettingsSnapshotDto _, TaxonSnapshotDto _ -> Optional.of((AuditSnapshotContentDto<T>) content);
-            default -> {
-                log.error("Snapshot type mismatch for entityType={}", data.entityType());
-                yield Optional.empty();
-            }
-        };
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
+            @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass) {
+        try {
+            return Optional.of(new AuditSnapshotContentDto<>(targetClass.cast(content.snapshotData()), content.version()));
+        } catch (ClassCastException _) {
+            log.error("Snapshot type mismatch: expected {}, got {}", targetClass.getSimpleName(), content.snapshotData().getClass().getSimpleName());
+            return Optional.empty();
+        }
     }
 
     @Override
-    public String resolveDisplayName(@NonNull EntityType entityType, @NonNull AuditableSnapshot snapshot) {
+    public String resolveDisplayName(@NonNull AuditableSnapshot snapshot) {
         return snapshot.displayName().orElse("");
     }
 }

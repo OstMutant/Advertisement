@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -68,7 +69,7 @@ public class DefaultTaxonPort implements TaxonPort {
                 eid -> eid,
                 eid -> byEntity.getOrDefault(eid, List.of()).stream()
                         .map(a -> dtoById.get(a.getTaxonId()))
-                        .filter(dto -> dto != null)
+                        .filter(Objects::nonNull)
                         .toList()
         ));
     }

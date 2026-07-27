@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.ost.platform.advertisement.dto.AdvertisementInfoDto;
 import org.ost.platform.advertisement.dto.AdvertisementSaveDto;
 import org.ost.platform.advertisement.dto.AdvertisementSnapshotDto;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.advertisement.spi.AdvertisementPort;
 import org.ost.platform.attachment.spi.AttachmentPort;
 import org.ost.platform.audit.api.AuditableSnapshot;
@@ -25,8 +26,6 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 /**
@@ -83,7 +82,7 @@ class AdvertisementSaveServiceTest {
 
     @Test
     void save_newAdvertisement_capturesCreationNotUpdate() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", Set.of(1L, 2L), null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "Title", "Desc", AdKind.OFFER, Set.of(1L, 2L), null, null);
         when(advertisementPort.save(dto)).thenReturn(100L);
         when(advertisementPort.findById(100L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(100L).title("Title").description("Desc").build()));
@@ -95,16 +94,16 @@ class AdvertisementSaveServiceTest {
         assertThat(id).isEqualTo(100L);
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         verify(auditPort).captureCreation(eq(100L), afterCaptor.capture(), eq(ACTOR_ID));
-        verify(auditPort, never()).captureUpdate(any(), any(), any(), any());
+        verify(auditPort, never()).captureUpdate(any(), any(), any());
         AdvertisementSnapshotDto after = (AdvertisementSnapshotDto) afterCaptor.getValue();
         assertThat(after.title()).isEqualTo("Title");
         assertThat(after.categoryIds()).containsExactly(1L, 2L);
     }
 
     @Test
-    void save_existingAdvertisement_capturesUpdateWithBeforeAndAfter() {
+    void save_existingAdvertisement_capturesUpdateWithAfter() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", Set.of(3L), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(3L), null, 5L);
         AdvertisementInfoDto beforeInfo = AdvertisementInfoDto.builder().id(adId).title("Old Title").description("Old Desc").build();
         AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
 
@@ -116,18 +115,34 @@ class AdvertisementSaveServiceTest {
         Long id = service.save(dto, ACTOR_ID, ref -> null);
 
         assertThat(id).isEqualTo(adId);
-        ArgumentCaptor<AuditableSnapshot> beforeCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
-        verify(auditPort).captureUpdate(eq(adId), beforeCaptor.capture(), afterCaptor.capture(), eq(ACTOR_ID));
+        verify(auditPort).captureUpdate(eq(adId), afterCaptor.capture(), eq(ACTOR_ID));
         verify(auditPort, never()).captureCreation(any(), any(), any());
-        assertThat(((AdvertisementSnapshotDto) beforeCaptor.getValue()).title()).isEqualTo("Old Title");
         assertThat(((AdvertisementSnapshotDto) afterCaptor.getValue()).title()).isEqualTo("New Title");
+    }
+
+    @Test
+    void save_existingAdvertisementConcurrentlyDeleted_savesButSkipsAuditCaptureInsteadOfThrowing() {
+        Long adId = 42L;
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "New Title", "New Desc", AdKind.OFFER, Set.of(), null, 5L);
+        AdvertisementInfoDto afterInfo = AdvertisementInfoDto.builder().id(adId).title("New Title").description("New Desc").build();
+
+        when(advertisementPort.findById(adId)).thenReturn(Optional.empty(), Optional.of(afterInfo));
+        when(advertisementPort.save(dto)).thenReturn(adId);
+        stubAvailable(auditPortFactory, auditPort);
+        stubAvailable(taxonPortFactory, mock(TaxonPort.class));
+
+        Long id = service.save(dto, ACTOR_ID, ref -> null);
+
+        assertThat(id).isEqualTo(adId);
+        verify(auditPort, never()).captureUpdate(any(), any(), any());
+        verify(auditPort, never()).captureCreation(any(), any(), any());
     }
 
     @Test
     void save_galleryTouched_usesGallerySnapshotIdRegardlessOfPreviousOne() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", AdKind.OFFER, Set.of(), null, 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
         when(advertisementPort.save(dto)).thenReturn(adId);
@@ -138,14 +153,14 @@ class AdvertisementSaveServiceTest {
         service.save(dto, ACTOR_ID, ref -> 999L);
 
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
-        verify(auditPort).captureUpdate(eq(adId), any(), afterCaptor.capture(), eq(ACTOR_ID));
+        verify(auditPort).captureUpdate(eq(adId), afterCaptor.capture(), eq(ACTOR_ID));
         assertThat(((AdvertisementSnapshotDto) afterCaptor.getValue()).attachmentSnapshotId()).isEqualTo(999L);
     }
 
     @Test
     void save_galleryNotTouched_fallsBackToPreviousAttachmentSnapshotId() {
         Long adId = 42L;
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", Set.of(), 5L);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(adId, "T", "D", AdKind.OFFER, Set.of(), null, 5L);
         AdvertisementInfoDto info = AdvertisementInfoDto.builder().id(adId).title("T").description("D").build();
         when(advertisementPort.findById(adId)).thenReturn(Optional.of(info));
         when(advertisementPort.save(dto)).thenReturn(adId);
@@ -156,13 +171,13 @@ class AdvertisementSaveServiceTest {
         service.save(dto, ACTOR_ID, ref -> null);
 
         ArgumentCaptor<AuditableSnapshot> afterCaptor = ArgumentCaptor.forClass(AuditableSnapshot.class);
-        verify(auditPort).captureUpdate(eq(adId), any(), afterCaptor.capture(), eq(ACTOR_ID));
+        verify(auditPort).captureUpdate(eq(adId), afterCaptor.capture(), eq(ACTOR_ID));
         assertThat(((AdvertisementSnapshotDto) afterCaptor.getValue()).attachmentSnapshotId()).isEqualTo(777L);
     }
 
     @Test
     void save_optionalPortsAbsent_completesWithoutException() {
-        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "T", "D", null, null);
+        AdvertisementSaveDto dto = new AdvertisementSaveDto(null, "T", "D", AdKind.OFFER, null, null, null);
         when(advertisementPort.save(dto)).thenReturn(1L);
         when(advertisementPort.findById(1L)).thenReturn(Optional.of(
                 AdvertisementInfoDto.builder().id(1L).title("T").description("D").build()));

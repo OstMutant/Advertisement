@@ -22,7 +22,8 @@ public interface AuditDomainHook {
 
     Set<Long> findExisting(@NonNull EntityType entityType, @NonNull Set<Long> entityIds);
 
-    String resolveDisplayName(@NonNull EntityType entityType, @NonNull AuditableSnapshot snapshot);
+    String resolveDisplayName(@NonNull AuditableSnapshot snapshot);
 
-    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(@NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content);
+    <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> castIfKnown(
+            @NonNull AuditSnapshotContentDto<? extends AuditableSnapshot> content, @NonNull Class<T> targetClass);
 }

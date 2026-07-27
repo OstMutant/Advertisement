@@ -2,6 +2,7 @@ package org.ost.platform.advertisement.dto;
 
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import lombok.experimental.FieldNameConstants;
+import org.ost.platform.advertisement.model.AdKind;
 import org.ost.platform.audit.api.AuditableSnapshot;
 import org.ost.platform.core.model.ChangeEntry;
 import org.ost.platform.core.model.EntityType;
@@ -21,7 +22,9 @@ import static org.ost.platform.core.model.ChangeEntry.FieldChange;
 public record AdvertisementSnapshotDto(
         String title,
         String description,
+        AdKind adKind,
         List<Long> categoryIds,
+        Long cityTaxonId,
         Long attachmentSnapshotId
 ) implements AuditableSnapshot {
 
@@ -41,9 +44,13 @@ public record AdvertisementSnapshotDto(
         List<ChangeEntry> changes = new ArrayList<>();
         diffField(changes, Fields.title,       field(prev, AdvertisementSnapshotDto::title),       title());
         diffField(changes, Fields.description, field(prev, AdvertisementSnapshotDto::description), description());
+        diffField(changes, Fields.adKind, typeToString(field(prev, AdvertisementSnapshotDto::adKind)), typeToString(adKind()));
         List<Long> prevIds = prev != null ? prev.categoryIds() : List.of();
         if (!Objects.equals(prevIds, categoryIds()))
             changes.add(new FieldChange(Fields.categoryIds, idsToString(prevIds), idsToString(categoryIds())));
+        Long prevCityId = prev != null ? prev.cityTaxonId() : null;
+        if (!Objects.equals(prevCityId, cityTaxonId()))
+            changes.add(new FieldChange(Fields.cityTaxonId, idToString(prevCityId), idToString(cityTaxonId())));
         return changes;
     }
 
@@ -52,11 +59,21 @@ public record AdvertisementSnapshotDto(
         return List.of(
                 new FieldChange(Fields.title,       null, title()),
                 new FieldChange(Fields.description, null, description()),
-                new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())));
+                new FieldChange(Fields.adKind,      null, typeToString(adKind())),
+                new FieldChange(Fields.categoryIds, null, idsToString(categoryIds())),
+                new FieldChange(Fields.cityTaxonId, null, idToString(cityTaxonId())));
     }
 
     private static String idsToString(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return "";
         return ids.stream().map(String::valueOf).collect(Collectors.joining(", "));
+    }
+
+    private static String idToString(Long id) {
+        return idsToString(id == null ? null : List.of(id));
+    }
+
+    private static String typeToString(AdKind type) {
+        return type == null ? "" : type.name();
     }
 }

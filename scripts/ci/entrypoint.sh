@@ -126,6 +126,7 @@ teardown_e2e_stack() {
   fi
   docker rm -f "$CI_APP_CONTAINER" "$CI_DB_CONTAINER" "$CI_MINIO_CONTAINER" 2>/dev/null || true
   docker network rm "$CI_NETWORK" 2>/dev/null || true
+  docker volume rm "$CI_DB_VOLUME" "$CI_MINIO_VOLUME" 2>/dev/null || true
 }
 cleanup_on_exit() {
   [ -n "$HEARTBEAT_PID" ] && kill "$HEARTBEAT_PID" 2>/dev/null
@@ -159,26 +160,32 @@ fi
 
 if [ "$STAGE_E2E" = "1" ]; then
   start_stage e2e
+  mkdir -p "$REPORT_DIR/playwright"
 
-  NETWORK="$CI_NETWORK" DB_CONTAINER="$CI_DB_CONTAINER" MINIO_CONTAINER="$CI_MINIO_CONTAINER" \
-  APP_CONTAINER="$CI_APP_CONTAINER" APP_IMAGE="$CI_APP_IMAGE" \
-  DB_PORT="$CI_DB_PORT" MINIO_PORT="$CI_MINIO_PORT" MINIO_CONSOLE_PORT="$CI_MINIO_CONSOLE_PORT" \
-  APP_PORT="$CI_APP_PORT" DB_VOLUME="$CI_DB_VOLUME" MINIO_VOLUME="$CI_MINIO_VOLUME" \
-  bash "$ROOT/scripts/deploy.sh"
-  DEPLOY_RC=$?
+  {
+    NETWORK="$CI_NETWORK" DB_CONTAINER="$CI_DB_CONTAINER" MINIO_CONTAINER="$CI_MINIO_CONTAINER" \
+    APP_CONTAINER="$CI_APP_CONTAINER" APP_IMAGE="$CI_APP_IMAGE" \
+    DB_PORT="$CI_DB_PORT" MINIO_PORT="$CI_MINIO_PORT" MINIO_CONSOLE_PORT="$CI_MINIO_CONSOLE_PORT" \
+    APP_PORT="$CI_APP_PORT" DB_VOLUME="$CI_DB_VOLUME" MINIO_VOLUME="$CI_MINIO_VOLUME" \
+    bash "$ROOT/scripts/deploy.sh"
+    DEPLOY_RC=$?
 
-  if [ "$DEPLOY_RC" -eq 0 ]; then
-    APP_URL="http://localhost:$CI_APP_PORT" APP_CONTAINER="$CI_APP_CONTAINER" \
-    PW_CONTAINER="$CI_PW_CONTAINER" DB_PORT="$CI_DB_PORT" \
-    bash "$ROOT/playwright/run.sh" $PLAYWRIGHT_ARGS
-    RC=$?
-  else
-    echo "deploy.sh failed (exit $DEPLOY_RC) -- skipping playwright."
-    RC=$DEPLOY_RC
-  fi
+    if [ "$DEPLOY_RC" -eq 0 ]; then
+      APP_URL="http://localhost:$CI_APP_PORT" APP_CONTAINER="$CI_APP_CONTAINER" \
+      PW_CONTAINER="$CI_PW_CONTAINER" DB_PORT="$CI_DB_PORT" \
+      bash "$ROOT/playwright/run.sh" $PLAYWRIGHT_ARGS
+      RC=$?
+    else
+      echo "deploy.sh failed (exit $DEPLOY_RC) -- skipping playwright."
+      RC=$DEPLOY_RC
+    fi
+    echo "$RC" > "$REPORT_DIR/playwright/.exit_code"
+  } 2>&1 | tee "$REPORT_DIR/playwright/run.log"
+
+  RC="$(cat "$REPORT_DIR/playwright/.exit_code" 2>/dev/null || echo 1)"
+  rm -f "$REPORT_DIR/playwright/.exit_code"
   [ "$RC" -ne 0 ] && OVERALL_EXIT=1
 
-  mkdir -p "$REPORT_DIR/playwright"
   cp -r "$ROOT/playwright/pw-report/." "$REPORT_DIR/playwright/" 2>/dev/null || true
   end_stage e2e "$RC"
 
@@ -187,10 +194,17 @@ fi
 
 if [ "$STAGE_SONAR" = "1" ]; then
   start_stage sonar
-  bash "$ROOT/scripts/sonar.sh"
-  RC=$?
-  [ "$RC" -ne 0 ] && OVERALL_EXIT=1
   mkdir -p "$REPORT_DIR/sonar"
+
+  {
+    bash "$ROOT/scripts/sonar.sh"
+    echo "$?" > "$REPORT_DIR/sonar/.exit_code"
+  } 2>&1 | tee "$REPORT_DIR/sonar/run.log"
+
+  RC="$(cat "$REPORT_DIR/sonar/.exit_code" 2>/dev/null || echo 1)"
+  rm -f "$REPORT_DIR/sonar/.exit_code"
+  [ "$RC" -ne 0 ] && OVERALL_EXIT=1
+
   cp -r "$ROOT/scripts/sonar/report/." "$REPORT_DIR/sonar/" 2>/dev/null || true
   end_stage sonar "$RC"
 fi

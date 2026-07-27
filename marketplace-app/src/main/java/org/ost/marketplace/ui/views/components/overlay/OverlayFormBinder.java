@@ -43,10 +43,6 @@ public class OverlayFormBinder<T extends EditDto>
         return this;
     }
 
-    public T getDto() {
-        return params.getDto();
-    }
-
     public void readInitialValues() {
         binder.readBean(params.getDto());
     }

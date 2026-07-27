@@ -32,11 +32,6 @@ public class DefaultAttachmentPort implements AttachmentPort {
     }
 
     @Override
-    public AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityRef entity) {
-        return attachmentService.getMediaSummary(entity.entityType(), entity.entityId());
-    }
-
-    @Override
     public Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
         return attachmentService.getMediaSummaries(entityType, entityIds);
     }

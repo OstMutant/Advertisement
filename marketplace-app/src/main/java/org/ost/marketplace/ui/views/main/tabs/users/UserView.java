@@ -1,6 +1,7 @@
 package org.ost.marketplace.ui.views.main.tabs.users;
 
 import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.spring.annotation.SpringComponent;
 import com.vaadin.flow.spring.annotation.UIScope;
@@ -18,6 +19,7 @@ import org.ost.marketplace.services.security.AccessEvaluator;
 import org.ost.marketplace.services.user.UserDeleteService;
 import org.ost.marketplace.services.i18n.I18nService;
 import org.ost.marketplace.ui.views.components.PaginationBar;
+import org.ost.marketplace.ui.views.components.buttons.UiIconButton;
 import org.ost.marketplace.ui.views.components.dialogs.ConfirmActionDialog;
 import org.ost.marketplace.ui.query.QueryBlock;
 import org.ost.marketplace.ui.query.QueryStatusBar;
@@ -26,6 +28,7 @@ import org.ost.marketplace.ui.views.services.NotificationService;
 import org.ost.marketplace.ui.views.services.pagination.SettingsPaginationBinding;
 import org.ost.marketplace.ui.core.UiComponentFactory;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -49,7 +52,10 @@ public class UserView extends VerticalLayout {
     private final PaginationBar                                    paginationBar;
     private final transient SettingsPaginationBinding              settingsPaginationBinding;
 
-    private Grid<UserDto> grid;
+    private Grid<UserDto>  grid;
+    private UiIconButton   refreshButton;
+    private List<UserDto>  currentItems   = new ArrayList<>();
+    private int            lastKnownTotal = 0;
 
     @PostConstruct
     protected void init() {
@@ -62,9 +68,10 @@ public class UserView extends VerticalLayout {
         grid.setAllRowsVisible(true);
 
         paginationBar.addClassName("user-pagination");
+        refreshButton = buildRefreshButton();
 
         VerticalLayout contentWrapper = new VerticalLayout(
-                queryStatusBar, queryStatusBar.getQueryBlock(), grid, paginationBar
+                queryStatusBar, queryStatusBar.getQueryBlock(), refreshButton, grid, paginationBar
         );
         contentWrapper.setPadding(false);
         contentWrapper.setSpacing(false);
@@ -80,8 +87,8 @@ public class UserView extends VerticalLayout {
         gridConfiguratorFactory.build(
                 UserGridConfigurator.Parameters.builder()
                         .grid(grid)
-                        .onView(u -> overlay.openForView(u, this::refresh))
-                        .onEdit(u -> overlay.openForEdit(u, this::refresh))
+                        .onView(u -> overlay.openForView(u, this::updateRowInPlace, this::checkForChanges))
+                        .onEdit(u -> overlay.openForEdit(u, this::updateRowInPlace, this::checkForChanges))
                         .onDelete(this::confirmAndDelete)
                         .build()
         );
@@ -107,7 +114,10 @@ public class UserView extends VerticalLayout {
             List<UserDto> pageData   = userPort.getFiltered(currentFilter, page, size, sort);
             int           totalCount = userPort.count(currentFilter);
             paginationBar.setTotalCount(totalCount);
-            grid.setItems(pageData);
+            lastKnownTotal = totalCount;
+            refreshButton.setVisible(false);
+            currentItems = new ArrayList<>(pageData);
+            grid.setItems(currentItems);
         } catch (ConstraintViolationException ex) {
             log.warn("Validation error while fetching users: {}", ex.getMessage(), ex);
             showValidationErrors(ex);
@@ -120,6 +130,38 @@ public class UserView extends VerticalLayout {
             paginationBar.setTotalCount(0);
         } finally {
             queryStatusBar.update();
+        }
+    }
+
+    private UiIconButton buildRefreshButton() {
+        UiIconButton button = new UiIconButton(i18n.get(USER_VIEW_TOOLTIP_REFRESH_AVAILABLE), VaadinIcon.REFRESH.create());
+        button.addClassName("user-refresh-button");
+        button.setVisible(false);
+        button.addClickListener(_ -> {
+            paginationBar.resetToFirstPage();
+            refresh();
+        });
+        return button;
+    }
+
+    private void checkForChanges() {
+        UserFilterDto filter = queryStatusBar.getQueryBlock().getFilterProcessor().getOriginalFilter();
+        int currentTotal;
+        try {
+            currentTotal = userPort.count(filter);
+        } catch (Exception ex) {
+            return;
+        }
+        refreshButton.setVisible(currentTotal != lastKnownTotal);
+    }
+
+    private void updateRowInPlace(UserDto fresh) {
+        for (int i = 0; i < currentItems.size(); i++) {
+            if (currentItems.get(i).id().equals(fresh.id())) {
+                currentItems.set(i, fresh);
+                grid.setItems(currentItems);
+                return;
+            }
         }
     }
 

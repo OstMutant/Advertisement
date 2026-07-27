@@ -9,10 +9,10 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Repository
 @RequiredArgsConstructor
@@ -98,7 +98,7 @@ public class TaxonAssignmentRepository {
     }
 
     public Set<Long> findEntityIdsByTaxonIds(@NonNull String entityType, @NonNull Set<Long> taxonIds) {
-        return jdbcClient.sql("""
+        return new HashSet<>(jdbcClient.sql("""
                         SELECT DISTINCT entity_id
                         FROM taxon_assignment
                         WHERE entity_type = :entityType AND taxon_id IN (:taxonIds)
@@ -107,9 +107,7 @@ public class TaxonAssignmentRepository {
                                  .addValue("entityType", entityType)
                                  .addValue("taxonIds",   taxonIds))
                          .query(Long.class)
-                         .list()
-                         .stream()
-                         .collect(Collectors.toSet());
+                         .list());
     }
 
     public long countByTaxonId(@NonNull Long taxonId) {

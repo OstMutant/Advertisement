@@ -59,7 +59,7 @@ class AttachmentSnapshotServiceTest {
 
         service.captureAndGetId(EntityType.ADVERTISEMENT, 1L, 42L);
 
-        assertThat(capturedChanges().get(0).after()).containsExactly("sofa-front.jpg");
+        assertThat(capturedChanges().getFirst().after()).containsExactly("sofa-front.jpg");
     }
 
     @Test
@@ -72,7 +72,7 @@ class AttachmentSnapshotServiceTest {
 
         service.captureAndGetId(EntityType.ADVERTISEMENT, 1L, 42L);
 
-        assertThat(capturedChanges().get(0).after()).containsExactly("550e8400-e29b.jpg");
+        assertThat(capturedChanges().getFirst().after()).containsExactly("550e8400-e29b.jpg");
     }
 
     @Test
@@ -99,6 +99,6 @@ class AttachmentSnapshotServiceTest {
 
         service.captureAndGetId(EntityType.ADVERTISEMENT, 1L, 42L);
 
-        assertThat(capturedChanges().get(0).after()).containsExactly("photo.jpg", "photo.jpg");
+        assertThat(capturedChanges().getFirst().after()).containsExactly("photo.jpg", "photo.jpg");
     }
 }

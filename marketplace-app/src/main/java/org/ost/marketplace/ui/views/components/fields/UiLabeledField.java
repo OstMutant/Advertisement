@@ -19,8 +19,4 @@ public class UiLabeledField extends HorizontalLayout {
 
         add(labelSpan, valueSpan);
     }
-
-    public void update(String value) {
-        valueSpan.setText(value != null ? value : "");
-    }
 }

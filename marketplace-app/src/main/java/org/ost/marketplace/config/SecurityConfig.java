@@ -26,6 +26,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(vaadinInternalRequestMatcher).permitAll()
                         .requestMatchers("/health").permitAll()
+                        .requestMatchers("/sitemap.xml").permitAll()
                         .anyRequest().permitAll()
                 )
                 .securityContext(ctx -> ctx.securityContextRepository(securityContextRepository))

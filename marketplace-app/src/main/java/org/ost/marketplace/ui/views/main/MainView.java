@@ -99,6 +99,8 @@ public class MainView extends VerticalLayout {
 
         headerBar.addClassName("main-header");
         add(headerBar, tabs, pages);
+
+        advertisementsView.openPendingDeepLinkIfAny();
     }
 
     private Tabs buildTabs(Tab initialTab) {

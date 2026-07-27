@@ -4,7 +4,7 @@ import lombok.NonNull;
 import org.ost.platform.core.ComponentFactory;
 import org.springframework.beans.factory.ObjectProvider;
 
-public class UiComponentFactory<T> extends ComponentFactory<T> {
+public class UiComponentFactory<T extends Configurable<T, ?>> extends ComponentFactory<T> {
 
     public UiComponentFactory(@NonNull ObjectProvider<T> provider) {
         super(provider);

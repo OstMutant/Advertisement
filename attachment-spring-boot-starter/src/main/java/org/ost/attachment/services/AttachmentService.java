@@ -42,14 +42,6 @@ public class AttachmentService {
         return attachmentRepository.getByEntityId(entityType, entityId).stream().map(AttachmentService::toDto).toList();
     }
 
-    public AttachmentMediaSummaryDto getMediaSummary(@NonNull EntityType entityType, @NonNull Long entityId) {
-        AttachmentRepository.MediaStats stats = attachmentRepository.loadMediaStats(entityType, entityId);
-        return new AttachmentMediaSummaryDto(
-                resolveDisplayUrl(stats.mainUrl(), stats.mainContentType()),
-                stats.mainContentType(),
-                stats.count());
-    }
-
     public Map<Long, AttachmentMediaSummaryDto> getMediaSummaries(@NonNull EntityType entityType, @NonNull Set<Long> entityIds) {
         return attachmentRepository.loadMediaStats(entityType, entityIds).entrySet().stream()
                 .collect(Collectors.toMap(Map.Entry::getKey, e -> {

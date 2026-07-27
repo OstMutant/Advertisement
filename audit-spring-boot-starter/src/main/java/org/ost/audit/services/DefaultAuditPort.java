@@ -48,7 +48,7 @@ public class DefaultAuditPort implements AuditPort {
 
     @Override
     @Transactional
-    public void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot before, @NonNull AuditableSnapshot after, @NonNull Long actorId) {
+    public void captureUpdate(@NonNull Long entityId, @NonNull AuditableSnapshot after, @NonNull Long actorId) {
         log.info("Audit capture: UPDATED {} id={}", after.entityType(), entityId);
         auditLogRepository.save(after.entityType(), entityId, ActionType.UPDATED,
                 after, resolveActor(actorId));
@@ -71,9 +71,10 @@ public class DefaultAuditPort implements AuditPort {
     }
 
     @Override
-    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(@NonNull Long snapshotId, @NonNull EntityType entityType) {
+    public <T extends AuditableSnapshot> Optional<AuditSnapshotContentDto<T>> getSnapshotContent(
+            @NonNull Long snapshotId, @NonNull EntityType entityType, @NonNull Class<T> targetClass) {
         return auditLogRepository.getSnapshotContent(snapshotId, entityType)
-                .flatMap(auditDomainHook::castIfKnown);
+                .flatMap(content -> auditDomainHook.castIfKnown(content, targetClass));
     }
 
     // ── read side (UI) ────────────────────────────────────────────────────────

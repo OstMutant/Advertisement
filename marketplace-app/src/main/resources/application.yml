@@ -38,6 +38,7 @@ vaadin:
 app:
   cleanup:
     retention-days: 90
+  public-base-url: ${APP_PUBLIC_URL:http://localhost:8080}
 
 # Logging configuration
 logging:
