@@ -1,20 +1,58 @@
 # Advertisement Platform
 
-A personal backend project used as an architectural playground — for exploring trade-offs,
-experimenting with patterns, and developing engineering intuition.
+A production-oriented service marketplace, built as a hands-on playground for exploring backend
+and architectural trade-offs in a real, working system rather than a toy example.
+
+[Engineering Highlights](#engineering-highlights) · [Architecture](#architectural-principles) · [Module Docs](#module-layout) · [Testing Strategy](#testing-strategy)
+
+---
+
+## What is it?
+
+A marketplace where users publish service/product listings, browse and filter a shared catalog,
+and administrators moderate everything through a full audit trail. Every module doubles as a
+demonstration of one specific engineering pattern — SPI-based module decoupling, immutable audit
+snapshots, optimistic concurrency, SQL without an ORM — applied to a real feature, not an isolated
+sample.
+
+## What can users do?
+
+- Create and manage listings — rich HTML descriptions (sanitized server-side), photos, video
+- Browse the catalog with dynamic filter/sort/pagination by category, city, and listing type
+- Sign up, manage account settings (locale, page sizes), edit or restore a profile
+- Share a listing link with a rich social-media preview (Open Graph, JSON-LD)
+- As an admin/moderator: review every change through a per-entity activity timeline with
+  field-level diffs, restore prior versions, manage categories and taxonomy
+
+---
+
+## Engineering Highlights
+
+**Optimistic concurrency** — `Advertisement`, `Taxon`, and `User` updates carry a `version` column;
+a stale write is rejected with `OptimisticLockingFailureException` instead of silently overwriting
+a concurrent change.
+
+**Auditing** — every domain write is captured as an immutable, versioned snapshot, not a mutable
+log line. Snapshots are diffed at read time into a field-level activity timeline, so "what
+changed" is always derived from real before/after state, never hand-maintained.
+
+**Attachment lifecycle** — uploads go to S3-compatible storage with transactional metadata (a
+failed post-save step rolls back the DB row, verified by a real-transaction Testcontainers test),
+scheduled cleanup of orphaned objects, snapshot-based restore, and audit integration.
+
+**Testing** — three layers, each catching a different class of regression: plain JUnit for pure
+logic, Testcontainers-backed repository tests against a real Postgres for SQL correctness, and
+Playwright for full browser-driven end-to-end flows.
 
 ---
 
 ## About
 
-This is not a finished product. There is no fixed feature roadmap.
-
-The focus is on **how** things are built rather than **what** is built:
+This is not a finished product — there is no fixed public feature roadmap, and the product side
+keeps evolving. The engineering foundation underneath it is the actual point of the project:
 - explicit control over data flow and SQL
 - composable abstractions without framework magic
 - clear responsibility boundaries between layers
-
-The project evolves as ideas and architectural directions change.
 
 ---
 
@@ -93,6 +131,22 @@ Per-module documentation:
 - **Audit trail** — every domain write captured as a versioned snapshot; per-entity timeline and diff view, per-actor activity feed.
 - **i18n** — English/Ukrainian, enum-based translation keys (missing keys fail fast, never a silent fallback).
 - **Deep links & rich previews** — shareable advertisement links with Open Graph meta tags and JSON-LD for social/search previews.
+
+---
+
+## Testing Strategy
+
+Three independent layers, each targeting a different failure mode:
+
+| Layer | Tool | What it catches |
+|---|---|---|
+| Unit | Plain JUnit 5 (+ Mockito) | Pure logic regressions — no Docker, no database |
+| Integration | JUnit 5 + Testcontainers (real Postgres) | SQL correctness — filters, sorts, pagination, optimistic locking, real Liquibase schema |
+| End-to-end | Playwright | Full browser-driven flows across the actual Vaadin UI, including auth, CRUD, media, and the audit timeline |
+
+See [Module Layout](#module-layout) above for each layer's own README/DECISIONS, and
+`scripts/README.md` for how to run each one (or all three orchestrated together via
+`scripts/run-all-tests.sh` / `scripts/ci.sh`).
 
 ---
 
@@ -233,11 +287,11 @@ All database scripts live in `scripts/database/`:
 
 Key variables used by the application.
 * For **local Docker testing**, configure them in `scripts/infra/docker-compose.app.yml`.
-* For **Production (Render)**, set them directly in the cloud provider's dashboard.
+* For **production**, set them directly in the hosting provider's dashboard/secrets manager.
 
 | Variable | Description | Example |
 |---|---|---|
-| `DB_HOST` | PostgreSQL host | `db` / `ep-xxx.neon.tech` |
+| `DB_HOST` | PostgreSQL host | `db` / a managed Postgres hostname |
 | `DB_PORT` | PostgreSQL port | `5432` |
 | `DB_NAME` | Database name | `experiments` |
 | `DB_USER` | Database user | `experiments_user` |
@@ -265,15 +319,19 @@ cd Advertisement
 
 ---
 
-## Status & Roadmap
+## Roadmap
 
-Actively evolving. Architectural decisions may be revisited, implementations replaced.
+Actively evolving on both sides: the engineering foundation keeps absorbing new patterns
+(the audit/attachment/taxon starters, Testcontainers-based integration tests, and the isolated
+local CI runner are all recent additions), and the product surface keeps growing on top of it.
+Architectural decisions may be revisited and implementations replaced — that's the point of
+treating this as a playground, not a frozen codebase.
 
 Planned directions:
 - Extend rule-based validation capabilities
 - Improve composability of the generic filtering layer
-- Introduce integration and contract tests
 - Explore alternative API adapters (REST)
+- Broaden the marketplace's public-facing feature set (provider profiles, richer discovery)
 
 ---
 
