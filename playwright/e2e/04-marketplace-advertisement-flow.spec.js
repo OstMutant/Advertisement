@@ -105,15 +105,15 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, titleText: UPDATE.enAd.title, screenshotName: 'adv-useren-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 2, allFieldsText: [UPDATE.enAd.title], screenshotName: 'adv-useren-edit-timeline-admin' });
 
       // Collect all change-item HTML across all rows for this ad to verify every rich format tag
       const tlRows = page.locator('.activity-feed .activity-feed-row');
       const tlRowCount = await tlRows.count();
       let tlAllHtml = '';
       for (let i = 0; i < tlRowCount; i++) {
-        const rowTitle = await tlRows.nth(i).locator('.activity-feed-name').textContent().catch(() => '');
-        if (!rowTitle.includes(UPDATE.enAd.title)) continue;
+        const rowChangesText = await tlRows.nth(i).locator('.activity-feed-changes').textContent().catch(() => '');
+        if (!rowChangesText.includes(UPDATE.enAd.title)) continue;
         const items = tlRows.nth(i).locator('.activity-feed-changes-item');
         const n = await items.count();
         for (let j = 0; j < n; j++) tlAllHtml += await items.nth(j).innerHTML();
@@ -142,7 +142,7 @@ test.describe('Advertisement flow', () => {
       await openTimelineFilter(page);
       await fillEntityType(page, 'ADVERTISEMENT');
       await closeTimelineFilter(page);
-      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: UPDATE.ukAd.title, screenshotName: 'adv-useruk-edit-timeline-admin' });
+      await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [UPDATE.ukAd.title, UPDATE.ukAd.description], screenshotName: 'adv-useruk-edit-timeline-admin' });
       await runLogoutFlow(page, expect);
     });
   });
@@ -196,7 +196,7 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.enAd.title, actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.enAd.title], actorText: TEST_USERS.moderatorEn.name, screenshotName: 'timeline-moderatoren-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 
@@ -265,9 +265,8 @@ test.describe('Advertisement flow', () => {
     await openTimelineFilter(page);
     await fillEntityType(page, 'ADVERTISEMENT');
     await closeTimelineFilter(page);
-    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name
-    // (improvement-058) instead of showing the raw taxon id.
-    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, titleText: CROSS_UPDATE.ukAd.title, actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
+    // changesText: 'Vehicles' confirms the Timeline tab resolves the category id to its name, not the raw taxon id.
+    await assertTimelineHasRows(page, expect, { action: 'updated', entityType: 'advertisement', minCount: 4, allFieldsText: [CROSS_UPDATE.ukAd.title], actorText: TEST_USERS.adminEn.name, changesText: 'Vehicles', screenshotName: 'timeline-adminen-edit-ad' });
     await runLogoutFlow(page, expect);
   });
 

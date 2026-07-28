@@ -32,6 +32,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    width: 100%;
 }
 
 .entity-activity-version {
@@ -63,8 +64,8 @@
     font-size: var(--lumo-font-size-s);
     font-weight: 600;
     color: var(--app-text-secondary);
-    flex: 1;
-    min-width: 0;
+    margin-left: auto;
+    max-width: 240px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -83,6 +83,7 @@ Details, links, and per-batch rationale below.
 | [improvement-063](issues/improvement-063-playwright-stability-guard-async-init-components.md) | Still open | "Ready" signal for async-initialized custom components (`QuillEditor`, `AttachmentGallery`) |
 | [improvement-028](issues/improvement-028-minimal-ci-pipeline.md) | Migrated | Minimal CI pipeline (GitHub Actions) — own open questions (push auth, `gh` CLI, clean runner) still unresolved |
 | [improvement-116](issues/improvement-116-vaadin-theme-annotation-migration.md) | New (carved out of improvement-115) | Migrate off deprecated `@Theme` annotation to Vaadin 25's automatic theme discovery — needs full Playwright `--ux` visual pass, deferred out of the mechanical cleanup batch |
+| [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md) | New (carved out of improvement-126) | `EntityType` shown as raw unlocalized enum name in the Timeline badge (`ADVERTISEMENT`/`USER`/`USER_SETTINGS`/`TAXON`); `TAXON` also has no badge color at all — both need exact wording/color confirmed by the user before implementing |
 
 ### Blocked — improvement-118
 

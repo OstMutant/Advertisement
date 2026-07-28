@@ -81,6 +81,17 @@ async function assertComputedColor(expect, locator, cssProperty, expectedRgb) {
   expect(actual, `expected ${cssProperty} to be ${expectedRgb}, got ${actual}`).toBe(expectedRgb);
 }
 
+// ── Geometry assertion (proves an element is actually flush against its container's right edge) ──
+
+async function assertRightAligned(expect, elementLocator, containerLocator, toleranceInPx = 3) {
+  const elBox = await elementLocator.boundingBox();
+  const containerBox = await containerLocator.boundingBox();
+  expect(elBox, 'element must have a bounding box').not.toBeNull();
+  expect(containerBox, 'container must have a bounding box').not.toBeNull();
+  const gap = containerBox.x + containerBox.width - (elBox.x + elBox.width);
+  expect(gap, `expected element's right edge within ${toleranceInPx}px of container's right edge, gap was ${gap}px`).toBeLessThanOrEqual(toleranceInPx);
+}
+
 // ── Download helper ───────────────────────────────────────────────────────────
 
 function downloadPng(url, dest) {
@@ -100,5 +111,5 @@ module.exports = {
   waitForOverlayClosed, closeOverlay,
   closeNotification,
   screenshot, downloadPng,
-  assertCardHasText, assertOverlayHasText, assertComputedColor,
+  assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned,
 };

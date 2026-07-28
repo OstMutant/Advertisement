@@ -1,4 +1,4 @@
-const { screenshot } = require('../_helpers');
+const { screenshot, assertRightAligned } = require('../_helpers');
 const { openQueryPanel, applyFilter, clearFilter, waitForVaadin } = require('./filter.flow');
 
 const TIMELINE_BLOCK = '.timeline-query-block';
@@ -30,12 +30,8 @@ async function assertFeedHasRow(page, expect, { action, entityType, editor, scre
   if (screenshotName) await screenshot(page, screenshotName);
 }
 
-// Asserts at least minCount feed rows match the given criteria.
-// Optional: titleText checks that at least one row's .activity-feed-name contains the text.
-//           actorText checks that at least one row's .activity-feed-editor contains the text.
-//           changesText checks that at least one row's .activity-feed-changes contains the text
-//           (e.g. a resolved category name, not a raw taxon id).
-async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, actorText, changesText, screenshotName } = {}) {
+// Asserts at least minCount feed rows match the given criteria (titleText/allFieldsText check the row body).
+async function assertTimelineHasRows(page, expect, { action, entityType, minCount = 1, titleText, allFieldsText, actorText, changesText, screenshotName } = {}) {
   const feed = page.locator('.activity-feed');
   await feed.waitFor({ timeout: 8000 });
   let rows = feed.locator('.activity-feed-row');
@@ -46,13 +42,27 @@ async function assertTimelineHasRows(page, expect, { action, entityType, minCoun
   expect(count).toBeGreaterThanOrEqual(minCount);
   if (titleText) {
     await expect(
-      rows.filter({ has: page.locator('.activity-feed-name', { hasText: titleText }) }).first()
+      rows.filter({ has: page.locator('.activity-feed-changes', { hasText: titleText }) }).first()
     ).toBeVisible({ timeout: 5000 });
   }
+  if (allFieldsText) {
+    const row = rows.filter({ has: page.locator('.activity-feed-changes', { hasText: allFieldsText[0] }) }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    const changes = row.locator('.activity-feed-changes');
+    for (const text of allFieldsText) {
+      await expect(changes, `expected the full field dump to contain "${text}"`).toContainText(text);
+    }
+  }
   if (actorText) {
-    await expect(
-      rows.filter({ has: page.locator('.activity-feed-editor', { hasText: actorText }) }).first()
-    ).toBeVisible({ timeout: 5000 });
+    const row = rows.filter({ has: page.locator('.activity-feed-editor', { hasText: actorText }) }).first();
+    await expect(row).toBeVisible({ timeout: 5000 });
+    // Editor badge + timestamp are wrapped together and pushed flush right as one group.
+    // 12px tolerance covers .activity-feed-row's own 10px right padding.
+    await assertRightAligned(expect, row.locator('.activity-feed-right-group'), row, 12);
+    const editorBox = await row.locator('.activity-feed-editor').boundingBox();
+    const timeBox = await row.locator('.activity-feed-time').boundingBox();
+    expect(editorBox.x, 'editor badge must sit to the left of the timestamp').toBeLessThan(timeBox.x);
+    expect(timeBox.x - (editorBox.x + editorBox.width), 'editor and timestamp must be adjacent, not far apart').toBeLessThan(20);
   }
   if (changesText) {
     await expect(

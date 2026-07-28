@@ -43,43 +43,6 @@
     letter-spacing: 0.08em;
 }
 
-/* Accent color matching the AdKind badge / role badge -- view mode only, edit mode stays universal blue */
-.overlay__view-card-header--offer {
-    background: var(--app-status-success-badge-bg);
-    color: var(--app-status-success-badge-text);
-    border-bottom-color: var(--app-status-success-badge-text);
-}
-
-.overlay__view-card-header--request {
-    background: var(--app-accent-primary-bg);
-    color: var(--app-status-info-text);
-    border-bottom-color: var(--app-status-info-text);
-}
-
-.overlay__view-card-header--product {
-    background: var(--app-status-entity-advertisement-bg);
-    color: var(--app-status-entity-advertisement-text);
-    border-bottom-color: var(--app-status-entity-advertisement-text);
-}
-
-.overlay__view-card-header--admin {
-    background: var(--app-accent-primary-bg);
-    color: var(--app-accent-primary-strong);
-    border-bottom-color: var(--app-accent-primary-strong);
-}
-
-.overlay__view-card-header--user {
-    background: var(--app-status-success-badge-bg);
-    color: var(--app-status-success-role-text);
-    border-bottom-color: var(--app-status-success-role-text);
-}
-
-.overlay__view-card-header--moderator {
-    background: var(--app-status-moderator-bg);
-    color: var(--app-status-moderator-text);
-    border-bottom-color: var(--app-status-moderator-text);
-}
-
 .overlay__view-card-header vaadin-icon {
     width: 15px;
     height: 15px;

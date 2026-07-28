@@ -1,4 +1,4 @@
-const { screenshot, assertComputedColor } = require('../_helpers');
+const { screenshot, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { closeNotification } = require('../_helpers');
 
 // Expected computed colors per role -- must match user-grid.css's role badge colors exactly.
@@ -109,6 +109,13 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
   const row0 = activityList.locator('.entity-activity-row').nth(0);
   await expect(row0.locator('.entity-activity-action')).toContainText(/updated/i);
   await expect(row0.locator('.entity-activity-version')).toContainText('v2');
+  // The actor name and the timestamp must both sit flush against the row's right edge (improvement-126).
+  const meta0 = row0.locator('.entity-activity-meta');
+  await assertRightAligned(expect, meta0.locator('.entity-activity-time'), meta0);
+  const userBox = await meta0.locator('.entity-activity-user').boundingBox();
+  const timeBox = await meta0.locator('.entity-activity-time').boundingBox();
+  expect(userBox.x, 'actor name must sit to the left of the timestamp, both on the right side of the row').toBeLessThan(timeBox.x);
+  expect(timeBox.x - (userBox.x + userBox.width), 'actor name and timestamp must be adjacent, not far apart').toBeLessThan(20);
   const changes0 = row0.locator('.entity-activity-changes');
   await expect(changes0).toContainText(/Role/i);
   await expect(changes0).toContainText('USER');
@@ -135,15 +142,13 @@ async function runPromoteUserFlow(page, expect, user, { role = null, name = null
 
   // Check role in VIEW mode
   await expect(page.locator('.user-overlay .user-role-badge')).toContainText(role);
-  // The view-card's accent border and header strip must match the role badge color (improvement-125).
+  // The view-card's accent border must match the role badge color -- header text stays static.
   const roleClass = role.toLowerCase();
   const expectedColor = ROLE_COLOR[roleClass];
   const viewCard = page.locator(`.user-overlay .user-view-card.user-view-card--${roleClass}`);
   await expect(viewCard).toHaveCount(1);
   await assertComputedColor(expect, viewCard, 'borderTopColor', expectedColor);
-  const viewCardHeader = page.locator(`.user-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`);
-  await expect(viewCardHeader).toHaveCount(1);
-  await assertComputedColor(expect, viewCardHeader, 'color', expectedColor);
+  await expect(page.locator(`.user-overlay .overlay__view-card-header.overlay__view-card-header--${roleClass}`)).toHaveCount(1);
   await screenshot(page, `user-management-promoted-${roleClass}-view`);
 
   // VIEW → close

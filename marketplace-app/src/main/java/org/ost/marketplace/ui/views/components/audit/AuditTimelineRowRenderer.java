@@ -58,7 +58,6 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
 
     record RowContext(
             Map<Long, String> actorNames,
-            Map<Long, String> displayNames,
             Set<EntityRef>    existingRefs) {}
 
     Div buildRow(@NonNull AuditTimelineItemDto<AuditableSnapshot> item, @NonNull RowContext ctx) {
@@ -67,13 +66,14 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         if (!ctx.existingRefs().contains(item.entityRef()))
             row.addClassName("activity-feed-row--deleted");
 
-        row.add(actionSpan(item.actionType()), typeSpan(item.entityRef().entityType().name()),
-                nameSpan(ctx.displayNames().getOrDefault(item.entityRef().entityId(), "")), timeSpan(item.createdAt()));
+        row.add(actionSpan(item.actionType()), typeSpan(item.entityRef().entityType().name()));
 
         String changedByName = item.changedByActorId() != null
                 ? ctx.actorNames().getOrDefault(item.changedByActorId(), "") : null;
         Span editor = changeFormatter.buildEditorBadge(item.changedByActorId(), changedByName);
-        if (editor != null) row.add(editor);
+        Div rightGroup = editor != null ? new Div(editor, timeSpan(item.createdAt())) : new Div(timeSpan(item.createdAt()));
+        rightGroup.addClassName("activity-feed-right-group");
+        row.add(rightGroup);
 
         row.add(buildActivityFieldsList(item));
         return row;
@@ -90,12 +90,6 @@ public class AuditTimelineRowRenderer implements Initialization<AuditTimelineRow
         Span span = new Span(typeName);
         span.addClassName("activity-feed-type");
         span.addClassName("activity-feed-type--" + typeName.toLowerCase());
-        return span;
-    }
-
-    private static Span nameSpan(String displayName) {
-        Span span = new Span(displayName);
-        span.addClassName("activity-feed-name");
         return span;
     }
 

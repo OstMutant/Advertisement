@@ -1,5 +1,5 @@
 const fs = require('fs');
-const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor } = require('../_helpers');
+const { test, screenshot, downloadPng, closeNotification, assertCardHasText, assertOverlayHasText, assertComputedColor, assertRightAligned } = require('../_helpers');
 const { clickLightboxThumb, getVideoSrc, waitForVideoWrapperVisible } = require('./attachment.flow');
 const { selectCategoryInAdForm, assertCardHasCategories, assertViewOverlayHasCategories } = require('./category.flow');
 const { selectCityInAdForm, assertCardHasCity, assertViewOverlayHasCity } = require('./city.flow');
@@ -32,20 +32,17 @@ async function assertCardHasAdKind(page, expect, card, labelText, screenshotName
 
 async function assertViewOverlayHasAdKind(page, expect, overlay, labelText, screenshotName) {
   await assertOverlayHasText(page, expect, overlay, '.advertisement-ad-kind-badge', labelText, screenshotName, true);
-  // The view-card's accent border and header strip must match the AdKind badge color (improvement-125).
+  // The view-card's accent border must match the AdKind badge color -- header text stays static.
   const kindClass = AD_KIND_LABEL_TO_CLASS[labelText];
   const expectedTextColor = AD_KIND_COLOR[kindClass].text;
   const viewCard = overlay.locator(`.overlay__view-card.overlay__view-card--${kindClass}`);
   await expect(viewCard).toHaveCount(1);
   await assertComputedColor(expect, viewCard, 'borderTopColor', expectedTextColor);
-  const viewCardHeader = overlay.locator(`.overlay__view-card-header.overlay__view-card-header--${kindClass}`);
-  await expect(viewCardHeader).toHaveCount(1);
-  await assertComputedColor(expect, viewCardHeader, 'color', expectedTextColor);
+  await expect(overlay.locator(`.overlay__view-card-header.overlay__view-card-header--${kindClass}`)).toHaveCount(1);
   // Gallery only renders when the ad has media -- skip the check when it's absent.
   const gallery = overlay.locator(`.attachment-gallery--${kindClass}`);
   if (await gallery.count() > 0) {
     await assertComputedColor(expect, gallery, 'borderTopColor', expectedTextColor);
-    await assertComputedColor(expect, gallery.locator('.attachment-gallery__title'), 'color', expectedTextColor);
   }
 }
 
@@ -149,8 +146,15 @@ async function assertSingleCurrentBadge(page, expect, overlay) {
 
 async function assertLatestActivityVersion(page, overlay, expect, version, screenshotName) {
   const activityList = await openActivityTab(overlay);
-  await expect(activityList.locator('.entity-activity-row').nth(0).locator('.entity-activity-version'))
-    .toContainText(`v${version}`);
+  const row0 = activityList.locator('.entity-activity-row').nth(0);
+  await expect(row0.locator('.entity-activity-version')).toContainText(`v${version}`);
+  // Actor name and timestamp must both sit flush against the row's right edge, adjacent to each other.
+  const meta0 = row0.locator('.entity-activity-meta');
+  await assertRightAligned(expect, meta0.locator('.entity-activity-time'), meta0);
+  const userBox0 = await meta0.locator('.entity-activity-user').boundingBox();
+  const timeBox0 = await meta0.locator('.entity-activity-time').boundingBox();
+  expect(userBox0.x, 'actor name must sit to the left of the timestamp').toBeLessThan(timeBox0.x);
+  expect(timeBox0.x - (userBox0.x + userBox0.width), 'actor name and timestamp must be adjacent, not far apart').toBeLessThan(20);
   await screenshot(page, screenshotName);
 }
 

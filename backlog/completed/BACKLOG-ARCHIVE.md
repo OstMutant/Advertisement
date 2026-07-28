@@ -1382,3 +1382,25 @@ here. Playwright coverage extended further: `assertViewOverlayHasAdKind`/`runPro
 assert actual computed `getComputedStyle` colors (not just class-name presence) via a new shared
 `assertComputedColor` helper in `_helpers.js`, since a class being present doesn't by itself prove
 the CSS rule actually won. Verified: full Playwright `e2e --full --ux`, 50/50 passed.
+**Phase 4 (2026-07-28, closes this issue):** dialed the whole thing back further per direct UX
+feedback — removed the header/gallery background fill (Phase 3's tinted band), then removed the
+header/gallery *text* color too — the accent now lives only in the border, the calm signal the
+user settled on after seeing the fuller-color version and finding it too busy. Verified: full
+Playwright `e2e --full --ux`, 50/50 passed, plus direct visual confirmation via screenshot.
+
+✅ Done (2026-07-28): [improvement-126](issues/improvement-126-timeline-activity-diff-findings.md) —
+Timeline row header no longer repeats the entity's display name (already shown in full in the
+always-visible field-dump body) — `AuditTimelineRowRenderer`/`AuditTimelineListRenderer` dropped
+`nameSpan()`/`displayNames` entirely, body untouched by design. Phase 2 (found the same day):
+actor + timestamp right-aligned as one adjacent group in both Timeline (`.activity-feed-row`, wrapped
+in a new `.activity-feed-right-group` div since the editor badge is conditionally present) and the
+per-entity Activity tab (`.entity-activity-meta`, fixed a real `width: 100%` bug — the meta div was
+shrink-to-fit, so `margin-left: auto` on the actor span was only reaching the edge of that narrow
+box, not the actual card edge). A first-pass geometry-only Playwright assertion had gone green while
+the Activity tab was still visually broken (it measured against the same too-narrow container that
+was the bug), caught only by looking at an actual rendered screenshot directly — added adjacency
+checks (`timeBox.x - (actorBox.x + actorBox.width) < 20px`) to the tests afterward so a regression
+back to "technically right-aligned but visually far apart" would actually fail. Verified: full
+Playwright `e2e --full --ux`, 50/50 passed, confirmed visually via screenshot both before and after
+the wrapper-group fix. [improvement-127](issues/improvement-127-entitytype-localization-taxon-color.md)
+(EntityType i18n + TAXON badge color) carved out, still open, not part of this fix.

@@ -13,7 +13,6 @@ import org.springframework.context.annotation.Scope;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -40,17 +39,10 @@ public class AuditTimelineListRenderer {
 
     private AuditTimelineRowRenderer.RowContext buildRowContext(List<AuditTimelineItemDto<AuditableSnapshot>> items) {
         Set<Long> actorIds = new HashSet<>();
-        Map<Long, String> displayNames = new HashMap<>();
         Map<EntityType, Set<Long>> byType = new EnumMap<>(EntityType.class);
 
         for (AuditTimelineItemDto<AuditableSnapshot> item : items) {
             if (item.changedByActorId() != null) actorIds.add(item.changedByActorId());
-            displayNames.computeIfAbsent(item.entityRef().entityId(), _ -> {
-                    AuditableSnapshot snapshot = item.snapshotData();
-                    return snapshot != null
-                            ? auditDomainHook.resolveDisplayName(snapshot)
-                            : "";
-                });
             byType.computeIfAbsent(item.entityRef().entityType(), _ -> new HashSet<>()).add(item.entityRef().entityId());
         }
 
@@ -60,6 +52,6 @@ public class AuditTimelineListRenderer {
         byType.forEach((type, ids) ->
                 auditDomainHook.findExisting(type, ids).forEach(id -> existingRefs.add(new EntityRef(type, id))));
 
-        return new AuditTimelineRowRenderer.RowContext(actorNames, displayNames, existingRefs);
+        return new AuditTimelineRowRenderer.RowContext(actorNames, existingRefs);
     }
 }

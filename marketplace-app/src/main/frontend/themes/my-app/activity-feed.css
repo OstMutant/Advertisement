@@ -81,6 +81,13 @@
     flex-shrink: 0;
 }
 
+.activity-feed-right-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
 .activity-feed-empty {
     font-size:  0.9rem;
     color:      var(--app-text-muted);

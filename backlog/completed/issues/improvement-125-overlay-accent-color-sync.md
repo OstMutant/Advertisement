@@ -4,7 +4,36 @@
 **Module:** marketplace-app
 **Priority:** highest — user-requested top priority (2026-07-27)
 **When:** independent, no blockers
-**Status:** Done 2026-07-27 — Phase 1 (view-card border), Phase 2 (gallery card color + "Listing type" → "Advertisement kind" rename, EN and UK), and Phase 3 (view-mode header strip color, edit mode deliberately left untouched) all shipped. Verified with full Playwright `e2e --full --ux` — 50/50 passed, including the new computed-color assertions (not just class-name presence) for both AdKind and Role.
+**Status:** Done 2026-07-28 — Phases 1-4 all shipped and verified. Phase 4 (this entry) removed the
+header/gallery background fill entirely, then removed the header/gallery *text* color too per
+further user feedback — the accent color now lives only in the border (view-card, gallery,
+already-existing list-card), matching the calm signal the user settled on. Verified with full
+Playwright `e2e --full --ux`, 50/50 passed, confirmed visually via direct screenshot inspection
+(not just trusting the geometry assertions).
+
+## Phase 4 (found 2026-07-27) — dial back the header/gallery background fill, keep only border+badge
+
+**Problem:** user feedback after seeing the shipped result: filling the header-strip and Gallery
+title-band with a solid tinted background (Phase 3) makes the UI feel busy/dashboard-heavy —
+spreading saturated color across a background area draws more attention than a thin border/badge
+accent should. The originally-approved, calmer signal (thin colored border + small badge, already
+proven acceptable in Phase 1 and in the existing list-card design) should be the whole treatment —
+no colored background fills.
+
+**Fix:**
+1. `forms.css` — remove the `background`/`border-bottom-color` declarations from every
+   `.overlay__view-card-header--{offer,request,product,admin,user,moderator}` modifier added in
+   Phase 3; keep only a `color` change (text color) so the label text itself still hints at the
+   kind/role, without a filled background band. Base `.overlay__view-card-header` rule (icon/text
+   layout, green gradient bg) stays as-is for the *default* (no-modifier) case — only the modifier
+   rules lose their `background`/`border-bottom-color` overrides.
+2. `attachment-gallery.css` — same trim for `.attachment-gallery--{offer,request,product}
+   .attachment-gallery__title`: drop `background`, keep only `color`.
+3. `.overlay__view-card`/`.user-view-card`/`.attachment-gallery` border-top-color (Phase 1/2) is
+   NOT touched — the border accent is exactly the calmer signal being kept.
+4. Playwright: the existing computed-color assertions on `.overlay__view-card-header`'s `color`
+   property still pass unchanged (only the `background`/`border-bottom-color` assertions, if any
+   were added beyond `color`, would need removing — confirm none were).
 
 ## Problem
 
